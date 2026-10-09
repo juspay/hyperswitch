@@ -20,6 +20,8 @@ use common_utils::{
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::payouts::proxy;
 use hyperswitch_domain_models::{
     mandates,
     mandates::{MandateData, MandateDataType},
@@ -9037,9 +9039,8 @@ fn payout_method_for_ucs<F>(
             .attach_printable(
                 "Normal payout method data and external vault tokens are mutually exclusive",
             )),
-        // CardProxyPayout support must be pinned before encoding opaque vault tokens.
-        (Some(_), None) => Err(report!(UnifiedConnectorServiceError::NotImplemented(
-            "External vault proxy payouts require the UCS CardProxyPayout contract".to_owned(),
+        (Some(external_vault_pmd), None) => Ok(Some(payments_grpc::PayoutMethod::foreign_from(
+            external_vault_pmd,
         ))),
         (None, Some(payout_method_data)) => {
             transformers::ForeignTryFrom::foreign_try_from(payout_method_data).map(Some)
@@ -9715,6 +9716,33 @@ impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceEnrollDisburseAccountResponse,
     merchant_payout_id
 );
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<&proxy::ExternalVaultPayoutMethodData> for payments_grpc::PayoutMethod {
+    fn foreign_from(item: &proxy::ExternalVaultPayoutMethodData) -> Self {
+        let payout_method_data = match item {
+            proxy::ExternalVaultPayoutMethodData::Card(card) => {
+                payments_grpc::payout_method::PayoutMethodData::CardProxy(
+                    payments_grpc::CardProxyPayout {
+                        card_number: Some(card.card_number.clone()),
+                        card_exp_month: Some(card.expiry_month.clone()),
+                        card_exp_year: Some(card.expiry_year.clone()),
+                        card_holder_name: card.card_holder_name.clone(),
+                        card_network: card
+                            .card_network
+                            .clone()
+                            .map(payments_grpc::CardNetwork::foreign_from)
+                            .map(i32::from),
+                    },
+                )
+            }
+        };
+
+        Self {
+            payout_method_data: Some(payout_method_data),
+        }
+    }
+}
 
 #[cfg(feature = "payouts")]
 impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
