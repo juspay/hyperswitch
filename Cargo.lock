@@ -2121,7 +2121,11 @@ name = "cloud_services"
 version = "0.1.0"
 dependencies = [
  "aws-config",
+ "aws-sdk-kms",
  "aws-sdk-s3",
+ "base64 0.22.1",
+ "google-cloud-gax",
+ "google-cloud-kms",
  "oci_kms",
  "serde",
  "serde_json",
@@ -3576,7 +3580,6 @@ dependencies = [
  "api_models",
  "async-trait",
  "aws-config",
- "aws-sdk-kms",
  "aws-sdk-sesv2",
  "aws-sdk-sts",
  "aws-smithy-runtime",
@@ -3590,7 +3593,6 @@ dependencies = [
  "deja",
  "dyn-clone",
  "error-stack 0.4.1",
- "google-cloud-kms",
  "hex",
  "http 0.2.12",
  "http-body 1.0.1",

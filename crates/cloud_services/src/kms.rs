@@ -1,5 +1,10 @@
 //! Key management service clients.
 
+#[cfg(feature = "aws_kms")]
+pub mod aws;
+#[cfg(feature = "gcp_kms")]
+pub mod gcp;
+
 /// OCI Vault KMS client.
 ///
 /// Re-exported from the standalone `oci_kms` crate, which other services already depend on by
