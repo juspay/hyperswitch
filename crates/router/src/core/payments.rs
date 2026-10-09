@@ -143,7 +143,10 @@ use crate::{
             DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         },
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{cards, network_tokenization, transformers as pm_transformers},
+        payment_methods::{
+            self as core_payment_methods, cards, network_tokenization,
+            transformers as pm_transformers,
+        },
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
@@ -161,6 +164,7 @@ use crate::{
         self as router_types,
         api::{self, ConnectorCallType, ConnectorCommon},
         domain,
+        payment_methods::PaymentMethodIntegrationType,
         storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
         transformers::ForeignTryInto,
     },
@@ -9981,6 +9985,9 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let connector = payment_data.get_payment_attempt().connector.to_owned();
+    let is_pay_then_vault =
+        core_payment_methods::resolve_payment_method_integration_type(state, platform).await
+            == PaymentMethodIntegrationType::PayThenVault;
     let should_use_modular_pm_path = payment_data.get_payment_method_info().is_some_and(|pm| {
         feature_config.should_use_modular_pm_path(
             Some(pm.version),
@@ -10066,13 +10073,17 @@ where
                             )
                             .await?;
                         payment_data.set_payment_method_data(payment_method_data);
-                        payment_data.set_payment_method_id_in_attempt(pm_id);
+                        if !is_pay_then_vault {
+                            payment_data.set_payment_method_id_in_attempt(pm_id);
+                        }
                     } else {
                         logger::debug!("Organization is eligible for PM Modular service, calling make_modular_pm_data");
                         let (payment_method_data, pm_id) =
                             helpers::make_modular_pm_data(payment_data)?;
                         payment_data.set_payment_method_data(payment_method_data);
-                        payment_data.set_payment_method_id_in_attempt(pm_id);
+                        if !is_pay_then_vault {
+                            payment_data.set_payment_method_id_in_attempt(pm_id);
+                        }
 
                         let payment_token = payment_data
                             .get_payment_method_data()
@@ -10115,13 +10126,17 @@ where
                             .await?;
 
                         payment_data.set_payment_method_data(payment_method_data);
-                        payment_data.set_payment_method_id_in_attempt(pm_id);
+                        if !is_pay_then_vault {
+                            payment_data.set_payment_method_id_in_attempt(pm_id);
+                        }
                     } else {
                         logger::debug!("Organization is eligible for PM Modular service, calling make_modular_pm_data");
                         let (payment_method_data, pm_id) =
                             helpers::make_modular_pm_data(payment_data)?;
                         payment_data.set_payment_method_data(payment_method_data);
-                        payment_data.set_payment_method_id_in_attempt(pm_id);
+                        if !is_pay_then_vault {
+                            payment_data.set_payment_method_id_in_attempt(pm_id);
+                        }
 
                         let payment_token = payment_data
                             .get_payment_method_data()
@@ -10208,36 +10223,42 @@ where
             Some(pm.last_modified),
         )
     });
-    let payment_data =
-        if !is_operation_confirm(operation) || is_external_authentication_requested == Some(true) {
-            if !should_use_modular_pm_path {
-                let (_operation, payment_method_data, pm_id) = operation
-                    .to_domain()?
-                    .make_pm_data(
-                        state,
-                        payment_data,
-                        validate_result.storage_scheme,
-                        platform,
-                        business_profile,
-                        false,
-                    )
-                    .await?;
-                payment_data.set_payment_method_data(payment_method_data);
-                if let Some(payment_method_id) = pm_id {
-                    payment_data.set_payment_method_id_in_attempt(Some(payment_method_id));
-                }
-            } else {
-                set_payment_method_from_token_for_modular_payment_method_flow(
+    let payment_data = if !is_operation_confirm(operation)
+        || is_external_authentication_requested == Some(true)
+    {
+        if !should_use_modular_pm_path {
+            let (_operation, payment_method_data, pm_id) = operation
+                .to_domain()?
+                .make_pm_data(
                     state,
                     payment_data,
+                    validate_result.storage_scheme,
                     platform,
+                    business_profile,
+                    false,
                 )
-                .await;
+                .await?;
+            payment_data.set_payment_method_data(payment_method_data);
+            if let Some(payment_method_id) = pm_id {
+                if core_payment_methods::resolve_payment_method_integration_type(state, platform)
+                    .await
+                    == PaymentMethodIntegrationType::VaultThenPay
+                {
+                    payment_data.set_payment_method_id_in_attempt(Some(payment_method_id));
+                }
             }
-            payment_data
         } else {
-            payment_data
-        };
+            set_payment_method_from_token_for_modular_payment_method_flow(
+                state,
+                payment_data,
+                platform,
+            )
+            .await;
+        }
+        payment_data
+    } else {
+        payment_data
+    };
     Ok(payment_data.to_owned())
 }
 

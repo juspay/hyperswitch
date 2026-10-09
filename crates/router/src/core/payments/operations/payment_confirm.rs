@@ -41,7 +41,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         metrics, offer_engine,
-        payment_methods::{transformers as pm_transformers, vault},
+        payment_methods::{self, transformers as pm_transformers, vault},
         payments::{
             self, helpers, operations, populate_installment_details, CustomerDetails,
             OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
@@ -58,6 +58,7 @@ use crate::{
     types::{
         api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain::{self},
+        payment_methods::PaymentMethodIntegrationType,
         storage::{self, enums as storage_enums},
         transformers::{ForeignFrom, ForeignInto},
     },
@@ -2842,6 +2843,15 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .or(payment_data.payment_attempt.client_version.clone());
 
         let m_payment_data_payment_attempt = payment_data.payment_attempt.clone();
+        let integration_type = payment_methods::utils::get_payment_method_integration_type(
+            state,
+            &dimensions
+                .with_organization_id(processor.get_account().organization_id.clone())
+                .without_processor_merchant_id()
+                .without_profile_id(),
+            None,
+        )
+        .await;
         let m_payment_method_id =
             payment_data
                 .payment_attempt
@@ -2850,6 +2860,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 .or(payment_data
                     .payment_method_info
                     .as_ref()
+                    .filter(|_| integration_type == PaymentMethodIntegrationType::VaultThenPay)
                     .map(|payment_method| payment_method.payment_method_id.clone()));
         let m_browser_info = browser_info.clone();
         let m_connector = connector.clone();
