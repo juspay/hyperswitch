@@ -419,7 +419,6 @@ pub async fn cancel_revenue_recovery_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let current_status = payment_intent.status;
     let cancelled_intent = super::cancel_invoice_workflows(
         &state,
         platform.get_processor().get_key_store(),
@@ -429,13 +428,22 @@ pub async fn cancel_revenue_recovery_core(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed to cancel the revenue recovery workflow")?
-    .ok_or_else(|| {
-        report!(errors::ApiErrorResponse::PaymentUnexpectedState {
-            current_flow: "revenue_recovery_cancel".to_string(),
-            field_name: "status".to_string(),
-            current_value: current_status.to_string(),
-            states: common_enums::IntentStatus::Failed.to_string(),
-        })
+    .map_err(|refusal| match refusal {
+        super::CancelInvoiceRefusal::IntentNotFailed(status) => {
+            report!(errors::ApiErrorResponse::PaymentUnexpectedState {
+                current_flow: "revenue_recovery_cancel".to_string(),
+                field_name: "status".to_string(),
+                current_value: status.to_string(),
+                states: common_enums::IntentStatus::Failed.to_string(),
+            })
+        }
+        super::CancelInvoiceRefusal::PaymentSyncPending
+        | super::CancelInvoiceRefusal::RetryInProgress
+        | super::CancelInvoiceRefusal::AlreadyTerminal => {
+            report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: refusal.message(),
+            })
+        }
     })?;
 
     let response = api_payments::RecoveryPaymentsResponse {

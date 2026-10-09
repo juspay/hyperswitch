@@ -109,8 +109,11 @@ pub async fn revenue_recovery_payments_create() {}
 ///
 /// Cancel the revenue recovery workflow of an invoice. Only an invoice whose payment is in the
 /// `failed` state can be cancelled: its scheduled retries are stopped, no further recovery
-/// attempts are made, and the payment moves to the `cancelled` state. The invoice is looked up
-/// by its merchant reference id within the business profile given in the `X-Profile-Id` header.
+/// attempts are made, and the payment moves to the `cancelled` state. The request is refused
+/// with `400` when the payment is not `failed`, when a retry or payment sync for the invoice is
+/// still in progress, or when recovery already reached a terminal status. The invoice is looked
+/// up by its merchant reference id within the business profile given in the `X-Profile-Id`
+/// header.
 #[utoipa::path(
     post,
     path = "/v2/revenue-recovery/{merchant_reference_id}/cancel",
@@ -133,7 +136,7 @@ pub async fn revenue_recovery_payments_create() {}
                 "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
             })
         ),
-        (status = 400, description = "The invoice is not in a cancellable state", body = GenericErrorResponseOpenApi),
+        (status = 400, description = "The invoice cannot be cancelled: its payment is not failed, a retry or payment sync is in progress, or recovery already reached a terminal status", body = GenericErrorResponseOpenApi),
         (status = 404, description = "Invoice not found"),
         (status = 500, description = "Internal server error"),
     ),

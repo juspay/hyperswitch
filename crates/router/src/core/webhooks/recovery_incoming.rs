@@ -1672,13 +1672,14 @@ impl RecoveryAction {
                 )
                 .await?;
                 match cancelled {
-                    Some(updated_intent) => Ok(webhooks::WebhookResponseTracker::Payment {
+                    Ok(updated_intent) => Ok(webhooks::WebhookResponseTracker::Payment {
                         payment_id: updated_intent.id,
                         status: updated_intent.status,
                     }),
-                    None => {
+                    Err(refusal) => {
                         logger::info!(
-                            "Invoice cancel received for a non-cancellable invoice; no recovery action taken"
+                            "Invoice cancel webhook took no recovery action: {}",
+                            refusal.message()
                         );
                         Ok(webhooks::WebhookResponseTracker::NoEffect)
                     }

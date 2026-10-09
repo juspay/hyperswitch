@@ -4983,7 +4983,7 @@
           "Revenue Recovery"
         ],
         "summary": "Revenue Recovery - Cancel",
-        "description": "Cancel the revenue recovery workflow of an invoice. Only an invoice whose payment is in the\n`failed` state can be cancelled: its scheduled retries are stopped, no further recovery\nattempts are made, and the payment moves to the `cancelled` state. The invoice is looked up\nby its merchant reference id within the business profile given in the `X-Profile-Id` header.",
+        "description": "Cancel the revenue recovery workflow of an invoice. Only an invoice whose payment is in the\n`failed` state can be cancelled: its scheduled retries are stopped, no further recovery\nattempts are made, and the payment moves to the `cancelled` state. The request is refused\nwith `400` when the payment is not `failed`, when a retry or payment sync for the invoice is\nstill in progress, or when recovery already reached a terminal status. The invoice is looked\nup by its merchant reference id within the business profile given in the `X-Profile-Id`\nheader.",
         "operationId": "Cancel a Revenue Recovery Workflow",
         "parameters": [
           {
@@ -5023,7 +5023,7 @@
             }
           },
           "400": {
-            "description": "The invoice is not in a cancellable state",
+            "description": "The invoice cannot be cancelled: its payment is not failed, a retry or payment sync is in progress, or recovery already reached a terminal status",
             "content": {
               "application/json": {
                 "schema": {
