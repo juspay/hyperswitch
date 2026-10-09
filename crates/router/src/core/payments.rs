@@ -9467,12 +9467,15 @@ fn is_google_pay_pre_decrypt_type_connector_tokenization(
     ) {
         (
             Some(storage::enums::PaymentMethodType::GooglePay),
-            Some(PaymentMethodToken::GooglePayDecrypt(..)),
+            Some(PaymentMethodToken::GooglePayDecrypt(google_pay_decrypt_data)),
             Some(google_pay_pre_decrypt_flow_filter),
-        ) => Some(matches!(
-            google_pay_pre_decrypt_flow_filter,
-            GooglePayPreDecryptFlow::ConnectorTokenization
-        )),
+        ) => Some(match google_pay_pre_decrypt_flow_filter {
+            GooglePayPreDecryptFlow::ConnectorTokenization => true,
+            GooglePayPreDecryptFlow::ConnectorTokenizationWithCryptogram => {
+                google_pay_decrypt_data.cryptogram.is_some()
+            }
+            GooglePayPreDecryptFlow::NetworkTokenization => false,
+        }),
         // not applicable
         _ => None,
     }
@@ -17910,5 +17913,87 @@ impl PaymentIntentStateMetadataExt {
             .attach_printable("Failed to update payment_intent.state metadata")?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod google_pay_pre_decrypt_connector_tokenization_tests {
+    use std::str::FromStr;
+
+    use common_types::payments::GPayPredecryptData;
+    use hyperswitch_domain_models::router_data::PaymentMethodToken;
+    use hyperswitch_masking::Secret;
+
+    use super::is_payment_method_type_allowed_for_connector;
+    use crate::configs::settings::PaymentMethodTokenFilter;
+
+    fn tokenization_filter(google_pay_pre_decrypt_flow: &str) -> PaymentMethodTokenFilter {
+        serde_json::from_value(serde_json::json!({
+            "long_lived_token": false,
+            "payment_method": "wallet",
+            "google_pay_pre_decrypt_flow": google_pay_pre_decrypt_flow,
+            "payment_method_type": { "type": "disable_only", "list": "google_pay" },
+        }))
+        .unwrap()
+    }
+
+    fn google_pay_decrypt_token(cryptogram: Option<&str>) -> PaymentMethodToken {
+        let auth_method = match cryptogram {
+            Some(_) => common_enums::GooglePayAuthMethod::Cryptogram,
+            None => common_enums::GooglePayAuthMethod::PanOnly,
+        };
+
+        PaymentMethodToken::GooglePayDecrypt(Box::new(GPayPredecryptData {
+            auth_method: Some(auth_method),
+            card_exp_month: Secret::new("12".to_string()),
+            card_exp_year: Secret::new("2030".to_string()),
+            application_primary_account_number: cards::CardNumber::from_str("4111111111111111")
+                .unwrap(),
+            cryptogram: cryptogram.map(|cryptogram| Secret::new(cryptogram.to_string())),
+            eci_indicator: None,
+        }))
+    }
+
+    fn is_connector_tokenization_enabled(
+        google_pay_pre_decrypt_flow: &str,
+        cryptogram: Option<&str>,
+    ) -> bool {
+        is_payment_method_type_allowed_for_connector(
+            Some(common_enums::PaymentMethodType::GooglePay),
+            Some(&google_pay_decrypt_token(cryptogram)),
+            &tokenization_filter(google_pay_pre_decrypt_flow),
+        )
+    }
+
+    #[test]
+    fn skips_connector_tokenization_for_pan_only_token_when_cryptogram_is_required() {
+        assert!(!is_connector_tokenization_enabled(
+            "connector_tokenization_with_cryptogram",
+            None
+        ));
+    }
+
+    #[test]
+    fn allows_connector_tokenization_for_cryptogram_token_when_cryptogram_is_required() {
+        assert!(is_connector_tokenization_enabled(
+            "connector_tokenization_with_cryptogram",
+            Some("cryptogram")
+        ));
+    }
+
+    #[test]
+    fn allows_connector_tokenization_for_pan_only_token_when_cryptogram_is_not_required() {
+        assert!(is_connector_tokenization_enabled(
+            "connector_tokenization",
+            None
+        ));
+    }
+
+    #[test]
+    fn skips_connector_tokenization_when_network_tokenization_is_configured() {
+        assert!(!is_connector_tokenization_enabled(
+            "network_tokenization",
+            Some("cryptogram")
+        ));
     }
 }
