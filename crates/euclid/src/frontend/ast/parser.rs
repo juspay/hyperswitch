@@ -304,7 +304,7 @@ pub fn comparison(input: &str) -> ParseResult<&str, ast::Comparison> {
                 lhs: tup.0.to_string(),
                 comparison: tup.1,
                 value: tup.2,
-                metadata: std::collections::HashMap::new(),
+                metadata: common_utils::collections::HashMap::new(),
             },
         ),
     )(input)
@@ -326,7 +326,7 @@ pub fn arbitrary_comparison(input: &str) -> ParseResult<&str, ast::Comparison> {
                     key: tup.0,
                     value: tup.2,
                 }),
-                metadata: std::collections::HashMap::new(),
+                metadata: common_utils::collections::HashMap::new(),
             },
         ),
     )(input)
@@ -438,7 +438,7 @@ pub fn program<O: EuclidParsable + 'static>(input: &str) -> ParseResult<&str, as
             |tup: (O, Vec<ast::Rule<O>>)| ast::Program {
                 default_selection: tup.0,
                 rules: tup.1,
-                metadata: std::collections::HashMap::new(),
+                metadata: common_utils::collections::HashMap::new(),
             },
         ),
     )(input)

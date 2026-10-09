@@ -380,7 +380,7 @@ pub fn spawn_async_lineage_context_update_to_db(
             }
         }
     };
-    tokio::spawn(lineage_update.in_current_span());
+    router_env::spawn(lineage_update.in_current_span());
 }
 
 pub fn generate_env_specific_merchant_id(value: String) -> UserResult<id_type::MerchantId> {
@@ -406,9 +406,9 @@ pub async fn build_cloned_connector_create_request(
     source_mca: DomainMerchantConnectorAccount,
     destination_profile_id: id_type::ProfileId,
     destination_connector_label: Option<String>,
-    payment_method_types: &std::collections::HashMap<
+    payment_method_types: &common_utils::collections::HashMap<
         common_enums::PaymentMethod,
-        std::collections::HashSet<common_enums::PaymentMethodType>,
+        common_utils::collections::HashSet<common_enums::PaymentMethodType>,
     >,
 ) -> UserResult<admin_api::MerchantConnectorCreate> {
     let source_mca_name = source_mca

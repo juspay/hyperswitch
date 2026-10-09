@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use api_models::analytics::{
     auth_events::{
         AuthEventDimensions, AuthEventMetrics, AuthEventMetricsBucketIdentifier,
@@ -8,9 +6,12 @@ use api_models::analytics::{
     AuthEventFilterValue, AuthEventFiltersResponse, AuthEventMetricsResponse,
     AuthEventsAnalyticsMetadata, GetAuthEventFilterRequest, GetAuthEventMetricRequest,
 };
-use common_utils::types::TimeRange;
+use common_utils::{collections::HashMap, types::TimeRange};
 use error_stack::{report, ResultExt};
-use router_env::{instrument, tracing};
+use router_env::{
+    instrument,
+    tracing::{self, Instrument},
+};
 
 use super::{
     filters::{get_auth_events_filter_for_dimension, AuthEventFilterRow},
@@ -49,20 +50,28 @@ pub async fn get_metrics(
         let req = req.clone();
         let auth_scoped = auth.to_owned();
         let pool = pool.clone();
-        set.spawn(async move {
-            let data = pool
-                .get_auth_event_metrics(
-                    &metric_type,
-                    &req.group_by_names.clone(),
-                    &auth_scoped,
-                    &req.filters,
-                    req.time_series.map(|t| t.granularity),
-                    &req.time_range,
-                )
-                .await
-                .change_context(AnalyticsError::UnknownError);
-            (metric_type, data)
-        });
+        let task_span = tracing::debug_span!(
+            "analytics_auth_events_metrics_query",
+            auth_event_metric = metric_type.as_ref()
+        );
+        router_env::spawn_in_set(
+            &mut set,
+            async move {
+                let data = pool
+                    .get_auth_event_metrics(
+                        &metric_type,
+                        &req.group_by_names.clone(),
+                        &auth_scoped,
+                        &req.filters,
+                        req.time_series.map(|t| t.granularity),
+                        &req.time_range,
+                    )
+                    .await
+                    .change_context(AnalyticsError::UnknownError);
+                (metric_type, data)
+            }
+            .instrument(task_span),
+        );
     }
 
     while let Some((metric, data)) = set

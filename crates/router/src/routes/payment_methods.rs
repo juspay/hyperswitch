@@ -1,5 +1,5 @@
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
-use std::collections::HashMap;
+use common_utils::collections::HashMap;
 
 #[cfg(feature = "v1")]
 mod migrate;

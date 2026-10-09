@@ -126,20 +126,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let enabled_payment_methods = match (&req.enabled_payment_methods, &merchant_config) {
         (Some(enabled_payment_methods), _) => enabled_payment_methods.clone(),
         (None, Some(config)) => config.enabled_payment_methods.clone(),
-        _ => {
-            let mut default_enabled_payout_methods: Vec<link_utils::EnabledPaymentMethod> = vec![];
-            for (payment_method, payment_method_types) in
-                default_config.enabled_payment_methods.clone().into_iter()
-            {
-                let enabled_payment_method = link_utils::EnabledPaymentMethod {
-                    payment_method,
-                    payment_method_types: payment_method_types.into_iter().collect(),
-                };
-                default_enabled_payout_methods.push(enabled_payment_method);
-            }
-
-            default_enabled_payout_methods
-        }
+        _ => default_config.default_enabled_payment_methods(),
     };
 
     Ok(PaymentMethodCollectLinkData {

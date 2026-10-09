@@ -1,6 +1,7 @@
-use std::{collections::HashMap, sync::LazyLock};
+use std::sync::LazyLock;
 
 use common_enums::{EntityType, MerchantProductType, PermissionGroup, RoleScope};
+use common_utils::collections::HashMap;
 
 use super::RoleInfo;
 use crate::consts;

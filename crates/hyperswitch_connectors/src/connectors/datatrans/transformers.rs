@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use api_models::payments::{self, AdditionalPaymentData};
 use common_enums::enums;
-use common_utils::{pii::Email, request::Method, types::MinorUnit};
+use common_utils::{collections::HashMap, pii::Email, request::Method, types::MinorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use api_models::{
     payments::{
         AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
@@ -11,6 +9,7 @@ use api_models::{
 use base64::Engine;
 use common_enums::{enums, CountryAlpha2};
 use common_utils::{
+    collections::HashMap,
     consts::{APPLEPAY_VALIDATION_URL, BASE64_ENGINE},
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, OptionExt, StringExt, ValueExt},

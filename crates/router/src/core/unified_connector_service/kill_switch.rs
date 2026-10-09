@@ -820,7 +820,7 @@ mod tests {
             UcsKillSwitchReason::UcsUnreachable.to_string(),
             UcsKillSwitchReason::ConnectorRejected.to_string(),
         ];
-        let unique: std::collections::HashSet<_> = tags.iter().collect();
+        let unique: common_utils::collections::HashSet<_> = tags.iter().collect();
 
         assert_eq!(unique.len(), tags.len());
     }

@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use api_models::admin::PaymentLinkConfig;
+use common_utils::collections::HashMap;
 use error_stack::Result;
 use lightningcss::{
     declaration::DeclarationBlock,

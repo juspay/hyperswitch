@@ -1,8 +1,6 @@
 pub mod models {
-    use std::collections::HashMap;
-
     use async_trait::async_trait;
-    use common_utils::pii::SecretSerdeValue;
+    use common_utils::{collections::HashMap, pii::SecretSerdeValue};
     use hyperswitch_masking::{ExposeInterface, Secret};
     use router_env::logger;
     use serde::{Deserialize, Serialize};

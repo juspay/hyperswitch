@@ -1,8 +1,7 @@
 //! Core client session ID management for SDK authorization.
 
-use std::collections::HashMap;
-
 use common_utils::{
+    collections::HashMap,
     errors::CustomResult,
     id_type::{self, GenerateId, MerchantId, PaymentId},
 };
