@@ -15,23 +15,6 @@ describe("Superposition Config Tests (Requires CVV)", () => {
         connectorId,
         utils.CONNECTOR_LISTS.INCLUDE.REQUIRES_CVV
       );
-      if (specShouldSkip) {
-        return;
-      }
-      cy.checkSuperpositionAvailability(globalState).then(() => {
-        // Credentials absent keeps the legacy behavior (config set is a logged
-        // no-op); only a provisioned-but-unreachable endpoint skips the spec
-        if (
-          globalState.get("superpositionAvailable") === false &&
-          globalState.get("superpositionBaseUrl")
-        ) {
-          cy.task(
-            "cli_log",
-            "Superposition not reachable — skipping RequiresCVV spec"
-          );
-          specShouldSkip = true;
-        }
-      });
     });
   });
 
@@ -42,10 +25,6 @@ describe("Superposition Config Tests (Requires CVV)", () => {
   });
 
   after("cleanup configs + flush global state", () => {
-    if (specShouldSkip) {
-      cy.task("setGlobalState", globalState?.data);
-      return;
-    }
     cy.deleteSuperpositionConfig(globalState, {
       provider_merchant_id: globalState.get("merchantId"),
       processor_merchant_id: globalState.get("merchantId"),
