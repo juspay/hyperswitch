@@ -6114,16 +6114,14 @@ where
     )
     .await?;
 
-    if let Some(connector_customer_id) = {
-        core_utils::get_connector_customer_id(
-            &state.conf,
-            &connector.connector_name.to_string(),
-            payment_data.get_connector_customer_id(),
-            &payment_data.get_payment_intent().customer_id,
-            &payment_data.get_payment_method_info().cloned(),
-            payment_data.get_payment_attempt(),
-        )?
-    } {
+    if let Some(connector_customer_id) = core_utils::get_connector_customer_id(
+        &state.conf,
+        &connector.connector_name.to_string(),
+        payment_data.get_connector_customer_id(),
+        &payment_data.get_payment_intent().customer_id,
+        &payment_data.get_payment_method_info().cloned(),
+        payment_data.get_payment_attempt(),
+    )? {
         router_data.connector_customer = Some(connector_customer_id);
     }
 
@@ -11508,6 +11506,7 @@ pub fn get_proxy_connector_filters(
     match recurring_details {
         RecurringDetails::NetworkTransactionIdAndCardDetails(_)
         | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
         | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(state
             .conf
             .network_transaction_id_supported_connectors
