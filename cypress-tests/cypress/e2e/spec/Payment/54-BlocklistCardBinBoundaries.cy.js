@@ -124,6 +124,11 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
       const merchantId = globalState.get("merchantId");
       const key = `guard_blocklist_for_${merchantId}`;
       cy.setupConfigs(globalState, key, "true");
+      // The router reads this guard through a cache that doesn't pick up
+      // the fresh value immediately — same class of race as the card_bin
+      // cache noted below. Give it time to propagate before relying on it.
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
+      cy.wait(15000);
     });
 
     it("should deny payment for a card matching the blocked 8 digit generic_card_bin", () => {
