@@ -202,6 +202,23 @@ impl DatabaseBackedConfig for BlockImplicitCustomerCreation {
     }
 }
 
+config! {
+    superposition_key = PAYMENT_METHOD_MIGRATION_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for PaymentMethodMigrationEnabled {
+    const KEY: &'static str = "payment_method_migration_enabled";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
+    }
+}
+
 // Retained temporarily so merchants without a database value can fall back to
 // their existing Superposition fingerprint secret during migration.
 config! {

@@ -321,6 +321,9 @@ pub struct PaymentMethodMigrateResponse {
 
     //network transaction id migration status
     pub network_transaction_id_migrated: Option<bool>,
+
+    //set when the payment method was already migrated by an earlier request
+    pub already_migrated: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
@@ -4263,6 +4266,8 @@ pub struct PaymentMethodMigrationResponse {
     pub network_token_migrated: Option<bool>,
     pub connector_mandate_details_migrated: Option<bool>,
     pub network_transaction_id_migrated: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub already_migrated: Option<bool>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -4383,6 +4388,7 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
                 network_token_migrated: res.network_token_migrated,
                 connector_mandate_details_migrated: res.connector_mandate_details_migrated,
                 network_transaction_id_migrated: res.network_transaction_id_migrated,
+                already_migrated: res.already_migrated,
             },
             Err(e) => Self {
                 customer_id: Some(record.customer_id.clone()),
@@ -4474,6 +4480,24 @@ impl
         let payment_method_data = record.get_payment_method_data();
         let is_non_card = payment_method_data.is_some();
 
+        // Accepts Hyperswitch card network names as well as upper and lower case brands, e.g. `visa`
+        let card_network = record
+            .card_scheme
+            .as_deref()
+            .map(str::trim)
+            .filter(|card_scheme| !card_scheme.is_empty())
+            .map(|card_scheme| {
+                card_scheme
+                    .parse::<api_enums::CardNetwork>()
+                    .or_else(|_| card_scheme.to_uppercase().parse::<api_enums::CardNetwork>())
+                    .map_err(|_| {
+                        error_stack::report!(errors::ValidationError::InvalidValue {
+                            message: format!("Invalid card_scheme: {card_scheme}"),
+                        })
+                    })
+            })
+            .transpose()?;
+
         let card = if is_non_card {
             None
         } else {
@@ -4485,7 +4509,7 @@ impl
                 card_exp_month: record.card_expiry_month.clone().unwrap_or_default(),
                 card_exp_year: record.card_expiry_year.clone().unwrap_or_default(),
                 card_holder_name: record.card_holder_name.clone().or(record.name.clone()),
-                card_network: None,
+                card_network,
                 card_type: None,
                 card_subtype: None,
                 card_segment_type: None,
@@ -4497,12 +4521,14 @@ impl
             })
         };
 
-        let network_token = if is_non_card {
-            None
-        } else {
-            Some(MigrateNetworkTokenDetail {
+        // Network token details are only migrated when the record carries a network token
+        let network_token = record
+            .network_token_number
+            .clone()
+            .filter(|_| !is_non_card)
+            .map(|network_token_number| MigrateNetworkTokenDetail {
                 network_token_data: MigrateNetworkTokenData {
-                    network_token_number: record.network_token_number.clone().unwrap_or_default(),
+                    network_token_number,
                     network_token_exp_month: record
                         .network_token_expiry_month
                         .clone()
@@ -4526,8 +4552,7 @@ impl
                     .network_token_requestor_ref_id
                     .clone()
                     .unwrap_or_default(),
-            })
-        };
+            });
 
         Ok(Self {
             merchant_id,
