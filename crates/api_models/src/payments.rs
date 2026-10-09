@@ -6775,7 +6775,8 @@ pub struct PaymentsCaptureRequest {
     #[schema(value_type = Option<i64>, example = 6540)]
     #[smithy(value_type = "Option<i64>")]
     pub amount_to_capture: Option<MinorUnit>,
-    /// Decider to refund the uncaptured amount. (Currently not fully supported or behavior may vary by connector).
+    /// Decider to refund the uncaptured amount. This field is currently ignored and has no effect on the capture; what happens to the uncaptured amount is determined by the payment's `capture_method`. To be deprecated soon.
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<bool>")]
     pub refund_uncaptured_amount: Option<bool>,
     /// A dynamic suffix that appears on your customer's credit card statement. This is concatenated with the (shortened) descriptor prefix set on your account to form the complete statement descriptor. The combined length should not exceed connector-specific limits (typically 22 characters). To be deprecated soon, use billing_descriptor instead.
