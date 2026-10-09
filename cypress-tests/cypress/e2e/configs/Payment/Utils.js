@@ -362,12 +362,15 @@ export function defaultErrorHandler(response, response_data) {
       ) {
         expect(apiResponseContent).to.include(expectedContent);
       } else if (
+        key === "message" &&
         typeof apiResponseContent === "string" &&
         typeof expectedContent === "string"
       ) {
-        // Server-generated error text occasionally carries drifting trailing
-        // whitespace; compare string payloads trimmed so whitespace drift
-        // does not flake otherwise deterministic contracts.
+        // UCS-generated error messages were observed drifting in trailing
+        // whitespace between deployments (same message with and without a
+        // trailing space), which flakes strict equality. Scope the
+        // whitespace-tolerant comparison to free-text `message` fields only;
+        // structured fields (type/code) still compare exactly.
         expect(apiResponseContent.trim()).to.equal(expectedContent.trim());
       } else {
         expect(apiResponseContent).to.equal(expectedContent);
