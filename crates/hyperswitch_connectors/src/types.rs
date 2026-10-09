@@ -176,18 +176,15 @@ pub(crate) type RetrieveFileRouterData =
 #[cfg(feature = "payouts")]
 pub(crate) trait PayoutIndividualDetailsExt {
     type Error;
-    fn get_external_account_account_holder_type(
-        &self,
-    ) -> Result<api_models::payouts::PayoutBusinessType, Self::Error>;
+    fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error>;
 }
 
 #[cfg(feature = "payouts")]
 impl PayoutIndividualDetailsExt for api_models::payouts::PayoutIndividualDetails {
     type Error = error_stack::Report<hyperswitch_interfaces::errors::ConnectorError>;
-    fn get_external_account_account_holder_type(
-        &self,
-    ) -> Result<api_models::payouts::PayoutBusinessType, Self::Error> {
+    fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error> {
         self.external_account_account_holder_type
+            .clone()
             .ok_or_else(crate::utils::missing_field_err(
                 "external_account_account_holder_type",
             ))

@@ -1,4 +1,3 @@
-use api_models::payouts::{PayoutAccountType, PayoutBusinessType};
 use common_enums::{enums, Currency};
 use common_utils::{ext_traits::OptionExt as _, pii::Email};
 use error_stack::ResultExt;
@@ -82,6 +81,54 @@ pub struct StripeConnectReversalRequest {
 pub struct StripeConnectReversalResponse {
     id: String,
     source_refund: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum PayoutAccountType {
+    Custom,
+    Express,
+    Standard,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum PayoutBusinessType {
+    Company,
+    Individual,
+}
+
+impl TryFrom<&str> for PayoutAccountType {
+    type Error = Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "custom" => Ok(Self::Custom),
+            "express" => Ok(Self::Express),
+            "standard" => Ok(Self::Standard),
+            _ => Err(error_stack::report!(
+                errors::ConnectorError::InvalidDataFormat {
+                    field_name: "vendor_details.account_type".into(),
+                }
+            )),
+        }
+    }
+}
+
+impl TryFrom<&str> for PayoutBusinessType {
+    type Error = Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "company" => Ok(Self::Company),
+            "individual" => Ok(Self::Individual),
+            _ => Err(error_stack::report!(
+                errors::ConnectorError::InvalidDataFormat {
+                    field_name: "business_type".into(),
+                }
+            )),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -337,14 +384,14 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientCreateRequest {
             .as_ref()
             .map(|date| date.peek());
         Ok(Self {
-            account_type: vendor_details.account_type,
+            account_type: PayoutAccountType::try_from(vendor_details.account_type.as_str())?,
             country: address.country,
             email: Some(customer_email.clone()),
             capabilities_card_payments: vendor_details.capabilities_card_payments,
             capabilities_transfers: vendor_details.capabilities_transfers,
             tos_acceptance_date: individual_details.tos_acceptance_date,
             tos_acceptance_ip: individual_details.tos_acceptance_ip,
-            business_type: vendor_details.business_type,
+            business_type: PayoutBusinessType::try_from(vendor_details.business_type.as_str())?,
             business_profile_mcc: vendor_details.business_profile_mcc,
             business_profile_url: vendor_details.business_profile_url,
             business_profile_name: vendor_details.business_profile_name.clone(),
@@ -433,9 +480,12 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                             })?,
                         external_account_currency: request.destination_currency.to_owned(),
                         external_account_account_holder_name: customer_name,
-                        external_account_account_holder_type: payout_vendor_details
-                            .individual_details
-                            .get_external_account_account_holder_type()?,
+                        external_account_account_holder_type: PayoutBusinessType::try_from(
+                            payout_vendor_details
+                                .individual_details
+                                .get_external_account_account_holder_type()?
+                                .as_str(),
+                        )?,
                         external_account_account_number: bank_details.bank_account_number,
                         external_account_routing_number: bank_details.bank_routing_number,
                     }))
