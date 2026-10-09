@@ -2289,7 +2289,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.07.2#c9c0727d99ada0f0eda057f3d8a6f16719a43bbc"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.09.0#11f50032a292f16bd5e0a18db4b3555e2f27567b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3606,6 +3606,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",
+ "tokio-socks",
  "tokio-stream",
  "tonic 0.14.5",
  "tonic-prost",
@@ -4269,7 +4270,7 @@ checksum = "32619942b8be646939eaf3db0602b39f5229b74575b67efc897811ded1db4e57"
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.07.2#c9c0727d99ada0f0eda057f3d8a6f16719a43bbc"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.09.0#11f50032a292f16bd5e0a18db4b3555e2f27567b"
 dependencies = [
  "axum 0.8.4",
  "bytes 1.10.1",
@@ -5591,11 +5592,13 @@ version = "0.11.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "87ffd14fa289730e3ad68edefdc31f603d56fe716ec38f2076bb7410e09147c2"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "chumsky",
  "email-encoding",
  "email_address",
  "fastrand",
+ "futures-io",
  "futures-util",
  "hostname",
  "httpdate",
@@ -5607,6 +5610,7 @@ dependencies = [
  "quoted_printable",
  "socket2 0.5.10",
  "tokio 1.48.0",
+ "tokio-native-tls",
  "url 2.5.4",
 ]
 
@@ -7253,7 +7257,7 @@ dependencies = [
  "regex-cache",
  "serde",
  "serde_derive",
- "strum 0.25.0",
+ "strum 0.26.3",
  "thiserror 1.0.69",
 ]
 
@@ -8627,7 +8631,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.07.2#c9c0727d99ada0f0eda057f3d8a6f16719a43bbc"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.09.0#11f50032a292f16bd5e0a18db4b3555e2f27567b"
 dependencies = [
  "grpc-api-types",
 ]
@@ -10878,6 +10882,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-socks"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7e2948f60dbe26b35f2c7fb74ac2854c1fddded0fe9d7548fcc674a246f7615"
+dependencies = [
+ "either",
+ "futures-util",
+ "thiserror 1.0.69",
+ "tokio 1.48.0",
+]
+
+[[package]]
 name = "tokio-stream"
 version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11517,7 +11533,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.07.2#c9c0727d99ada0f0eda057f3d8a6f16719a43bbc"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.09.0#11f50032a292f16bd5e0a18db4b3555e2f27567b"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
@@ -11533,7 +11549,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.07.2#c9c0727d99ada0f0eda057f3d8a6f16719a43bbc"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.09.0#11f50032a292f16bd5e0a18db4b3555e2f27567b"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -11544,7 +11560,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.07.2#c9c0727d99ada0f0eda057f3d8a6f16719a43bbc"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.09.0#11f50032a292f16bd5e0a18db4b3555e2f27567b"
 dependencies = [
  "anyhow",
  "base64 0.21.7",

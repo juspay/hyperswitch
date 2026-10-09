@@ -6015,3 +6015,14 @@ export function integrationTypeMismatchMessage(header, merchantConfig) {
   const merchantLabel = merchantConfig ?? "client";
   return `\`x-integration-type\` header value \`${headerLabel}\` does not match the merchant integration type \`${merchantLabel}\``;
 }
+// Separate keys, not a reuse of ConfirmWithOfferApplied/
+// AppliedOfferOnRetrieve in place, so that connectors which can't actually
+// complete a saved-card confirm (e.g. ilixium, which doesn't implement
+// repeat_payment) can override just these keys via getConnectorDetails()
+// without disturbing the plain-card case, which still passes for them.
+// Default to the exact same expectation as the plain-card case for every
+// other connector.
+connectorDetails.offer_engine.ConfirmWithOfferAppliedSavedCard =
+  connectorDetails.offer_engine.ConfirmWithOfferApplied;
+connectorDetails.offer_engine.AppliedOfferOnRetrieveSavedCard =
+  connectorDetails.offer_engine.AppliedOfferOnRetrieve;
