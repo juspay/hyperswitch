@@ -876,6 +876,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
+            enable_avs_check: None,
         })
     }
 }
@@ -1136,6 +1137,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
+            enable_avs_check: None,
         })
     }
 }
@@ -2413,6 +2415,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
+            enable_avs_check: None,
         })
     }
 }
@@ -2629,6 +2632,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
+            enable_avs_check: None,
         })
     }
 }
@@ -2814,6 +2818,7 @@ impl
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
             additional_connector_details: None,
+            enable_avs_check: None,
         })
     }
 }
@@ -5000,6 +5005,9 @@ impl
             ),
             token_exp_month: Some(wallet_token_data.token_exp_month.expose().into()),
             token_exp_year: Some(wallet_token_data.token_exp_year.expose().into()),
+            device_manufacturer_identifier: wallet_token_data
+                .device_manufacturer_identifier
+                .map(|identifier| identifier.expose().into()),
             card_holder_name: wallet_token_data
                 .card_holder_name
                 .map(|name| name.expose().into()),
