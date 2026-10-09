@@ -44,17 +44,31 @@ describe("Business Profile Payment Method Blocking", () => {
     }
   });
 
-  after("cleanup superposition config + flush global state", () => {
-    if (!specShouldSkip && globalState?.get("merchantId")) {
-      cy.setSuperpositionConfig(
-        globalState,
-        "payments.payment_blocklist_guard",
-        false,
-        blocklistContext()
-      );
+  after(
+    "cleanup superposition config, reset payment method blocking and flush global state",
+    () => {
+      if (!specShouldSkip && globalState?.get("merchantId")) {
+        cy.setSuperpositionConfig(
+          globalState,
+          "payments.payment_blocklist_guard",
+          false,
+          blocklistContext()
+        );
+        cy.UpdateBusinessProfileTest(
+          {
+            payment_method_blocking: {},
+          },
+          false, // is_connector_agnostic_enabled
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
+          globalState
+        );
+      }
+      cy.task("setGlobalState", globalState.data);
     }
-    cy.task("setGlobalState", globalState.data);
-  });
+  );
 
   context("Card Issuing Country Blocking", () => {
     it("should block payment when card issuing country is blocked", () => {

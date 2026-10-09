@@ -31,6 +31,7 @@ import pmCollectLinkBody from "./pm-collect-link-body.json";
 import disputeEvidenceBody from "./dispute-evidence-body.json";
 import cardLimitedDataMITBody from "./create-card-limited-data-mit.json";
 import eligibilityCheckBody from "./eligibility-check-body.json";
+import eligibilityCheckBinBody from "./eligibility-check-bin-body.json";
 import extendAuthBody from "./extend-auth-body.json";
 import frmRoutingAlgorithmBody from "./frm-routing-algorithm-body.json";
 import relayBody from "./relay-body.json";
@@ -62,6 +63,7 @@ export {
   customerUpdateBody,
   disputeEvidenceBody,
   eligibilityCheckBody,
+  eligibilityCheckBinBody,
   extendAuthBody,
   frmRoutingAlgorithmBody,
   threeDSAuthenticationBody,
