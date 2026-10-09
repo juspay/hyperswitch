@@ -515,6 +515,11 @@ where
                         )
                     })
                     .unwrap_or((None, None, None));
+            let existing_connector_mandate_status = mandate_details
+                .payments
+                .as_ref()
+                .and_then(|payments| payments.get(&mca_id))
+                .and_then(|mandate| mandate.connector_mandate_status);
             let connector_mandate_status = match MandateActivation::from(payment_attempt) {
                 MandateActivation::Pending => existing_connector_mandate_status
                     .unwrap_or(common_enums::ConnectorMandateStatus::Inactive),
