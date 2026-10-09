@@ -87,11 +87,11 @@ describe("Payment Webhook Tests", () => {
     });
   });
 
-  context("Webhook Processing - Status Update & Retrieval", function () {
+  context("Webhook Processing - Status Update & Retrieval", () => {
     let paymentId;
     let merchantId;
 
-    before(function () {
+    before(() => {
       connector = globalState.get("connectorId");
       merchantId = globalState.get("merchantId");
       paymentId = globalState.get("paymentID");
