@@ -584,6 +584,10 @@ pub struct PaymentMethodUpdate {
     /// The acknowledgement status of the payment method update, this is used to determine the status of the payment method update
     #[schema(value_type = Option<AcknowledgementStatus>)]
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+
+    /// Customer's acceptance for vaulting a payment method.
+    #[schema(value_type = Option<CustomerAcceptance>)]
+    pub customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
 }
 
 #[cfg(feature = "v2")]
@@ -611,7 +615,9 @@ pub enum BankDebitDetailUpdate {
 #[serde(rename_all = "snake_case")]
 pub enum WalletPaymentMethodData {
     ApplePay(Box<PaymentMethodDataWalletInfo>),
+    ApplePayDecrypted(Box<ApplePayDecryptedInfo>),
     GooglePay(Box<PaymentMethodDataWalletInfo>),
+    GooglePayDecrypted(Box<GooglePayDecryptedInfo>),
     #[schema(value_type = PaypalRedirection)]
     PayPal(Box<payments::PaypalRedirection>),
 }
@@ -700,7 +706,6 @@ pub enum BankDebitDetail {
     },
 }
 
-#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -733,7 +738,6 @@ pub enum WalletDetail {
     },
 }
 
-#[cfg(feature = "v1")]
 impl From<ApplePayPredecryptData> for WalletDetail {
     fn from(data: ApplePayPredecryptData) -> Self {
         Self::ApplePayDecryptedData {
@@ -744,7 +748,6 @@ impl From<ApplePayPredecryptData> for WalletDetail {
     }
 }
 
-#[cfg(feature = "v1")]
 impl From<GPayPredecryptData> for WalletDetail {
     fn from(data: GPayPredecryptData) -> Self {
         Self::GooglePayDecryptedData {
@@ -1315,6 +1318,7 @@ pub enum RawPaymentMethodData {
     Card(CardDetail),
     CardWithNT(Box<RawCardWithNTDetails>),
     BankDebit(BankDebitDetail),
+    Wallet(WalletDetail),
     ProxyCard(RawProxyCardDataResponse),
 }
 
@@ -1694,6 +1698,12 @@ impl From<WalletPaymentMethodData> for PaymentMethodsData {
         match wallet_data {
             WalletPaymentMethodData::ApplePay(data) => Self::WalletDetails(*data),
             WalletPaymentMethodData::GooglePay(data) => Self::WalletDetails(*data),
+            WalletPaymentMethodData::ApplePayDecrypted(data) => {
+                Self::WalletDetails(data.wallet_info)
+            }
+            WalletPaymentMethodData::GooglePayDecrypted(data) => {
+                Self::WalletDetails(data.wallet_info)
+            }
             WalletPaymentMethodData::PayPal(data) => {
                 Self::WalletDetails(PaymentMethodDataWalletInfo {
                     last4: None,
@@ -1879,6 +1889,22 @@ pub struct PaymentMethodDataWalletInfo {
     /// Email address associated with the wallet (e.g. PayPal email)
     #[schema(value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<pii::Email>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplePayDecryptedInfo {
+    /// Apple pay decrypted data
+    pub decrypted_data: ApplePayPredecryptData,
+    /// The information of the payment method
+    pub wallet_info: PaymentMethodDataWalletInfo,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GooglePayDecryptedInfo {
+    /// Google pay decrypted data
+    pub decrypted_data: GPayPredecryptData,
+    /// The information of the payment method
+    pub wallet_info: PaymentMethodDataWalletInfo,
 }
 
 impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMethodDataWalletInfo {
@@ -2577,6 +2603,8 @@ pub struct SurchargeDetailsResponse {
     pub display_tax_on_surcharge_amount: f64,
     /// sum of display_surcharge_amount and display_tax_on_surcharge_amount
     pub display_total_surcharge_amount: f64,
+    /// Surcharge percentage returned by the external surcharge connector, if provided.
+    pub surcharge_percentage: Option<f64>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
