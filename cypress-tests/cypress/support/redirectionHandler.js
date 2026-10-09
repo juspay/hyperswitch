@@ -3622,6 +3622,33 @@ function threeDsRedirection(
             .should("be.visible")
             .click();
           break;
+        case "saferpay":
+          // Saferpay's hosted simulator (DCC offer -> 3DS challenge) is a JS
+          // app whose button labels/ids drift between releases; there is no
+          // stable selector to target. The test-terminal challenge accepts a
+          // single primary action, so press the first visible submit/primary
+          // control if one is present, then let waitForRedirect's caller
+          // verify the browser landed back on the return URL.
+          cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+          cy.wait(constants.WAIT_TIME / 3);
+          cy.get("body").then(($body) => {
+            const action = $body.find(
+              'button[type="submit"], input[type="submit"], button.btn-primary, button.primary'
+            );
+            if (action.length > 0) {
+              cy.wrap(action.first()).click({ force: true });
+            }
+          });
+          cy.wait(constants.WAIT_TIME / 3);
+          cy.get("body").then(($body) => {
+            const action = $body.find(
+              'button[type="submit"], input[type="submit"], button.btn-primary, button.primary'
+            );
+            if (action.length > 0) {
+              cy.wrap(action.first()).click({ force: true });
+            }
+          });
+          break;
         default:
           cy.wait(constants.WAIT_TIME);
       }
