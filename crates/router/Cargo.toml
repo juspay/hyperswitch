@@ -59,6 +59,7 @@ frm = [
 ]
 stripe = []
 gcp_kms = ["external_services/gcp_kms"]
+oci_kms = ["external_services/oci_kms"]
 release = [
     "stripe",
     "email",
@@ -67,6 +68,7 @@ release = [
     "vergen",
     "external_services/aws_kms",
     "gcp_kms",
+    "oci_kms",
     "external_services/aws_s3",
     "keymanager_mtls",
     "keymanager_create",
@@ -244,8 +246,8 @@ rust_decimal = { version = "1.37.1", features = [
 ] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.09.29.2",package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.09.29.2", package = "ucs_cards" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.10.08.0", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.10.08.0", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = { version = "0.23", default-features = false, features = [
     "aws-lc-rs",

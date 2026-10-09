@@ -622,6 +622,15 @@ pub async fn get_token_pm_type_mandate_details(
                         None,
                         None,
                     ),
+                    RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_) => (
+                        None,
+                        request.payment_method,
+                        request.payment_method_type,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ),
                     RecurringDetails::CardWithLimitedData(_) => (
                         None,
                         request.payment_method,
@@ -1419,6 +1428,7 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
         | RecurringDetails::NetworkTransactionIdAndCardDetails(_)
         | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
         | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
         | RecurringDetails::CardWithLimitedData(_) => Ok(()),
         _ => {
             req.customer_id.check_value_present("customer_id")?;
@@ -2541,6 +2551,16 @@ pub struct RolloutConfig {
     /// `kill_switch_threshold`.
     #[serde(default)]
     pub connector_decline_threshold: Option<u64>,
+    /// Share of total traffic to mirror through UCS in shadow mode, independent of
+    /// `rollout_percent`, which only ever controls primary traffic.
+    ///
+    /// - `execution_mode: primary`: this share is carved out of the traffic that
+    ///   `rollout_percent` did not send to primary, capped at `1.0 - rollout_percent`.
+    /// - `execution_mode: shadow`: primary is impossible whatever `rollout_percent` says, and
+    ///   this share is the whole shadow rollout.
+    /// - Unset or invalid means no shadow; ignored for `not_applicable`.
+    #[serde(default)]
+    pub shadow_rollout_percent: Option<f64>,
 }
 
 fn default_kill_switch_enabled() -> bool {
@@ -2569,6 +2589,7 @@ impl Default for RolloutConfig {
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
             connector_decline_threshold: None,
+            shadow_rollout_percent: None,
         }
     }
 }
@@ -2675,37 +2696,67 @@ fn build_rollout_proxy_override(state: &SessionState) -> Option<ProxyOverride> {
 // Helper function to execute rollout logic or return default
 impl From<RolloutConfig> for RolloutExecutionResult {
     fn from(config: RolloutConfig) -> Self {
-        let is_valid_percent = (0.0..=1.0).contains(&config.rollout_percent);
+        let is_valid_primary_rollout_percent = (0.0..=1.0).contains(&config.rollout_percent);
+        // An unset shadow percent is valid: it simply means no shadow.
+        let is_valid_shadow_rollout_percent = config
+            .shadow_rollout_percent
+            .is_none_or(|shadow_rollout_percent| (0.0..=1.0).contains(&shadow_rollout_percent));
 
-        match is_valid_percent {
+        match is_valid_primary_rollout_percent {
             false => {
                 logger::warn!(
-                    is_valid_percent = is_valid_percent,
+                    is_valid_primary_rollout_percent = is_valid_primary_rollout_percent,
                     "Invalid rollout percent in rollout config. Defaulting to should_execute false."
                 );
                 Self::default()
             }
             true => {
+                // rollout_percent only ever controls primary traffic.
+                let primary_percent = match config.execution_mode {
+                    ExecutionMode::Primary => config.rollout_percent,
+                    ExecutionMode::Shadow | ExecutionMode::NotApplicable => 0.0,
+                };
+
+                if !is_valid_shadow_rollout_percent {
+                    logger::warn!("Invalid shadow_rollout_percent in rollout config, ignoring");
+                }
+                let shadow_percent = match config.shadow_rollout_percent {
+                    Some(shadow_rollout_percent)
+                        if is_valid_shadow_rollout_percent
+                            && config.execution_mode != ExecutionMode::NotApplicable =>
+                    {
+                        shadow_rollout_percent.min(1.0 - primary_percent)
+                    }
+                    _ => 0.0,
+                };
+
                 let sampled_value: f64 = common_utils::generate_random_f64_unit();
-                let should_execute = sampled_value < config.rollout_percent;
+                let rollout_execution_mode = if sampled_value < primary_percent {
+                    Some(ExecutionMode::Primary)
+                } else if sampled_value < primary_percent + shadow_percent {
+                    Some(ExecutionMode::Shadow)
+                } else {
+                    None
+                };
 
                 logger::debug!(
                     rollout_percent = config.rollout_percent,
                     sampled_value = sampled_value,
-                    should_execute = should_execute,
+                    shadow_rollout_percent = ?config.shadow_rollout_percent,
+                    should_execute = rollout_execution_mode.is_some(),
                     execution_mode = ?config.execution_mode,
                     "Rollout execution decision made"
                 );
 
-                match should_execute {
-                    true => {
+                match rollout_execution_mode {
+                    Some(execution_mode) => {
                         logger::info!(
-                            execution_mode = ?config.execution_mode,
+                            execution_mode = ?execution_mode,
                             "Rollout will be executed"
                         );
                         Self {
                             should_execute: true,
-                            execution_mode: config.execution_mode,
+                            execution_mode,
                             kill_switch_enabled: config.kill_switch_enabled,
                             kill_switch_threshold: config.kill_switch_threshold,
                             connector_decline_threshold: config.connector_decline_threshold,
@@ -2715,7 +2766,7 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                             ..Default::default()
                         }
                     }
-                    false => {
+                    None => {
                         logger::info!(
                             execution_mode = ?config.execution_mode,
                             "Rollout will not be executed"
@@ -5817,6 +5868,7 @@ impl AttemptType {
             installment_data: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            applied_overrides: None,
             sender_payment_instrument_id: None,
             payment_account_reference: None,
             active_frm_id: None,
@@ -8329,6 +8381,32 @@ pub async fn get_gsm_record(
             .await
         }
     }
+}
+
+/// Looks up the global status map rule for a connector error response, so the attempt update built
+/// from it can carry the rule's standardised and unified codes. `None` when the response is not an
+/// error or no rule matches.
+#[cfg(feature = "v2")]
+pub async fn get_gsm_record_for_error_response<F, Req, Res>(
+    state: &SessionState,
+    router_data: &RouterData<F, Req, Res>,
+    payment_attempt: &PaymentAttempt,
+) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
+    let error = router_data.response.as_ref().err()?;
+    let sub_flow = crate::core::utils::get_flow_name::<F>()
+        .inspect_err(|err| logger::error!(?err, "Failed to get flow name for GSM lookup"))
+        .ok()?;
+    get_gsm_record(
+        state,
+        router_data.connector.clone(),
+        consts::PAYMENT_FLOW_STR,
+        &sub_flow,
+        Some(error.code.clone()),
+        Some(error.message.clone()),
+        error.network_decline_code.clone(),
+        payment_attempt.extract_card_network(),
+    )
+    .await
 }
 
 /// Perform GSM lookup with the given error code and message.

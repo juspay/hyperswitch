@@ -24,6 +24,7 @@ const forwardedEnv = [
   "SUPERPOSITION_AUTH_TOKEN",
   "SUPERPOSITION_ORG_ID",
   "SUPERPOSITION_WORKSPACE_ID",
+  "OFFER_ENGINE_API_KEY",
 ].reduce((acc, name) => {
   // Only forward what is actually set, so an absent variable never shadows a
   // CYPRESS_ prefixed one
