@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use api_models::errors::types::Extra;
 use common_utils::errors::ErrorSwitch;
 use http::StatusCode;
@@ -83,6 +85,8 @@ pub enum ApiErrorResponse {
     DuplicatePayout {
         payout_id: common_utils::id_type::PayoutId,
     },
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The fraud check with the specified frm_id '{frm_id}' already exists in our records")]
+    DuplicateFraudCheck { frm_id: String },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The config with the specified key already exists in our records")]
     DuplicateConfig,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Refund does not exist in our records")]
@@ -95,6 +99,8 @@ pub enum ApiErrorResponse {
     ConfigNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment does not exist in our records")]
     PaymentNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Fraud check does not exist in our records")]
+    FraudCheckNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment method does not exist in our records")]
     PaymentMethodNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant account does not exist in our records")]
@@ -179,7 +185,7 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_03", message = "The HTTP method is not applicable for this API")]
     InvalidHttpMethod,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_04", message = "Missing required param: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
+    MissingRequiredField { field_name: Cow<'static, str> },
     #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_05",
         message = "{field_name} contains invalid data. Expected format is {expected_format}"
@@ -192,7 +198,7 @@ pub enum ApiErrorResponse {
     InvalidRequestData { message: String },
     /// Typically used when a field has invalid value, or deserialization of the value contained in a field fails.
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "Invalid value provided: {field_name}")]
-    InvalidDataValue { field_name: &'static str },
+    InvalidDataValue { field_name: Cow<'static, str> },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Client secret was not provided")]
     ClientSecretNotGiven,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Client secret has expired")]
@@ -203,6 +209,8 @@ pub enum ApiErrorResponse {
     MandateActive,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_11", message = "Customer has already been redacted")]
     CustomerRedacted,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_11", message = "Payment method has already been redacted")]
+    PaymentMethodRedacted,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_12", message = "Reached maximum refund attempts")]
     MaximumRefundCount,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_13", message = "The refund amount exceeds the amount captured")]
@@ -234,7 +242,7 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_20", message = "{flow} flow not supported by the {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_21", message = "Missing required params")]
-    MissingRequiredFields { field_names: Vec<&'static str> },
+    MissingRequiredFields { field_names: Vec<Cow<'static, str>> },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_22", message = "Access forbidden. Not authorized to access this resource {resource}")]
     AccessForbidden { resource: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
@@ -307,6 +315,13 @@ pub enum ApiErrorResponse {
     ConnectedAccountAuthNotSupported,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_50", message = "Invalid connected account operation")]
     InvalidConnectedOperation,
+    #[error(
+        error_type = ErrorType::InvalidRequestError, code = "IR_51",
+        message = "Access forbidden, invalid Basic authentication credentials"
+    )]
+    InvalidBasicAuth,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_52", message = "Payment Session has expired")]
+    PaymentSessionExpired,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -321,6 +336,7 @@ pub enum ApiErrorResponse {
     WebhookInvalidMerchantSecret,
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IE", message = "{reason} as data mismatched for {field_names}")]
     IntegrityCheckFailed {
+        payment_id: Option<common_utils::id_type::PaymentId>,
         reason: String,
         field_names: String,
         connector_transaction_id: Option<String>,
@@ -329,6 +345,11 @@ pub enum ApiErrorResponse {
     TokenizationRecordNotFound { id: String },
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "Subscription operation: {operation} failed with connector")]
     SubscriptionError { operation: String },
+    #[error(
+        error_type = ErrorType::InvalidRequestError, code = "IR_48",
+        message = "Access forbidden, expired JWT token was used"
+    )]
+    ExpiredJwtToken,
 }
 
 #[derive(Clone)]
@@ -417,6 +438,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::DuplicatePayout { payout_id } => {
                 AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id:?}' already exists in our records"), None))
             }
+            Self::DuplicateFraudCheck { frm_id } => {
+                AER::BadRequest(ApiError::new("HE", 1, format!("The fraud check with the specified frm_id '{frm_id}' already exists in our records"), None))
+            }
             Self::DuplicateConfig => {
                 AER::BadRequest(ApiError::new("HE", 1, "The config with the specified key already exists in our records", None))
             }
@@ -434,6 +458,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             },
             Self::PaymentNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Payment does not exist in our records", None))
+            }
+            Self::FraudCheckNotFound => {
+                AER::NotFound(ApiError::new("HE", 2, "Fraud check does not exist in our records", None))
             }
             Self::PaymentMethodNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Payment method does not exist in our records", None))
@@ -583,6 +610,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::CustomerRedacted => {
                 AER::BadRequest(ApiError::new("IR", 11, "Customer has already been redacted", None))
             }
+            Self::PaymentMethodRedacted => {
+                AER::BadRequest(ApiError::new("IR", 11, "Payment method has already been redacted", None))
+            }
             Self::MaximumRefundCount => AER::BadRequest(ApiError::new("IR", 12, "Reached maximum refund attempts", None)),
             Self::RefundAmountExceedsPaymentAmount => {
                 AER::BadRequest(ApiError::new("IR", 13, "The refund amount exceeds the amount captured", None))
@@ -598,6 +628,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("IR", 16, message.to_string(), None))
             }
             Self::InvalidJwtToken => AER::Unauthorized(ApiError::new("IR", 17, "Access forbidden, invalid JWT token was used", None)),
+            Self::InvalidBasicAuth => AER::Unauthorized(ApiError::new("IR", 51, "Access forbidden, invalid Basic authentication credentials", None)),
             Self::GenericUnauthorized { message } => {
                 AER::Unauthorized(ApiError::new("IR", 18, message.to_string(), None))
             },
@@ -714,13 +745,15 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::IntegrityCheckFailed {
                 reason,
                 field_names,
-                connector_transaction_id
-            } => AER::InternalServerError(ApiError::new(
+                connector_transaction_id,
+                payment_id
+            } => AER::DomainError(ApiError::new(
                 "IE",
                 0,
                 format!("{reason} as data mismatched for {field_names}"),
                 Some(Extra {
                     connector_transaction_id: connector_transaction_id.to_owned(),
+                    payment_id: payment_id.to_owned(),
                     ..Default::default()
                 })
             )),
@@ -730,6 +763,12 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::SubscriptionError { operation } => {
                 AER::BadRequest(ApiError::new("CE", 9, format!("Subscription operation: {operation} failed with connector"), None))
             }
+            Self::ExpiredJwtToken => AER::Unauthorized(ApiError::new("IR", 48, "Access forbidden, expired JWT token was used", None)),
+            Self::PaymentSessionExpired => AER::BadRequest(ApiError::new(
+                "IR",
+                52,
+                "The provided payment session has expired", None
+            )),
         }
     }
 }
@@ -756,6 +795,7 @@ impl From<ApiErrorResponse> for router_data::ErrorResponse {
             },
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,

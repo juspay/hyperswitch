@@ -1,7 +1,12 @@
-FROM rust:bookworm as builder
+FROM public.ecr.aws/docker/library/rust:trixie as builder
 
 ARG EXTRA_FEATURES=""
 ARG VERSION_FEATURE_SET="v1"
+
+# Which cargo profile compiles the binaries: `release` (default, production),
+# `release-fast` (optimized, no LTO, for development cycles) or `dev`
+# (unoptimized). Features are untouched by this choice.
+ARG CARGO_BUILD_PROFILE=release
 
 RUN apt-get update \
     && apt-get install -y libpq-dev libssl-dev pkg-config protobuf-compiler
@@ -32,15 +37,22 @@ ENV RUST_BACKTRACE="short"
 
 COPY . .
 RUN cargo build \
-    --release \
+    --profile ${CARGO_BUILD_PROFILE} \
     --no-default-features \
     --features release \
     --features ${VERSION_FEATURE_SET} \
     ${EXTRA_FEATURES}
 
+# Stage the binary at a profile-independent path for the runtime stage
+# (cargo places the `dev` profile under `target/debug`). BINARY is consumed
+# after the build so the build layer stays shared across images.
+ARG BINARY=router
+RUN mkdir -p /router/out \
+    && cp "/router/target/$([ "${CARGO_BUILD_PROFILE}" = "dev" ] && echo debug || echo "${CARGO_BUILD_PROFILE}")/${BINARY}" "/router/out/${BINARY}"
 
 
-FROM debian:bookworm
+
+FROM public.ecr.aws/docker/library/debian:trixie
 
 # Placing config and binary executable in different directories
 ARG CONFIG_DIR=/local/config
@@ -69,11 +81,11 @@ ENV TZ=Etc/UTC \
     CONFIG_DIR=${CONFIG_DIR} \
     SCHEDULER_FLOW=${SCHEDULER_FLOW} \
     BINARY=${BINARY} \
-    RUST_MIN_STACK=4194304
+    RUST_MIN_STACK=6291456
 
 RUN mkdir -p ${BIN_DIR}
 
-COPY --from=builder /router/target/release/${BINARY} ${BIN_DIR}/${BINARY}
+COPY --from=builder /router/out/${BINARY} ${BIN_DIR}/${BINARY}
 
 # Create the 'app' user and group
 RUN useradd --user-group --system --no-create-home --no-log-init app

@@ -7,7 +7,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data,
+    mandates, payment_method_data,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::{Execute, RSync},
     router_request_types::ResponseId,
@@ -24,8 +24,7 @@ use hyperswitch_interfaces::{
     consts::{self, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
-use rand::distributions::DistString;
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -91,14 +90,6 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
     fn try_from(
         item: &GlobalPayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
-            return Err(errors::ConnectorError::NotSupported {
-                message: "3DS flow".to_string(),
-                connector: "Globalpay",
-            }
-            .into());
-        }
-
         let metadata = GlobalPayMeta::try_from(&item.router_data.connector_meta_data)?;
         let account_name = metadata.account_name;
 
@@ -110,7 +101,7 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
                         .mandate_id
                         .as_ref()
                         .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                            Some(mandates::MandateReferenceId::ConnectorMandateId(
                                 connector_mandate_ids,
                             )) => connector_mandate_ids.get_connector_mandate_id(),
                             _ => None,
@@ -141,6 +132,13 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
 
         let payment_method = match &item.router_data.request.payment_method_data {
             payment_method_data::PaymentMethodData::Card(ccard) => {
+                if item.router_data.is_three_ds() {
+                    return Err(errors::ConnectorError::NotSupported {
+                        message: "3DS flow".to_string(),
+                        connector: "Globalpay".into(),
+                    }
+                    .into());
+                }
                 requests::GlobalPayPaymentMethodData::Common(CommonPaymentMethodData {
                     payment_method_data: PaymentMethodData::Card(requests::Card {
                         number: ccard.card_number.clone(),
@@ -307,7 +305,7 @@ impl TryFrom<&RefreshTokenRouterData> for GlobalpayRefreshTokenRequest {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)
             .attach_printable("Could not convert connector_auth to globalpay_auth")?;
 
-        let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let nonce = common_utils::generate_random_alphanumeric_string(12);
         let nonce_with_api_key = format!("{}{}", nonce, globalpay_auth.key.peek());
         let secret_vec = crypto::Sha512
             .generate_digest(nonce_with_api_key.as_bytes())
@@ -423,6 +421,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsR
                 status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: None,
                 network_decline_code: item
                     .response
                     .payment_method
@@ -442,9 +441,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsR
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
         };
 

@@ -13,7 +13,8 @@ use hyperswitch_domain_models::{
     types::PaymentsAuthorizeRouterData,
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
+use router_env::env::{self, Env};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -62,7 +63,10 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, FloatMajorUnit)> for CashtocodePayme
         (item, amount): (&PaymentsAuthorizeRouterData, FloatMajorUnit),
     ) -> Result<Self, Self::Error> {
         let customer_id = item.get_customer_id()?;
-        let url = item.request.get_router_return_url()?;
+        let url = match env::which() {
+            Env::Development => "https://example.com".to_string(),
+            _ => item.request.get_router_return_url()?,
+        };
         let mid = get_mid(
             &item.connector_auth_type,
             item.request.payment_method_type,
@@ -115,7 +119,7 @@ impl TryFrom<&ConnectorAuthType> for CashtocodeAuthType {
                             .to_owned()
                             .parse_value::<CashtocodeAuth>("CashtocodeAuth")
                             .change_context(errors::ConnectorError::InvalidDataFormat {
-                                field_name: "auth_key_map",
+                                field_name: "auth_key_map".into(),
                             })?;
 
                         Ok((currency.to_owned(), cashtocode_auth))
@@ -199,7 +203,7 @@ pub struct CashtocodePaymentsResponseData {
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsSyncResponse {
     pub transaction_id: String,
-    pub amount: FloatMajorUnit,
+    pub amount: Option<FloatMajorUnit>,
 }
 
 fn get_redirect_form_data(
@@ -241,6 +245,7 @@ impl TryFrom<PaymentsResponseRouterData<CashtocodePaymentsResponse>>
                     reason: Some(error_data.error_description),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -264,9 +269,12 @@ impl TryFrom<PaymentsResponseRouterData<CashtocodePaymentsResponse>>
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                 )
             }
@@ -297,9 +305,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, CashtocodePaymentsSyncResponse, T, Paym
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

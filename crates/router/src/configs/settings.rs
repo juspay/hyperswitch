@@ -7,6 +7,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
+use common_enums;
 use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
@@ -32,19 +33,22 @@ pub use hyperswitch_interfaces::{
     },
     types::{ComparisonServiceConfig, Proxy},
 };
-use masking::Secret;
-pub use payment_methods::configs::settings::{
-    BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
-    Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal, RequiredFields,
-    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
-    SupportedPaymentMethodsForMandate, ZeroMandates,
+use hyperswitch_masking::{Maskable, PeekInterface, Secret};
+pub use payment_methods::configs::{
+    settings::{
+        BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields,
+        EligiblePaymentMethods, InstallmentConfig, Installments, Mandates, PaymentMethodAuth,
+        PaymentMethodType, RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
+        SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+    },
+    AuthenticationServiceConfig, MicroServicesConfig,
 };
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
 use serde::Deserialize;
-use storage_impl::config::QueueStrategy;
+use storage_impl::{config::QueueStrategy, redis::cache::CacheConfig};
 
 #[cfg(feature = "olap")]
 use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
@@ -55,6 +59,7 @@ use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, Env},
     events::EventsConfig,
+    headers, logger,
     routes::app,
     AppState,
 };
@@ -73,14 +78,25 @@ pub struct CmdLineConf {
 #[serde(default)]
 pub struct Settings<S: SecretState> {
     pub server: Server,
+    pub application_source: common_enums::ApplicationSource,
     pub proxy: Proxy,
     pub env: Env,
-    pub chat: SecretStateContainer<ChatSettings, S>,
+    pub sage: SecretStateContainer<SageSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
+    /// Falls back to `master_database` when not configured.
+    pub accounts_database: Option<SecretStateContainer<Database, S>>,
+    /// Falls back to `master_database` when not configured.
+    pub global_database: Option<SecretStateContainer<Database, S>>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
     pub redis: RedisSettings,
+    /// Per-cache tuning for the in-memory caches. Anything left unset keeps the compiled-in
+    /// default for that cache.
+    pub cache: CacheConfig,
     pub log: Log,
+    #[cfg(feature = "deja")]
+    #[serde(default)]
+    pub deja: DejaSettings,
     pub secrets: SecretStateContainer<Secrets, S>,
     pub fallback_merchant_ids_api_key_auth: Option<FallbackMerchantIds>,
     pub locker: Locker,
@@ -95,6 +111,7 @@ pub struct Settings<S: SecretState> {
     pub jwekey: SecretStateContainer<Jwekey, S>,
     pub webhooks: WebhooksSettings,
     pub pm_filters: ConnectorFilters,
+    pub customer_acceptance_support: CustomerAcceptanceSupportConfig,
     pub bank_config: BankRedirectConfig,
     pub api_keys: SecretStateContainer<ApiKeys, S>,
     pub file_storage: FileStorageConfig,
@@ -107,17 +124,23 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "email")]
     pub email: EmailSettings,
     pub user: UserSettings,
+    pub oidc: SecretStateContainer<OidcSettings, S>,
     pub crm: CrmManagerConfig,
     pub cors: CorsSettings,
     pub mandates: Mandates,
     pub zero_mandates: ZeroMandates,
+    pub installments: Installments,
+    pub installment_config: InstallmentConfig,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
+    pub card_only_mit_supported_connectors: CardOnlyMitSupportedConnectors,
+    pub notify_iframe_exit_and_redirect: NotifyIframeExitAndRedirectConnectors,
     pub list_dispute_supported_connectors: ListDiputeSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
     pub billing_connectors_invoice_sync: BillingConnectorInvoiceSyncCall,
+    pub billing_connectors_dispute_record_back: BillingConnectorDisputeRecordBackCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
@@ -127,7 +150,7 @@ pub struct Settings<S: SecretState> {
     pub debit_routing_config: DebitRoutingConfig,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
-    pub google_pay_decrypt_keys: Option<GooglePayDecryptConfig>,
+    pub google_pay_decrypt_keys: Option<SecretStateContainer<GooglePayDecryptConfig, S>>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
@@ -154,9 +177,9 @@ pub struct Settings<S: SecretState> {
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
     pub grpc_client: GrpcClientSettings,
-    #[cfg(feature = "v2")]
     pub cell_information: CellInformation,
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
+    pub alt_id_required_card_networks_and_connector: AltIdRequiredCardNetworksAndConnector,
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
@@ -165,6 +188,7 @@ pub struct Settings<S: SecretState> {
     pub open_router: OpenRouter,
     #[cfg(feature = "v2")]
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
+    pub merchant_advice_codes: MerchantAdviceCodeLookupConfig,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
     pub internal_merchant_id_profile_id_auth: InternalMerchantIdProfileIdAuthSettings,
@@ -173,10 +197,221 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
+    pub offer_engine: Option<SecretStateContainer<OfferEngineConfig, S>>,
     pub proxy_status_mapping: ProxyStatusMapping,
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
+    #[serde(default)]
+    pub micro_services: MicroServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
+    pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
+    pub save_payment_method_on_session: OnSessionConfig,
+    pub account_updater: Option<SecretStateContainer<AccountUpdaterConfig, S>>,
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DejaMode {
+    #[default]
+    Disabled,
+    Record,
+    Replay,
+}
+
+#[cfg(feature = "deja")]
+impl DejaMode {
+    pub fn is_disabled(&self) -> bool {
+        matches!(self, Self::Disabled)
+    }
+
+    pub fn is_record(&self) -> bool {
+        matches!(self, Self::Record)
+    }
+
+    pub fn is_replay(&self) -> bool {
+        matches!(self, Self::Replay)
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct DejaSettings {
+    pub mode: DejaMode,
+    pub run_id: Option<String>,
+    pub recording: DejaRecordingSettings,
+    pub replay: DejaReplaySettings,
+    pub sampler: DejaSamplerSettings,
+    pub identity: DejaIdentitySettings,
+    pub writer: DejaWriterSettings,
+}
+
+#[cfg(feature = "deja")]
+impl DejaSettings {
+    pub fn effective_run_id(&self) -> Option<&str> {
+        self.run_id.as_deref().filter(|run_id| !run_id.is_empty())
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct DejaRecordingSettings {
+    // Execution-graph capture is coupled to the runtime mode (the graph layer
+    // rides the installed Record/Replay hook), so there is no `graph` dial here.
+    pub kafka: DejaRecordingKafkaSettings,
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaRecordingKafkaSettings {
+    pub topic: Option<String>,
+    pub brokers: Vec<String>,
+    pub client_id: Option<String>,
+    pub acks: String,
+    pub idempotence: bool,
+    pub compression: Option<String>,
+    pub linger: Option<u64>,
+    pub message_timeout: Option<u64>,
+    /// rdkafka producer send-buffer depth — the loss-budget knob. A full buffer
+    /// surfaces as enqueue errors the writer accounts as dropped (never memory
+    /// growth); tune per environment. Default matches the former hardcoded cap.
+    pub queue_buffering_max_messages: usize,
+}
+
+#[cfg(feature = "deja")]
+impl DejaRecordingKafkaSettings {
+    pub fn effective_topic(&self) -> Option<&str> {
+        self.topic.as_deref().filter(|topic| !topic.is_empty())
+    }
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaRecordingKafkaSettings {
+    fn default() -> Self {
+        Self {
+            topic: None,
+            brokers: Vec::new(),
+            client_id: None,
+            acks: "all".to_owned(),
+            idempotence: true,
+            compression: None,
+            linger: None,
+            message_timeout: Some(30_000),
+            queue_buffering_max_messages: 100_000,
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaReplaySettings {
+    pub source: Option<String>,
+    pub lookup_dir: Option<PathBuf>,
+    pub observed_sink: Option<String>,
+}
+
+/// Per-request recording-sampler settings. The sampler is active exactly when
+/// `deja.mode = "record"` — there is no separate on/off switch; `fail_closed`
+/// governs what happens when the sampling source cannot answer.
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaSamplerSettings {
+    pub record_key: Option<String>,
+    pub timeout_ms: u64,
+    pub fail_closed: bool,
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaSamplerSettings {
+    fn default() -> Self {
+        Self {
+            record_key: None,
+            timeout_ms: 25,
+            fail_closed: true,
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaIdentitySettings {
+    pub pod_name_env: String,
+    pub git_sha_env: String,
+    pub instance_id: Option<String>,
+    pub code_sha: Option<String>,
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaIdentitySettings {
+    fn default() -> Self {
+        Self {
+            pod_name_env: "POD_NAME".to_owned(),
+            git_sha_env: "VERGEN_GIT_SHA".to_owned(),
+            instance_id: None,
+            code_sha: None,
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaWriterSettings {
+    pub queue_capacity: usize,
+    pub batch_size: usize,
+    pub flush_after_records: usize,
+    pub flush_interval_ms: u64,
+    pub shutdown_flush_ms: u64,
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaWriterSettings {
+    fn default() -> Self {
+        Self {
+            queue_capacity: 8_192,
+            batch_size: 500,
+            flush_after_records: 500,
+            flush_interval_ms: 1_000,
+            shutdown_flush_ms: 5_000,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct OnSessionConfig {
+    #[serde(default, deserialize_with = "deserialize_hashmap")]
+    pub unsupported_payment_methods:
+        HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountUpdaterConfig {
+    Juspay(JuspayAccountUpdaterConfig),
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct JuspayAccountUpdaterConfig {
+    pub base_url: url::Url,
+    pub api_key: Secret<String>,
+    pub merchant_id: String,
+    pub euler_encryption_public_key: Secret<String>,
+    pub au_decryption_pvt_key: Secret<String>,
+    pub card_sync_key_id: String,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_card_networks: HashSet<enums::CardNetwork>,
+    #[serde(default = "default_account_updater_refresh_timeout_in_secs")]
+    pub refresh_timeout_in_secs: u64,
+}
+
+fn default_account_updater_refresh_timeout_in_secs() -> u64 {
+    5
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -194,15 +429,24 @@ pub struct OpenRouter {
     pub dynamic_routing_enabled: bool,
     pub static_routing_enabled: bool,
     pub url: String,
+    /// Browser-facing Decision Engine dashboard base URL, used for the merchant SSO redirect.
+    #[serde(default)]
+    pub dashboard_url: String,
+    /// Shared secret sent as the `x-admin-secret` header on Decision Engine requests. The DE
+    /// verifies it on admin endpoints (merchant provisioning, SSO code mint) and accepts it as
+    /// service-to-service auth on its protected routes. Decrypted via secrets management when
+    /// enabled; empty disables the header.
+    #[serde(default)]
+    pub admin_secret: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct CloneConnectorAllowlistConfig {
-    #[serde(deserialize_with = "deserialize_merchant_ids")]
-    pub merchant_ids: HashSet<id_type::MerchantId>,
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_names: HashSet<enums::Connector>,
+    #[serde(deserialize_with = "deserialize_hashmap")]
+    pub payment_method_types: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -213,10 +457,11 @@ pub struct Platform {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct ChatSettings {
+pub struct SageSettings {
     pub enabled: bool,
-    pub hyperswitch_ai_host: String,
-    pub encryption_key: Secret<String>,
+    pub base_url: String,
+    pub mint_path: String,
+    pub infra_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -247,6 +492,10 @@ pub struct DecisionConfig {
     pub base_url: String,
 }
 
+type StorageInterfaceMap = HashMap<id_type::TenantId, Box<dyn app::StorageInterface>>;
+type AccountsStorageInterfaceMap =
+    HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>>;
+
 #[derive(Debug, Clone, Default)]
 pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
 
@@ -254,68 +503,49 @@ impl TenantConfig {
     /// # Panics
     ///
     /// Panics if Failed to create event handler
-    pub async fn get_store_interface_map(
+    pub async fn get_store_interface_maps(
         &self,
         storage_impl: &app::StorageImpl,
         conf: &configs::Settings,
         cache_store: Arc<storage_impl::redis::RedisStore>,
+        caches: Arc<storage_impl::redis::cache::Caches>,
         testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::StorageInterface>> {
+    ) -> (StorageInterfaceMap, AccountsStorageInterfaceMap) {
         #[allow(clippy::expect_used)]
         let event_handler = conf
             .events
             .get_event_handler()
             .await
             .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                cache_store.clone(),
-                testable,
-            )
-            .await
-            .get_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
-    }
-    /// # Panics
-    ///
-    /// Panics if Failed to create event handler
-    pub async fn get_accounts_store_interface_map(
-        &self,
-        storage_impl: &app::StorageImpl,
-        conf: &configs::Settings,
-        cache_store: Arc<storage_impl::redis::RedisStore>,
-        testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>> {
-        #[allow(clippy::expect_used)]
-        let event_handler = conf
-            .events
-            .get_event_handler()
-            .await
-            .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                cache_store.clone(),
-                testable,
-            )
-            .await
-            .get_accounts_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
+        let tenant_stores =
+            futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+                let store = Box::pin(AppState::get_store_interface(
+                    storage_impl,
+                    &event_handler,
+                    conf,
+                    tenant,
+                    conf.master_database.clone().into_inner(),
+                    conf.accounts_database_config(),
+                    cache_store.clone(),
+                    caches.clone(),
+                    testable,
+                ))
+                .await;
+                (tenant_name.clone(), store)
+            }))
+            .await;
+
+        let stores = tenant_stores
+            .iter()
+            .map(|(tenant_name, store)| (tenant_name.clone(), store.get_storage_interface()))
+            .collect();
+        let accounts_store = tenant_stores
+            .iter()
+            .map(|(tenant_name, store)| {
+                (tenant_name.clone(), store.get_accounts_storage_interface())
+            })
+            .collect();
+        (stores, accounts_store)
     }
     #[cfg(feature = "olap")]
     pub async fn get_pools_map(
@@ -365,6 +595,12 @@ pub struct KeyManagerConfig {
     pub cert: Secret<String>,
     #[cfg(feature = "keymanager_mtls")]
     pub ca: Secret<String>,
+    #[serde(default = "default_key_store_decryption_behavior")]
+    pub use_legacy_key_store_decryption: bool,
+}
+
+fn default_key_store_decryption_behavior() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -438,6 +674,45 @@ pub struct ForexApi {
     pub data_expiration_delay_in_seconds: u32,
     pub redis_lock_timeout_in_seconds: u32,
     pub redis_ttl_in_seconds: u32,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct OfferEngineConfig {
+    pub base_url: url::Url,
+    pub api_key: Option<Secret<String>>,
+    pub merchant_id: Option<String>,
+}
+
+impl OfferEngineConfig {
+    pub fn validate(&self) -> ApplicationResult<()> {
+        common_utils::fp_utils::when(!self.base_url.path().ends_with('/'), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "offer_engine.base_url must end with a trailing slash".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(
+            self.api_key
+                .as_ref()
+                .is_some_and(|api_key| api_key.peek().is_empty()),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "offer_engine.api_key must not be empty".into(),
+                ))
+            },
+        )?;
+        common_utils::fp_utils::when(
+            self.merchant_id
+                .as_ref()
+                .is_some_and(|merchant_id| merchant_id.is_empty()),
+            || {
+                Err(error_stack::Report::from(
+                    ApplicationError::InvalidConfigurationValueError(
+                        "offer_engine.merchant_id must not be empty".into(),
+                    ),
+                ))
+            },
+        )
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -545,7 +820,25 @@ where
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct AuthenticationServiceEnabledConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct NetworkTransactionIdSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct CardOnlyMitSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NotifyIframeExitAndRedirectConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
 }
@@ -563,10 +856,16 @@ pub struct NetworkTokenizationSupportedCardNetworks {
     pub card_networks: HashSet<enums::CardNetwork>,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct AltIdRequiredCardNetworksAndConnector {
+    pub networks: HashMap<enums::CardNetwork, HashSet<enums::Connector>>,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct NetworkTokenizationService {
     pub generate_token_url: url::Url,
     pub fetch_token_url: url::Url,
+    pub check_tokenize_eligibility_url: url::Url,
     pub token_service_api_key: Secret<String>,
     pub public_key: Secret<String>,
     pub private_key: Secret<String>,
@@ -574,12 +873,14 @@ pub struct NetworkTokenizationService {
     pub delete_token_url: url::Url,
     pub check_token_status_url: url::Url,
     pub webhook_source_verification_key: Secret<String>,
+    pub fetch_altid_url: url::Url,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
+    pub allowed_card_authentication_type: Option<common_enums::AuthenticationType>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
     pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
@@ -647,6 +948,32 @@ pub enum PaymentMethodFilterKey {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct CustomerAcceptanceSupportConfig(
+    pub HashMap<enums::PaymentMethod, PaymentMethodTypeCustomerAcceptanceSupport>,
+);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct PaymentMethodTypeCustomerAcceptanceSupport(
+    pub HashMap<enums::PaymentMethodType, common_enums::CustomerAcceptanceSupport>,
+);
+
+impl CustomerAcceptanceSupportConfig {
+    pub fn get_customer_acceptance_support(
+        &self,
+        payment_method: enums::PaymentMethod,
+        payment_method_type: enums::PaymentMethodType,
+    ) -> common_enums::CustomerAcceptanceSupport {
+        self.0
+            .get(&payment_method)
+            .and_then(|pm_types| pm_types.0.get(&payment_method_type))
+            .copied()
+            .unwrap_or_default()
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct CurrencyCountryFlowFilter {
     #[serde(deserialize_with = "deserialize_optional_hashset")]
@@ -692,17 +1019,128 @@ pub struct UserSettings {
     pub force_cookies: bool,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct OidcSettings {
+    pub key: HashMap<String, OidcKey>,
+    pub client: HashMap<String, OidcClient>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcKey {
+    pub kid: String,
+    pub private_key: Secret<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcClient {
+    pub client_id: String,
+    pub client_secret: Secret<String>,
+    pub redirect_uri: String,
+}
+
+impl OidcSettings {
+    pub fn get_client(&self, client_id: &str) -> Option<&OidcClient> {
+        self.client.values().find(|c| c.client_id == client_id)
+    }
+
+    // deja: split out of get_signing_key so the sort's property — candidate
+    // order follows the key set's content, not which `HashMap` instance holds
+    // it — is testable without pinning the draw. See the tests below.
+    fn sorted_key_ids(&self) -> Vec<&String> {
+        // `HashMap` iteration is seeded per process, so seaming the draw alone
+        // is not enough — a recorded index would select a different key on
+        // replay. Sorting gives the index a stable meaning.
+        let mut key_ids: Vec<&String> = self.key.keys().collect();
+        key_ids.sort_unstable();
+        key_ids
+    }
+
+    pub fn get_signing_key(&self) -> Option<&OidcKey> {
+        let key_ids = self.sorted_key_ids();
+
+        let index = common_utils::generate_random_index(key_ids.len())?;
+        self.key.get(key_ids.get(index).copied()?)
+    }
+
+    pub fn get_all_keys(&self) -> Vec<&OidcKey> {
+        self.key.values().collect()
+    }
+}
+
+#[cfg(test)]
+mod oidc_signing_key_tests {
+    use std::collections::HashMap;
+
+    use hyperswitch_masking::Secret;
+
+    use super::{OidcClient, OidcKey, OidcSettings};
+
+    fn oidc_key(kid: &str) -> OidcKey {
+        OidcKey {
+            kid: kid.to_string(),
+            private_key: Secret::new(String::new()),
+        }
+    }
+
+    fn oidc_settings_with_keys(kids: &[&str]) -> OidcSettings {
+        OidcSettings {
+            key: kids
+                .iter()
+                .map(|kid| (kid.to_string(), oidc_key(kid)))
+                .collect::<HashMap<String, OidcKey>>(),
+            client: HashMap::<String, OidcClient>::new(),
+        }
+    }
+
+    // deja: a replay reproduces `self.key`'s content from config, not its
+    // iteration order -- `HashMap`'s hasher is seeded per instance, so two
+    // `OidcSettings` built from the same config data can iterate their keys
+    // in a different order. `get_signing_key` sorts before drawing so the
+    // recorded index still names the same key; that is the property this
+    // test asserts, and it is not visible from either single call's result
+    // shape alone. If the sort in `sorted_key_ids` is ever dropped, two
+    // independently-constructed instances holding the same key set resolve
+    // their candidate order from raw hasher-seeded iteration, which very
+    // reliably differs across instances for a set this size -- so this
+    // assertion fails on that regression rather than passing by accident.
+    #[test]
+    fn signing_key_order_is_independent_of_which_hashmap_instance_holds_it() {
+        let kids = ["a", "m", "z", "b", "y", "c", "x", "d", "w", "e"];
+
+        let first = oidc_settings_with_keys(&kids);
+        let second = oidc_settings_with_keys(&kids);
+
+        assert_eq!(
+            first.sorted_key_ids(),
+            second.sorted_key_ids(),
+            "the same signing-key set, built as two separate HashMap instances, \
+             produced a different candidate order -- a recorded index would no \
+             longer name the same key on replay"
+        );
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Locker {
     pub host: String,
-    pub host_rs: String,
     pub mock_locker: bool,
-    pub basilisk_host: String,
     pub locker_signing_key_id: String,
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
+    pub create_entity_on_merchant_create: bool,
+    #[cfg(feature = "v2")]
+    pub plain_fingerprint_response: bool,
+}
+
+impl Locker {
+    pub fn get_host(&self, endpoint_path: &str) -> String {
+        let mut url = self.host.clone();
+        url.push_str(endpoint_path);
+        url
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -731,7 +1169,6 @@ pub struct EphemeralConfig {
 #[serde(default)]
 pub struct Jwekey {
     pub vault_encryption_key: Secret<String>,
-    pub rust_locker_encryption_key: Secret<String>,
     pub vault_private_key: Secret<String>,
     pub tunnel_private_key: Secret<String>,
 }
@@ -744,6 +1181,9 @@ pub struct Server {
     pub host: String,
     pub request_body_limit: usize,
     pub shutdown_timeout: u64,
+    pub keep_alive: u64,
+    pub client_request_timeout: u64,
+    pub client_disconnect_timeout: u64,
     #[cfg(feature = "tls")]
     pub tls: Option<ServerTls>,
 }
@@ -756,11 +1196,14 @@ pub struct Database {
     pub host: String,
     pub port: u16,
     pub dbname: String,
-    pub pool_size: u32,
+    #[serde(alias = "pool_size")]
+    pub max_pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
-    pub min_idle: Option<u32>,
-    pub max_lifetime: Option<u64>,
+    #[serde(alias = "min_idle")]
+    pub min_idle_pool_size: u32,
+    pub max_lifetime: u64,
+    pub idle_timeout: u64,
 }
 
 impl From<Database> for storage_impl::config::Database {
@@ -771,11 +1214,12 @@ impl From<Database> for storage_impl::config::Database {
             host: val.host,
             port: val.port,
             dbname: val.dbname,
-            pool_size: val.pool_size,
+            max_pool_size: val.max_pool_size,
             connection_timeout: val.connection_timeout,
             queue_strategy: val.queue_strategy,
-            min_idle: val.min_idle,
+            min_idle_pool_size: val.min_idle_pool_size,
             max_lifetime: val.max_lifetime,
+            idle_timeout: val.idle_timeout,
         }
     }
 }
@@ -807,6 +1251,44 @@ pub struct MerchantIdAuthSettings {
 #[serde(default)]
 pub struct ProxyStatusMapping {
     pub proxy_connector_http_status_code: bool,
+}
+
+impl ProxyStatusMapping {
+    pub fn extract_connector_http_status_code(
+        &self,
+        response_headers: &[(String, Maskable<String>)],
+    ) -> Option<actix_web::http::StatusCode> {
+        self.proxy_connector_http_status_code
+            .then_some(response_headers)
+            .and_then(|headers| {
+                headers
+                    .iter()
+                    .find(|(key, _)| key.as_str() == headers::X_CONNECTOR_HTTP_STATUS_CODE)
+            })
+            .and_then(|(_, value)| {
+                value
+                    .clone()
+                    .into_inner()
+                    .parse::<u16>()
+                    .map_err(|err| {
+                        logger::error!(
+                            "Failed to parse connector_http_status_code from header: {:?}",
+                            err
+                        );
+                    })
+                    .ok()
+            })
+            .and_then(|code| {
+                actix_web::http::StatusCode::from_u16(code)
+                    .map_err(|err| {
+                        logger::error!(
+                            "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
+                            err
+                        );
+                    })
+                    .ok()
+            })
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -886,6 +1368,12 @@ pub struct BillingConnectorInvoiceSyncCall {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct BillingConnectorDisputeRecordBackCall {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub billing_connectors_which_requires_dispute_record_back_call: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ApplePayDecryptConfig {
     pub apple_pay_ppc: Secret<String>,
     pub apple_pay_ppc_key: Secret<String>,
@@ -902,6 +1390,17 @@ pub struct PazeDecryptConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct GooglePayDecryptConfig {
     pub google_pay_root_signing_keys: Secret<String>,
+    /// Private key of Hyperswitch's own registered Google Pay gateway. Used by the
+    /// `INTERNAL_GATEWAY` tokenization flow, where the merchant registers no key of its own.
+    pub google_pay_private_key: Option<Secret<String>>,
+    /// Google Pay Business Console merchant id used when an `INTERNAL_GATEWAY` merchant chooses
+    /// not to supply one of its own. Not secret managed: it is sent to the SDK in the session
+    /// response.
+    pub google_pay_common_merchant_id: Option<Secret<String>>,
+    /// Gateway identifier registered with Google, sent as
+    /// `tokenizationSpecification.parameters.gateway` and used to derive the `gateway:<id>`
+    /// recipient the token is signed against.
+    pub google_pay_gateway_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -925,6 +1424,71 @@ pub struct UserAuthMethodSettings {
 pub struct NetworkTokenizationSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
+}
+
+/// Configuration structure for individual merchant advice code
+#[derive(Debug, Deserialize, Clone)]
+pub struct MerchantAdviceCodeConfig {
+    pub recommended_action: common_enums::RecommendedAction,
+    pub description: String,
+}
+
+/// Domain type for merchant advice code mappings
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(transparent)]
+pub struct MerchantAdviceCodeMap(HashMap<String, MerchantAdviceCodeConfig>);
+
+impl MerchantAdviceCodeMap {
+    /// Get merchant advice code configuration for a specific advice code
+    /// Pads single digit codes to double digit (e.g., "1" -> "01")
+    pub fn get_config(&self, advice_code: &str) -> Option<&MerchantAdviceCodeConfig> {
+        let padded_code = format!("{:0>2}", advice_code);
+        self.0.get(&padded_code)
+    }
+}
+
+/// Each network has its own field for direct lookup
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct MerchantAdviceCodeLookupConfig {
+    pub visa: Option<MerchantAdviceCodeMap>,
+    pub mastercard: Option<MerchantAdviceCodeMap>,
+}
+
+impl MerchantAdviceCodeLookupConfig {
+    /// Get merchant advice code configuration for a specific network and advice code
+    pub fn get_config(
+        &self,
+        network: &common_enums::CardNetwork,
+        advice_code: &str,
+    ) -> Option<&MerchantAdviceCodeConfig> {
+        match network {
+            common_enums::CardNetwork::Visa => self.visa.as_ref()?.get_config(advice_code),
+            common_enums::CardNetwork::Mastercard => {
+                self.mastercard.as_ref()?.get_config(advice_code)
+            }
+            common_enums::CardNetwork::AmericanExpress
+            | common_enums::CardNetwork::JCB
+            | common_enums::CardNetwork::DinersClub
+            | common_enums::CardNetwork::Discover
+            | common_enums::CardNetwork::CartesBancaires
+            | common_enums::CardNetwork::UnionPay
+            | common_enums::CardNetwork::Interac
+            | common_enums::CardNetwork::RuPay
+            | common_enums::CardNetwork::Maestro
+            | common_enums::CardNetwork::Star
+            | common_enums::CardNetwork::Pulse
+            | common_enums::CardNetwork::Accel
+            | common_enums::CardNetwork::Nyce
+            | common_enums::CardNetwork::Prop
+            | common_enums::CardNetwork::PrivateLabel
+            | common_enums::CardNetwork::Dinacard
+            | common_enums::CardNetwork::AirPlus
+            | common_enums::CardNetwork::Aurore
+            | common_enums::CardNetwork::EftposAustralia
+            | common_enums::CardNetwork::GeCapital
+            | common_enums::CardNetwork::Uatp => None,
+        }
+    }
 }
 
 impl Settings<SecuredSecret> {
@@ -960,19 +1524,22 @@ impl Settings<SecuredSecret> {
             config.add_source(File::from(required_fields_config_file).required(false))
         };
 
-        let config = config
-            .add_source(
-                Environment::with_prefix("ROUTER")
-                    .try_parsing(true)
-                    .separator("__")
-                    .list_separator(",")
-                    .with_list_parse_key("log.telemetry.route_to_trace")
-                    .with_list_parse_key("redis.cluster_urls")
-                    .with_list_parse_key("events.kafka.brokers")
-                    .with_list_parse_key("connectors.supported.wallets")
-                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
+        let environment_source = Environment::with_prefix("ROUTER")
+            .try_parsing(true)
+            .separator("__")
+            .list_separator(",")
+            .with_list_parse_key("log.telemetry.route_to_trace")
+            .with_list_parse_key("redis.cluster_urls")
+            .with_list_parse_key("events.kafka.brokers")
+            .with_list_parse_key("connectors.supported.wallets")
+            .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id");
 
-            )
+        #[cfg(feature = "deja")]
+        let environment_source =
+            environment_source.with_list_parse_key("deja.recording.kafka.brokers");
+
+        let config = config
+            .add_source(environment_source)
             .build()
             .change_context(ApplicationError::ConfigurationError)?;
 
@@ -989,6 +1556,12 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> ApplicationResult<()> {
         self.server.validate()?;
         self.master_database.get_inner().validate()?;
+        if let Some(accounts_database) = &self.accounts_database {
+            accounts_database.get_inner().validate()?;
+        }
+        if let Some(global_database) = &self.global_database {
+            global_database.get_inner().validate()?;
+        }
         #[cfg(feature = "olap")]
         self.replica_database.get_inner().validate()?;
 
@@ -1019,7 +1592,7 @@ impl Settings<SecuredSecret> {
         self.secrets.get_inner().validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
-        self.chat.get_inner().validate()?;
+        self.sage.get_inner().validate()?;
         self.cors.validate()?;
 
         self.scheduler
@@ -1061,6 +1634,16 @@ impl Settings<SecuredSecret> {
             .map(|x| x.get_inner().validate())
             .transpose()?;
 
+        self.offer_engine
+            .as_ref()
+            .map(|offer_engine| offer_engine.get_inner().validate())
+            .transpose()?;
+
+        self.account_updater
+            .as_ref()
+            .map(|account_updater| account_updater.get_inner().validate())
+            .transpose()?;
+
         self.paze_decrypt_keys
             .as_ref()
             .map(|x| x.get_inner().validate())
@@ -1068,7 +1651,7 @@ impl Settings<SecuredSecret> {
 
         self.google_pay_decrypt_keys
             .as_ref()
-            .map(|x| x.validate())
+            .map(|x| x.get_inner().validate())
             .transpose()?;
 
         self.key_manager.get_inner().validate()?;
@@ -1113,6 +1696,24 @@ impl Settings<RawSecret> {
     #[cfg(not(feature = "kv_store"))]
     pub fn is_kv_soft_kill_mode(&self) -> bool {
         false
+    }
+
+    /// Returns the accounts database config, falling back to `master_database` if
+    /// `accounts_database` is not configured.
+    pub fn accounts_database_config(&self) -> Database {
+        self.accounts_database
+            .clone()
+            .map(SecretStateContainer::into_inner)
+            .unwrap_or_else(|| self.master_database.clone().into_inner())
+    }
+
+    /// Returns the global database config, falling back to `master_database` if
+    /// `global_database` is not configured.
+    pub fn global_database_config(&self) -> Database {
+        self.global_database
+            .clone()
+            .map(SecretStateContainer::into_inner)
+            .unwrap_or_else(|| self.master_database.clone().into_inner())
     }
 }
 
@@ -1181,13 +1782,11 @@ pub struct ServerTls {
     pub certificate: PathBuf,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct CellInformation {
     pub id: id_type::CellId,
 }
 
-#[cfg(feature = "v2")]
 impl Default for CellInformation {
     fn default() -> Self {
         // We provide a static default cell id for constructing application settings.
@@ -1196,7 +1795,7 @@ impl Default for CellInformation {
         // And a panic at application startup is considered acceptable.
         #[allow(clippy::expect_used)]
         let cell_id =
-            id_type::CellId::from_string("defid").expect("Failed to create a default for Cell Id");
+            id_type::CellId::from_string("00").expect("Failed to create a default for Cell Id");
         Self { id: cell_id }
     }
 }

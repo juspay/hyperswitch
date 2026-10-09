@@ -1,5 +1,7 @@
 pub mod fraud_check_post;
 pub mod fraud_check_pre;
+#[cfg(all(feature = "payouts", feature = "v1"))]
+pub mod fraud_check_pre_payout;
 use async_trait::async_trait;
 use common_enums::FrmSuggestion;
 use error_stack::{report, ResultExt};
@@ -52,7 +54,6 @@ pub trait Domain<F, D>: Send + Sync {
         payment_data: &mut D,
         frm_data: &mut FrmData,
         platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>>
     where
         F: Send + Clone;
@@ -63,7 +64,6 @@ pub trait Domain<F, D>: Send + Sync {
         payment_data: &mut D,
         frm_data: &mut FrmData,
         platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
     ) -> RouterResult<FrmRouterData>
     where
         F: Send + Clone;
@@ -80,7 +80,6 @@ pub trait Domain<F, D>: Send + Sync {
         _frm_configs: FrmConfigsObject,
         _frm_suggestion: &mut Option<FrmSuggestion>,
         _payment_data: &mut D,
-        _customer: &Option<domain::Customer>,
         _should_continue_capture: &mut bool,
     ) -> RouterResult<Option<FrmData>>
     where

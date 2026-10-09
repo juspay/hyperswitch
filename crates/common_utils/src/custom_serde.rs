@@ -5,23 +5,17 @@
 ///
 /// [PrimitiveDateTime]: ::time::PrimitiveDateTime
 pub mod iso8601 {
-    use std::num::NonZeroU8;
-
     use serde::{ser::Error as _, Deserializer, Serialize, Serializer};
-    use time::{
-        format_description::well_known::{
-            iso8601::{Config, EncodedConfig, TimePrecision},
-            Iso8601,
-        },
-        serde::iso8601,
-        PrimitiveDateTime, UtcOffset,
-    };
+    use time::{serde::iso8601, PrimitiveDateTime, UtcOffset};
 
-    const FORMAT_CONFIG: EncodedConfig = Config::DEFAULT
-        .set_time_precision(TimePrecision::Second {
-            decimal_digits: NonZeroU8::new(3),
-        })
-        .encode();
+    /// The same rendering `Iso8601` with `decimal_digits: 3` produces, but with
+    /// the subsecond rendered from the integer nanosecond count. `time` 0.3.41's
+    /// well-known formatter routes subseconds through `f64` and can render a
+    /// millisecond early (e.g. 938 ms as `.937`); the fixed releases require
+    /// Rust 1.88 while this workspace declares 1.85.
+    const EXACT_FORMAT: &[time::format_description::FormatItem<'static>] = time::macros::format_description!(
+        "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z"
+    );
 
     /// Serialize a [`PrimitiveDateTime`] using the well-known ISO 8601 format.
     pub fn serialize<S>(date_time: &PrimitiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
@@ -30,7 +24,7 @@ pub mod iso8601 {
     {
         date_time
             .assume_utc()
-            .format(&Iso8601::<FORMAT_CONFIG>)
+            .format(EXACT_FORMAT)
             .map_err(S::Error::custom)?
             .serialize(serializer)
     }
@@ -52,7 +46,6 @@ pub mod iso8601 {
     /// [PrimitiveDateTime]: ::time::PrimitiveDateTime
     pub mod option {
         use serde::Serialize;
-        use time::format_description::well_known::Iso8601;
 
         use super::*;
 
@@ -65,7 +58,7 @@ pub mod iso8601 {
             S: Serializer,
         {
             date_time
-                .map(|date_time| date_time.assume_utc().format(&Iso8601::<FORMAT_CONFIG>))
+                .map(|date_time| date_time.assume_utc().format(EXACT_FORMAT))
                 .transpose()
                 .map_err(S::Error::custom)?
                 .serialize(serializer)
@@ -236,32 +229,24 @@ pub mod json_string {
 pub mod iso8601custom {
 
     use serde::{ser::Error as _, Deserializer, Serialize, Serializer};
-    use time::{
-        format_description::well_known::{
-            iso8601::{Config, EncodedConfig, TimePrecision},
-            Iso8601,
-        },
-        serde::iso8601,
-        PrimitiveDateTime, UtcOffset,
-    };
+    use time::{serde::iso8601, PrimitiveDateTime, UtcOffset};
 
-    const FORMAT_CONFIG: EncodedConfig = Config::DEFAULT
-        .set_time_precision(TimePrecision::Second {
-            decimal_digits: None,
-        })
-        .encode();
+    /// `YYYY-MM-DD HH:MM:SS` — the shape this module has always emitted
+    /// (previously derived by string surgery on a full ISO 8601 rendering),
+    /// stated directly. This format deliberately carries no subsecond, and
+    /// `deserialize` below parses ISO 8601 — the two ends serve different wires.
+    const WHOLE_SECOND_FORMAT: &[time::format_description::FormatItem<'static>] =
+        time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
 
-    /// Serialize a [`PrimitiveDateTime`] using the well-known ISO 8601 format.
+    /// Serialize a [`PrimitiveDateTime`] as `YYYY-MM-DD HH:MM:SS`.
     pub fn serialize<S>(date_time: &PrimitiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         date_time
             .assume_utc()
-            .format(&Iso8601::<FORMAT_CONFIG>)
+            .format(WHOLE_SECOND_FORMAT)
             .map_err(S::Error::custom)?
-            .replace('T', " ")
-            .replace('Z', "")
             .serialize(serializer)
     }
 
@@ -293,5 +278,77 @@ mod tests {
         let deser = serde_json::from_value::<Try>(leap_second_date_time);
 
         assert!(deser.is_ok())
+    }
+}
+
+/// Use only the date part of a [`PrimitiveDateTime`] when serializing and deserializing.
+pub mod date_only {
+    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+    use time::{Date, PrimitiveDateTime, Time};
+
+    /// Serialize a [`PrimitiveDateTime`] as a YYYY-MM-DD string.
+    pub fn serialize<S>(date_time: &PrimitiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let date = date_time.date();
+        // Format: 2026-09-10
+        format!(
+            "{}-{:02}-{:02}",
+            date.year(),
+            u8::from(date.month()),
+            date.day()
+        )
+        .serialize(serializer)
+    }
+
+    /// Deserialize a [`PrimitiveDateTime`] from a YYYY-MM-DD string.
+    pub fn deserialize<'a, D>(deserializer: D) -> Result<PrimitiveDateTime, D::Error>
+    where
+        D: Deserializer<'a>,
+    {
+        // 1. Deserialize into a Date object (handles YYYY-MM-DD)
+        let date = Date::deserialize(deserializer)
+            .map_err(|e| de::Error::custom(format!("Failed to parse Date (YYYY-MM-DD): {e}")))?;
+
+        // 2. Combine with midnight time to create PrimitiveDateTime
+        let time = Time::MIDNIGHT;
+        Ok(PrimitiveDateTime::new(date, time))
+    }
+}
+
+/// Use only the date part of an [`Option<PrimitiveDateTime>`] when serializing and deserializing.
+pub mod date_only_optional {
+    use serde::{Deserialize, Deserializer, Serializer}; // Added Deserialize here
+    use time::PrimitiveDateTime;
+
+    use super::date_only;
+
+    /// Serialize an [`Option<PrimitiveDateTime>`] as a YYYY-MM-DD string or null.
+    pub fn serialize<S>(
+        date_time: &Option<PrimitiveDateTime>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match date_time {
+            Some(dt) => date_only::serialize(dt, serializer),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    /// Deserialize an [`Option<PrimitiveDateTime>`] from a YYYY-MM-DD string or null.
+    pub fn deserialize<'a, D>(deserializer: D) -> Result<Option<PrimitiveDateTime>, D::Error>
+    where
+        D: Deserializer<'a>,
+    {
+        // Use Option's built-in wrapper, but tell it to use our
+        // specific date_only logic for the inner value
+        #[derive(serde::Deserialize)]
+        struct Helper(#[serde(with = "date_only")] PrimitiveDateTime);
+
+        let helper = Option::<Helper>::deserialize(deserializer)?;
+        Ok(helper.map(|h| h.0))
     }
 }

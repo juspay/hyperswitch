@@ -25,7 +25,7 @@ mod business_profile {
 }
 
 mod platform {
-    pub use hyperswitch_domain_models::platform::{Platform, Processor, Provider};
+    pub use hyperswitch_domain_models::platform::{Initiator, Platform, Processor, Provider};
 }
 mod customers {
     pub use hyperswitch_domain_models::customer::*;
@@ -33,10 +33,6 @@ mod customers {
 
 pub mod callback_mapper {
     pub use hyperswitch_domain_models::callback_mapper::CallbackMapper;
-}
-
-mod network_tokenization {
-    pub use hyperswitch_domain_models::network_tokenization::*;
 }
 
 #[cfg(feature = "v2")]
@@ -53,6 +49,11 @@ mod merchant_connector_account;
 mod merchant_key_store {
     pub use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 }
+mod hierarchical_resource {
+    pub use hyperswitch_domain_models::hierarchical_resource::{
+        HierarchicalResource, HierarchicalResourceDataUpdate,
+    };
+}
 pub use hyperswitch_domain_models::bulk_tokenization::*;
 pub mod payment_methods {
     pub use hyperswitch_domain_models::payment_methods::*;
@@ -66,6 +67,10 @@ pub mod payment_method_data {
 
 pub mod authentication {
     pub use hyperswitch_domain_models::router_request_types::authentication::*;
+}
+
+pub mod merchant_connector_webhook_management {
+    pub use hyperswitch_domain_models::router_request_types::merchant_connector_webhook_management::*;
 }
 
 #[cfg(feature = "v2")]
@@ -83,6 +88,7 @@ mod routing {
 }
 
 pub mod payments;
+pub mod role;
 pub mod types;
 #[cfg(feature = "olap")]
 pub mod user;
@@ -93,9 +99,10 @@ pub use business_profile::*;
 pub use callback_mapper::*;
 pub use consts::*;
 pub use event::*;
+pub use hierarchical_resource::*;
 pub use merchant_connector_account::*;
+pub use merchant_connector_webhook_management::*;
 pub use merchant_key_store::*;
-pub use network_tokenization::*;
 pub use payment_attempt::*;
 pub use payment_method_data::*;
 pub use payment_methods::*;

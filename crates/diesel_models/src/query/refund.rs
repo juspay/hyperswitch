@@ -1,4 +1,5 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
+use error_stack::ResultExt;
 
 use super::generics;
 #[cfg(feature = "v1")]
@@ -6,20 +7,37 @@ use crate::schema::refund::dsl;
 #[cfg(feature = "v2")]
 use crate::schema_v2::refund::dsl;
 use crate::{
-    errors,
+    errors, kv,
     refund::{Refund, RefundNew, RefundUpdate, RefundUpdateInternal},
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl RefundNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Refund> {
+    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Refund> {
         generics::generic_insert(conn, self).await
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for refund")
     }
 }
 
 #[cfg(feature = "v1")]
 impl Refund {
-    pub async fn update(self, conn: &PgPooledConn, refund: RefundUpdate) -> StorageResult<Self> {
+    pub async fn update(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+        refund: RefundUpdate,
+    ) -> StorageResult<Self> {
+        let processor_merchant_id = self
+            .processor_merchant_id
+            .clone()
+            .unwrap_or_else(|| self.merchant_id.clone());
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
@@ -29,7 +47,39 @@ impl Refund {
             conn,
             dsl::refund_id
                 .eq(self.refund_id.to_owned())
-                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
+                .and(dsl::processor_merchant_id.eq(processor_merchant_id)),
+            RefundUpdateInternal::from(refund),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+                _ => Err(error),
+            },
+            result => result,
+        }
+    }
+
+    // Fallback function for stagger release - updates by merchant_id when processor_merchant_id is NULL
+    pub async fn update_by_merchant_id(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+        refund: RefundUpdate,
+    ) -> StorageResult<Self> {
+        let processor_merchant_id = self
+            .processor_merchant_id
+            .clone()
+            .unwrap_or_else(|| self.merchant_id.clone());
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::refund_id
+                .eq(self.refund_id.to_owned())
+                .and(dsl::merchant_id.eq(processor_merchant_id)),
             RefundUpdateInternal::from(refund),
         )
         .await
@@ -43,53 +93,100 @@ impl Refund {
     }
 
     // This is required to be changed for KV.
-    pub async fn find_by_merchant_id_refund_id(
-        conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+    pub async fn find_by_processor_merchant_id_refund_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
                 .and(dsl::refund_id.eq(refund_id.to_owned())),
         )
         .await
     }
 
-    pub async fn find_by_merchant_id_connector_refund_id_connector(
-        conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+    // Fallback function for stagger release - queries by merchant_id when processor_merchant_id is NULL
+    pub async fn find_by_merchant_id_refund_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        refund_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::refund_id.eq(refund_id.to_owned())),
+        )
+        .await
+    }
+
+    pub async fn find_by_processor_merchant_id_connector_refund_id_connector(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
                 .and(dsl::connector_refund_id.eq(connector_refund_id.to_owned()))
                 .and(dsl::connector.eq(connector.to_owned())),
         )
         .await
     }
 
-    pub async fn find_by_internal_reference_id_merchant_id(
-        conn: &PgPooledConn,
-        internal_reference_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+    // Fallback function for stagger release - queries by merchant_id when processor_merchant_id is NULL
+    pub async fn find_by_merchant_id_connector_refund_id_connector(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        connector_refund_id: &str,
+        connector: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
-                .eq(merchant_id.to_owned())
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::connector_refund_id.eq(connector_refund_id.to_owned()))
+                .and(dsl::connector.eq(connector.to_owned())),
+        )
+        .await
+    }
+
+    pub async fn find_by_internal_reference_id_processor_merchant_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        internal_reference_id: &str,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
                 .and(dsl::internal_reference_id.eq(internal_reference_id.to_owned())),
         )
         .await
     }
 
-    pub async fn find_by_merchant_id_connector_transaction_id(
-        conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+    // Fallback function for stagger release - queries by merchant_id when processor_merchant_id is NULL
+    pub async fn find_by_internal_reference_id_merchant_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        internal_reference_id: &str,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::internal_reference_id.eq(internal_reference_id.to_owned())),
+        )
+        .await
+    }
+
+    pub async fn find_by_processor_merchant_id_connector_transaction_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_transaction_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
@@ -99,8 +196,11 @@ impl Refund {
             _,
         >(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .or(dsl::processor_merchant_id
+                    .is_null()
+                    .and(dsl::merchant_id.eq(processor_merchant_id.to_owned())))
                 .and(dsl::connector_transaction_id.eq(connector_transaction_id.to_owned())),
             None,
             None,
@@ -109,10 +209,10 @@ impl Refund {
         .await
     }
 
-    pub async fn find_by_payment_id_merchant_id(
-        conn: &PgPooledConn,
+    pub async fn find_by_payment_id_processor_merchant_id(
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_id: &common_utils::id_type::PaymentId,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
@@ -121,8 +221,11 @@ impl Refund {
             _,
         >(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .or(dsl::processor_merchant_id
+                    .is_null()
+                    .and(dsl::merchant_id.eq(processor_merchant_id.to_owned())))
                 .and(dsl::payment_id.eq(payment_id.to_owned())),
             None,
             None,
@@ -130,13 +233,22 @@ impl Refund {
         )
         .await
     }
+
+    pub fn is_refund_applied(&self) -> bool {
+        matches!(
+            self.refund_status,
+            common_enums::RefundStatus::ManualReview
+                | common_enums::RefundStatus::Pending
+                | common_enums::RefundStatus::Success
+        )
+    }
 }
 
 #[cfg(feature = "v2")]
 impl Refund {
     pub async fn update_with_id(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         refund: RefundUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
@@ -155,7 +267,7 @@ impl Refund {
     }
 
     pub async fn find_by_global_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: &common_utils::id_type::GlobalRefundId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -166,7 +278,7 @@ impl Refund {
     }
 
     pub async fn find_by_merchant_id_connector_transaction_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_transaction_id: &str,
     ) -> StorageResult<Vec<Self>> {
@@ -185,5 +297,40 @@ impl Refund {
             None,
         )
         .await
+    }
+}
+
+impl RefundUpdate {
+    #[cfg(feature = "v1")]
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut DatabaseConnectionWithContext<'_>,
+        refund_id: String,
+        processor_merchant_id: common_utils::id_type::MerchantId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<Refund as HasTable>::Table, _, _>(
+            conn,
+            dsl::refund_id
+                .eq(refund_id)
+                .and(dsl::processor_merchant_id.eq(processor_merchant_id)),
+            RefundUpdateInternal::from(self),
+        )
+        .await
+        .attach_printable("Failed to generate update query for refund")
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut DatabaseConnectionWithContext<'_>,
+        id: common_utils::id_type::GlobalRefundId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_by_id::<<Refund as HasTable>::Table, _, _>(
+            conn,
+            id,
+            RefundUpdateInternal::from(self),
+        )
+        .await
+        .attach_printable("Failed to generate update query for refund")
     }
 }

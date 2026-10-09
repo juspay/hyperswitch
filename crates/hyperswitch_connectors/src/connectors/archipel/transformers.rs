@@ -22,7 +22,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -260,7 +260,7 @@ impl TryFrom<(&WalletData, &Option<PaymentMethodToken>)> for TokenizedCardData {
             return Err(error_stack::Report::from(
                 errors::ConnectorError::NotSupported {
                     message: "Wallet type used".to_string(),
-                    connector: "Archipel",
+                    connector: "Archipel".into(),
                 },
             ));
         };
@@ -280,11 +280,11 @@ impl TryFrom<(&WalletData, &Option<PaymentMethodToken>)> for TokenizedCardData {
         let expiry_year_2_digit = apple_pay_decrypt_data
             .get_two_digit_expiry_year()
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "Apple pay expiry year",
+                field_name: "Apple pay expiry year".into(),
             })?;
         let expiry_month = apple_pay_decrypt_data.get_expiry_month().change_context(
             errors::ConnectorError::InvalidDataFormat {
-                field_name: "expiration_month",
+                field_name: "expiration_month".into(),
             },
         )?;
 
@@ -794,9 +794,16 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardToken(..)
             | PaymentMethodData::OpenBanking(..)
             | PaymentMethodData::NetworkToken(..)
-            | PaymentMethodData::MobilePayment(..) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Archipel"),
-            ))?,
+            | PaymentMethodData::MobilePayment(..)
+            | PaymentMethodData::CardWithOptionalCVC(..)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::CardWithLimitedDetails(..)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(..)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(..) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Archipel"),
+                ))?
+            }
         };
 
         let three_ds: Option<Archipel3DS> = if item.router_data.is_three_ds() {
@@ -806,7 +813,7 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
                 .get_authentication_data()
                 .change_context(errors::ConnectorError::NotSupported {
                     message: "Selected 3DS authentication method".to_string(),
-                    connector: "archipel",
+                    connector: "archipel".into(),
                 })?;
             Some(Archipel3DS::from(auth_data))
         } else {
@@ -845,7 +852,12 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
                 TokenizedCardData::try_from((wallet_data, &item.router_data.payment_method_token))?
             }
             PaymentMethodData::Card(..)
+            | PaymentMethodData::CardWithOptionalCVC(..)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(..)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(..)
             | PaymentMethodData::CardRedirect(..)
             | PaymentMethodData::PayLater(..)
             | PaymentMethodData::BankRedirect(..)
@@ -918,6 +930,7 @@ impl TryFrom<PaymentsResponseRouterData<ArchipelPaymentsResponse>> for PaymentsA
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
+                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -928,8 +941,10 @@ impl TryFrom<PaymentsResponseRouterData<ArchipelPaymentsResponse>> for PaymentsA
                     .request
                     .is_customer_initiated_mandate_payment()
                     .then_some(item.response.transaction_id),
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: Some(is_incremental_allowed),
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -969,13 +984,16 @@ impl TryFrom<PaymentsSyncResponseRouterData<ArchipelPaymentsResponse>> for Payme
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
+                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1033,13 +1051,16 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ArchipelPaymentsResponse>>
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
+                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1155,13 +1176,16 @@ impl<F>
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
+                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: Some(item.response.transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
                 incremental_authorization_allowed: Some(false),
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1212,13 +1236,16 @@ impl TryFrom<PaymentsCancelResponseRouterData<ArchipelPaymentsResponse>>
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
+                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1419,6 +1446,7 @@ impl From<ArchipelErrorMessageWithHttpCode> for ErrorResponse {
             code: error_message.code,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             message: error_message
                 .description
                 .clone()

@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     router_response_types::AuthenticationResponseData,
 };
 use hyperswitch_interfaces::{api::CurrencyUnit, errors::ConnectorError};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::netcetera_types;
@@ -101,6 +101,9 @@ impl
                     directory_server_id: card_range
                         .as_ref()
                         .and_then(|card_range| card_range.directory_server_id.clone()),
+                    scheme_id: card_range
+                        .as_ref()
+                        .map(|card_range| card_range.scheme_id.clone().to_string()),
                 })
             }
             NetceteraPreAuthenticationResponse::Failure(error_response) => Err(ErrorResponse {
@@ -110,6 +113,7 @@ impl
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -144,8 +148,9 @@ impl
     ) -> Result<Self, Self::Error> {
         let response = match item.response {
             NetceteraAuthenticationResponse::Success(response) => {
-                let authn_flow_type = match response.acs_challenge_mandated {
-                    Some(ACSChallengeMandatedIndicator::Y) => {
+                let authn_flow_type = match &response.trans_status {
+                    common_enums::TransactionStatus::ChallengeRequired
+                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
                         AuthNFlowType::Challenge(Box::new(ChallengeParams {
                             acs_url: response.authentication_response.acs_url.clone(),
                             challenge_request: response.encoded_challenge_request,
@@ -158,7 +163,7 @@ impl
                             challenge_request_key: None,
                         }))
                     }
-                    Some(ACSChallengeMandatedIndicator::N) | None => AuthNFlowType::Frictionless,
+                    _ => AuthNFlowType::Frictionless,
                 };
 
                 let challenge_code = response
@@ -205,6 +210,7 @@ impl
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -286,7 +292,6 @@ pub struct NetceteraMetaData {
     pub mcc: Option<String>,
     pub merchant_country_code: Option<String>,
     pub merchant_name: Option<String>,
-    pub endpoint_prefix: String,
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub merchant_configuration_id: Option<String>,
@@ -530,7 +535,7 @@ impl TryFrom<&NetceteraRouterData<&ConnectorAuthenticationRouterData>>
             .currency
             .get_required_value("currency")
             .change_context(ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             })?;
         let purchase = netcetera_types::Purchase {
             purchase_instal_data: None,

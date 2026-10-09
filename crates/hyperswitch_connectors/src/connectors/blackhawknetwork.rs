@@ -10,28 +10,27 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{
-            Authorize, Capture, PSync, PaymentMethodToken, PreProcessing, Session, SetupMandate,
-            Void,
-        },
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
+        GiftCardBalanceCheck,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData,
+        AccessTokenRequestData, GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, GiftCardBalanceCheckResponseData, PaymentMethodDetails,
+        PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        PaymentsGiftCardBalanceCheckRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
+        RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -46,7 +45,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use transformers as blackhawknetwork;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -76,7 +75,7 @@ impl api::Refund for Blackhawknetwork {}
 impl api::RefundExecute for Blackhawknetwork {}
 impl api::RefundSync for Blackhawknetwork {}
 impl api::PaymentToken for Blackhawknetwork {}
-impl api::PaymentsPreProcessing for Blackhawknetwork {}
+impl api::PaymentsGiftCardBalanceCheck for Blackhawknetwork {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
     for Blackhawknetwork
@@ -235,6 +234,7 @@ impl ConnectorCommon for Blackhawknetwork {
             reason: response.error_description,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -244,20 +244,6 @@ impl ConnectorCommon for Blackhawknetwork {
 }
 
 impl ConnectorValidation for Blackhawknetwork {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
@@ -272,12 +258,17 @@ impl ConnectorValidation for Blackhawknetwork {
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Blackhawknetwork {
     //TODO: implement sessions flow
 }
-impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
-    for Blackhawknetwork
+
+impl
+    ConnectorIntegration<
+        GiftCardBalanceCheck,
+        GiftCardBalanceCheckRequestData,
+        GiftCardBalanceCheckResponseData,
+    > for Blackhawknetwork
 {
     fn get_headers(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &PaymentsGiftCardBalanceCheckRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let mut headers = vec![(
@@ -291,7 +282,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn get_url(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &PaymentsGiftCardBalanceCheckRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
@@ -305,17 +296,17 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn build_request(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &PaymentsGiftCardBalanceCheckRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Get)
-                .url(&types::PaymentsPreProcessingType::get_url(
+                .url(&types::PaymentsGiftCardBalanceCheckType::get_url(
                     self, req, connectors,
                 )?)
                 .attach_default_headers()
-                .headers(types::PaymentsPreProcessingType::get_headers(
+                .headers(types::PaymentsGiftCardBalanceCheckType::get_headers(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -324,10 +315,10 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn handle_response(
         &self,
-        data: &PaymentsPreProcessingRouterData,
+        data: &PaymentsGiftCardBalanceCheckRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsGiftCardBalanceCheckRouterData, errors::ConnectorError> {
         let response: blackhawknetwork::BlackhawknetworkVerifyAccountResponse = res
             .response
             .parse_struct("BlackhawknetworkVerifyAccountResponse")
@@ -462,6 +453,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             reason: Some("Verify redemption details or contact BHN support".to_string()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -540,6 +532,7 @@ impl webhooks::IncomingWebhook for Blackhawknetwork {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -547,7 +540,8 @@ impl webhooks::IncomingWebhook for Blackhawknetwork {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

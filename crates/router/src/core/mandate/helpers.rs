@@ -6,11 +6,9 @@ use diesel_models::Mandate;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::MandateData;
 
-use crate::{
-    core::{errors, payments},
-    routes::SessionState,
-    types::{api, domain},
-};
+use crate::{core::errors, types::api};
+#[cfg(feature = "v1")]
+use crate::{core::payments, routes::SessionState, types::domain};
 
 #[cfg(feature = "v1")]
 pub async fn get_profile_id_for_mandate(
@@ -21,7 +19,7 @@ pub async fn get_profile_id_for_mandate(
     let profile_id = if let Some(ref payment_id) = mandate.original_payment_id {
         let pi = state
             .store
-            .find_payment_intent_by_payment_id_merchant_id(
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -85,6 +83,7 @@ pub fn get_mandate_type(
         _ => Ok(None),
     }
 }
+#[cfg(feature = "v1")]
 #[derive(Clone)]
 pub struct MandateGenericData {
     pub token: Option<String>,

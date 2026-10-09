@@ -39,3 +39,13 @@ export const should_continue_further = (data) => {
     return true;
   }
 };
+
+export const CONNECTOR_LISTS = {
+  INCLUDE: {
+    PAYOUT_ROUTING: ["adyenplatform", "wise"],
+  },
+};
+
+export const shouldRunForConnectorList = (connectorId, list) => {
+  return list.includes(connectorId);
+};

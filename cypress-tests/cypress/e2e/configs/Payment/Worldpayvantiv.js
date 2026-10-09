@@ -1,5 +1,6 @@
 import { customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
+const TIMEOUT = 5000;
 
 const successfulNo3DSCardDetails = {
   card_number: "4470330769941000",
@@ -12,6 +13,16 @@ const successfulNo3DSCardDetails = {
 const failurefulNo3DSCardDetails = {
   card_number: "4488282659650110",
   card_exp_month: "01",
+  card_exp_year: "27",
+  card_holder_name: "AUTHORISED",
+  card_cvc: "123",
+};
+
+// Vantiv certification test card for partial authorization (Table 2.1.10)
+// Returns PartiallyApproved (response code 010) at 80% of requested amount
+const partialAuthCardDetails = {
+  card_number: "4457010140000141",
+  card_exp_month: "09",
   card_exp_year: "27",
   card_holder_name: "AUTHORISED",
   card_cvc: "123",
@@ -76,6 +87,12 @@ export const connectorDetails = {
       },
     },
     PaymentConfirmWithShippingCost: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -87,7 +104,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
           shipping_cost: 50,
           amount: 5000,
           net_amount: 5050,
@@ -107,6 +124,12 @@ export const connectorDetails = {
       },
     }),
     "3DSAutoCapture": getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {
         payment_method: "card",
         amount: 5000,
@@ -119,6 +142,12 @@ export const connectorDetails = {
       },
     }),
     No3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {
         description: "Test description",
         payment_method: "card",
@@ -132,11 +161,17 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "processing",
         },
       },
     },
     No3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {
         payment_method: "card",
         amount: 5000,
@@ -155,30 +190,48 @@ export const connectorDetails = {
       },
     },
     Capture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {
         amount_to_capture: 5000,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
           amount: 5000,
         },
       },
     },
     PartialCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {
         amount_to_capture: 2000,
       },
       Response: {
         status: 200,
         body: {
-          status: "partially_captured",
+          status: "processing",
           amount: 5000,
         },
       },
     },
     Void: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {},
       Response: {
         status: 200,
@@ -188,7 +241,26 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      Request: {},
+      Request: { amount: 6000 },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        amount: 6000,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {
@@ -198,6 +270,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -229,12 +302,15 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -276,16 +352,22 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "processing",
         },
       },
     },
     VoidAfterConfirm: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {},
       Response: {
         status: 200,
         body: {
-          status: "cancelled",
+          status: "processing",
           amount: 5000,
         },
       },
@@ -297,7 +379,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
@@ -308,7 +390,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
@@ -317,6 +399,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -337,6 +420,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -356,6 +440,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -375,6 +460,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -390,13 +476,19 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {
         amount: 5000,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
@@ -415,7 +507,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
@@ -479,6 +571,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -500,6 +593,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -532,6 +626,20 @@ export const connectorDetails = {
         },
       },
     },
+    // Worldpayvantiv does not support L2/L3 data processing in test environment
+    // Requires special credential configuration that is not available in sandbox
+    L2L3Data: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     PaymentIntentOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -548,6 +656,47 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
+        },
+      },
+    },
+    PaymentIntentPartialAuth: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        amount: 5000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PartialAuth: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: partialAuthCardDetails,
+        },
+        amount: 5000,
+        enable_partial_authorization: true,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "partially_captured",
+          amount: 5000,
+          amount_received: 4000,
         },
       },
     },

@@ -2,6 +2,7 @@ use common_enums::{enums, Currency};
 use common_utils::{id_type::CustomerId, pii::Email, types::MinorUnit};
 use hyperswitch_domain_models::{
     address::Address as DomainAddress,
+    mandates,
     payment_method_data::PaymentMethodData,
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
@@ -22,7 +23,7 @@ use hyperswitch_interfaces::{
     consts,
     errors::{self},
 };
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -139,7 +140,7 @@ impl TryFrom<&DomainAddress> for CeleroAddress {
                 email: address.email.clone(),
             }),
             None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "address_details",
+                field_name: "address_details".into(),
             }
             .into()),
         }
@@ -190,6 +191,11 @@ impl TryFrom<&PaymentMethodData> for CeleroPaymentMethod {
                 Ok(Self::Card(card))
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
@@ -222,7 +228,7 @@ impl TryFrom<(&PaymentMethodData, bool)> for CeleroPaymentMethod {
         if is_three_ds {
             return Err(errors::ConnectorError::NotSupported {
                 message: "Cards 3DS".to_string(),
-                connector: "celero",
+                connector: "celero".into(),
             }
             .into());
         }
@@ -303,9 +309,7 @@ fn determine_cit_mit_fields(
         .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
     {
         // If there's a connector mandate ID, this is a MIT (Merchant Initiated Transaction)
-        Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-            connector_mandate_id,
-        )) => {
+        Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_id)) => {
             mandate_fields.card_on_file_indicator = Some(CardOnFileIndicator::RecurringPayment);
             mandate_fields.initiated_by = Some(InitiatedBy::Merchant); // This is a MIT
             mandate_fields.stored_credential_indicator = Some(StoredCredentialIndicator::Used);
@@ -321,8 +325,9 @@ fn determine_cit_mit_fields(
             ))
         }
         // For other mandate types that might not be supported
-        Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
-        | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
+        Some(mandates::MandateReferenceId::NetworkMandateId(_))
+        | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+        | Some(mandates::MandateReferenceId::CardWithLimitedData(_)) => {
             // These might need different handling or return an error
             Err(errors::ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Celero"),
@@ -540,6 +545,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                                         status_code: item.http_code,
                                         attempt_status: None,
                                         connector_transaction_id: Some(data.id),
+                                        connector_response_reference_id: None,
                                         network_decline_code: None,
                                         network_advice_code: None,
                                         network_error_message: None,
@@ -566,9 +572,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                                     mandate_reference: data.get_mandate_reference(),
                                     connector_metadata: None,
                                     network_txn_id: None,
+                                    network_txn_link_id: None,
                                     connector_response_reference_id: response.auth_code.clone(),
                                     incremental_authorization_allowed: None,
+                                    authentication_data: None,
                                     charges: None,
+                                    payment_account_reference: None,
                                 }),
                                 connector_response: connector_response_data,
                                 ..item.data
@@ -587,6 +596,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_decline_code: None,
                             network_advice_code: None,
                             network_error_message: None,
@@ -616,6 +626,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id,
+                        connector_response_reference_id: None,
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
@@ -685,9 +696,12 @@ impl
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -706,6 +720,7 @@ impl
                     connector_transaction_id: Some(
                         item.data.request.connector_transaction_id.clone(),
                     ),
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -760,9 +775,12 @@ impl
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -777,6 +795,7 @@ impl
                     connector_transaction_id: Some(
                         item.data.request.connector_transaction_id.clone(),
                     ),
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -836,6 +855,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, CeleroRefundResponse>>
                     connector_transaction_id: Some(
                         item.data.request.connector_transaction_id.clone(),
                     ),
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -870,6 +890,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, CeleroRefundResponse>> for Refunds
                     connector_transaction_id: Some(
                         item.data.request.connector_transaction_id.clone(),
                     ),
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -1023,6 +1044,14 @@ fn convert_to_additional_payment_method_connector_response(
                 payment_checks: Some(payment_checks),
                 card_network: None,
                 domestic_network: None,
+                auth_code: None,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             })
         }
     }

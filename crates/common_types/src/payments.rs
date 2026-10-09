@@ -1,10 +1,12 @@
 //! Payment related types
-
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, HashSet},
+    num::NonZeroU8,
+};
 
 use common_enums::enums;
 use common_utils::{
-    date_time, errors, events, ext_traits::OptionExt, impl_to_sql_from_sql_json, pii,
+    consts, date_time, errors, events, ext_traits::OptionExt, impl_to_sql_from_sql_json, pii,
     types::MinorUnit,
 };
 use diesel::{
@@ -16,13 +18,20 @@ use euclid::frontend::{
     ast::Program,
     dir::{DirKeyKind, EuclidDirFilter},
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use rust_decimal::{
+    prelude::{FromPrimitive, ToPrimitive},
+    Decimal, MathematicalOps,
+};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::domain::{AdyenSplitData, XenditSplitSubMerchantData};
+use crate::{
+    consts::PERCENTAGE_BASE,
+    domain::{AdyenSplitData, PostCaptureVoidData, XenditSplitSubMerchantData},
+};
 #[derive(
     Serialize,
     Deserialize,
@@ -50,6 +59,9 @@ pub enum SplitPaymentsRequest {
     /// XenditSplitPayment
     #[smithy(value_type = "XenditSplitRequest")]
     XenditSplitPayment(XenditSplitRequest),
+    /// PayloadSplitPayment
+    #[smithy(value_type = "PayloadSplitPaymentRequest")]
+    PayloadSplitPayment(PayloadSplitPaymentRequest),
 }
 impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 
@@ -66,7 +78,6 @@ impl_to_sql_from_sql_json!(SplitPaymentsRequest);
     SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
-#[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// Fee information for Split Payments to be charged on the payment being collected for Stripe
 pub struct StripeSplitPaymentRequest {
@@ -83,8 +94,61 @@ pub struct StripeSplitPaymentRequest {
     /// Identifier for the reseller's account where the funds were transferred
     #[smithy(value_type = "String")]
     pub transfer_account_id: String,
+
+    /// The Stripe account ID that these funds are intended for
+    #[schema(value_type = Option<String>, example = "acct_1234567890")]
+    #[smithy(value_type = "Option<String>")]
+    pub on_behalf_of: Option<String>,
 }
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
+
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
+)]
+#[diesel(sql_type = Jsonb)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// A single ledger entry distributing payment to one receiver for Payload split payments
+pub struct PayloadLedgerItem {
+    /// Amount in minor units to be routed to this receiver out of the payment
+    #[schema(value_type = i64, example = 995)]
+    #[smithy(value_type = "i64")]
+    pub amount: MinorUnit,
+    /// processing_id of the receiver
+    #[smithy(value_type = "String")]
+    pub receiver_id: String,
+}
+impl_to_sql_from_sql_json!(PayloadLedgerItem);
+
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
+)]
+#[diesel(sql_type = Jsonb)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// Split payment configuration for Payload — distributes a payment across multiple receivers via ledger entries
+pub struct PayloadSplitPaymentRequest {
+    /// Ledger entries specifying how the payment is distributed across receivers
+    #[smithy(value_type = "Vec<PayloadLedgerItem>")]
+    pub ledger: Vec<PayloadLedgerItem>,
+}
+impl_to_sql_from_sql_json!(PayloadSplitPaymentRequest);
 
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
@@ -141,7 +205,7 @@ impl MerchantCountryCode {
             .parse::<u32>()
             .map_err(Report::from)
             .change_context(errors::ValidationError::IncorrectValueProvided {
-                field_name: "merchant_country_code",
+                field_name: "merchant_country_code".into(),
             })
             .attach_printable_lazy(|| {
                 format!("Country code {country_code} is negative or too large")
@@ -149,7 +213,7 @@ impl MerchantCountryCode {
 
         common_enums::Country::from_numeric(code)
             .map_err(|_| errors::ValidationError::IncorrectValueProvided {
-                field_name: "merchant_country_code",
+                field_name: "merchant_country_code".into(),
             })
             .attach_printable_lazy(|| format!("Invalid country code {code}"))
     }
@@ -195,6 +259,7 @@ impl EuclidDirFilter for ConditionalConfigs {
         DirKeyKind::CaptureMethod,
         DirKeyKind::BillingCountry,
         DirKeyKind::BusinessCountry,
+        DirKeyKind::NetworkTokenType,
     ];
 }
 
@@ -252,7 +317,7 @@ impl CustomerAcceptance {
     }
 }
 
-impl masking::SerializableSecret for CustomerAcceptance {}
+impl hyperswitch_masking::SerializableSecret for CustomerAcceptance {}
 
 #[derive(
     Default,
@@ -341,7 +406,6 @@ pub type DecisionManagerResponse = DecisionManagerRecord;
     SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
-#[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct StripeChargeResponseData {
     /// Identifier for charge created for the payment
@@ -361,6 +425,11 @@ pub struct StripeChargeResponseData {
     /// Identifier for the reseller's account where the funds were transferred
     #[smithy(value_type = "String")]
     pub transfer_account_id: String,
+
+    /// The Stripe account ID that these funds are intended for
+    #[schema(value_type = Option<String>, example = "acct_1234567890")]
+    #[smithy(value_type = "Option<String>")]
+    pub on_behalf_of: Option<String>,
 }
 impl_to_sql_from_sql_json!(StripeChargeResponseData);
 
@@ -391,6 +460,9 @@ pub enum ConnectorChargeResponseData {
     /// XenditChargeResponseData
     #[smithy(value_type = "XenditChargeResponseData")]
     XenditSplitPayment(XenditChargeResponseData),
+    /// PayloadChargeResponseData
+    #[smithy(value_type = "PayloadSplitPaymentRequest")]
+    PayloadSplitPayment(PayloadSplitPaymentRequest),
 }
 
 impl_to_sql_from_sql_json!(ConnectorChargeResponseData);
@@ -583,6 +655,11 @@ pub struct GpayEcryptedTokenizationData {
     /// Token generated for the wallet
     #[smithy(value_type = "String")]
     pub token: String,
+    /// The authentication method used by Google Pay (PAN_ONLY or CRYPTOGRAM_3DS)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<GooglePayAuthMethod>)]
+    #[smithy(value_type = "Option<GooglePayAuthMethod>")]
+    pub auth_method: Option<common_enums::GooglePayAuthMethod>,
 }
 
 #[derive(
@@ -592,6 +669,11 @@ pub struct GpayEcryptedTokenizationData {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// This struct represents the decrypted Google Pay payment data
 pub struct GPayPredecryptData {
+    /// Indicates whether Google Pay supplied a funding PAN or a tokenized device PAN.
+    #[schema(value_type = Option<GooglePayAuthMethod>)]
+    #[smithy(value_type = "Option<GooglePayAuthMethod>")]
+    pub auth_method: Option<common_enums::GooglePayAuthMethod>,
+
     /// The card's expiry month
     #[schema(value_type = String)]
     #[smithy(value_type = "String")]
@@ -654,8 +736,53 @@ impl GpayTokenizationData {
             .token_type
             .clone())
     }
+
+    /// Get the Google Pay auth method (PAN_ONLY or CRYPTOGRAM_3DS)
+    pub fn get_encrypted_auth_method(&self) -> Option<common_enums::GooglePayAuthMethod> {
+        match self {
+            Self::Encrypted(encrypted) => encrypted.auth_method,
+            Self::Decrypted(_) => None,
+        }
+    }
 }
 impl GPayPredecryptData {
+    /// Bin of the decrypted PAN, when it is a tokenized DPAN (`auth_method` is `CRYPTOGRAM_3DS`)
+    pub fn get_device_pan_bin(&self) -> Option<String> {
+        match self.auth_method {
+            Some(enums::GooglePayAuthMethod::Cryptogram) => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            None if self.cryptogram.is_some() => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            Some(enums::GooglePayAuthMethod::PanOnly) | None => None,
+        }
+    }
+
+    /// Bin of the decrypted PAN, when it is the underlying card's real PAN (`auth_method` is
+    /// `PAN_ONLY`)
+    pub fn get_card_bin(&self) -> Option<String> {
+        match self.auth_method {
+            Some(enums::GooglePayAuthMethod::PanOnly) => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            None if self.cryptogram.is_none() => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            Some(enums::GooglePayAuthMethod::Cryptogram) | None => None,
+        }
+    }
+
+    /// The decrypted PAN's card expiry month
+    pub fn get_card_exp_month(&self) -> Secret<String> {
+        self.card_exp_month.clone()
+    }
+
+    /// The decrypted PAN's card expiry year
+    pub fn get_card_exp_year(&self) -> Secret<String> {
+        self.card_exp_year.clone()
+    }
+
     /// Get the four-digit expiration year from the Google Pay pre-decrypt data
     pub fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, errors::ValidationError> {
         let mut year = self.card_exp_year.peek().clone();
@@ -750,6 +877,27 @@ pub struct ApplePayPredecryptData {
     #[schema(value_type = ApplePayCryptogramData)]
     #[smithy(value_type = "ApplePayCryptogramData")]
     pub payment_data: ApplePayCryptogramData,
+    /// Identifier of the device that generated the token.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub device_manufacturer_identifier: Option<Secret<String>>,
+}
+
+impl ApplePayPredecryptData {
+    /// The decrypted PAN's card expiry month
+    pub fn get_application_expiration_month(&self) -> Secret<String> {
+        self.application_expiration_month.clone()
+    }
+
+    /// The decrypted PAN's card expiry year
+    pub fn get_application_expiration_year(&self) -> Secret<String> {
+        self.application_expiration_year.clone()
+    }
+
+    /// Bin of the decrypted PAN
+    pub fn get_device_pan_bin(&self) -> String {
+        self.application_primary_account_number.get_card_isin()
+    }
 }
 
 #[derive(
@@ -846,6 +994,25 @@ impl ApplePayPredecryptData {
         Ok(self.application_expiration_month.clone())
     }
 
+    /// Get the two-digit expiration month from the Apple Pay pre-decrypt data
+    /// Returns the month with zero-padding if it's a single digit (e.g., "1" -> "01")
+    pub fn get_two_digit_expiry_month(&self) -> Result<Secret<String>, errors::ValidationError> {
+        let month_str = self.application_expiration_month.peek();
+        let month = month_str
+            .parse::<u8>()
+            .map_err(|_| errors::ValidationError::InvalidValue {
+                message: format!("Failed to parse expiry month: {month_str}"),
+            })?;
+
+        if !(1..=12).contains(&month) {
+            return Err(errors::ValidationError::InvalidValue {
+                message: format!("Invalid expiry month: {month}. Must be between 1 and 12"),
+            }
+            .into());
+        }
+        Ok(Secret::new(format!("{:02}", month)))
+    }
+
     /// Get the expiry date in MMYY format from the Apple Pay pre-decrypt data
     pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ValidationError> {
         let year = self.get_two_digit_expiry_year()?.expose();
@@ -862,7 +1029,7 @@ impl ApplePayPredecryptData {
 }
 
 /// type of action that needs to taken after consuming recovery payload
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RecoveryAction {
     /// Stops the process tracker and update the payment intent.
@@ -877,6 +1044,52 @@ pub enum RecoveryAction {
     NoAction,
     /// Invalid event has been received.
     InvalidAction,
+}
+
+/// Action to be taken on the transaction reported through the revenue recovery API
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryPaymentsAction {
+    /// Records the external transaction against payment intent and schedules a retry.
+    ScheduleFailedPayment,
+    /// Records the external payment and stops the internal process tracker.
+    SuccessPaymentExternal,
+}
+
+impl From<RecoveryPaymentsAction> for RecoveryAction {
+    fn from(action: RecoveryPaymentsAction) -> Self {
+        match action {
+            RecoveryPaymentsAction::ScheduleFailedPayment => Self::ScheduleFailedPayment,
+            RecoveryPaymentsAction::SuccessPaymentExternal => Self::SuccessPaymentExternal,
+        }
+    }
+}
+
+/// Status of the transaction reported.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryTransactionStatus {
+    /// The transaction was charged in full.
+    Charged,
+    /// The transaction failed.
+    Failure,
+    /// The transaction was charged for a part of the amount.
+    PartialCharged,
+    /// The transaction was charged for a part of the amount and the remaining amount can still be captured.
+    PartialChargedAndChargeable,
+}
+
+impl From<RecoveryTransactionStatus> for common_enums::AttemptStatus {
+    fn from(status: RecoveryTransactionStatus) -> Self {
+        match status {
+            RecoveryTransactionStatus::Charged => Self::Charged,
+            RecoveryTransactionStatus::Failure => Self::Failure,
+            RecoveryTransactionStatus::PartialCharged => Self::PartialCharged,
+            RecoveryTransactionStatus::PartialChargedAndChargeable => {
+                Self::PartialChargedAndChargeable
+            }
+        }
+    }
 }
 
 /// Billing Descriptor information to be sent to the payment gateway
@@ -952,3 +1165,701 @@ pub struct PartnerMerchantIdentifierDetails {
 }
 
 impl_to_sql_from_sql_json!(PartnerMerchantIdentifierDetails);
+
+/// Additional metadata for payment intent state containing refunded and disputed amounts
+#[derive(
+    Default,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    AsExpression,
+    FromSqlRow,
+    utoipa::ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PaymentIntentStateMetadata {
+    /// Shows up the total refunded amount for a payment
+    pub total_refunded_amount: Option<MinorUnit>,
+    /// Shows up the total disputed amount across all disputes for a particular payment
+    pub total_disputed_amount: Option<MinorUnit>,
+    /// Post capture void response details
+    pub post_capture_void: Option<PostCaptureVoidResponse>,
+}
+
+/// Additional metadata for payment intent state containing refunded and disputed amounts
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, utoipa::ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PostCaptureVoidResponse {
+    /// Status of post capture void
+    #[schema(value_type = PostCaptureVoidStatus)]
+    pub status: enums::PostCaptureVoidStatus,
+    /// Connector reference id for post capture void
+    pub connector_reference_id: Option<String>,
+    /// Description or message related to the post capture void
+    pub description: Option<String>,
+    /// Timestamp when the post capture void was last updated
+    pub updated_at: PrimitiveDateTime,
+}
+
+impl PaymentIntentStateMetadata {
+    /// Builder method to set total_refunded_amount
+    pub fn with_total_refunded_amount(mut self, amount: MinorUnit) -> Self {
+        self.total_refunded_amount = Some(amount);
+        self
+    }
+    /// Builder method to set total_disputed_amount
+    pub fn with_total_disputed_amount(mut self, amount: MinorUnit) -> Self {
+        self.total_disputed_amount = Some(amount);
+        self
+    }
+    /// Get the blocked amount which is the sum of total disputed and total refunded amounts
+    pub fn get_blocked_amount(self) -> MinorUnit {
+        let blocked_amount = self
+            .total_disputed_amount
+            .unwrap_or(MinorUnit::zero())
+            .get_amount_as_i64()
+            + self
+                .total_refunded_amount
+                .unwrap_or(MinorUnit::zero())
+                .get_amount_as_i64();
+
+        MinorUnit::new(blocked_amount)
+    }
+
+    /// Check if post capture void is pending for the payment intent
+    pub fn is_post_capture_void_pending(&self) -> bool {
+        matches!(
+            self.post_capture_void
+                .as_ref()
+                .map(|post_capture_void| post_capture_void.status),
+            Some(common_enums::PostCaptureVoidStatus::Pending)
+        )
+    }
+
+    /// Check if post capture void is issued for the payment intent
+    pub fn is_post_capture_void_issued(&self) -> bool {
+        self.is_post_capture_void_pending() || self.is_post_capture_void_successful()
+    }
+
+    /// Check if post capture void is applied for the payment intent
+    pub fn is_post_capture_void_successful(&self) -> bool {
+        matches!(
+            self.post_capture_void
+                .as_ref()
+                .map(|post_capture_void| post_capture_void.status),
+            Some(common_enums::PostCaptureVoidStatus::Succeeded)
+        )
+    }
+
+    /// Builder method to set post_capture_void data
+    pub fn set_post_capture_void_data(
+        mut self,
+        post_capture_void_data: PostCaptureVoidData,
+    ) -> Self {
+        self.post_capture_void = Some(PostCaptureVoidResponse {
+            status: post_capture_void_data.status,
+            connector_reference_id: post_capture_void_data.connector_reference_id,
+            description: post_capture_void_data.description,
+            updated_at: date_time::now(),
+        });
+        self
+    }
+
+    /// Get the connector reference ID for post capture void transaction if it exists
+    pub fn get_connector_post_capture_void_transaction_id(&self) -> Option<String> {
+        self.post_capture_void
+            .as_ref()
+            .and_then(|post_capture_void| post_capture_void.connector_reference_id.clone())
+    }
+}
+
+common_utils::impl_to_sql_from_sql_json!(PaymentIntentStateMetadata);
+
+/// List of custom T&C messages grouped by payment method
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct PaymentMethodsConfig(
+    #[schema(example = json!([
+        {
+            "payment_method": "card",
+            "payment_method_types": [
+                {
+                    "payment_method_type": "credit",
+                    "message": {
+                        "value": "I authorize this payment",
+                        "display_mode": "default_sdk_message"
+                    }
+                }
+            ]
+        }
+    ]))]
+    pub Vec<PaymentMethodConfig>,
+);
+
+/// Custom T&C messages for a specific payment method
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct PaymentMethodConfig {
+    /// Payment Method
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method: common_enums::PaymentMethod,
+
+    /// Payment Method Types
+    #[schema(example = json!([
+        {
+            "payment_method_type": "credit",
+            "message": {
+                "value": "Sample message",
+                "display_mode": "custom"
+            }
+        }
+    ]))]
+    #[schema(value_type = Vec<CustomTerms>)]
+    pub payment_method_types: Vec<CustomTerms>,
+}
+
+/// Custom T&C message for a specific payment method type
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct CustomTerms {
+    /// Payment Method Type
+    #[schema(value_type = PaymentMethodType, example = "sepa")]
+    pub payment_method_type: common_enums::PaymentMethodType,
+
+    /// The message to be shown
+    #[schema(value_type = CustomMessage)]
+    pub message: CustomMessage,
+}
+
+/// Custom T&C message content and display mode
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct CustomMessage {
+    /// The text to be shown per payment method type
+    #[schema(value_type = String, example = "I authorize Novalnet AG to debit my account.")]
+    pub value: String,
+
+    /// The display mode for terms and conditions
+    #[schema(value_type = SdkDisplayMode , example = "custom")]
+    #[serde(default)]
+    pub display_mode: SdkDisplayMode,
+}
+
+/// Display mode options for controlling how messages are shown.
+#[derive(Default, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SdkDisplayMode {
+    /// Display the default terms and conditions in sdk
+    #[default]
+    DefaultSdkMessage,
+    /// Display the custom configured by the merchant
+    CustomMessage,
+    /// No terms and conditions to be shown
+    Hidden,
+}
+
+impl PaymentMethodsConfig {
+    /// Validation function for custom terms and conditions
+    pub fn validate(&self) -> Result<(), errors::ValidationError> {
+        for pm_config in &self.0 {
+            let parent_pm = pm_config.payment_method;
+
+            for pm_type_config in &pm_config.payment_method_types {
+                let pm_type = pm_type_config.payment_method_type;
+
+                // Check if the payment_method_type belongs to the parent payment_method
+                if common_enums::PaymentMethod::from(pm_type) != parent_pm {
+                    return Err(errors::ValidationError::InvalidValue {
+                        message: "Payment Method Type '{pm_type}' does not belong to Payment Method '{parent_pm}'".to_string(),
+                    }
+                    .into());
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Interac Customer Information Details
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct InteracCustomerInfoDetails {
+    /// Customer Name
+    #[schema(value_type = Option<String>)]
+    pub customer_name: Option<Secret<String>>,
+    /// Customer Email
+    #[schema(value_type = Option<String>)]
+    pub customer_email: Option<pii::Email>,
+    /// Customer Phone Number
+    #[schema(value_type = Option<String>)]
+    pub customer_phone_number: Option<Secret<String>>,
+    /// Customer Bank Id
+    #[schema(value_type = Option<String>)]
+    pub customer_bank_id: Option<Secret<String>>,
+    /// Customer Bank Name
+    #[schema(value_type = Option<String>)]
+    pub customer_bank_name: Option<Secret<String>>,
+}
+
+/// Network Transaction ID and Decrypted Wallet Token Details
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
+    /// The Decrypted Token
+    #[schema(value_type = String, example = "4604000460040787")]
+    #[smithy(value_type = "String")]
+    pub decrypted_token: cards::NetworkToken,
+
+    /// The token's expiry month
+    #[schema(value_type = String, example = "05")]
+    #[smithy(value_type = "String")]
+    pub token_exp_month: Secret<String>,
+
+    /// The token's expiry year
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub token_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
+    pub network_transaction_id: Secret<String>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub transaction_link_id: Option<String>,
+
+    /// ECI indicator of the card
+    pub eci: Option<String>,
+
+    /// Source of the token
+    #[schema(value_type = Option<TokenSource>, example = "googlepay")]
+    pub token_source: Option<TokenSource>,
+
+    /// The network that facilitates payment card transactions
+    #[schema(value_type = Option<CardNetwork>)]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<enums::CardNetwork>,
+
+    /// Identifier of the device that generated the token
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub device_manufacturer_identifier: Option<Secret<String>>,
+}
+
+/// Billing frequency for a card installment plan
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum BillingFrequency {
+    /// Monthly billing
+    Month,
+}
+
+/// A non-empty list of unique installment counts.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+#[serde(try_from = "Vec<NonZeroU8>")]
+pub struct InstallmentCounts(Vec<NonZeroU8>);
+
+impl InstallmentCounts {
+    /// Check if this `InstallmentCounts` contains the given count.
+    pub fn contains(&self, count: NonZeroU8) -> bool {
+        self.0.contains(&count)
+    }
+
+    /// Returns a slice of the installment counts.
+    pub fn as_slice(&self) -> &[NonZeroU8] {
+        &self.0
+    }
+
+    fn validate_not_empty(counts: &[NonZeroU8]) -> Result<(), errors::ValidationError> {
+        (!counts.is_empty()).then_some(()).ok_or_else(|| {
+            error_stack::report!(errors::ValidationError::InvalidValue {
+                message: "number_of_installments must not be empty.".to_string(),
+            })
+        })
+    }
+
+    fn validate_unique(counts: &[NonZeroU8]) -> Result<(), errors::ValidationError> {
+        counts
+            .iter()
+            .try_fold(HashSet::new(), |mut seen, &n| {
+                seen.insert(n).then_some(seen).ok_or_else(|| {
+                    error_stack::report!(errors::ValidationError::InvalidValue {
+                        message: "number_of_installments must contain unique values.".to_string(),
+                    })
+                })
+            })
+            .map(|_| ())
+    }
+}
+
+impl TryFrom<Vec<NonZeroU8>> for InstallmentCounts {
+    type Error = Report<errors::ValidationError>;
+
+    fn try_from(counts: Vec<NonZeroU8>) -> Result<Self, errors::ValidationError> {
+        Self::validate_not_empty(&counts)?;
+        Self::validate_unique(&counts)?;
+        Ok(Self(counts))
+    }
+}
+
+/// An interest rate with at most 2 decimal places.
+/// Serializes and deserializes as a plain float (e.g. `2.5`).
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+#[serde(try_from = "f64")]
+pub struct InstallmentInterestRate(f64);
+
+impl InstallmentInterestRate {
+    /// Calculate the total EMI interest for a given principal and number of installments
+    pub fn calculate_emi_interest(
+        &self,
+        amount: MinorUnit,
+        number_of_installments: NonZeroU8,
+    ) -> errors::CustomResult<MinorUnit, errors::InstallmentInterestRateError> {
+        let amount_decimal = Decimal::from_i64(amount.get_amount_as_i64())
+            .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+            .map_err(Report::from)
+            .attach_printable("Failed to convert amount to decimal")?;
+
+        let rate_decimal = Decimal::from_f64(self.0 / PERCENTAGE_BASE)
+            .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+            .map_err(Report::from)
+            .attach_printable("Failed to convert interest rate to decimal")?;
+
+        let n_decimal = Decimal::from_u8(u8::from(number_of_installments))
+            .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+            .map_err(Report::from)
+            .attach_printable("Failed to convert number of installments to decimal")?;
+        // Formula: Total Interest = (EMI × n) - P
+        // where:
+        //   EMI = (P × r × (1 + r)^n) / ((1 + r)^n - 1)
+        //   P = principal amount
+        //   r = interest rate
+        //   n = number of installments
+        let total_interest = if rate_decimal.is_zero() {
+            Decimal::ZERO
+        } else {
+            let one = Decimal::ONE;
+            let factor = (one + rate_decimal).powd(n_decimal);
+            let emi = (amount_decimal * rate_decimal * factor) / (factor - one);
+            emi * n_decimal - amount_decimal
+        };
+        // - ceil() ensures merchant always receives at least the calculated interest
+        let result = total_interest
+            .ceil()
+            .to_i64()
+            .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+            .map_err(Report::from)
+            .attach_printable("Failed to convert interest result to i64")?;
+
+        Ok(MinorUnit::new(result))
+    }
+
+    fn is_valid_precision_length(value: &str) -> bool {
+        if value.contains('.') {
+            // if string has '.' then take the decimal part and verify precision length
+            match value.split('.').next_back() {
+                Some(decimal_part) => {
+                    decimal_part.trim_end_matches('0').len()
+                        <= usize::from(consts::INSTALLMENT_INTEREST_RATE_PRECISION_LENGTH)
+                }
+                // will never be None
+                None => false,
+            }
+        } else {
+            // if there is no '.' then it is a whole number with no decimal part. So return true
+            true
+        }
+    }
+
+    fn is_non_negative(rate: f64) -> bool {
+        rate >= 0.0
+    }
+}
+
+impl TryFrom<f64> for InstallmentInterestRate {
+    type Error = Report<errors::ValidationError>;
+
+    fn try_from(rate: f64) -> Result<Self, errors::ValidationError> {
+        Self::is_non_negative(rate).then_some(()).ok_or_else(|| {
+            error_stack::report!(errors::ValidationError::InvalidValue {
+                message: "interest_rate must not be negative.".to_string(),
+            })
+        })?;
+        Self::is_valid_precision_length(&rate.to_string())
+            .then_some(Self(rate))
+            .ok_or_else(|| {
+                error_stack::report!(errors::ValidationError::InvalidValue {
+                    message: "interest_rate must have at most 2 decimal places.".to_string(),
+                })
+            })
+    }
+}
+
+/// A single installment plan option accepted in request payloads
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
+pub struct InstallmentOptionData {
+    /// Number of installments (e.g., [3, 6, 12])
+    #[schema(value_type = Vec<u8>)]
+    pub number_of_installments: InstallmentCounts,
+    /// Billing frequency for each installment cycle
+    pub billing_frequency: BillingFrequency,
+    /// Interest rate per installment as a percentage max 2 decimal places
+    #[schema(value_type = f64)]
+    pub interest_rate: InstallmentInterestRate,
+}
+
+/// A validated list of installment entries with no duplicate counts per billing frequency.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+#[serde(try_from = "Vec<InstallmentOptionData>")]
+pub struct InstallmentEntries(Vec<InstallmentOptionData>);
+
+impl InstallmentEntries {
+    /// Validates that no installment count appears more than once for the same billing frequency
+    /// across all entries.
+    /// Uses two nested `try_fold`s because the data is two-dimensional:
+    /// - The **outer** `try_fold` iterates over each `InstallmentOptionData` entry, carrying a
+    ///   `HashMap<BillingFrequency, HashSet<count>>` as the accumulator to track all counts seen
+    ///   so far grouped by frequency.
+    /// - The **inner** `try_fold` iterates over the `number_of_installments` vec within a single
+    ///   entry, attempting to insert each count into the set for its frequency. If `insert` returns
+    ///   `false` (count already present), it short-circuits with a validation error.
+    fn validate_no_duplicate_counts_per_frequency(
+        installments: &[InstallmentOptionData],
+    ) -> Result<(), errors::ValidationError> {
+        installments
+            .iter()
+            .try_fold(
+                HashMap::<&BillingFrequency, HashSet<NonZeroU8>>::new(),
+                |mut seen, entry| {
+                    entry
+                        .number_of_installments
+                        .as_slice()
+                        .iter()
+                        .try_fold(&mut seen, |seen, &count| {
+                            seen.entry(&entry.billing_frequency)
+                                .or_default()
+                                .insert(count)
+                                .then_some(seen)
+                                .ok_or_else(|| {
+                                    error_stack::report!(
+                                        errors::ValidationError::InvalidValue {
+                                            message: format!(
+                                                "installment count {count} appears in multiple entries with the same billing frequency."
+                                            ),
+                                        }
+                                    )
+                                })
+                        })?;
+                    Ok(seen)
+                },
+            )
+            .map(|_| ())
+    }
+}
+
+impl TryFrom<Vec<InstallmentOptionData>> for InstallmentEntries {
+    type Error = Report<errors::ValidationError>;
+
+    fn try_from(entries: Vec<InstallmentOptionData>) -> Result<Self, errors::ValidationError> {
+        Self::validate_no_duplicate_counts_per_frequency(&entries)?;
+        Ok(Self(entries))
+    }
+}
+
+impl std::ops::Deref for InstallmentEntries {
+    type Target = Vec<InstallmentOptionData>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl IntoIterator for InstallmentEntries {
+    type Item = InstallmentOptionData;
+    type IntoIter = std::vec::IntoIter<InstallmentOptionData>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+/// Installment options grouped by payment method
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
+pub struct InstallmentOption {
+    /// Payment method for which these installment plans apply (e.g., "card")
+    #[schema(value_type = PaymentMethod)]
+    pub payment_method: common_enums::PaymentMethod,
+    /// List of available installment configurations
+    #[schema(value_type = Vec<InstallmentOptionData>)]
+    pub installments: InstallmentEntries,
+}
+
+/// A list of installment options stored as a single JSONB column value.
+#[derive(
+    Debug,
+    Clone,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    PartialEq,
+    FromSqlRow,
+    AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct InstallmentOptions(pub Vec<InstallmentOption>);
+impl_to_sql_from_sql_json!(InstallmentOptions);
+
+/// Installment selection made by the customer during payment confirmation.
+#[derive(
+    Debug,
+    Clone,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct InstallmentData {
+    /// Number of installments chosen by the customer
+    #[schema(value_type = u8)]
+    pub number_of_installments: NonZeroU8,
+    /// Billing frequency for the chosen installment plan
+    pub billing_frequency: BillingFrequency,
+    /// Total interest amount applied for this installment plan
+    pub installment_interest: Option<MinorUnit>,
+}
+impl_to_sql_from_sql_json!(InstallmentData);
+
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[schema(example = "google_pay, apple_pay")]
+#[serde(rename_all = "snake_case")]
+/// Source of the token
+pub enum TokenSource {
+    /// Google Pay
+    GooglePay,
+    /// Apple Pay
+    ApplePay,
+}
+
+/// External surcharge details from InterPayments (stored as JSONB)
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    Eq,
+    ToSchema,
+    PartialEq,
+    serde::Serialize,
+    diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct ExternalSurchargeDetails {
+    /// sTxId from InterPayments (the last one received before confirm)
+    pub external_surcharge_id: String,
+    /// Surcharge amount in minor units
+    pub external_surcharge_amount: MinorUnit,
+    /// Surcharge percentage returned by the connector (e.g. InterPayments), if provided.
+    /// Stored as a `Decimal` so the enclosing attempt model can keep deriving `Eq`.
+    #[schema(value_type = Option<f64>)]
+    pub surcharge_percentage: Option<Decimal>,
+    /// Whether /v1/ch/sale has been successfully called
+    pub sale_notified: bool,
+}
+
+impl ExternalSurchargeDetails {
+    /// Convert an `f64` surcharge percentage (as produced by the surcharge connector) into the
+    /// `Decimal` representation stored on the attempt. Returns `None` for `None`/non-finite input.
+    pub fn decimal_percentage_from_f64(value: Option<f64>) -> Option<Decimal> {
+        value.and_then(Decimal::from_f64)
+    }
+
+    /// The surcharge percentage as an `f64` for API responses, if present.
+    pub fn surcharge_percentage_as_f64(&self) -> Option<f64> {
+        self.surcharge_percentage.and_then(|value| value.to_f64())
+    }
+}
+
+impl_to_sql_from_sql_json!(ExternalSurchargeDetails);
+
+/// Applied-offer details from Offer Engine `/apply`, persisted on `payment_attempt`
+/// as JSONB. Versioned (tagged by `version`) for forward-compatible schema evolution.
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    Eq,
+    ToSchema,
+    PartialEq,
+    serde::Serialize,
+    diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum AppliedOfferDetails {
+    /// Version 1 of the applied-offer details.
+    V1(AppliedOfferDetailsV1),
+}
+
+impl AppliedOfferDetails {
+    /// Borrow the inner current-version details.
+    pub fn inner(&self) -> &AppliedOfferDetailsV1 {
+        match self {
+            Self::V1(details) => details,
+        }
+    }
+
+    /// Consume into the inner current-version details.
+    pub fn into_inner(self) -> AppliedOfferDetailsV1 {
+        match self {
+            Self::V1(details) => details,
+        }
+    }
+}
+
+/// Version 1 of the applied-offer details.
+#[derive(Clone, Debug, serde::Deserialize, Eq, ToSchema, PartialEq, serde::Serialize)]
+pub struct AppliedOfferDetailsV1 {
+    /// Quote id issued at eligibility and echoed back at confirm to apply this offer
+    pub offer_quote_id: String,
+    /// Offer Engine merchant id the offer was applied under
+    pub offer_engine_merchant_id: String,
+    /// Offer Engine transaction id (the Hyperswitch payment attempt id used at `/apply`)
+    pub offer_engine_txn_id: String,
+    /// Offer Engine offer id that was applied
+    pub offer_id: String,
+    /// Charge-reducing offer amount in minor units
+    pub offer_amount: MinorUnit,
+    /// Currency of the applied offer amount
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency: enums::Currency,
+}
+
+impl_to_sql_from_sql_json!(AppliedOfferDetails);
+
+/// Values the router applied to a payment attempt in place of what was requested (stored as JSONB)
+#[derive(
+    Clone, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize, diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct AppliedOverrides {
+    /// Capture method actually sent to the connector for this attempt
+    pub capture_method_applied: Option<enums::CaptureMethod>,
+}
+
+impl_to_sql_from_sql_json!(AppliedOverrides);

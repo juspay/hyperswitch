@@ -1,4 +1,6 @@
 #[cfg(feature = "v1")]
+pub mod gateway;
+#[cfg(feature = "v1")]
 pub mod incoming;
 #[cfg(feature = "v2")]
 mod incoming_v2;
@@ -29,3 +31,4 @@ pub(crate) use self::{
 };
 
 const MERCHANT_ID: &str = "merchant_id";
+const MERCHANT_CONNECTOR_ACCOUNT_ID: &str = "merchant_connector_account_id";

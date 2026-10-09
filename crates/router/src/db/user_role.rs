@@ -1,3 +1,4 @@
+use common_enums::EntityType;
 use common_utils::id_type;
 use diesel_models::{
     enums::{self, UserStatus},
@@ -19,6 +20,7 @@ pub struct ListUserRolesByOrgIdPayload<'a> {
     pub org_id: &'a id_type::OrganizationId,
     pub merchant_id: Option<&'a id_type::MerchantId>,
     pub profile_id: Option<&'a id_type::ProfileId>,
+    pub entity_type: Option<EntityType>,
     pub version: Option<enums::UserRoleVersion>,
     pub limit: Option<u32>,
 }
@@ -43,6 +45,16 @@ pub trait UserRoleInterface {
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
     async fn find_user_role_by_user_id_and_lineage(
+        &self,
+        user_id: &str,
+        tenant_id: &id_type::TenantId,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: &id_type::ProfileId,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError>;
+
+    async fn find_user_role_by_user_id_and_lineage_with_entity_type(
         &self,
         user_id: &str,
         tenant_id: &id_type::TenantId,
@@ -118,6 +130,30 @@ impl UserRoleInterface for Store {
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::UserRole::find_by_user_id_tenant_id_org_id_merchant_id_profile_id(
+            &conn,
+            user_id.to_owned(),
+            tenant_id.to_owned(),
+            org_id.to_owned(),
+            merchant_id.to_owned(),
+            profile_id.to_owned(),
+            version,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn find_user_role_by_user_id_and_lineage_with_entity_type(
+        &self,
+        user_id: &str,
+        tenant_id: &id_type::TenantId,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: &id_type::ProfileId,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::UserRole::find_by_user_id_tenant_id_org_id_merchant_id_profile_id_with_entity_type(
             &conn,
             user_id.to_owned(),
             tenant_id.to_owned(),
@@ -228,6 +264,7 @@ impl UserRoleInterface for Store {
             payload.org_id.to_owned(),
             payload.merchant_id.cloned(),
             payload.profile_id.cloned(),
+            payload.entity_type,
             payload.version,
             payload.limit,
         )
@@ -306,6 +343,54 @@ impl UserRoleInterface for MockDb {
                 && user_role.org_id.as_ref() == Some(org_id)
                 && user_role.merchant_id.as_ref() == Some(merchant_id)
                 && user_role.profile_id.as_ref() == Some(profile_id);
+
+            // Check if any condition matches and the version matches
+            if user_role.user_id == user_id
+                && (tenant_level_check
+                    || org_level_check
+                    || merchant_level_check
+                    || profile_level_check)
+                && user_role.version == version
+            {
+                return Ok(user_role.clone());
+            }
+        }
+
+        Err(errors::StorageError::ValueNotFound(format!(
+            "No user role available for user_id = {user_id} in the current token hierarchy",
+        ))
+        .into())
+    }
+
+    async fn find_user_role_by_user_id_and_lineage_with_entity_type(
+        &self,
+        user_id: &str,
+        tenant_id: &id_type::TenantId,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: &id_type::ProfileId,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        let user_roles = self.user_roles.lock().await;
+
+        for user_role in user_roles.iter() {
+            let tenant_level_check = user_role.tenant_id == *tenant_id
+                && user_role.entity_type == Some(EntityType::Tenant);
+
+            let org_level_check = user_role.tenant_id == *tenant_id
+                && user_role.org_id.as_ref() == Some(org_id)
+                && user_role.entity_type == Some(EntityType::Organization);
+
+            let merchant_level_check = user_role.tenant_id == *tenant_id
+                && user_role.org_id.as_ref() == Some(org_id)
+                && user_role.merchant_id.as_ref() == Some(merchant_id)
+                && user_role.entity_type == Some(EntityType::Merchant);
+
+            let profile_level_check = user_role.tenant_id == *tenant_id
+                && user_role.org_id.as_ref() == Some(org_id)
+                && user_role.merchant_id.as_ref() == Some(merchant_id)
+                && user_role.profile_id.as_ref() == Some(profile_id)
+                && user_role.entity_type == Some(EntityType::Profile);
 
             // Check if any condition matches and the version matches
             if user_role.user_id == user_id
@@ -547,6 +632,13 @@ impl UserRoleInterface for MockDb {
             payload
                 .version
                 .inspect(|ver| filter_condition = filter_condition && ver == &role.version);
+
+            payload
+                .entity_type
+                .zip(role.entity_type)
+                .inspect(|(payload_et, role_et)| {
+                    filter_condition = filter_condition && payload_et == role_et
+                });
 
             if filter_condition {
                 filtered_roles.push(role.clone())

@@ -43,9 +43,7 @@ use hyperswitch_interfaces::{
     types::{PaymentsAuthorizeType, PaymentsSyncType, RefundExecuteType, RefundSyncType, Response},
     webhooks,
 };
-use masking::ExposeInterface;
-use rand::distributions::DistString;
-use time::OffsetDateTime;
+use hyperswitch_masking::ExposeInterface;
 use transformers as globepay;
 
 use crate::{constants::headers, types::ResponseRouterData, utils::convert_amount};
@@ -90,7 +88,8 @@ where
         &self,
         _req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -103,8 +102,8 @@ fn get_globlepay_query_params(
     connector_auth_type: &ConnectorAuthType,
 ) -> CustomResult<String, errors::ConnectorError> {
     let auth_type = globepay::GlobepayAuthType::try_from(connector_auth_type)?;
-    let time = (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000).to_string();
-    let nonce_str = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+    let time = common_utils::date_time::now_unix_timestamp_millis().to_string();
+    let nonce_str = common_utils::generate_random_alphanumeric_string(12);
     let valid_string = format!(
         "{}&{time}&{nonce_str}&{}",
         auth_type.partner_code.expose(),
@@ -159,6 +158,7 @@ impl ConnectorCommon for Globepay {
             reason: Some(response.return_msg),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -193,7 +193,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -295,7 +296,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Glo
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -383,7 +385,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Globepa
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -473,7 +476,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Globepay 
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -553,6 +557,7 @@ impl webhooks::IncomingWebhook for Globepay {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -560,7 +565,8 @@ impl webhooks::IncomingWebhook for Globepay {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

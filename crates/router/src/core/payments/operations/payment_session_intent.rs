@@ -10,6 +10,7 @@ use router_env::{instrument, logger, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, operations::ValidateStatusForOperation},
     },
@@ -44,7 +45,7 @@ impl ValidateStatusForOperation for PaymentSessionIntent {
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::Failed | common_enums::IntentStatus::Conflicted | common_enums::IntentStatus::Expired => {
+            | common_enums::IntentStatus::Failed | common_enums::IntentStatus::Conflicted | common_enums::IntentStatus::Expired | common_enums::IntentStatus::Review=> {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: format!(
                         "You cannot create session token for this payment because it has status {intent_status}. Expected status is requires_payment_method.",
@@ -166,13 +167,11 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        processor: &domain::Processor,
         mut payment_data: payments::PaymentIntentData<F>,
-        customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
-        updated_customer: Option<customer::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<common_enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentSessionOperation<'b, F>,
         payments::PaymentIntentData<F>,
@@ -180,6 +179,8 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
     where
         F: 'b + Send,
     {
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
         let prerouting_algorithm = payment_data.payment_intent.prerouting_algorithm.clone();
         payment_data.payment_intent = match prerouting_algorithm {
             Some(prerouting_algorithm) => state
@@ -255,8 +256,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         _state: &'a SessionState,
         _payment_data: &mut payments::PaymentIntentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -275,21 +275,17 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         payment_data: &mut payments::PaymentIntentData<F>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         let db = &state.store;
+        let profile_id = business_profile.get_id();
         let all_connector_accounts = db
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
                 platform.get_processor().get_account().get_id(),
-                false,
-                platform.get_processor().get_key_store(),
+                profile_id,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;
-        let profile_id = business_profile.get_id();
         let filtered_connector_accounts = all_connector_accounts
-            .filter_based_on_profile_and_connector_type(
-                profile_id,
-                common_enums::ConnectorType::PaymentProcessor,
-            );
+            .filter_by_connector_type(common_enums::ConnectorType::PaymentProcessor);
         let connector_and_supporting_payment_method_type = filtered_connector_accounts
             .get_connector_and_supporting_payment_method_type_for_session_call();
 
@@ -343,7 +339,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
                                 .connector
                                 .connector_name
                                 .to_string()
-                                .parse::<common_enums::RoutableConnectors>()
+                                .parse::<euclid::enums::RoutableConnectors>()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
                             merchant_connector_id: choice.connector.merchant_connector_id.clone(),
                         };
@@ -370,8 +366,10 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut payments::PaymentIntentData<F>,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }

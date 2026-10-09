@@ -7,7 +7,7 @@
 use common_enums::{ExecutionMode, ExecutionPath, GatewaySystem};
 use common_utils::id_type;
 use external_services::grpc_client::LineageIds;
-use hyperswitch_domain_models::{business_profile, payments::HeaderPayload, platform::Platform};
+use hyperswitch_domain_models::{payments::HeaderPayload, platform::Processor};
 use hyperswitch_interfaces::api::gateway::GatewayContext;
 
 use crate::core::payments::helpers;
@@ -19,8 +19,8 @@ use crate::core::payments::helpers;
 #[derive(Clone, Debug)]
 pub struct RouterGatewayContext {
     pub creds_identifier: Option<String>,
-    /// Merchant context (merchant_id, profile_id, etc.)
-    pub platform: Platform,
+    /// Processor context for payment execution
+    pub processor: Processor,
 
     /// Header payload (x-reference-id, etc.)
     pub header_payload: HeaderPayload,
@@ -42,59 +42,17 @@ pub struct RouterGatewayContext {
 
     /// Execution path (Direct, UCS, or Shadow)
     pub execution_path: ExecutionPath,
-}
 
-impl RouterGatewayContext {
-    pub fn new(
-        platform: Platform,
-        header_payload: HeaderPayload,
-        business_profile: &business_profile::Profile,
-        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
-        #[cfg(feature = "v2")]
-        merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
-        execution_path: ExecutionPath,
-        creds_identifier: Option<String>,
-    ) -> Self {
-        let lineage_ids = LineageIds::new(
-            business_profile.merchant_id.clone(),
-            business_profile.get_id().clone(),
-        );
-        let execution_mode = match execution_path {
-            ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
-            ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
-            // ExecutionMode is irrelevant for Direct path in this context
-            ExecutionPath::Direct => ExecutionMode::NotApplicable,
-        };
-        Self {
-            platform,
-            header_payload,
-            lineage_ids,
-            merchant_connector_account,
-            execution_mode,
-            execution_path,
-            creds_identifier,
-        }
-    }
-    pub fn direct(
-        platform: Platform,
-        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
-        #[cfg(feature = "v2")]
-        merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
-        merchant_id: id_type::MerchantId,
-        profile_id: id_type::ProfileId,
-        creds_identifier: Option<String>,
-    ) -> Self {
-        let lineage_ids = LineageIds::new(merchant_id, profile_id);
-        Self {
-            platform,
-            header_payload: HeaderPayload::default(),
-            lineage_ids,
-            merchant_connector_account,
-            execution_mode: ExecutionMode::NotApplicable,
-            execution_path: ExecutionPath::Direct,
-            creds_identifier,
-        }
-    }
+    /// Kill switch thresholds for this scope, read once by the gate. Carried so a failure
+    /// is counted against the same threshold the gate used, rather than re-reading the
+    /// config later and risking a different answer.
+    pub kill_switch_enabled: bool,
+    pub kill_switch_threshold: u64,
+    /// `None` means connector declines never trip this scope.
+    pub connector_decline_threshold: Option<u64>,
+    /// The scope the gate decided under. Carried so the flows that inherit this context
+    /// without gating for themselves count against the scope that authorised them.
+    pub rollout_scope: Option<String>,
 }
 
 /// Implementation of GatewayContext trait for RouterGatewayContext
@@ -112,7 +70,48 @@ impl GatewayContext for RouterGatewayContext {
     }
 }
 impl RouterGatewayContext {
+    /// Context for the Direct path, which never calls UCS and so never trips the kill
+    /// switch; the thresholds are inert here.
+    pub fn direct(
+        processor: Processor,
+        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
+        merchant_id: id_type::MerchantId,
+        profile_id: id_type::ProfileId,
+        creds_identifier: Option<String>,
+    ) -> Self {
+        let lineage_ids = LineageIds::new(merchant_id, profile_id);
+        Self {
+            processor,
+            header_payload: HeaderPayload::default(),
+            lineage_ids,
+            merchant_connector_account,
+            execution_mode: ExecutionMode::NotApplicable,
+            execution_path: ExecutionPath::Direct,
+            creds_identifier,
+            kill_switch_enabled: false,
+            kill_switch_threshold: 1,
+            connector_decline_threshold: None,
+            // The direct path is not gated, so no scope decided it.
+            rollout_scope: None,
+        }
+    }
+
     /// Get the gateway system (Direct, UnifiedConnectorService, etc.)
+    /// The kill switch settings this request resolved, for the UCS logging wrappers.
+    pub fn rollout_settings(
+        &self,
+    ) -> crate::core::unified_connector_service::kill_switch::RolloutSettings {
+        crate::core::unified_connector_service::kill_switch::RolloutSettings {
+            execution_mode: self.execution_mode,
+            kill_switch_enabled: self.kill_switch_enabled,
+            kill_switch_threshold: self.kill_switch_threshold,
+            connector_decline_threshold: self.connector_decline_threshold,
+            rollout_scope: self.rollout_scope.clone(),
+        }
+    }
+
     pub fn get_gateway_system(&self) -> GatewaySystem {
         match self.execution_path {
             ExecutionPath::Direct => GatewaySystem::Direct,

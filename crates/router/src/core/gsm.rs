@@ -85,6 +85,9 @@ pub async fn update_gsm_rule(
         clear_pan_possible,
         feature,
         feature_data,
+        standardised_code,
+        description,
+        user_guidance_message,
     } = gsm_request;
     GsmInterface::update_gsm_rule(
         db,
@@ -112,6 +115,9 @@ pub async fn update_gsm_rule(
                 .or(clear_pan_possible),
             feature_data: feature_data.or(Some(inferred_feature_info.1)),
             feature: feature.or(Some(inferred_feature_info.0)),
+            standardised_code,
+            description,
+            user_guidance_message,
         },
     )
     .await

@@ -33,12 +33,11 @@ use crate::{
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 pub async fn create_vault_token_core(
     state: SessionState,
-    merchant_account: &domain::MerchantAccount,
-    merchant_key_store: &domain::MerchantKeyStore,
+    provider: domain::Provider,
     req: api_models::tokenization::GenericTokenizationRequest,
 ) -> RouterResponse<api_models::tokenization::GenericTokenizationResponse> {
     // Generate a unique vault ID
-    let vault_id = domain::VaultId::generate(uuid::Uuid::now_v7().to_string());
+    let vault_id = domain::VaultId::generate(common_utils::generate_uuid_v7().to_string());
     let db = state.store.as_ref();
     let customer_id = req.customer_id.clone();
     // Create vault request
@@ -52,11 +51,14 @@ pub async fn create_vault_token_core(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to encode Request")?;
 
+    let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
+
     // Call the vault service
-    let resp = pm_vault::call_to_vault::<pm_types::AddVault>(&state, payload.clone())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Call to vault failed")?;
+    let resp =
+        pm_vault::call_to_vault::<pm_types::AddVault>(&state, payload.clone(), query_params, None)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Call to vault failed")?;
 
     // Parse the response
     let stored_resp: pm_types::AddVaultResponse = resp
@@ -67,7 +69,7 @@ pub async fn create_vault_token_core(
     // Create new tokenization record
     let tokenization_new = hyperswitch_domain_models::tokenization::Tokenization {
         id: id_type::GlobalTokenId::generate(&state.conf.cell_information.id),
-        merchant_id: merchant_account.get_id().clone(),
+        merchant_id: provider.get_account().get_id().clone(),
         customer_id: customer_id.clone(),
         locker_id: stored_resp.vault_id.get_string_repr().to_string(),
         created_at: common_utils::date_time::now(),
@@ -78,7 +80,7 @@ pub async fn create_vault_token_core(
 
     // Insert into database
     let tokenization = db
-        .insert_tokenization(tokenization_new, &(merchant_key_store.clone()))
+        .insert_tokenization(tokenization_new, provider.get_key_store())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert tokenization record")?;

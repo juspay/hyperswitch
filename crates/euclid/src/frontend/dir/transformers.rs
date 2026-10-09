@@ -24,12 +24,14 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             }
             global_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
             global_enums::PaymentMethodType::Skrill => Ok(dirval!(WalletType = Skrill)),
+            global_enums::PaymentMethodType::Neteller => Ok(dirval!(WalletType = Neteller)),
             global_enums::PaymentMethodType::Paysera => Ok(dirval!(WalletType = Paysera)),
             global_enums::PaymentMethodType::GooglePay => Ok(dirval!(WalletType = GooglePay)),
             global_enums::PaymentMethodType::Bluecode => Ok(dirval!(WalletType = Bluecode)),
             global_enums::PaymentMethodType::ApplePay => Ok(dirval!(WalletType = ApplePay)),
             global_enums::PaymentMethodType::Paypal => Ok(dirval!(WalletType = Paypal)),
             global_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
+            global_enums::PaymentMethodType::Wero => Ok(dirval!(WalletType = Wero)),
             global_enums::PaymentMethodType::CryptoCurrency => {
                 Ok(dirval!(CryptoType = CryptoCurrency))
             }
@@ -48,7 +50,8 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 | global_enums::PaymentMethod::Voucher
                 | global_enums::PaymentMethod::OpenBanking
                 | global_enums::PaymentMethod::MobilePayment
-                | global_enums::PaymentMethod::GiftCard => Err(AnalysisErrorType::NotSupported),
+                | global_enums::PaymentMethod::GiftCard
+                | global_enums::PaymentMethod::NetworkToken => Err(AnalysisErrorType::NotSupported),
             },
             global_enums::PaymentMethodType::Bacs => match self.1 {
                 global_enums::PaymentMethod::BankDebit => Ok(dirval!(BankDebitType = Bacs)),
@@ -65,7 +68,8 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 | global_enums::PaymentMethod::Voucher
                 | global_enums::PaymentMethod::OpenBanking
                 | global_enums::PaymentMethod::MobilePayment
-                | global_enums::PaymentMethod::GiftCard => Err(AnalysisErrorType::NotSupported),
+                | global_enums::PaymentMethod::GiftCard
+                | global_enums::PaymentMethod::NetworkToken => Err(AnalysisErrorType::NotSupported),
             },
             global_enums::PaymentMethodType::Becs => Ok(dirval!(BankDebitType = Becs)),
             global_enums::PaymentMethodType::Sepa => Ok(dirval!(BankDebitType = Sepa)),
@@ -88,6 +92,20 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 Ok(dirval!(BankTransferType = Multibanco))
             }
             global_enums::PaymentMethodType::Pix => Ok(dirval!(BankTransferType = Pix)),
+            global_enums::PaymentMethodType::PixKey => Ok(dirval!(BankTransferType = PixKey)),
+            global_enums::PaymentMethodType::PixEmv => Ok(dirval!(BankTransferType = PixEmv)),
+            global_enums::PaymentMethodType::PixQr => Ok(dirval!(BankTransferType = PixQr)),
+            global_enums::PaymentMethodType::PixAutomaticoPush => {
+                Ok(dirval!(BankTransferType = PixAutomaticoPush))
+            }
+            global_enums::PaymentMethodType::PixAutomaticoQr => {
+                Ok(dirval!(BankTransferType = PixAutomaticoQr))
+            }
+            global_enums::PaymentMethodType::Payshap => Ok(dirval!(BankTransferType = Payshap)),
+            global_enums::PaymentMethodType::PayshapProxy => {
+                Ok(dirval!(BankTransferType = PayshapProxy))
+            }
+            global_enums::PaymentMethodType::Ted => Ok(dirval!(BankTransferType = Ted)),
             global_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
             global_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),
             global_enums::PaymentMethodType::OnlineBankingCzechRepublic => {
@@ -175,6 +193,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::InstantBankTransferPoland => {
                 Ok(dirval!(BankTransferType = InstantBankTransferPoland))
             }
+            global_enums::PaymentMethodType::Qris => Ok(dirval!(RealTimePaymentType = Qris)),
             global_enums::PaymentMethodType::PermataBankTransfer => {
                 Ok(dirval!(BankTransferType = PermataBankTransfer))
             }
@@ -206,11 +225,20 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
             }
             global_enums::PaymentMethodType::Eft => Ok(dirval!(BankRedirectType = Eft)),
+            global_enums::PaymentMethodType::EftDebitOrder => {
+                Ok(dirval!(BankDebitType = EftDebitOrder))
+            }
             global_enums::PaymentMethodType::IndonesianBankTransfer => {
                 Ok(dirval!(BankTransferType = IndonesianBankTransfer))
             }
             global_enums::PaymentMethodType::BhnCardNetwork => {
                 Ok(dirval!(GiftCardType = BhnCardNetwork))
+            }
+            global_enums::PaymentMethodType::OpenBanking => {
+                Ok(dirval!(BankRedirectType = OpenBanking))
+            }
+            global_enums::PaymentMethodType::NetworkToken => {
+                Ok(dirval!(NetworkTokenType = NetworkToken))
             }
         }
     }

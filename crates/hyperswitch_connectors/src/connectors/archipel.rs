@@ -10,7 +10,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -43,20 +42,16 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use router_env::{error, info};
 use transformers::{
     self as archipel, ArchipelCardAuthorizationRequest, ArchipelIncrementalAuthorizationRequest,
     ArchipelPaymentsCancelRequest, ArchipelRefundRequest, ArchipelWalletAuthorizationRequest,
 };
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{is_mandate_supported, PaymentMethodDataType, PaymentsAuthorizeRequestData},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils::PaymentsAuthorizeRequestData};
 
 pub mod transformers;
 
@@ -160,6 +155,7 @@ impl ConnectorCommon for Archipel {
                     code: err.code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     message: err
                         .description
                         .clone()
@@ -185,17 +181,7 @@ impl ConnectorCommon for Archipel {
     }
 }
 
-impl ConnectorValidation for Archipel {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Archipel {}
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Archipel {
     fn get_headers(
@@ -968,7 +954,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ar
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Amount",
+                    field_name: "Amount".into(),
                 })?,
             config_data.tenant_id,
             req,
@@ -1051,6 +1037,7 @@ impl IncomingWebhook for Archipel {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -1058,7 +1045,8 @@ impl IncomingWebhook for Archipel {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

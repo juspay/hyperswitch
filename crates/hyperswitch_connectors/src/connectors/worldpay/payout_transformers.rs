@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
     router_response_types::PayoutsResponseData, types,
 };
 use hyperswitch_interfaces::{api, errors};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{payout_requests::*, payout_response::*};
@@ -150,6 +150,7 @@ impl TryFrom<api_models::payouts::PayoutMethodData> for PayoutInstrument {
             })),
             api_models::payouts::PayoutMethodData::Card(_)
             | api_models::payouts::PayoutMethodData::Bank(_)
+            | api_models::payouts::PayoutMethodData::BankTransfer(_)
             | api_models::payouts::PayoutMethodData::Wallet(_)
             | api_models::payouts::PayoutMethodData::BankRedirect(_)
             | api_models::payouts::PayoutMethodData::Passthrough(_) => {
@@ -188,6 +189,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, WorldpayPayoutResponse>>
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })

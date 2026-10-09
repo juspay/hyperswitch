@@ -3,7 +3,7 @@ use error_stack::{Report, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    address,
+    address, authentication,
     errors::api_error_response::ApiErrorResponse,
     payment_method_data::{Card, PaymentMethodData},
     router_request_types::BrowserInformation,
@@ -181,6 +181,34 @@ pub struct ExternalThreeDSConnectorMetadata {
 
 #[derive(Clone, Debug)]
 pub struct AuthenticationStore {
-    pub cavv: Option<masking::Secret<String>>,
-    pub authentication: diesel_models::authentication::Authentication,
+    pub cavv: Option<hyperswitch_masking::Secret<String>>,
+    pub authentication: authentication::Authentication,
+}
+
+#[derive(Clone, Debug)]
+pub struct AuthenticationInfo {
+    pub billing_address: Option<address::Address>,
+    pub shipping_address: Option<address::Address>,
+    pub browser_info: Option<BrowserInformation>,
+    pub email: Option<Email>,
+    pub device_details: Option<api_models::payments::DeviceDetails>,
+    pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
+    pub merchant_country_code: Option<common_enums::CountryAlpha2>,
+    pub platform: Option<api_models::payments::DeviceChannel>,
+}
+
+#[cfg(feature = "v1")]
+impl From<api_models::authentication::AuthenticationEligibilityRequest> for AuthenticationInfo {
+    fn from(req: api_models::authentication::AuthenticationEligibilityRequest) -> Self {
+        Self {
+            billing_address: req.billing.map(address::Address::from),
+            shipping_address: req.shipping.map(address::Address::from),
+            browser_info: req.browser_information.map(BrowserInformation::from),
+            email: req.email,
+            device_details: None,
+            merchant_category_code: None,
+            merchant_country_code: None,
+            platform: None,
+        }
+    }
 }

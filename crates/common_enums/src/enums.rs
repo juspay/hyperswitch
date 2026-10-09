@@ -9,7 +9,8 @@ use std::{
 };
 
 pub use accounts::{
-    MerchantAccountRequestType, MerchantAccountType, MerchantProductType, OrganizationType,
+    MerchantAccountRequestType, MerchantAccountType, MerchantIntegrationType, MerchantProductType,
+    OrganizationType, ResourceRequestorType, ResourceType,
 };
 use diesel::{
     backend::Backend,
@@ -18,13 +19,14 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types::Text,
 };
+use hyperswitch_masking::Secret;
 pub use payments::ProductType;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use smithy::SmithyModel;
 pub use ui::*;
 use utoipa::ToSchema;
 
-pub use super::connector_enums::{InvoiceStatus, RoutableConnectors};
+pub use super::connector_enums::InvoiceStatus;
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -171,6 +173,7 @@ pub enum AttemptStatus {
     DeviceDataCollectionPending,
     IntegrityFailure,
     Expired,
+    CaptureReview,
 }
 
 impl AttemptStatus {
@@ -180,7 +183,6 @@ impl AttemptStatus {
             | Self::Charged
             | Self::AutoRefunded
             | Self::Voided
-            | Self::VoidedPostCharge
             | Self::VoidFailed
             | Self::CaptureFailed
             | Self::Failure
@@ -203,12 +205,93 @@ impl AttemptStatus {
             | Self::PaymentMethodAwaited
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
-            | Self::IntegrityFailure => false,
+            | Self::IntegrityFailure
+            | Self::VoidedPostCharge
+            | Self::CaptureReview => false,
+        }
+    }
+
+    pub fn is_payment_terminal_failure(self) -> bool {
+        match self {
+            Self::RouterDeclined
+            | Self::Failure
+            | Self::Expired
+            | Self::VoidFailed
+            | Self::CaptureFailed
+            | Self::AuthenticationFailed
+            | Self::AuthorizationFailed => true,
+            Self::Started
+            | Self::AuthenticationPending
+            | Self::AuthenticationSuccessful
+            | Self::Authorized
+            | Self::Charged
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::Voided
+            | Self::VoidedPostCharge
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::AutoRefunded
+            | Self::PartialCharged
+            | Self::PartiallyAuthorized
+            | Self::PartialChargedAndChargeable
+            | Self::Unresolved
+            | Self::Pending
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure
+            | Self::CaptureReview => false,
         }
     }
 
     pub fn is_success(self) -> bool {
         matches!(self, Self::Charged | Self::PartialCharged)
+    }
+
+    pub fn is_authorization_success(self) -> bool {
+        matches!(
+            self,
+            Self::Authorized
+                | Self::PartiallyAuthorized
+                | Self::Charged
+                | Self::PartialCharged
+                | Self::PartialChargedAndChargeable
+        )
+    }
+
+    pub fn should_update_payment_method(self) -> bool {
+        match self {
+            Self::Charged
+            | Self::PartialCharged
+            | Self::Authorized
+            | Self::PartiallyAuthorized
+            | Self::AuthenticationSuccessful
+            | Self::PartialChargedAndChargeable => true,
+            Self::Started
+            | Self::AuthenticationFailed
+            | Self::RouterDeclined
+            | Self::AuthenticationPending
+            | Self::AuthorizationFailed
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::Voided
+            | Self::VoidedPostCharge
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::CaptureFailed
+            | Self::VoidFailed
+            | Self::AutoRefunded
+            | Self::Unresolved
+            | Self::Pending
+            | Self::Failure
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure
+            | Self::Expired
+            | Self::CaptureReview => false,
+        }
     }
 }
 
@@ -242,15 +325,16 @@ pub enum ApplePayPaymentMethodType {
     Copy,
     Debug,
     Default,
-    Hash,
-    Eq,
     PartialEq,
+    Eq,
+    Hash,
     serde::Deserialize,
     serde::Serialize,
     SmithyModel,
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
+    strum::VariantNames,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -289,6 +373,36 @@ pub enum RevenueRecoveryAlgorithmType {
     Cascading,
 }
 
+/// The retry implementations available within the `Smart` arm of revenue recovery.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RevenueRecoveryABAlgorithm {
+    /// Adaptive Retry algorithm. The pairing production ran before systematic sampling existed:
+    /// the weekday and month-day signals are softmaxed before the max, and the day is drawn by the
+    /// per-day walk. Kept as the control arm, and kept stable because invoices already carry it.
+    AdaptiveRetry,
+    /// Control's combine, drawn instead by systematic sampling. Differs from `AdaptiveRetry` in the
+    /// sampler alone, so a difference between the two is attributable to the draw.
+    SystematicKMaxAtSoftmax,
+    /// Systematic sampling over the max of the raw scores. Differs from `SystematicKMaxAtSoftmax`
+    /// in the combine alone, so a difference between those two is attributable to the combine.
+    SystematicKMaxAtScore,
+}
+
 #[derive(
     Default,
     Clone,
@@ -311,6 +425,51 @@ pub enum GsmDecision {
 }
 
 #[derive(
+    Clone, Copy, Debug, strum::Display, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
+pub enum ApiKeyType {
+    Internal,
+    External,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum RecommendedAction {
+    DoNotRetry,
+    #[serde(rename = "retry_after_10_days")]
+    RetryAfter10Days,
+    #[serde(rename = "retry_after_1_hour")]
+    RetryAfter1Hour,
+    #[serde(rename = "retry_after_24_hours")]
+    RetryAfter24Hours,
+    #[serde(rename = "retry_after_2_days")]
+    RetryAfter2Days,
+    #[serde(rename = "retry_after_4_days")]
+    RetryAfter4Days,
+    #[serde(rename = "retry_after_6_days")]
+    RetryAfter6Days,
+    #[serde(rename = "retry_after_8_days")]
+    RetryAfter8Days,
+    RetryAfterInstrumentUpdate,
+    RetryLater,
+    RetryWithDifferentPaymentMethodData,
+    StopRecurring,
+}
+
+#[derive(
     Clone,
     Copy,
     Debug,
@@ -327,6 +486,68 @@ pub enum GsmDecision {
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum GsmFeature {
     Retry,
+}
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum StandardisedCode {
+    AccountClosedOrInvalid,
+    AuthenticationFailed,
+    AuthenticationRequired,
+    AuthorizationMissingOrRevoked,
+    CardLostOrStolen,
+    CardNotSupportedRestricted,
+    CfgPmNotEnabledOrMisconfigured,
+    ComplianceOrSanctionsRestriction,
+    ConfigurationIssue,
+    CreditLimitExceeded,
+    CurrencyOrCorridorNotEnabled,
+    DoNotHonor,
+    DownstreamTechnicalIssue,
+    DuplicateRequest,
+    GenericUnknownError,
+    IncorrectAuthenticationCode,
+    InsufficientFunds,
+    IntegCryptographicIssue,
+    IntegrationIssue,
+    InvalidCardNumber,
+    InvalidCredentials,
+    InvalidCvv,
+    InvalidExpiryDate,
+    InvalidState,
+    IssuerUnavailable,
+    MerchantInactive,
+    MissingOrInvalidParam,
+    OperationNotAllowed,
+    PaymentCancelledByUser,
+    PaymentMethodIssue,
+    PaymentSessionTimeout,
+    PmAddressMismatch,
+    PspAcquirerError,
+    PspFraudEngineDecline,
+    RateLimit,
+    StoredCredentialOrMitNotEnabled,
+    SubscriptionPlanInactive,
+    SuspectedFraud,
+    ThreeDsAuthenticationServiceIssue,
+    ThreeDsConfigurationIssue,
+    ThreeDsDataOrProtocolInvalid,
+    TransactionNotPermitted,
+    TransactionTimedOut,
+    VelocityLimitExceeded,
+    WalletOrTokenConfigIssue,
 }
 
 /// Specifies the type of cardholder authentication to be applied for a payment.
@@ -392,6 +613,22 @@ pub enum FraudCheckStatus {
     Pending,
     Legit,
     TransactionFailure,
+}
+
+impl FraudCheckStatus {
+    pub fn should_stop_payment(&self, failure_mode: &PreFrmFailureMode) -> bool {
+        matches!(self, Self::Fraud)
+            || (matches!(self, Self::TransactionFailure)
+                && matches!(failure_mode, PreFrmFailureMode::FailClosed))
+    }
+}
+
+#[derive(Debug, Clone, Default, strum::Display, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum PreFrmFailureMode {
+    #[default]
+    FailOpen,
+    FailClosed,
 }
 
 #[derive(
@@ -479,8 +716,11 @@ impl PaymentResourceUpdateStatus {
     }
 }
 
+/// `card_bin` (6 digits) and `extended_card_bin` (8 digits) are deprecated, use
+/// `generic_card_bin`, which accepts 6 to 10 digits.
 #[derive(
     Clone,
+    Copy,
     Debug,
     PartialEq,
     Eq,
@@ -496,8 +736,88 @@ impl PaymentResourceUpdateStatus {
 #[strum(serialize_all = "snake_case")]
 pub enum BlocklistDataKind {
     PaymentMethod,
+    /// Deprecated, superseded by `GenericCardBin`
     CardBin,
+    /// Deprecated, superseded by `GenericCardBin`
     ExtendedCardBin,
+    GenericCardBin,
+}
+
+#[derive(Debug)]
+pub enum BlockReason {
+    BlockedBin,
+    BlockedCardInfoUnavailable,
+    BlockedCardType(CardType),
+    BlockedCardNetwork,
+    BlockedFundingSource,
+    BlockedCardSubtype,
+    BlockedCardSegmentType,
+    BlockedVirtualCard,
+    BlockedNonReloadablePrepaidCard,
+    BlockedGamblingCard,
+    BlockedIssuerCountry,
+    BlockedIssuer,
+}
+
+/// A stable, machine-readable identifier for the reason a payment was blocked.
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, SmithyModel, ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum BlockReasonCode {
+    BlockedBin,
+    BlockedCardInfoUnavailable,
+    BlockedCardType,
+    BlockedCardNetwork,
+    BlockedFundingSource,
+    BlockedCardSubtype,
+    BlockedCardSegmentType,
+    BlockedVirtualCard,
+    BlockedNonReloadablePrepaidCard,
+    BlockedGamblingCard,
+    BlockedIssuerCountry,
+    BlockedIssuer,
+}
+
+impl From<BlockReason> for BlockReasonCode {
+    fn from(block_reason: BlockReason) -> Self {
+        match block_reason {
+            BlockReason::BlockedBin => Self::BlockedBin,
+            BlockReason::BlockedCardInfoUnavailable => Self::BlockedCardInfoUnavailable,
+            BlockReason::BlockedCardType(_) => Self::BlockedCardType,
+            BlockReason::BlockedCardNetwork => Self::BlockedCardNetwork,
+            BlockReason::BlockedFundingSource => Self::BlockedFundingSource,
+            BlockReason::BlockedCardSubtype => Self::BlockedCardSubtype,
+            BlockReason::BlockedCardSegmentType => Self::BlockedCardSegmentType,
+            BlockReason::BlockedVirtualCard => Self::BlockedVirtualCard,
+            BlockReason::BlockedNonReloadablePrepaidCard => Self::BlockedNonReloadablePrepaidCard,
+            BlockReason::BlockedGamblingCard => Self::BlockedGamblingCard,
+            BlockReason::BlockedIssuerCountry => Self::BlockedIssuerCountry,
+            BlockReason::BlockedIssuer => Self::BlockedIssuer,
+        }
+    }
+}
+
+impl BlockReason {
+    pub fn error_message(&self) -> String {
+        match self {
+            Self::BlockedBin => "We're unable to accept this card, please try another card or a different payment method".to_string(),
+            Self::BlockedCardInfoUnavailable => "We couldn't verify this card's information, please try a different card".to_string(),
+            Self::BlockedCardType(card_type) => {
+                format!("{} cards are not accepted for this transaction, please try a different card", card_type.title_case())
+            }
+            Self::BlockedCardNetwork => "This card network is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedFundingSource => "This card funding source is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedCardSubtype => "This card is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedCardSegmentType => "This card segment is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedVirtualCard => "Virtual cards are not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedNonReloadablePrepaidCard => "Non-reloadable prepaid cards are not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedGamblingCard => "Cards associated with gambling are not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedIssuerCountry => "Cards issued in your region aren't supported for this transaction, please try a different card".to_string(),
+            Self::BlockedIssuer => "We can't process payments from this bank, please try another card or a different payment method".to_string(),
+        }
+    }
 }
 
 /// Specifies how the payment is captured.
@@ -577,11 +897,39 @@ pub enum ConnectorType {
     AuthenticationProcessor,
     /// Tax Calculation Processor
     TaxProcessor,
+    /// Surcharge Calculation Processor
+    SurchargeProcessor,
     /// Represents billing processors that handle subscription management, invoicing,
     /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.
     BillingProcessor,
     /// Represents vaulting processors that handle the storage and management of payment method data
     VaultProcessor,
+}
+
+/// Strategy for applying external surcharge
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SurchargeStrategy {
+    /// Apply the calculated surcharge to the payment (default)
+    #[default]
+    Apply,
+    /// Do not apply the surcharge; return the amount only
+    Waive,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -600,32 +948,19 @@ pub enum CallConnectorAction {
         error_code: Option<String>,
         error_message: Option<String>,
     },
-    HandleResponse(Vec<u8>),
+    HandleResponse {
+        resource_object: Vec<u8>,
+        event_type: Option<IncomingWebhookEventType>,
+    },
     UCSConsumeResponse(Vec<u8>),
-    UCSHandleResponse(Vec<u8>),
+    HandleResponseWithoutBuildRequest,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    SmithyModel,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "UPPERCASE")]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub enum DocumentKind {
-    Cnpj,
-    Cpf,
+/// For denoting the webhook event type in CallConnectorAction,
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum IncomingWebhookEventType {
+    PaymentIntentCaptureFailure,
+    Other,
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -1540,6 +1875,26 @@ impl Currency {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EventRecipient {
+    Merchant,
+    Connector,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -1563,6 +1918,7 @@ pub enum EventObjectType {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -1593,8 +1949,14 @@ impl EventClass {
                 EventType::PaymentCaptured,
                 EventType::PaymentExpired,
                 EventType::ActionRequired,
+                EventType::SurchargePaymentSucceeded,
             ]),
-            Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
+            Self::Refunds => HashSet::from([
+                EventType::RefundSucceeded,
+                EventType::RefundFailed,
+                EventType::SurchargeRefundSucceeded,
+                EventType::RefundReview,
+            ]),
             Self::Disputes => HashSet::from([
                 EventType::DisputeOpened,
                 EventType::DisputeExpired,
@@ -1614,6 +1976,7 @@ impl EventClass {
                 EventType::PayoutCancelled,
                 EventType::PayoutExpired,
                 EventType::PayoutReversed,
+                EventType::PayoutNotPermitted,
             ]),
             Self::Subscriptions => HashSet::from([EventType::InvoicePaid]),
         }
@@ -1652,6 +2015,7 @@ pub enum EventType {
     ActionRequired,
     RefundSucceeded,
     RefundFailed,
+    RefundReview,
     DisputeOpened,
     DisputeExpired,
     DisputeAccepted,
@@ -1675,7 +2039,27 @@ pub enum EventType {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
+    #[cfg(feature = "payouts")]
+    PayoutNotPermitted,
     InvoicePaid,
+    SurchargePaymentSucceeded,
+    SurchargeRefundSucceeded,
+}
+
+/// Maps primary payment/refund events to their corresponding surcharge events
+pub trait SurchargeEventMapper {
+    /// Returns the surcharge event type corresponding to this primary event
+    fn to_surcharge_event(&self) -> Option<EventType>;
+}
+
+impl SurchargeEventMapper for EventType {
+    fn to_surcharge_event(&self) -> Option<Self> {
+        match self {
+            Self::PaymentSucceeded => Some(Self::SurchargePaymentSucceeded),
+            Self::RefundSucceeded => Some(Self::SurchargeRefundSucceeded),
+            _ => None,
+        }
+    }
 }
 
 #[derive(
@@ -1806,9 +2190,18 @@ pub enum IntentStatus {
     Conflicted,
     /// The payment expired before it could be captured.
     Expired,
+    /// The payment has been marked for manual review due to anomalous response from the connector.
+    /// This can occur when a capture fails after the payment was initially marked as successful
+    /// (e.g., Adyen CAPTURE_FAILED webhook after successful CAPTURE).
+    /// The merchant can explicitly resolve this status via the API or a webhook from the connector can update the status
+    Review,
 }
 
 impl IntentStatus {
+    pub fn is_eligible_for_manual_retry(self) -> bool {
+        matches!(self, Self::Failed)
+    }
+
     /// Indicates whether the payment intent is in terminal state or not
     pub fn is_in_terminal_state(self) -> bool {
         match self {
@@ -1827,7 +2220,8 @@ impl IntentStatus {
             | Self::PartiallyCapturedAndCapturable
             | Self::PartiallyAuthorizedAndRequiresCapture
             | Self::Conflicted
-            | Self::PartiallyCapturedAndProcessing => false,
+            | Self::PartiallyCapturedAndProcessing
+            | Self::Review => false,
         }
     }
 
@@ -1843,7 +2237,7 @@ impl IntentStatus {
             | Self::Cancelled
             | Self::CancelledPostCapture
             |  Self::PartiallyCaptured
-            |  Self::RequiresCapture | Self::Conflicted | Self::Expired=> false,
+            |  Self::RequiresCapture | Self::Conflicted | Self::Expired | Self::Review => false,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
@@ -1886,6 +2280,9 @@ pub enum RecoveryStatus {
     /// The payment is currently being processed with the payment gateway.
     /// This status is shown during active retry attempts.
     Processing,
+    /// The payment has been partially recovered through retry mechanisms,
+    /// and the remaining amount is still being processed by the payment gateway.
+    PartiallyCapturedAndProcessing,
     /// The payment cannot be recovered due to terminal failure conditions.
     /// This includes cases where all retries have been exhausted or the payment has hard decline errors.
     Terminated,
@@ -1941,6 +2338,13 @@ impl FutureUsage {
         match self {
             Self::OffSession => true,
             Self::OnSession => false,
+        }
+    }
+    /// Indicates whether to save the payment method for future use when a customer is present.
+    pub fn is_on_session(self) -> bool {
+        match self {
+            Self::OffSession => false,
+            Self::OnSession => true,
         }
     }
 }
@@ -2003,6 +2407,10 @@ pub enum PaymentMethodStatus {
     Processing,
     /// Indicates that the payment method is awaiting some data before changing state to active
     AwaitingData,
+    /// Indicates that the payment method is in new state
+    New,
+    /// Indicates that the payment method has been redacted/deleted and cannot be used or recovered
+    Redacted,
 }
 
 impl From<AttemptStatus> for PaymentMethodStatus {
@@ -2033,8 +2441,22 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::ConfirmationAwaited
             | AttemptStatus::DeviceDataCollectionPending
             | AttemptStatus::IntegrityFailure
-            | AttemptStatus::Expired => Self::Inactive,
+            | AttemptStatus::Expired
+            | AttemptStatus::CaptureReview => Self::Inactive,
             AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
+        }
+    }
+}
+
+impl PaymentMethodStatus {
+    /// Checks if transitioning from `self` to `target` status is valid.
+    /// This defines the allowed status transitions for payment method updates.
+    pub fn can_transition_to(self, target: Self) -> bool {
+        match self {
+            Self::Processing | Self::AwaitingData | Self::Redacted => false,
+            Self::Active => false,
+            Self::Inactive => target == Self::Active || target == Self::New,
+            Self::New => target == Self::Active || target == Self::Inactive,
         }
     }
 }
@@ -2079,6 +2501,34 @@ pub enum PaymentExperience {
     CollectOtp,
 }
 
+/// Returned in the payment method list response so the SDK,
+/// can help decide whether to show the "save my details" checkbox and how to word it.
+#[derive(
+    Eq,
+    PartialEq,
+    Hash,
+    Copy,
+    Clone,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Default,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum CustomerAcceptanceSupport {
+    /// Every eligible connector supports saving this payment method.
+    Supported,
+    /// Only some of the eligible connectors support saving this payment method
+    PartiallySupported,
+    /// No eligible connector supports saving this payment method
+    #[default]
+    Unsupported,
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
 pub enum SamsungPayCardBrand {
@@ -2088,13 +2538,6 @@ pub enum SamsungPayCardBrand {
     Discover,
     Unknown,
 }
-
-/// Custom T&C Message to be shown per payment method type
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub struct CustomTermsByPaymentMethodTypes(
-    #[schema(value_type = HashMap<String, Option<String>>)]
-    pub  Option<std::collections::HashMap<PaymentMethodType, String>>,
-);
 
 /// Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.
 #[derive(
@@ -2159,6 +2602,7 @@ pub enum PaymentMethodType {
     DuitNow,
     Efecty,
     Eft,
+    EftDebitOrder,
     Eps,
     Flexiti,
     Fps,
@@ -2181,6 +2625,7 @@ pub enum PaymentMethodType {
     Momo,
     MomoAtm,
     Multibanco,
+    Neteller,
     OnlineBankingThailand,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
@@ -2196,10 +2641,16 @@ pub enum PaymentMethodType {
     Paypal,
     Paze,
     Pix,
+    PixKey,
+    PixEmv,
+    PixQr,
+    PixAutomaticoQr,
+    PixAutomaticoPush,
     PaySafeCard,
     Przelewy24,
     PromptPay,
     Pse,
+    Qris,
     RedCompra,
     RedPagos,
     SamsungPay,
@@ -2219,6 +2670,7 @@ pub enum PaymentMethodType {
     VietQr,
     Venmo,
     Walley,
+    Wero,
     WeChatPay,
     SevenEleven,
     Lawson,
@@ -2236,14 +2688,37 @@ pub enum PaymentMethodType {
     InstantBankTransferPoland,
     RevolutPay,
     IndonesianBankTransfer,
+    OpenBanking,
+    NetworkToken,
+    Payshap,
+    PayshapProxy,
+    Ted,
+}
+
+/// Indicates whether a wallet token is decrypted .
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WalletDecryptedToken {
+    ApplePay,
+    GooglePay,
+    /// No wallet decryption occurred.
+    None,
 }
 
 impl PaymentMethodType {
-    pub fn should_check_for_customer_saved_payment_method_type(self) -> bool {
-        matches!(
-            self,
-            Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
-        )
+    /// - True : then fetch the saved payment method and update the last used, skip locker id creation
+    /// - False : For applepay and googlepay decrypted tokens create a new payment method according to locker fingerprint
+    pub fn should_check_for_customer_saved_payment_method_type(
+        self,
+        decrypted_token: WalletDecryptedToken,
+    ) -> bool {
+        match decrypted_token {
+            WalletDecryptedToken::ApplePay => !matches!(self, Self::ApplePay),
+            WalletDecryptedToken::GooglePay => !matches!(self, Self::GooglePay),
+            WalletDecryptedToken::None => matches!(
+                self,
+                Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
+            ),
+        }
     }
     pub fn to_display_name(&self) -> String {
         let display_name = match self {
@@ -2285,6 +2760,7 @@ impl PaymentMethodType {
             Self::DuitNow => "DuitNow",
             Self::Efecty => "Efecty",
             Self::Eft => "EFT",
+            Self::EftDebitOrder => "EFT Debit Order",
             Self::Eps => "EPS",
             Self::Flexiti => "Flexiti",
             Self::Fps => "FPS",
@@ -2300,6 +2776,7 @@ impl PaymentMethodType {
             Self::InstantBankTransfer => "Instant Bank Transfer",
             Self::InstantBankTransferFinland => "Instant Bank Transfer Finland",
             Self::InstantBankTransferPoland => "Instant Bank Transfer Poland",
+            Self::Qris => "QRIS",
             Self::Klarna => "Klarna",
             Self::KakaoPay => "KakaoPay",
             Self::LocalBankRedirect => "Local Bank Redirect",
@@ -2310,6 +2787,7 @@ impl PaymentMethodType {
             Self::Momo => "MoMo",
             Self::MomoAtm => "MoMo ATM",
             Self::Multibanco => "Multibanco",
+            Self::Neteller => "Neteller",
             Self::OnlineBankingThailand => "Online Banking Thailand",
             Self::OnlineBankingCzechRepublic => "Online Banking Czech Republic",
             Self::OnlineBankingFinland => "Online Banking Finland",
@@ -2325,6 +2803,11 @@ impl PaymentMethodType {
             Self::Paypal => "PayPal",
             Self::Paze => "Paze",
             Self::Pix => "Pix",
+            Self::PixKey => "Pix Key",
+            Self::PixEmv => "Pix EMV",
+            Self::PixQr => "Pix QR",
+            Self::PixAutomaticoQr => "Pix Automático QR",
+            Self::PixAutomaticoPush => "Pix Automático Push",
             Self::PaySafeCard => "PaySafeCard",
             Self::Przelewy24 => "Przelewy24",
             Self::PromptPay => "PromptPay",
@@ -2333,7 +2816,7 @@ impl PaymentMethodType {
             Self::RedPagos => "RedPagos",
             Self::SamsungPay => "Samsung Pay",
             Self::Sepa => "SEPA Direct Debit",
-            Self::SepaGuarenteedDebit => "SEPA Guarenteed Direct Debit",
+            Self::SepaGuarenteedDebit => "SEPA Guaranteed Direct Debit",
             Self::SepaBankTransfer => "SEPA Bank Transfer",
             Self::Sofort => "Sofort",
             Self::Skrill => "Skrill",
@@ -2361,12 +2844,18 @@ impl PaymentMethodType {
             Self::DirectCarrierBilling => "Direct Carrier Billing",
             Self::RevolutPay => "RevolutPay",
             Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
+            Self::OpenBanking => "Open Banking",
+            Self::NetworkToken => "Network Token",
+            Self::Payshap => "PayShap",
+            Self::PayshapProxy => "PayShap Proxy",
+            Self::Wero => "Wero",
+            Self::Ted => "TED",
         };
         display_name.to_string()
     }
 }
 
-impl masking::SerializableSecret for PaymentMethodType {}
+impl hyperswitch_masking::SerializableSecret for PaymentMethodType {}
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
 #[derive(
@@ -2409,6 +2898,7 @@ pub enum PaymentMethod {
     GiftCard,
     OpenBanking,
     MobilePayment,
+    NetworkToken,
 }
 
 impl PaymentMethod {
@@ -2428,18 +2918,18 @@ impl PaymentMethod {
             | Self::Upi
             | Self::Voucher
             | Self::OpenBanking
-            | Self::MobilePayment => false,
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
         }
     }
 
-    pub fn is_additional_payment_method_data_sensitive(&self) -> bool {
+    pub fn supports_installments(&self) -> bool {
         match self {
-            Self::BankRedirect => true,
-            Self::Card
-            | Self::CardRedirect
+            Self::Card => true,
+            Self::CardRedirect
             | Self::PayLater
             | Self::Wallet
-            | Self::GiftCard
+            | Self::BankRedirect
             | Self::BankTransfer
             | Self::Crypto
             | Self::BankDebit
@@ -2447,8 +2937,48 @@ impl PaymentMethod {
             | Self::RealTimePayment
             | Self::Upi
             | Self::Voucher
+            | Self::GiftCard
             | Self::OpenBanking
-            | Self::MobilePayment => false,
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
+        }
+    }
+
+    pub fn should_persist_locker_id_for_saved_payment_method(
+        &self,
+        should_check_for_customer_pm: bool,
+    ) -> bool {
+        match self {
+            Self::Card | Self::BankDebit | Self::BankRedirect => true,
+            Self::Wallet => !should_check_for_customer_pm,
+            _ => false,
+        }
+    }
+
+    pub fn is_additional_payment_method_data_sensitive(
+        &self,
+        payment_method_type: Option<PaymentMethodType>,
+    ) -> bool {
+        match (self, payment_method_type) {
+            (Self::BankTransfer | Self::BankRedirect, _)
+            | (Self::Wallet, Some(PaymentMethodType::Paypal)) => true,
+            (
+                Self::Card
+                | Self::CardRedirect
+                | Self::PayLater
+                | Self::Wallet
+                | Self::GiftCard
+                | Self::Crypto
+                | Self::BankDebit
+                | Self::Reward
+                | Self::RealTimePayment
+                | Self::Upi
+                | Self::Voucher
+                | Self::OpenBanking
+                | Self::MobilePayment
+                | Self::NetworkToken,
+                _,
+            ) => false,
         }
     }
 }
@@ -2518,31 +3048,15 @@ impl ExecutionPath {
             Self::UnifiedConnectorService => false,
         }
     }
-}
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    ToSchema,
-)]
-#[router_derive::diesel_enum(storage_type = "text")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum ShadowRolloutAvailability {
-    IsAvailable,
-    NotAvailable,
+    /// Returns the execution mode corresponding to this execution path.
+    pub fn get_execution_mode(&self) -> ExecutionMode {
+        match self {
+            Self::UnifiedConnectorService => ExecutionMode::Primary,
+            Self::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+            Self::Direct => ExecutionMode::NotApplicable,
+        }
+    }
 }
 
 #[derive(
@@ -2597,6 +3111,33 @@ pub enum ExecutionMode {
     NotApplicable,
 }
 
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+/// Whether a connector event is the real call or a shadow mirror.
+pub enum EventExecutionMode {
+    Primary,
+    Shadow,
+}
+
+impl From<ExecutionMode> for EventExecutionMode {
+    fn from(mode: ExecutionMode) -> Self {
+        match mode {
+            ExecutionMode::Shadow => Self::Shadow,
+            ExecutionMode::Primary | ExecutionMode::NotApplicable => Self::Primary,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+/// Where a connector event's call was sent.
+pub enum EventDestination {
+    /// A direct call to the connector.
+    Connector,
+    /// A call to the Unified Connector Service.
+    UnifiedConnectorService,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -2618,8 +3159,10 @@ pub enum ExecutionMode {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ConnectorIntegrationType {
+    /// Represents only UCS Connector integration
     UcsConnector,
-    DirectConnector,
+    /// Represents Connector integration which may be on both Direct and UCS
+    DirectandUCSConnector,
 }
 
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
@@ -2647,6 +3190,7 @@ pub enum PaymentType {
     NewMandate,
     SetupMandate,
     RecurringMandate,
+    Installment,
 }
 
 /// SCA Exemptions types available for authentication
@@ -2762,6 +3306,12 @@ pub enum RefundStatus {
     TransactionFailure,
 }
 
+impl RefundStatus {
+    pub fn is_success(self) -> bool {
+        matches!(self, Self::Success)
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -2788,6 +3338,41 @@ pub enum RelayStatus {
     Failure,
 }
 
+impl RelayStatus {
+    pub fn get_void_status(attempt_status: AttemptStatus) -> Self {
+        match attempt_status {
+            AttemptStatus::Failure
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Self::Failure,
+            AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::Unresolved
+            | AttemptStatus::Charged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::Started
+            | AttemptStatus::CaptureReview => Self::Pending,
+            AttemptStatus::Voided | AttemptStatus::VoidedPostCharge => Self::Success,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -2807,6 +3392,10 @@ pub enum RelayStatus {
 #[serde(rename_all = "snake_case")]
 pub enum RelayType {
     Refund,
+    Capture,
+    IncrementalAuthorization,
+    Void,
+    UnreferencedRefund,
 }
 
 #[derive(
@@ -2837,6 +3426,7 @@ pub enum FrmTransactionType {
     Copy,
     Debug,
     Eq,
+    Hash,
     PartialEq,
     Default,
     serde::Deserialize,
@@ -2879,26 +3469,43 @@ pub enum MandateStatus {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CardNetwork {
     #[serde(alias = "VISA")]
+    #[strum(to_string = "Visa", serialize = "VISA")]
     Visa,
     #[serde(alias = "MASTERCARD")]
+    #[strum(
+        to_string = "Mastercard",
+        serialize = "MasterCard",
+        serialize = "MASTERCARD"
+    )]
     Mastercard,
     #[serde(alias = "AMERICANEXPRESS")]
     #[serde(alias = "AMEX")]
+    #[strum(
+        to_string = "AmericanExpress",
+        serialize = "AMEX",
+        serialize = "AmEx",
+        serialize = "Amex",
+        serialize = "AMERICAN EXPRESS"
+    )]
     AmericanExpress,
     JCB,
     #[serde(alias = "DINERSCLUB")]
     DinersClub,
     #[serde(alias = "DISCOVER")]
+    #[strum(to_string = "Discover", serialize = "DISCOVER")]
     Discover,
     #[serde(alias = "CARTESBANCAIRES")]
     CartesBancaires,
     #[serde(alias = "UNIONPAY")]
+    // Apple Pay sends UnionPay under its full name. Not seen in production traffic.
+    #[strum(to_string = "UnionPay", serialize = "ChinaUnionPay")]
     UnionPay,
     #[serde(alias = "INTERAC")]
     Interac,
     #[serde(alias = "RUPAY")]
     RuPay,
     #[serde(alias = "MAESTRO")]
+    #[strum(to_string = "Maestro", serialize = "MAESTRO")]
     Maestro,
     #[serde(alias = "STAR")]
     Star,
@@ -2908,6 +3515,22 @@ pub enum CardNetwork {
     Accel,
     #[serde(alias = "NYCE")]
     Nyce,
+    #[serde(alias = "PROP")]
+    Prop,
+    #[serde(alias = "PRIVATE LABEL")]
+    PrivateLabel,
+    #[serde(alias = "DINACARD")]
+    Dinacard,
+    #[serde(alias = "AIRPLUS")]
+    AirPlus,
+    #[serde(alias = "AURORE")]
+    Aurore,
+    #[serde(alias = "EFTPOS_AUSTRALIA")]
+    EftposAustralia,
+    #[serde(alias = "GECAPITAL")]
+    GeCapital,
+    #[serde(alias = "UATP")]
+    Uatp,
 }
 
 #[derive(
@@ -2949,12 +3572,63 @@ pub enum RegulatedName {
     utoipa::ToSchema,
     Copy,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "lowercase")]
 pub enum PanOrToken {
     Pan,
     Token,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "UPPERCASE")]
+#[strum(serialize_all = "UPPERCASE")]
+pub enum FundingSource {
+    Credit,
+    Debit,
+    #[serde(rename = "DEFERRED DEBIT")]
+    #[strum(serialize = "DEFERRED DEBIT")]
+    DeferredDebit,
+    Prepaid,
+    #[serde(rename = "CHARGE CARD")]
+    #[strum(serialize = "CHARGE CARD")]
+    ChargeCard,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum CardSegmentType {
+    Business,
+    Commercial,
+    Consumer,
+    Government,
 }
 
 #[derive(
@@ -2977,6 +3651,21 @@ pub enum PanOrToken {
 pub enum CardType {
     Credit,
     Debit,
+    Prepaid,
+    Store,
+    ChargeCard,
+}
+
+impl CardType {
+    pub fn title_case(&self) -> &'static str {
+        match self {
+            Self::Credit => "Credit",
+            Self::Debit => "Debit",
+            Self::Prepaid => "Prepaid",
+            Self::Store => "Store",
+            Self::ChargeCard => "Charge Card",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, strum::EnumString, strum::Display)]
@@ -2994,7 +3683,8 @@ impl CardNetwork {
             | Self::Pulse
             | Self::Accel
             | Self::Nyce
-            | Self::CartesBancaires => false,
+            | Self::CartesBancaires
+            | Self::EftposAustralia => false,
 
             Self::Visa
             | Self::Mastercard
@@ -3004,7 +3694,14 @@ impl CardNetwork {
             | Self::Discover
             | Self::UnionPay
             | Self::RuPay
-            | Self::Maestro => true,
+            | Self::Maestro
+            | Self::Prop
+            | Self::PrivateLabel
+            | Self::Dinacard
+            | Self::AirPlus
+            | Self::Aurore
+            | Self::GeCapital
+            | Self::Uatp => true,
         }
     }
 
@@ -3021,9 +3718,98 @@ impl CardNetwork {
             | Self::Discover
             | Self::UnionPay
             | Self::RuPay
-            | Self::Maestro => false,
+            | Self::Maestro
+            | Self::Prop
+            | Self::PrivateLabel
+            | Self::Dinacard
+            | Self::AirPlus
+            | Self::Aurore
+            // Domestic to Australia, not the US.
+            | Self::EftposAustralia
+            | Self::GeCapital
+            | Self::Uatp => false,
         }
     }
+
+    pub fn from_payment_method_data(payment_method_data: &serde_json::Value) -> Option<Self> {
+        let wallet = payment_method_data.get("wallet");
+
+        // Absent wallet providers serialise as `null` rather than being omitted, so each provider is
+        // matched on the network it yields, not on whether its key is present.
+        let network = match (
+            payment_method_data
+                .get("card")
+                .and_then(|card| card.get("card_network")),
+            wallet
+                .and_then(|wallet| wallet.get("apple_pay"))
+                .and_then(|apple_pay| apple_pay.get("network")),
+            wallet
+                .and_then(|wallet| wallet.get("google_pay"))
+                .and_then(|google_pay| google_pay.get("card_network")),
+            wallet
+                .and_then(|wallet| wallet.get("samsung_pay"))
+                .and_then(|samsung_pay| samsung_pay.get("card_network")),
+        ) {
+            (Some(network), ..)
+            | (_, Some(network), ..)
+            | (_, _, Some(network), _)
+            | (_, _, _, Some(network)) => Some(network),
+            (None, None, None, None) => None,
+        };
+
+        network
+            .and_then(|network| network.as_str())
+            .and_then(|network| Self::from_str(network).ok())
+    }
+}
+
+/// If a card is associated with a secondary (co-badged) network — e.g. Star, Pulse, Nyce —
+/// this represents that network's identity, distinct from the card's primary `CardNetwork`.
+/// Secondary networks typically provide less complete BIN data than primary networks.
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum CoBadgedCardNetwork {
+    #[serde(alias = "RUPAY")]
+    RuPay,
+    #[serde(alias = "CARTES BANCAIRES")]
+    CartesBancaires,
+    #[serde(alias = "STAR")]
+    Star,
+    #[serde(alias = "ACCEL")]
+    Accel,
+    #[serde(alias = "PULSE")]
+    Pulse,
+    #[serde(alias = "NYCE")]
+    Nyce,
+    #[serde(alias = "ELO")]
+    Elo,
+    #[serde(alias = "DANKORT")]
+    Dankort,
+    #[serde(alias = "CULIANCE")]
+    Culiance,
+    #[serde(alias = "KOREAN LOCAL")]
+    KoreanLocal,
+    #[serde(alias = "EFTPOS_AUSTRALIA")]
+    EftposAustralia,
+    #[serde(alias = "HIPERCARD")]
+    Hipercard,
+    #[serde(alias = "UATP")]
+    Uatp,
+    #[serde(alias = "BANCONTACT")]
+    Bancontact,
 }
 
 /// Stage of the dispute
@@ -3090,7 +3876,7 @@ pub enum DisputeStatus {
     DisputeLost,
 }
 
-#[derive(Debug, Clone, AsExpression, PartialEq, ToSchema)]
+#[derive(Debug, Clone, AsExpression, PartialEq, ToSchema, Eq)]
 #[schema(
     value_type = String,
     title = "4 digit Merchant category code (MCC)",
@@ -3121,7 +3907,6 @@ impl MerchantCategoryCode {
     pub fn get_category_name(&self) -> Result<&str, InvalidMccError> {
         let code = self.get_code()?;
         match code {
-            // specific mapping needs to be depricated
             5411 => Ok("Grocery Stores, Supermarkets (5411)"),
             7011 => Ok("Lodging-Hotels, Motels, Resorts-not elsewhere classified (7011)"),
             763 => Ok("Agricultural Cooperatives (0763)"),
@@ -3129,6 +3914,47 @@ impl MerchantCategoryCode {
             5021 => Ok("Office and Commercial Furniture (5021)"),
             4816 => Ok("Computer Network/Information Services (4816)"),
             5661 => Ok("Shoe Stores (5661)"),
+            743 => Ok("Wine producers"),
+            744 => Ok("Champagne producers"),
+            4011 => Ok("Railroads"),
+            4511 => Ok("Airlines and air carriers"),
+            4733 => Ok("Ticket Sales for Large Scenic Spots"),
+            4813 => Ok("Key-entry Telecom Merchant providing single local and long-distance phone calls using a central access number in a non-face-to-face environment using key entry"),
+            4815 => Ok("Monthly summary telephone charges"),
+            4829 => Ok("Wire transfers and money orders"),
+            5262 => Ok("Marketplaces"),
+            5552 => Ok("Electric Vehicle Charging"),
+            5715 => Ok("Alcoholic beverage wholesalers"),
+            6050 => Ok("Quasi Cash: Customer Financial Institution"),
+            6532 => Ok("Payment Transaction: Customer Financial Institution"),
+            6533 => Ok("Payment Transaction: Merchant"),
+            6536 => Ok("MoneySend Intracountry"),
+            6537 => Ok("MoneySend Intercountry"),
+            6538 => Ok("Funding Transactions for MoneySend"),
+            6540 => Ok("Non-Financial Institutions - Stored Value Card Purchase/Load"),
+            7013 => Ok("Real Estate Agent - Brokers"),
+            7280 => Ok("Private Hospital"),
+            7295 => Ok("Housekeeping Service (China)"),
+            7322 => Ok("Debt collection agencies"),
+            7512 => Ok("Automobile rentals"),
+            7523 => Ok("Parking lots and garages"),
+            7800 => Ok("Government-Owned Lotteries (US Region only)"),
+            7801 => Ok("Government Licensed On-Line Casinos (On-Line Gambling) (US Region only)"),
+            7802 => Ok("Government-Licensed Horse/Dog Racing (US Region only)"),
+            8912 => Ok("Fitments, Ornaments and Gardening"),
+            9211 => Ok("Court costs, including alimony and child support"),
+            9222 => Ok("Fines"),
+            9223 => Ok("Bail and bond payments"),
+            9311 => Ok("Tax payments"),
+            9399 => Ok("Government services -- not elsewhere classified"),
+            9400 => Ok("Embassy Fee Payments"),
+            9402 => Ok("Postal services -- government only"),
+            9405 => Ok("U.S. Federal Government Agencies or Departments"),
+            9406 => Ok("Government-Owned Lotteries (Non-U.S. region)"),
+            9700 => Ok("Automated Referral Service ( For Visa Only)"),
+            9701 => Ok("Visa Credential Service ( For Visa Only)"),
+            9702 => Ok("Emergency Services (GCAS) (Visa use only)"),
+            9950 => Ok("Intra-Company Purchases"),
 
             _ => Err(InvalidMccError {
                 message: format!("Category name not found for {}", code),
@@ -3319,6 +4145,57 @@ pub enum SplitTxnsEnabled {
     Enable,
     #[default]
     Skip,
+}
+
+/// Whether a payment whose requested capture method is not supported by the connector chosen
+/// for it falls back to automatic capture instead of being rejected.
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AutoFallbackCaptureMethod {
+    /// Fall back to automatic capture when the requested capture method is unsupported
+    Enabled,
+    /// Reject the payment when the requested capture method is unsupported
+    Disabled,
+}
+
+impl AutoFallbackCaptureMethod {
+    /// Capture method a payment falls back to when the requested one is not supported.
+    pub const FALLBACK: CaptureMethod = CaptureMethod::Automatic;
+
+    pub fn is_enabled(self) -> bool {
+        matches!(self, Self::Enabled)
+    }
+
+    /// Whether a payment requesting `requested` may fall back to [`Self::FALLBACK`].
+    ///
+    /// The fallback is one-directional: a payment that already requests automatic capture has
+    /// nothing to fall back to, and moving it to manual capture would leave it uncaptured.
+    pub fn can_fall_back_from(self, requested: CaptureMethod) -> bool {
+        self.is_enabled() && requested != Self::FALLBACK
+    }
+}
+
+impl From<bool> for AutoFallbackCaptureMethod {
+    fn from(enabled: bool) -> Self {
+        if enabled {
+            Self::Enabled
+        } else {
+            Self::Disabled
+        }
+    }
 }
 
 #[derive(
@@ -8222,6 +9099,30 @@ pub enum BrazilStatesAbbreviation {
     Tocantins,
 }
 
+/// Internal execution marker; not a merchant-supplied payout request selector.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutExecutionKind {
+    #[default]
+    Normal,
+    ExternalVaultProxy,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -8248,7 +9149,15 @@ pub enum PayoutStatus {
     Expired,
     Reversed,
     Pending,
+    /// Non-terminal: the payout method/payee was found ineligible, but the payout
+    /// is not conclusively closed. This status is intentionally NOT terminal and
+    /// emits no outgoing webhook (see `From<PayoutStatus> for Option<EventType>`).
     Ineligible,
+    /// Terminal: the payout was conclusively refused by the processor (e.g. a
+    /// Verification-of-Payee "no match" / "could not verify" result). Unlike
+    /// [`PayoutStatus::Ineligible`], this is a final failure state — it counts as a
+    /// payout failure and triggers a `payout_failed` outgoing webhook to the merchant.
+    NotPermitted,
     #[default]
     RequiresCreation,
     RequiresConfirmation,
@@ -8261,14 +9170,23 @@ impl PayoutStatus {
     pub fn is_payout_failure(&self) -> bool {
         matches!(
             self,
-            Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible
+            Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible | Self::NotPermitted
         )
     }
 
     pub fn is_non_terminal_status(&self) -> bool {
-        !matches!(
+        !self.is_terminal_status()
+    }
+
+    pub fn is_terminal_status(&self) -> bool {
+        matches!(
             self,
-            Self::Success | Self::Failed | Self::Cancelled | Self::Expired | Self::Reversed
+            Self::Success
+                | Self::Failed
+                | Self::Cancelled
+                | Self::Expired
+                | Self::Reversed
+                | Self::NotPermitted
         )
     }
 }
@@ -8392,6 +9310,7 @@ pub enum PaymentSource {
 pub enum BrowserName {
     #[default]
     Safari,
+    Chrome,
     #[serde(other)]
     Unknown,
 }
@@ -8825,18 +9744,34 @@ pub enum TransactionStatus {
     /// Informational Only; 3DS Requestor challenge preference acknowledged.
     #[serde(rename = "I")]
     InformationOnly,
+    /// Challenge using Secure Payment Confirmation (SPC); Available for supporting EMV 3DS 2.3.1 and later versions.
+    #[serde(rename = "S")]
+    SecurePaymentConfirmationRequired,
 }
 
 impl TransactionStatus {
     pub fn is_pending(self) -> bool {
         matches!(
             self,
-            Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication
+            Self::ChallengeRequired
+                | Self::ChallengeRequiredDecoupledAuthentication
+                | Self::SecurePaymentConfirmationRequired
         )
     }
 
     pub fn is_terminal_state(self) -> bool {
         matches!(self, Self::Success | Self::Failure)
+    }
+}
+
+impl From<TransactionStatus> for DecoupledAuthenticationType {
+    fn from(trans_status: TransactionStatus) -> Self {
+        match trans_status {
+            TransactionStatus::ChallengeRequired
+            | TransactionStatus::ChallengeRequiredDecoupledAuthentication
+            | TransactionStatus::SecurePaymentConfirmationRequired => Self::Challenge,
+            _ => Self::Frictionless,
+        }
     }
 }
 
@@ -8868,13 +9803,29 @@ pub enum PermissionGroup {
     UsersManage,
     AccountView,
     AccountManage,
-    ReconReportsView,
-    ReconReportsManage,
-    ReconOpsView,
-    ReconOpsManage,
-    InternalManage,
+    WebhooksView,
+    WebhooksManage,
+    ApiKeysView,
+    ApiKeysManage,
+    CloneConnectorManage,
     ThemeView,
     ThemeManage,
+    ConfigurationsView,
+    ConfigurationsManage,
+    ReconSourcesView,
+    ReconSourcesManage,
+    ReconExceptionsView,
+    ReconExceptionsManage,
+    ReconTransactionsView,
+    ReconTransactionsManage,
+    ReconRulesView,
+    ReconRulesManage,
+    OffersView,
+    OffersManage,
+    AlertsView,
+    AlertsManage,
+    MonitoringView,
+    MonitoringManage,
 }
 
 #[derive(
@@ -8886,17 +9837,26 @@ pub enum ParentGroup {
     Workflows,
     Analytics,
     Users,
-    ReconOps,
-    ReconReports,
     Account,
-    Internal,
+    Webhook,
+    ApiKeys,
+    CloneConnector,
     Theme,
+    Configurations,
+    ReconSources,
+    ReconExceptions,
+    ReconTransactions,
+    ReconRules,
+    Offers,
+    Alerts,
+    Monitoring,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Resource {
     Payment,
+    PaymentLink,
     Refund,
     ApiKey,
     Account,
@@ -8912,17 +9872,20 @@ pub enum Resource {
     WebhookEvent,
     Payout,
     Report,
-    ReconToken,
-    ReconFiles,
-    ReconAndSettlementAnalytics,
-    ReconUpload,
-    ReconReports,
-    RunRecon,
-    ReconConfig,
     RevenueRecovery,
     Subscription,
-    InternalConnector,
+    CloneConnector,
     Theme,
+    ReconIngestion,
+    ReconTransformation,
+    ReconException,
+    ReconStagingEntry,
+    ReconTransaction,
+    ReconRule,
+    SuperpositionConfig,
+    Offers,
+    Alert,
+    Monitoring,
 }
 
 #[derive(
@@ -8953,6 +9916,11 @@ pub enum PermissionScope {
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankNames {
+    Absa,
+    AccessBank,
+    AfricanBank,
+    AfricanBankBusiness,
+    Albaraka,
     AmericanExpress,
     AffinBank,
     AgroBank,
@@ -8964,16 +9932,46 @@ pub enum BankNames {
     BankMuamalat,
     BankRakyat,
     BankSimpananNasional,
+    BankZero,
     Barclays,
+    BidvestBank,
+    BidvestBankAlliances,
     BlikPSP,
     CapitalOne,
+    Capitec,
+    CapitecBusiness,
     Chase,
+    ChinaConstructionBank,
     Citi,
     CimbBank,
     Discover,
+    Discovery,
+    EnlBank,
+    FbcFidelityBank,
+    FinbondEpe,
+    FinbondMutualBank,
+    FirstNationalBank,
+    GotymeBank,
+    HabibOverseas,
+    HbzBank,
+    Investec,
+    Ithala,
+    JpMorganChase,
+    MtnBanking,
+    Nedbank,
     NavyFederalCreditUnion,
+    Olympus,
+    OldMutual,
+    PeoplesBankPepBank,
+    PeoplesBank,
+    PermanentBank,
     PentagonFederalCreditUnion,
+    SocieteGenerale,
+    StandardBank,
+    StateBankOfIndia,
     SynchronyBank,
+    Ubank,
+    VbsMutualBank,
     WellsFargo,
     AbnAmro,
     AsnBank,
@@ -9099,7 +10097,639 @@ pub enum BankNames {
     Yoursafe,
     N26,
     NationaleNederlanden,
+    // European banks
+    AibBusiness,
+    Aktia,
+    Alandsbanken,
+    AllianzBankFinancialAdvisorsSpa,
+    AllianzBanque,
+    AlliedIrishBank,
+    AlliedIrishBankCorporate,
+    AltoAdige,
+    AltoAdigeBancaSuedtirolBank,
+    Argenta,
+    ArkeaBanqueEntreprisesEtInstitutionnels,
+    ArkeaBanquePrivee,
+    AxaBanque,
+    Banca360CreditoCooperativoFvg,
+    BancaAdriaColliEuganei,
+    BancaAgricolaPopolareDiRagusa,
+    BancaAlpiMarittimeCcCarru,
+    BancaAltaToscana,
+    BancaAnnia,
+    BancaCentroEmilia,
+    BancaCentroLazio,
+    BancaCentroToscanaUmbria,
+    BancaCentropadana,
+    BancaCesarePonti,
+    BancaDelCatanzarese,
+    BancaDelCilentoDiSassanoEV,
+    BancaDelPiceno,
+    BancaDelPiemonte,
+    BancaDelTerritorioLombardo,
+    BancaDelVenetoCentrale,
+    BancaDellaMarcaCredcooperativo,
+    BancaDelleTerreVenete,
+    BancaDiAlbaCreditoCooperativo,
+    BancaDiAnghiariEStiaCc,
+    BancaDiBologna,
+    BancaDiCaraglio,
+    BancaDiCreditoPopolareScpa,
+    BancaDiImolaSpa,
+    BancaDiPesaro,
+    BancaDiPesciaECascina,
+    BancaDiPiacenzaScpa,
+    BancaDiTarantoBcc,
+    BancaDiUdineCreditoCoop,
+    BancaDonRizzo,
+    BancaFideuram,
+    BancaFinnatEuramericaSpa,
+    BancaGeneraliSpa,
+    BancaLazioNord,
+    BancaMalatestiana,
+    BancaMonteDeiPaschiDiSiena,
+    BancaPassadore,
+    BancaPatavina,
+    BancaPatrimoniSella,
+    BancaPerIlTrentinoaltoadige,
+    BancaPopolareDelLazioScpa,
+    BancaPopolareDellAltoAdige,
+    BancaPopolareDiSondrio,
+    BancaPopolarePugliese,
+    BancaPopolareValconcaScpa,
+    BancaSanFrancescoCreditoCoop,
+    BancaSella,
+    BancaSistemaSpa,
+    BancaSviluppoCooperazCredito,
+    BancaTema,
+    BancaTerreEtruscheEDiMaremma,
+    BancaTerritoriDelMonviso,
+    BancaValsabbina,
+    BancaVeroneseCcDiConcamarise,
+    BancoAzzoaglio,
+    BancoBpmSpaServizioWebank,
+    BancoBpmSpaServizioYouweb,
+    BancoBpmSpaYoubusinessWeb,
+    BancoBpmWeBank,
+    BancoBpmYouWeb,
+    BancoDeSabadell,
+    BancoDesioBrianza,
+    BancoDiSardegna,
+    BancoMarchigiano,
+    BancoPosta,
+    BancoSantander,
+    BankOfIreland,
+    BankOfIrelandBusiness,
+    BankOfIrelandUk,
+    BankOfScotlandBusiness,
+    Bankinter,
+    BanqueDeSavoie,
+    BanquePopulaire,
+    Barclaycard,
+    BarclaysBusiness,
+    BawagPsk,
+    Bbva,
+    BccAbruzzeseCappelleSulTavo,
+    BccAbruzziEMolise,
+    BccAdriaticoTeramano,
+    BccAgroBresciano,
+    BccAgroPontino,
+    BccAlberobelloSammicheleMonopoli,
+    BccAltoTirrenoDellaCalabria,
+    BccAnagni,
+    BccBasilicata,
+    BccBellegra,
+    BccBrescia,
+    BccBrianzaELaghi,
+    BccCampaniaCentro,
+    BccCapaccioPaestum,
+    BccCastelliRomaniETuscolo,
+    BccCentroCalabria,
+    BccConversano,
+    BccDegliUliviTerraDiBari,
+    BccDeiCastelliEDegliIblei,
+    BccDeiColliAlbani,
+    BccDelCirceoEPrivernate,
+    BccDelGarda,
+    BccDelMetauro,
+    BccDelVelino,
+    BccDellAltaMurgia,
+    BccDellaProvinciaRomana,
+    BccDellaRomagnaOccidentale,
+    BccDelleMadonie,
+    BccDiAltofonteECaccamo,
+    BccDiAquara,
+    BccDiArborea,
+    BccDiBari,
+    BccDiBarlassina,
+    BccDiBeneVagienna,
+    BccDiBinasco,
+    BccDiBuccinoEComuniCilentani,
+    BccDiBustoGarolfoEBuguggiate,
+    BccDiCagliari,
+    BccDiCanosaLoconia,
+    BccDiCaravaggio,
+    BccDiCassanoDelleMurgeETolve,
+    BccDiCherasco,
+    BccDiFilottrano,
+    BccDiFlumeri,
+    BccDiGambatesa,
+    BccDiGaudianoDiLavello,
+    BccDiLeverano,
+    BccDiLocorotondo,
+    BccDiMontepaone,
+    BccDiNapoli,
+    BccDiOstraEMorroDAlba,
+    BccDiOstuni,
+    BccDiPachino,
+    BccDiPergolaECorinaldo,
+    BccDiPianfeiERoccaDeBaldi,
+    BccDiPontassieve,
+    BccDiRecanatiEColmurano,
+    BccDiRoma,
+    BccDiSanGiovanniRotondo,
+    BccDiSanMarzanoDiSanGiuseppe,
+    BccDiSanteramoInColle,
+    BccDiSarsina,
+    BccDiScafatiECetara,
+    BccDiSmarcoDeiCavoti,
+    BccDiSpelloEDelVelino,
+    BccDiTerraDOtranto,
+    BccFelsinea,
+    BccGTonioloDiSanCataldo,
+    BccGranSassoDItalia,
+    BccLaRiscossaDiRegalbuto,
+    BccLodi,
+    BccMilano,
+    BccMontePruno,
+    BccNettuno,
+    BccOglioESerio,
+    BccPordenoneseEMonsile,
+    BccPratolaPeligna,
+    BccPrealpiSanBiagio,
+    BccRavennaForliImola,
+    BccSanGiuseppeDiMussomeli,
+    BccTerraDiLavoro,
+    BccTriuggioValleDelLambro,
+    BccValdarnoFiorentino,
+    BccValdostana,
+    BccValleDelTorto,
+    BccVeneta,
+    BccVeneziaGiulia,
+    BccVersiliaLunigianaEGarfagnana,
+    BccVicentinoPojanaMaggiore,
+    Belfius,
+    Beobank,
+    BiBanca,
+    BluBancaSpa,
+    Bnl,
+    BnpParibasFortis,
+    BoursoBank,
+    Bozen,
+    Bpe,
+    BperBanca,
+    BvrBancaBancheVeneteRiunite,
+    CaisseDEpargne,
+    Caixa,
+    CajaRural,
+    Cajamar,
+    CassaCentraleBanca,
+    CassaDiRisparmioDiBolzano,
+    CassaDiRisparmioDiFermoSpa,
+    CassaDiRisparmioDiSavigliano,
+    CassaPadana,
+    CassaRuraleAltaValsugana,
+    CassaRuraleAltoGardaRovereto,
+    CassaRuraleDiLedro,
+    CassaRuraleDiTreviglio,
+    CassaRuraleFvg,
+    CassaRuraleRenon,
+    CassaRuraleValDiFiemme,
+    CassaRuraleValDiSole,
+    CassaRuraleVallagarina,
+    CassaRuraleValsuganaETesino,
+    CastagnetoBanca1910,
+    CbcBanque,
+    CentromarcaBanca,
+    ChiantibancaCreditoCooperativo,
+    Cic,
+    ClydesdaleBank,
+    Comdirect,
+    Commerzbank,
+    Cortinabanca,
+    Coutts,
+    CrValDiNonRotalianaEGiovo,
+    CraBccDiCantu,
+    CraDiBorgoSanGiacomo,
+    CraDiBoves,
+    CraDiPaliano,
+    Credem,
+    Credifriuli,
+    CreditMutuel,
+    CreditMutuelDeBretagne,
+    CreditMutuelDuSudOuest,
+    CreditoCooperativoAgrigentino,
+    CreditoCooperativoMediocrati,
+    CreditoCooperativoRomagnolo,
+    CreditoDiRomagna,
+    CreditoLombardoVeneto,
+    DanskeBankBusiness,
+    Desio,
+    DeutscheBank,
+    Dkb,
+    EasyBank,
+    Ebs,
+    EmilbancaCc,
+    ErsteBank,
+    EvoBanco,
+    Fineco,
+    Fintro,
+    Fortuneo,
+    FpbCassaDiFassaPrimieroBelluno,
+    HelloBank,
+    Hsbc,
+    HsbcBusiness,
+    Hype,
+    HypoVereinsbank,
+    Ibercaja,
+    IccreaBancaSpa,
+    Illimity,
+    Imagin,
+    ImprebancaSpa,
+    IntesaSanpaolo,
+    IntesaSanpaoloInbiz,
+    IntesaSanpaoloPrivateBankingSpa,
+    Isybank,
+    Kbc,
+    KbcBrussels,
+    Kutxabank,
+    LaBanquePostale,
+    LaBanquePostaleBusiness,
+    LaCassaDiRavennaSpa,
+    LaCassaRurale,
+    LaboralKutxa,
+    Lcl,
+    LisPaySpa,
+    LloydsBusiness,
+    LloydsCommercial,
+    MSBank,
+    Mbna,
+    MettleBank,
+    Monabanq,
+    Mooney,
+    Mps,
+    NatWestBankline,
+    Nationwide,
+    Nordea,
+    OmaSp,
+    Op,
+    Openbank,
+    PopPankki,
+    PostBank,
+    PostePayEvolution,
+    PrimacassaFvg,
+    Ptsb,
+    RaiffeisenAlgund,
+    RaiffeisenAltaPusteria,
+    RaiffeisenAltaVenosta,
+    RaiffeisenAltoAdige,
+    RaiffeisenBassaAtesina,
+    RaiffeisenBassaValleIsarco,
+    RaiffeisenBassaVenosta,
+    RaiffeisenBolzano,
+    RaiffeisenBozen,
+    RaiffeisenBruneck,
+    RaiffeisenBrunico,
+    RaiffeisenCampoDiTrens,
+    RaiffeisenCassaCentrAltoAdige,
+    RaiffeisenCastelrottoortisei,
+    RaiffeisenDeutschnofenaldein,
+    RaiffeisenDobbiaco,
+    RaiffeisenEisacktal,
+    RaiffeisenEtschtal,
+    RaiffeisenFreienfeld,
+    RaiffeisenFunes,
+    RaiffeisenGadertal,
+    RaiffeisenGroeden,
+    RaiffeisenHochpustertal,
+    RaiffeisenKastelruthstulrich,
+    RaiffeisenLaas,
+    RaiffeisenLaces,
+    RaiffeisenLagundo,
+    RaiffeisenLana,
+    RaiffeisenLandesbankSuedtirol,
+    RaiffeisenLasa,
+    RaiffeisenLatsch,
+    RaiffeisenMarlengo,
+    RaiffeisenMarling,
+    RaiffeisenMeran,
+    RaiffeisenMerano,
+    RaiffeisenMonguelfocasiestesido,
+    RaiffeisenNiederdorf,
+    Raiffeisenbank,
+    RoyalBankOfScotlandBankline,
+    SPankki,
+    Saastopankki,
+    Santander,
+    SantanderBusiness,
+    SantanderPersonal,
+    Sparkasse,
+    TargoBank,
+    Tide,
+    Triodos,
+    Tsb,
+    UlsterBankline,
+    Unicaja,
+    VirginMoney,
+    VirginMoneyMerged,
+    VolksbankenRaiffeisenbanken,
+    Wise,
+    YorkshireBank,
+    Zempler,
+    RaiffeisenNovaLevante,
+    RaiffeisenNovaPonentealdino,
+    RaiffeisenObervinschgau,
+    RaiffeisenOltradige,
+    RaiffeisenParcines,
+    RaiffeisenPartschins,
+    RaiffeisenPasseier,
+    RaiffeisenPradtaufers,
+    RaiffeisenPratotubre,
+    RaiffeisenSalorno,
+    RaiffeisenSalurn,
+    RaiffeisenSanMartinoInPassiria,
+    RaiffeisenSarntal,
+    RaiffeisenScena,
+    RaiffeisenSchenna,
+    RaiffeisenSchlanders,
+    RaiffeisenSchlernrosengarten,
+    RaiffeisenSilandro,
+    RaiffeisenSuedtirol,
+    RaiffeisenTaufererahrntal,
+    RaiffeisenTesimo,
+    RaiffeisenTirol,
+    RaiffeisenTirolo,
+    RaiffeisenTisens,
+    RaiffeisenToblach,
+    RaiffeisenTuresaurina,
+    RaiffeisenUeberetsch,
+    RaiffeisenUltenstpankrazlaurein,
+    RaiffeisenUltimospancrlaur,
+    RaiffeisenUntereisacktal,
+    RaiffeisenUnterland,
+    RaiffeisenUntervinschgau,
+    RaiffeisenValBadia,
+    RaiffeisenValGardena,
+    RaiffeisenValPassiria,
+    RaiffeisenValSarentino,
+    RaiffeisenValleIsarco,
+    RaiffeisenVandoies,
+    RaiffeisenVillabassa,
+    RaiffeisenVillnoess,
+    RaiffeisenVintl,
+    RaiffeisenWelsberggsiestaisten,
+    RaiffeisenWelschnofen,
+    RaiffeisenWipptal,
+    RaiffeisenkasseRitten,
+    RivieraBanca,
+    RomagnaBanca,
+    Sella,
+    Sicilbanca,
+    SolutionBank,
+    Suedtiroler,
+    SuedtirolerSparkasse,
+    SuedtirolerVolksbank,
+    Unicredit,
+    UnicreditOnlineBanking,
+    UnicreditUniwebCorporate,
+    ValpolicellaBenacoBanca,
+    Volksbank,
+    VolksbankBancaPopolare,
+    Widiba,
+    ZkbCredcoopdiTriesteEGorizia,
+    Asn,
+    Sns,
+    Seb,
+    Swedbank,
+    MockUkPayments,
+    Abanca,
+    AlmBrand,
+    AlphaFx,
+    ArbejdernesLandsbank,
+    ArbuthnotLatham,
+    BancoPopular,
+    BankPocztowy,
+    Bankia,
+    BnBank,
+    CaterAllen,
+    ChelseaBuildingSociety,
+    Citadele,
+    CoopPank,
+    CooperativeBank,
+    Cumberland,
+    DabBank,
+    DjurslandsBank,
+    Dnb,
+    EtneSparebank,
+    FanaSparebank,
+    FidorBank,
+    FlekkefjordSparebank,
+    ForexBank,
+    HaugesundSparebank,
+    HoareAndCo,
+    IcaBanken,
+    JyskeBank,
+    KleinwortHambros,
+    KlpBanken,
+    Kreditbanken,
+    LandkredittBank,
+    Lansforsakringar,
+    LhvPank,
+    LillesandsSparebank,
+    Luminor,
+    LusterSparebank,
+    MetroBank,
+    NordfynsBank,
+    NordjyskeBank,
+    Norisbank,
+    NykreditBank,
+    ObosBanken,
+    OrangeFinanse,
+    ParetoBank,
+    PkoBankPolski,
+    RingkjobingLandbobank,
+    Sbanken,
+    SiauliuBankas,
+    SiliconValleyBank,
+    Skandiabanken,
+    SkjernBank,
+    SkudenesOgAakraSparebank,
+    SogneOgGreipstadSparebank,
+    SparNordBank,
+    SparbankenSyd,
+    SpardaBank,
+    SpareBank1,
+    SparebankenMore,
+    SparebankenOst,
+    SparebankenSognOgFjordane,
+    SparebankenSor,
+    SparebankenVest,
+    SparekassenDanmark,
+    SparekassenSjaellandFyn,
+    Spareskillingsbanken,
+    Sydbank,
+    VanquisBank,
+    VestjyskBank,
+    VossSparebank,
+    YorkshireBuildingSociety,
+    SpareBank1Gudbrandsdal,
+    SpareBank1HallingdalValdres,
+    SpareBank1LomOgSkjak,
+    SpareBank1Modum,
+    SpareBank1Nordmore,
+    SpareBank1RingerikeHadeland,
+    SpareBank1Smn,
+    SpareBank1SrBank,
+    SpareBank1SoreSunnmore,
+    SpareBank1SorostNorgeBv,
+    SpareBank1SorostNorgeTelemark,
+    SpareBank1OstfoldAkershus,
+    SpareBank1Ostlandet,
+    CitiHandlowy,
+    DeutscheBankPolska,
+    IngBankSlaski,
+    IngDiba,
+    NordeaDirect,
+    SantanderUk,
+    SwedbankSparbankerna,
 }
+
+impl BankNames {
+    pub fn to_display_name(&self) -> String {
+        if let Some(name) = self.display_name_override() {
+            return name.to_string();
+        }
+        self.to_string()
+            .split('_')
+            .map(|word| {
+                let mut chars = word.chars();
+                match chars.next() {
+                    Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                    None => String::new(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    /// Overrides for banks whose correct display casing/formatting cannot be derived from the enum variant's snake_case name alone
+    fn display_name_override(self) -> Option<&'static str> {
+        Some(match self {
+            Self::AbnAmro => "ABN Amro",
+            Self::Aib => "AIB",
+            Self::AibBusiness => "AIB Business",
+            Self::Asn => "ASN",
+            Self::AxaBanque => "AXA Banque",
+            Self::BawagPsk => "BAWAG P.S.K.",
+            Self::Bbva => "BBVA",
+            Self::Bnl => "BNL",
+            Self::BnpParibas => "BNP Paribas",
+            Self::BnpParibasFortis => "BNP Paribas Fortis",
+            Self::Bpe => "BPE",
+            Self::BperBanca => "BPER Banca",
+            Self::Banca360CreditoCooperativoFvg => "Banca 360 Credito Cooperativo Fvg",
+            Self::BancaDelCilentoDiSassanoEV => "Banca Del Cilento Di Sassano E V",
+            Self::BancaMonteDeiPaschiDiSiena => "Banca Monte dei Paschi di Siena",
+            Self::BancaPopolareDiSondrio => "Banca Popolare di Sondrio",
+            Self::BancoBpmWeBank => "Banco BPM WeBank",
+            Self::BancoBpmYouWeb => "Banco BPM YouWeb",
+            Self::BancoDeSabadell => "Banco de Sabadell",
+            Self::BancoDiSardegna => "Banco di Sardegna",
+            Self::BankOfIreland => "Bank of Ireland",
+            Self::BankOfIrelandBusiness => "Bank of Ireland Business",
+            Self::BankOfIrelandUk => "Bank of Ireland UK",
+            Self::BankOfScotland => "Bank of Scotland",
+            Self::BankOfScotlandBusiness => "Bank of Scotland Business",
+            Self::BiBanca => "BiBanca",
+            Self::BoursoBank => "BoursoBank",
+            Self::CbcBanque => "CBC Banque",
+            Self::Cic => "CIC",
+            Self::CaisseDEpargne => "Caisse d'Epargne",
+            Self::CastagnetoBanca1910 => "Castagneto Banca 1910",
+            Self::CreditMutuelDeBretagne => "Credit Mutuel de Bretagne",
+            Self::CreditMutuelDuSudOuest => "Credit Mutuel du Sud Ouest",
+            Self::Dkb => "DKB",
+            Self::Ebs => "EBS",
+            Self::EasyBank => "EasyBank",
+            Self::Hsbc => "HSBC",
+            Self::HsbcBusiness => "HSBC Business",
+            Self::HypoVereinsbank => "HypoVereinsbank",
+            Self::Ing => "ING",
+            Self::Kbc => "KBC",
+            Self::KbcBrussels => "KBC Brussels",
+            Self::Lcl => "LCL",
+            Self::MSBank => "M&S Bank",
+            Self::Mbna => "MBNA",
+            Self::NatWest => "NatWest",
+            Self::NatWestBankline => "NatWest Bankline",
+            Self::Op => "OP",
+            Self::OmaSp => "Oma SP",
+            Self::PopPankki => "POP Pankki",
+            Self::Ptsb => "PTSB",
+            Self::PostBank => "Postbank",
+            Self::PostePayEvolution => "PostePay Evolution",
+            Self::Regiobank => "RegioBank",
+            Self::RoyalBankOfScotland => "Royal Bank of Scotland",
+            Self::RoyalBankOfScotlandBankline => "Royal Bank of Scotland Bankline",
+            Self::SPankki => "S-Pankki",
+            Self::IngBankSlaski => "ING Bank Slaski",
+            Self::IngDiba => "ING-DiBa",
+            Self::SantanderUk => "Santander UK",
+            Self::SpareBank1 => "SpareBank 1",
+            Self::SpareBank1Gudbrandsdal => "SpareBank 1 Gudbrandsdal",
+            Self::SpareBank1HallingdalValdres => "SpareBank 1 Hallingdal Valdres",
+            Self::SpareBank1LomOgSkjak => "SpareBank 1 Lom og Skjak",
+            Self::SpareBank1Modum => "SpareBank 1 Modum",
+            Self::SpareBank1Nordmore => "SpareBank 1 Nordmore",
+            Self::SpareBank1OstfoldAkershus => "SpareBank 1 Ostfold Akershus",
+            Self::SpareBank1Ostlandet => "SpareBank 1 Ostlandet",
+            Self::SpareBank1RingerikeHadeland => "SpareBank 1 Ringerike Hadeland",
+            Self::SpareBank1Smn => "SpareBank 1 SMN",
+            Self::SpareBank1SoreSunnmore => "SpareBank 1 Sore Sunnmore",
+            Self::SpareBank1SorostNorgeBv => "SpareBank 1 Sorost-Norge (BV)",
+            Self::SpareBank1SorostNorgeTelemark => "SpareBank 1 Sorost-Norge (Telemark)",
+            Self::SpareBank1SrBank => "SpareBank 1 SR-Bank",
+            Self::SwedbankSparbankerna => "Swedbank & Sparbankerna",
+            Self::AsnBank => "ASN Bank",
+            Self::Bank99Ag => "Bank99",
+            Self::BawagPskAg => "BAWAG P.S.K.",
+            Self::LhvPank => "LHV Pank",
+            Self::DabBank => "DAB Bank",
+            Self::SpardaBank => "Sparda-Bank",
+            Self::VolksbankenRaiffeisenbanken => "Volksbanken-Raiffeisenbanken",
+            Self::BnBank => "BN Bank ASA",
+            Self::KlpBanken => "KLP Banken",
+            Self::LandkredittBank => "Landkreditt Bank AS",
+            Self::ObosBanken => "OBOS-banken AS",
+            Self::SkudenesOgAakraSparebank => "Skudenes & Aakra Sparebank",
+            Self::PkoBankPolski => "PKO Bank Polski",
+            Self::EvoBanco => "EVO Banco",
+            Self::ForexBank => "FOREX",
+            Self::IcaBanken => "ICA Banken",
+            Self::AlphaFx => "Alpha FX",
+            Self::HoareAndCo => "C. Hoare & Co.",
+            Self::TsbBank => "TSB Bank",
+            Self::CooperativeBank => "The Co-operative Bank",
+            Self::Seb => "SEB",
+            Self::Sns => "SNS",
+            Self::Tsb => "TSB",
+            Self::VirginMoneyMerged => "Virgin Money",
+            Self::FirstDirect => "first direct",
+            _ => return None,
+        })
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -9120,6 +10750,12 @@ pub enum BankNames {
 pub enum BankType {
     Checking,
     Savings,
+    Salary,
+    Payment,
+    Transmission,
+    Current,
+    Bond,
+    SubscriptionShare,
 }
 #[derive(
     Clone,
@@ -9275,8 +10911,9 @@ pub enum EntityType {
     Profile = 0,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum PayoutRetryType {
     SingleConnector,
     MultiConnector,
@@ -9456,6 +11093,52 @@ impl From<RelayStatus> for RefundStatus {
     }
 }
 
+impl From<AttemptStatus> for RelayStatus {
+    fn from(attempt_status: AttemptStatus) -> Self {
+        match attempt_status {
+            AttemptStatus::Failure
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Self::Failure,
+            AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::Unresolved
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::Started
+            | AttemptStatus::CaptureReview => Self::Pending,
+            AttemptStatus::Charged
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable => Self::Success,
+        }
+    }
+}
+
+impl From<AuthorizationStatus> for RelayStatus {
+    fn from(authorization_status: AuthorizationStatus) -> Self {
+        match authorization_status {
+            AuthorizationStatus::Failure => Self::Failure,
+            AuthorizationStatus::Processing | AuthorizationStatus::Unresolved => Self::Pending,
+            AuthorizationStatus::Success => Self::Success,
+        }
+    }
+}
+
 #[derive(
     Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
 )]
@@ -9548,6 +11231,60 @@ pub enum ConnectorTokenStatus {
     Inactive,
 }
 
+impl From<ConnectorMandateStatus> for ConnectorTokenStatus {
+    fn from(status: ConnectorMandateStatus) -> Self {
+        match status {
+            ConnectorMandateStatus::Active => Self::Active,
+            ConnectorMandateStatus::Inactive => Self::Inactive,
+        }
+    }
+}
+
+impl From<AttemptStatus> for ConnectorTokenStatus {
+    fn from(status: AttemptStatus) -> Self {
+        match status {
+            AttemptStatus::Charged
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::PartiallyAuthorized => Self::Active,
+            AttemptStatus::Failure
+            | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
+            | AttemptStatus::Started
+            | AttemptStatus::Pending
+            | AttemptStatus::Unresolved
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::Authorizing
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::Expired
+            | AttemptStatus::CaptureReview => Self::Inactive,
+        }
+    }
+}
+
+impl From<ConnectorTokenStatus> for ConnectorMandateStatus {
+    fn from(status: ConnectorTokenStatus) -> Self {
+        match status {
+            ConnectorTokenStatus::Active => Self::Active,
+            ConnectorTokenStatus::Inactive => Self::Inactive,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -9586,6 +11323,36 @@ impl ErrorCategory {
             | Self::SoftDecline => false,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    PartialOrd,
+    Ord,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[allow(non_camel_case_types)]
+pub enum UnifiedCode {
+    /// Customer Error - Issue with payment method details
+    UE_1000,
+    /// Connector Declines - Issue with Configurations
+    UE_2000,
+    /// Connector Error - Technical issue with PSP
+    UE_3000,
+    /// Integration Error - Issue in the integration
+    UE_4000,
+    /// Others - Something went wrong
+    UE_9000,
 }
 
 #[derive(
@@ -9674,6 +11441,7 @@ pub enum HyperswitchConnectorCategory {
     AuthenticationProvider,
     FraudAndRiskManagementProvider,
     TaxCalculationProvider,
+    SurchargeCalculationProvider,
     RevenueGrowthManagementPlatform,
 }
 
@@ -9722,6 +11490,12 @@ pub enum FeatureStatus {
     Supported,
 }
 
+impl FeatureStatus {
+    pub fn is_supported(&self) -> bool {
+        matches!(self, Self::Supported)
+    }
+}
+
 /// The type of tokenization to use for the payment method
 #[derive(
     Clone,
@@ -9747,7 +11521,7 @@ pub enum TokenizationType {
 }
 
 /// The network tokenization toggle, whether to enable or skip the network tokenization
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub enum NetworkTokenizationToggle {
     /// Enable network tokenization for the payment method
     Enable,
@@ -9763,6 +11537,30 @@ pub enum GooglePayAuthMethod {
     /// Contain cryptogram data along with pan data
     #[serde(rename = "CRYPTOGRAM_3DS")]
     Cryptogram,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum FingerprintType {
+    /// Device PAN used by tokenized wallets such as Apple Pay and Google Pay.
+    Dpan,
+    /// Funding PAN used by a directly supplied card.
+    Fpan,
 }
 
 #[derive(
@@ -9860,6 +11658,7 @@ pub enum TriggeredBy {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
 pub enum MitCategory {
     /// A fixed purchase amount split into multiple scheduled payments until the total is paid.
     Installment,
@@ -9916,16 +11715,47 @@ pub enum ProcessTrackerStatus {
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum ProcessTrackerRunner {
     PaymentsSyncWorkflow,
+    PaymentsPostCaptureVoidSyncWorkflow,
     RefundWorkflowRouter,
     DeleteTokenizeDataWorkflow,
     ApiKeyExpiryWorkflow,
     OutgoingWebhookRetryWorkflow,
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
+    PaymentMethodModularForwardCompatWorkflow,
+    PaymentMethodModularBackwardCompatWorkflow,
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
     InvoiceSyncflow,
+    PayoutSyncWorkFlow,
+    BatchBlocklistUpload,
+    NetworkTokenizationWorkflow,
+    OfferEngineNotifyWorkflow,
+    BlocklistExportWorkflow,
+    BlocklistProfileCloneWorkflow,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ApplicationSource {
+    #[default]
+    Main,
+    Cug,
 }
 
 #[derive(Debug)]
@@ -10100,12 +11930,13 @@ impl From<IntentStatus> for InvoiceStatus {
             IntentStatus::RequiresCapture
             | IntentStatus::PartiallyCaptured
             | IntentStatus::PartiallyCapturedAndCapturable
+            | IntentStatus::PartiallyCapturedAndProcessing
             | IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | IntentStatus::Processing
-            | IntentStatus::PartiallyCapturedAndProcessing
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::RequiresConfirmation
-            | IntentStatus::RequiresPaymentMethod => Self::PaymentPending,
+            | IntentStatus::RequiresPaymentMethod
+            | IntentStatus::Review => Self::PaymentPending,
             IntentStatus::RequiresMerchantAction => Self::ManualReview,
             IntentStatus::Cancelled | IntentStatus::CancelledPostCapture => Self::PaymentCanceled,
             IntentStatus::Expired => Self::PaymentPendingTimeout,
@@ -10249,4 +12080,378 @@ pub enum VaultTokenType {
     /// Token cryptogram
     #[strum(serialize = "cryptogram")]
     NetworkTokenCryptogram,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum StorageType {
+    Volatile,
+    #[default]
+    Persistent,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AcknowledgementStatus {
+    Authenticated,
+    Failed,
+}
+
+impl From<AcknowledgementStatus> for PaymentMethodStatus {
+    fn from(ack: AcknowledgementStatus) -> Self {
+        match ack {
+            AcknowledgementStatus::Authenticated => Self::Active,
+            AcknowledgementStatus::Failed => Self::Inactive,
+        }
+    }
+}
+
+/// Represents the type of retry for a payment attempt
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RetryType {
+    ManualRetry,
+    AutoRetry,
+}
+
+#[derive(Debug, serde::Serialize, Clone, strum::EnumString, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(ascii_case_insensitive)]
+pub enum RoutingRegion {
+    Region1,
+    Region2,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BoletoDocumentKind {
+    /// Commercial invoice for goods/products
+    CommercialInvoice,
+    /// Service invoice
+    ServiceInvoice,
+    /// Standard promissory note (promise to pay later)
+    PromissoryNote,
+    /// Promissory note for rural/agricultural operations
+    RuralPromissoryNote,
+    /// Payment receipt
+    Receipt,
+    /// Insurance policy payment
+    InsurancePolicy,
+    /// Credit card statement / invoice payment
+    CreditCardInvoice,
+    /// Commercial proposal / quotation acceptance
+    Proposal,
+    /// Deposit or account funding (e.g. wallet top-up)
+    DepositOrFunding,
+    /// Cheque-based payment
+    Cheque,
+    /// Direct promissory note between parties
+    DirectPromissoryNote,
+    /// Any other document type
+    Other,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BoletoPaymentType {
+    /// Only the exact nominal amount can be paid.
+    FixedAmount,
+    /// The payer may pay any amount within an allowed minimum–maximum range.
+    FlexibleAmount,
+    /// The payer may make up to 99 partial payments.
+    Installment,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExpiryType {
+    Immediate,
+    Scheduled,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Deserialize, Serialize, diesel::FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = diesel::sql_types::Json)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+pub enum PixKey {
+    #[schema(value_type = String)]
+    Cpf(Secret<String>),
+    #[schema(value_type = String)]
+    Cnpj(Secret<String>),
+    #[schema(value_type = String)]
+    Email(Secret<String>),
+    #[schema(value_type = String)]
+    Phone(Secret<String>),
+    #[schema(value_type = String)]
+    EvpToken(Secret<String>),
+}
+
+/// Helper extension for PixKey to extract the secret value regardless of variant
+impl PixKey {
+    pub fn get_inner_value(&self) -> Secret<String> {
+        match self {
+            Self::Cpf(val)
+            | Self::Cnpj(val)
+            | Self::Email(val)
+            | Self::Phone(val)
+            | Self::EvpToken(val) => val.clone(),
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ConnectorWebhookEventType {
+    AllEvents,
+    SpecificEvent(EventType),
+}
+
+/// The status of webhook registration
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookRegistrationStatus {
+    // Webhook registration is successful
+    #[default]
+    Success,
+    // Webhook registration has failed
+    Failure,
+}
+
+/// The status of HMAC key generation for a connector webhook
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookSecretGenerationStatus {
+    /// HMAC key generation is successful
+    Success,
+    /// HMAC key generation has failed
+    Failure,
+}
+
+/// The status of a post-capture void operation
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PostCaptureVoidStatus {
+    Succeeded,
+    #[default]
+    Pending,
+    Failed,
+}
+
+impl PostCaptureVoidStatus {
+    pub fn is_post_capture_void_failure(self) -> bool {
+        match self {
+            Self::Failed => true,
+            Self::Pending | Self::Succeeded => false,
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    strum::Display,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultEnv {
+    Sandbox,
+    Live,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BatchBlocklistJobStatus {
+    Initiated,
+    Processing,
+    Completed,
+    Failed,
+}
+
+/// Distinguishes bulk upload, CSV export, and profile clone jobs.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BatchBlocklistJobType {
+    Upload,
+    Export,
+    ProfileClone,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Default,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PayshapProxyType {
+    Cellphone,
+    #[default]
+    ShapId,
 }

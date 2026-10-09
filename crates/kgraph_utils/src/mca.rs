@@ -23,6 +23,7 @@ fn get_dir_value_payment_method(
     match from {
         api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
         api_enums::PaymentMethodType::Skrill => Ok(dirval!(WalletType = Skrill)),
+        api_enums::PaymentMethodType::Neteller => Ok(dirval!(WalletType = Neteller)),
         api_enums::PaymentMethodType::Paysera => Ok(dirval!(WalletType = Paysera)),
         api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
         api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
@@ -33,6 +34,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Sofort => Ok(dirval!(BankRedirectType = Sofort)),
         api_enums::PaymentMethodType::Eps => Ok(dirval!(BankRedirectType = Eps)),
         api_enums::PaymentMethodType::Eft => Ok(dirval!(BankRedirectType = Eft)),
+        api_enums::PaymentMethodType::EftDebitOrder => Ok(dirval!(BankDebitType = EftDebitOrder)),
         api_enums::PaymentMethodType::Klarna => Ok(dirval!(PayLaterType = Klarna)),
         api_enums::PaymentMethodType::Flexiti => Ok(dirval!(PayLaterType = Flexiti)),
         api_enums::PaymentMethodType::Affirm => Ok(dirval!(PayLaterType = Affirm)),
@@ -65,6 +67,18 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Cashapp => Ok(dirval!(WalletType = Cashapp)),
         api_enums::PaymentMethodType::Multibanco => Ok(dirval!(BankTransferType = Multibanco)),
         api_enums::PaymentMethodType::Pix => Ok(dirval!(BankTransferType = Pix)),
+        api_enums::PaymentMethodType::PixKey => Ok(dirval!(BankTransferType = PixKey)),
+        api_enums::PaymentMethodType::PixEmv => Ok(dirval!(BankTransferType = PixEmv)),
+        api_enums::PaymentMethodType::PixQr => Ok(dirval!(BankTransferType = PixQr)),
+        api_enums::PaymentMethodType::PixAutomaticoPush => {
+            Ok(dirval!(BankTransferType = PixAutomaticoPush))
+        }
+        api_enums::PaymentMethodType::PixAutomaticoQr => {
+            Ok(dirval!(BankTransferType = PixAutomaticoQr))
+        }
+        api_enums::PaymentMethodType::Payshap => Ok(dirval!(BankTransferType = Payshap)),
+        api_enums::PaymentMethodType::PayshapProxy => Ok(dirval!(BankTransferType = PayshapProxy)),
+        api_enums::PaymentMethodType::Ted => Ok(dirval!(BankTransferType = Ted)),
         api_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
         api_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),
         api_enums::PaymentMethodType::OnlineBankingCzechRepublic => {
@@ -138,6 +152,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::InstantBankTransferPoland => {
             Ok(dirval!(BankTransferType = InstantBankTransferPoland))
         }
+        api_enums::PaymentMethodType::Qris => Ok(dirval!(RealTimePaymentType = Qris)),
         api_enums::PaymentMethodType::SepaBankTransfer => {
             Ok(dirval!(BankTransferType = SepaBankTransfer))
         }
@@ -181,6 +196,9 @@ fn get_dir_value_payment_method(
             Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
         }
         api_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
+        api_enums::PaymentMethodType::Wero => Ok(dirval!(WalletType = Wero)),
+        api_enums::PaymentMethodType::OpenBanking => Ok(dirval!(BankRedirectType = OpenBanking)),
+        api_enums::PaymentMethodType::NetworkToken => Ok(dirval!(NetworkTokenType = NetworkToken)),
     }
 }
 
@@ -719,6 +737,7 @@ fn global_vec_pmt(
     global_vector.append(collect_global_variants!(CardRedirectType));
     global_vector.append(collect_global_variants!(OpenBankingType));
     global_vector.append(collect_global_variants!(MobilePaymentType));
+    global_vector.append(collect_global_variants!(NetworkTokenType));
     global_vector.push(dir::DirValue::PaymentMethod(
         dir::enums::PaymentMethod::Card,
     ));
@@ -903,10 +922,10 @@ fn compile_config_graph(
 #[cfg(feature = "v2")]
 fn compile_merchant_connector_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
-    mca: admin_api::MerchantConnectorResponse,
+    mca: admin_api::MCACGraphData,
     config: &kgraph_types::CountryCurrencyFilter,
 ) -> Result<(), KgraphError> {
-    let connector = common_enums::RoutableConnectors::try_from(mca.connector_name)
+    let connector = euclid::enums::RoutableConnectors::try_from(mca.connector_name)
         .map_err(|_| KgraphError::InvalidConnectorName(mca.connector_name))?;
 
     let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();
@@ -974,10 +993,10 @@ fn compile_merchant_connector_graph(
 #[cfg(feature = "v1")]
 fn compile_merchant_connector_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
-    mca: admin_api::MerchantConnectorResponse,
+    mca: admin_api::MCACGraphData,
     config: &kgraph_types::CountryCurrencyFilter,
 ) -> Result<(), KgraphError> {
-    let connector = common_enums::RoutableConnectors::from_str(&mca.connector_name)
+    let connector = euclid::enums::RoutableConnectors::from_str(&mca.connector_name)
         .map_err(|_| KgraphError::InvalidConnectorName(mca.connector_name.clone()))?;
 
     let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();
@@ -1044,7 +1063,7 @@ fn compile_merchant_connector_graph(
 
 // #[cfg(feature = "v1")]
 pub fn make_mca_graph(
-    accts: Vec<admin_api::MerchantConnectorResponse>,
+    accts: Vec<admin_api::MCACGraphData>,
     config: &kgraph_types::CountryCurrencyFilter,
 ) -> Result<cgraph::ConstraintGraph<dir::DirValue>, KgraphError> {
     let mut builder = cgraph::ConstraintGraphBuilder::new();
@@ -1076,7 +1095,6 @@ mod tests {
 
     fn build_test_data() -> ConstraintGraph<dir::DirValue> {
         use api_models::{admin::*, payment_methods::*};
-        let profile_id = common_utils::generate_profile_id_of_default_length();
 
         // #[cfg(feature = "v2")]
         // let stripe_account = MerchantConnectorResponse {
@@ -1084,7 +1102,7 @@ mod tests {
         //     connector_name: "stripe".to_string(),
         //     id: common_utils::generate_merchant_connector_account_id_of_default_length(),
         //     connector_label: Some("something".to_string()),
-        //     connector_account_details: masking::Secret::new(serde_json::json!({})),
+        //     connector_account_details: hyperswitch_masking::Secret::new(serde_json::json!({})),
         //     disabled: None,
         //     metadata: None,
         //     payment_methods_enabled: Some(vec![PaymentMethodsEnabled {
@@ -1134,19 +1152,8 @@ mod tests {
         //     connector_wallets_details: None,
         // };
         #[cfg(feature = "v1")]
-        let stripe_account = MerchantConnectorResponse {
-            connector_type: api_enums::ConnectorType::FizOperations,
+        let stripe_account = MCACGraphData {
             connector_name: "stripe".to_string(),
-            merchant_connector_id:
-                common_utils::generate_merchant_connector_account_id_of_default_length(),
-            business_country: Some(api_enums::CountryAlpha2::US),
-            connector_label: Some("something".to_string()),
-            business_label: Some("food".to_string()),
-            business_sub_label: None,
-            connector_account_details: masking::Secret::new(serde_json::json!({})),
-            test_mode: None,
-            disabled: None,
-            metadata: None,
             payment_methods_enabled: Some(vec![PaymentMethodsEnabled {
                 payment_method: api_enums::PaymentMethod::Card,
                 payment_method_types: Some(vec![
@@ -1184,14 +1191,6 @@ mod tests {
                     },
                 ]),
             }]),
-            frm_configs: None,
-            connector_webhook_details: None,
-            profile_id,
-            applepay_verified_domains: None,
-            pm_auth_config: None,
-            status: api_enums::ConnectorStatus::Inactive,
-            additional_merchant_data: None,
-            connector_wallets_details: None,
         };
 
         let config_map = kgraph_types::CountryCurrencyFilter {
@@ -1544,8 +1543,7 @@ mod tests {
             }
         ]);
 
-        let data: Vec<admin_api::MerchantConnectorResponse> =
-            serde_json::from_value(value).expect("data");
+        let data: Vec<admin_api::MCACGraphData> = serde_json::from_value(value).expect("data");
         let config = kgraph_types::CountryCurrencyFilter {
             connector_configs: HashMap::new(),
             default_configs: None,

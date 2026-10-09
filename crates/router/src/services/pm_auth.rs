@@ -1,5 +1,5 @@
+use hyperswitch_interfaces::consts;
 use pm_auth::{
-    consts,
     core::errors::ConnectorError,
     types::{self as pm_auth_types, api::BoxedConnectorIntegration, PaymentAuthRouterData},
 };
@@ -33,6 +33,7 @@ where
                 state,
                 request,
                 "execute_connector_processing_step",
+                None,
             )
             .await;
             logger::debug!(connector_response=?response);

@@ -1,0 +1,49 @@
+---
+title: "Decide Gateway: Priority List Based"
+description: "Curl example for /decide-gateway using PL_BASED_ROUTING."
+---
+
+# Decide Gateway: Priority List Based
+
+`PL_BASED_ROUTING` evaluates active priority logic and returns the selected connector order.
+
+```bash
+curl --location "$BASE_URL/decide-gateway" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchantId": "merchant_demo",
+    "eligibleGatewayList": ["stripe", "adyen", "checkout"],
+    "rankingAlgorithm": "PL_BASED_ROUTING",
+    "eliminationEnabled": false,
+    "enableMultiObjective": false,
+    "paymentInfo": {
+      "paymentId": "pl_001",
+      "amount": 1000,
+      "currency": "USD",
+      "country": "US",
+      "paymentType": "ORDER_PAYMENT",
+      "paymentMethodType": "CARD",
+      "paymentMethod": "CREDIT",
+      "authType": "THREE_DS"
+    }
+  }'
+```
+
+```json
+{
+  "decided_gateway": "stripe",
+  "routing_approach": "PRIORITY_LOGIC",
+  "priority_logic_output": {
+    "isEnforcement": false,
+    "gws": ["stripe", "adyen", "checkout"],
+    "gatewayReferenceIds": {}
+  },
+  "reset_approach": "NO_RESET",
+  "multi_objective_info": null
+}
+```
+
+## Multi-Objective Option
+
+When multi-objective routing is enabled (request field `enableMultiObjective`, or the `multi_objective_routing_enabled` merchant feature flag), a cost-aware post-step may re-rank the SR result and the response gains a `multi_objective_info` block. Details and examples: [Multi-objective routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective).

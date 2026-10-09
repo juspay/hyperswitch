@@ -133,6 +133,7 @@ mod test {
             metadata: None,
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(32),
+                transaction_initiator: None,
                 card_bin: None,
                 extended_card_bin: None,
                 currency: enums::Currency::USD,
@@ -142,11 +143,13 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -176,6 +179,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
+                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
@@ -186,11 +190,13 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -221,6 +227,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
+                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
@@ -231,11 +238,13 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -266,6 +275,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
+                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
@@ -276,11 +286,13 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -311,6 +323,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
+                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
@@ -321,11 +334,13 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: Some(enums::MandateAcceptanceType::Online),
@@ -356,6 +371,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
+                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
@@ -366,11 +382,13 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -401,6 +419,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
+                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: None,
@@ -411,11 +430,13 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -446,6 +467,7 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
+                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: None,
@@ -456,11 +478,13 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -492,6 +516,7 @@ mod test {
             metadata: None,
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(32),
+                transaction_initiator: None,
                 currency: enums::Currency::USD,
                 card_bin: None,
                 extended_card_bin: None,
@@ -501,11 +526,13 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: Some(enums::SetupFutureUsage::OffSession),
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -516,7 +543,6 @@ mod test {
             customer_device_data: None,
             issuer_data: None,
         };
-
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
         let result = backend.execute(inp).expect("Execution");
         assert_eq!(result.rule_name.expect("Rule Name").as_str(), "rule_1");
@@ -539,6 +565,7 @@ mod test {
             metadata: Some(meta_map),
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(32),
+                transaction_initiator: None,
                 card_bin: None,
                 extended_card_bin: None,
                 currency: enums::Currency::USD,
@@ -548,11 +575,13 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -584,6 +613,7 @@ mod test {
             metadata: None,
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(150),
+                transaction_initiator: None,
                 card_bin: None,
                 extended_card_bin: None,
                 currency: enums::Currency::USD,
@@ -593,11 +623,13 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -638,6 +670,7 @@ mod test {
             metadata: None,
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(120),
+                transaction_initiator: None,
                 card_bin: None,
                 extended_card_bin: None,
                 currency: enums::Currency::USD,
@@ -647,11 +680,13 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,

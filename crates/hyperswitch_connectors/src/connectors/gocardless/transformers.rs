@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -260,7 +260,12 @@ impl TryFrom<&types::TokenizationRouterData> for CustomerBankAccount {
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Gocardless"),
                 )
@@ -289,7 +294,7 @@ impl TryFrom<(&BankDebitData, &types::TokenizationRouterData)> for CustomerBankA
                     country_code,
                     account_number: account_number.clone(),
                     bank_code: routing_number.clone(),
-                    account_type: AccountType::from(bank_type),
+                    account_type: AccountType::try_from(bank_type)?,
                     account_holder_name,
                 };
                 Ok(Self::USBankAccount(us_bank_account))
@@ -317,21 +322,33 @@ impl TryFrom<(&BankDebitData, &types::TokenizationRouterData)> for CustomerBankA
                 };
                 Ok(Self::InternationalBankAccount(international_bank_account))
             }
-            BankDebitData::BacsBankDebit { .. } | BankDebitData::SepaGuarenteedBankDebit { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Gocardless"),
-                )
-                .into())
-            }
+            BankDebitData::BacsBankDebit { .. }
+            | BankDebitData::SepaGuarenteedBankDebit { .. }
+            | BankDebitData::EftDebitOrder { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Gocardless"),
+            )
+            .into()),
         }
     }
 }
 
-impl From<common_enums::BankType> for AccountType {
-    fn from(item: common_enums::BankType) -> Self {
+impl TryFrom<common_enums::BankType> for AccountType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: common_enums::BankType) -> Result<Self, Self::Error> {
         match item {
-            common_enums::BankType::Checking => Self::Checking,
-            common_enums::BankType::Savings => Self::Savings,
+            common_enums::BankType::Checking => Ok(Self::Checking),
+            common_enums::BankType::Savings => Ok(Self::Savings),
+            b_type @ (common_enums::BankType::Salary
+            | common_enums::BankType::Payment
+            | common_enums::BankType::Bond
+            | common_enums::BankType::Current
+            | common_enums::BankType::SubscriptionShare
+            | common_enums::BankType::Transmission) => Err(errors::ConnectorError::NotSupported {
+                message: format!("bank_type {b_type} is not supported"),
+                connector: "gocardless".into(),
+            }
+            .into()),
         }
     }
 }
@@ -434,7 +451,12 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Setup Mandate flow for selected payment method through Gocardless".to_string(),
                 ))
@@ -476,6 +498,7 @@ fn get_ip_if_required(
         BankDebitData::SepaBankDebit { .. }
         | BankDebitData::SepaGuarenteedBankDebit { .. }
         | BankDebitData::BecsBankDebit { .. }
+        | BankDebitData::EftDebitOrder { .. }
         | BankDebitData::BacsBankDebit { .. } => Ok(None),
     }
 }
@@ -487,12 +510,12 @@ impl TryFrom<&BankDebitData> for GocardlessScheme {
             BankDebitData::AchBankDebit { .. } => Ok(Self::Ach),
             BankDebitData::SepaBankDebit { .. } => Ok(Self::SepaCore),
             BankDebitData::BecsBankDebit { .. } => Ok(Self::Becs),
-            BankDebitData::BacsBankDebit { .. } | BankDebitData::SepaGuarenteedBankDebit { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Setup Mandate flow for selected payment method through Gocardless".to_string(),
-                )
-                .into())
-            }
+            BankDebitData::BacsBankDebit { .. }
+            | BankDebitData::SepaGuarenteedBankDebit { .. }
+            | BankDebitData::EftDebitOrder { .. } => Err(errors::ConnectorError::NotImplemented(
+                "Setup Mandate flow for selected payment method through Gocardless".to_string(),
+            )
+            .into()),
         }
     }
 }
@@ -541,7 +564,10 @@ impl<F>
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(mandate_reference),
                 network_txn_id: None,
+                network_txn_link_id: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             status: enums::AttemptStatus::Charged,
             ..item.data
@@ -682,9 +708,12 @@ impl TryFrom<PaymentsResponseRouterData<GocardlessPaymentsResponse>>
                 mandate_reference: Box::new(Some(mandate_reference)),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -706,9 +735,12 @@ impl TryFrom<PaymentsSyncResponseRouterData<GocardlessPaymentsResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -804,27 +836,33 @@ pub struct GocardlessWebhookEvent {
     pub events: Vec<WebhookEvent>,
 }
 
+/// `resource_type` decides how `action` and `links` are parsed. Action names such as
+/// `created`, `failed` and `cancelled` are shared between resource types, so they cannot be
+/// told apart on their own.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct WebhookEvent {
-    pub resource_type: WebhookResourceType,
-    pub action: WebhookAction,
-    pub links: WebhooksLink,
+#[serde(tag = "resource_type", rename_all = "snake_case")]
+pub enum WebhookEvent {
+    Payments(PaymentWebhookEvent),
+    Refunds(RefundWebhookEvent),
+    Mandates(MandateWebhookEvent),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum WebhookResourceType {
-    Payments,
-    Refunds,
-    Mandates,
+pub struct PaymentWebhookEvent {
+    pub action: PaymentsAction,
+    pub links: PaymentWebhooksLink,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum WebhookAction {
-    PaymentsAction(PaymentsAction),
-    RefundsAction(RefundsAction),
-    MandatesAction(MandatesAction),
+pub struct RefundWebhookEvent {
+    pub action: RefundsAction,
+    pub links: RefundWebhookLink,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MandateWebhookEvent {
+    pub action: MandatesAction,
+    pub links: MandateWebhookLink,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -840,7 +878,7 @@ pub enum PaymentsAction {
     SurchargeFeeDebited,
     Failed,
     Cancelled,
-    ResubmissionRequired,
+    ResubmissionRequested,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -874,14 +912,6 @@ pub enum MandatesAction {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum WebhooksLink {
-    PaymentWebhooksLink(PaymentWebhooksLink),
-    RefundWebhookLink(RefundWebhookLink),
-    MandateWebhookLink(MandateWebhookLink),
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundWebhookLink {
     pub refund: String,
 }
@@ -896,45 +926,34 @@ pub struct MandateWebhookLink {
     pub mandate: String,
 }
 
-impl TryFrom<&WebhookEvent> for GocardlessPaymentsResponse {
+impl TryFrom<&PaymentWebhookEvent> for GocardlessPaymentsResponse {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &WebhookEvent) -> Result<Self, Self::Error> {
-        let id = match &item.links {
-            WebhooksLink::PaymentWebhooksLink(link) => link.payment.to_owned(),
-            WebhooksLink::RefundWebhookLink(_) | WebhooksLink::MandateWebhookLink(_) => {
-                Err(errors::ConnectorError::WebhookEventTypeNotFound)?
-            }
-        };
+    fn try_from(item: &PaymentWebhookEvent) -> Result<Self, Self::Error> {
         Ok(Self {
             payments: PaymentResponse {
                 status: GocardlessPaymentStatus::try_from(&item.action)?,
-                id,
+                id: item.links.payment.to_owned(),
             },
         })
     }
 }
 
-impl TryFrom<&WebhookAction> for GocardlessPaymentStatus {
+impl TryFrom<&PaymentsAction> for GocardlessPaymentStatus {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &WebhookAction) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsAction) -> Result<Self, Self::Error> {
         match item {
-            WebhookAction::PaymentsAction(action) => match action {
-                PaymentsAction::CustomerApprovalGranted | PaymentsAction::Submitted => {
-                    Ok(Self::Submitted)
-                }
-                PaymentsAction::CustomerApprovalDenied => Ok(Self::CustomerApprovalDenied),
-                PaymentsAction::LateFailureSettled => Ok(Self::Failed),
-                PaymentsAction::Failed => Ok(Self::Failed),
-                PaymentsAction::Cancelled => Ok(Self::Cancelled),
-                PaymentsAction::Confirmed => Ok(Self::Confirmed),
-                PaymentsAction::PaidOut => Ok(Self::PaidOut),
-                PaymentsAction::SurchargeFeeDebited
-                | PaymentsAction::ResubmissionRequired
-                | PaymentsAction::Created => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
-            },
-            WebhookAction::RefundsAction(_) | WebhookAction::MandatesAction(_) => {
-                Err(errors::ConnectorError::WebhookEventTypeNotFound)?
+            PaymentsAction::CustomerApprovalGranted | PaymentsAction::Submitted => {
+                Ok(Self::Submitted)
             }
+            PaymentsAction::CustomerApprovalDenied => Ok(Self::CustomerApprovalDenied),
+            PaymentsAction::LateFailureSettled => Ok(Self::Failed),
+            PaymentsAction::Failed => Ok(Self::Failed),
+            PaymentsAction::Cancelled => Ok(Self::Cancelled),
+            PaymentsAction::Confirmed => Ok(Self::Confirmed),
+            PaymentsAction::PaidOut => Ok(Self::PaidOut),
+            PaymentsAction::SurchargeFeeDebited
+            | PaymentsAction::ResubmissionRequested
+            | PaymentsAction::Created => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
         }
     }
 }

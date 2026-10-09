@@ -5,17 +5,16 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::{Authorize, PreProcessing},
-    router_request_types::{PaymentsAuthorizeData, PaymentsPreProcessingData, ResponseId},
+    router_flow_types::Authorize,
+    router_request_types::{PaymentsAuthorizeData, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm},
     types::{
-        self, AccessTokenAuthenticationRouterData, PaymentsAuthorizeRouterData,
-        PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
+        self, AccessTokenAuthenticationRouterData, CreateOrderRouterData,
+        PaymentsAuthorizeRouterData, PaymentsSyncRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
-use rand::distributions::DistString;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
@@ -30,9 +29,7 @@ use crate::{
             NordeaPaymentsConfirmResponse, NordeaPaymentsInitiateResponse,
         },
     },
-    types::{
-        PaymentsPreprocessingResponseRouterData, PaymentsSyncResponseRouterData, ResponseRouterData,
-    },
+    types::{CreateOrderResponseRouterData, PaymentsSyncResponseRouterData, ResponseRouterData},
     utils::{self, get_unimplemented_payment_method_error_message, RouterData as _},
 };
 
@@ -114,7 +111,7 @@ impl TryFrom<&AccessTokenAuthenticationRouterData> for NordeaOAuthRequest {
             AccessScope::PaymentsMultiple,
         ]
         .to_vec();
-        let state = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 15);
+        let state = common_utils::generate_random_alphanumeric_string(15);
 
         Ok(Self {
             country,
@@ -135,7 +132,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for NordeaOAuthExchangeRequest {
             .authentication_token
             .as_ref()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "authorization_code",
+                field_name: "authorization_code".into(),
             })?
             .code
             .clone();
@@ -162,7 +159,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NordeaOAuthExchangeResponse, T, AccessT
             item.response
                 .access_token
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "access_token",
+                    field_name: "access_token".into(),
                 })?;
 
         let expires_in = item.response.expires_in.unwrap_or(3600); // Default to 1 hour if not provided
@@ -217,8 +214,8 @@ impl<'de> Deserialize<'de> for PaymentsUrgency {
     }
 }
 
-fn get_creditor_account_from_metadata(
-    router_data: &PaymentsPreProcessingRouterData,
+fn get_creditor_account_from_metadata_for_create_order(
+    router_data: &CreateOrderRouterData,
 ) -> Result<CreditorAccount, Error> {
     let metadata: NordeaConnectorMetadataObject =
         utils::to_connector_meta_from_secret(router_data.connector_meta_data.clone())
@@ -229,7 +226,7 @@ fn get_creditor_account_from_metadata(
         account: AccountNumber {
             account_type: AccountType::try_from(metadata.account_type.as_str())
                 .unwrap_or(AccountType::Iban),
-            currency: router_data.request.currency,
+            currency: Some(router_data.request.currency),
             value: metadata.destination_account_number,
         },
         country: router_data.get_optional_billing_country(),
@@ -253,19 +250,18 @@ fn get_creditor_account_from_metadata(
     Ok(creditor_account)
 }
 
-impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaymentsRequest {
+impl TryFrom<&NordeaRouterData<&CreateOrderRouterData>> for NordeaPaymentsRequest {
     type Error = Error;
-    fn try_from(
-        item: &NordeaRouterData<&PaymentsPreProcessingRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &NordeaRouterData<&CreateOrderRouterData>) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             Some(PaymentMethodData::BankDebit(bank_debit_data)) => match bank_debit_data {
                 BankDebitData::SepaBankDebit { iban, .. } => {
-                    let creditor_account = get_creditor_account_from_metadata(item.router_data)?;
+                    let creditor_account =
+                        get_creditor_account_from_metadata_for_create_order(item.router_data)?;
                     let debitor_account = DebitorAccount {
                         account: AccountNumber {
                             account_type: AccountType::Iban,
-                            currency: item.router_data.request.currency,
+                            currency: Some(item.router_data.request.currency),
                             value: iban,
                         },
                         message: item
@@ -277,11 +273,7 @@ impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaym
 
                     let instructed_amount = super::requests::InstructedAmount {
                         amount: item.amount.clone(),
-                        currency: item.router_data.request.currency.ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "amount",
-                            },
-                        )?,
+                        currency: item.router_data.request.currency,
                     };
 
                     Ok(Self {
@@ -300,6 +292,7 @@ impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaym
                 BankDebitData::AchBankDebit { .. }
                 | BankDebitData::BacsBankDebit { .. }
                 | BankDebitData::BecsBankDebit { .. }
+                | BankDebitData::EftDebitOrder { .. }
                 | BankDebitData::SepaGuarenteedBankDebit { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("Nordea"),
@@ -309,6 +302,13 @@ impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaym
             },
             Some(PaymentMethodData::CardRedirect(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
+            | Some(
+                PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_),
+            )
+            | Some(PaymentMethodData::CardWithLimitedDetails(_))
+            | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::Wallet(_))
             | Some(PaymentMethodData::PayLater(_))
             | Some(PaymentMethodData::BankRedirect(_))
@@ -398,9 +398,12 @@ fn convert_nordea_payment_response(
         mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: payment_response.external_id.clone(),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
 
     let status = common_enums::AttemptStatus::from(payment_response.payment_status.clone());
@@ -408,12 +411,12 @@ fn convert_nordea_payment_response(
     Ok((response_data, status))
 }
 
-impl TryFrom<PaymentsPreprocessingResponseRouterData<NordeaPaymentsInitiateResponse>>
-    for RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+impl TryFrom<CreateOrderResponseRouterData<NordeaPaymentsInitiateResponse>>
+    for CreateOrderRouterData
 {
     type Error = Error;
     fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<NordeaPaymentsInitiateResponse>,
+        item: CreateOrderResponseRouterData<NordeaPaymentsInitiateResponse>,
     ) -> Result<Self, Self::Error> {
         let (response, status) = convert_nordea_payment_response(&item.response)?;
         Ok(Self {
@@ -466,6 +469,7 @@ impl
                         status_code: item.http_code,
                         attempt_status: Some(common_enums::AttemptStatus::Failure),
                         connector_transaction_id: first_error.payment_id.clone(),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -513,9 +517,12 @@ impl
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: payment.external_id.clone(),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 });
 
                 let status = common_enums::AttemptStatus::from(payment.payment_status.clone());
@@ -531,9 +538,12 @@ impl
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     });
                     (response, common_enums::AttemptStatus::AuthenticationPending)
                 } else {

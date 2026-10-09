@@ -3,24 +3,24 @@ use common_utils::errors::CustomResult;
 use common_utils::id_type;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::behaviour::Conversion;
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
     payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
 };
 
 use super::MockDb;
+#[cfg(feature = "v1")]
+use crate::behaviour::Conversion;
 use crate::errors::StorageError;
 
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for MockDb {
     type Error = StorageError;
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+    async fn find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
         &self,
         _payment_id: &common_utils::id_type::PaymentId,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _attempt_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &MerchantKeyStore,
@@ -33,7 +33,7 @@ impl PaymentAttemptInterface for MockDb {
     async fn get_filters_for_payments(
         &self,
         _pi: &[hyperswitch_domain_models::payments::PaymentIntent],
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<
         hyperswitch_domain_models::payments::payment_attempt::PaymentListFilters,
@@ -45,7 +45,7 @@ impl PaymentAttemptInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _active_attempt_ids: &[String],
         _connector: Option<Vec<api_models::enums::Connector>>,
         _payment_method: Option<Vec<common_enums::PaymentMethod>>,
@@ -76,10 +76,10 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_attempt_id_merchant_id(
+    async fn find_payment_attempt_by_attempt_id_processor_merchant_id(
         &self,
         _attempt_id: &str,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, StorageError> {
@@ -110,21 +110,9 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_preprocessing_id_merchant_id(
+    async fn find_payment_attempt_by_processor_merchant_id_connector_txn_id(
         &self,
-        _preprocessing_id: &str,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
-        _merchant_key_store: &MerchantKeyStore,
-    ) -> CustomResult<PaymentAttempt, StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(StorageError::MockDbError)?
-    }
-
-    #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_merchant_id_connector_txn_id(
-        &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _connector_txn_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &MerchantKeyStore,
@@ -146,9 +134,9 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_attempts_by_merchant_id_payment_id(
+    async fn find_attempts_by_processor_merchant_id_payment_id(
         &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _payment_id: &common_utils::id_type::PaymentId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &MerchantKeyStore,
@@ -214,11 +202,14 @@ impl PaymentAttemptInterface for MockDb {
             unified_message: payment_attempt.unified_message,
             external_three_ds_authentication_attempted: payment_attempt
                 .external_three_ds_authentication_attempted,
+            external_threeds_authentication_type: payment_attempt
+                .external_threeds_authentication_type,
             authentication_connector: payment_attempt.authentication_connector,
             authentication_id: payment_attempt.authentication_id,
             mandate_data: payment_attempt.mandate_data,
             payment_method_billing_address_id: payment_attempt.payment_method_billing_address_id,
             fingerprint_id: payment_attempt.fingerprint_id,
+            fingerprint_type: payment_attempt.fingerprint_type,
             client_source: payment_attempt.client_source,
             client_version: payment_attempt.client_version,
             customer_acceptance: payment_attempt.customer_acceptance,
@@ -241,12 +232,22 @@ impl PaymentAttemptInterface for MockDb {
             connector_request_reference_id: payment_attempt.connector_request_reference_id,
             debit_routing_savings: None,
             network_transaction_id: payment_attempt.network_transaction_id,
+            network_transaction_link_id: payment_attempt.network_transaction_link_id,
             is_overcapture_enabled: None,
             network_details: payment_attempt.network_details,
             is_stored_credential: payment_attempt.is_stored_credential,
             authorized_amount: payment_attempt.authorized_amount,
             tokenization: payment_attempt.tokenization,
             encrypted_payment_method_data: payment_attempt.encrypted_payment_method_data,
+            error_details: payment_attempt.error_details,
+            retry_type: payment_attempt.retry_type,
+            installment_data: payment_attempt.installment_data,
+            external_surcharge_details: payment_attempt.external_surcharge_details,
+            applied_offer_details: payment_attempt.applied_offer_details,
+            applied_overrides: payment_attempt.applied_overrides,
+            sender_payment_instrument_id: payment_attempt.sender_payment_instrument_id,
+            payment_account_reference: payment_attempt.payment_account_reference,
+            active_frm_id: payment_attempt.active_frm_id,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -315,25 +316,12 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
-        &self,
-        _connector_transaction_id: &common_utils::types::ConnectorTransactionId,
-        _payment_id: &common_utils::id_type::PaymentId,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
-        _merchant_key_store: &MerchantKeyStore,
-    ) -> CustomResult<PaymentAttempt, StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(StorageError::MockDbError)?
-    }
-
-    #[cfg(feature = "v1")]
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
-    async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+    async fn find_payment_attempt_last_successful_attempt_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &common_utils::id_type::PaymentId,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, StorageError> {
@@ -343,7 +331,9 @@ impl PaymentAttemptInterface for MockDb {
             .iter()
             .find(|payment_attempt| {
                 payment_attempt.payment_id == *payment_id
-                    && payment_attempt.merchant_id.eq(merchant_id)
+                    && payment_attempt
+                        .processor_merchant_id
+                        .eq(processor_merchant_id)
             })
             .cloned()
             .unwrap())
@@ -351,10 +341,10 @@ impl PaymentAttemptInterface for MockDb {
 
     #[cfg(feature = "v1")]
     #[allow(clippy::unwrap_used)]
-    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &common_utils::id_type::PaymentId,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, StorageError> {
@@ -364,7 +354,9 @@ impl PaymentAttemptInterface for MockDb {
             .iter()
             .find(|payment_attempt| {
                 payment_attempt.payment_id == *payment_id
-                    && payment_attempt.merchant_id.eq(merchant_id)
+                    && payment_attempt
+                        .processor_merchant_id
+                        .eq(processor_merchant_id)
                     && (payment_attempt.status == storage_enums::AttemptStatus::PartialCharged
                         || payment_attempt.status == storage_enums::AttemptStatus::Charged)
             })

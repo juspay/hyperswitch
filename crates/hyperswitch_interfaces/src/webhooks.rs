@@ -3,9 +3,9 @@
 use common_utils::{crypto, errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    api::ApplicationResponse, errors::api_error_response::ApiErrorResponse,
+    api::WebhookResponse, errors::api_error_response::ApiErrorResponse,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 
 use crate::{api::ConnectorCommon, errors};
 
@@ -46,6 +46,114 @@ impl From<&ApiErrorResponse> for IncomingWebhookFlowError {
             _ => Self::InternalError,
         }
     }
+}
+/// This provides the router core with the complete state of the resource
+/// to perform business logic and validating state transitions.
+#[derive(Debug, Clone)]
+pub enum WebhookResourceData {
+    /// Context for payment-related webhooks
+    Payment {
+        /// The previous payment attempt details before processing this webhook
+        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    },
+    /// Context for Refund-related webhooks
+    Refund {
+        /// The payment attempt details attached with the refund
+        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    },
+}
+
+impl WebhookResourceData {
+    /// Helper to get the previous payment attempt
+    pub fn get_payment_attempt(
+        &self,
+    ) -> &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt {
+        match self {
+            Self::Payment { payment_attempt } => payment_attempt,
+            Self::Refund { payment_attempt } => payment_attempt,
+        }
+    }
+}
+
+/// Minimal payment snapshot for connector-side webhook processing.
+/// Contains only essential fields needed by connectors, not full domain objects.
+#[derive(Debug, Clone)]
+pub struct PaymentWebhookContext {
+    /// Previous payment attempt status
+    pub previous_status: common_enums::AttemptStatus,
+    /// Payment method (e.g., Card, BankDebit)
+    pub payment_method: Option<common_enums::PaymentMethod>,
+    /// Payment method type (e.g., Ach, Credit)
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    /// Payment amount
+    pub amount: common_utils::types::MinorUnit,
+    /// Payment currency
+    pub currency: Option<common_enums::Currency>,
+}
+
+/// Minimal snapshot for connector-side webhook processing.
+/// This contains only the essential fields needed by connectors to determine the
+/// correct event type or state, avoiding the exposure of full domain objects.
+#[derive(Debug, Clone)]
+pub enum WebhookContext {
+    /// Snapshot of payment state before webhook processing
+    Payment(PaymentWebhookContext),
+}
+
+impl WebhookContext {
+    /// Get payment snapshot if this is a Payment variant
+    pub fn get_payment_context(&self) -> &PaymentWebhookContext {
+        match self {
+            Self::Payment(context) => context,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<&WebhookResourceData> for WebhookContext {
+    fn from(data: &WebhookResourceData) -> Self {
+        match data {
+            WebhookResourceData::Payment { payment_attempt }
+            | WebhookResourceData::Refund { payment_attempt } => {
+                Self::Payment(PaymentWebhookContext {
+                    previous_status: payment_attempt.status,
+                    payment_method: payment_attempt.payment_method,
+                    payment_method_type: payment_attempt.payment_method_type,
+                    amount: payment_attempt.net_amount.get_order_amount(),
+                    currency: payment_attempt.currency,
+                })
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<&WebhookResourceData> for WebhookContext {
+    fn from(data: &WebhookResourceData) -> Self {
+        match data {
+            WebhookResourceData::Payment { payment_attempt }
+            | WebhookResourceData::Refund { payment_attempt } => {
+                Self::Payment(PaymentWebhookContext {
+                    previous_status: payment_attempt.status,
+                    payment_method: payment_attempt.get_payment_method(),
+                    payment_method_type: payment_attempt.get_payment_method_type(),
+                    amount: payment_attempt.amount_details.get_net_amount(),
+                    currency: None, // Currency is not stored on PaymentAttempt in v2
+                })
+            }
+        }
+    }
+}
+
+/// Connector-provided mandate updates extracted from an incoming webhook.
+#[derive(Clone, Debug)]
+pub struct IncomingWebhookMandateDetailsUpdate {
+    /// Connector mandate status to persist, when the webhook carries a mandate state signal.
+    pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
+    /// Original authorized amount to persist when the webhook confirms the activation payment.
+    pub original_payment_authorized_amount: Option<common_utils::types::MinorUnit>,
+    /// Currency for the original authorized amount.
+    pub original_payment_authorized_currency: Option<common_enums::Currency>,
 }
 
 /// Trait defining incoming webhook
@@ -226,27 +334,30 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError>;
 
     /// fn get_webhook_resource_object
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError>;
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>;
 
     /// fn get_webhook_api_response
     fn get_webhook_api_response(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<IncomingWebhookFlowError>,
-    ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
-        Ok(ApplicationResponse::StatusOk)
+        _connector_authentication_type: Option<crypto::Encryptable<Secret<serde_json::Value>>>,
+    ) -> CustomResult<WebhookResponse<serde_json::Value>, errors::ConnectorError> {
+        Ok(WebhookResponse::StatusOk)
     }
 
     /// fn get_dispute_details
     fn get_dispute_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<crate::disputes::DisputePayload, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_dispute_details method".to_string()).into())
     }
@@ -280,6 +391,27 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<
         Option<hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId>,
+        errors::ConnectorError,
+    > {
+        Ok(None)
+    }
+
+    /// Connector-specific mandate updates derived from a webhook. Use this when
+    /// the webhook tells us whether the mandate should become active/inactive,
+    /// or provides the payment amount that activated the mandate.
+    fn get_webhook_mandate_details_update(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Option<IncomingWebhookMandateDetailsUpdate>, errors::ConnectorError> {
+        Ok(None)
+    }
+
+    /// fn to get associated data about a payment from the webhook body, if any
+    fn get_associated_data(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::WebhookAssociatedData>,
         errors::ConnectorError,
     > {
         Ok(None)

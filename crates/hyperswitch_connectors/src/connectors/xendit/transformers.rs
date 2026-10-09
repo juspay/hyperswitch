@@ -1,8 +1,12 @@
 use std::collections::HashMap;
 
+use api_models::payments::QrCodeInformation;
 use cards::CardNumber;
 use common_enums::{enums, Currency};
-use common_utils::{pii, request::Method, types::FloatMajorUnit};
+use common_utils::{
+    errors::CustomResult, ext_traits::Encode, pii, request::Method, types::FloatMajorUnit,
+};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse},
@@ -12,25 +16,26 @@ use hyperswitch_domain_models::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        PaymentsSettlementSplitCreateRouterData, PaymentsSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{
-        PaymentsCaptureResponseRouterData, PaymentsPreprocessingResponseRouterData,
-        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
+        PaymentsCaptureResponseRouterData, PaymentsResponseRouterData,
+        PaymentsSettlementSplitCreateResponseRouterData, PaymentsSyncResponseRouterData,
+        RefundsResponseRouterData,
     },
     utils::{
         get_unimplemented_payment_method_error_message, CardData, PaymentsAuthorizeRequestData,
-        PaymentsSyncRequestData, RouterData as OtherRouterData,
+        PaymentsSyncRequestData, QrImage, RouterData as OtherRouterData,
     },
 };
 
@@ -80,7 +85,7 @@ pub struct XenditPaymentsCaptureRequest {
     pub capture_amount: FloatMajorUnit,
 }
 #[derive(Serialize, Deserialize, Debug)]
-pub struct XenditPaymentsRequest {
+pub struct CommonXenditPaymentsRequestData {
     pub amount: FloatMajorUnit,
     pub currency: Currency,
     pub capture_method: String,
@@ -90,6 +95,28 @@ pub struct XenditPaymentsRequest {
     pub payment_method_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub channel_properties: Option<ChannelProperties>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum QrType {
+    Dynamic,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct XenditQrisPaymentsRequestData {
+    pub amount: FloatMajorUnit,
+    pub external_id: String,
+    #[serde(rename = "type")]
+    pub qr_type: QrType,
+    pub callback_url: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(untagged)]
+pub enum XenditPaymentsRequest {
+    CommonXenditPaymentsRequest(Box<CommonXenditPaymentsRequestData>),
+    QrPaymentsRequest(XenditQrisPaymentsRequestData),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -165,6 +192,8 @@ pub enum PaymentStatus {
     Succeeded,
     AwaitingCapture,
     Verified,
+    Active,
+    Inactive,
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
@@ -177,11 +206,13 @@ pub struct XenditPaymentResponse {
     pub id: String,
     pub status: PaymentStatus,
     pub actions: Option<Vec<Action>>,
-    pub payment_method: PaymentMethodInfo,
+    pub payment_method: Option<PaymentMethodInfo>,
     pub failure_code: Option<String>,
-    pub reference_id: Secret<String>,
+    pub reference_id: Option<Secret<String>>,
     pub amount: FloatMajorUnit,
-    pub currency: Currency,
+    pub currency: Option<Currency>,
+    pub qr_string: Option<String>,
+    pub external_id: Option<String>,
 }
 
 fn map_payment_response_to_attempt_status(
@@ -189,7 +220,7 @@ fn map_payment_response_to_attempt_status(
     is_auto_capture: bool,
 ) -> enums::AttemptStatus {
     match response.status {
-        PaymentStatus::Failed => enums::AttemptStatus::Failure,
+        PaymentStatus::Failed | PaymentStatus::Inactive => enums::AttemptStatus::Failure,
         PaymentStatus::Succeeded | PaymentStatus::Verified => {
             if is_auto_capture {
                 enums::AttemptStatus::Charged
@@ -198,7 +229,9 @@ fn map_payment_response_to_attempt_status(
             }
         }
         PaymentStatus::Pending => enums::AttemptStatus::Pending,
-        PaymentStatus::RequiresAction => enums::AttemptStatus::AuthenticationPending,
+        PaymentStatus::RequiresAction | PaymentStatus::Active => {
+            enums::AttemptStatus::AuthenticationPending
+        }
         PaymentStatus::AwaitingCapture => enums::AttemptStatus::Authorized,
     }
 }
@@ -228,7 +261,38 @@ pub struct Action {
 pub struct PaymentMethodInfo {
     pub id: Secret<String>,
 }
+
 impl TryFrom<XenditRouterData<&PaymentsAuthorizeRouterData>> for XenditPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: XenditRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_type {
+            Some(common_enums::PaymentMethodType::Qris) => {
+                if let Some(common_enums::CaptureMethod::Manual) =
+                    item.router_data.request.capture_method
+                {
+                    return Err(errors::ConnectorError::NotSupported {
+                        message: "Manual Capture for QRIS payments".to_string(),
+                        connector: "Xendit".into(),
+                    }
+                    .into());
+                }
+                let qr_request = XenditQrisPaymentsRequestData {
+                    amount: item.amount,
+                    external_id: item.router_data.connector_request_reference_id.clone(),
+                    qr_type: QrType::Dynamic,
+                    callback_url: item.router_data.request.get_webhook_url()?,
+                };
+                Ok(Self::QrPaymentsRequest(qr_request))
+            }
+            _ => {
+                let common_request = CommonXenditPaymentsRequestData::try_from(item)?;
+                Ok(Self::CommonXenditPaymentsRequest(Box::new(common_request)))
+            }
+        }
+    }
+}
+
+impl TryFrom<XenditRouterData<&PaymentsAuthorizeRouterData>> for CommonXenditPaymentsRequestData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: XenditRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
@@ -309,6 +373,36 @@ impl TryFrom<XenditRouterData<&PaymentsCaptureRouterData>> for XenditPaymentsCap
         })
     }
 }
+
+pub fn get_qr_image(qr_data: String) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    let image_data = QrImage::new_from_data(qr_data)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+    let image_data_url = url::Url::parse(image_data.data.clone().as_str())
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+    let qr_code_info = QrCodeInformation::QrDataUrl {
+        image_data_url,
+        display_to_timestamp: None,
+    };
+    qr_code_info
+        .encode_to_value()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+}
+
+pub fn extract_resource_id_from_payment_response(
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+    response: &XenditPaymentResponse,
+) -> CustomResult<ResponseId, errors::ConnectorError> {
+    if payment_method_type == Some(common_enums::PaymentMethodType::Qris) {
+        let ext_id = response
+            .external_id
+            .clone()
+            .ok_or_else(|| errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(ResponseId::ConnectorTransactionId(ext_id))
+    } else {
+        Ok(ResponseId::ConnectorTransactionId(response.id.clone()))
+    }
+}
+
 impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuthorizeRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -338,6 +432,7 @@ impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuth
                 ),
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: None,
                 status_code: item.http_code,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -374,8 +469,19 @@ impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuth
                 _ => None,
             };
 
+            let connector_metadata = if let Some(qr_data) = item.response.qr_string.clone() {
+                Some(get_qr_image(qr_data)?)
+            } else {
+                None
+            };
+
+            let resource_id = extract_resource_id_from_payment_response(
+                item.data.request.payment_method_type,
+                &item.response,
+            )?;
+
             Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                resource_id,
                 redirection_data: match item.response.actions {
                     Some(actions) if !actions.is_empty() => {
                         actions.first().map_or(Box::new(None), |single_action| {
@@ -393,20 +499,28 @@ impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuth
                 },
                 mandate_reference: match item.data.request.is_mandate_payment() {
                     true => Box::new(Some(MandateReference {
-                        connector_mandate_id: Some(item.response.payment_method.id.expose()),
+                        connector_mandate_id: item
+                            .response
+                            .payment_method
+                            .map(|payment_method| payment_method.id.expose()),
                         payment_method_id: None,
                         mandate_metadata: None,
                         connector_mandate_request_reference_id: None,
                     })),
                     false => Box::new(None),
                 },
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
-                connector_response_reference_id: Some(
-                    item.response.reference_id.peek().to_string(),
-                ),
+                network_txn_link_id: None,
+                connector_response_reference_id: item
+                    .response
+                    .reference_id
+                    .map(|reference_id| reference_id.expose())
+                    .or(item.response.external_id.clone()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges,
+                payment_account_reference: None,
             })
         };
         Ok(Self {
@@ -426,10 +540,12 @@ impl TryFrom<PaymentsCaptureResponseRouterData<XenditCaptureResponse>>
         item: PaymentsCaptureResponseRouterData<XenditCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         let status = match item.response.status {
-            PaymentStatus::Failed => enums::AttemptStatus::Failure,
+            PaymentStatus::Failed | PaymentStatus::Inactive => enums::AttemptStatus::Failure,
             PaymentStatus::Succeeded | PaymentStatus::Verified => enums::AttemptStatus::Charged,
             PaymentStatus::Pending => enums::AttemptStatus::Pending,
-            PaymentStatus::RequiresAction => enums::AttemptStatus::AuthenticationPending,
+            PaymentStatus::RequiresAction | PaymentStatus::Active => {
+                enums::AttemptStatus::AuthenticationPending
+            }
             PaymentStatus::AwaitingCapture => enums::AttemptStatus::Authorized,
         };
         let response = if status == enums::AttemptStatus::Failure {
@@ -451,6 +567,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<XenditCaptureResponse>>
                 ),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 status_code: item.http_code,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -464,11 +581,14 @@ impl TryFrom<PaymentsCaptureResponseRouterData<XenditCaptureResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     item.response.reference_id.peek().to_string(),
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
         Ok(Self {
@@ -479,18 +599,18 @@ impl TryFrom<PaymentsCaptureResponseRouterData<XenditCaptureResponse>>
     }
 }
 
-impl TryFrom<PaymentsPreprocessingResponseRouterData<XenditSplitResponse>>
-    for PaymentsPreProcessingRouterData
+impl TryFrom<PaymentsSettlementSplitCreateResponseRouterData<XenditSplitResponse>>
+    for PaymentsSettlementSplitCreateRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<XenditSplitResponse>,
+        item: PaymentsSettlementSplitCreateResponseRouterData<XenditSplitResponse>,
     ) -> Result<Self, Self::Error> {
-        let for_user_id = match item.data.request.split_payments {
-            Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+        let for_user_id = match item.data.request.splits {
+            common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
                 common_types::payments::XenditSplitRequest::MultipleSplits(ref split_data),
-            )) => split_data.for_user_id.clone(),
+            ) => split_data.for_user_id.clone(),
             _ => None,
         };
 
@@ -506,7 +626,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<XenditSplitResponse>>
                         common_utils::types::AmountConvertor::convert_back(
                             &required_conversion_type,
                             amount,
-                            item.data.request.currency.unwrap_or(Currency::USD),
+                            item.data.request.currency,
                         )
                         .map_err(|_| {
                             errors::ConnectorError::RequestEncodingFailedWithReason(
@@ -539,13 +659,16 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<XenditSplitResponse>>
             mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: Some(
                 common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
                     common_types::payments::XenditChargeResponseData::MultipleSplits(charges),
                 ),
             ),
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -581,6 +704,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<XenditResponse>> for PaymentsSyncRou
                         ),
                         attempt_status: None,
                         connector_transaction_id: Some(payment_response.id.clone()),
+                        connector_response_reference_id: None,
                         status_code: item.http_code,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -594,9 +718,12 @@ impl TryFrom<PaymentsSyncResponseRouterData<XenditResponse>> for PaymentsSyncRou
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -606,14 +733,17 @@ impl TryFrom<PaymentsSyncResponseRouterData<XenditResponse>> for PaymentsSyncRou
                 })
             }
             XenditResponse::Webhook(webhook_event) => {
-                let status = match webhook_event.event {
-                    XenditEventType::PaymentSucceeded | XenditEventType::CaptureSucceeded => {
-                        enums::AttemptStatus::Charged
-                    }
-                    XenditEventType::PaymentAwaitingCapture => enums::AttemptStatus::Authorized,
-                    XenditEventType::PaymentFailed | XenditEventType::CaptureFailed => {
-                        enums::AttemptStatus::Failure
-                    }
+                let status = match webhook_event {
+                    XenditWebhookEvent::CommonEvent(event_data) => match event_data.event {
+                        XenditEventType::PaymentSucceeded
+                        | XenditEventType::CaptureSucceeded
+                        | XenditEventType::QrPayment => enums::AttemptStatus::Charged,
+                        XenditEventType::PaymentAwaitingCapture => enums::AttemptStatus::Authorized,
+                        XenditEventType::PaymentFailed | XenditEventType::CaptureFailed => {
+                            enums::AttemptStatus::Failure
+                        }
+                    },
+                    XenditWebhookEvent::QrEvent(_) => enums::AttemptStatus::Charged,
                 };
                 Ok(Self {
                     status,
@@ -647,12 +777,12 @@ impl TryFrom<&ConnectorAuthType> for XenditAuthType {
     }
 }
 
-impl TryFrom<&PaymentsPreProcessingRouterData> for XenditSplitRequestData {
+impl TryFrom<&PaymentsSettlementSplitCreateRouterData> for XenditSplitRequestData {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        if let Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+    fn try_from(item: &PaymentsSettlementSplitCreateRouterData) -> Result<Self, Self::Error> {
+        if let common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
             common_types::payments::XenditSplitRequest::MultipleSplits(ref split_data),
-        )) = item.request.split_payments.clone()
+        ) = item.request.splits.clone()
         {
             let routes: Vec<XenditSplitRoute> = split_data
                 .routes
@@ -665,7 +795,7 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for XenditSplitRequestData {
                             common_utils::types::AmountConvertor::convert(
                                 &required_conversion_type,
                                 amount,
-                                item.request.currency.unwrap_or(Currency::USD),
+                                item.request.currency,
                             )
                             .map_err(|_| {
                                 errors::ConnectorError::RequestEncodingFailedWithReason(
@@ -786,9 +916,18 @@ pub struct XenditMetadata {
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct XenditWebhookEvent {
+pub struct XenditCommonWebhookEvent {
     pub event: XenditEventType,
     pub data: EventDetails,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct XenditQRWebhookEvent {
+    pub id: String,
+    pub event: XenditEventType,
+    pub amount: FloatMajorUnit,
+    pub qr_code: QrData,
+    pub status: QRPaymentStatus,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -811,4 +950,25 @@ pub enum XenditEventType {
     CaptureSucceeded,
     #[serde(rename = "capture.failed")]
     CaptureFailed,
+    #[serde(rename = "qr.payment")]
+    QrPayment,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum QRPaymentStatus {
+    Completed,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct QrData {
+    pub id: String,
+    pub external_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum XenditWebhookEvent {
+    CommonEvent(XenditCommonWebhookEvent),
+    QrEvent(XenditQRWebhookEvent),
 }

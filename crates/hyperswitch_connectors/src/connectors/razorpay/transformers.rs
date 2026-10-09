@@ -16,9 +16,9 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
-use time::{Duration, OffsetDateTime};
+use time::Duration;
 
 use crate::{
     types::{
@@ -106,6 +106,7 @@ impl TryFrom<CreateOrderResponseRouterData<RazorpayOrderResponse>>
         Ok(Self {
             response: Ok(PaymentsResponseData::PaymentsCreateOrderResponse {
                 order_id: item.response.id.clone(),
+                session_token: None,
             }),
             ..item.data
         })
@@ -251,9 +252,12 @@ impl TryFrom<PaymentsResponseRouterData<RazorpayPaymentsResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(order_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -269,7 +273,9 @@ pub struct WaitScreenData {
 
 pub fn get_wait_screen_metadata() -> CustomResult<Option<serde_json::Value>, errors::ConnectorError>
 {
-    let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+    let current_time = common_utils::date_time::now()
+        .assume_utc()
+        .unix_timestamp_nanos();
     Ok(Some(serde_json::json!(WaitScreenData {
         display_from_timestamp: current_time,
         display_to_timestamp: Some(current_time + Duration::minutes(5).whole_nanoseconds()),
@@ -334,9 +340,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsRespon
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -455,6 +464,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RazorpayRefundResponse>>
 //                             network_txn_id: None,
 //                             connector_response_reference_id: None,
 //                             incremental_authorization_allowed: None,
+//                             authentication_data: None,
 //                             charges: None,
 //                         })
 //                     },

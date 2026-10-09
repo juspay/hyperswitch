@@ -1,0 +1,101 @@
+---
+title: "Merchant Debit Routing Flag"
+description: "Curl examples for reading and updating the merchant debit-routing feature flag."
+---
+
+# Merchant Debit Routing Flag
+
+Debit/network routing is gated per merchant. Missing config defaults to disabled. Enable this flag before calling `/decide-gateway` with `NTW_BASED_ROUTING` or `NTW_SR_HYBRID_ROUTING`.
+
+## Read Flag
+
+```bash
+curl "$BASE_URL/merchant-account/merchant_demo/debit-routing" \
+  --header "$AUTH_HEADER"
+```
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "debit_routing_enabled": false
+}
+```
+
+## Enable Flag
+
+```bash
+curl --location "$BASE_URL/merchant-account/merchant_demo/debit-routing" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{ "enabled": true }'
+```
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "debit_routing_enabled": true
+}
+```
+
+## Disable Flag
+
+```bash
+curl --location "$BASE_URL/merchant-account/merchant_demo/debit-routing" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{ "enabled": false }'
+```
+
+## Run Debit Routing Transaction
+
+After enabling the flag, send a debit card transaction through `/decide-gateway`. The debit router expects `paymentInfo.metadata` to be a JSON string containing `merchant_category_code`, `acquirer_country`, and `co_badged_card_data`.
+
+```bash
+curl --location "$BASE_URL/decide-gateway" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchantId": "merchant_demo",
+    "eligibleGatewayList": ["stripe", "adyen"],
+    "rankingAlgorithm": "NTW_BASED_ROUTING",
+    "paymentInfo": {
+      "paymentId": "debit_001",
+      "amount": 1000,
+      "currency": "USD",
+      "country": "US",
+      "paymentType": "ORDER_PAYMENT",
+      "paymentMethodType": "CARD",
+      "paymentMethod": "DEBIT",
+      "authType": "THREE_DS",
+      "metadata": "{\"merchant_category_code\":\"merchant_category_code_0001\",\"acquirer_country\":\"US\",\"co_badged_card_data\":{\"card_type\":\"debit\",\"issuer_country\":\"US\",\"is_regulated\":false,\"regulated_name\":null,\"card_networks\":[\"VISA\",\"NYCE\",\"PULSE\",\"STAR\"]}}"
+    }
+  }'
+```
+
+```json
+{
+  "decided_gateway": "stripe",
+  "routing_approach": "NTW_BASED_ROUTING",
+  "debit_routing_output": {
+    "co_badged_card_networks_info": [
+      { "network": "NYCE", "saving_percentage": 1.2 },
+      { "network": "PULSE", "saving_percentage": 0.8 }
+    ],
+    "issuer_country": "US",
+    "is_regulated": false,
+    "card_type": "debit"
+  }
+}
+```
+
+## Notes
+
+- Use backend enum strings: `NTW_BASED_ROUTING` and `NTW_SR_HYBRID_ROUTING`.
+- `co_badged_card_data.card_type` must be lowercase `debit` or `credit` inside metadata.
+- If the flag is disabled, debit-routing transactions should fail with a debit-routing-not-enabled error.
+
+## Related
+
+- [Debit Gateway Transaction](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-debit-routing)
+- [Network + SR Hybrid Routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-hybrid-routing)
+- [Payment Audit](/decision-engine-api-reference/api-reference/guides/analytics-audit/analytics-endpoints)

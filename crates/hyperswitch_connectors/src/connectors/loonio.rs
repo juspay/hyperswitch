@@ -10,7 +10,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -49,8 +48,8 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
+use hyperswitch_masking::{ExposeInterface, Mask, Secret};
 use lazy_static::lazy_static;
-use masking::{ExposeInterface, Mask, Secret};
 use transformers as loonio;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -100,7 +99,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -131,7 +131,8 @@ impl ConnectorCommon for Loonio {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = loonio::LoonioAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![
@@ -169,6 +170,7 @@ impl ConnectorCommon for Loonio {
             reason: Some(response.message.clone()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -178,20 +180,6 @@ impl ConnectorCommon for Loonio {
 }
 
 impl ConnectorValidation for Loonio {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
@@ -216,7 +204,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -306,7 +295,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Loo
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -351,12 +341,45 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Loo
             .response
             .parse_struct("loonio LoonioPaymentResponseData")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = match &response {
+            loonio::LoonioPaymentResponseData::Sync(sync_response) => {
+                if let (Some(amount), Some(currency)) =
+                    (sync_response.amount, sync_response.currency_code)
+                {
+                    Some(utils::get_sync_integrity_object(
+                        self.amount_converter,
+                        amount,
+                        currency.to_string(),
+                    )?)
+                } else {
+                    None
+                }
+            }
+            loonio::LoonioPaymentResponseData::Webhook(webhook_body) => webhook_body
+                .currency_code
+                .map(|currency| {
+                    utils::get_sync_integrity_object(
+                        self.amount_converter,
+                        webhook_body.amount,
+                        currency.to_string(),
+                    )
+                })
+                .transpose()?,
+        };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 
@@ -374,7 +397,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -453,7 +477,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Loonio 
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -514,12 +539,30 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Loonio 
             res.response
                 .parse_struct("loonio RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object =
+            if let (Some(amount), Some(currency)) = (response.amount, response.currency_code) {
+                Some(utils::get_refund_integrity_object(
+                    self.amount_converter,
+                    amount,
+                    currency.to_string(),
+                )?)
+            } else {
+                None
+            };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 
@@ -537,7 +580,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Loonio {
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -581,12 +625,30 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Loonio {
             .response
             .parse_struct("loonio RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object =
+            if let (Some(amount), Some(currency)) = (response.amount, response.currency_code) {
+                Some(utils::get_refund_integrity_object(
+                    self.amount_converter,
+                    amount,
+                    currency.to_string(),
+                )?)
+            } else {
+                None
+            };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 
@@ -605,7 +667,8 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Looni
         &self,
         req: &PayoutsRouterData<PoFulfill>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -695,7 +758,7 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Loonio {
     ) -> CustomResult<String, errors::ConnectorError> {
         let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "transaction_id",
+                field_name: "transaction_id".into(),
             },
         )?;
         Ok(format!(
@@ -708,7 +771,8 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Loonio {
         &self,
         req: &PayoutsRouterData<PoSync>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -798,6 +862,7 @@ impl webhooks::IncomingWebhook for Loonio {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let webhook_body: loonio::LoonioWebhookBody = request
             .body
@@ -812,7 +877,8 @@ impl webhooks::IncomingWebhook for Loonio {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let webhook_body: loonio::LoonioWebhookBody = request
             .body
             .parse_struct("LoonioWebhookBody")
@@ -826,7 +892,7 @@ impl webhooks::IncomingWebhook for Loonio {
 
 lazy_static! {
     static ref LOONIO_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic, enums::CaptureMethod::Manual,];
 
         let mut loonio_supported_payment_methods = SupportedPaymentMethods::new();
         loonio_supported_payment_methods.add(

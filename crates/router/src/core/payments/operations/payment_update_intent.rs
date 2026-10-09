@@ -16,12 +16,13 @@ use hyperswitch_domain_models::{
     payments::payment_intent::{PaymentIntentUpdate, PaymentIntentUpdateFields},
     ApiModelToDieselModelConvertor,
 };
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, RouterResult},
         payments::{
             self, helpers,
@@ -61,12 +62,14 @@ impl ValidateStatusForOperation for PaymentUpdateIntent {
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
-            | common_enums::IntentStatus::Expired => {
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
-                    field_name: "status".to_string(),
+                    field_name: "status".into(),
                     current_value: intent_status.to_string(),
                     states: ["requires_payment_method".to_string()].join(", "),
                 })
@@ -192,6 +195,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             request_external_three_ds_authentication,
             set_active_attempt_id,
             enable_partial_authorization,
+            is_account_funded_transaction,
+            recipient_details,
         } = request.clone();
 
         let batch_encrypted_data = domain_types::crypto_operation(
@@ -200,9 +205,10 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             domain_types::CryptoOperation::BatchEncrypt(
                 hyperswitch_domain_models::payments::FromRequestEncryptablePaymentIntent::to_encryptable(
                     hyperswitch_domain_models::payments::FromRequestEncryptablePaymentIntent {
-                        shipping_address: shipping.map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode shipping address")?.map(masking::Secret::new),
-                        billing_address: billing.map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode billing address")?.map(masking::Secret::new),
+                        shipping_address: shipping.map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode shipping address")?.map(hyperswitch_masking::Secret::new),
+                        billing_address: billing.map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode billing address")?.map(hyperswitch_masking::Secret::new),
                         customer_details: None,
+                        recipient_details: recipient_details.map(|recipient| recipient.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode recipient details")?.map(hyperswitch_masking::Secret::new),
                     },
                 ),
             ),
@@ -223,7 +229,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             order_details
                 .into_iter()
                 .map(|order_detail| {
-                    masking::Secret::new(
+                    hyperswitch_masking::Secret::new(
                         diesel_models::types::OrderDetailsWithAmount::convert_from(order_detail),
                     )
                 })
@@ -241,12 +247,11 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             None => payment_intent.amount_details,
         };
 
-        let active_attempt_id = set_active_attempt_id
-            .map(|active_attempt_req| match active_attempt_req {
-                UpdateActiveAttempt::Set(global_attempt_id) => Some(global_attempt_id),
-                UpdateActiveAttempt::Unset => None,
-            })
-            .unwrap_or(payment_intent.active_attempt_id);
+        let active_attempt_id = match set_active_attempt_id {
+            Some(UpdateActiveAttempt::Set(global_attempt_id)) => Some(global_attempt_id),
+            Some(UpdateActiveAttempt::Unset) => None,
+            Some(UpdateActiveAttempt::NoAction) | None => payment_intent.active_attempt_id,
+        };
 
         let payment_intent = hyperswitch_domain_models::payments::PaymentIntent {
             amount_details: updated_amount_details,
@@ -301,6 +306,12 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             enable_partial_authorization: enable_partial_authorization
                 .unwrap_or(payment_intent.enable_partial_authorization),
             setup_future_usage: setup_future_usage.unwrap_or(payment_intent.setup_future_usage),
+            is_account_funded_transaction: is_account_funded_transaction
+                .or(payment_intent.is_account_funded_transaction),
+            recipient_details: decrypted_payment_intent
+                .recipient_details
+                .clone()
+                .or(payment_intent.recipient_details.clone()),
             ..payment_intent
         };
 
@@ -328,13 +339,11 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        processor: &domain::Processor,
         mut payment_data: payments::PaymentIntentData<F>,
-        _customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentsUpdateIntentOperation<'b, F>,
         payments::PaymentIntentData<F>,
@@ -343,6 +352,8 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
         F: 'b + Send,
     {
         let db = &*state.store;
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
 
         let intent = payment_data.payment_intent.clone();
 
@@ -377,7 +388,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to serialize connector_metadata")?
-                    .map(masking::Secret::new),
+                    .map(hyperswitch_masking::Secret::new),
                 feature_metadata: intent.feature_metadata,
                 payment_link_config: intent.payment_link_config,
                 request_incremental_authorization: Some(intent.request_incremental_authorization),
@@ -392,6 +403,11 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 force_3ds_challenge: intent.force_3ds_challenge,
                 is_iframe_redirection_enabled: intent.is_iframe_redirection_enabled,
                 enable_partial_authorization: Some(intent.enable_partial_authorization),
+                active_attempts_group_id: intent.active_attempts_group_id,
+                active_attempt_id_type: Some(intent.active_attempt_id_type),
+                profile_acquirer_id: intent.profile_acquirer_id,
+                external_surcharge_strategy: intent.external_surcharge_strategy,
+                external_surcharge_applicable: intent.external_surcharge_applicable,
             }));
 
         let new_payment_intent = db
@@ -456,8 +472,7 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentIn
         _state: &'a SessionState,
         _payment_data: &mut payments::PaymentIntentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -483,8 +498,10 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentIn
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut payments::PaymentIntentData<F>,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }

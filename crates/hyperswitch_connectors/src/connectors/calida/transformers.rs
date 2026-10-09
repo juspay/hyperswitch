@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -140,7 +140,7 @@ impl
             currency: item.router_data.request.currency,
             payment_provider: "bluecode_payment".to_string(),
             shop_name: value.1.shop_name.clone(),
-            reference: item.router_data.payment_id.clone(),
+            reference: item.router_data.connector_request_reference_id.clone(),
             ip_address: item.router_data.request.get_ip_address_as_optional(),
             first_name: item.router_data.get_billing_first_name()?,
             last_name: item.router_data.get_billing_last_name()?,
@@ -213,7 +213,7 @@ pub struct CalidaSyncResponse {
     pub payment_method_type: Option<String>,
     pub shop_name: Option<String>,
     pub sender_name: Option<String>,
-    pub sender_email: Option<String>,
+    pub sender_email: Option<Secret<String, common_utils::pii::EmailStrategy>>,
     pub description: Option<String>,
     pub amount: FloatMajorUnit,
     pub currency: enums::Currency,
@@ -273,9 +273,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, CalidaPaymentsResponse, T, PaymentsResp
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.payment_request_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -373,7 +376,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CalidaErrorResponse {
     pub message: String,
-    pub context_data: HashMap<String, Value>,
+    pub context_data: Option<HashMap<String, Value>>,
 }
 
 pub(crate) fn get_calida_webhook_event(

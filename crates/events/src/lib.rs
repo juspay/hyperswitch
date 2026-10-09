@@ -14,7 +14,7 @@ mod actix;
 use std::{collections::HashMap, sync::Arc};
 
 use error_stack::{Result, ResultExt};
-use masking::{ErasedMaskSerialize, Serialize};
+use hyperswitch_masking::{ErasedMaskSerialize, Serialize};
 use router_env::logger;
 use serde::Serializer;
 use serde_json::Value;

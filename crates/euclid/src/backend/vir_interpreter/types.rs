@@ -80,6 +80,10 @@ impl Context {
             enum_values.insert(EuclidValue::CardNetwork(card_network));
         }
 
+        if let Some(card_discovery) = payment_method.card_discovery {
+            enum_values.insert(EuclidValue::CardDiscovery(card_discovery));
+        }
+
         if let Some(at) = payment.authentication_type {
             enum_values.insert(EuclidValue::AuthenticationType(at));
         }
@@ -90,6 +94,10 @@ impl Context {
 
         if let Some(country) = payment.business_country {
             enum_values.insert(EuclidValue::BusinessCountry(country));
+        }
+
+        if let Some(transaction_initiator) = payment.transaction_initiator {
+            enum_values.insert(EuclidValue::TransactionInitiator(transaction_initiator));
         }
 
         if let Some(country) = payment.billing_country {
@@ -148,13 +156,24 @@ impl Context {
             }
         }
 
-        let numeric_values: FxHashMap<EuclidKey, EuclidValue> = FxHashMap::from_iter([(
-            EuclidKey::PaymentAmount,
-            EuclidValue::PaymentAmount(types::NumValue {
-                number: payment.amount,
-                refinement: None,
-            }),
-        )]);
+        let numeric_values: FxHashMap<EuclidKey, EuclidValue> = FxHashMap::from_iter([
+            (
+                EuclidKey::PaymentAmount,
+                EuclidValue::PaymentAmount(types::NumValue {
+                    number: payment.amount,
+                    refinement: None,
+                }),
+            ),
+            (
+                EuclidKey::SurchargeAmount,
+                EuclidValue::SurchargeAmount(types::NumValue {
+                    number: payment
+                        .surcharge_amount
+                        .unwrap_or(common_utils::types::MinorUnit::zero()),
+                    refinement: None,
+                }),
+            ),
+        ]);
 
         Self {
             atomic_values: enum_values,

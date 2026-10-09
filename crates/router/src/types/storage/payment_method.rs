@@ -23,12 +23,34 @@ pub struct CardTokenData {
     pub network_token_locker_id: Option<String>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BankDebitTokenData {
+    pub payment_method_id: String,
+    pub locker_id: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BankRedirectTokenData {
+    pub payment_method_id: String,
+    pub locker_id: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BankDebitTokenData {
+    pub payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
+    pub locker_id: Option<String>,
+    pub storage_type: enums::StorageType,
+}
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CardTokenData {
     pub payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
     pub locker_id: Option<String>,
     pub token: String,
+    pub storage_type: enums::StorageType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default, serde::Deserialize)]
@@ -60,6 +82,15 @@ pub enum PaymentTokenData {
     PermanentCard(CardTokenData),
     AuthBankDebit(payment_methods::BankAccountTokenData),
     WalletToken(WalletTokenData),
+    BankDebit(BankDebitTokenData),
+    BankRedirect(BankRedirectTokenData),
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TemporaryCardTokenData {
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -69,6 +100,10 @@ pub enum PaymentTokenData {
     TemporaryGeneric(GenericTokenData),
     PermanentCard(CardTokenData),
     AuthBankDebit(payment_methods::BankAccountTokenData),
+    BankDebit(BankDebitTokenData),
+    /// Temporary token that carries only CVC + card holder name for the repeat CIT
+    /// (session confirm) flow. The card number/expiry come from the internal PM service.
+    TemporaryCardToken(TemporaryCardTokenData),
 }
 
 impl PaymentTokenData {
@@ -92,16 +127,42 @@ impl PaymentTokenData {
         payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
         locker_id: Option<String>,
         token: String,
+        storage_type: enums::StorageType,
     ) -> Self {
         Self::PermanentCard(CardTokenData {
             payment_method_id,
             locker_id,
             token,
+            storage_type,
         })
     }
 
     pub fn temporary_generic(token: String) -> Self {
         Self::TemporaryGeneric(GenericTokenData { token })
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn temporary_card_token(
+        card_cvc: Option<hyperswitch_masking::Secret<String>>,
+        card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+    ) -> Self {
+        Self::TemporaryCardToken(TemporaryCardTokenData {
+            card_cvc,
+            card_holder_name,
+        })
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn bank_debit(
+        payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
+        locker_id: Option<String>,
+        storage_type: enums::StorageType,
+    ) -> Self {
+        Self::BankDebit(BankDebitTokenData {
+            payment_method_id,
+            locker_id,
+            storage_type,
+        })
     }
 
     #[cfg(feature = "v1")]
@@ -126,7 +187,9 @@ pub struct PaymentMethodListContext {
     pub card_details: Option<api::CardDetailFromLocker>,
     pub hyperswitch_token_data: Option<PaymentTokenData>,
     #[cfg(feature = "payouts")]
-    pub bank_transfer_details: Option<api::BankPayout>,
+    pub bank_transfer_details: Option<api::BankTransferPayout>,
+    #[cfg(feature = "payouts")]
+    pub wallet_details: Option<hyperswitch_domain_models::payment_method_data::WalletDetail>,
 }
 
 #[cfg(feature = "v2")]
@@ -148,6 +211,10 @@ pub enum PaymentMethodListContext {
     TemporaryToken {
         token_data: Option<PaymentTokenData>,
     },
+    BankDebit {
+        bank_debit_details: payment_methods::BankDebitDetailsPaymentMethod,
+        token_data: Option<PaymentTokenData>,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -157,7 +224,8 @@ impl PaymentMethodListContext {
             Self::Card { token_data, .. }
             | Self::Bank { token_data }
             | Self::BankTransfer { token_data, .. }
-            | Self::TemporaryToken { token_data } => token_data.clone(),
+            | Self::TemporaryToken { token_data }
+            | Self::BankDebit { token_data, .. } => token_data.clone(),
         }
     }
 }
@@ -168,4 +236,45 @@ pub struct PaymentMethodStatusTrackingData {
     pub prev_status: enums::PaymentMethodStatus,
     pub curr_status: enums::PaymentMethodStatus,
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub last_modified_by: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentMethodModularCompatTrackingData {
+    pub payment_method_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub organization_id: common_utils::id_type::OrganizationId,
+    pub last_modified_by: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct NetworkTokenizationTrackingData {
+    pub payment_method_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    /// Profile the payment was made against. Network tokenization is configured per profile,
+    /// so this must come from the payment rather than the merchant's default profile.
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub payment_method: common_enums::PaymentMethod,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub billing_name: Option<hyperswitch_masking::Secret<String>>,
+    /// Card network captured at payment time, used as a fallback when the card fetched from
+    /// the locker does not carry the brand (see `mk_get_card_response`).
+    ///
+    /// Only non-sensitive card metadata may be stored here: `tracking_data` is persisted
+    /// unencrypted and is included in process tracker log spans, so card number and CVC must
+    /// always be fetched from the locker instead.
+    pub card_network: Option<common_enums::CardNetwork>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct NetworkTokenizationTrackingData {
+    pub payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    /// Profile the payment method was created against. Network tokenization is configured per
+    /// profile, so this is used to look up the profile in the async workflow.
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
 }

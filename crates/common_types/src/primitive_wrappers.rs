@@ -364,6 +364,71 @@ mod bool_wrappers {
             bool::from_sql(value).map(Self)
         }
     }
+
+    /// Bool that represents if Rapid Dispute Resolution is applied for a dispute
+    #[derive(
+        Clone, Copy, Debug, Eq, PartialEq, diesel::expression::AsExpression, Serialize, Deserialize,
+    )]
+    #[diesel(sql_type = diesel::sql_types::Bool)]
+    pub struct RapidDisputeResolutionAppliedBool(bool);
+
+    impl RapidDisputeResolutionAppliedBool {
+        /// Creates a new instance of `RapidDisputeResolutionAppliedBool`
+        pub fn new(value: bool) -> Self {
+            Self(value)
+        }
+    }
+
+    impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for RapidDisputeResolutionAppliedBool
+    where
+        DB: diesel::backend::Backend,
+        bool: diesel::serialize::ToSql<diesel::sql_types::Bool, DB>,
+    {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut diesel::serialize::Output<'b, '_, DB>,
+        ) -> diesel::serialize::Result {
+            self.0.to_sql(out)
+        }
+    }
+    impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>
+        for RapidDisputeResolutionAppliedBool
+    where
+        DB: diesel::backend::Backend,
+        bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
+    {
+        fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+            bool::from_sql(value).map(Self)
+        }
+    }
+
+    /// Bool that represents if the merchant accepts a connector-reported amount that differs
+    /// from the requested amount (resolved from the `payments.accept_payment_amount_mismatch` config,
+    /// scoped by merchant and payment method type)
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+    pub struct AcceptAmountMismatchBool(bool);
+
+    impl AcceptAmountMismatchBool {
+        /// Creates a new instance of `AcceptAmountMismatchBool`
+        pub fn new(value: bool) -> Self {
+            Self(value)
+        }
+    }
+
+    impl Default for AcceptAmountMismatchBool {
+        /// Default for `AcceptAmountMismatchBool` is `false`
+        fn default() -> Self {
+            Self(false)
+        }
+    }
+
+    impl Deref for AcceptAmountMismatchBool {
+        type Target = bool;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
 }
 
 mod u32_wrappers {
@@ -499,7 +564,7 @@ mod safe_string {
     use std::ops::Deref;
 
     use common_utils::validation::contains_potential_xss_or_sqli;
-    use masking::SerializableSecret;
+    use hyperswitch_masking::SerializableSecret;
     use serde::{de::Error, Deserialize, Serialize};
 
     /// String wrapper that prevents XSS and SQLi attacks

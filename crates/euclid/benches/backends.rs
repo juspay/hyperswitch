@@ -39,6 +39,7 @@ fn get_program_data() -> (ast::Program<DummyOutput>, inputs::BackendInput) {
         metadata: None,
         payment: inputs::PaymentInput {
             amount: MinorUnit::new(32),
+            transaction_initiator: None,
             card_bin: None,
             extended_card_bin: None,
             currency: enums::Currency::USD,
@@ -48,11 +49,13 @@ fn get_program_data() -> (ast::Program<DummyOutput>, inputs::BackendInput) {
             billing_country: Some(enums::Country::France),
             business_label: None,
             setup_future_usage: None,
+            surcharge_amount: None,
         },
         payment_method: inputs::PaymentMethodInput {
             payment_method: Some(enums::PaymentMethod::PayLater),
             payment_method_type: Some(enums::PaymentMethodType::Sofort),
             card_network: None,
+            card_discovery: None,
         },
         mandate: inputs::MandateData {
             mandate_acceptance_type: None,

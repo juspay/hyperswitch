@@ -3,7 +3,7 @@ use common_utils::{ext_traits::OptionExt as _, pii::Email};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::ErrorDetails;
@@ -239,6 +239,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectPayoutCreateResponse>>
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -276,6 +277,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectPayoutFulfillResponse>
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -309,6 +311,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectReversalResponse>>
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -385,6 +388,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectRecipientCreateRespons
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -406,15 +410,15 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                     external_account: "tok_visa_debit".to_string(),
                 }))
             }
-            api_models::payouts::PayoutMethodData::Bank(bank) => match bank {
-                api_models::payouts::Bank::Ach(bank_details) => {
+            api_models::payouts::PayoutMethodData::BankTransfer(bank) => match bank {
+                api_models::payouts::BankTransfer::Ach(bank_details) => {
                     Ok(Self::Bank(RecipientBankAccountRequest {
                         external_account_object: "bank_account".to_string(),
                         external_account_country: bank_details
                             .bank_country_code
                             .get_required_value("bank_country_code")
                             .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "bank_country_code",
+                                field_name: "bank_country_code".into(),
                             })?,
                         external_account_currency: request.destination_currency.to_owned(),
                         external_account_account_holder_name: customer_name,
@@ -425,40 +429,84 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                         external_account_routing_number: bank_details.bank_routing_number,
                     }))
                 }
-                api_models::payouts::Bank::Bacs(_) => Err(errors::ConnectorError::NotSupported {
-                    message: "BACS payouts are not supported".to_string(),
-                    connector: "stripe",
+                api_models::payouts::BankTransfer::Bacs(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "BACS payouts are not supported".to_string(),
+                        connector: "stripe".into(),
+                    }
+                    .into())
                 }
-                .into()),
-                api_models::payouts::Bank::Sepa(_) => Err(errors::ConnectorError::NotSupported {
-                    message: "SEPA payouts are not supported".to_string(),
-                    connector: "stripe",
+                api_models::payouts::BankTransfer::Sepa(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "SEPA payouts are not supported".to_string(),
+                        connector: "stripe".into(),
+                    }
+                    .into())
                 }
-                .into()),
-                api_models::payouts::Bank::Pix(_) => Err(errors::ConnectorError::NotSupported {
-                    message: "PIX payouts are not supported".to_string(),
-                    connector: "stripe",
+                api_models::payouts::BankTransfer::Pix(_)
+                | api_models::payouts::BankTransfer::PixKey(_)
+                | api_models::payouts::BankTransfer::PixEmv(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "PIX payouts are not supported".to_string(),
+                        connector: "stripe".into(),
+                    }
+                    .into())
                 }
-                .into()),
+                api_models::payouts::BankTransfer::OpenBanking(..) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "OpenBanking payouts are not supported".to_string(),
+                        connector: "stripe".into(),
+                    }
+                    .into())
+                }
+                api_models::payouts::BankTransfer::Trustly(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "Trustly payouts are not supported".to_string(),
+                        connector: "stripe".into(),
+                    }
+                    .into())
+                }
+                api_models::payouts::BankTransfer::Payshap(_)
+                | api_models::payouts::BankTransfer::PayshapProxy(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "PayShap payouts are not supported".to_string(),
+                        connector: "stripe".into(),
+                    }
+                    .into())
+                }
+                api_models::payouts::BankTransfer::Ted(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "TED payouts are not supported".to_string(),
+                        connector: std::borrow::Cow::Borrowed("stripe"),
+                    }
+                    .into())
+                }
             },
             api_models::payouts::PayoutMethodData::Wallet(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Payouts via wallets are not supported".to_string(),
-                    connector: "stripe",
+                    connector: "stripe".into(),
                 }
                 .into())
             }
             api_models::payouts::PayoutMethodData::BankRedirect(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Payouts via BankRedirect are not supported".to_string(),
-                    connector: "stripe",
+                    connector: "stripe".into(),
                 }
                 .into())
             }
             api_models::payouts::PayoutMethodData::Passthrough(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Payouts via Passthrough are not supported".to_string(),
-                    connector: "stripe",
+                    connector: "stripe".into(),
+                }
+                .into())
+            }
+            api_models::payouts::PayoutMethodData::Bank(_) => {
+                Err(errors::ConnectorError::GenericError {
+                    error_message: "Payout method 'Bank' should have been normalized to 'BankTransfer'. This is an unexpected state.".to_string(),
+                    error_object: serde_json::Value::Null,
                 }
                 .into())
             }
@@ -483,6 +531,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectRecipientAccountCreate
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })

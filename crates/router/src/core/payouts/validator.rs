@@ -9,8 +9,11 @@ use common_utils::{
 };
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payment_methods::PaymentMethod;
-use router_env::{instrument, tracing, which as router_env_which, Env};
+use hyperswitch_domain_models::{
+    payment_method_data::{self, PaymentMethodData},
+    payment_methods::PaymentMethod,
+};
+use router_env::{instrument, logger, tracing, which as router_env_which, Env};
 use url::Url;
 
 use super::helpers;
@@ -18,7 +21,9 @@ use super::helpers;
 use crate::core::payment_methods::cards::get_pm_list_context;
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, RouterResult},
+        payment_methods::transformers as pm_transformers,
         utils as core_utils,
     },
     db::StorageInterface,
@@ -29,6 +34,63 @@ use crate::{
     utils::OptionExt,
 };
 
+pub(crate) trait PayoutExecutionKindValidation {
+    fn validate_persisted_execution_kind(self, req: &payouts::PayoutRequest) -> RouterResult<()>;
+    fn validate_normal_execution_kind(self) -> RouterResult<()>;
+}
+
+impl PayoutExecutionKindValidation for common_enums::PayoutExecutionKind {
+    /// Proxy trackers allow read-only retrieval, but not normal mutation or force-sync.
+    fn validate_persisted_execution_kind(self, req: &payouts::PayoutRequest) -> RouterResult<()> {
+        match (self, req) {
+            (Self::Normal, _) => Ok(()),
+            (Self::ExternalVaultProxy, payouts::PayoutRequest::PayoutRetrieveRequest(retrieve))
+                if retrieve.force_sync != Some(true) =>
+            {
+                Ok(())
+            }
+            (Self::ExternalVaultProxy, _) => {
+                Err(report!(errors::ApiErrorResponse::NotImplemented {
+                    message: errors::NotImplementedMessage::Reason(
+                        "external vault proxy payout mutation and force-sync".to_owned(),
+                    ),
+                }))
+            }
+        }
+    }
+
+    /// Block proxy attempts at normal raw-card, locker, retry and scheduler boundaries.
+    fn validate_normal_execution_kind(self) -> RouterResult<()> {
+        match self {
+            Self::Normal => Ok(()),
+            Self::ExternalVaultProxy => {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "External vault proxy payouts cannot use normal payout execution"
+                        .to_owned(),
+                }))
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+pub(super) fn invalid_payout_request(
+    message: &str,
+) -> error_stack::Report<errors::ApiErrorResponse> {
+    report!(errors::ApiErrorResponse::InvalidRequestData {
+        message: message.to_owned(),
+    })
+}
+
+#[cfg(feature = "v1")]
+pub(super) fn validate_payout_condition(invalid: bool, message: &str) -> RouterResult<()> {
+    match invalid {
+        true => Err(invalid_payout_request(message)),
+        false => Ok(()),
+    }
+}
+
+/// Validate payout ID uniqueness within the merchant's storage scheme.
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
@@ -58,29 +120,28 @@ pub async fn validate_create_request(
     _state: &SessionState,
     _platform: &domain::Platform,
     _req: &payouts::PayoutCreateRequest,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(
     String,
     Option<payouts::PayoutMethodData>,
-    String,
+    domain::Profile,
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
     todo!()
 }
 
-/// Validates the request on below checks
-/// - merchant_id passed is same as the one in merchant_account table
-/// - payout_id is unique against merchant_id
-/// - payout_token provided is legitimate
+/// Validate identity before customer creation or raw-method lookup.
 #[cfg(feature = "v1")]
 pub async fn validate_create_request(
     state: &SessionState,
     platform: &domain::Platform,
     req: &payouts::PayoutCreateRequest,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(
     id_type::PayoutId,
     Option<payouts::PayoutMethodData>,
-    id_type::ProfileId,
+    domain::Profile,
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
@@ -101,7 +162,7 @@ pub async fn validate_create_request(
     let predicate = req.merchant_id.as_ref().map(|mid| mid != merchant_id);
     utils::when(predicate.unwrap_or(false), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "merchant_id".to_string(),
+            field_name: "merchant_id".into(),
             expected_format: "merchant_id from merchant account".to_string(),
         })
         .attach_printable("invalid merchant_id in request"))
@@ -139,32 +200,23 @@ pub async fn validate_create_request(
         || customer_in_request.email.is_some()
         || customer_in_request.phone.is_some()
         || customer_in_request.phone_country_code.is_some()
+        || customer_in_request.document_details.is_some()
     {
         helpers::get_or_create_customer_details(state, &customer_in_request, platform).await?
     } else {
         None
     };
 
-    #[cfg(feature = "v1")]
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    // Fetch the profile once and hand it back, so payout creation doesn't fetch it again
+    let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
-        platform,
+        platform.get_processor(),
         req.profile_id.as_ref(),
         &*state.store,
-        false,
     )
     .await?;
-
-    #[cfg(feature = "v2")]
-    // Profile id will be mandatory in v2 in the request / headers
-    let profile_id = req
-        .profile_id
-        .clone()
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
-        })
-        .attach_printable("Profile id is a mandatory parameter")?;
+    let profile_id = business_profile.get_id().to_owned();
 
     let payment_method: Option<PaymentMethod> =
         match (req.payout_token.as_ref(), req.payout_method_id.clone()) {
@@ -184,7 +236,12 @@ pub async fn validate_create_request(
                         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
                         .attach_printable("Unable to find payment method")?;
 
-                    utils::when(payment_method.customer_id != customer.customer_id, || {
+                    let pm_customer_id = payment_method
+                        .customer_id
+                        .clone()
+                        .get_required_value("customer_id")?;
+
+                    utils::when(pm_customer_id != *customer.get_id(), || {
                         Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                         message: "Payment method does not belong to this customer_id".to_string(),
                     })
@@ -195,7 +252,7 @@ pub async fn validate_create_request(
                     Ok(Some(payment_method))
                 }
                 None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer_id when payment_method_id is passed",
+                    field_name: "customer_id when payment_method_id is passed".into(),
                 })),
             },
             _ => Ok(None),
@@ -208,14 +265,14 @@ pub async fn validate_create_request(
         payment_method.as_ref(),
     ) {
         (Some(_), None, _) => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "customer or customer_id when payout_token is provided"
+            field_name: "customer or customer_id when payout_token is provided".into()
         })),
         (Some(payout_token), Some(customer), _) => {
             helpers::make_payout_method_data(
                 state,
                 req.payout_method_data.as_ref(),
                 Some(payout_token),
-                &customer.customer_id,
+                customer.get_id(),
                 platform.get_processor().get_account().get_id(),
                 req.payout_type,
                 platform.get_processor().get_key_store(),
@@ -236,38 +293,14 @@ pub async fn validate_create_request(
                 Ok(None)
             } else {
                 // No transfer_method_id available, proceed with vault fetch for raw card details
-                match get_pm_list_context(
+                get_payout_method_data_generic(
                     state,
-                    payment_method
-                        .payment_method
-                        .as_ref()
-                        .get_required_value("payment_method_id")?,
-                    platform.get_processor().get_key_store(),
-                    payment_method,
-                    None,
-                    false,
-                    true,
                     platform,
+                    payment_method,
+                    &profile_id,
+                    dimensions,
                 )
-                .await?
-                {
-                    Some(pm) => match (pm.card_details, pm.bank_transfer_details) {
-                        (Some(card), _) => Ok(Some(payouts::PayoutMethodData::Card(
-                            api_models::payouts::CardPayout {
-                                card_number: card.card_number.get_required_value("card_number")?,
-                                card_holder_name: card.card_holder_name,
-                                expiry_month: card
-                                    .expiry_month
-                                    .get_required_value("expiry_month")?,
-                                expiry_year: card.expiry_year.get_required_value("expiry_year")?,
-                                card_network: card.card_network.clone(),
-                            },
-                        ))),
-                        (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),
-                        _ => Ok(None),
-                    },
-                    None => Ok(None),
-                }
+                .await
             }
         }
         _ => Ok(None),
@@ -276,10 +309,187 @@ pub async fn validate_create_request(
     Ok((
         payout_id,
         payout_method_data,
-        profile_id,
+        business_profile,
         customer,
         payment_method,
     ))
+}
+
+#[cfg(feature = "v1")]
+pub async fn get_payout_method_data_generic(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_method: &PaymentMethod,
+    profile_id: &id_type::ProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+) -> RouterResult<Option<payouts::PayoutMethodData>> {
+    let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
+
+    match feature_config.is_payment_method_modular_allowed {
+        true => {
+            match pm_transformers::fetch_payment_method_from_modular_service(
+                state,
+                platform,
+                profile_id,
+                payment_method.payment_method_id.as_str(),
+                None,  // CVC is not collected during the eligibility check
+                true,  // fetch raw card detail from the internal vault
+                false, // an eligibility check is not a payment
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("Failed to fetch payment method from modular service in Payout")?
+            .raw_payment_method_data
+            {
+                Some(PaymentMethodData::CardWithOptionalCVC(card_details)) => Ok(Some(
+                    payouts::PayoutMethodData::Card(api_models::payouts::CardPayout {
+                        card_number: card_details.card_number,
+                        card_holder_name: card_details.card_holder_name,
+                        expiry_month: card_details.card_exp_month,
+                        expiry_year: card_details.card_exp_year,
+                        card_network: card_details.card_network.clone(),
+                    }),
+                )),
+                Some(PaymentMethodData::Wallet(payment_method_data::WalletData::ApplePay(
+                    data,
+                ))) => match data.payment_data {
+                    common_types::payments::ApplePayPaymentData::Decrypted(decrypted_data) => {
+                        Ok(Some(payouts::PayoutMethodData::Wallet(
+                            api_models::payouts::Wallet::ApplePayDecrypt(
+                                api_models::payouts::ApplePayDecrypt {
+                                    dpan: decrypted_data.application_primary_account_number,
+                                    expiry_month: decrypted_data.application_expiration_month,
+                                    expiry_year: decrypted_data.application_expiration_year,
+                                    card_holder_name: None,
+                                    card_network: data
+                                        .payment_method
+                                        .network
+                                        .parse::<common_enums::CardNetwork>()
+                                        .inspect_err(|error| {
+                                            logger::warn!(
+                                                ?error,
+                                                unparsed_card_network = %data.payment_method.network,
+                                                "Received an unrecognized card_network value from Apple Pay (Payout); defaulting to None"
+                                            )
+                                        })
+                                        .ok(),
+                                },
+                            ),
+                        )))
+                    }
+                    common_types::payments::ApplePayPaymentData::Encrypted(_) => Ok(None),
+                },
+                Some(PaymentMethodData::Wallet(payment_method_data::WalletData::GooglePay(
+                    data,
+                ))) => match data.tokenization_data {
+                    common_types::payments::GpayTokenizationData::Decrypted(decrypted_data) => {
+                        Ok(Some(payouts::PayoutMethodData::Wallet(
+                            api_models::payouts::Wallet::GooglePayDecrypt(
+                                api_models::payouts::GooglePayDecrypt {
+                                    application_primary_account_number: decrypted_data
+                                        .application_primary_account_number,
+                                    expiry_month: decrypted_data.card_exp_month,
+                                    expiry_year: decrypted_data.card_exp_year,
+                                    card_network: data.info
+                                        .card_network
+                                        .parse::<common_enums::CardNetwork>()
+                                        .inspect_err(|error| {
+                                            logger::warn!(
+                                                ?error,
+                                                unparsed_card_network = %data.info.card_network,
+                                                "Received an unrecognized card_network value from Google Pay (Payout); defaulting to None"
+                                            )
+                                        })
+                                        .ok(),
+                                    card_holder_name: None,
+                                },
+                            ),
+                        )))
+                    }
+                    common_types::payments::GpayTokenizationData::Encrypted(_) => Ok(None),
+                },
+                Some(_) | None => Ok(None),
+            }
+        }
+        false => {
+            match get_pm_list_context(
+                state,
+                payment_method
+                    .payment_method
+                    .as_ref()
+                    .get_required_value("payment_method_id")?,
+                platform.get_processor().get_key_store(),
+                payment_method,
+                None,
+                false,
+                true,
+                platform.get_provider(),
+                None,
+                None,
+                None,
+            )
+            .await?
+            {
+                Some(pm) => match (pm.card_details, pm.wallet_details, pm.bank_transfer_details) {
+                    (Some(card), _, _) => Ok(Some(payouts::PayoutMethodData::Card(
+                        api_models::payouts::CardPayout {
+                            card_number: card.card_number.get_required_value("card_number")?,
+                            card_holder_name: card.card_holder_name,
+                            expiry_month: card.expiry_month.get_required_value("expiry_month")?,
+                            expiry_year: card.expiry_year.get_required_value("expiry_year")?,
+                            card_network: card.card_network.clone(),
+                        },
+                    ))),
+                    (_, Some(wallet), _) => match wallet {
+                        payment_method_data::WalletDetail::ApplePayDecryptedData {
+                            application_primary_account_number,
+                            expiry_month,
+                            expiry_year,
+                        } => Ok(Some(payouts::PayoutMethodData::Wallet(
+                            api_models::payouts::Wallet::ApplePayDecrypt(
+                                api_models::payouts::ApplePayDecrypt {
+                                    dpan: application_primary_account_number,
+                                    expiry_month,
+                                    expiry_year,
+                                    card_holder_name: None,
+                                    card_network: None,
+                                },
+                            ),
+                        ))),
+                        payment_method_data::WalletDetail::GooglePayDecryptedData {
+                            application_primary_account_number,
+                            expiry_month,
+                            expiry_year,
+                        } => Ok(Some(payouts::PayoutMethodData::Wallet(
+                            api_models::payouts::Wallet::GooglePayDecrypt(
+                                api_models::payouts::GooglePayDecrypt {
+                                    application_primary_account_number,
+                                    expiry_month,
+                                    expiry_year,
+                                    card_holder_name: None,
+                                    card_network: None,
+                                },
+                            ),
+                        ))),
+                    },
+                    (_, _, Some(bank)) => Ok(Some(payouts::PayoutMethodData::BankTransfer(bank))),
+                    _ => Ok(None),
+                },
+                None => Ok(None),
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+pub async fn get_payout_method_data_generic(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_method: &PaymentMethod,
+    profile_id: &id_type::ProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+) -> RouterResult<Option<payouts::PayoutMethodData>> {
+    todo!()
 }
 
 pub fn validate_payout_link_request(
@@ -293,7 +503,7 @@ pub fn validate_payout_link_request(
 
     if req.customer_id.is_none() {
         return Err(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "customer or customer_id when payout_link is true",
+            field_name: "customer or customer_id when payout_link is true".into(),
         });
     }
 
@@ -301,29 +511,12 @@ pub fn validate_payout_link_request(
 }
 
 #[cfg(feature = "olap")]
-pub(super) fn validate_payout_list_request(
-    req: &payouts::PayoutListConstraints,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    use common_utils::consts::PAYOUTS_LIST_MAX_LIMIT_GET;
-
-    utils::when(
-        req.limit > PAYOUTS_LIST_MAX_LIMIT_GET || req.limit < 1,
-        || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_GET}"),
-            })
-        },
-    )?;
-    Ok(())
-}
-
-#[cfg(feature = "olap")]
 pub(super) fn validate_payout_list_request_for_joins(
-    limit: u32,
+    limit: common_utils::types::list::PageSize,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     use common_utils::consts::PAYOUTS_LIST_MAX_LIMIT_POST;
 
-    utils::when(!(1..=PAYOUTS_LIST_MAX_LIMIT_POST).contains(&limit), || {
+    utils::when(limit.as_u32() > PAYOUTS_LIST_MAX_LIMIT_POST, || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_POST}"),
         })

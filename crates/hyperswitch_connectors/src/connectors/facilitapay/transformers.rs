@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     consts, errors, events::connector_api_logs::ConnectorEvent, types::Response,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -132,7 +132,7 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                 } => {
                     // Set expiry time to 15 minutes from now
                     let dynamic_pix_expires_at = {
-                        let now = time::OffsetDateTime::now_utc();
+                        let now = common_utils::date_time::now().assume_utc();
                         let expires_at = now + time::Duration::minutes(15);
 
                         PrimitiveDateTime::new(expires_at.date(), expires_at.time())
@@ -145,7 +145,7 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                             subject_id: item.router_data.get_connector_customer_id()?.into(),
                             from_bank_account_id: source_bank_account_id.clone().ok_or(
                                 errors::ConnectorError::MissingRequiredField {
-                                    field_name: "source bank account id",
+                                    field_name: "source bank account id".into(),
                                 },
                             )?,
 
@@ -178,6 +178,10 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankTransferData::InstantBankTransferFinland {}
                 | BankTransferData::InstantBankTransferPoland {}
                 | BankTransferData::IndonesianBankTransfer { .. }
+                | BankTransferData::PixAutomaticoPush { .. }
+                | BankTransferData::PixAutomaticoQr {}
+                | BankTransferData::PixEmv {}
+                | BankTransferData::PixQr {}
                 | BankTransferData::LocalBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         "Selected payment method through Facilitapay".to_string(),
@@ -202,7 +206,12 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method through Facilitapay".to_string(),
                 )
@@ -225,7 +234,7 @@ fn convert_to_document_type(document_type: &str) -> Result<DocumentType, errors:
         "tax_id" | "taxid" => Ok(DocumentType::TaxId),
         _ => Err(errors::ConnectorError::NotSupported {
             message: format!("Document type '{document_type}'"),
-            connector: "Facilitapay",
+            connector: "Facilitapay".into(),
         }),
     }
 }
@@ -269,6 +278,7 @@ pub fn parse_facilitapay_error_response(
         reason: Some(raw_error),
         attempt_status: None,
         connector_transaction_id: None,
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
@@ -444,6 +454,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.data.transaction_id),
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -458,9 +469,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
                     mandate_reference: Box::new(None),
                     connector_metadata: get_qr_code_data(&item.response)?,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.data.transaction_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 })
             },
             ..item.data
@@ -485,20 +499,20 @@ fn get_qr_code_data(
             datetime.unix_timestamp() * 1000
         } else {
             // If dynamic_pix_due_date isn't present, use current time + 15 minutes
-            let now = time::OffsetDateTime::now_utc();
+            let now = common_utils::date_time::now().assume_utc();
             let expires_at = now + time::Duration::minutes(15);
             expires_at.unix_timestamp() * 1000
         }
     } else {
         // If meta is null, use current time + 15 minutes
-        let now = time::OffsetDateTime::now_utc();
+        let now = common_utils::date_time::now().assume_utc();
         let expires_at = now + time::Duration::minutes(15);
         expires_at.unix_timestamp() * 1000
     };
 
     let dynamic_pix_code = response.data.dynamic_pix_code.as_ref().ok_or_else(|| {
         errors::ConnectorError::MissingRequiredField {
-            field_name: "dynamic_pix_code",
+            field_name: "dynamic_pix_code".into(),
         }
     })?;
 
@@ -550,6 +564,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FacilitapayVoidResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.data.void_id.clone()),
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -564,9 +579,12 @@ impl TryFrom<PaymentsCancelResponseRouterData<FacilitapayVoidResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.data.void_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 })
             },
             ..item.data

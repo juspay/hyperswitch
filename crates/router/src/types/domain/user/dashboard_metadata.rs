@@ -1,8 +1,9 @@
 use api_models::user::dashboard_metadata as api;
 use diesel_models::enums::DashboardMetadata as DBEnum;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum MetaData {
     ProductionAgreement(ProductionAgreementValue),
     SetupProcessor(api::SetupProcessor),
@@ -28,6 +29,10 @@ pub enum MetaData {
     IsChangePasswordRequired(bool),
     OnboardingSurvey(api::OnboardingSurvey),
     ReconStatus(api::ReconStatus),
+    #[cfg(feature = "v1")]
+    PaymentViews(Box<api::SavedViewOperation>),
+    #[cfg(feature = "v1")]
+    PaymentAdvancedViews(Box<api::PaymentAdvancedViewOperation>),
 }
 
 impl From<&MetaData> for DBEnum {
@@ -57,12 +62,74 @@ impl From<&MetaData> for DBEnum {
             MetaData::IsChangePasswordRequired(_) => Self::IsChangePasswordRequired,
             MetaData::OnboardingSurvey(_) => Self::OnboardingSurvey,
             MetaData::ReconStatus(_) => Self::ReconStatus,
+            #[cfg(feature = "v1")]
+            MetaData::PaymentViews(_) => Self::PaymentViews,
+            #[cfg(feature = "v1")]
+            MetaData::PaymentAdvancedViews(_) => Self::PaymentAdvancedViews,
         }
     }
 }
-#[derive(Debug, serde::Serialize)]
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ProductionAgreementValue {
     pub version: String,
     pub ip_address: Secret<String, common_utils::pii::IpAddress>,
     pub timestamp: PrimitiveDateTime,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct SavedViewV1 {
+    pub view_id: String,
+    pub view_name: String,
+    pub filters: api::PaymentListFilterConstraintsV1,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct PaymentViewsValue {
+    pub views: Vec<SavedViewV1>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum PaymentAdvancedViewFilters {
+    V1(api::PaymentAdvancedViewFilterConstraints),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct PaymentAdvancedView {
+    pub view_id: String,
+    pub view_name: String,
+    pub filters: PaymentAdvancedViewFilters,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct PaymentAdvancedViewsValue {
+    pub views: Vec<PaymentAdvancedView>,
+}
+
+#[cfg(feature = "v1")]
+impl From<PaymentAdvancedView> for api::PaymentAdvancedViewResponse {
+    fn from(v: PaymentAdvancedView) -> Self {
+        let data = match v.filters {
+            PaymentAdvancedViewFilters::V1(filters) => api::PaymentAdvancedViewFilters::V1(
+                api::PaymentAdvancedViewFiltersV1::PaymentViews(filters),
+            ),
+        };
+        Self {
+            view_id: v.view_id,
+            view_name: v.view_name,
+            data,
+            created_at: v.created_at,
+            updated_at: v.updated_at,
+        }
+    }
 }

@@ -9,12 +9,15 @@ use common_utils::{
     id_type,
     pii::{self, Email, IpAddress},
     request::Method,
-    types::FloatMajorUnit,
+    types::{FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PaymentMethodData},
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        InteracCustomerInfo, RouterData,
+    },
     router_flow_types::refunds::Execute,
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
@@ -26,7 +29,7 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_interfaces::errors;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "payouts")]
@@ -108,7 +111,7 @@ impl TryFrom<&GigadatRouterData<&PaymentsAuthorizeRouterData>> for GigadatCpiReq
                 let router_data = item.router_data;
                 let name = router_data.get_billing_full_name()?;
                 let email = router_data.get_billing_email()?;
-                let mobile = router_data.get_billing_phone_number()?;
+                let mobile = router_data.get_billing_phone_number_without_plus()?;
                 let currency = item.router_data.request.currency;
                 let sandbox = match item.router_data.test_mode {
                     Some(true) => true,
@@ -281,6 +284,17 @@ impl TryFrom<String> for GigadatTransactionStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GigadatTransactionStatusResponse {
     pub status: GigadatTransactionStatus,
+    pub interac_bank_name: Option<Secret<String>>,
+    pub data: Option<GigadatSyncData>,
+    pub amount: Option<FloatMajorUnit>,
+    pub currency: Option<Currency>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GigadatSyncData {
+    pub name: Option<Secret<String>>,
+    pub email: Option<Email>,
+    pub mobile: Option<Secret<String>>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResponseData>>
@@ -313,9 +327,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResp
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -329,20 +346,71 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatTransactionStatusResponse, T, Pa
     fn try_from(
         item: ResponseRouterData<F, GigadatTransactionStatusResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let connector_response = item.response.data.as_ref().map(|sync_data| {
+            ConnectorResponseData::with_additional_payment_method_data(
+                AdditionalPaymentMethodConnectorResponse::BankRedirect {
+                    interac: Some(InteracCustomerInfo {
+                        customer_info: Some(build_interac_customer_info_details(
+                            sync_data,
+                            item.response.interac_bank_name.clone(),
+                        )),
+                    }),
+                },
+            )
+        });
+        let status = enums::AttemptStatus::from(item.response.status);
+        // Record the connector-reported amount against the resulting status so a payment
+        // accepted despite an amount mismatch reflects what was actually captured / authorized.
+        let amount = item
+            .response
+            .amount
+            .zip(item.response.currency)
+            .map(|(amount, currency)| {
+                utils::convert_back_amount_to_minor_units(
+                    &FloatMajorUnitForConnector,
+                    amount,
+                    currency,
+                )
+            })
+            .transpose()?;
+        let amount_captured = utils::get_amount_captured(status, amount);
+        let amount_capturable = utils::get_amount_capturable(status, amount);
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status,
+            amount_captured: amount_captured
+                .map(|amount| amount.get_amount_as_i64())
+                .or(item.data.amount_captured),
+            minor_amount_captured: amount_captured.or(item.data.minor_amount_captured),
+            minor_amount_capturable: amount_capturable.or(item.data.minor_amount_capturable),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
+            connector_response,
             ..item.data
         })
+    }
+}
+
+fn build_interac_customer_info_details(
+    sync_data: &GigadatSyncData,
+    bank_name: Option<Secret<String>>,
+) -> common_types::payments::InteracCustomerInfoDetails {
+    common_types::payments::InteracCustomerInfoDetails {
+        customer_name: sync_data.name.clone(),
+        customer_email: sync_data.email.clone(),
+        customer_phone_number: sync_data.mobile.clone(),
+        customer_bank_id: None,
+        customer_bank_name: bank_name,
     }
 }
 
@@ -371,6 +439,8 @@ impl<F> TryFrom<&GigadatRouterData<&RefundsRouterData<F>>> for GigadatRefundRequ
 pub struct RefundResponse {
     success: bool,
     data: GigadatPaymentData,
+    pub amount: Option<FloatMajorUnit>,
+    pub currency: Option<Currency>,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
@@ -434,7 +504,7 @@ impl TryFrom<&GigadatRouterData<&PayoutsRouterData<PoQuote>>> for GigadatPayoutQ
                 let router_data = item.router_data;
                 let name = router_data.get_billing_full_name()?;
                 let email = interac_data.email;
-                let mobile = router_data.get_billing_phone_number()?;
+                let mobile = router_data.get_billing_phone_number_without_plus()?;
                 let currency = item.router_data.request.destination_currency;
 
                 let user_ip = router_data.request.get_browser_info()?.get_ip_address()?;
@@ -460,11 +530,13 @@ impl TryFrom<&GigadatRouterData<&PayoutsRouterData<PoQuote>>> for GigadatPayoutQ
                 })
             }
             PayoutMethodData::Card(_)
+            | PayoutMethodData::BankRedirect(_)
             | PayoutMethodData::Bank(_)
+            | PayoutMethodData::BankTransfer(_)
             | PayoutMethodData::Wallet(_)
             | PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Payment Method Not Supported".to_string(),
-                connector: "Gigadat",
+                connector: "Gigadat".into(),
             })?,
         }
     }
@@ -507,6 +579,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutQuoteResponse>> for Pa
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: Some(Secret::new(connector_meta)),
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -536,6 +609,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutResponse>> for Payouts
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -593,6 +667,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutSyncResponse>> for Pay
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -623,7 +698,23 @@ pub struct GigadatWebhookQueryParameters {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GigadatWebhookKeyValue {
-    pub key: String,
-    pub value: String,
+#[serde(rename_all = "camelCase")]
+pub struct GigadatWebhookKeyValueBody {
+    #[serde(rename = "type")]
+    pub webhook_type: String,
+    pub final_type: Option<String>,
+    pub cpi_type: Option<String>,
+    // donot remove the below fields
+    pub name: Option<Secret<String>>,
+    pub mobile: Option<Secret<String>>,
+    pub user_id: Option<Secret<String>>,
+    pub email: Option<Email>,
+    pub financial_institution: Option<Secret<String>>,
+}
+
+impl GigadatWebhookKeyValueBody {
+    pub fn decode_from_url(body_str: &str) -> Result<Self, errors::ConnectorError> {
+        serde_urlencoded::from_str(body_str)
+            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)
+    }
 }

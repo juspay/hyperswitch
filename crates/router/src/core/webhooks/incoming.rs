@@ -1,12 +1,12 @@
-use std::{str::FromStr, time::Instant};
+use std::str::FromStr;
 
-use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
 use api_models::{
     enums::Connector,
     webhooks::{self, WebhookResponseTracker},
 };
+use common_enums::enums::ConnectorMandateStatus;
 pub use common_enums::{connector_enums::InvoiceStatus, enums::ProcessTrackerRunner};
 use common_utils::{
     errors::ReportSwitchExt,
@@ -16,43 +16,50 @@ use common_utils::{
 };
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
+use hyperswitch_connectors::connectors::unified_authentication_service::transformers::WebhookResponse as UasWebhookResponse;
 #[cfg(feature = "payouts")]
-use hyperswitch_domain_models::payouts::{payout_attempt::PayoutAttempt, payouts::PayoutsUpdate};
+use hyperswitch_domain_models::payouts::payouts::PayoutsUpdate;
 use hyperswitch_domain_models::{
+    api::{IncomingWebhookEventMetadata, WebhookResponse},
     mandates::CommonMandateReference,
-    merchant_key_store::MerchantKeyStore,
-    payments::{payment_attempt::PaymentAttempt, HeaderPayload},
-    router_request_types::VerifyWebhookSourceRequestData,
-    router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
+    payments::{payment_attempt::PaymentAttempt, HeaderPayload, PaymentIntent},
+    router_flow_types::{PaymentAttemptAssociatedData, WebhookAssociatedData},
+    router_request_types::unified_authentication_service::UasAuthenticationResponseData,
+    vault::PaymentMethodVaultingData,
 };
-use hyperswitch_interfaces::webhooks::{IncomingWebhookFlowError, IncomingWebhookRequestDetails};
-use masking::{ExposeInterface, PeekInterface};
-use router_env::{instrument, tracing, RequestId};
+use hyperswitch_interfaces::{
+    unified_connector_service::get_payments_response_from_ucs_webhook_content,
+    webhooks::{
+        IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
+        WebhookResourceData,
+    },
+};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::{instrument, tracing, tracing::Instrument};
 use unified_connector_service_client::payments as payments_grpc;
 
-use super::{types, utils, MERCHANT_ID};
+use super::{types, MERCHANT_ID};
 use crate::{
     consts,
     core::{
         api_locking,
-        errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
-        metrics, payment_methods,
-        payment_methods::cards,
-        payments::{self, tokenization},
-        refunds, relay, unified_connector_service, utils as core_utils,
-        webhooks::{network_tokenization_incoming, utils::construct_webhook_router_data},
+        configs::dimension_state,
+        errors::{self, CustomResult, RouterResponse, StorageErrorExt},
+        metrics,
+        payment_methods::{self, cards},
+        payments::{
+            self, operations::payment_response, tokenization, PaymentIntentStateMetadataExt,
+        },
+        refunds, relay,
+        unified_authentication_service::{
+            types::UNIFIED_AUTHENTICATION_SERVICE, utils as uas_utils,
+        },
+        unified_connector_service, utils as core_utils,
+        webhooks::{network_tokenization_incoming, utils},
     },
-    db::StorageInterface,
-    events::api_logs::ApiEvent,
     logger,
-    routes::{
-        app::{ReqState, SessionStateInfo},
-        lock_utils, SessionState,
-    },
-    services::{
-        self, authentication as auth, connector_integration_interface::ConnectorEnum,
-        ConnectorValidation,
-    },
+    routes::{app::ReqState, lock_utils, SessionState},
+    services::{self, connector_integration_interface::ConnectorEnum, ConnectorValidation},
     types::{
         api::{
             self, mandates::MandateResponseExt, ConnectorCommon, ConnectorData, GetToken,
@@ -69,7 +76,6 @@ use crate::{core::payouts, types::storage::PayoutAttemptUpdate};
 
 #[allow(clippy::too_many_arguments)]
 pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
-    flow: &impl router_env::types::FlowMetric,
     state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
@@ -78,8 +84,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     body: actix_web::web::Bytes,
     is_relay_webhook: bool,
 ) -> RouterResponse<serde_json::Value> {
-    let start_instant = Instant::now();
-    let (application_response, webhooks_response_tracker, serialized_req) =
+    let (webhook_response, webhooks_response_tracker, serialized_req) =
         Box::pin(incoming_webhooks_core::<W>(
             state.clone(),
             req_state,
@@ -91,58 +96,34 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         ))
         .await?;
 
-    logger::info!(incoming_webhook_payload = ?serialized_req);
+    logger::info!(incoming_webhook_payload = ?serialized_req.peek());
 
-    let request_duration = Instant::now()
-        .saturating_duration_since(start_instant)
-        .as_millis();
+    let metadata = IncomingWebhookEventMetadata {
+        event_type: ApiEventsType::Webhooks {
+            connector: connector_name_or_mca_id.to_string(),
+            payment_id: webhooks_response_tracker.get_payment_id(),
+            refund_id: webhooks_response_tracker.get_refund_id(),
+        },
+        serialized_request: serialized_req,
+        webhook_tracker_data: serde_json::to_value(&webhooks_response_tracker)
+            .inspect_err(
+                |err| logger::error!(error = ?err, "Could not convert webhook effect to string"),
+            )
+            .ok(),
+    };
 
-    let request_id = RequestId::extract(req)
-        .await
-        .attach_printable("Unable to extract request id from request")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let auth_type = auth::AuthenticationType::WebhookAuth {
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
-    };
-    let status_code = 200;
-    let api_event = ApiEventsType::Webhooks {
-        connector: connector_name_or_mca_id.to_string(),
-        payment_id: webhooks_response_tracker.get_payment_id(),
-    };
-    let response_value = serde_json::to_value(&webhooks_response_tracker)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not convert webhook effect to string")?;
-    let infra = state.infra_components.clone();
-    let api_event = ApiEvent::new(
-        state.tenant.tenant_id.clone(),
-        Some(platform.get_processor().get_account().get_id().clone()),
-        flow,
-        &request_id,
-        request_duration,
-        status_code,
-        serialized_req,
-        Some(response_value),
-        None,
-        auth_type,
-        None,
-        api_event,
-        req,
-        req.method(),
-        infra,
-    );
-    state.event_handler().log_event(&api_event);
-    Ok(application_response)
+    Ok(services::ApplicationResponse::IncomingWebhookEvent {
+        response: Box::new(webhook_response),
+        metadata,
+    })
 }
 
 #[cfg(feature = "v1")]
 pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
-    flow: &impl router_env::types::FlowMetric,
     state: SessionState,
     req: &actix_web::HttpRequest,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
-    let start_instant = Instant::now();
-
     let request_details: IncomingWebhookRequestDetails<'_> = IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
@@ -151,49 +132,44 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
         body: &body,
     };
 
-    let (application_response, webhooks_response_tracker, serialized_req, merchant_id) = Box::pin(
+    let (webhook_response, webhooks_response_tracker, serialized_req, _merchant_id) = Box::pin(
         network_token_incoming_webhooks_core::<W>(&state, request_details),
     )
     .await?;
 
     logger::info!(incoming_webhook_payload = ?serialized_req);
 
-    let request_duration = Instant::now()
-        .saturating_duration_since(start_instant)
-        .as_millis();
-
-    let request_id = RequestId::extract(req)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to extract request id from request")?;
-    let auth_type = auth::AuthenticationType::NoAuth;
-    let status_code = 200;
-    let api_event = ApiEventsType::NetworkTokenWebhook {
-        payment_method_id: webhooks_response_tracker.get_payment_method_id(),
+    let metadata = IncomingWebhookEventMetadata {
+        event_type: ApiEventsType::NetworkTokenWebhook {
+            payment_method_id: webhooks_response_tracker.get_payment_method_id(),
+        },
+        serialized_request: Secret::new(serialized_req),
+        webhook_tracker_data: serde_json::to_value(&webhooks_response_tracker)
+            .inspect_err(
+                |err| logger::error!(error = ?err, "Could not convert webhook effect to string"),
+            )
+            .ok(),
     };
-    let response_value = serde_json::to_value(&webhooks_response_tracker)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not convert webhook effect to string")?;
-    let infra = state.infra_components.clone();
-    let api_event = ApiEvent::new(
-        state.tenant.tenant_id.clone(),
-        Some(merchant_id),
-        flow,
-        &request_id,
-        request_duration,
-        status_code,
-        serialized_req,
-        Some(response_value),
-        None,
-        auth_type,
-        None,
-        api_event,
-        req,
-        req.method(),
-        infra,
-    );
-    state.event_handler().log_event(&api_event);
-    Ok(application_response)
+
+    Ok(services::ApplicationResponse::IncomingWebhookEvent {
+        response: Box::new(webhook_response),
+        metadata,
+    })
+}
+
+fn confirm_path_for_flow(
+    candidate_path: common_enums::ExecutionPath,
+    flow: Option<api::WebhookFlow>,
+    enabled_flows: &[api::WebhookFlow],
+    connector_integration_type: common_enums::ConnectorIntegrationType,
+) -> common_enums::ExecutionPath {
+    match (flow, connector_integration_type) {
+        (_, common_enums::ConnectorIntegrationType::UcsConnector) => {
+            common_enums::ExecutionPath::UnifiedConnectorService
+        }
+        (Some(f), _) if enabled_flows.contains(&f) => candidate_path,
+        _ => common_enums::ExecutionPath::Direct,
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -207,9 +183,9 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     body: actix_web::web::Bytes,
     is_relay_webhook: bool,
 ) -> errors::RouterResult<(
-    services::ApplicationResponse<serde_json::Value>,
+    WebhookResponse<serde_json::Value>,
     WebhookResponseTracker,
-    serde_json::Value,
+    common_utils::pii::SecretSerdeValue,
 )> {
     // Initial setup and metrics
     metrics::WEBHOOK_INCOMING_COUNT.add(
@@ -219,7 +195,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             platform.get_processor().get_account().get_id().clone()
         )),
     );
-
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     let request_details = IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
@@ -228,186 +207,156 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         body: &body,
     };
 
-    // Fetch the merchant connector account to get the webhooks source secret
-    let (merchant_connector_account, connector, connector_name) =
-        fetch_optional_mca_and_connector(&state, &platform, connector_name_or_mca_id).await?;
+    // Fetch Threeds Execution Path to decode webhook Body
+    // Checks if the merchant and connector is eligible for authentication service
+    // If Yes, then it will return UnifiedAuthenticationService
+    // If No, then it will return Direct
+    // Direct Signifies its not a authentication connector
+    let three_ds_execution_path =
+        fetch_three_ds_execution_path(&platform, connector_name_or_mca_id, &state, &dimensions)
+            .await?;
 
-    // Determine webhook processing path (Direct vs UCS vs Shadow UCS) and handle event type extraction
-    let execution_path =
-        unified_connector_service::should_call_unified_connector_service_for_webhooks(
-            &state,
-            &platform,
-            &connector_name,
-        )
-        .await?;
+    // Each arm resolves its path (UAS vs Direct/UCS) and returns a
+    // `WebhookOutcome` plus the connector/name used for acks, errors, and
+    // logging. Downstream filter interception and business-logic dispatch are
+    // identical for both and run once after the match.
+    let (connector, connector_name, outcome) = match three_ds_execution_path {
+        ThreeDsProcessingMode::UnifiedAuthenticationService(ref mca_data) => {
+            let connector_name = mca_data.connector_name.clone();
+            let (uas_connector, _) =
+                get_connector_by_connector_name(&state, UNIFIED_AUTHENTICATION_SERVICE, None)?;
 
-    let webhook_processing_result = match execution_path {
-        common_enums::ExecutionPath::UnifiedConnectorService => {
-            logger::info!(
-                connector = connector_name,
-                "Using Unified Connector Service for webhook processing",
-            );
-            process_ucs_webhook_transform(
-                &state,
-                &platform,
-                &connector_name,
-                &body,
-                &request_details,
-                merchant_connector_account.as_ref(),
-            )
-            .await
-        }
-        common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
-            logger::info!(
-                connector = connector_name,
-                "Using Shadow Unified Connector Service for webhook processing",
-            );
-            process_shadow_ucs_webhook_transform(
-                &state,
-                &platform,
-                &connector,
-                &connector_name,
-                &body,
-                &request_details,
-                merchant_connector_account.as_ref(),
-            )
-            .await
-        }
-        common_enums::ExecutionPath::Direct => {
-            logger::info!(
-                connector = connector_name,
-                "Using Direct connector processing for webhook",
-            );
-            // DIRECT PATH: Need to decode body first
-            let decoded_body = connector
-                .decode_webhook_body(
+            let outcome: errors::RouterResult<super::gateway::WebhookOutcome> =
+                Box::pin(process_uas_incoming_webhook(
+                    &state,
+                    &platform,
                     &request_details,
-                    platform.get_processor().get_account().get_id(),
-                    merchant_connector_account
-                        .clone()
-                        .and_then(|mca| mca.connector_webhook_details.clone()),
-                    &connector_name,
+                    connector_name.clone(),
+                    uas_connector.clone(),
+                ))
+                .await;
+
+            (uas_connector, connector_name, outcome)
+        }
+        ThreeDsProcessingMode::Direct(ref mca_data) => {
+            let connector = mca_data.connector.clone();
+            let connector_name = mca_data.connector_name.clone();
+            let mca_ref = mca_data.merchant_connector_account.as_ref();
+
+            let connector_enum = Connector::from_str(&connector_name)
+                .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+                .attach_printable_lazy(|| {
+                    format!("Failed to parse connector name: {}", connector_name)
+                })?;
+
+            // Determine connector integration type
+            let connector_integration_type =
+                unified_connector_service::determine_connector_integration_type(
+                    &state,
+                    connector_enum,
                 )
-                .await
-                .switch()
-                .attach_printable("There was an error in incoming webhook body decoding")?;
+                .await?;
 
-            process_non_ucs_webhook(
-                &state,
-                &platform,
-                &connector,
-                &connector_name,
-                decoded_body.into(),
-                &request_details,
-            )
-            .await
-        }
-    };
+            let (candidate_path, enabled_flows) =
+                unified_connector_service::should_call_unified_connector_service_for_webhooks(
+                    &state,
+                    platform.get_processor(),
+                    &connector_name,
+                    connector_integration_type,
+                )
+                .await?;
 
-    let mut webhook_processing_result = match webhook_processing_result {
-        Ok(result) => result,
-        Err(error) => {
-            let error_result = handle_incoming_webhook_error(
-                error,
-                &connector,
-                connector_name.as_str(),
-                &request_details,
-                platform.get_processor().get_account().get_id(),
+            logger::info!(
+                connector = %connector_name,
+                ?candidate_path,
+                "Selected webhook execution path for event parsing"
             );
-            match error_result {
-                Ok((response, webhook_tracker, serialized_request)) => {
-                    return Ok((response, webhook_tracker, serialized_request));
+
+            let (ucs_event_reference, ucs_event_type) = match candidate_path {
+                common_enums::ExecutionPath::UnifiedConnectorService => {
+                    super::gateway::get_webhook_event_details_from_ucs(
+                        &state,
+                        &platform,
+                        connector.clone(),
+                        &connector_name,
+                        mca_ref,
+                        &request_details,
+                        common_enums::ExecutionMode::Primary,
+                    )
+                    .await
                 }
-                Err(e) => return Err(e),
-            }
+                common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
+                    super::gateway::get_webhook_event_details_from_ucs(
+                        &state,
+                        &platform,
+                        connector.clone(),
+                        &connector_name,
+                        mca_ref,
+                        &request_details,
+                        common_enums::ExecutionMode::Shadow,
+                    )
+                    .await
+                }
+                _ => (None, None),
+            };
+
+            let flow = ucs_event_type.map(api::WebhookFlow::from);
+
+            let execution_path = confirm_path_for_flow(
+                candidate_path,
+                flow,
+                &enabled_flows,
+                connector_integration_type,
+            );
+
+            let execution_mode = match execution_path {
+                common_enums::ExecutionPath::UnifiedConnectorService => {
+                    common_enums::ExecutionMode::Primary
+                }
+                common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
+                    common_enums::ExecutionMode::Shadow
+                }
+                common_enums::ExecutionPath::Direct => common_enums::ExecutionMode::NotApplicable,
+            };
+            logger::info!(?execution_path, "Selected webhook execution path");
+
+            let ctx = super::gateway::WebhookGatewayContext {
+                state: state.clone(),
+                platform: platform.clone(),
+                connector: connector.clone(),
+                connector_name: connector_name.clone(),
+                merchant_connector_account: mca_ref.cloned(),
+                execution_path,
+                execution_mode,
+                ucs_reference: ucs_event_reference,
+                ucs_event_type,
+            };
+
+            let outcome =
+                super::gateway::execute_incoming_webhook_gateway(&ctx, &request_details).await;
+
+            (connector, connector_name, outcome)
         }
     };
 
-    // if it is a setup webhook event, return ok status
-    if webhook_processing_result.event_type == webhooks::IncomingWebhookEvent::SetupWebhook {
+    if matches!(
+        &outcome,
+        Ok(outcome) if outcome.event_type() == webhooks::IncomingWebhookEvent::SetupWebhook
+    ) {
         return Ok((
-            services::ApplicationResponse::StatusOk,
+            WebhookResponse::StatusOk,
             WebhookResponseTracker::NoEffect,
-            serde_json::Value::default(),
+            Secret::new(serde_json::Value::default()),
         ));
     }
 
-    // Update request_details with the appropriate body (decoded for non-UCS, raw for UCS)
-    let final_request_details = match &webhook_processing_result.decoded_body {
-        Some(decoded_body) => &IncomingWebhookRequestDetails {
-            method: request_details.method.clone(),
-            uri: request_details.uri.clone(),
-            headers: request_details.headers,
-            query_params: request_details.query_params.clone(),
-            body: decoded_body,
-        },
-        None => &request_details, // Use original request details for UCS
-    };
-
-    logger::info!(event_type=?webhook_processing_result.event_type);
-
-    // Check if webhook should be processed further
-    let is_webhook_event_supported = !matches!(
-        webhook_processing_result.event_type,
-        webhooks::IncomingWebhookEvent::EventNotSupported
-    );
-    let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
-        &*state.clone().store,
-        connector_name.as_str(),
-        platform.get_processor().get_account().get_id(),
-        &webhook_processing_result.event_type,
-    )
-    .await;
-    let flow_type: api::WebhookFlow = webhook_processing_result.event_type.into();
-    let process_webhook_further = is_webhook_event_enabled
-        && is_webhook_event_supported
-        && !matches!(flow_type, api::WebhookFlow::ReturnResponse);
-    logger::info!(process_webhook=?process_webhook_further);
-    let mut event_object: Box<dyn masking::ErasedMaskSerialize> = Box::new(serde_json::Value::Null);
-
-    let webhook_effect = match process_webhook_further {
-        true => {
-            let business_logic_result = process_webhook_business_logic(
-                &state,
-                req_state,
-                &platform,
-                &connector,
-                &connector_name,
-                webhook_processing_result.event_type,
-                webhook_processing_result.source_verified,
-                &webhook_processing_result.transform_data,
-                &mut webhook_processing_result.shadow_ucs_data,
-                final_request_details,
-                is_relay_webhook,
-            )
-            .await;
-
-            match business_logic_result {
-                Ok(response) => {
-                    // Extract event object for serialization
-                    event_object = extract_webhook_event_object(
-                        &webhook_processing_result.transform_data,
-                        &connector,
-                        final_request_details,
-                    )?;
-                    response
-                }
-                Err(error) => {
-                    let error_result = handle_incoming_webhook_error(
-                        error,
-                        &connector,
-                        connector_name.as_str(),
-                        final_request_details,
-                        platform.get_processor().get_account().get_id(),
-                    );
-                    match error_result {
-                        Ok((_, webhook_tracker, _)) => webhook_tracker,
-                        Err(e) => return Err(e),
-                    }
-                }
-            }
-        }
-        false => {
+    let (ack_response, webhook_effect, serialized_body) = match outcome {
+        Ok(super::gateway::WebhookOutcome::Skipped {
+            event_type,
+            ack_response,
+            ..
+        }) => {
+            logger::info!(?event_type, "Webhook filtered before business logic");
             metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
                 1,
                 router_env::metric_attributes!((
@@ -415,296 +364,151 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     platform.get_processor().get_account().get_id().clone()
                 )),
             );
-            WebhookResponseTracker::NoEffect
-        }
-    };
-
-    // Generate response
-    let response = connector
-        .get_webhook_api_response(final_request_details, None)
-        .switch()
-        .attach_printable("Could not get incoming webhook api response from connector")?;
-
-    let serialized_request = event_object
-        .masked_serialize()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not convert webhook effect to string")?;
-
-    Ok((response, webhook_effect, serialized_request))
-}
-
-/// Process UCS webhook transformation using the high-level UCS abstraction
-async fn process_ucs_webhook_transform<'a>(
-    state: &'a SessionState,
-    platform: &'a domain::Platform,
-    connector_name: &'a str,
-    body: &'a actix_web::web::Bytes,
-    request_details: &'a IncomingWebhookRequestDetails<'a>,
-    merchant_connector_account: Option<&'a domain::MerchantConnectorAccount>,
-) -> errors::RouterResult<WebhookProcessingResult<'a>> {
-    // Use the new UCS abstraction which provides clean separation
-    let (event_type, source_verified, transform_data) =
-        unified_connector_service::call_unified_connector_service_for_webhook(
-            state,
-            platform,
-            connector_name,
-            body,
-            request_details,
-            merchant_connector_account,
-        )
-        .await?;
-    Ok(WebhookProcessingResult {
-        event_type,
-        source_verified,
-        transform_data: Some(Box::new(transform_data)),
-        decoded_body: None, // UCS path uses raw body
-        shadow_ucs_data: None,
-    })
-}
-
-/// Shadow UCS data container
-#[allow(dead_code)]
-pub struct ShadowUcsData<'a> {
-    ucs_source_verified: bool,
-    ucs_event_type: webhooks::IncomingWebhookEvent,
-    ucs_transform_data: Box<unified_connector_service::WebhookTransformData>,
-    request_details: &'a IncomingWebhookRequestDetails<'a>,
-    webhook_details: Option<api::IncomingWebhookDetails>,
-}
-
-/// Result type for webhook processing path determination
-pub struct WebhookProcessingResult<'a> {
-    event_type: webhooks::IncomingWebhookEvent,
-    source_verified: bool,
-    transform_data: Option<Box<unified_connector_service::WebhookTransformData>>,
-    decoded_body: Option<actix_web::web::Bytes>,
-    shadow_ucs_data: Option<ShadowUcsData<'a>>,
-}
-
-/// Process shadow UCS webhook transformation with dual execution (UCS + Direct)
-async fn process_shadow_ucs_webhook_transform<'a>(
-    state: &'a SessionState,
-    platform: &'a domain::Platform,
-    connector: &'a ConnectorEnum,
-    connector_name: &'a str,
-    body: &'a actix_web::web::Bytes,
-    request_details: &'a IncomingWebhookRequestDetails<'a>,
-    merchant_connector_account: Option<&'a domain::MerchantConnectorAccount>,
-) -> errors::RouterResult<WebhookProcessingResult<'a>> {
-    // Execute UCS path
-    let ucs_result = unified_connector_service::call_unified_connector_service_for_webhook(
-        state,
-        platform,
-        connector_name,
-        body,
-        request_details,
-        merchant_connector_account,
-    )
-    .await;
-
-    // Execute Direct path for comparison
-    let direct_result = async {
-        // Decode body for direct processing
-        let decoded_body = connector
-            .decode_webhook_body(
-                request_details,
-                platform.get_processor().get_account().get_id(),
-                merchant_connector_account.and_then(|mca| mca.connector_webhook_details.clone()),
-                connector_name,
+            (
+                ack_response,
+                WebhookResponseTracker::NoEffect,
+                Secret::new(serde_json::Value::Null),
             )
-            .await
-            .switch()
-            .attach_printable(
-                "There was an error in incoming webhook body decoding for shadow processing",
-            )?;
-
-        // Reuse existing process_non_ucs_webhook function
-        process_non_ucs_webhook(
-            state,
-            platform,
-            connector,
-            connector_name,
-            decoded_body.into(),
-            request_details,
-        )
-        .await
-    }
-    .await;
-
-    // Handle results and comparison
-    match (ucs_result, direct_result) {
-        (
-            Ok((ucs_event_type, ucs_source_verified, ucs_transform_data)),
-            Ok(mut direct_processing_result),
-        ) => {
-            // Log both calls succeeded
-            logger::info!(
-                connector = connector_name,
-                merchant_id = ?platform.get_processor().get_account().get_id(),
-                "Shadow UCS: Both UCS and Direct calls succeeded"
-            );
-
-            // Create ShadowUcsData with UCS results
-            let shadow_ucs_data = ShadowUcsData {
-                ucs_source_verified,
-                ucs_event_type,
-                ucs_transform_data: Box::new(ucs_transform_data),
-                request_details,
-                webhook_details: None,
+        }
+        Ok(super::gateway::WebhookOutcome::Processed {
+            reference,
+            event_type,
+            source_verified,
+            content,
+            decoded_body,
+            webhook_resource_data,
+            masked_log_payload,
+            merchant_connector_account: processed_mca,
+            ack_response,
+        }) => {
+            // Reconstruct request_details with the decoded body when available
+            // (Direct and UAS paths), so downstream connector methods that parse
+            // request_details.body (get_dispute_details, get_webhook_mandate_details,
+            // etc.) receive the structured payload they expect.
+            // UCS path leaves decoded_body as None and uses the raw request body.
+            let decoded_request_details;
+            let request_for_biz: &IncomingWebhookRequestDetails<'_> = match decoded_body.as_deref()
+            {
+                Some(body) => {
+                    decoded_request_details = IncomingWebhookRequestDetails {
+                        method: request_details.method.clone(),
+                        uri: request_details.uri.clone(),
+                        headers: request_details.headers,
+                        query_params: request_details.query_params.clone(),
+                        body,
+                    };
+                    &decoded_request_details
+                }
+                None => &request_details,
             };
 
-            // Return Direct result as primary with UCS data in shadow_ucs_data
-            direct_processing_result.shadow_ucs_data = Some(shadow_ucs_data);
-            Ok(direct_processing_result)
+            let effect = match Box::pin(process_webhook_business_logic(
+                &state,
+                req_state,
+                &platform,
+                &connector,
+                &connector_name,
+                event_type,
+                source_verified,
+                content,
+                request_for_biz,
+                is_relay_webhook,
+                reference,
+                *processed_mca,
+                *webhook_resource_data,
+            ))
+            .await
+            {
+                Ok(effect) => effect,
+                Err(error) => match handle_incoming_webhook_error(
+                    error,
+                    &connector,
+                    connector_name.as_str(),
+                    &request_details,
+                    platform.get_processor().get_account().get_id(),
+                ) {
+                    Ok((_, tracker, _)) => tracker,
+                    Err(e) => return Err(e),
+                },
+            };
+            (ack_response, effect, masked_log_payload)
         }
-        (Ok((_, _, _)), Err(direct_error)) => {
-            // Log UCS call succeeded, direct call failed
-            logger::info!(
-                connector = connector_name,
-                merchant_id = ?platform.get_processor().get_account().get_id(),
-                direct_error = ?direct_error,
-                "Shadow UCS: UCS call succeeded, Direct call failed"
+        Err(error) => {
+            return handle_incoming_webhook_error(
+                error,
+                &connector,
+                connector_name.as_str(),
+                &request_details,
+                platform.get_processor().get_account().get_id(),
             );
-
-            // Return direct_result error as required
-            Err(direct_error)
         }
-        (Err(ucs_error), Ok(direct_processing_result)) => {
-            // Log the UCS error and direct result succeeded
-            logger::info!(
-                connector = connector_name,
-                merchant_id = ?platform.get_processor().get_account().get_id(),
-                ucs_error = ?ucs_error,
-                "Shadow UCS: UCS call failed, Direct call succeeded"
-            );
-
-            // In shadow mode, if UCS fails, fall back to Direct result
-            Ok(direct_processing_result)
-        }
-        (Err(ucs_error), Err(direct_error)) => {
-            // Log both the errors and both call failed
-            logger::error!(
-                connector = connector_name,
-                merchant_id = ?platform.get_processor().get_account().get_id(),
-                ucs_error = ?ucs_error,
-                direct_error = ?direct_error,
-                "Shadow UCS: Both UCS and Direct calls failed"
-            );
-
-            // Return direct_result error as required
-            Err(direct_error)
-        }
-    }
-}
-
-/// Process non-UCS webhook using traditional connector processing
-async fn process_non_ucs_webhook<'a>(
-    state: &'a SessionState,
-    platform: &'a domain::Platform,
-    connector: &'a ConnectorEnum,
-    connector_name: &'a str,
-    decoded_body: actix_web::web::Bytes,
-    request_details: &'a IncomingWebhookRequestDetails<'a>,
-) -> errors::RouterResult<WebhookProcessingResult<'a>> {
-    // Create request_details with decoded body for connector processing
-    let updated_request_details = IncomingWebhookRequestDetails {
-        method: request_details.method.clone(),
-        uri: request_details.uri.clone(),
-        headers: request_details.headers,
-        query_params: request_details.query_params.clone(),
-        body: &decoded_body,
     };
 
-    match connector
-        .get_webhook_event_type(&updated_request_details)
-        .allow_webhook_event_type_not_found(
-            state
-                .clone()
-                .conf
-                .webhooks
-                .ignore_error
-                .event_type
-                .unwrap_or(true),
+    Ok((ack_response, webhook_effect, serialized_body))
+}
+
+async fn fetch_three_ds_execution_path(
+    platform: &domain::Platform,
+    connector_name_or_mca_id: &str,
+    state: &SessionState,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+) -> errors::RouterResult<ThreeDsProcessingMode> {
+    let (merchant_connector_account, connector, connector_name) =
+        fetch_optional_mca_and_connector(state, platform, connector_name_or_mca_id).await?;
+
+    let mca_details = MerchantConnectorDetails {
+        merchant_connector_account,
+        connector,
+        connector_name: connector_name.clone(),
+    };
+
+    let eligible_connector_list = state
+        .conf
+        .authentication_service_enabled_connectors
+        .connector_list
+        .clone();
+    let connector_enum = Connector::from_str(&connector_name)
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector".into(),
+        })
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
+    let is_merchant_eligible_for_uas =
+        payments::helpers::is_merchant_eligible_authentication_service(
+            platform.get_processor(),
+            state,
         )
-        .switch()
-        .attach_printable("Could not find event type in incoming webhook body")?
-    {
-        Some(event_type) => Ok(WebhookProcessingResult {
-            event_type,
-            source_verified: false,
-            transform_data: None,
-            decoded_body: Some(decoded_body),
-            shadow_ucs_data: None,
-        }),
-        None => {
-            metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
-                1,
-                router_env::metric_attributes!(
-                    (
-                        MERCHANT_ID,
-                        platform.get_processor().get_account().get_id().clone()
-                    ),
-                    ("connector", connector_name.to_string())
-                ),
-            );
-            Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("Failed to identify event type in incoming webhook body")
-        }
+        .await?;
+
+    if is_merchant_eligible_for_uas && eligible_connector_list.contains(&connector_enum) {
+        Ok(ThreeDsProcessingMode::UnifiedAuthenticationService(
+            mca_details,
+        ))
+    } else {
+        Ok(ThreeDsProcessingMode::Direct(mca_details))
     }
 }
 
-/// Extract resource object from UCS WebhookResponseContent
-fn get_ucs_webhook_resource_object(
-    webhook_response_content: &payments_grpc::WebhookResponseContent,
-) -> errors::RouterResult<Box<dyn masking::ErasedMaskSerialize>> {
-    let resource_object = match &webhook_response_content.content {
-        Some(payments_grpc::webhook_response_content::Content::IncompleteTransformation(
-            incomplete_transformation_response,
-        )) => {
-            // Deserialize resource object
-            serde_json::from_slice::<serde_json::Value>(
-                &incomplete_transformation_response.resource_object,
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to deserialize resource object from UCS webhook response")?
-        }
-        _ => {
-            // Convert UCS webhook content to appropriate format
-            serde_json::to_value(webhook_response_content)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to serialize UCS webhook content")?
-        }
-    };
-    Ok(Box::new(resource_object))
+#[derive(Clone, Debug)]
+pub struct MerchantConnectorDetails {
+    /// Merchant Connector Account
+    pub merchant_connector_account:
+        Option<hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount>,
+    /// Connector
+    pub connector: ConnectorEnum,
+    pub connector_name: String,
 }
 
-/// Extract webhook event object based on transform data availability
-fn extract_webhook_event_object(
-    webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
-    connector: &ConnectorEnum,
-    request_details: &IncomingWebhookRequestDetails<'_>,
-) -> errors::RouterResult<Box<dyn masking::ErasedMaskSerialize>> {
-    match webhook_transform_data {
-        Some(webhook_transform_data) => webhook_transform_data
-            .webhook_content
-            .as_ref()
-            .map(|webhook_response_content| {
-                get_ucs_webhook_resource_object(webhook_response_content)
-            })
-            .unwrap_or_else(|| {
-                connector
-                    .get_webhook_resource_object(request_details)
-                    .switch()
-                    .attach_printable("Could not find resource object in incoming webhook body")
-            }),
-        None => connector
-            .get_webhook_resource_object(request_details)
-            .switch()
-            .attach_printable("Could not find resource object in incoming webhook body"),
-    }
+#[derive(Clone, Debug)]
+/// Indicates the execution path through which the authentication is processed.
+pub enum ThreeDsProcessingMode {
+    Direct(MerchantConnectorDetails),
+    UnifiedAuthenticationService(MerchantConnectorDetails),
 }
 
-/// Process the main webhook business logic after event type determination
+/// Runs the post-gateway business logic. The gateway has already resolved the
+/// merchant-connector-account, verified source, and produced the webhook
+/// payload. This function enforces mandatory-verification policy, picks the
+/// entity-specific flow, and hands it a ready-to-consume payload.
 #[allow(clippy::too_many_arguments)]
 async fn process_webhook_business_logic(
     state: &SessionState,
@@ -713,96 +517,15 @@ async fn process_webhook_business_logic(
     connector: &ConnectorEnum,
     connector_name: &str,
     event_type: webhooks::IncomingWebhookEvent,
-    source_verified_via_ucs: bool,
-    webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
-    shadow_ucs_data: &mut Option<ShadowUcsData<'_>>,
+    source_verified: bool,
+    content: super::gateway::WebhookContent,
     request_details: &IncomingWebhookRequestDetails<'_>,
     is_relay_webhook: bool,
+    object_reference_id: api::ObjectReferenceId,
+    merchant_connector_account: domain::MerchantConnectorAccount,
+    webhook_resource_data: Option<WebhookResourceData>,
 ) -> errors::RouterResult<WebhookResponseTracker> {
-    let object_ref_id = connector
-        .get_webhook_object_reference_id(request_details)
-        .switch()
-        .attach_printable("Could not find object reference id in incoming webhook body")?;
-    let connector_enum = Connector::from_str(connector_name)
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
-        })
-        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
-    let connectors_with_source_verification_call = &state.conf.webhook_source_verification_call;
-
-    let merchant_connector_account = match Box::pin(helper_utils::get_mca_from_object_reference_id(
-        state,
-        object_ref_id.clone(),
-        platform,
-        connector_name,
-    ))
-    .await
-    {
-        Ok(mca) => mca,
-        Err(error) => {
-            let result = handle_incoming_webhook_error(
-                error,
-                connector,
-                connector_name,
-                request_details,
-                platform.get_processor().get_account().get_id(),
-            );
-            match result {
-                Ok((_, webhook_tracker, _)) => return Ok(webhook_tracker),
-                Err(e) => return Err(e),
-            }
-        }
-    };
-
-    let source_verified = if source_verified_via_ucs {
-        // If UCS handled verification, use that result
-        source_verified_via_ucs
-    } else {
-        // Fall back to traditional source verification
-        if connectors_with_source_verification_call
-            .connectors_with_webhook_source_verification_call
-            .contains(&connector_enum)
-        {
-            verify_webhook_source_verification_call(
-                connector.clone(),
-                state,
-                platform,
-                merchant_connector_account.clone(),
-                connector_name,
-                request_details,
-            )
-            .await
-            .or_else(|error| match error.current_context() {
-                errors::ConnectorError::WebhookSourceVerificationFailed => {
-                    logger::error!(?error, "Source Verification Failed");
-                    Ok(false)
-                }
-                _ => Err(error),
-            })
-            .switch()
-            .attach_printable("There was an issue in incoming webhook source verification")?
-        } else {
-            connector
-                .clone()
-                .verify_webhook_source(
-                    request_details,
-                    platform.get_processor().get_account().get_id(),
-                    merchant_connector_account.connector_webhook_details.clone(),
-                    merchant_connector_account.connector_account_details.clone(),
-                    connector_name,
-                )
-                .await
-                .or_else(|error| match error.current_context() {
-                    errors::ConnectorError::WebhookSourceVerificationFailed => {
-                        logger::error!(?error, "Source Verification Failed");
-                        Ok(false)
-                    }
-                    _ => Err(error),
-                })
-                .switch()
-                .attach_printable("There was an issue in incoming webhook source verification")?
-        }
-    };
+    let object_ref_id = object_reference_id;
 
     if source_verified {
         metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
@@ -820,109 +543,10 @@ async fn process_webhook_business_logic(
 
     logger::info!(source_verified=?source_verified);
 
-    let event_object: Box<dyn masking::ErasedMaskSerialize> = match webhook_transform_data {
-        Some(webhook_transform_data) => {
-            // Extract resource_object from UCS webhook content
-            webhook_transform_data
-                .webhook_content
-                .as_ref()
-                .map(|webhook_response_content| {
-                    get_ucs_webhook_resource_object(webhook_response_content)
-                })
-                .unwrap_or_else(|| {
-                    // Fall back to connector extraction
-                    connector
-                        .get_webhook_resource_object(request_details)
-                        .switch()
-                        .attach_printable("Could not find resource object in incoming webhook body")
-                })?
-        }
-        None => {
-            // Use traditional connector extraction
-            connector
-                .get_webhook_resource_object(request_details)
-                .switch()
-                .attach_printable("Could not find resource object in incoming webhook body")?
-        }
-    };
-
     let webhook_details = api::IncomingWebhookDetails {
         object_reference_id: object_ref_id.clone(),
-        resource_object: serde_json::to_vec(&event_object)
-            .change_context(errors::ParsingError::EncodeError("byte-vec"))
-            .attach_printable("Unable to convert webhook payload to a value")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "There was an issue when encoding the incoming webhook body to bytes",
-            )?,
+        resource_object: content.bytes().to_vec(),
     };
-
-    // Create shadow_event_object and shadow_webhook_details using shadow UCS data
-    let shadow_event_object: Option<Box<dyn masking::ErasedMaskSerialize>> =
-        shadow_ucs_data.as_ref().and_then(|shadow_data| {
-            // Create shadow event object using UCS transform data and shadow request details
-            let shadow_event_result = shadow_data
-                .ucs_transform_data
-                .webhook_content
-                .as_ref()
-                .map(|webhook_response_content| {
-                    get_ucs_webhook_resource_object(webhook_response_content)
-                })
-                .unwrap_or_else(|| {
-                    // Fall back to connector extraction using shadow request details
-                    connector
-                        .get_webhook_resource_object(shadow_data.request_details)
-                        .switch()
-                        .attach_printable(
-                            "Could not find resource object in shadow incoming webhook body",
-                        )
-                });
-
-            match shadow_event_result {
-                Ok(shadow_obj) => Some(shadow_obj),
-                Err(error) => {
-                    logger::warn!(
-                        connector = connector_name,
-                        merchant_id = ?platform.get_processor().get_account().get_id(),
-                        error = ?error,
-                        "Failed to create shadow event object from UCS transform data"
-                    );
-                    None
-                }
-            }
-        });
-
-    let shadow_webhook_details: Option<api::IncomingWebhookDetails> =
-        shadow_event_object.as_ref().and_then(|shadow_obj| {
-            let resource_object_result = serde_json::to_vec(shadow_obj)
-                .change_context(errors::ParsingError::EncodeError("byte-vec"))
-                .attach_printable("Unable to convert shadow webhook payload to a value")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "There was an issue when encoding the shadow incoming webhook body to bytes",
-                );
-
-            match resource_object_result {
-                Ok(resource_object) => Some(api::IncomingWebhookDetails {
-                    object_reference_id: object_ref_id.clone(),
-                    resource_object,
-                }),
-                Err(error) => {
-                    logger::warn!(
-                        connector = connector_name,
-                        merchant_id = ?platform.get_processor().get_account().get_id(),
-                        error = ?error,
-                        "Failed to serialize shadow webhook payload to bytes"
-                    );
-                    None
-                }
-            }
-        });
-
-    // Assign shadow_webhook_details to shadow_ucs_data
-    if let Some(shadow_data) = shadow_ucs_data.as_mut() {
-        shadow_data.webhook_details = shadow_webhook_details;
-    }
 
     let profile_id = &merchant_connector_account.profile_id;
 
@@ -959,7 +583,7 @@ async fn process_webhook_business_logic(
             );
 
             let _response = connector
-                    .get_webhook_api_response(request_details, None)
+                    .get_webhook_api_response(request_details, None, Some(merchant_connector_account.connector_account_details))
                     .switch()
                     .attach_printable(
                         "Failed while early return in case of not supported event type in relay webhooks",
@@ -982,8 +606,8 @@ async fn process_webhook_business_logic(
                 connector,
                 request_details,
                 event_type,
-                webhook_transform_data,
-                shadow_ucs_data,
+                &content,
+                webhook_resource_data,
             ))
             .await
             .attach_printable("Incoming webhook flow for payments failed"),
@@ -996,6 +620,7 @@ async fn process_webhook_business_logic(
                 connector_name,
                 source_verified,
                 event_type,
+                webhook_resource_data,
             ))
             .await
             .attach_printable("Incoming webhook flow for refunds failed"),
@@ -1009,6 +634,7 @@ async fn process_webhook_business_logic(
                 connector,
                 request_details,
                 event_type,
+                webhook_resource_data,
             ))
             .await
             .attach_printable("Incoming webhook flow for disputes failed"),
@@ -1033,9 +659,25 @@ async fn process_webhook_business_logic(
                 webhook_details,
                 source_verified,
                 event_type,
+                merchant_connector_account,
             ))
             .await
             .attach_printable("Incoming webhook flow for mandates failed"),
+
+            api::WebhookFlow::AssociatedDataUpdate => {
+                Box::pin(associated_data_incoming_webhook_flow(
+                    state.clone(),
+                    platform.clone(),
+                    business_profile.clone(),
+                    webhook_details,
+                    source_verified,
+                    connector,
+                    request_details,
+                    &content,
+                ))
+                .await
+                .attach_printable("Incoming webhook flow for associated data failed")
+            }
 
             api::WebhookFlow::ExternalAuthentication => {
                 Box::pin(external_authentication_incoming_webhook_flow(
@@ -1125,16 +767,16 @@ fn handle_incoming_webhook_error(
     request_details: &IncomingWebhookRequestDetails<'_>,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> errors::RouterResult<(
-    services::ApplicationResponse<serde_json::Value>,
+    WebhookResponse<serde_json::Value>,
     WebhookResponseTracker,
-    serde_json::Value,
+    common_utils::pii::SecretSerdeValue,
 )> {
     logger::error!(?error, "Incoming webhook flow failed");
 
     // fetch the connector enum from the connector name
     let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
 
@@ -1151,13 +793,14 @@ fn handle_incoming_webhook_error(
             .get_webhook_api_response(
                 request_details,
                 Some(IncomingWebhookFlowError::from(error.current_context())),
+                None,
             )
             .switch()
             .attach_printable("Failed to get incoming webhook api response from connector")?;
         Ok((
             response,
             WebhookResponseTracker::NoEffect,
-            serde_json::Value::Null,
+            Secret::new(serde_json::Value::Null),
         ))
     } else {
         Err(error)
@@ -1170,7 +813,7 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
     state: &SessionState,
     request_details: IncomingWebhookRequestDetails<'_>,
 ) -> errors::RouterResult<(
-    services::ApplicationResponse<serde_json::Value>,
+    WebhookResponse<serde_json::Value>,
     WebhookResponseTracker,
     serde_json::Value,
     common_utils::id_type::MerchantId,
@@ -1219,8 +862,8 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let payment_method =
         network_tokenization_incoming::fetch_payment_method_for_network_token_webhooks(
             state,
-            platform.get_processor().get_account(),
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_account(),
+            platform.get_provider().get_key_store(),
             &payment_method_id,
         )
         .await?;
@@ -1232,7 +875,7 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .await?;
 
     Ok((
-        services::ApplicationResponse::StatusOk,
+        WebhookResponse::StatusOk,
         webhook_resp_tracker,
         serialized_request,
         merchant_id.clone(),
@@ -1251,66 +894,44 @@ async fn payments_incoming_webhook_flow(
     connector: &ConnectorEnum,
     request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
-    webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
-    shadow_ucs_data: &Option<ShadowUcsData<'_>>,
+    content: &super::gateway::WebhookContent,
+    webhook_resource_data: Option<WebhookResourceData>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let consume_or_trigger_flow = if source_verified {
-        // Determine the appropriate action based on UCS availability
-        let resource_object = webhook_details.resource_object;
-
-        match webhook_transform_data.as_ref() {
-            Some(transform_data) => {
-                match transform_data.webhook_transformation_status {
-                    unified_connector_service::WebhookTransformationStatus::Complete => {
-                        // Consume response from UCS
-                        payments::CallConnectorAction::UCSConsumeResponse(resource_object)
-                    }
-                    unified_connector_service::WebhookTransformationStatus::Incomplete => {
-                        // Make a second call to UCS
-                        payments::CallConnectorAction::UCSHandleResponse(resource_object)
-                    }
+        let resource_object = webhook_details.resource_object.clone();
+        match content {
+            super::gateway::WebhookContent::Direct(_) => {
+                payments::CallConnectorAction::HandleResponse {
+                    resource_object,
+                    event_type: Some(event_type.into()),
                 }
             }
-            None => payments::CallConnectorAction::HandleResponse(resource_object),
+            super::gateway::WebhookContent::UnifiedConnectorService(_) => {
+                payments::CallConnectorAction::UCSConsumeResponse(resource_object)
+            }
         }
     } else {
         payments::CallConnectorAction::Trigger
     };
 
-    // Determine shadow UCS call connector action based on shadow UCS data
-    let shadow_ucs_call_connector_action = shadow_ucs_data.as_ref().and_then(|shadow_data| {
-        if shadow_data.ucs_source_verified {
-            // Proceed with the match case of webhook_transformation_status
-            shadow_data.webhook_details.as_ref().map(|webhook_details| {
-                match shadow_data.ucs_transform_data.webhook_transformation_status {
-                    unified_connector_service::WebhookTransformationStatus::Complete => {
-                        payments::CallConnectorAction::UCSConsumeResponse(
-                            webhook_details.resource_object.clone(),
-                        )
-                    }
-                    unified_connector_service::WebhookTransformationStatus::Incomplete => {
-                        payments::CallConnectorAction::UCSHandleResponse(
-                            webhook_details.resource_object.clone(),
-                        )
-                    }
-                }
-            })
+    let shadow_ucs_call_connector_action: Option<payments::CallConnectorAction> = None;
+
+    // Reuse the pre-fetched payment attempt when available; otherwise fetch now.
+    let payment_attempt =
+        if let Some(WebhookResourceData::Payment { payment_attempt }) = webhook_resource_data {
+            payment_attempt
         } else {
-            // If ucs_source_verified is not true, use Trigger action
-            Some(payments::CallConnectorAction::Trigger)
-        }
-    });
+            get_payment_attempt_from_object_reference_id(
+                &state,
+                webhook_details.object_reference_id.clone(),
+                platform.get_processor(),
+            )
+            .await?
+        };
 
     let payments_response = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::PaymentId(ref id) => {
-            let payment_id = get_payment_id(
-                state.store.as_ref(),
-                id,
-                platform.get_processor().get_account().get_id(),
-                platform.get_processor().get_account().storage_scheme,
-                platform.get_processor().get_key_store(),
-            )
-            .await?;
+            let payment_id = payment_attempt.payment_id.clone();
 
             let lock_action = api_locking::LockAction::Hold {
                 input: api_locking::LockingInput {
@@ -1358,6 +979,7 @@ async fn payments_incoming_webhook_flow(
                 shadow_ucs_call_connector_action,
                 None,
                 HeaderPayload::default(),
+                None,
             ))
             .await;
             // When mandate details are present in successful webhooks, and consuming webhooks are skipped during payment sync if the payment status is already updated to charged, this function is used to update the connector mandate details.
@@ -1366,6 +988,7 @@ async fn payments_incoming_webhook_flow(
                     &state,
                     &platform,
                     webhook_details.object_reference_id.clone(),
+                    event_type,
                     connector,
                     request_details,
                 )
@@ -1440,16 +1063,25 @@ async fn payments_incoming_webhook_flow(
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
                 let primary_object_created_at = payments_response.created;
+                let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+                    &state,
+                    &platform,
+                    &business_profile,
+                    payment_attempt.created_by.as_ref(),
+                )
+                .await?;
                 Box::pin(super::create_event_and_trigger_outgoing_webhook(
                     state,
                     platform,
-                    business_profile,
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     payment_id.get_string_repr().to_owned(),
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
+                    webhook_recipient,
+                    Some(WebhookResourceData::Payment { payment_attempt }),
+                    business_profile,
                 ))
                 .await?;
             };
@@ -1477,10 +1109,89 @@ async fn payouts_incoming_webhook_flow(
     request_details: &IncomingWebhookRequestDetails<'_>,
     connector: &ConnectorEnum,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-    metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(1, &[]);
+    let payout_id =
+        get_payout_id_from_object_reference_id(&state, &platform, &webhook_details).await?;
+
+    let lock_action = api_locking::LockAction::Hold {
+        input: api_locking::LockingInput {
+            unique_locking_key: payout_id.get_string_repr().to_owned(),
+            api_identifier: lock_utils::ApiIdentifier::Payouts,
+            override_lock_retries: None,
+        },
+    };
+
+    lock_action
+        .clone()
+        .perform_locking_action(
+            &state,
+            platform.get_processor().get_account().get_id().to_owned(),
+        )
+        .await?;
+
+    let payout_response = Box::pin(process_payout_incoming_webhook(
+        state.clone(),
+        platform.clone(),
+        business_profile,
+        event_type,
+        payout_id,
+        source_verified,
+        request_details,
+        connector,
+    ))
+    .await;
+
+    lock_action
+        .free_lock_action(
+            &state,
+            platform.get_processor().get_account().get_id().to_owned(),
+        )
+        .await?;
+
+    payout_response
+}
+
+#[cfg(feature = "payouts")]
+struct PayoutWebhookPreCondition {
+    is_non_terminal_status: bool,
+    is_source_verified: bool,
+}
+
+#[cfg(feature = "payouts")]
+enum PaoyoutWebhookAction {
+    UpdateStatus,
+    RetrieveStatus,
+    NoAction,
+}
+
+#[cfg(feature = "payouts")]
+impl PayoutWebhookPreCondition {
+    pub fn new(is_non_terminal_status: bool, is_source_verified: bool) -> Self {
+        Self {
+            is_non_terminal_status,
+            is_source_verified,
+        }
+    }
+
+    // only update if the payout is in non-terminal status
+    // if source verified, update the payout attempt and trigger outgoing webhook
+    // if not source verified, do a payout retrieve call and update the status
+    pub fn get_payout_webhook_action(&self) -> PaoyoutWebhookAction {
+        match (self.is_non_terminal_status, self.is_source_verified) {
+            (true, true) => PaoyoutWebhookAction::UpdateStatus,
+            (true, false) => PaoyoutWebhookAction::RetrieveStatus,
+            (false, true) | (false, false) => PaoyoutWebhookAction::NoAction,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+async fn get_payout_id_from_object_reference_id(
+    state: &SessionState,
+    platform: &domain::Platform,
+    webhook_details: &api::IncomingWebhookDetails,
+) -> CustomResult<common_utils::id_type::PayoutId, errors::ApiErrorResponse> {
     let db = &*state.store;
-    //find payout_attempt by object_reference_id
-    let payout_attempt = match webhook_details.object_reference_id {
+    let payout_attempt = match webhook_details.object_reference_id.clone() {
         webhooks::ObjectReferenceId::PayoutId(payout_id_type) => match payout_id_type {
             webhooks::PayoutIdType::PayoutAttemptId(id) => db
                 .find_payout_attempt_by_merchant_id_payout_attempt_id(
@@ -1505,18 +1216,30 @@ async fn payouts_incoming_webhook_flow(
             .attach_printable("received a non-payout id when processing payout webhooks")?,
     };
 
-    let payouts = db
-        .find_payout_by_merchant_id_payout_id(
-            platform.get_processor().get_account().get_id(),
-            &payout_attempt.payout_id,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-        .attach_printable("Failed to fetch the payout")?;
+    Ok(payout_attempt.payout_id)
+}
+
+#[cfg(feature = "payouts")]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+async fn process_payout_incoming_webhook(
+    state: SessionState,
+    platform: domain::Platform,
+    business_profile: domain::Profile,
+    event_type: webhooks::IncomingWebhookEvent,
+    payout_id: common_utils::id_type::PayoutId,
+    source_verified: bool,
+    request_details: &IncomingWebhookRequestDetails<'_>,
+    connector: &ConnectorEnum,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(1, &[]);
+
     let action_req =
-        payout_models::PayoutRequest::PayoutActionRequest(payout_models::PayoutActionRequest {
-            payout_id: payouts.payout_id.clone(),
+        payout_models::PayoutRequest::PayoutRetrieveRequest(payout_models::PayoutRetrieveRequest {
+            payout_id,
+            force_sync: None,
+            merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+            expand_attempts: None,
         });
 
     let mut payout_data = Box::pin(payouts::make_payout_data(
@@ -1528,10 +1251,11 @@ async fn payouts_incoming_webhook_flow(
     ))
     .await?;
 
-    let payout_webhook_action = get_payout_webhook_action(
-        payout_attempt.status.is_non_terminal_status(),
+    let payout_webhook_action = PayoutWebhookPreCondition::new(
+        payout_data.payout_attempt.status.is_non_terminal_status(),
         source_verified,
-    );
+    )
+    .get_payout_webhook_action();
     match payout_webhook_action {
         PaoyoutWebhookAction::UpdateStatus => {
             payout_incoming_webhook_update_status(
@@ -1541,7 +1265,6 @@ async fn payouts_incoming_webhook_flow(
                 event_type,
                 request_details,
                 connector,
-                payout_attempt,
                 &mut payout_data,
             )
             .await
@@ -1550,7 +1273,7 @@ async fn payouts_incoming_webhook_flow(
             payout_incoming_webhook_retrieve_status(
                 state,
                 platform,
-                payout_attempt,
+                business_profile,
                 &mut payout_data,
             )
             .await
@@ -1559,26 +1282,6 @@ async fn payouts_incoming_webhook_flow(
             payout_id: payout_data.payout_attempt.payout_id,
             status: payout_data.payout_attempt.status,
         }),
-    }
-}
-
-enum PaoyoutWebhookAction {
-    UpdateStatus,
-    RetrieveStatus,
-    NoAction,
-}
-
-// only update if the payout is in non-terminal status
-// if source verified, update the payout attempt and trigger outgoing webhook
-// if not source verified, do a payout retrieve call and update the status
-fn get_payout_webhook_action(
-    is_non_terminal_status: bool,
-    is_source_verified: bool,
-) -> PaoyoutWebhookAction {
-    match (is_non_terminal_status, is_source_verified) {
-        (true, true) => PaoyoutWebhookAction::UpdateStatus,
-        (true, false) => PaoyoutWebhookAction::RetrieveStatus,
-        (false, true) | (false, false) => PaoyoutWebhookAction::NoAction,
     }
 }
 
@@ -1592,9 +1295,9 @@ async fn payout_incoming_webhook_update_status(
     event_type: webhooks::IncomingWebhookEvent,
     request_details: &IncomingWebhookRequestDetails<'_>,
     connector: &ConnectorEnum,
-    payout_attempt: PayoutAttempt,
     payout_data: &mut payouts::PayoutData,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let payout_attempt = &payout_data.payout_attempt;
     let db = &*state.store;
     let status = common_enums::PayoutStatus::foreign_try_from(event_type)
         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
@@ -1611,7 +1314,7 @@ async fn payout_incoming_webhook_update_status(
         .update_payout(
             &payout_data.payouts,
             payouts_update,
-            &payout_attempt,
+            payout_attempt,
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -1627,6 +1330,7 @@ async fn payout_incoming_webhook_update_status(
     // if status is failure then update the error_code and error_message as well
     let payout_attempt_update = if status.is_payout_failure() {
         PayoutAttemptUpdate::StatusUpdate {
+            connector_eligibility_reference_id: None,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
             status,
             error_message: payout_webhook_details.error_message,
@@ -1635,23 +1339,26 @@ async fn payout_incoming_webhook_update_status(
             unified_code: None,
             unified_message: None,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+            active_frm_id: None,
         }
     } else {
         PayoutAttemptUpdate::StatusUpdate {
+            connector_eligibility_reference_id: None,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
             status,
             error_message: None,
             error_code: None,
-            is_eligible: payout_attempt.is_eligible,
+            is_eligible: payout_data.payout_attempt.is_eligible,
             unified_code: None,
             unified_message: None,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+            active_frm_id: None,
         }
     };
 
     let updated_payout_attempt = db
         .update_payout_attempt(
-            &payout_attempt,
+            payout_attempt,
             payout_attempt_update,
             &payout_data.payouts,
             platform.get_processor().get_account().storage_scheme,
@@ -1673,10 +1380,17 @@ async fn payout_incoming_webhook_update_status(
         let payout_create_response =
             payouts::response_handler(&state, &platform, payout_data).await?;
 
+        let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+            &state,
+            &platform,
+            &business_profile,
+            payout_data.payouts.created_by.as_ref(),
+        )
+        .await?;
+
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
             platform,
-            business_profile,
             outgoing_event_type,
             enums::EventClass::Payouts,
             payout_data
@@ -1687,6 +1401,9 @@ async fn payout_incoming_webhook_update_status(
             enums::EventObjectType::PayoutDetails,
             api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
             Some(payout_data.payout_attempt.created_at),
+            webhook_recipient,
+            None,
+            business_profile,
         ))
         .await?;
     }
@@ -1697,23 +1414,24 @@ async fn payout_incoming_webhook_update_status(
     })
 }
 
+// source verified = false
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 async fn payout_incoming_webhook_retrieve_status(
     state: SessionState,
     platform: domain::Platform,
-    payout_attempt: PayoutAttempt,
+    business_profile: domain::Profile,
     payout_data: &mut payouts::PayoutData,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
     // Form connector data
-    let connector_data = match &payout_attempt.connector {
+    let connector_data = match &payout_data.payout_attempt.connector {
         Some(connector) => ConnectorData::get_payout_connector_by_name(
             &state.conf.connectors,
             connector,
             GetToken::Connector,
-            payout_attempt.merchant_connector_id.clone(),
+            payout_data.payout_attempt.merchant_connector_id.clone(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get the connector data")?,
@@ -1721,7 +1439,7 @@ async fn payout_incoming_webhook_retrieve_status(
             "Connector not found in payout_attempt - should not reach here.".to_string(),
         ))
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable("Connector not found for payout fulfillment")?,
     };
@@ -1729,11 +1447,46 @@ async fn payout_incoming_webhook_retrieve_status(
     Box::pin(payouts::create_payout_retrieve(
         &state,
         &platform,
+        HeaderPayload::default(),
         &connector_data,
         payout_data,
     ))
     .await
     .attach_printable("Payout retrieval failed for given Payout request")?;
+
+    let event_type: Option<enums::EventType> = payout_data.payout_attempt.status.into();
+
+    // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
+    if let Some(outgoing_event_type) = event_type {
+        let payout_response = payouts::response_handler(&state, &platform, payout_data).await?;
+
+        let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+            &state,
+            &platform,
+            &business_profile,
+            payout_data.payouts.created_by.as_ref(),
+        )
+        .await?;
+
+        Box::pin(super::create_event_and_trigger_outgoing_webhook(
+            state,
+            platform,
+            outgoing_event_type,
+            enums::EventClass::Payouts,
+            payout_data
+                .payout_attempt
+                .payout_id
+                .get_string_repr()
+                .to_string(),
+            enums::EventObjectType::PayoutDetails,
+            api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_response)),
+            Some(payout_data.payout_attempt.created_at),
+            webhook_recipient,
+            None,
+            business_profile,
+        ))
+        .await?;
+    }
 
     Ok(WebhookResponseTracker::Payout {
         payout_id: payout_data.payout_attempt.payout_id.clone(),
@@ -1756,7 +1509,7 @@ async fn relay_refunds_incoming_webhook_flow(
             webhooks::RefundIdType::RefundId(refund_id) => {
                 let relay_id = common_utils::id_type::RelayId::from_str(&refund_id)
                     .change_context(errors::ValidationError::IncorrectValueProvided {
-                        field_name: "relay_id",
+                        field_name: "relay_id".into(),
                     })
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -1837,13 +1590,14 @@ async fn refunds_incoming_webhook_flow(
     connector_name: &str,
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
+    webhook_resource_data: Option<WebhookResourceData>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let db = &*state.store;
     //find refund by connector refund id
     let refund = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::RefundId(refund_id_type) => match refund_id_type {
             webhooks::RefundIdType::RefundId(id) => db
-                .find_refund_by_merchant_id_refund_id(
+                .find_refund_by_processor_merchant_id_refund_id(
                     platform.get_processor().get_account().get_id(),
                     &id,
                     platform.get_processor().get_account().storage_scheme,
@@ -1852,7 +1606,7 @@ async fn refunds_incoming_webhook_flow(
                 .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
                 .attach_printable("Failed to fetch the refund")?,
             webhooks::RefundIdType::ConnectorRefundId(id) => db
-                .find_refund_by_merchant_id_connector_refund_id_connector(
+                .find_refund_by_processor_merchant_id_connector_refund_id_connector(
                     platform.get_processor().get_account().get_id(),
                     &id,
                     connector_name,
@@ -1905,22 +1659,69 @@ async fn refunds_incoming_webhook_flow(
         .attach_printable_lazy(|| format!("Failed while updating refund: refund_id: {refund_id}"))?
         .0
     };
+
+    let payment_intent = db
+        .find_payment_intent_by_payment_id_processor_merchant_id(
+            &refund.payment_id,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed to find payment intent for payment_id: {:?}",
+                refund.payment_id
+            )
+        })?;
+    let state_task = state.clone();
+    let processor_task = platform.get_processor().clone();
+    let payment_intent_task = payment_intent.clone();
+    let state_metadata_update = async move {
+        if let Err(err) = PaymentIntentStateMetadataExt::from(
+            payment_intent_task
+                .state_metadata
+                .clone()
+                .unwrap_or_default(),
+        )
+        .update_intent_state_metadata_for_refund(&state_task, &processor_task, payment_intent_task)
+        .await
+        {
+            tracing::error!(?err, "Failed to update intent state metadata for refund");
+        }
+    };
+    tokio::spawn(state_metadata_update.in_current_span());
+
     let event_type: Option<enums::EventType> = updated_refund.refund_status.into();
 
     // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
     if let Some(outgoing_event_type) = event_type {
         let refund_response: api_models::refunds::RefundResponse =
             updated_refund.clone().foreign_into();
+        let refund_created_by = updated_refund
+            .created_by
+            .as_deref()
+            .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok());
+        let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+            &state,
+            &platform,
+            &business_profile,
+            refund_created_by.as_ref(),
+        )
+        .await?;
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
             platform,
-            business_profile,
             outgoing_event_type,
             enums::EventClass::Refunds,
             refund_id,
             enums::EventObjectType::RefundDetails,
             api::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
             Some(updated_refund.created_at),
+            webhook_recipient,
+            webhook_resource_data,
+            business_profile,
         ))
         .await?;
     }
@@ -1960,6 +1761,7 @@ async fn relay_incoming_webhook_flow(
         | webhooks::WebhookFlow::ReturnResponse
         | webhooks::WebhookFlow::BankTransfer
         | webhooks::WebhookFlow::Mandate
+        | webhooks::WebhookFlow::AssociatedDataUpdate
         | webhooks::WebhookFlow::Setup
         | webhooks::WebhookFlow::ExternalAuthentication
         | webhooks::WebhookFlow::FraudCheck => Err(errors::ApiErrorResponse::NotSupported {
@@ -1972,34 +1774,25 @@ async fn relay_incoming_webhook_flow(
 pub async fn get_payment_attempt_from_object_reference_id(
     state: &SessionState,
     object_reference_id: webhooks::ObjectReferenceId,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
 ) -> CustomResult<PaymentAttempt, errors::ApiErrorResponse> {
     let db = &*state.store;
     match object_reference_id {
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(ref id)) => db
-            .find_payment_attempt_by_merchant_id_connector_txn_id(
-                platform.get_processor().get_account().get_id(),
+            .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
+                processor.get_account().get_id(),
                 id,
-                platform.get_processor().get_account().storage_scheme,
-                platform.get_processor().get_key_store(),
+                processor.get_account().storage_scheme,
+                processor.get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::PaymentAttemptId(ref id)) => db
-            .find_payment_attempt_by_attempt_id_merchant_id(
+            .find_payment_attempt_by_attempt_id_processor_merchant_id(
                 id,
-                platform.get_processor().get_account().get_id(),
-                platform.get_processor().get_account().storage_scheme,
-                platform.get_processor().get_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
-        api::ObjectReferenceId::PaymentId(api::PaymentIdType::PreprocessingId(ref id)) => db
-            .find_payment_attempt_by_preprocessing_id_merchant_id(
-                id,
-                platform.get_processor().get_account().get_id(),
-                platform.get_processor().get_account().storage_scheme,
-                platform.get_processor().get_key_store(),
+                processor.get_account().get_id(),
+                processor.get_account().storage_scheme,
+                processor.get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
@@ -2013,14 +1806,25 @@ pub async fn get_or_update_dispute_object(
     state: SessionState,
     option_dispute: Option<diesel_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
-    merchant_id: &common_utils::id_type::MerchantId,
-    organization_id: &common_utils::id_type::OrganizationId,
+    platform: &domain::Platform,
     payment_attempt: &PaymentAttempt,
     dispute_status: common_enums::enums::DisputeStatus,
     business_profile: &domain::Profile,
     connector_name: &str,
 ) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
     let db = &*state.store;
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+    let incoming_dispute_stage = dispute_details.dispute_stage;
+    let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
+        dispute_stage: dispute_details.dispute_stage,
+        dispute_status,
+        connector_status: dispute_details.connector_status.clone(),
+        connector_reason: dispute_details.connector_reason.clone(),
+        connector_reason_code: dispute_details.connector_reason_code.clone(),
+        challenge_required_by: dispute_details.challenge_required_by,
+        connector_updated_at: dispute_details.updated_at,
+        additional_details: dispute_details.additional_details.clone(),
+    };
     match option_dispute {
         None => {
             metrics::INCOMING_DISPUTE_WEBHOOK_NEW_RECORD_METRIC.add(1, &[]);
@@ -2034,7 +1838,7 @@ pub async fn get_or_update_dispute_object(
                 payment_id: payment_attempt.payment_id.to_owned(),
                 connector: connector_name.to_owned(),
                 attempt_id: payment_attempt.attempt_id.to_owned(),
-                merchant_id: merchant_id.to_owned(),
+                merchant_id: platform.get_provider().get_account().get_id().to_owned(),
                 connector_status: dispute_details.connector_status,
                 connector_dispute_id: dispute_details.connector_dispute_id,
                 connector_reason: dispute_details.connector_reason,
@@ -2043,7 +1847,7 @@ pub async fn get_or_update_dispute_object(
                 connector_created_at: dispute_details.created_at,
                 connector_updated_at: dispute_details.updated_at,
                 profile_id: Some(business_profile.get_id().to_owned()),
-                evidence: None,
+                evidence: Secret::new(serde_json::json!({})),
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 dispute_amount: StringMinorUnitForConnector::convert_back(
                     &StringMinorUnitForConnector,
@@ -2055,40 +1859,102 @@ pub async fn get_or_update_dispute_object(
                         amount_type: "MinorUnit",
                     },
                 )?,
-                organization_id: organization_id.clone(),
+                organization_id: platform
+                    .get_processor()
+                    .get_account()
+                    .organization_id
+                    .clone(),
                 dispute_currency: Some(dispute_details.currency),
+                processor_merchant_id: Some(
+                    platform.get_processor().get_account().get_id().to_owned(),
+                ),
+                created_by: payment_attempt
+                    .created_by
+                    .as_ref()
+                    .map(|created_by| created_by.to_string()),
+                created_at: common_utils::date_time::now(),
+                modified_at: common_utils::date_time::now(),
+                additional_details: dispute_details.additional_details,
             };
-            state
+            let connector_dispute_id = new_dispute.connector_dispute_id.clone();
+            match state
                 .store
-                .insert_dispute(new_dispute.clone())
+                .insert_dispute(new_dispute.clone(), storage_scheme)
                 .await
-                .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+            {
+                Ok(dispute) => Ok(dispute),
+                Err(error) if error.current_context().is_db_unique_violation() => {
+                    logger::info!(
+                        "Dispute insert hit a duplicate, updating the concurrently created dispute"
+                    );
+                    metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(1, &[]);
+                    let existing_dispute = db
+                        .find_by_processor_merchant_id_payment_id_connector_dispute_id(
+                            platform.get_processor().get_account().get_id(),
+                            &payment_attempt.payment_id,
+                            &connector_dispute_id,
+                            storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?;
+                    match existing_dispute {
+                        Some(dispute) => {
+                            validate_and_update_dispute_object(
+                                db,
+                                dispute,
+                                incoming_dispute_stage,
+                                dispute_status,
+                                update_dispute,
+                                storage_scheme,
+                            )
+                            .await
+                        }
+                        None => Err(error)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "dispute insert reported a duplicate but no dispute exists for the connector dispute id",
+                            ),
+                    }
+                }
+                Err(error) => Err(error)
+                    .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
+            }
         }
         Some(dispute) => {
             logger::info!("Dispute Already exists, Updating the dispute details");
             metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(1, &[]);
-            core_utils::validate_dispute_stage_and_dispute_status(
-                dispute.dispute_stage,
-                dispute.dispute_status,
-                dispute_details.dispute_stage,
+            validate_and_update_dispute_object(
+                db,
+                dispute,
+                incoming_dispute_stage,
                 dispute_status,
+                update_dispute,
+                storage_scheme,
             )
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("dispute stage and status validation failed")?;
-            let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
-                dispute_stage: dispute_details.dispute_stage,
-                dispute_status,
-                connector_status: dispute_details.connector_status,
-                connector_reason: dispute_details.connector_reason,
-                connector_reason_code: dispute_details.connector_reason_code,
-                challenge_required_by: dispute_details.challenge_required_by,
-                connector_updated_at: dispute_details.updated_at,
-            };
-            db.update_dispute(dispute, update_dispute)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+            .await
         }
     }
+}
+
+async fn validate_and_update_dispute_object(
+    db: &dyn crate::db::StorageInterface,
+    dispute: diesel_models::dispute::Dispute,
+    incoming_dispute_stage: common_enums::DisputeStage,
+    incoming_dispute_status: common_enums::enums::DisputeStatus,
+    update_dispute: diesel_models::dispute::DisputeUpdate,
+    storage_scheme: enums::MerchantStorageScheme,
+) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
+    core_utils::validate_dispute_stage_and_dispute_status(
+        dispute.dispute_stage,
+        dispute.dispute_status,
+        incoming_dispute_stage,
+        incoming_dispute_status,
+    )
+    .change_context(errors::ApiErrorResponse::WebhookBadRequest)
+    .attach_printable("dispute stage and status validation failed")?;
+    db.update_dispute(dispute, update_dispute, storage_scheme)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2105,12 +1971,13 @@ async fn external_authentication_incoming_webhook_flow(
     business_profile: domain::Profile,
     merchant_connector_account: domain::MerchantConnectorAccount,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let key_manager_state = (&state).into();
     if source_verified {
         let authentication_details = connector
             .get_external_authentication_details(request_details)
             .switch()?;
         let trans_status = authentication_details.trans_status;
-        let authentication_update = storage::AuthenticationUpdate::PostAuthenticationUpdate {
+        let authentication_update = hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
             authentication_status: common_enums::AuthenticationStatus::foreign_from(
                 trans_status.clone(),
             ),
@@ -2118,6 +1985,7 @@ async fn external_authentication_incoming_webhook_flow(
             eci: authentication_details.eci,
             challenge_cancel: authentication_details.challenge_cancel,
             challenge_code_reason: authentication_details.challenge_code_reason,
+            updated_by: platform.get_processor().get_account().storage_scheme.to_string(),
         };
         let authentication =
             if let webhooks::ObjectReferenceId::ExternalAuthenticationID(authentication_id_type) =
@@ -2126,9 +1994,12 @@ async fn external_authentication_incoming_webhook_flow(
                 match authentication_id_type {
                     webhooks::AuthenticationIdType::AuthenticationId(authentication_id) => state
                         .store
-                        .find_authentication_by_merchant_id_authentication_id(
+                        .find_authentication_by_processor_merchant_id_authentication_id(
                             platform.get_processor().get_account().get_id(),
                             &authentication_id,
+                            platform.get_processor().get_key_store(),
+                            &key_manager_state,
+                            platform.get_processor().get_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
@@ -2139,9 +2010,12 @@ async fn external_authentication_incoming_webhook_flow(
                         connector_authentication_id,
                     ) => state
                         .store
-                        .find_authentication_by_merchant_id_connector_authentication_id(
+                        .find_authentication_by_processor_merchant_id_connector_authentication_id(
                             platform.get_processor().get_account().get_id().clone(),
                             connector_authentication_id.clone(),
+                            platform.get_processor().get_key_store(),
+                            &key_manager_state,
+                            platform.get_processor().get_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
@@ -2154,24 +2028,18 @@ async fn external_authentication_incoming_webhook_flow(
                     "received a non-external-authentication id for retrieving authentication",
                 )
             }?;
-        let updated_authentication = state
-            .store
-            .update_authentication_by_merchant_id_authentication_id(
-                authentication,
-                authentication_update,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while updating authentication")?;
 
+        // Store the authentication value before publishing the successful authentication state.
+        // Otherwise, the browser callback can observe `Success` and attempt authorization before
+        // the CAVV is available in Redis.
         authentication_details
             .authentication_value
             .async_map(|auth_val| {
-                payment_methods::vault::create_tokenize(
+                payment_methods::vault::create_tokenize_without_configurable_expiry(
                     &state,
                     auth_val.expose(),
                     None,
-                    updated_authentication
+                    authentication
                         .authentication_id
                         .clone()
                         .get_string_repr()
@@ -2181,6 +2049,20 @@ async fn external_authentication_incoming_webhook_flow(
             })
             .await
             .transpose()?;
+
+        let updated_authentication = state
+            .store
+            .update_authentication_by_processor_merchant_id_authentication_id(
+                authentication,
+                authentication_update,
+                platform.get_processor().get_key_store(),
+                &key_manager_state,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while updating authentication")?;
+
         // Check if it's a payment authentication flow, payment_id would be there only for payment authentication flows
         if let Some(payment_id) = updated_authentication.payment_id {
             let is_pull_mechanism_enabled = helper_utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(merchant_connector_account.metadata.map(|metadata| metadata.expose()));
@@ -2190,34 +2072,155 @@ async fn external_authentication_incoming_webhook_flow(
                     == Some(common_enums::DecoupledAuthenticationType::Challenge)
                 && event_type == webhooks::IncomingWebhookEvent::ExternalAuthenticationARes
             {
+                let payment_intent = state
+                    .store
+                    .find_payment_intent_by_payment_id_processor_merchant_id(
+                        &payment_id,
+                        platform.get_processor().get_account().get_id(),
+                        platform.get_processor().get_key_store(),
+                        platform.get_processor().get_account().storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
                 let payment_confirm_req = api::PaymentsRequest {
                     payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
-                        payment_id,
+                        payment_intent.payment_id.clone(),
                     )),
-                    merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+                    merchant_id: Some(processor_merchant_id.clone()),
                     ..Default::default()
                 };
-                let payments_response = Box::pin(payments::payments_core::<
-                    api::Authorize,
-                    api::PaymentsResponse,
-                    _,
-                    _,
-                    _,
-                    payments::PaymentData<api::Authorize>,
-                >(
-                    state.clone(),
-                    req_state,
-                    platform.clone(),
-                    None,
-                    payments::PaymentConfirm,
-                    payment_confirm_req,
-                    services::api::AuthFlow::Merchant,
-                    payments::CallConnectorAction::Trigger,
-                    None,
-                    None,
-                    HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
-                ))
+                let is_setup_mandate = payment_intent.is_setup_mandate();
+                let provider_business_profile = payments::helpers::resolve_provider_profile(
+                    &state,
+                    &platform,
+                    &business_profile,
+                )
                 .await?;
+                let attempt_id = payment_intent.active_attempt.get_id().clone();
+                let payment_attempt = state
+                    .store
+                    .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                        &payment_intent.payment_id,
+                        &processor_merchant_id,
+                        &attempt_id,
+                        platform.get_processor().get_account().storage_scheme,
+                        platform.get_processor().get_key_store(),
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                // A merchant with external vault enabled can still accept a plain (non-proxied)
+                // card for an individual payment — probe whether this payment's payment_token
+                // actually resolves to a vault alias before committing to the proxy resume path.
+                let is_external_vault_payment = provider_business_profile
+                    .external_vault_details
+                    .is_external_vault_enabled()
+                    && match payment_attempt.payment_token.as_ref() {
+                        Some(token) => payments::read_external_vault_alias_from_temp_locker(
+                            &state,
+                            token,
+                            platform.get_processor().get_key_store(),
+                        )
+                        .await
+                        .is_ok(),
+                        None => false,
+                    };
+                let payments_response = if is_external_vault_payment {
+                    // External-vault-proxy payment: resume through the same proxy confirm
+                    // operation the normal confirm flow used (`PaymentExternalVaultProxyConfirm`
+                    // via `external_vault_proxy_for_payments_core`), instead of `payments_core`'s
+                    // `Authorize`/`SetupMandate` — mirrors the two branches below structurally.
+                    let payment_token = payment_attempt
+                        .payment_token
+                        .clone()
+                        .get_required_value("payment_token")
+                        .attach_printable(
+                            "payment_token missing on attempt for external vault 3DS webhook authorize",
+                        )?;
+                    // No `payment_method_data` is sent: `payment_token` alone points at the
+                    // temp-generic vault alias minted during pre-authentication, which
+                    // `PaymentExternalVaultProxyConfirm::get_trackers` resolves the same way the
+                    // AReq step already did (`read_external_vault_alias_from_temp_locker`) — this
+                    // payment used the inline `vault_data_card` shape at the original confirm,
+                    // not a saved `VaultCardTokenData` card, so there is nothing to fetch from
+                    // the modular PM service here.
+                    let external_vault_req = api::PaymentsRequest {
+                        payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
+                            payment_intent.payment_id.clone(),
+                        )),
+                        merchant_id: Some(processor_merchant_id.clone()),
+                        payment_token: Some(payment_token),
+                        payment_method: Some(common_enums::PaymentMethod::Card),
+                        payment_method_type: payment_attempt.payment_method_type,
+                        ..Default::default()
+                    };
+                    Box::pin(payments::external_vault_proxy_for_payments_core::<
+                        api::ExternalVaultProxy,
+                        api::PaymentsResponse,
+                        _,
+                        _,
+                        _,
+                        payments::PaymentData<api::ExternalVaultProxy>,
+                    >(
+                        state.clone(),
+                        req_state,
+                        platform.clone(),
+                        payment_intent.profile_id.clone(),
+                        payments::PaymentExternalVaultProxyConfirm,
+                        external_vault_req,
+                        services::api::AuthFlow::Merchant,
+                        payments::CallConnectorAction::Trigger,
+                        HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                        None,
+                    ))
+                    .await?
+                } else if is_setup_mandate {
+                    Box::pin(payments::payments_core::<
+                        api::SetupMandate,
+                        api::PaymentsResponse,
+                        _,
+                        _,
+                        _,
+                        payments::PaymentData<api::SetupMandate>,
+                    >(
+                        state.clone(),
+                        req_state,
+                        platform.clone(),
+                        None,
+                        payments::PaymentConfirm,
+                        payment_confirm_req,
+                        services::api::AuthFlow::Merchant,
+                        payments::CallConnectorAction::Trigger,
+                        None,
+                        None,
+                        HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                        None,
+                    ))
+                    .await?
+                } else {
+                    Box::pin(payments::payments_core::<
+                        api::Authorize,
+                        api::PaymentsResponse,
+                        _,
+                        _,
+                        _,
+                        payments::PaymentData<api::Authorize>,
+                    >(
+                        state.clone(),
+                        req_state,
+                        platform.clone(),
+                        None,
+                        payments::PaymentConfirm,
+                        payment_confirm_req,
+                        services::api::AuthFlow::Merchant,
+                        payments::CallConnectorAction::Trigger,
+                        None,
+                        None,
+                        HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                        None,
+                    ))
+                    .await?
+                };
                 match payments_response {
                     services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
                         let payment_id = payments_response.payment_id.clone();
@@ -2245,10 +2248,17 @@ async fn external_authentication_incoming_webhook_flow(
                         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
                         if let Some(outgoing_event_type) = event_type {
                             let primary_object_created_at = payments_response.created;
+                            let webhook_recipient =
+                                utils::resolve_webhook_recipient_from_created_by(
+                                    &state,
+                                    &platform,
+                                    &business_profile,
+                                    updated_authentication.created_by.as_ref(),
+                                )
+                                .await?;
                             Box::pin(super::create_event_and_trigger_outgoing_webhook(
                                 state,
                                 platform,
-                                business_profile,
                                 outgoing_event_type,
                                 enums::EventClass::Payments,
                                 payment_id.get_string_repr().to_owned(),
@@ -2257,6 +2267,9 @@ async fn external_authentication_incoming_webhook_flow(
                                     payments_response,
                                 )),
                                 primary_object_created_at,
+                                webhook_recipient,
+                                None,
+                                business_profile,
                             ))
                             .await?;
                         };
@@ -2291,80 +2304,780 @@ async fn mandates_incoming_webhook_flow(
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
+    merchant_connector_account: domain::MerchantConnectorAccount,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    match event_type {
+        webhooks::IncomingWebhookEvent::MandateActionRequired => {
+            Ok(WebhookResponseTracker::NoEffect)
+        }
+        _ if source_verified => {
+            let db = &*state.store;
+
+            match webhook_details.object_reference_id {
+                webhooks::ObjectReferenceId::MandateId(mandate_id_type) => {
+                    let mandate = match mandate_id_type {
+                        webhooks::MandateIdType::MandateId(mandate_id) => db
+                            .find_mandate_by_merchant_id_mandate_id(
+                                platform.get_processor().get_account().get_id(),
+                                mandate_id.as_str(),
+                                platform.get_processor().get_account().storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
+                        webhooks::MandateIdType::ConnectorMandateId(connector_mandate_id) => db
+                            .find_mandate_by_merchant_id_connector_mandate_id(
+                                platform.get_processor().get_account().get_id(),
+                                connector_mandate_id.as_str(),
+                                platform.get_processor().get_account().storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
+                    };
+
+                    update_existing_mandate(state, platform, business_profile, mandate, event_type)
+                        .await
+                }
+                webhooks::ObjectReferenceId::PaymentId(
+                    api::payments::PaymentIdType::ConnectorTransactionId(connector_transaction_id),
+                ) => {
+                    Box::pin(update_connector_managed_mandate_by_connector_txn_id(
+                        state,
+                        platform,
+                        business_profile,
+                        merchant_connector_account,
+                        connector_transaction_id,
+                        event_type,
+                    ))
+                    .await
+                }
+                _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable("received a non-mandate id for retrieving mandate"),
+            }
+        }
+        _ => Err(report!(
+            errors::ApiErrorResponse::WebhookAuthenticationFailed
+        )),
+    }
+}
+
+#[instrument(skip_all)]
+async fn update_connector_managed_mandate_by_connector_txn_id(
+    state: SessionState,
+    platform: domain::Platform,
+    business_profile: domain::Profile,
+    merchant_connector_account: domain::MerchantConnectorAccount,
+    connector_transaction_id: String,
+    event_type: webhooks::IncomingWebhookEvent,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let db = &*state.store;
+    let merchant_id = platform.get_processor().get_account().get_id();
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+
+    let setup_attempt = db
+        .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
+            merchant_id,
+            connector_transaction_id.as_str(),
+            storage_scheme,
+            platform.get_processor().get_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let payment_method_id = setup_attempt
+        .payment_method_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("payment method id not found for connector managed mandate webhook")?;
+
+    let payment_method = db
+        .find_payment_method(
+            platform.get_provider().get_key_store(),
+            payment_method_id.as_str(),
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    update_payment_method_mandate_status(
+        &state,
+        &platform,
+        &business_profile,
+        payment_method,
+        &merchant_connector_account.get_id(),
+        event_type,
+    )
+    .await
+}
+
+#[instrument(skip_all)]
+async fn update_existing_mandate(
+    state: SessionState,
+    platform: domain::Platform,
+    business_profile: domain::Profile,
+    mandate: storage::Mandate,
+    event_type: webhooks::IncomingWebhookEvent,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let db = &*state.store;
+    let mandate_status = common_enums::MandateStatus::foreign_try_from(event_type)
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("event type to mandate status mapping failed")?;
+    let mandate_id = mandate.mandate_id.clone();
+    let updated_mandate = db
+        .update_mandate_by_merchant_id_mandate_id(
+            platform.get_processor().get_account().get_id(),
+            &mandate_id,
+            storage::MandateUpdate::StatusUpdate { mandate_status },
+            mandate,
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
+    let mandates_response = Box::new(
+        api::mandates::MandateResponse::from_db_mandate(
+            &state,
+            platform.get_processor().get_key_store().clone(),
+            updated_mandate.clone(),
+            platform.get_processor().get_account(),
+        )
+        .await?,
+    );
+    let event_type: Option<enums::EventType> = updated_mandate.mandate_status.into();
+    if let Some(outgoing_event_type) = event_type {
+        let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+            &state,
+            &platform,
+            &business_profile,
+            None, // Mandates do not carry created_by, default to processor
+        )
+        .await?;
+        Box::pin(super::create_event_and_trigger_outgoing_webhook(
+            state,
+            platform,
+            outgoing_event_type,
+            enums::EventClass::Mandates,
+            updated_mandate.mandate_id.clone(),
+            enums::EventObjectType::MandateDetails,
+            api::OutgoingWebhookContent::MandateDetails(mandates_response),
+            Some(updated_mandate.created_at),
+            webhook_recipient,
+            None,
+            business_profile,
+        ))
+        .await?;
+    }
+    Ok(WebhookResponseTracker::Mandate {
+        mandate_id: updated_mandate.mandate_id,
+        status: updated_mandate.mandate_status,
+    })
+}
+
+#[instrument(skip_all)]
+async fn update_payment_method_mandate_status(
+    state: &SessionState,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+    payment_method: domain::PaymentMethod,
+    merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+    event_type: webhooks::IncomingWebhookEvent,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let db = &*state.store;
+
+    let common_mandate_reference = payment_method
+        .get_common_mandate_reference()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse payment method mandate details")?;
+    let payment_method_id = payment_method.get_id().clone();
+    let payment_method_name = payment_method
+        .get_payment_method_type()
+        .map(|payment_method| payment_method.to_string())
+        .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("payment method type not found for mandate webhook")?;
+    let payment_method_type = payment_method
+        .get_payment_method_subtype()
+        .map(|payment_method_type| payment_method_type.to_string());
+    let created_at = payment_method.created_at;
+    let created_by = payment_method.created_by.clone();
+
+    let (connector_mandate_status, mandate_status, payment_method_status, tracker_status) =
+        match event_type {
+            webhooks::IncomingWebhookEvent::MandateActive => Ok((
+                ConnectorMandateStatus::Active,
+                common_enums::MandateStatus::Active,
+                Some(enums::PaymentMethodStatus::Active),
+                enums::PaymentMethodStatus::Active,
+            )),
+            webhooks::IncomingWebhookEvent::MandateRevoked => Ok((
+                ConnectorMandateStatus::Inactive,
+                common_enums::MandateStatus::Revoked,
+                None,
+                enums::PaymentMethodStatus::Inactive,
+            )),
+            _ => Err(report!(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("received a non-mandate status event")),
+        }?;
+
+    let payment_mandate_reference = common_mandate_reference
+        .payments
+        .clone()
+        .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("no payment mandate reference found for payment method")?;
+
+    let updated_mandate_details = tokenization::update_connector_mandate_details_status(
+        merchant_connector_id.clone(),
+        payment_mandate_reference,
+        connector_mandate_status,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update connector mandate details status")?;
+
+    let updated_mandate_details = updated_mandate_details
+        .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("no updated mandate details for payment method")?;
+    let connector_mandate_id = updated_mandate_details
+        .payments
+        .as_ref()
+        .and_then(|payments| payments.get(merchant_connector_id))
+        .map(|mandate_record| mandate_record.connector_mandate_id.clone())
+        .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("connector mandate id not found for payment method mandate webhook")?;
+    let connector_mandate_details_value = updated_mandate_details
+        .get_mandate_details_value()
+        .map_err(|err| {
+            router_env::logger::error!("Failed to get get_mandate_details_value : {:?}", err);
+            errors::ApiErrorResponse::MandateUpdateFailed
+        })?;
+
+    let pm_update = storage::PaymentMethodUpdate::PaymentMethodBatchUpdate {
+        connector_mandate_details: Some(Secret::new(connector_mandate_details_value)),
+        network_transaction_id: None,
+        network_transaction_link_id: None,
+        status: payment_method_status,
+        payment_method_data: None,
+        payment_method_type: None,
+        scheme: None,
+        last_modified_by: platform
+            .get_initiator()
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
+    };
+
+    db.update_payment_method(
+        platform.get_provider().get_key_store(),
+        payment_method.clone(),
+        pm_update,
+        platform.get_provider().get_account().storage_scheme,
+        None,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let outgoing_event_type: Option<enums::EventType> = mandate_status.into();
+    if let Some(outgoing_event_type) = outgoing_event_type {
+        let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+            state,
+            platform,
+            business_profile,
+            created_by.as_ref(),
+        )
+        .await?;
+        let mandate_response = api::mandates::MandateResponse {
+            mandate_id: connector_mandate_id.clone(),
+            status: mandate_status,
+            payment_method_id: payment_method_id.to_string(),
+            payment_method: payment_method_name,
+            payment_method_type,
+            card: None,
+            customer_acceptance: None,
+        };
+
+        // PM-backed mandates do not have a entry in mandate table. Use the
+        // connector mandate id as the outgoing mandate resource id so revocation
+        // webhooks are about the mandate, not one arbitrary CIT/MIT payment.
+        Box::pin(super::create_event_and_trigger_outgoing_webhook(
+            state.clone(),
+            platform.clone(),
+            outgoing_event_type,
+            enums::EventClass::Mandates,
+            connector_mandate_id,
+            enums::EventObjectType::MandateDetails,
+            api::OutgoingWebhookContent::MandateDetails(Box::new(mandate_response)),
+            Some(created_at),
+            webhook_recipient,
+            None,
+            business_profile.clone(),
+        ))
+        .await?;
+    }
+
+    Ok(WebhookResponseTracker::PaymentMethod {
+        payment_method_id,
+        status: tracker_status,
+    })
+}
+
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+async fn associated_data_incoming_webhook_flow(
+    state: SessionState,
+    platform: domain::Platform,
+    business_profile: domain::Profile,
+    webhook_details: api::IncomingWebhookDetails,
+    source_verified: bool,
+    connector: &ConnectorEnum,
+    request_details: &IncomingWebhookRequestDetails<'_>,
+    content: &super::gateway::WebhookContent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     if source_verified {
-        let db = &*state.store;
-        let mandate = match webhook_details.object_reference_id {
-            webhooks::ObjectReferenceId::MandateId(webhooks::MandateIdType::MandateId(
-                mandate_id,
-            )) => db
-                .find_mandate_by_merchant_id_mandate_id(
-                    platform.get_processor().get_account().get_id(),
-                    mandate_id.as_str(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
-            webhooks::ObjectReferenceId::MandateId(
-                webhooks::MandateIdType::ConnectorMandateId(connector_mandate_id),
-            ) => db
-                .find_mandate_by_merchant_id_connector_mandate_id(
-                    platform.get_processor().get_account().get_id(),
-                    connector_mandate_id.as_str(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
-            _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("received a non-mandate id for retrieving mandate")?,
+        let associated_data = match content {
+            super::gateway::WebhookContent::Direct(_) => connector
+                .get_associated_data(request_details)
+                .switch()
+                .attach_printable("Could not find associated data in incoming webhook body")?,
+            super::gateway::WebhookContent::UnifiedConnectorService(bytes) => {
+                associated_data_from_ucs_event_content(bytes)?
+            }
         };
-        let mandate_status = common_enums::MandateStatus::foreign_try_from(event_type)
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("event type to mandate status mapping failed")?;
-        let mandate_id = mandate.mandate_id.clone();
-        let updated_mandate = db
-            .update_mandate_by_merchant_id_mandate_id(
-                platform.get_processor().get_account().get_id(),
-                &mandate_id,
-                storage::MandateUpdate::StatusUpdate { mandate_status },
-                mandate,
-                platform.get_processor().get_account().storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
-        let mandates_response = Box::new(
-            api::mandates::MandateResponse::from_db_mandate(
-                &state,
-                platform.get_processor().get_key_store().clone(),
-                updated_mandate.clone(),
-                platform.get_processor().get_account(),
-            )
-            .await?,
-        );
-        let event_type: Option<enums::EventType> = updated_mandate.mandate_status.into();
-        if let Some(outgoing_event_type) = event_type {
-            Box::pin(super::create_event_and_trigger_outgoing_webhook(
-                state,
-                platform,
-                business_profile,
-                outgoing_event_type,
-                enums::EventClass::Mandates,
-                updated_mandate.mandate_id.clone(),
-                enums::EventObjectType::MandateDetails,
-                api::OutgoingWebhookContent::MandateDetails(mandates_response),
-                Some(updated_mandate.created_at),
-            ))
-            .await?;
+
+        match associated_data {
+            Some(associated_data) => {
+                let processor = platform.get_processor();
+                let merchant_id = processor.get_account().get_id().to_owned();
+
+                // Resolve the payment once to derive the locking key.
+                let payment_id = get_payment_attempt_from_object_reference_id(
+                    &state,
+                    webhook_details.object_reference_id.clone(),
+                    processor,
+                )
+                .await?
+                .payment_id;
+
+                let payment_intent = state
+                    .store
+                    .find_payment_intent_by_payment_id_processor_merchant_id(
+                        &payment_id,
+                        &merchant_id,
+                        processor.get_key_store(),
+                        processor.get_account().storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                let lock_action = api_locking::LockAction::Hold {
+                    input: api_locking::LockingInput {
+                        unique_locking_key: payment_id.get_string_repr().to_owned(),
+                        api_identifier: lock_utils::ApiIdentifier::Payments,
+                        override_lock_retries: None,
+                    },
+                };
+                lock_action
+                    .clone()
+                    .perform_locking_action(&state, merchant_id.clone())
+                    .await?;
+
+                let payment_attempt = get_payment_attempt_from_object_reference_id(
+                    &state,
+                    webhook_details.object_reference_id.clone(),
+                    processor,
+                )
+                .await?;
+
+                let merchant_connector_id = payment_attempt.merchant_connector_id.clone();
+
+                let payment_method_update_result = Box::pin(update_payment_method_associated_data(
+                    &state,
+                    &platform,
+                    &business_profile,
+                    &payment_attempt,
+                    &payment_intent,
+                    merchant_connector_id,
+                    associated_data.payment_method,
+                ))
+                .await;
+
+                let attempt_update_result = match payment_method_update_result
+                    .as_ref()
+                    .ok()
+                    .and_then(|payment_method_id| payment_method_id.clone())
+                    .filter(|_| payment_attempt.payment_method_id.is_none())
+                {
+                    Some(payment_method_id) => {
+                        let attempt_update =
+                            storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                                payment_method_id: Some(payment_method_id),
+                                updated_by: processor.get_account().storage_scheme.to_string(),
+                            };
+
+                        match state
+                            .store
+                            .update_payment_attempt_with_attempt_id(
+                                payment_attempt,
+                                attempt_update,
+                                processor.get_account().storage_scheme,
+                                processor.get_key_store(),
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+                        {
+                            Ok(payment_attempt) => {
+                                update_payment_attempt_associated_data(
+                                    &state,
+                                    processor,
+                                    payment_attempt,
+                                    associated_data.payment_attempt,
+                                )
+                                .await
+                            }
+                            Err(error) => Err(error),
+                        }
+                    }
+                    None => {
+                        update_payment_attempt_associated_data(
+                            &state,
+                            processor,
+                            payment_attempt,
+                            associated_data.payment_attempt,
+                        )
+                        .await
+                    }
+                };
+
+                lock_action
+                    .free_lock_action(&state, merchant_id.clone())
+                    .await?;
+
+                payment_method_update_result?;
+                attempt_update_result?;
+
+                Ok(WebhookResponseTracker::Payment {
+                    payment_id,
+                    status: payment_intent.status,
+                })
+            }
+            // Acknowledge webhooks that carry nothing to write so the connector does not retry them.
+            None => {
+                logger::info!("No associated data in incoming webhook body, skipping update");
+                Ok(WebhookResponseTracker::NoEffect)
+            }
         }
-        Ok(WebhookResponseTracker::Mandate {
-            mandate_id: updated_mandate.mandate_id,
-            status: updated_mandate.mandate_status,
-        })
     } else {
-        logger::error!("Webhook source verification failed for mandates webhook flow");
+        logger::error!("Webhook source verification failed for associated data webhook flow");
         Err(report!(
             errors::ApiErrorResponse::WebhookAuthenticationFailed
         ))
+    }
+}
+
+fn associated_data_from_ucs_event_content(
+    bytes: &[u8],
+) -> CustomResult<Option<WebhookAssociatedData>, errors::ApiErrorResponse> {
+    let event_content: payments_grpc::EventContent = serde_json::from_slice(bytes)
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("Failed to deserialize unified connector service event content")?;
+
+    let payments_response = get_payments_response_from_ucs_webhook_content(event_content)
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable(
+            "Failed to read the payments response from unified connector service event content",
+        )?;
+
+    let payment_method = payments_response
+        .connector_returned_payment_method_details
+        .map(domain::PaymentMethodData::foreign_try_from)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable(
+            "Failed to convert the connector returned payment method details in the unified connector service event content",
+        )?;
+
+    let associated_data = WebhookAssociatedData {
+        payment_attempt: PaymentAttemptAssociatedData {
+            sender_payment_instrument_id: payments_response
+                .sender_payment_instrument_id
+                .map(Secret::new),
+        },
+        payment_method,
+    };
+
+    if associated_data.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(associated_data))
+}
+
+async fn resolve_payment_method_for_associated_data(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_attempt: &PaymentAttempt,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+    billing_address_id: Option<&str>,
+    connector_disclosed_details: &domain::PaymentMethodData,
+) -> CustomResult<Option<domain::PaymentMethod>, errors::ApiErrorResponse> {
+    match (
+        connector_disclosed_details.get_payment_method_vaulting_data(),
+        customer_id,
+        payment_attempt.customer_acceptance.clone(),
+    ) {
+        (
+            Some(
+                vaulting_data @ PaymentMethodVaultingData::BankRedirect(
+                    domain::BankRedirectDetail::Trustly { .. },
+                ),
+            ),
+            Some(customer_id),
+            Some(customer_acceptance),
+        ) => {
+            let provider = platform.get_provider();
+
+            // Trustly resolves the instrument reference itself, so only its fingerprint is needed.
+            // The payment method has no locker entry to point at.
+            let locker_fingerprint_id = cards::get_vault_fingerprint(
+                state,
+                provider.get_account().get_id(),
+                customer_id,
+                &vaulting_data,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to derive the fingerprint for the disclosed instrument")?;
+
+            let existing_payment_method = payment_response::find_payment_method_by_fingerprint(
+                state,
+                provider.get_key_store(),
+                &locker_fingerprint_id,
+            )
+            .await;
+
+            match existing_payment_method {
+                Some(existing_payment_method) => {
+                    cards::update_last_used_at(
+                        &existing_payment_method,
+                        state,
+                        provider.get_account().storage_scheme,
+                        provider.get_key_store(),
+                    )
+                    .await
+                    .map_err(|error| {
+                        logger::error!(?error, "Failed to update last used at");
+                    })
+                    .ok();
+
+                    logger::info!(
+                        payment_method_id = %existing_payment_method.get_id(),
+                        "Reusing the payment method the customer already saved for this instrument"
+                    );
+
+                    Ok(Some(existing_payment_method))
+                }
+                None => {
+                    let billing_address = match payment_attempt
+                        .payment_method_billing_address_id
+                        .as_deref()
+                        .or(billing_address_id)
+                    {
+                        Some(address_id) => state
+                            .store
+                            .find_address_by_address_id(address_id, provider.get_key_store())
+                            .await
+                            .map_err(|error| {
+                                logger::info!(
+                                    ?error,
+                                    "Could not read the billing address, creating the payment method without it"
+                                );
+                            })
+                            .ok()
+                            .as_ref()
+                            .map(From::from),
+                        None => None,
+                    };
+
+                    let payment_method = payment_response::insert_deferred_payment_method(
+                        state,
+                        platform,
+                        customer_id,
+                        customer_acceptance,
+                        payment_attempt.payment_method,
+                        payment_attempt.payment_method_type,
+                        billing_address,
+                        None,
+                        Some(locker_fingerprint_id),
+                    )
+                    .await?;
+
+                    logger::info!(
+                        payment_method_id = %payment_method.get_id(),
+                        "Created the payment method for the instrument the connector disclosed"
+                    );
+
+                    Ok(Some(payment_method))
+                }
+            }
+        }
+        (Some(_), None, _) | (Some(_), _, None) => {
+            logger::info!(
+                "Connector disclosed an instrument with nothing to save it against, skipping the payment method"
+            );
+            Ok(None)
+        }
+        _ => Ok(None),
+    }
+}
+
+async fn update_payment_method_associated_data(
+    state: &SessionState,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+    payment_attempt: &PaymentAttempt,
+    payment_intent: &PaymentIntent,
+    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    connector_disclosed_details: Option<domain::PaymentMethodData>,
+) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
+    match connector_disclosed_details {
+        Some(connector_disclosed_details) => {
+            let provider = platform.get_provider();
+
+            let payment_method = match payment_attempt.payment_method_id.as_deref() {
+                Some(payment_method_id) => Some(
+                    state
+                        .store
+                        .find_payment_method(
+                            provider.get_key_store(),
+                            payment_method_id,
+                            provider.get_account().storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?,
+                ),
+                None => {
+                    resolve_payment_method_for_associated_data(
+                        state,
+                        platform,
+                        payment_attempt,
+                        payment_intent.customer_id.as_ref(),
+                        payment_intent.billing_address_id.as_deref(),
+                        &connector_disclosed_details,
+                    )
+                    .await?
+                }
+            };
+
+            match payment_method {
+                Some(payment_method) => {
+                    let payment_method_id = payment_method.get_id().clone();
+
+                    let payment_method_update =
+                        cards::prepare_payment_method_update_from_connector_details(
+                            state,
+                            platform,
+                            &payment_method,
+                            merchant_connector_id,
+                            &connector_disclosed_details,
+                            business_profile,
+                        )
+                        .await?;
+
+                    let compat_action =
+                        payment_methods::payment_method_modular_forward_compat_action(
+                            state,
+                            &payment_method.merchant_id,
+                            &provider.get_account().organization_id,
+                            payment_method.customer_id.as_ref(),
+                        )
+                        .await;
+
+                    state
+                        .store
+                        .update_payment_method(
+                            provider.get_key_store(),
+                            payment_method,
+                            payment_method_update,
+                            provider.get_account().storage_scheme,
+                            compat_action,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to write the associated bank redirect details to the payment method",
+                        )?;
+
+                    Ok(Some(payment_method_id))
+                }
+                None => {
+                    logger::info!(
+                        "No payment method to write the connector returned instrument to, skipping the update"
+                    );
+                    Ok(None)
+                }
+            }
+        }
+        None => Ok(None),
+    }
+}
+
+fn resolve_write_once_field(
+    stored: Option<&str>,
+    incoming: Option<&str>,
+    field_name: &'static str,
+    payment_id: &common_utils::id_type::PaymentId,
+) -> Option<String> {
+    match (stored, incoming) {
+        (None, Some(incoming)) => Some(incoming.to_owned()),
+        (Some(stored), Some(incoming)) if stored != incoming => {
+            logger::warn!(
+                payment_id = ?payment_id,
+                field = field_name,
+                "Received associated data that differs from the stored value, retaining the stored value"
+            );
+            None
+        }
+        _ => None,
+    }
+}
+
+/// Writes associated data onto the payment attempt.
+async fn update_payment_attempt_associated_data(
+    state: &SessionState,
+    processor: &domain::Processor,
+    payment_attempt: PaymentAttempt,
+    associated_data: PaymentAttemptAssociatedData,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let sender_payment_instrument_id = resolve_write_once_field(
+        payment_attempt.sender_payment_instrument_id.as_deref(),
+        associated_data
+            .sender_payment_instrument_id
+            .as_ref()
+            .map(|id| id.peek().as_str()),
+        "sender_payment_instrument_id",
+        &payment_attempt.payment_id,
+    );
+
+    match sender_payment_instrument_id {
+        Some(sender_payment_instrument_id) => {
+            let attempt_update = storage::PaymentAttemptUpdate::AssociatedDataUpdate {
+                sender_payment_instrument_id: Some(sender_payment_instrument_id),
+                updated_by: processor.get_account().storage_scheme.to_string(),
+            };
+
+            state
+                .store
+                .update_payment_attempt_with_attempt_id(
+                    payment_attempt,
+                    attempt_update,
+                    processor.get_account().storage_scheme,
+                    processor.get_key_store(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            Ok(())
+        }
+        None => {
+            logger::info!(
+                "No new associated data to write to the payment attempt, skipping update"
+            );
+            Ok(())
+        }
     }
 }
 
@@ -2380,8 +3093,12 @@ async fn frm_incoming_webhook_flow(
     business_profile: domain::Profile,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     if source_verified {
-        let payment_attempt =
-            get_payment_attempt_from_object_reference_id(&state, object_ref_id, &platform).await?;
+        let payment_attempt = get_payment_attempt_from_object_reference_id(
+            &state,
+            object_ref_id,
+            platform.get_processor(),
+        )
+        .await?;
         let payment_response = match event_type {
             webhooks::IncomingWebhookEvent::FrmApproved => {
                 Box::pin(payments::payments_core::<
@@ -2407,6 +3124,7 @@ async fn frm_incoming_webhook_flow(
                     None,
                     None,
                     HeaderPayload::default(),
+                    None,
                 ))
                 .await?
             }
@@ -2436,6 +3154,7 @@ async fn frm_incoming_webhook_flow(
                     None,
                     None,
                     HeaderPayload::default(),
+                    None,
                 ))
                 .await?
             }
@@ -2448,16 +3167,25 @@ async fn frm_incoming_webhook_flow(
                 let event_type: Option<enums::EventType> = payments_response.status.into();
                 if let Some(outgoing_event_type) = event_type {
                     let primary_object_created_at = payments_response.created;
+                    let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+                        &state,
+                        &platform,
+                        &business_profile,
+                        payment_attempt.created_by.as_ref(),
+                    )
+                    .await?;
                     Box::pin(super::create_event_and_trigger_outgoing_webhook(
                         state,
                         platform,
-                        business_profile,
                         outgoing_event_type,
                         enums::EventClass::Payments,
                         payment_id.get_string_repr().to_owned(),
                         enums::EventObjectType::PaymentDetails,
                         api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                         primary_object_created_at,
+                        webhook_recipient,
+                        None,
+                        business_profile,
                     ))
                     .await?;
                 };
@@ -2487,22 +3215,36 @@ async fn disputes_incoming_webhook_flow(
     connector: &ConnectorEnum,
     request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
+    webhook_resource_data: Option<WebhookResourceData>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(1, &[]);
     if source_verified {
         let db = &*state.store;
-        let dispute_details = connector.get_dispute_details(request_details).switch()?;
-        let payment_attempt = get_payment_attempt_from_object_reference_id(
-            &state,
-            webhook_details.object_reference_id,
-            &platform,
-        )
-        .await?;
+        // Reuse the pre-fetched payment attempt when available; otherwise fetch now.
+        let payment_attempt =
+            if let Some(WebhookResourceData::Payment { payment_attempt }) = webhook_resource_data {
+                payment_attempt
+            } else {
+                get_payment_attempt_from_object_reference_id(
+                    &state,
+                    webhook_details.object_reference_id.clone(),
+                    platform.get_processor(),
+                )
+                .await?
+            };
+        let resource_data = WebhookResourceData::Payment {
+            payment_attempt: payment_attempt.clone(),
+        };
+        let dispute_details = connector
+            .get_dispute_details(request_details, Some(&WebhookContext::from(&resource_data)))
+            .switch()?;
+
         let option_dispute = db
-            .find_by_merchant_id_payment_id_connector_dispute_id(
+            .find_by_processor_merchant_id_payment_id_connector_dispute_id(
                 platform.get_processor().get_account().get_id(),
                 &payment_attempt.payment_id,
                 &dispute_details.connector_dispute_id,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?;
@@ -2512,29 +3254,79 @@ async fn disputes_incoming_webhook_flow(
 
         let dispute_object = get_or_update_dispute_object(
             state.clone(),
-            option_dispute,
+            option_dispute.clone(),
             dispute_details,
-            platform.get_processor().get_account().get_id(),
-            &platform.get_processor().get_account().organization_id,
+            &platform,
             &payment_attempt,
             dispute_status,
             &business_profile,
             connector.id(),
         )
         .await?;
+
+        //Updating Payment Intent State Metadata if Dispute is lost and customer got their funds back
+        if diesel_models::dispute::Dispute::is_not_lost_or_none(&option_dispute)
+            && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
+        {
+            tokio::spawn({
+                let state = state.clone();
+                let platform = platform.clone();
+                let payment_intent = db
+                    .find_payment_intent_by_payment_id_processor_merchant_id(
+                        &payment_attempt.payment_id,
+                        platform.get_processor().get_account().get_id(),
+                        platform.get_processor().get_key_store(),
+                        platform.get_processor().get_account().storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch payment_intent")?;
+                let dispute_object = dispute_object.clone();
+                let state_metadata = payment_intent.state_metadata.clone().unwrap_or_default();
+
+                async move {
+                    if let Err(err) = PaymentIntentStateMetadataExt::from(state_metadata)
+                        .update_intent_state_metadata_for_dispute(
+                            &state,
+                            &platform,
+                            payment_intent,
+                            &dispute_object,
+                        )
+                        .await
+                    {
+                        logger::error!(
+                            ?err,
+                            "Failed to update payment intent state metadata after dispute lost"
+                        );
+                    }
+                }
+                .in_current_span()
+            });
+        }
+
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object.dispute_status.into();
+
+        let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+            &state,
+            &platform,
+            &business_profile,
+            payment_attempt.created_by.as_ref(),
+        )
+        .await?;
 
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
             platform,
-            business_profile,
             event_type,
             enums::EventClass::Disputes,
             dispute_object.dispute_id.clone(),
             enums::EventObjectType::DisputeDetails,
             api::OutgoingWebhookContent::DisputeDetails(disputes_response),
             Some(dispute_object.created_at),
+            webhook_recipient,
+            None,
+            business_profile,
         ))
         .await?;
         metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(1, &[]);
@@ -2560,22 +3352,23 @@ async fn bank_transfer_webhook_flow(
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-    let response = if source_verified {
+    let (response, created_by, payment_attempt) = if source_verified {
         let payment_attempt = get_payment_attempt_from_object_reference_id(
             &state,
             webhook_details.object_reference_id,
-            &platform,
+            platform.get_processor(),
         )
         .await?;
-        let payment_id = payment_attempt.payment_id;
+        let payment_id = payment_attempt.payment_id.clone();
+        let created_by = payment_attempt.created_by.clone();
         let request = api::PaymentsRequest {
             payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
                 payment_id,
             )),
-            payment_token: payment_attempt.payment_token,
+            payment_token: payment_attempt.payment_token.clone(),
             ..Default::default()
         };
-        Box::pin(payments::payments_core::<
+        let response = Box::pin(payments::payments_core::<
             api::Authorize,
             api::PaymentsResponse,
             _,
@@ -2594,12 +3387,18 @@ async fn bank_transfer_webhook_flow(
             None,
             None,
             HeaderPayload::with_source(common_enums::PaymentSource::Webhook),
+            None,
         ))
-        .await
+        .await;
+        (response, created_by, Some(payment_attempt.clone()))
     } else {
-        Err(report!(
-            errors::ApiErrorResponse::WebhookAuthenticationFailed
-        ))
+        (
+            Err(report!(
+                errors::ApiErrorResponse::WebhookAuthenticationFailed
+            )),
+            None,
+            None,
+        )
     };
 
     match response? {
@@ -2612,16 +3411,27 @@ async fn bank_transfer_webhook_flow(
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
                 let primary_object_created_at = payments_response.created;
+                let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+                    &state,
+                    &platform,
+                    &business_profile,
+                    created_by.as_ref(),
+                )
+                .await?;
                 Box::pin(super::create_event_and_trigger_outgoing_webhook(
                     state,
                     platform,
-                    business_profile,
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     payment_id.get_string_repr().to_owned(),
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
+                    webhook_recipient,
+                    payment_attempt.map(|pa| WebhookResourceData::Payment {
+                        payment_attempt: pa,
+                    }),
+                    business_profile,
                 ))
                 .await?;
             }
@@ -2631,113 +3441,6 @@ async fn bank_transfer_webhook_flow(
 
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("received non-json response from payments core")?,
-    }
-}
-
-async fn get_payment_id(
-    db: &dyn StorageInterface,
-    payment_id: &api::PaymentIdType,
-    merchant_id: &common_utils::id_type::MerchantId,
-    storage_scheme: enums::MerchantStorageScheme,
-    key_store: &MerchantKeyStore,
-) -> errors::RouterResult<common_utils::id_type::PaymentId> {
-    let pay_id = || async {
-        match payment_id {
-            api_models::payments::PaymentIdType::PaymentIntentId(ref id) => Ok(id.to_owned()),
-            api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => db
-                .find_payment_attempt_by_merchant_id_connector_txn_id(
-                    merchant_id,
-                    id,
-                    storage_scheme,
-                    key_store,
-                )
-                .await
-                .map(|p| p.payment_id),
-            api_models::payments::PaymentIdType::PaymentAttemptId(ref id) => db
-                .find_payment_attempt_by_attempt_id_merchant_id(
-                    id,
-                    merchant_id,
-                    storage_scheme,
-                    key_store,
-                )
-                .await
-                .map(|p| p.payment_id),
-            api_models::payments::PaymentIdType::PreprocessingId(ref id) => db
-                .find_payment_attempt_by_preprocessing_id_merchant_id(
-                    id,
-                    merchant_id,
-                    storage_scheme,
-                    key_store,
-                )
-                .await
-                .map(|p| p.payment_id),
-        }
-    };
-
-    pay_id()
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-}
-
-#[inline]
-async fn verify_webhook_source_verification_call(
-    connector: ConnectorEnum,
-    state: &SessionState,
-    platform: &domain::Platform,
-    merchant_connector_account: domain::MerchantConnectorAccount,
-    connector_name: &str,
-    request_details: &IncomingWebhookRequestDetails<'_>,
-) -> CustomResult<bool, errors::ConnectorError> {
-    let connector_data = ConnectorData::get_connector_by_name(
-        &state.conf.connectors,
-        connector_name,
-        GetToken::Connector,
-        None,
-    )
-    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-    .attach_printable("invalid connector name received in payment attempt")?;
-    let connector_integration: services::BoxedWebhookSourceVerificationConnectorIntegrationInterface<
-        hyperswitch_domain_models::router_flow_types::VerifyWebhookSource,
-        VerifyWebhookSourceRequestData,
-        VerifyWebhookSourceResponseData,
-    > = connector_data.connector.get_connector_integration();
-    let connector_webhook_secrets = connector
-        .get_webhook_source_verification_merchant_secret(
-            platform.get_processor().get_account().get_id(),
-            connector_name,
-            merchant_connector_account.connector_webhook_details.clone(),
-        )
-        .await
-        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-    let router_data = construct_webhook_router_data(
-        state,
-        connector_name,
-        merchant_connector_account,
-        platform,
-        &connector_webhook_secrets,
-        request_details,
-    )
-    .await
-    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-    .attach_printable("Failed while constructing webhook router data")?;
-
-    let response = services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &router_data,
-        payments::CallConnectorAction::Trigger,
-        None,
-        None,
-    )
-    .await?;
-
-    let verification_result = response
-        .response
-        .map(|response| response.verify_webhook_status);
-    match verification_result {
-        Ok(VerifyWebhookStatus::SourceVerified) => Ok(true),
-        _ => Ok(false),
     }
 }
 
@@ -2849,7 +3552,14 @@ fn should_update_connector_mandate_details(
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
 ) -> bool {
-    source_verified && event_type == webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+    source_verified
+        && matches!(
+            event_type,
+            webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+                | webhooks::IncomingWebhookEvent::PaymentIntentFailure
+                | webhooks::IncomingWebhookEvent::MandateActive
+                | webhooks::IncomingWebhookEvent::MandateRevoked
+        )
 }
 
 async fn update_additional_payment_method_data(
@@ -2868,9 +3578,9 @@ async fn update_additional_payment_method_data(
 
     let pm = db
         .find_payment_method(
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             payment_method_id.as_str(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -2884,7 +3594,8 @@ async fn update_additional_payment_method_data(
 
     Box::pin(cards::update_customer_payment_method(
         state.clone(),
-        platform.clone(),
+        platform.get_provider().clone(),
+        platform.get_initiator().cloned(),
         payment_method_update,
         &payment_method_id,
         Some(pm),
@@ -2897,6 +3608,7 @@ async fn update_connector_mandate_details(
     state: &SessionState,
     platform: &domain::Platform,
     object_ref_id: api::ObjectReferenceId,
+    event_type: webhooks::IncomingWebhookEvent,
     connector: &ConnectorEnum,
     request_details: &IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -2912,36 +3624,48 @@ async fn update_connector_mandate_details(
             "Could not find connector network transaction id in incoming webhook body",
         )?;
 
-    // Either one OR both of the fields are present
+    let webhook_mandate_details_update = connector
+        .get_webhook_mandate_details_update(request_details)
+        .switch()
+        .attach_printable(
+            "Could not find connector mandate details update in incoming webhook body",
+        )?;
+
+    // Either one OR more of these fields are present.
     if webhook_connector_mandate_details.is_some()
         || webhook_connector_network_transaction_id.is_some()
+        || webhook_mandate_details_update.is_some()
     {
-        let payment_attempt =
-            get_payment_attempt_from_object_reference_id(state, object_ref_id, platform).await?;
+        let payment_attempt = get_payment_attempt_from_object_reference_id(
+            state,
+            object_ref_id,
+            platform.get_processor(),
+        )
+        .await?;
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id {
             let payment_method_info = state
                 .store
                 .find_payment_method(
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_key_store(),
                     payment_method_id,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_provider().get_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+            let mandate_details = payment_method_info
+                .get_common_mandate_reference()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
+
+            let merchant_connector_account_id = payment_attempt
+                .merchant_connector_id
+                .clone()
+                .get_required_value("merchant_connector_id")?;
+
             // Update connector's mandate details
-            let updated_connector_mandate_details =
-                if let Some(webhook_mandate_details) = webhook_connector_mandate_details {
-                    let mandate_details = payment_method_info
-                        .get_common_mandate_reference()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
-
-                    let merchant_connector_account_id = payment_attempt
-                        .merchant_connector_id
-                        .clone()
-                        .get_required_value("merchant_connector_id")?;
-
+            let mut updated_connector_mandate_details =
+                if let Some(webhook_mandate_details) = webhook_connector_mandate_details.as_ref() {
                     if mandate_details.payments.as_ref().is_none_or(|payments| {
                         !payments.0.contains_key(&merchant_connector_account_id)
                     }) {
@@ -2994,8 +3718,9 @@ async fn update_connector_mandate_details(
 
                         insert_mandate_details(
                             &payment_attempt,
-                            &webhook_mandate_details,
-                            Some(mandate_details),
+                            webhook_mandate_details,
+                            Some(mandate_details.clone()),
+                            event_type,
                         )?
                     } else {
                         logger::info!(
@@ -3006,6 +3731,97 @@ async fn update_connector_mandate_details(
                 } else {
                     None
                 };
+
+            if let Some(mandate_details_update) = webhook_mandate_details_update {
+                let mandate_details = updated_connector_mandate_details
+                    .clone()
+                    .or_else(|| Some(mandate_details.clone()));
+
+                let existing_connector_mandate_record = mandate_details
+                    .as_ref()
+                    .and_then(|common_mandate| common_mandate.payments.as_ref())
+                    .and_then(|payments| payments.0.get(&merchant_connector_account_id));
+
+                let connector_mandate_id = webhook_connector_mandate_details
+                    .as_ref()
+                    .map(|details| details.connector_mandate_id.peek().to_string())
+                    .or_else(|| {
+                        existing_connector_mandate_record
+                            .map(|record| record.connector_mandate_id.clone())
+                    })
+                    .or_else(|| {
+                        payment_attempt
+                            .connector_mandate_detail
+                            .as_ref()
+                            .and_then(|details| details.connector_mandate_id.clone())
+                    });
+
+                let connector_mandate_status = mandate_details_update
+                    .connector_mandate_status
+                    .or_else(|| {
+                        existing_connector_mandate_record
+                            .and_then(|record| record.connector_mandate_status)
+                    })
+                    .unwrap_or(ConnectorMandateStatus::Inactive);
+
+                updated_connector_mandate_details = tokenization::update_connector_mandate_details(
+                    mandate_details,
+                    payment_attempt.payment_method_type,
+                    mandate_details_update
+                        .original_payment_authorized_amount
+                        .map(|amount| amount.get_amount_as_i64()),
+                    mandate_details_update.original_payment_authorized_currency,
+                    Some(merchant_connector_account_id.clone()),
+                    connector_mandate_id.clone(),
+                    None,
+                    connector_mandate_status,
+                    None,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update connector mandate details from webhook")?;
+
+                if connector_mandate_id.is_some()
+                    && payment_attempt
+                        .connector_mandate_detail
+                        .as_ref()
+                        .is_none_or(|details| details.connector_mandate_id.is_none())
+                {
+                    let attempt_update =
+                        storage::PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
+                            connector_mandate_detail: Some(ConnectorMandateReferenceId {
+                                connector_mandate_id,
+                                payment_method_id: Some(payment_method_id.to_string()),
+                                mandate_metadata: payment_attempt
+                                    .connector_mandate_detail
+                                    .as_ref()
+                                    .and_then(|details| details.mandate_metadata.clone()),
+                                connector_mandate_request_reference_id: payment_attempt
+                                    .connector_mandate_detail
+                                    .as_ref()
+                                    .and_then(|details| {
+                                        details.connector_mandate_request_reference_id.clone()
+                                    }),
+                            }),
+                            tokenization: None,
+                            updated_by: platform
+                                .get_processor()
+                                .get_account()
+                                .storage_scheme
+                                .to_string(),
+                        };
+
+                    state
+                        .store
+                        .update_payment_attempt_with_attempt_id(
+                            payment_attempt.clone(),
+                            attempt_update,
+                            platform.get_processor().get_account().storage_scheme,
+                            platform.get_processor().get_key_store(),
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                }
+            }
 
             let connector_mandate_details_value = updated_connector_mandate_details
                 .map(|common_mandate| {
@@ -3020,19 +3836,27 @@ async fn update_connector_mandate_details(
                 .transpose()?;
 
             let pm_update = diesel_models::PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
-                connector_mandate_details: connector_mandate_details_value.map(masking::Secret::new),
+                connector_mandate_details: connector_mandate_details_value.map(Secret::new),
                 network_transaction_id: webhook_connector_network_transaction_id
                     .map(|webhook_network_transaction_id| webhook_network_transaction_id.get_id().clone()),
-                last_modified_by: None,
+                last_modified_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()).map(|last_modified_by| last_modified_by.to_string()),
             };
+            let compat_action = payment_methods::payment_method_modular_compat_action(
+                state,
+                &payment_method_info.merchant_id,
+                &platform.get_provider().get_account().organization_id,
+                payment_method_info.customer_id.as_ref(),
+            )
+            .await;
 
             state
                 .store
                 .update_payment_method(
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_key_store(),
                     payment_method_info,
                     pm_update,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_provider().get_account().storage_scheme,
+                    compat_action,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3046,6 +3870,7 @@ fn insert_mandate_details(
     payment_attempt: &PaymentAttempt,
     webhook_mandate_details: &hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails,
     payment_method_mandate_details: Option<CommonMandateReference>,
+    event_type: webhooks::IncomingWebhookEvent,
 ) -> CustomResult<Option<CommonMandateReference>, errors::ApiErrorResponse> {
     let (mandate_metadata, connector_mandate_request_reference_id) = payment_attempt
         .connector_mandate_detail
@@ -3057,6 +3882,24 @@ fn insert_mandate_details(
             )
         })
         .unwrap_or((None, None));
+    let connector_mandate_id = webhook_mandate_details
+        .connector_mandate_id
+        .peek()
+        .to_string();
+    let existing_connector_mandate_status = payment_attempt
+        .merchant_connector_id
+        .as_ref()
+        .and_then(|mca_id| {
+            payment_method_mandate_details
+                .as_ref()
+                .and_then(|mandate_details| mandate_details.payments.as_ref())
+                .and_then(|payments| payments.0.get(mca_id))
+        })
+        .and_then(|record| record.connector_mandate_status);
+    let connector_mandate_status = match event_type {
+        webhooks::IncomingWebhookEvent::MandateActive => ConnectorMandateStatus::Active,
+        _ => existing_connector_mandate_status.unwrap_or(ConnectorMandateStatus::Inactive),
+    };
     let connector_mandate_details = tokenization::update_connector_mandate_details(
         payment_method_mandate_details,
         payment_attempt.payment_method_type,
@@ -3068,14 +3911,190 @@ fn insert_mandate_details(
         ),
         payment_attempt.currency,
         payment_attempt.merchant_connector_id.clone(),
-        Some(
-            webhook_mandate_details
-                .connector_mandate_id
-                .peek()
-                .to_string(),
-        ),
+        Some(connector_mandate_id),
         mandate_metadata,
+        connector_mandate_status,
         connector_mandate_request_reference_id,
     )?;
     Ok(connector_mandate_details)
+}
+
+/// Runs the Unified Authentication Service path and returns `WebhookOutcome`
+/// so `incoming_webhooks_core` handles all paths through one
+/// `Skipped`/`Processed` call site.
+#[cfg(feature = "v1")]
+pub async fn process_uas_incoming_webhook<'a>(
+    state: &'a SessionState,
+    platform: &'a domain::Platform,
+    request_details: &'a IncomingWebhookRequestDetails<'a>,
+    connector_name: String,
+    uas_connector: ConnectorEnum,
+) -> errors::RouterResult<super::gateway::WebhookOutcome> {
+    use hyperswitch_masking::ErasedMaskSerialize;
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
+    let routing_region = uas_utils::fetch_routing_region_for_uas(state, &dimensions).await;
+    let webhook_data =
+        uas_utils::get_webhook_request_data_for_uas(request_details, Some(routing_region));
+
+    let webhook_router_data: hyperswitch_domain_models::types::UasProcessWebhookRouterData =
+        uas_utils::construct_uas_webhook_router_data(
+            state,
+            connector_name.to_string(),
+            webhook_data,
+            None,
+        )?;
+
+    let response = Box::pin(uas_utils::do_auth_connector_call(
+        state,
+        UNIFIED_AUTHENTICATION_SERVICE.to_string(),
+        webhook_router_data,
+    ))
+    .await?;
+
+    let response_body = match response.response {
+        Ok(resp) => match resp {
+            UasAuthenticationResponseData::Webhook {
+                trans_status,
+                authentication_value,
+                eci,
+                three_ds_server_transaction_id,
+                authentication_id,
+                results_request,
+                results_response,
+            } => Ok(UasWebhookResponse {
+                trans_status,
+                authentication_value,
+                eci,
+                three_ds_server_transaction_id,
+                authentication_id,
+                results_request,
+                results_response,
+            }),
+            _ => {
+                router_env::logger::error!("received unknown webhook response from uas");
+                Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+            }
+        },
+        Err(err) => {
+            router_env::logger::error!("error processing webhook {:?}", err);
+            Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+        }
+    }?;
+
+    // Event type is classified from the inbound request: the UAS connector's
+    // parser inspects request headers/body to identify the event kind, before
+    // the response body from the gRPC call is consumed for downstream steps.
+    let event_type = uas_connector
+        .get_webhook_event_type(request_details, None)
+        .switch()
+        .attach_printable("Could not get uas webhook event type")?;
+
+    let body = response_body
+        .to_bytes()
+        .inspect_err(|err| {
+            router_env::logger::error!("error converting uas webhook response to bytes: {}", err);
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error converting uas webhook response to bytes")?;
+    let body_bytes = body.to_vec();
+
+    let ctx = super::gateway::WebhookGatewayContext {
+        state: state.clone(),
+        platform: platform.clone(),
+        connector: uas_connector.clone(),
+        connector_name: connector_name.clone(),
+        merchant_connector_account: None,
+        execution_path: common_enums::ExecutionPath::Direct,
+        execution_mode: common_enums::ExecutionMode::NotApplicable,
+        ucs_reference: None,
+        ucs_event_type: None,
+    };
+
+    // Reuse inbound request metadata, but parse using UAS response body.
+    let uas_webhook_request = IncomingWebhookRequestDetails {
+        method: request_details.method.clone(),
+        uri: request_details.uri.clone(),
+        headers: request_details.headers,
+        query_params: request_details.query_params.clone(),
+        body: &body_bytes,
+    };
+
+    if matches!(
+        super::gateway::FilterDecision::evaluate(event_type, &ctx).await,
+        super::gateway::FilterDecision::Skip
+    ) {
+        let ack_response = uas_connector
+            .get_webhook_api_response(&uas_webhook_request, None, None)
+            .switch()
+            .attach_printable("Failed to build UAS webhook ack")?;
+        return Ok(super::gateway::WebhookOutcome::Skipped {
+            reference: None,
+            event_type,
+            ack_response,
+        });
+    }
+
+    let reference = uas_connector
+        .get_webhook_object_reference_id(&uas_webhook_request)
+        .switch()
+        .attach_printable("Could not find object reference id in UAS webhook body")?;
+
+    let mca = Box::pin(helper_utils::get_mca_from_object_reference_id(
+        state,
+        reference.clone(),
+        platform,
+        connector_name.as_str(),
+    ))
+    .await?;
+
+    let source_verified =
+        super::gateway::verify_webhook_source_via_connector(&ctx, &uas_webhook_request, &mca)
+            .await?;
+
+    let resource_object = uas_connector
+        .get_webhook_resource_object(&uas_webhook_request)
+        .switch()
+        .attach_printable("Failed to extract UAS webhook resource object")?;
+    let masked_log_payload =
+        Secret::new(resource_object.masked_serialize().unwrap_or_else(|error| {
+            router_env::logger::warn!(
+                ?error,
+                "Failed to mask-serialize UAS webhook resource object for logging"
+            );
+            serde_json::Value::Null
+        }));
+
+    let ack_response = uas_connector
+        .get_webhook_api_response(
+            &uas_webhook_request,
+            None,
+            Some(mca.connector_account_details.clone()),
+        )
+        .switch()
+        .attach_printable("Failed to build UAS webhook ack")?;
+
+    Ok(super::gateway::WebhookOutcome::Processed {
+        reference,
+        event_type,
+        source_verified,
+        content: super::gateway::WebhookContent::Direct(body_bytes.clone()),
+        // Carry the UAS response body so downstream connector calls that parse
+        // request_details.body receive the correct structured payload.
+        decoded_body: Some(body_bytes),
+        // UAS path does not pre-fetch resource data here.
+        webhook_resource_data: Box::new(None),
+        masked_log_payload,
+        merchant_connector_account: Box::new(mca),
+        ack_response,
+    })
 }

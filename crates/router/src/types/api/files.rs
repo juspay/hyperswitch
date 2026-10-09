@@ -1,7 +1,7 @@
 use api_models::enums::FileUploadProvider;
 pub use hyperswitch_domain_models::router_flow_types::files::{Retrieve, Upload};
 pub use hyperswitch_interfaces::api::files::{FilePurpose, FileUpload, RetrieveFile, UploadFile};
-use masking::{Deserialize, Serialize};
+use hyperswitch_masking::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 pub use super::files_v2::{FileUploadV2, RetrieveFileV2, UploadFileV2};

@@ -1,0 +1,39 @@
+---
+title: "Evaluate Routing Algorithm"
+description: "Curl example for /routing/evaluate."
+---
+
+# Evaluate Routing Algorithm
+
+`/routing/evaluate` evaluates the active routing algorithm for a payment context. It does not update SR scores.
+
+## Request
+
+```bash
+curl --location "$BASE_URL/routing/evaluate" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchantId": "merchant_demo",
+    "paymentInfo": {
+      "paymentId": "eval_001",
+      "amount": 1000,
+      "currency": "USD",
+      "paymentType": "ORDER_PAYMENT",
+      "paymentMethodType": "CARD",
+      "paymentMethod": "CREDIT",
+      "authType": "THREE_DS"
+    }
+  }'
+```
+
+## Response
+
+```json
+{
+  "priority": [
+    { "gateway_name": "stripe", "gateway_id": "mca_111" },
+    { "gateway_name": "adyen", "gateway_id": "mca_112" }
+  ]
+}
+```

@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -103,8 +103,13 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
         let payer = Payer {
             name,
             email,
-            // [#589]: Allow securely collecting PII from customer in payments request
-            document: get_doc_from_currency(country.to_string()),
+            document: item
+                .router_data
+                .get_customer_document_details()?
+                .map(|details| details.document_number)
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "customer.document_details.document_number".into(),
+                })?,
         };
         let order_id = item.router_data.connector_request_reference_id.clone();
         let callback_url = item.router_data.request.get_router_return_url()?;
@@ -180,7 +185,12 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
                 ))?
@@ -328,9 +338,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsResponse, T, PaymentsResp
             mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: item.response.order_id.clone(),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         };
         let status =
             map_dlocal_status_to_attempt_status(item.response.status, redirection_data.is_some());
@@ -364,9 +377,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsSyncResponse, T, Payments
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -395,9 +411,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCaptureResponse, T, Payme
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -424,9 +443,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCancelResponse, T, Paymen
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -522,24 +544,4 @@ pub struct DlocalErrorResponse {
     pub code: i32,
     pub message: String,
     pub param: Option<String>,
-}
-
-fn get_doc_from_currency(country: String) -> Secret<String> {
-    let doc = match country.as_str() {
-        "BR" => "91483309223",
-        "ZA" => "2001014800086",
-        "BD" | "GT" | "HN" | "PK" | "SN" | "TH" => "1234567890001",
-        "CR" | "SV" | "VN" => "123456789",
-        "DO" | "NG" => "12345678901",
-        "EG" => "12345678901112",
-        "GH" | "ID" | "RW" | "UG" => "1234567890111123",
-        "IN" => "NHSTP6374G",
-        "CI" => "CA124356789",
-        "JP" | "MY" | "PH" => "123456789012",
-        "NI" => "1234567890111A",
-        "TZ" => "12345678912345678900",
-        "MX" => "1234567890",
-        _ => "12345678",
-    };
-    Secret::new(doc.to_string())
 }

@@ -4,13 +4,13 @@ use hyperswitch_domain_models::{
     merchant_key_store as domain,
     merchant_key_store::MerchantKeyStoreInterface,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "accounts_cache")]
 use crate::redis::{
     cache,
-    cache::{CacheKind, ACCOUNTS_CACHE},
+    cache::{CacheId, CacheKind},
 };
 use crate::{
     kv_router_store,
@@ -136,12 +136,12 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
         {
             let key_store_cache_key =
                 format!("merchant_key_store_{}", merchant_id.get_string_repr());
-            cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory_redis(
                 self,
                 &key_store_cache_key,
-                fetch_func,
-                &ACCOUNTS_CACHE,
-            )
+                fetch_func(),
+                CacheId::Accounts,
+            ))
             .await?
             .convert(state, key, merchant_id.clone().into())
             .await

@@ -1,11 +1,12 @@
 use common_utils::new_type::{
-    MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
+    MaskedBankAccount, MaskedBranchCode, MaskedIban, MaskedRoutingNumber, MaskedSortCode,
+    MaskedUpiVpaId,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 
-use crate::enums as api_enums;
+use crate::{enums as api_enums, payments};
 
 #[derive(
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
@@ -22,6 +23,8 @@ pub enum BankDebitAdditionalData {
     #[smithy(value_type = "SepaBankDebitAdditionalData")]
     Sepa(Box<SepaBankDebitAdditionalData>),
     SepaGuarenteedDebit(Box<SepaBankDebitAdditionalData>),
+    #[smithy(value_type = "EftDebitOrderAdditionalData")]
+    EftDebitOrder(Box<EftDebitOrderAdditionalData>),
 }
 
 #[derive(
@@ -38,11 +41,6 @@ pub struct AchBankDebitAdditionalData {
     #[schema(value_type = String, example = "110***000")]
     #[smithy(value_type = "String")]
     pub routing_number: MaskedRoutingNumber,
-
-    /// Card holder's name
-    #[schema(value_type = Option<String>, example = "John Doe")]
-    #[smithy(value_type = "Option<String>")]
-    pub card_holder_name: Option<Secret<String>>,
 
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]
@@ -127,6 +125,37 @@ pub struct SepaBankDebitAdditionalData {
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct EftDebitOrderAdditionalData {
+    /// Partially masked account number for eft bank debit payment
+    #[schema(value_type = String, example = "0001****3456")]
+    #[smithy(value_type = "String")]
+    pub account_number: MaskedBankAccount,
+
+    /// Partially masked branch code for eft bank debit payment
+    #[schema(value_type = Option<String>, example = "110***000")]
+    #[smithy(value_type = "Option<String>")]
+    pub branch_code: Option<MaskedBranchCode>,
+
+    /// Bank account's owner name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    #[smithy(value_type = "Option<String>")]
+    pub bank_account_holder_name: Option<Secret<String>>,
+
+    /// Name of the bank
+    #[schema(value_type = Option<BankNames>, example = "absa")]
+    #[smithy(value_type = "Option<BankNames>")]
+    pub bank_name: Option<common_enums::BankNames>,
+
+    /// Bank account type
+    #[schema(value_type = Option<BankType>, example = "savings")]
+    #[smithy(value_type = "Option<BankType>")]
+    pub bank_type: Option<common_enums::BankType>,
+}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankRedirectDetails {
     #[smithy(value_type = "BancontactBankRedirectAdditionalData")]
     BancontactCard(Box<BancontactBankRedirectAdditionalData>),
@@ -196,13 +225,38 @@ pub struct GiropayBankRedirectAdditionalData {
 #[derive(
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SepaBankTransferPaymentAdditionalData {
+    ///   debitor IBAN
+    #[schema(value_type = Option<String>, example =  "DE89370400440532013000")]
+    #[smithy(value_type = "Option<String>")]
+    pub debitor_iban: Option<Secret<String>>,
+
+    /// debitor BIC
+    #[schema(value_type = Option<String>, example = "MARKDEF1100")]
+    #[smithy(value_type = "Option<String>")]
+    pub debitor_bic: Option<Secret<String>>,
+
+    ///  debitor name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    #[smithy(value_type = "Option<String>")]
+    pub debitor_name: Option<Secret<String>>,
+
+    ///  debitor email
+    #[schema(value_type = Option<String>, example = "johndoe@example.com")]
+    #[smithy(value_type = "Option<String>")]
+    pub debitor_email: Option<Secret<String>>,
+}
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankTransferAdditionalData {
     #[smithy(nested_value_type)]
     Ach {},
-    #[smithy(nested_value_type)]
-    Sepa {},
+    #[smithy(value_type = "SepaBankTransferPaymentAdditionalData")]
+    Sepa(Box<SepaBankTransferPaymentAdditionalData>),
     #[smithy(nested_value_type)]
     Bacs {},
     #[smithy(nested_value_type)]
@@ -224,6 +278,14 @@ pub enum BankTransferAdditionalData {
     #[smithy(value_type = "PixBankTransferAdditionalData")]
     Pix(Box<PixBankTransferAdditionalData>),
     #[smithy(nested_value_type)]
+    PixEmv {},
+    #[smithy(nested_value_type)]
+    PixQr {},
+    #[smithy(value_type = "PixAutomaticoPushAdditionalData")]
+    PixAutomaticoPush(Box<PixAutomaticoPushAdditionalData>),
+    #[smithy(nested_value_type)]
+    PixAutomaticoQr {},
+    #[smithy(nested_value_type)]
     Pse {},
     #[smithy(value_type = "LocalBankTransferAdditionalData")]
     LocalBankTransfer(Box<LocalBankTransferAdditionalData>),
@@ -239,6 +301,27 @@ pub enum BankTransferAdditionalData {
         #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
     },
+}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PixAutomaticoPushAdditionalData {
+    /// Account number for Pix Automatico Push payment method
+    #[schema(value_type = Option<String>, example = "550689")]
+    #[smithy(value_type = "Option<String>")]
+    pub account_number: Option<Secret<String>>,
+
+    /// Branch code for Pix Automatico Push payment method
+    #[schema(value_type = Option<String>, example = "2569")]
+    #[smithy(value_type = "Option<String>")]
+    pub branch_code: Option<Secret<String>>,
+
+    /// Bank identifier for Pix Automatico Push payment method
+    #[schema(value_type = Option<String>, example = "91193552")]
+    #[smithy(value_type = "Option<String>")]
+    pub bank_identifier: Option<Secret<String>>,
 }
 
 #[derive(
@@ -344,11 +427,28 @@ pub enum UpiAdditionalData {
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PaypalWalletAdditionalData {
+    /// Email address associated with the payer's PayPal account
+    #[schema(value_type = Option<String>, example = "johntest@test.com")]
+    pub email: Option<common_utils::pii::Email>,
+    /// Unique identifier of the payer in PayPal
+    #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
+    #[smithy(value_type = "Option<String>")]
+    pub payer_id: Option<String>,
+}
+
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiCollectAdditionalData {
     /// Masked VPA ID
     #[schema(value_type = Option<String>, example = "ab********@okhdfcbank")]
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<MaskedUpiVpaId>,
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<payments::UpiSource>,
 }
 
 #[derive(
@@ -356,20 +456,48 @@ pub struct UpiCollectAdditionalData {
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct WalletAdditionalDataForCard {
-    /// Last 4 digits of the card number
-    #[smithy(value_type = "String")]
-    pub last4: String,
-    /// The information of the payment method
-    #[smithy(value_type = "String")]
-    pub card_network: String,
     /// The type of payment method
     #[serde(rename = "type")]
     #[smithy(value_type = "Option<String>")]
-    pub card_type: Option<String>,
+    pub payment_method_data_type: Option<String>,
+    /// The information of the payment method
+    #[smithy(value_type = "Option<String>")]
+    pub card_network: Option<String>,
+    /// The card's type (e.g. credit, debit), as returned by the connector
+    #[schema(value_type = Option<CardType>)]
+    pub card_type: Option<api_enums::CardType>,
+    /// The card's product/subtype, as returned by the connector
+    pub card_subtype: Option<String>,
+    /// The card's segment (e.g. consumer, commercial), as returned by the connector
+    #[schema(value_type = Option<CardSegmentType>)]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+    /// The card's funding source (e.g. credit, debit), as returned by the connector
+    #[schema(value_type = Option<FundingSource>)]
+    pub funding_source: Option<api_enums::FundingSource>,
+    /// Last 4 digits of the card number
+    #[smithy(value_type = "Option<String>")]
+    pub last4: Option<String>,
+    /// Bin of the underlying card
+    #[schema(value_type = Option<String>, example = "411111")]
+    pub card_bin: Option<String>,
+    /// Bin of the DPAN (device PAN) obtained from decrypting the wallet payment data.
+    #[schema(value_type = Option<String>, example = "411111")]
+    pub device_pan_bin: Option<String>,
     /// The card's expiry month
     #[schema(value_type = Option<String>, example = "03")]
     pub card_exp_month: Option<Secret<String>>,
     /// The card's expiry year
     #[schema(value_type = Option<String>, example = "25")]
     pub card_exp_year: Option<Secret<String>>,
+    /// The name of the card issuer, as returned by the connector
+    pub issuer_name: Option<String>,
+    /// The country of the card issuer, as returned by the connector
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub issuer_country: Option<api_enums::CountryAlpha2>,
+    /// Unique authorisation code generated for the payment
+    #[schema(value_type = Option<String>, example = "009825")]
+    pub auth_code: Option<String>,
+    /// Email address associated with the wallet (e.g. PayPal email)
+    #[schema(value_type = Option<String>, example = "johntest@test.com")]
+    pub email: Option<common_utils::pii::Email>,
 }

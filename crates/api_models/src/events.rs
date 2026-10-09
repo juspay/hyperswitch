@@ -1,16 +1,13 @@
 pub mod apple_pay_certificates_migration;
-pub mod chat;
 pub mod connector_onboarding;
 pub mod customer;
 pub mod dispute;
 pub mod external_service_auth;
 pub mod gsm;
-mod locker_migration;
+pub mod offer_engine;
 pub mod payment;
 #[cfg(feature = "payouts")]
 pub mod payouts;
-#[cfg(feature = "recon")]
-pub mod recon;
 pub mod refund;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery;
@@ -37,8 +34,16 @@ use crate::{
     cards_info::*,
     disputes::*,
     files::*,
+    hierarchical_resources::{
+        GenerateHierarchicalResourceRequest, GenerateHierarchicalResourceResponse,
+        HierarchicalResourceSummary, LinkHierarchicalResourceRequest,
+        LinkHierarchicalResourceResponse, ListHierarchicalResourcesRequest,
+        ListHierarchicalResourcesResponse, UploadCertificateRequest, UploadCertificateResponse,
+    },
     mandates::*,
+    merchant_connector_webhook_management::*,
     organization::{
+        ConvertOrganizationToPlatformRequest, ConvertOrganizationToPlatformResponse,
         OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
     },
     payment_methods::*,
@@ -74,6 +79,10 @@ impl_api_event_type!(
         RetrievePaymentLinkResponse,
         MandateListConstraints,
         CreateFileResponse,
+        ConvertOrganizationToPlatformRequest,
+        ConvertOrganizationToPlatformResponse,
+        ConnectorWebhookRegisterRequest,
+        ConnectorWebhookListResponse,
         MerchantConnectorResponse,
         MerchantConnectorId,
         MandateResponse,
@@ -83,6 +92,7 @@ impl_api_event_type!(
         MandateId,
         DisputeListGetConstraints,
         RetrieveApiKeyResponse,
+        RegisterConnectorWebhookResponse,
         ProfileResponse,
         ProfileUpdate,
         ProfileCreate,
@@ -145,7 +155,16 @@ impl_api_event_type!(
         OrganizationUpdateRequest,
         OrganizationId,
         CustomerListRequest,
-        RoutingEventsRequest
+        RoutingEventsRequest,
+        GenerateHierarchicalResourceRequest,
+        GenerateHierarchicalResourceResponse,
+        UploadCertificateRequest,
+        UploadCertificateResponse,
+        HierarchicalResourceSummary,
+        ListHierarchicalResourcesRequest,
+        ListHierarchicalResourcesResponse,
+        LinkHierarchicalResourceRequest,
+        LinkHierarchicalResourceResponse
     )
 );
 
@@ -234,13 +253,37 @@ impl ApiEventMetric for PaymentMethodSessionResponse {
     }
 }
 #[cfg(feature = "tokenization_v2")]
-impl ApiEventMetric for tokenization::GenericTokenizationRequest {}
+impl ApiEventMetric for tokenization::GenericTokenizationRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Customer {
+            customer_id: Some(self.customer_id.clone()),
+        })
+    }
+}
 
 #[cfg(feature = "tokenization_v2")]
-impl ApiEventMetric for tokenization::GenericTokenizationResponse {}
+impl ApiEventMetric for tokenization::GenericTokenizationResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Token {
+            token_id: Some(self.id.clone()),
+        })
+    }
+}
 
 #[cfg(feature = "tokenization_v2")]
-impl ApiEventMetric for tokenization::DeleteTokenDataResponse {}
+impl ApiEventMetric for tokenization::DeleteTokenDataResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Token {
+            token_id: Some(self.id.clone()),
+        })
+    }
+}
 
 #[cfg(feature = "tokenization_v2")]
-impl ApiEventMetric for tokenization::DeleteTokenDataRequest {}
+impl ApiEventMetric for tokenization::DeleteTokenDataRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethodSession {
+            payment_method_session_id: self.session_id.clone(),
+        })
+    }
+}

@@ -9,9 +9,9 @@ use common_utils::{
 };
 use diesel_models::{address::AddressUpdateInternal, enums};
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret, SwitchStrategy};
+use hyperswitch_masking::{PeekInterface, Secret, SwitchStrategy};
 use rustc_hash::FxHashMap;
-use time::{OffsetDateTime, PrimitiveDateTime};
+use time::PrimitiveDateTime;
 
 use super::{behaviour, types};
 
@@ -93,7 +93,7 @@ impl behaviour::Conversion for CustomerAddress {
                 .customer_id
                 .clone()
                 .ok_or(ValidationError::MissingRequiredField {
-                    field_name: "customer_id".to_string(),
+                    field_name: "customer_id".into(),
                 })?;
 
         let address = Address::convert_back(state, other, key, key_manager_identifier).await?;
@@ -138,7 +138,7 @@ impl behaviour::Conversion for PaymentAddress {
             .payment_id
             .clone()
             .ok_or(ValidationError::MissingRequiredField {
-                field_name: "payment_id".to_string(),
+                field_name: "payment_id".into(),
             })?;
 
         let customer_id = other.customer_id.clone();
@@ -335,7 +335,7 @@ impl From<AddressUpdate> for AddressUpdateInternal {
                 last_name: last_name.map(Encryption::from),
                 phone_number: phone_number.map(Encryption::from),
                 country_code,
-                modified_at: date_time::convert_to_pdt(OffsetDateTime::now_utc()),
+                modified_at: date_time::now(),
                 updated_by,
                 email: email.map(Encryption::from),
                 origin_zip: origin_zip.map(Encryption::from),

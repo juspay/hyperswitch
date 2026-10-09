@@ -12,7 +12,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -53,15 +52,13 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use lazy_static::lazy_static;
 #[cfg(feature = "payouts")]
-use masking::ExposeInterface;
-use masking::{Mask, PeekInterface};
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{Mask, PeekInterface};
+use lazy_static::lazy_static;
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers as gigadat;
-use url::form_urlencoded;
-use uuid::Uuid;
 
 #[cfg(feature = "payouts")]
 use crate::utils::{to_payout_connector_meta, RouterData as RouterDataTrait};
@@ -116,7 +113,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -147,7 +145,8 @@ impl ConnectorCommon for Gigadat {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = gigadat::GigadatAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let auth_key = format!(
@@ -182,6 +181,7 @@ impl ConnectorCommon for Gigadat {
             reason: Some(response.err).clone(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -191,20 +191,6 @@ impl ConnectorCommon for Gigadat {
 }
 
 impl ConnectorValidation for Gigadat {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
@@ -229,7 +215,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -324,7 +311,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gig
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -373,12 +361,30 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gig
             .response
             .parse_struct("gigadat PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object =
+            if let (Some(amount), Some(currency)) = (response.amount, response.currency) {
+                Some(utils::get_sync_integrity_object(
+                    self.amount_converter,
+                    amount,
+                    currency.to_string(),
+                )?)
+            } else {
+                None
+            };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 
@@ -396,7 +402,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -475,7 +482,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
         &self,
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = gigadat::GigadatAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let auth_key = format!(
@@ -491,7 +499,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
             ),
             (
                 headers::IDEMPOTENCY_KEY.to_string(),
-                Uuid::new_v4().to_string().into_masked(),
+                common_utils::generate_uuid_v4().to_string().into_masked(),
             ),
         ])
     }
@@ -553,12 +561,30 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
             .response
             .parse_struct("gigadat RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object =
+            if let (Some(amount), Some(currency)) = (response.amount, response.currency) {
+                Some(utils::get_refund_integrity_object(
+                    self.amount_converter,
+                    amount,
+                    currency.to_string(),
+                )?)
+            } else {
+                None
+            };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 
@@ -592,6 +618,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
             reason: Some(response.message).clone(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -610,7 +637,8 @@ impl ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData> for Gigadat
         &self,
         req: &PayoutsRouterData<PoQuote>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -698,7 +726,8 @@ impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Gigada
         &self,
         req: &PayoutsRouterData<PoCreate>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -773,7 +802,8 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Gigad
         &self,
         req: &PayoutsRouterData<PoFulfill>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -784,7 +814,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Gigad
     ) -> CustomResult<String, errors::ConnectorError> {
         let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "transaction_id",
+                field_name: "transaction_id".into(),
             },
         )?;
         let metadata = req
@@ -858,7 +888,7 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Gigadat 
     ) -> CustomResult<String, errors::ConnectorError> {
         let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "transaction_id",
+                field_name: "transaction_id".into(),
             },
         )?;
         Ok(format!(
@@ -871,7 +901,8 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Gigadat 
         &self,
         req: &PayoutsRouterData<PoSync>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -959,20 +990,10 @@ impl webhooks::IncomingWebhook for Gigadat {
         let body_str = std::str::from_utf8(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let details: Vec<transformers::GigadatWebhookKeyValue> =
-            form_urlencoded::parse(body_str.as_bytes())
-                .map(|(key, value)| transformers::GigadatWebhookKeyValue {
-                    key: key.to_string(),
-                    value: value.to_string(),
-                })
-                .collect();
+        let details = transformers::GigadatWebhookKeyValueBody::decode_from_url(body_str)?;
+        let webhook_type = details.webhook_type;
 
-        let webhook_type = details
-            .iter()
-            .find(|&entry| entry.key == "type")
-            .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-        let reference_id = match transformers::GigadatFlow::get_flow(webhook_type.value.as_str())? {
+        let reference_id = match transformers::GigadatFlow::get_flow(&webhook_type)? {
             transformers::GigadatFlow::Payment => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
@@ -991,25 +1012,17 @@ impl webhooks::IncomingWebhook for Gigadat {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let query_params = get_webhook_query_params(request)?;
         let body_str = std::str::from_utf8(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let details: Vec<transformers::GigadatWebhookKeyValue> =
-            form_urlencoded::parse(body_str.as_bytes())
-                .map(|(key, value)| transformers::GigadatWebhookKeyValue {
-                    key: key.to_string(),
-                    value: value.to_string(),
-                })
-                .collect();
+        let details = transformers::GigadatWebhookKeyValueBody::decode_from_url(body_str)?;
 
-        let webhook_type = details
-            .iter()
-            .find(|&entry| entry.key == "type")
-            .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let webhook_type = details.webhook_type;
 
-        let flow_type = transformers::GigadatFlow::get_flow(webhook_type.value.as_str())?;
+        let flow_type = transformers::GigadatFlow::get_flow(&webhook_type)?;
         let event_type =
             transformers::get_gigadat_webhook_event_type(query_params.status, flow_type);
         Ok(event_type)
@@ -1018,27 +1031,20 @@ impl webhooks::IncomingWebhook for Gigadat {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let body_str = std::str::from_utf8(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let details: Vec<transformers::GigadatWebhookKeyValue> =
-            form_urlencoded::parse(body_str.as_bytes())
-                .map(|(key, value)| transformers::GigadatWebhookKeyValue {
-                    key: key.to_string(),
-                    value: value.to_string(),
-                })
-                .collect();
-        let resource_object = serde_json::to_string(&details)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok(Box::new(resource_object))
+        let details = transformers::GigadatWebhookKeyValueBody::decode_from_url(body_str)?;
+        Ok(Box::new(details))
     }
     async fn verify_webhook_source(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: Encryptable<masking::Secret<serde_json::Value>>,
+        _connector_account_details: Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
         _connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         Ok(false)
@@ -1047,7 +1053,7 @@ impl webhooks::IncomingWebhook for Gigadat {
 
 lazy_static! {
     static ref GIGADAT_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic, enums::CaptureMethod::Manual,];
 
         let mut gigadat_supported_payment_methods = SupportedPaymentMethods::new();
         gigadat_supported_payment_methods.add(

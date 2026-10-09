@@ -256,6 +256,36 @@ pub fn resolve_type_and_generate_shapes(
             )
         }
 
+        vt if vt.starts_with("Percentage<") && vt.ends_with('>') => {
+            let shape_name = "PercentageValue".to_string();
+            if !shapes.contains_key(&shape_name) && !generated_shapes.contains_key(&shape_name) {
+                let mut members = HashMap::new();
+                members.insert(
+                    "percentage".to_string(),
+                    SmithyMember {
+                        target: "smithy.api#Double".to_string(),
+                        documentation: Some(
+                            "Percentage value ranging between 0 and 100".to_string(),
+                        ),
+                        traits: vec![SmithyTrait::Required],
+                    },
+                );
+                generated_shapes.insert(
+                    shape_name.clone(),
+                    SmithyShape::Structure {
+                        members,
+                        documentation: Some(
+                            "Represents a percentage value between 0 and 100, precise to a \
+                             fixed number of decimal digits"
+                                .to_string(),
+                        ),
+                        traits: vec![],
+                    },
+                );
+            }
+            shape_name
+        }
+
         _ => {
             if value_type.contains("::") {
                 value_type.replace("::", ".")

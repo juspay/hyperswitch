@@ -11,7 +11,10 @@ use hyperswitch_domain_models::{
 };
 use redis_interface::RedisSettings;
 
-use crate::{errors::StorageError, redis::RedisStore};
+use crate::{
+    errors::StorageError,
+    redis::{cache::Caches, RedisStore},
+};
 
 pub mod payment_attempt;
 pub mod payment_intent;
@@ -36,6 +39,9 @@ pub struct MockDb {
     pub refunds: Arc<Mutex<Vec<store::Refund>>>,
     pub processes: Arc<Mutex<Vec<store::ProcessTracker>>>,
     pub redis: Arc<RedisStore>,
+    /// In-memory caches, built with the defaults — a mock store has no configuration to
+    /// take them from.
+    pub caches: Arc<Caches>,
     pub api_keys: Arc<Mutex<Vec<store::ApiKey>>>,
     pub ephemeral_keys: Arc<Mutex<Vec<store::EphemeralKey>>>,
     pub cards_info: Arc<Mutex<Vec<store::CardInfo>>>,
@@ -45,6 +51,7 @@ pub struct MockDb {
     pub mandates: Arc<Mutex<Vec<store::Mandate>>>,
     pub captures: Arc<Mutex<Vec<store::capture::Capture>>>,
     pub merchant_key_store: Arc<Mutex<Vec<store::merchant_key_store::MerchantKeyStore>>>,
+    pub hierarchical_resources: Arc<Mutex<Vec<store::hierarchical_resource::HierarchicalResource>>>,
     #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
     pub tokenizations: Arc<Mutex<Vec<store::tokenization::Tokenization>>>,
     pub business_profiles: Arc<Mutex<Vec<store::business_profile::Profile>>>,
@@ -59,14 +66,15 @@ pub struct MockDb {
     pub payout_attempt: Arc<Mutex<Vec<store::payout_attempt::PayoutAttempt>>>,
     #[cfg(feature = "payouts")]
     pub payouts: Arc<Mutex<Vec<store::payouts::Payouts>>>,
-    pub authentications: Arc<Mutex<Vec<store::authentication::Authentication>>>,
+    pub authentications: Arc<Mutex<Vec<hyperswitch_domain_models::authentication::Authentication>>>,
     pub roles: Arc<Mutex<Vec<store::role::Role>>>,
     pub user_key_store: Arc<Mutex<Vec<store::user_key_store::UserKeyStore>>>,
     pub user_authentication_methods:
         Arc<Mutex<Vec<store::user_authentication_method::UserAuthenticationMethod>>>,
     pub themes: Arc<Mutex<Vec<store::user::theme::Theme>>>,
-    pub hyperswitch_ai_interactions:
-        Arc<Mutex<Vec<store::hyperswitch_ai_interaction::HyperswitchAiInteraction>>>,
+    pub card_issuers: Arc<Mutex<Vec<store::card_issuer::CardIssuer>>>,
+    pub blocklists: Arc<Mutex<Vec<store::blocklist::Blocklist>>>,
+    pub batch_blocklist_jobs: Arc<Mutex<Vec<store::batch_blocklist_job::BatchBlocklistJob>>>,
     pub key_manager_state: Option<KeyManagerState>,
 }
 
@@ -92,10 +100,11 @@ impl MockDb {
             refunds: Default::default(),
             processes: Default::default(),
             redis: Arc::new(
-                RedisStore::new(redis)
+                RedisStore::new_without_event_emitter(redis)
                     .await
                     .change_context(StorageError::InitializationError)?,
             ),
+            caches: Arc::new(Caches::default()),
             api_keys: Default::default(),
             ephemeral_keys: Default::default(),
             cards_info: Default::default(),
@@ -105,6 +114,7 @@ impl MockDb {
             mandates: Default::default(),
             captures: Default::default(),
             merchant_key_store: Default::default(),
+            hierarchical_resources: Default::default(),
             #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
             tokenizations: Default::default(),
             business_profiles: Default::default(),
@@ -124,7 +134,9 @@ impl MockDb {
             user_key_store: Default::default(),
             user_authentication_methods: Default::default(),
             themes: Default::default(),
-            hyperswitch_ai_interactions: Default::default(),
+            card_issuers: Default::default(),
+            blocklists: Default::default(),
+            batch_blocklist_jobs: Default::default(),
             key_manager_state: Some(key_manager_state),
         })
     }
@@ -156,6 +168,33 @@ impl MockDb {
         }
     }
 
+    /// TODO: Remove this once diesel_model dependency is removed from domain_models
+    pub async fn find_resource_new<D, R>(
+        &self,
+        key_store: &MerchantKeyStore,
+        resources: MutexGuard<'_, Vec<D>>,
+        filter_fn: impl Fn(&&D) -> bool,
+    ) -> CustomResult<Option<R>, StorageError>
+    where
+        D: Sync + crate::behaviour::ReverseConversion<R> + Clone,
+        R: crate::behaviour::Conversion,
+    {
+        let resource = resources.iter().find(filter_fn).cloned();
+        match resource {
+            Some(res) => Ok(Some(
+                res.convert(
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)?,
+            )),
+            None => Ok(None),
+        }
+    }
+
     /// Throws errors when the requested resource is not found
     pub async fn get_resource<D, R>(
         &self,
@@ -169,6 +208,27 @@ impl MockDb {
         R: Conversion,
     {
         match self.find_resource(key_store, resources, filter_fn).await? {
+            Some(res) => Ok(res),
+            None => Err(StorageError::ValueNotFound(error_message).into()),
+        }
+    }
+
+    /// TODO: Remove this once diesel_model dependency is removed from domain_models
+    pub async fn get_resource_new<D, R>(
+        &self,
+        key_store: &MerchantKeyStore,
+        resources: MutexGuard<'_, Vec<D>>,
+        filter_fn: impl Fn(&&D) -> bool,
+        error_message: String,
+    ) -> CustomResult<R, StorageError>
+    where
+        D: Sync + crate::behaviour::ReverseConversion<R> + Clone,
+        R: crate::behaviour::Conversion,
+    {
+        match self
+            .find_resource_new(key_store, resources, filter_fn)
+            .await?
+        {
             Some(res) => Ok(res),
             None => Err(StorageError::ValueNotFound(error_message).into()),
         }
@@ -209,6 +269,42 @@ impl MockDb {
         }
     }
 
+    /// TODO: Remove this once diesel_model dependency is removed from domain_models
+    pub async fn get_resources_new<D, R>(
+        &self,
+        key_store: &MerchantKeyStore,
+        resources: MutexGuard<'_, Vec<D>>,
+        filter_fn: impl Fn(&&D) -> bool,
+        error_message: String,
+    ) -> CustomResult<Vec<R>, StorageError>
+    where
+        D: Sync + crate::behaviour::ReverseConversion<R> + Clone,
+        R: crate::behaviour::Conversion,
+    {
+        let resources: Vec<_> = resources.iter().filter(filter_fn).cloned().collect();
+        if resources.is_empty() {
+            Err(StorageError::ValueNotFound(error_message).into())
+        } else {
+            let pm_futures = resources
+                .into_iter()
+                .map(|pm| async {
+                    pm.convert(
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)
+                })
+                .collect::<Vec<_>>();
+
+            let domain_resources = futures::future::try_join_all(pm_futures).await?;
+
+            Ok(domain_resources)
+        }
+    }
+
     pub async fn update_resource<D, R>(
         &self,
         key_store: &MerchantKeyStore,
@@ -220,6 +316,36 @@ impl MockDb {
     where
         D: Sync + ReverseConversion<R> + Clone,
         R: Conversion,
+    {
+        if let Some(pm) = resources.iter_mut().find(filter_fn) {
+            *pm = resource_updated.clone();
+            let result = resource_updated
+                .convert(
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)?;
+            Ok(result)
+        } else {
+            Err(StorageError::ValueNotFound(error_message).into())
+        }
+    }
+
+    /// TODO: Remove this once diesel_model dependency is removed from domain_models
+    pub async fn update_resource_new<D, R>(
+        &self,
+        key_store: &MerchantKeyStore,
+        mut resources: MutexGuard<'_, Vec<D>>,
+        resource_updated: D,
+        filter_fn: impl Fn(&&mut D) -> bool,
+        error_message: String,
+    ) -> CustomResult<R, StorageError>
+    where
+        D: Sync + crate::behaviour::ReverseConversion<R> + Clone,
+        R: crate::behaviour::Conversion,
     {
         if let Some(pm) = resources.iter_mut().find(filter_fn) {
             *pm = resource_updated.clone();

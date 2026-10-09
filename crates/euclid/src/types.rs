@@ -11,7 +11,10 @@ use crate::{
     frontend::{
         ast,
         dir::{
-            enums::{CustomerDeviceDisplaySize, CustomerDevicePlatform, CustomerDeviceType},
+            enums::{
+                CustomerDeviceDisplaySize, CustomerDevicePlatform, CustomerDeviceType,
+                TransactionInitiator,
+            },
             DirKeyKind, DirValue, EuclidDirFilter,
         },
     },
@@ -55,6 +58,8 @@ pub enum EuclidKey {
     CaptureMethod,
     #[strum(serialize = "amount")]
     PaymentAmount,
+    #[strum(serialize = "surcharge_amount")]
+    SurchargeAmount,
     #[strum(serialize = "currency")]
     PaymentCurrency,
     #[cfg(feature = "payouts")]
@@ -82,6 +87,10 @@ pub enum EuclidKey {
     CustomerDeviceDisplaySize,
     #[strum(serialize = "customer_device_platform")]
     CustomerDevicePlatform,
+    #[strum(serialize = "transaction_initiator")]
+    TransactionInitiator,
+    #[strum(serialize = "card_discovery")]
+    CardDiscovery,
 }
 
 impl EuclidDirFilter for DummyOutput {
@@ -101,6 +110,7 @@ impl EuclidDirFilter for DummyOutput {
         DirKeyKind::MandateType,
         DirKeyKind::PaymentType,
         DirKeyKind::SetupFutureUsage,
+        DirKeyKind::TransactionInitiator,
     ];
 }
 impl EuclidAnalysable for DummyOutput {
@@ -155,6 +165,7 @@ impl EuclidKey {
             Self::AuthenticationType => DataType::EnumVariant,
             Self::CaptureMethod => DataType::EnumVariant,
             Self::PaymentAmount => DataType::Number,
+            Self::SurchargeAmount => DataType::Number,
             Self::PaymentCurrency => DataType::EnumVariant,
             #[cfg(feature = "payouts")]
             Self::PayoutCurrency => DataType::EnumVariant,
@@ -172,6 +183,8 @@ impl EuclidKey {
             Self::CustomerDeviceType => DataType::EnumVariant,
             Self::CustomerDeviceDisplaySize => DataType::EnumVariant,
             Self::CustomerDevicePlatform => DataType::EnumVariant,
+            Self::TransactionInitiator => DataType::EnumVariant,
+            Self::CardDiscovery => DataType::EnumVariant,
         }
     }
 }
@@ -283,6 +296,7 @@ pub enum EuclidValue {
     MandateAcceptanceType(enums::MandateAcceptanceType),
     MandateType(enums::MandateType),
     PaymentAmount(NumValue),
+    SurchargeAmount(NumValue),
     PaymentCurrency(enums::Currency),
     #[cfg(feature = "payouts")]
     PayoutCurrency(enums::Currency),
@@ -297,12 +311,15 @@ pub enum EuclidValue {
     CustomerDeviceType(CustomerDeviceType),
     CustomerDeviceDisplaySize(CustomerDeviceDisplaySize),
     CustomerDevicePlatform(CustomerDevicePlatform),
+    TransactionInitiator(TransactionInitiator),
+    CardDiscovery(enums::CardDiscovery),
 }
 
 impl EuclidValue {
     pub fn get_num_value(&self) -> Option<NumValue> {
         match self {
             Self::PaymentAmount(val) => Some(val.clone()),
+            Self::SurchargeAmount(val) => Some(val.clone()),
             _ => None,
         }
     }
@@ -321,6 +338,7 @@ impl EuclidValue {
             Self::AuthenticationType(_) => EuclidKey::AuthenticationType,
             Self::CaptureMethod(_) => EuclidKey::CaptureMethod,
             Self::PaymentAmount(_) => EuclidKey::PaymentAmount,
+            Self::SurchargeAmount(_) => EuclidKey::SurchargeAmount,
             Self::PaymentCurrency(_) => EuclidKey::PaymentCurrency,
             #[cfg(feature = "payouts")]
             Self::PayoutCurrency(_) => EuclidKey::PayoutCurrency,
@@ -335,6 +353,8 @@ impl EuclidValue {
             Self::CustomerDeviceType(_) => EuclidKey::CustomerDeviceType,
             Self::CustomerDeviceDisplaySize(_) => EuclidKey::CustomerDeviceDisplaySize,
             Self::CustomerDevicePlatform(_) => EuclidKey::CustomerDevicePlatform,
+            Self::TransactionInitiator(_) => EuclidKey::TransactionInitiator,
+            Self::CardDiscovery(_) => EuclidKey::CardDiscovery,
         }
     }
 }

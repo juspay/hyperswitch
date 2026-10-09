@@ -7,18 +7,61 @@ use crate::{
     },
     errors,
     schema::incremental_authorization::dsl,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl AuthorizationNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Authorization> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<Authorization> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Authorization {
+    pub async fn update_by_processor_merchant_id_authorization_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: common_utils::id_type::MerchantId,
+        authorization_id: String,
+        authorization_update: AuthorizationUpdate,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::authorization_id.eq(authorization_id.to_owned())),
+            AuthorizationUpdateInternal::from(authorization_update),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NotFound => Err(error.attach_printable(
+                    "Authorization with the given Authorization ID does not exist",
+                )),
+                errors::DatabaseError::NoFieldsToUpdate => {
+                    generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+                        conn,
+                        dsl::processor_merchant_id
+                            .eq(processor_merchant_id.to_owned())
+                            .and(dsl::authorization_id.eq(authorization_id.to_owned())),
+                    )
+                    .await
+                }
+                _ => Err(error),
+            },
+            result => result,
+        }
+    }
+
+    // Fallback function for stagger release - updates by merchant_id when processor_merchant_id is NULL
     pub async fn update_by_merchant_id_authorization_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: common_utils::id_type::MerchantId,
         authorization_id: String,
         authorization_update: AuthorizationUpdate,
@@ -56,8 +99,26 @@ impl Authorization {
         }
     }
 
+    pub async fn find_by_processor_merchant_id_payment_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::payment_id.eq(payment_id.to_owned())),
+            None,
+            None,
+            Some(dsl::created_at.asc()),
+        )
+        .await
+    }
+
+    // Fallback function for stagger release - queries by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_payment_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {

@@ -25,11 +25,11 @@ impl PaymentsApiClient {
         state: &SessionState,
         merchant_id: &str,
         profile_id: &str,
-    ) -> Vec<(String, masking::Maskable<String>)> {
+    ) -> Vec<(String, hyperswitch_masking::Maskable<String>)> {
         vec![
             (
                 helpers::X_INTERNAL_API_KEY.to_string(),
-                masking::Maskable::Masked(
+                hyperswitch_masking::Maskable::Masked(
                     state
                         .conf
                         .internal_merchant_id_profile_id_auth
@@ -39,15 +39,17 @@ impl PaymentsApiClient {
             ),
             (
                 helpers::X_TENANT_ID.to_string(),
-                masking::Maskable::Normal(state.tenant.tenant_id.get_string_repr().to_string()),
+                hyperswitch_masking::Maskable::Normal(
+                    state.tenant.tenant_id.get_string_repr().to_string(),
+                ),
             ),
             (
                 helpers::X_MERCHANT_ID.to_string(),
-                masking::Maskable::Normal(merchant_id.to_string()),
+                hyperswitch_masking::Maskable::Normal(merchant_id.to_string()),
             ),
             (
                 helpers::X_PROFILE_ID.to_string(),
-                masking::Maskable::Normal(profile_id.to_string()),
+                hyperswitch_masking::Maskable::Normal(profile_id.to_string()),
             ),
         ]
     }
@@ -78,7 +80,7 @@ impl PaymentsApiClient {
         }
 
         let request = request_builder.build();
-        let response = api::call_connector_api(state, request, "Subscription Payments")
+        let response = api::call_connector_api(state, request, "Subscription Payments", None)
             .await
             .change_context(subscription_error.clone())?;
 

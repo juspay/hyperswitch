@@ -80,7 +80,7 @@ macro_rules! fallback_reverse_lookup_not_found {
                     _=> return Err(err)
                 }
             }
-        };
+        }
     };
 }
 
@@ -205,6 +205,12 @@ mod id_type {
                     &self.0 .0 .0
                 }
             }
+
+            impl $crate::id_type::TargetingKey for $type {
+                fn targeting_key_value(&self) -> &str {
+                    self.get_string_repr()
+                }
+            }
         };
     }
 
@@ -234,7 +240,7 @@ mod id_type {
 
                     let merchant_ref_id = $crate::id_type::LengthId::from(value).change_context(
                         $crate::errors::ValidationError::IncorrectValueProvided {
-                            field_name: $field_name,
+                            field_name: $field_name.into(),
                         },
                     )?;
 
@@ -272,7 +278,7 @@ mod id_type {
     #[macro_export]
     macro_rules! impl_serializable_secret_id_type {
         ($type:ty) => {
-            impl masking::SerializableSecret for $type {}
+            impl hyperswitch_masking::SerializableSecret for $type {}
         };
     }
 
@@ -434,7 +440,7 @@ macro_rules! type_name {
         std::any::type_name::<$type>()
             .rsplit("::")
             .nth(1)
-            .unwrap_or_default();
+            .unwrap_or_default()
     };
 }
 
@@ -729,8 +735,6 @@ macro_rules! impl_enum_str {
 #[cfg(test)]
 mod tests {
     use serde_json::{json, Value as JsonValue};
-
-    use crate::impl_enum_str;
 
     impl_enum_str!(
         tag_delimiter = ":",

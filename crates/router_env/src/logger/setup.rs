@@ -64,8 +64,12 @@ pub fn setup(
 
     let subscriber = tracing_subscriber::registry()
         .with(traces_layer)
-        .with(StorageSubscription)
-        .with(file_writer);
+        .with(StorageSubscription);
+    // Both deja layers are added only under the feature, so a feature-off
+    // subscriber carries exactly the layers above and nothing else.
+    #[cfg(feature = "deja")]
+    let subscriber = subscriber.with(deja_layer()).with(deja_correlation_layer());
+    let subscriber = subscriber.with(file_writer);
 
     // Setup console logging
     if config.console.enabled {
@@ -117,6 +121,62 @@ pub fn setup(
     Ok(TelemetryGuard {
         _log_guards: guards,
     })
+}
+
+#[cfg(feature = "deja")]
+struct RuntimeHookGraphSink(std::sync::Arc<deja::RuntimeHook>);
+
+#[cfg(feature = "deja")]
+impl deja::GraphNodeSink for RuntimeHookGraphSink {
+    fn graph_node(&self, node: deja_core::ExecutionGraphNode) {
+        match self.0.as_ref() {
+            deja::RuntimeHook::Recording(hook) => {
+                deja::GraphNodeSink::graph_node(hook.as_ref(), node)
+            }
+            deja::RuntimeHook::LookupReplay(hook) => deja::GraphNodeSink::graph_node(hook, node),
+            _ => {}
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+fn deja_layer() -> Option<deja::ExecutionGraphLayer> {
+    // Coupled to the runtime mode, exactly like `deja_correlation_layer`: the
+    // graph rides whichever Record/Replay hook is installed, or it is absent.
+    // No separate on/off knob (that default-off dial silently dropped graph
+    // nodes); a recording IS a graph recording.
+    let hook = deja::installed_runtime_hook()?;
+    match hook.as_ref() {
+        deja::RuntimeHook::Recording(_) | deja::RuntimeHook::LookupReplay(_) => Some(
+            deja::ExecutionGraphLayer::new(std::sync::Arc::new(RuntimeHookGraphSink(hook))),
+        ),
+        _ => None,
+    }
+}
+
+/// Correlation-propagation layer: mirrors the ingress `request_id` span field into
+/// deja-context so boundary events fired from spawned tasks (which escape the
+/// middleware's `scope_correlation` future wrapper but carry the span via
+/// `.in_current_span()`) inherit the request correlation instead of recording
+/// uncorrelated. Only installed while recording or replaying — in normal
+/// operation it is `None`, adding zero per-span overhead.
+#[cfg(feature = "deja")]
+fn deja_correlation_layer() -> Option<deja::DejaCorrelationLayer> {
+    // MUST use `process_runtime_mode`, not `runtime_mode`. This runs once at
+    // tracing setup (process start), before any request has pushed a recording
+    // decision. `runtime_mode` reads the per-request-gated `mode()`, which is
+    // `Disabled` for a record hook until a decision exists — so gating on it
+    // here would leave the correlation layer uninstalled, and boundary events
+    // from spawned tasks would never inherit the request correlation (their
+    // per-boundary gate then resolves no decision and records nothing). Same
+    // circular-dependency shape as the ingress predicates; `process_runtime_mode`
+    // reflects the boot-time configuration and peeks the installed hook. This
+    // mirrors `deja_layer` above, which keys off the installed hook variant.
+    if deja::process_runtime_mode().consumes_args() {
+        Some(deja::DejaCorrelationLayer::new())
+    } else {
+        None
+    }
 }
 
 fn get_opentelemetry_exporter_config(

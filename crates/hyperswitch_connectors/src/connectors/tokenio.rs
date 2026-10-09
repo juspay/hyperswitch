@@ -1,8 +1,5 @@
 pub mod transformers;
-use std::{
-    sync::LazyLock,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::sync::LazyLock;
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use common_enums::{enums, FeatureStatus, PaymentMethodType};
@@ -46,7 +43,7 @@ use hyperswitch_interfaces::{
     types::Response,
     webhooks,
 };
-use masking::{ExposeInterface, Mask, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, Secret};
 use openssl::{ec::EcKey, hash::MessageDigest, pkey::PKey, rsa::Rsa, sign::Signer};
 use transformers::{self as tokenio, TokenioPaymentStatus};
 
@@ -72,11 +69,7 @@ impl Tokenio {
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         // Create JWT header
-        let exp_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?
-            .as_millis()
-            + 600_000; // 10 minutes
+        let exp_time = common_utils::date_time::now_unix_timestamp_millis() + 600_000; // 10 minutes
 
         let header = serde_json::json!({
             "alg": match auth.key_algorithm {
@@ -259,7 +252,8 @@ where
         &self,
         _req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         // Basic headers - JWT will be added in individual build_request methods
         let header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -290,7 +284,8 @@ impl ConnectorCommon for Tokenio {
     fn get_auth_header(
         &self,
         _auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![])
     }
 
@@ -314,6 +309,7 @@ impl ConnectorCommon for Tokenio {
             reason: Some(response.get_message()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
@@ -339,7 +335,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -442,7 +439,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tok
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         // For GET requests, we need JWT with detached format (no body)
         let auth = tokenio::TokenioAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -614,6 +612,7 @@ impl webhooks::IncomingWebhook for Tokenio {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         // Check token-event header first
         let event_type = if let Some(header_value) = request.headers.get("token-event") {
@@ -676,7 +675,8 @@ impl webhooks::IncomingWebhook for Tokenio {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let webhook_payload: tokenio::TokenioWebhookPayload = request
             .body
             .parse_struct("TokenioWebhookPayload")

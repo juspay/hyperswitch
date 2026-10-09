@@ -279,6 +279,7 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
         dir::DirKeyKind::BusinessLabel => lower_str!(BusinessLabel, value),
         dir::DirKeyKind::MetaData => lower_metadata!(MetaData, value),
         dir::DirKeyKind::PaymentAmount => lower_number!(PaymentAmount, value, comparison),
+        dir::DirKeyKind::SurchargeAmount => lower_number!(SurchargeAmount, value, comparison),
         dir::DirKeyKind::Connector => Err(AnalysisErrorType::InvalidKey(
             dir::DirKeyKind::Connector.to_string(),
         )),
@@ -289,6 +290,9 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
         dir::DirKeyKind::CustomerDeviceDisplaySize => lower_enum!(CustomerDeviceDisplaySize, value),
         dir::DirKeyKind::AcquirerCountry => lower_enum!(AcquirerCountry, value),
         dir::DirKeyKind::AcquirerFraudRate => lower_number!(AcquirerFraudRate, value, comparison),
+        dir::DirKeyKind::TransactionInitiator => lower_enum!(TransactionInitiator, value),
+        dir::DirKeyKind::NetworkTokenType => lower_enum!(NetworkTokenType, value),
+        dir::DirKeyKind::CardDiscovery => lower_enum!(CardDiscovery, value),
     }
 }
 

@@ -3,7 +3,7 @@ use std::ops::Deref;
 
 use base64::Engine;
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
     hmac, rand as ring_rand,
@@ -11,16 +11,47 @@ use ring::{
 };
 #[cfg(feature = "logs")]
 use router_env::logger;
-use rsa::{pkcs8::DecodePublicKey, signature::Verifier};
+use rsa::{
+    pkcs1::DecodeRsaPrivateKey,
+    pkcs8::{DecodePrivateKey, DecodePublicKey},
+    signature::Verifier,
+    traits::PublicKeyParts,
+    Oaep,
+};
 
 use crate::{
-    consts::BASE64_ENGINE,
+    consts::{BASE64_ENGINE, BASE64_ENGINE_URL_SAFE_NO_PAD},
     errors::{self, CustomResult},
     pii::{self, EncryptionStrategy},
 };
 
 #[derive(Clone, Debug)]
-struct NonceSequence(u128);
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
+struct NonceSequence(
+    // deja: serialize the 96-bit nonce as its 16 big-endian BYTES, not a bare
+    // u128. A nonce routinely exceeds u64::MAX, and `serde_json::Value::Number`
+    // cannot hold a u128 beyond u64 range — so capturing it as a number FAILED
+    // and the boundary recorded `null`, leaving nothing to substitute (the real
+    // random nonce then ran on replay → divergent at-rest ciphertext). A byte
+    // array is small-int-only, so it round-trips through serde_json and any
+    // JSON event transport losslessly, exactly like `generate_aes256_key`.
+    #[cfg_attr(feature = "deja", serde(with = "deja_nonce_bytes"))] u128,
+);
+
+/// deja: lossless u128 nonce (de)serialization via its 16 big-endian bytes.
+#[cfg(feature = "deja")]
+mod deja_nonce_bytes {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S: Serializer>(v: &u128, s: S) -> Result<S::Ok, S::Error> {
+        v.to_be_bytes().serialize(s)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<u128, D::Error> {
+        let bytes = <[u8; 16]>::deserialize(d)?;
+        Ok(u128::from_be_bytes(bytes))
+    }
+}
 
 impl NonceSequence {
     /// Byte index at which sequence number starts in a 16-byte (128-bit) sequence.
@@ -29,6 +60,21 @@ impl NonceSequence {
     const SEQUENCE_NUMBER_START_INDEX: usize = 4;
 
     /// Generate a random nonce sequence.
+    //
+    // deja: the AEAD nonce is the single source of ciphertext non-determinism.
+    // Recording it (Ok-only; the ring error type is non-serializable) and
+    // replaying it in call order makes `encode_message` reproduce byte-identical
+    // ciphertext for the same key+plaintext, so encrypted DB columns and HTTP
+    // bodies match the recording exactly. Real AES still runs; only the random
+    // nonce is substituted.
+    #[cfg_attr(
+        feature = "deja",
+        deja::id(
+            component = "common_utils::crypto",
+            operation = "GcmAes256::nonce",
+            codec = ResultOkCodec,
+        )
+    )]
     fn new() -> Result<Self, ring::error::Unspecified> {
         use ring::rand::{SecureRandom, SystemRandom};
 
@@ -529,7 +575,7 @@ impl VerifySignature for RsaSha256 {
 
         let verifying_key = rsa::pkcs1v15::VerifyingKey::<rsa::sha2::Sha256>::new(rsa_public_key);
 
-        // transfrom the signature
+        // transform the signature
         let decoded_signature = BASE64_ENGINE
             .decode(signature)
             .change_context(errors::CryptoError::SignatureVerificationFailed)
@@ -602,6 +648,14 @@ impl EncodeMessage for TripleDesEde3CBC {
 /// Generate a random string using a cryptographically secure pseudo-random number generator
 /// (CSPRNG). Typically used for generating (readable) keys and passwords.
 #[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils::crypto",
+        operation = "generate_cryptographically_secure_random_string",
+        codec = SerdeCodec,
+    )
+)]
 pub fn generate_cryptographically_secure_random_string(length: usize) -> String {
     use rand::distributions::DistString;
 
@@ -626,7 +680,7 @@ pub struct Encryptable<T: Clone> {
     encrypted: Secret<Vec<u8>, EncryptionStrategy>,
 }
 
-impl<T: Clone, S: masking::Strategy<T>> Encryptable<Secret<T, S>> {
+impl<T: Clone, S: hyperswitch_masking::Strategy<T>> Encryptable<Secret<T, S>> {
     /// constructor function to be used by the encryptor and decryptor to generate the data type
     pub fn new(
         masked_data: Secret<T, S>,
@@ -691,15 +745,111 @@ impl<T: Clone> Deref for Encryptable<Secret<T>> {
     }
 }
 
-impl<T: Clone> masking::Serialize for Encryptable<T>
+impl<T: Clone> hyperswitch_masking::Serialize for Encryptable<T>
 where
-    T: masking::Serialize,
+    T: hyperswitch_masking::Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         self.inner.serialize(serializer)
+    }
+}
+
+impl<'de, T: Clone> serde::Deserialize<'de> for Encryptable<T>
+where
+    T: serde::Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let inner = T::deserialize(deserializer)?;
+        Ok(Self {
+            inner,
+            encrypted: Secret::new(Vec::new()),
+        })
+    }
+}
+
+/// Lossless two-halves serde for [`Encryptable`], used by deja capture/replay.
+/// The type's own impls intentionally drop the ciphertext (API responses must
+/// never expose it); this module carries both halves so a substituted value
+/// keeps its encrypted half. Applied per field with
+/// `#[serde(with = "…encryptable_exact")]` (or `::optional` for an `Option`).
+pub mod encryptable_exact {
+    use hyperswitch_masking::PeekInterface;
+    use serde::{Deserialize, Serialize};
+
+    use super::{Encryptable, Secret};
+
+    #[derive(Serialize, Deserialize)]
+    struct Halves<T> {
+        inner: T,
+        encrypted: Vec<u8>,
+    }
+
+    impl<T: Clone> Halves<T> {
+        fn of(value: &Encryptable<T>) -> Self {
+            Self {
+                inner: value.inner.clone(),
+                encrypted: value.encrypted.peek().clone(),
+            }
+        }
+
+        fn into_encryptable(self) -> Encryptable<T> {
+            Encryptable {
+                inner: self.inner,
+                encrypted: Secret::new(self.encrypted),
+            }
+        }
+    }
+
+    /// Serialize both halves — the decrypted value AND the ciphertext.
+    pub fn serialize<T, S>(value: &Encryptable<T>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: Clone + Serialize,
+        S: serde::Serializer,
+    {
+        Halves::of(value).serialize(serializer)
+    }
+
+    /// Rebuild from both halves, so the ciphertext survives the round trip.
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<Encryptable<T>, D::Error>
+    where
+        T: Clone + serde::de::DeserializeOwned,
+        D: serde::Deserializer<'de>,
+    {
+        Halves::<T>::deserialize(deserializer).map(Halves::into_encryptable)
+    }
+
+    /// The same exactness for an `Option<Encryptable<T>>` field.
+    pub mod optional {
+        use serde::{Deserialize, Serialize};
+
+        use super::{Encryptable, Halves};
+
+        /// Serialize both halves of an optional value.
+        pub fn serialize<T, S>(
+            value: &Option<Encryptable<T>>,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error>
+        where
+            T: Clone + Serialize,
+            S: serde::Serializer,
+        {
+            value.as_ref().map(Halves::of).serialize(serializer)
+        }
+
+        /// Rebuild an optional value from both halves.
+        pub fn deserialize<'de, T, D>(deserializer: D) -> Result<Option<Encryptable<T>>, D::Error>
+        where
+            T: Clone + serde::de::DeserializeOwned,
+            D: serde::Deserializer<'de>,
+        {
+            Ok(Option::<Halves<T>>::deserialize(deserializer)?.map(Halves::into_encryptable))
+        }
     }
 }
 
@@ -729,7 +879,131 @@ pub type EncryptableName = Encryptable<Secret<String>>;
 /// Type alias for `Encryptable<Secret<String>>` used for `email` field
 pub type EncryptableEmail = Encryptable<Secret<String, pii::EmailStrategy>>;
 
+/// Extract RSA public key components (n, e) from a private key PEM for JWKS
+/// Returns base64url-encoded modulus and exponent
+pub fn extract_rsa_public_key_components(
+    private_key_pem: &Secret<String>,
+) -> CustomResult<(String, String), errors::CryptoError> {
+    let pem_str = private_key_pem.peek();
+    let parsed_pem = pem::parse(pem_str).change_context(errors::CryptoError::EncodingFailed)?;
+
+    let private_key = match parsed_pem.tag() {
+        "PRIVATE KEY" => rsa::RsaPrivateKey::from_pkcs8_der(parsed_pem.contents())
+            .change_context(errors::CryptoError::InvalidKeyLength),
+        "RSA PRIVATE KEY" => rsa::RsaPrivateKey::from_pkcs1_der(parsed_pem.contents())
+            .change_context(errors::CryptoError::InvalidKeyLength),
+        tag => Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+            "Unexpected PEM tag: {tag}. Expected 'PRIVATE KEY' or 'RSA PRIVATE KEY'"
+        )),
+    }
+    .attach_printable("Failed to extract RSA public key components from private key")?;
+
+    let public_key = private_key.to_public_key();
+    let n_bytes = public_key.n().to_bytes_be();
+    let e_bytes = public_key.e().to_bytes_be();
+
+    let n_b64 = BASE64_ENGINE_URL_SAFE_NO_PAD.encode(n_bytes);
+    let e_b64 = BASE64_ENGINE_URL_SAFE_NO_PAD.encode(e_bytes);
+
+    Ok((n_b64, e_b64))
+}
+
+/// Random bytes for a cryptographic operation whose output has to be reproducible
+/// on replay.
+///
+/// deja: seams the entropy a crypto primitive consumes internally. Substituting the
+/// input leaves the candidate running the real algorithm over its own plaintext, so
+/// a changed algorithm or message still diverges. Same shape as `GcmAes256::nonce`.
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils::crypto",
+        operation = "secure_random_bytes",
+        codec = SerdeCodec,
+    )
+)]
+fn secure_random_bytes(length: usize) -> Vec<u8> {
+    use rand::RngCore;
+
+    let mut bytes = vec![0_u8; length];
+    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    bytes
+}
+
+/// An `OsRng` that draws through [`secure_random_bytes`].
+///
+/// `rand_core`'s traits are not sealed, so an RNG can be handed to the `rsa`
+/// crate. (`ring`'s `SecureRandom` *is* sealed, which is why `RsaPssSha256`
+/// below cannot get the same treatment.)
+#[derive(Debug, Clone, Copy)]
+struct SeamedOsRng;
+
+impl rand::RngCore for SeamedOsRng {
+    fn next_u32(&mut self) -> u32 {
+        let bytes: [u8; 4] = secure_random_bytes(4).try_into().unwrap_or([0; 4]);
+        u32::from_le_bytes(bytes)
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        let bytes: [u8; 8] = secure_random_bytes(8).try_into().unwrap_or([0; 8]);
+        u64::from_le_bytes(bytes)
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        let bytes = secure_random_bytes(dest.len());
+        if bytes.len() == dest.len() {
+            dest.copy_from_slice(&bytes);
+        }
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+        self.fill_bytes(dest);
+        Ok(())
+    }
+}
+
+// Safety: every byte comes from `OsRng`; the seam only changes when they are
+// drawn, never how.
+impl rand::CryptoRng for SeamedOsRng {}
+
+/// Encrypt plaintext using RSA-OAEP with SHA-256.
+/// `public_key_der` must be a DER-encoded SubjectPublicKeyInfo (PKCS#8) public key.
+/// Returns the raw ciphertext bytes.
+//
+// deja: OAEP padding is randomised, so the ciphertext differs on every run and
+// fiservcommercehub's outbound request (`connector_relay/fiservcommercehub.rs:343`)
+// never matched its recording. The RNG is an argument here, so the fix is to
+// substitute the padding bytes rather than the ciphertext -- no key material and
+// no plaintext enters the tape, and a candidate that changed the encryption still
+// diverges.
+pub fn encrypt_rsa_oaep_sha256(
+    public_key_der: &[u8],
+    plaintext: &[u8],
+) -> CustomResult<Vec<u8>, errors::CryptoError> {
+    let public_key = rsa::RsaPublicKey::from_public_key_der(public_key_der)
+        .change_context(errors::CryptoError::EncodingFailed)
+        .attach_printable("Failed to parse DER public key for RSA-OAEP")?;
+
+    let padding = Oaep::new::<rsa::sha2::Sha256>();
+    let mut rng = SeamedOsRng;
+
+    public_key
+        .encrypt(&mut rng, padding, plaintext)
+        .change_context(errors::CryptoError::EncodingFailed)
+        .attach_printable("RSA OAEP encryption failed")
+}
+
 /// Represents the RSA-PSS-SHA256 signing algorithm
+//
+// deja: NOT seamed — the one nondeterminism source left open here. PSS randomises
+// its salt, so amazonpay's signature (`connectors/amazonpay.rs:175`) differs every
+// run. Seaming the salt RNG is impossible: `ring::rand::SecureRandom` is sealed
+// (`rand.rs:31`, `pub(crate) sealed`, in both 0.16.20 and 0.17), so nothing can be
+// injected into `RsaKeyPair::sign`. Seaming `sign_message` instead is refused — its
+// first argument is the PEM private key and tapes are widely read. The fix is to
+// move this impl onto `rsa`, whose `pss::SigningKey::sign_with_rng` takes the RNG;
+// that replaces a live signing implementation, so it needs its own change.
 #[derive(Debug)]
 pub struct RsaPssSha256;
 
@@ -762,6 +1036,157 @@ impl SignMessage for RsaPssSha256 {
             .attach_printable("Failed to sign data with ring")?;
 
         Ok(signature_bytes)
+    }
+}
+
+#[cfg(test)]
+mod encryptable_exact_tests {
+    use hyperswitch_masking::{PeekInterface, Secret};
+    use serde::{Deserialize, Serialize};
+
+    use super::Encryptable;
+
+    #[derive(Serialize, Deserialize)]
+    struct Holder {
+        #[serde(with = "super::encryptable_exact")]
+        required: Encryptable<Secret<String>>,
+        #[serde(with = "super::encryptable_exact::optional")]
+        optional: Option<Encryptable<Secret<String>>>,
+    }
+
+    fn holder(inner: &str, ciphertext: Vec<u8>) -> Holder {
+        Holder {
+            required: Encryptable::new(Secret::new(inner.to_owned()), Secret::new(ciphertext)),
+            optional: None,
+        }
+    }
+
+    /// The exactness that matters: the CIPHERTEXT survives the round trip.
+    ///
+    /// `Encryptable`'s own impls drop it on purpose — an API response must
+    /// never expose it — so capturing a cached decrypted value through them
+    /// yields something the source never held. `into_encrypted()` has callers
+    /// on write-back paths (`common_utils::encryption`, the `type_encryption`
+    /// conversions), which would persist the empty bytes and call it
+    /// reproduction.
+    #[test]
+    fn both_halves_survive_the_round_trip() {
+        let ciphertext = vec![7_u8, 8, 9, 250];
+        let subject = Holder {
+            required: Encryptable::new(
+                Secret::new("plaintext".to_owned()),
+                Secret::new(ciphertext.clone()),
+            ),
+            optional: Some(Encryptable::new(
+                Secret::new("other".to_owned()),
+                Secret::new(vec![1_u8, 2]),
+            )),
+        };
+
+        let wire = serde_json::to_value(&subject).expect("serializes");
+        let back: Holder = serde_json::from_value(wire).expect("deserializes");
+
+        assert_eq!(back.required.get_inner().peek(), "plaintext");
+        assert_eq!(
+            back.required.clone().into_encrypted().peek(),
+            &ciphertext,
+            "the encrypted half must round-trip, not come back empty"
+        );
+        let optional = back.optional.expect("optional present");
+        assert_eq!(optional.get_inner().peek(), "other");
+        assert_eq!(optional.into_encrypted().peek(), &vec![1_u8, 2]);
+    }
+
+    /// A `None` optional stays `None` rather than becoming an empty value.
+    #[test]
+    fn an_absent_optional_stays_absent() {
+        let subject = holder("x", vec![]);
+        let wire = serde_json::to_value(&subject).expect("serializes");
+        let back: Holder = serde_json::from_value(wire).expect("deserializes");
+        assert!(back.optional.is_none());
+    }
+
+    /// The type's own impls stay lossy — this is the contract the helper
+    /// exists to work around, and a change to it would silently re-break
+    /// capture rather than failing anything.
+    #[test]
+    fn the_types_own_serde_still_drops_the_ciphertext() {
+        let value: Encryptable<Secret<String>> =
+            Encryptable::new(Secret::new("v".to_owned()), Secret::new(vec![1_u8, 2, 3]));
+        let wire = serde_json::to_value(&value).expect("serializes");
+        let back: Encryptable<Secret<String>> = serde_json::from_value(wire).expect("deserializes");
+        assert!(
+            back.into_encrypted().peek().is_empty(),
+            "documented lossiness: the public impls carry only the value"
+        );
+    }
+
+    /// An EMPTY ciphertext must round-trip as empty, distinguishably.
+    ///
+    /// Without this, a regression to the lossy path is only caught by cases
+    /// that happen to carry bytes: `into_encrypted().peek().is_empty()` would
+    /// hold for "the source was empty" and for "the helper dropped it", and
+    /// the two are different facts. Pairing this with the non-empty case
+    /// pins both directions.
+    #[test]
+    fn an_empty_ciphertext_round_trips_as_empty() {
+        let subject = holder("v", Vec::new());
+        let wire = serde_json::to_value(&subject).expect("serializes");
+        let back: Holder = serde_json::from_value(wire).expect("deserializes");
+        assert!(back.required.into_encrypted().peek().is_empty());
+    }
+
+    /// Ciphertext is arbitrary bytes, not text. A NUL, a 0xFF and a long run
+    /// must survive unaltered — a transport that ever routed these through a
+    /// string would mangle exactly these and nothing else.
+    #[test]
+    fn arbitrary_ciphertext_bytes_survive_unaltered() {
+        let mut ciphertext = vec![0_u8, 255, 1, 254, 128, 127];
+        ciphertext.extend(std::iter::repeat_n(0_u8, 64));
+        ciphertext.extend([0xDE, 0xAD, 0xBE, 0xEF]);
+
+        let subject = holder("v", ciphertext.clone());
+        let wire = serde_json::to_value(&subject).expect("serializes");
+        let back: Holder = serde_json::from_value(wire).expect("deserializes");
+        assert_eq!(back.required.into_encrypted().peek(), &ciphertext);
+    }
+
+    /// The same through a STRING, not only a `Value`.
+    ///
+    /// `serde_json::Value` is a lenient intermediate; the tape is bytes. A
+    /// round trip that only ever goes through `Value` can hide an escaping or
+    /// numeric-representation problem that a real serializer would hit.
+    #[test]
+    fn the_round_trip_holds_through_a_string_too() {
+        let ciphertext = vec![0_u8, 34, 92, 10, 255];
+        let subject = holder("quote\" and \\ backslash", ciphertext.clone());
+        let text = serde_json::to_string(&subject).expect("serializes");
+        let back: Holder = serde_json::from_str(&text).expect("deserializes");
+        assert_eq!(back.required.get_inner().peek(), "quote\" and \\ backslash");
+        assert_eq!(back.required.into_encrypted().peek(), &ciphertext);
+    }
+
+    /// The wire shape is part of the contract: both halves, under names the
+    /// tape already carries. Pinning it means a rename or a re-shaping is a
+    /// failing test rather than a silently unreadable recording.
+    #[test]
+    fn the_wire_carries_both_halves_under_stable_names() {
+        let subject = holder("v", vec![1_u8, 2]);
+        let wire = serde_json::to_value(&subject).expect("serializes");
+        let required = wire.get("required").expect("required field present");
+
+        assert!(
+            required.get("inner").is_some(),
+            "the decrypted half must be present as `inner`, got {required}"
+        );
+        assert_eq!(
+            required
+                .get("encrypted")
+                .and_then(|e| e.as_array())
+                .map(Vec::len),
+            Some(2),
+            "the encrypted half must be present as `encrypted`, got {required}"
+        );
     }
 }
 
@@ -930,10 +1355,7 @@ mod crypto_tests {
     fn test_md5_digest() {
         let message = "abcdefghijklmnopqrstuvwxyz".as_bytes();
         assert_eq!(
-            format!(
-                "{}",
-                hex::encode(super::Md5.generate_digest(message).expect("Digest"))
-            ),
+            hex::encode(super::Md5.generate_digest(message).expect("Digest")),
             "c3fcd3d76192e4007dfb496cca67e13b"
         );
     }

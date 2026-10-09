@@ -1,3 +1,5 @@
+use error_stack::ResultExt;
+
 use crate::errors::{CustomResult, ValidationError};
 
 crate::id_type!(
@@ -20,5 +22,23 @@ impl OrganizationId {
     /// Get an organization id from String
     pub fn try_from_string(org_id: String) -> CustomResult<Self, ValidationError> {
         Self::try_from(std::borrow::Cow::from(org_id))
+    }
+    /// get_authentication_service_eligible_key
+    pub fn get_authentication_service_eligible_key(&self) -> String {
+        format!("authentication_service_eligible_{}", self.get_string_repr())
+    }
+
+    /// Get should call PM modular service key for payment
+    pub fn get_should_call_pm_modular_service_key(&self) -> String {
+        format!("should_call_pm_modular_service_{}", self.get_string_repr())
+    }
+
+    /// Re-wraps this organization id as a [`super::MerchantId`] for use as an encryption identifier.
+    pub fn as_merchant_key_identifier(&self) -> CustomResult<super::MerchantId, ValidationError> {
+        super::MerchantId::try_from(std::borrow::Cow::Owned(self.get_string_repr().to_owned()))
+            .change_context(ValidationError::InvalidValue {
+                message: "organization id could not be used as a merchant key identifier"
+                    .to_string(),
+            })
     }
 }

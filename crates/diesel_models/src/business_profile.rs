@@ -4,7 +4,7 @@ use common_enums::{AuthenticationConnectors, UIWidgetFormLayout, VaultSdk};
 use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::Duration;
 
 #[cfg(feature = "v1")]
@@ -18,7 +18,16 @@ use crate::schema_v2::business_profile;
 /// If two adjacent columns have the same type, then the compiler will not throw any error, but the
 /// fields read / written will be interchanged
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
+#[derive(
+    Clone,
+    Debug,
+    Identifiable,
+    Queryable,
+    Selectable,
+    router_derive::DebugAsDisplay,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 #[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
 pub struct Profile {
     pub profile_id: common_utils::id_type::ProfileId,
@@ -74,7 +83,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub acquirer_config_map: Option<AcquirerConfigBucket>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
@@ -84,6 +93,14 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub network_tokenization_credentials: Option<Encryption>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub order_fulfillment_time: Option<i64>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 #[cfg(feature = "v1")]
@@ -147,11 +164,18 @@ pub struct ProfileNew {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub network_tokenization_credentials: Option<Encryption>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub order_fulfillment_time: Option<i64>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile)]
+#[router_derive::apply_changeset(target = Profile)]
 pub struct ProfileUpdateInternal {
     pub profile_name: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
@@ -202,7 +226,7 @@ pub struct ProfileUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub acquirer_config_map: Option<AcquirerConfigBucket>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
@@ -211,164 +235,14 @@ pub struct ProfileUpdateInternal {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
-}
-
-#[cfg(feature = "v1")]
-impl ProfileUpdateInternal {
-    pub fn apply_changeset(self, source: Profile) -> Profile {
-        let Self {
-            profile_name,
-            modified_at,
-            return_url,
-            enable_payment_response_hash,
-            payment_response_hash_key,
-            redirect_to_merchant_with_http_post,
-            webhook_details,
-            metadata,
-            routing_algorithm,
-            intent_fulfillment_time,
-            frm_routing_algorithm,
-            payout_routing_algorithm,
-            is_recon_enabled,
-            applepay_verified_domains,
-            payment_link_config,
-            session_expiry,
-            authentication_connector_details,
-            payout_link_config,
-            is_extended_card_info_enabled,
-            extended_card_info_config,
-            is_connector_agnostic_mit_enabled,
-            use_billing_as_payment_method_billing,
-            collect_shipping_details_from_wallet_connector,
-            collect_billing_details_from_wallet_connector,
-            outgoing_webhook_custom_http_headers,
-            always_collect_billing_details_from_wallet_connector,
-            always_collect_shipping_details_from_wallet_connector,
-            tax_connector_id,
-            is_tax_connector_enabled,
-            is_l2_l3_enabled,
-            dynamic_routing_algorithm,
-            is_network_tokenization_enabled,
-            is_auto_retries_enabled,
-            max_auto_retries_enabled,
-            always_request_extended_authorization,
-            is_click_to_pay_enabled,
-            authentication_product_ids,
-            card_testing_guard_config,
-            card_testing_secret_key,
-            is_clear_pan_retries_enabled,
-            force_3ds_challenge,
-            is_debit_routing_enabled,
-            merchant_business_country,
-            is_iframe_redirection_enabled,
-            is_pre_network_tokenization_enabled,
-            three_ds_decision_rule_algorithm,
-            acquirer_config_map,
-            merchant_category_code,
-            merchant_country_code,
-            dispute_polling_interval,
-            is_manual_retry_enabled,
-            always_enable_overcapture,
-            is_external_vault_enabled,
-            external_vault_connector_details,
-            billing_processor_id,
-        } = self;
-        Profile {
-            profile_id: source.profile_id,
-            merchant_id: source.merchant_id,
-            profile_name: profile_name.unwrap_or(source.profile_name),
-            created_at: source.created_at,
-            modified_at,
-            return_url: return_url.or(source.return_url),
-            enable_payment_response_hash: enable_payment_response_hash
-                .unwrap_or(source.enable_payment_response_hash),
-            payment_response_hash_key: payment_response_hash_key
-                .or(source.payment_response_hash_key),
-            redirect_to_merchant_with_http_post: redirect_to_merchant_with_http_post
-                .unwrap_or(source.redirect_to_merchant_with_http_post),
-            webhook_details: webhook_details.or(source.webhook_details),
-            metadata: metadata.or(source.metadata),
-            routing_algorithm: routing_algorithm.or(source.routing_algorithm),
-            intent_fulfillment_time: intent_fulfillment_time.or(source.intent_fulfillment_time),
-            frm_routing_algorithm: frm_routing_algorithm.or(source.frm_routing_algorithm),
-            payout_routing_algorithm: payout_routing_algorithm.or(source.payout_routing_algorithm),
-            is_recon_enabled: is_recon_enabled.unwrap_or(source.is_recon_enabled),
-            applepay_verified_domains: applepay_verified_domains
-                .or(source.applepay_verified_domains),
-            payment_link_config: payment_link_config.or(source.payment_link_config),
-            session_expiry: session_expiry.or(source.session_expiry),
-            authentication_connector_details: authentication_connector_details
-                .or(source.authentication_connector_details),
-            payout_link_config: payout_link_config.or(source.payout_link_config),
-            is_extended_card_info_enabled: is_extended_card_info_enabled
-                .or(source.is_extended_card_info_enabled),
-            is_connector_agnostic_mit_enabled: is_connector_agnostic_mit_enabled
-                .or(source.is_connector_agnostic_mit_enabled),
-            extended_card_info_config: extended_card_info_config
-                .or(source.extended_card_info_config),
-            use_billing_as_payment_method_billing: use_billing_as_payment_method_billing
-                .or(source.use_billing_as_payment_method_billing),
-            collect_shipping_details_from_wallet_connector:
-                collect_shipping_details_from_wallet_connector
-                    .or(source.collect_shipping_details_from_wallet_connector),
-            collect_billing_details_from_wallet_connector:
-                collect_billing_details_from_wallet_connector
-                    .or(source.collect_billing_details_from_wallet_connector),
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .or(source.outgoing_webhook_custom_http_headers),
-            always_collect_billing_details_from_wallet_connector:
-                always_collect_billing_details_from_wallet_connector
-                    .or(source.always_collect_billing_details_from_wallet_connector),
-            always_collect_shipping_details_from_wallet_connector:
-                always_collect_shipping_details_from_wallet_connector
-                    .or(source.always_collect_shipping_details_from_wallet_connector),
-            tax_connector_id: tax_connector_id.or(source.tax_connector_id),
-            is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
-            is_l2_l3_enabled: is_l2_l3_enabled.or(source.is_l2_l3_enabled),
-            version: source.version,
-            dynamic_routing_algorithm: dynamic_routing_algorithm
-                .or(source.dynamic_routing_algorithm),
-            is_network_tokenization_enabled: is_network_tokenization_enabled
-                .unwrap_or(source.is_network_tokenization_enabled),
-            is_auto_retries_enabled: is_auto_retries_enabled.or(source.is_auto_retries_enabled),
-            max_auto_retries_enabled: max_auto_retries_enabled.or(source.max_auto_retries_enabled),
-            always_request_extended_authorization: always_request_extended_authorization
-                .or(source.always_request_extended_authorization),
-            is_click_to_pay_enabled: is_click_to_pay_enabled
-                .unwrap_or(source.is_click_to_pay_enabled),
-            authentication_product_ids: authentication_product_ids
-                .or(source.authentication_product_ids),
-            card_testing_guard_config: card_testing_guard_config
-                .or(source.card_testing_guard_config),
-            card_testing_secret_key,
-            is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
-                .unwrap_or(source.is_clear_pan_retries_enabled),
-            force_3ds_challenge,
-            id: source.id,
-            is_debit_routing_enabled: is_debit_routing_enabled
-                .unwrap_or(source.is_debit_routing_enabled),
-            merchant_business_country: merchant_business_country
-                .or(source.merchant_business_country),
-            is_iframe_redirection_enabled: is_iframe_redirection_enabled
-                .or(source.is_iframe_redirection_enabled),
-            is_pre_network_tokenization_enabled: is_pre_network_tokenization_enabled
-                .or(source.is_pre_network_tokenization_enabled),
-            three_ds_decision_rule_algorithm: three_ds_decision_rule_algorithm
-                .or(source.three_ds_decision_rule_algorithm),
-            acquirer_config_map: acquirer_config_map.or(source.acquirer_config_map),
-            merchant_category_code: merchant_category_code.or(source.merchant_category_code),
-            merchant_country_code: merchant_country_code.or(source.merchant_country_code),
-            dispute_polling_interval: dispute_polling_interval.or(source.dispute_polling_interval),
-            is_manual_retry_enabled: is_manual_retry_enabled.or(source.is_manual_retry_enabled),
-            always_enable_overcapture: always_enable_overcapture
-                .or(source.always_enable_overcapture),
-            is_external_vault_enabled: is_external_vault_enabled
-                .or(source.is_external_vault_enabled),
-            external_vault_connector_details: external_vault_connector_details
-                .or(source.external_vault_connector_details),
-            billing_processor_id: billing_processor_id.or(source.billing_processor_id),
-        }
-    }
+    pub network_tokenization_credentials: Option<Encryption>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub order_fulfillment_time: Option<i64>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 /// Note: The order of fields in the struct is important.
@@ -377,7 +251,16 @@ impl ProfileUpdateInternal {
 /// If two adjacent columns have the same type, then the compiler will not throw any error, but the
 /// fields read / written will be interchanged
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
+#[derive(
+    Clone,
+    Debug,
+    Identifiable,
+    Queryable,
+    Selectable,
+    router_derive::DebugAsDisplay,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 #[diesel(table_name = business_profile, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct Profile {
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -427,7 +310,7 @@ pub struct Profile {
     pub id: common_utils::id_type::ProfileId,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub acquirer_config_map: Option<AcquirerConfigBucket>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
@@ -437,12 +320,18 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
-    pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
+    pub network_tokenization_credentials: Option<Encryption>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub order_fulfillment_time: Option<i64>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
+    pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
-    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
@@ -511,11 +400,12 @@ pub struct ProfileNew {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
-    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
@@ -527,11 +417,13 @@ pub struct ProfileNew {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile)]
+#[router_derive::apply_changeset(target = Profile)]
 pub struct ProfileUpdateInternal {
     pub profile_name: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
@@ -579,6 +471,7 @@ pub struct ProfileUpdateInternal {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
@@ -589,168 +482,8 @@ pub struct ProfileUpdateInternal {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
-}
-
-#[cfg(feature = "v2")]
-impl ProfileUpdateInternal {
-    pub fn apply_changeset(self, source: Profile) -> Profile {
-        let Self {
-            profile_name,
-            modified_at,
-            return_url,
-            enable_payment_response_hash,
-            payment_response_hash_key,
-            redirect_to_merchant_with_http_post,
-            webhook_details,
-            metadata,
-            is_recon_enabled,
-            applepay_verified_domains,
-            payment_link_config,
-            session_expiry,
-            authentication_connector_details,
-            payout_link_config,
-            is_extended_card_info_enabled,
-            extended_card_info_config,
-            is_connector_agnostic_mit_enabled,
-            use_billing_as_payment_method_billing,
-            collect_shipping_details_from_wallet_connector,
-            collect_billing_details_from_wallet_connector,
-            outgoing_webhook_custom_http_headers,
-            always_collect_billing_details_from_wallet_connector,
-            always_collect_shipping_details_from_wallet_connector,
-            tax_connector_id,
-            is_tax_connector_enabled,
-            billing_processor_id,
-            routing_algorithm_id,
-            order_fulfillment_time,
-            order_fulfillment_time_origin,
-            frm_routing_algorithm_id,
-            payout_routing_algorithm_id,
-            default_fallback_routing,
-            should_collect_cvv_during_payment,
-            is_network_tokenization_enabled,
-            is_auto_retries_enabled,
-            max_auto_retries_enabled,
-            is_click_to_pay_enabled,
-            authentication_product_ids,
-            three_ds_decision_manager_config,
-            card_testing_guard_config,
-            card_testing_secret_key,
-            is_clear_pan_retries_enabled,
-            is_debit_routing_enabled,
-            merchant_business_country,
-            revenue_recovery_retry_algorithm_type,
-            revenue_recovery_retry_algorithm_data,
-            is_iframe_redirection_enabled,
-            is_external_vault_enabled,
-            external_vault_connector_details,
-            merchant_category_code,
-            merchant_country_code,
-            split_txns_enabled,
-            is_l2_l3_enabled,
-        } = self;
-        Profile {
-            id: source.id,
-            merchant_id: source.merchant_id,
-            profile_name: profile_name.unwrap_or(source.profile_name),
-            created_at: source.created_at,
-            modified_at,
-            return_url: return_url.or(source.return_url),
-            enable_payment_response_hash: enable_payment_response_hash
-                .unwrap_or(source.enable_payment_response_hash),
-            payment_response_hash_key: payment_response_hash_key
-                .or(source.payment_response_hash_key),
-            redirect_to_merchant_with_http_post: redirect_to_merchant_with_http_post
-                .unwrap_or(source.redirect_to_merchant_with_http_post),
-            webhook_details: webhook_details.or(source.webhook_details),
-            metadata: metadata.or(source.metadata),
-            is_recon_enabled: is_recon_enabled.unwrap_or(source.is_recon_enabled),
-            applepay_verified_domains: applepay_verified_domains
-                .or(source.applepay_verified_domains),
-            payment_link_config: payment_link_config.or(source.payment_link_config),
-            session_expiry: session_expiry.or(source.session_expiry),
-            authentication_connector_details: authentication_connector_details
-                .or(source.authentication_connector_details),
-            payout_link_config: payout_link_config.or(source.payout_link_config),
-            is_extended_card_info_enabled: is_extended_card_info_enabled
-                .or(source.is_extended_card_info_enabled),
-            is_connector_agnostic_mit_enabled: is_connector_agnostic_mit_enabled
-                .or(source.is_connector_agnostic_mit_enabled),
-            extended_card_info_config: extended_card_info_config
-                .or(source.extended_card_info_config),
-            use_billing_as_payment_method_billing: use_billing_as_payment_method_billing
-                .or(source.use_billing_as_payment_method_billing),
-            collect_shipping_details_from_wallet_connector:
-                collect_shipping_details_from_wallet_connector
-                    .or(source.collect_shipping_details_from_wallet_connector),
-            collect_billing_details_from_wallet_connector:
-                collect_billing_details_from_wallet_connector
-                    .or(source.collect_billing_details_from_wallet_connector),
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .or(source.outgoing_webhook_custom_http_headers),
-            always_collect_billing_details_from_wallet_connector:
-                always_collect_billing_details_from_wallet_connector
-                    .or(always_collect_billing_details_from_wallet_connector),
-            always_collect_shipping_details_from_wallet_connector:
-                always_collect_shipping_details_from_wallet_connector
-                    .or(always_collect_shipping_details_from_wallet_connector),
-            tax_connector_id: tax_connector_id.or(source.tax_connector_id),
-            is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
-            routing_algorithm_id: routing_algorithm_id.or(source.routing_algorithm_id),
-            order_fulfillment_time: order_fulfillment_time.or(source.order_fulfillment_time),
-            order_fulfillment_time_origin: order_fulfillment_time_origin
-                .or(source.order_fulfillment_time_origin),
-            frm_routing_algorithm_id: frm_routing_algorithm_id.or(source.frm_routing_algorithm_id),
-            payout_routing_algorithm_id: payout_routing_algorithm_id
-                .or(source.payout_routing_algorithm_id),
-            default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
-            should_collect_cvv_during_payment: should_collect_cvv_during_payment
-                .or(source.should_collect_cvv_during_payment),
-            version: source.version,
-            dynamic_routing_algorithm: None,
-            is_network_tokenization_enabled: is_network_tokenization_enabled
-                .unwrap_or(source.is_network_tokenization_enabled),
-            is_auto_retries_enabled: is_auto_retries_enabled.or(source.is_auto_retries_enabled),
-            max_auto_retries_enabled: max_auto_retries_enabled.or(source.max_auto_retries_enabled),
-            always_request_extended_authorization: None,
-            is_click_to_pay_enabled: is_click_to_pay_enabled
-                .unwrap_or(source.is_click_to_pay_enabled),
-            authentication_product_ids: authentication_product_ids
-                .or(source.authentication_product_ids),
-            three_ds_decision_manager_config: three_ds_decision_manager_config
-                .or(source.three_ds_decision_manager_config),
-            card_testing_guard_config: card_testing_guard_config
-                .or(source.card_testing_guard_config),
-            card_testing_secret_key: card_testing_secret_key.or(source.card_testing_secret_key),
-            is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
-                .unwrap_or(source.is_clear_pan_retries_enabled),
-            force_3ds_challenge: None,
-            is_debit_routing_enabled: is_debit_routing_enabled
-                .unwrap_or(source.is_debit_routing_enabled),
-            merchant_business_country: merchant_business_country
-                .or(source.merchant_business_country),
-            revenue_recovery_retry_algorithm_type: revenue_recovery_retry_algorithm_type
-                .or(source.revenue_recovery_retry_algorithm_type),
-            revenue_recovery_retry_algorithm_data: revenue_recovery_retry_algorithm_data
-                .or(source.revenue_recovery_retry_algorithm_data),
-            is_iframe_redirection_enabled: is_iframe_redirection_enabled
-                .or(source.is_iframe_redirection_enabled),
-            is_external_vault_enabled: is_external_vault_enabled
-                .or(source.is_external_vault_enabled),
-            external_vault_connector_details: external_vault_connector_details
-                .or(source.external_vault_connector_details),
-            three_ds_decision_rule_algorithm: None,
-            acquirer_config_map: None,
-            merchant_category_code: merchant_category_code.or(source.merchant_category_code),
-            merchant_country_code: merchant_country_code.or(source.merchant_country_code),
-            dispute_polling_interval: None,
-            split_txns_enabled: split_txns_enabled.or(source.split_txns_enabled),
-            is_manual_retry_enabled: None,
-            always_enable_overcapture: None,
-            is_l2_l3_enabled: None,
-            billing_processor_id: billing_processor_id.or(source.billing_processor_id),
-        }
-    }
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
@@ -781,6 +514,22 @@ common_utils::impl_to_sql_from_sql_json!(ExternalVaultConnectorDetails);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct SurchargeConnectorDetails {
+    pub surcharge_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+}
+
+common_utils::impl_to_sql_from_sql_json!(SurchargeConnectorDetails);
+
+fn default_guest_ip_blocking_status() -> bool {
+    common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_STATUS
+}
+
+fn default_guest_ip_blocking_threshold() -> i32 {
+    common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_THRESHOLD
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct CardTestingGuardConfig {
     pub is_card_ip_blocking_enabled: bool,
     pub card_ip_blocking_threshold: i32,
@@ -789,6 +538,10 @@ pub struct CardTestingGuardConfig {
     pub is_customer_id_blocking_enabled: bool,
     pub customer_id_blocking_threshold: i32,
     pub card_testing_guard_expiry: i32,
+    #[serde(default = "default_guest_ip_blocking_status")]
+    pub is_guest_ip_blocking_enabled: bool,
+    #[serde(default = "default_guest_ip_blocking_threshold")]
+    pub guest_ip_blocking_threshold: i32,
 }
 
 common_utils::impl_to_sql_from_sql_json!(CardTestingGuardConfig);
@@ -808,6 +561,8 @@ impl Default for CardTestingGuardConfig {
                 common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
             card_testing_guard_expiry:
                 common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
+            is_guest_ip_blocking_enabled: common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_STATUS,
+            guest_ip_blocking_threshold: common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_THRESHOLD,
         }
     }
 }
@@ -830,13 +585,40 @@ pub struct WebhookDetails {
     pub payment_created_enabled: Option<bool>,
     pub payment_succeeded_enabled: Option<bool>,
     pub payment_failed_enabled: Option<bool>,
-    pub payment_statuses_enabled: Option<Vec<common_enums::IntentStatus>>,
-    pub refund_statuses_enabled: Option<Vec<common_enums::RefundStatus>>,
-    pub payout_statuses_enabled: Option<Vec<common_enums::PayoutStatus>>,
+    pub payment_statuses_enabled: Option<HashSet<common_enums::IntentStatus>>,
+    pub refund_statuses_enabled: Option<HashSet<common_enums::RefundStatus>>,
+    pub payout_statuses_enabled: Option<HashSet<common_enums::PayoutStatus>>,
+    pub dispute_statuses_enabled: Option<HashSet<common_enums::DisputeStatus>>,
+    pub mandate_statuses_enabled: Option<HashSet<common_enums::MandateStatus>>,
+    pub invoice_statuses_enabled: Option<HashSet<common_enums::InvoiceStatus>>,
     pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(WebhookDetails);
+
+#[derive(
+    Clone, Debug, serde::Serialize, serde::Deserialize, diesel::AsExpression, diesel::FromSqlRow,
+)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+#[serde(untagged)]
+pub enum AcquirerConfigBucket {
+    New(common_types::domain::AcquirerConfigBucket),
+    Old(HashMap<common_utils::id_type::ProfileAcquirerId, common_types::domain::AcquirerConfig>),
+}
+
+common_utils::impl_to_sql_from_sql_json!(AcquirerConfigBucket);
+
+impl From<AcquirerConfigBucket> for common_types::domain::AcquirerConfigBucket {
+    fn from(item: AcquirerConfigBucket) -> Self {
+        match item {
+            AcquirerConfigBucket::New(new) => new,
+            AcquirerConfigBucket::Old(old) => Self {
+                default_acquirer_config: None,
+                configs: old.into_iter().map(|(k, v)| (k, vec![v])).collect(),
+            },
+        }
+    }
+}
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
@@ -864,7 +646,7 @@ pub struct PaymentLinkConfigRequest {
     pub payment_button_text: Option<String>,
     pub custom_message_for_card_terms: Option<String>,
     pub custom_message_for_payment_method_types:
-        Option<common_enums::CustomTermsByPaymentMethodTypes>,
+        Option<common_types::payments::PaymentMethodsConfig>,
     pub payment_button_colour: Option<String>,
     pub skip_status_screen: Option<bool>,
     pub payment_button_text_colour: Option<String>,
@@ -877,6 +659,9 @@ pub struct PaymentLinkConfigRequest {
     pub show_card_terms: Option<common_enums::PaymentLinkShowSdkTerms>,
     pub is_setup_mandate_flow: Option<bool>,
     pub color_icon_card_cvc_error: Option<String>,
+    pub show_merchant_name: Option<bool>,
+    pub payment_methods_separator_text: Option<String>,
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
@@ -922,3 +707,91 @@ impl RevenueRecoveryAlgorithmData {
 }
 
 common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);
+
+/// Configuration for payment method blocking based on card attributes
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct PaymentMethodBlockingConfig {
+    pub card: Option<CardBlockingConfig>,
+    pub wallet: Option<WalletBlockingConfig>,
+}
+
+/// Card-specific blocking configuration
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct CardBlockingConfig {
+    /// Set of issuing countries to block using ISO 3166-1 alpha-2 codes (e.g., ["IN", "US"])
+    pub issuing_country: Option<HashSet<common_enums::CountryAlpha2>>,
+    /// Set of card types to block (e.g., ["Credit", "Debit"])
+    pub card_types: Option<HashSet<common_enums::CardType>>,
+    /// Set of card subtypes to block
+    pub card_subtypes: Option<HashSet<String>>,
+    /// Set of card issuers to block (e.g., ["HDFC Bank", "ICICI Bank"])
+    pub issuers: Option<HashSet<String>>,
+    /// Whether to block if BIN is provided but no matching record found in cards_info table.
+    /// Defaults to false (allow payment if BIN not found in database).
+    pub block_if_bin_info_unavailable: Option<bool>,
+    /// Set of card networks to block
+    pub card_networks: Option<HashSet<common_enums::CardNetwork>>,
+    /// Set of card funding sources to block
+    pub funding_sources: Option<HashSet<common_enums::FundingSource>>,
+    /// Set of card segment types to block
+    pub card_segment_types: Option<HashSet<common_enums::CardSegmentType>>,
+    /// Whether virtual cards should be blocked
+    pub block_virtual_cards: Option<bool>,
+    /// Whether non-reloadable prepaid cards should be blocked
+    pub block_non_reloadable_prepaid_cards: Option<bool>,
+    /// Whether cards from BINs marked for gambling should be blocked
+    pub gambling_blocked: Option<bool>,
+}
+
+/// Wallet-specific blocking configuration for Apple Pay and Google Pay
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct WalletBlockingConfig {
+    /// Set of card types to block for all wallet payments (e.g., ["Credit", "Debit"]).
+    /// Retained for backwards compatibility with existing configurations.
+    pub card_types: Option<HashSet<common_enums::CardType>>,
+    /// Apple Pay-specific blocking configuration
+    pub apple_pay: Option<CardBlockingConfig>,
+    /// Google Pay-specific blocking configuration
+    pub google_pay: Option<CardBlockingConfig>,
+}
+
+impl WalletBlockingConfig {
+    /// Per-wallet config only.
+    pub fn is_credit_blocked_for_apple_pay(&self) -> bool {
+        self.apple_pay
+            .as_ref()
+            .is_some_and(CardBlockingConfig::is_credit_blocked)
+    }
+
+    pub fn is_credit_blocked_for_google_pay(&self) -> bool {
+        self.google_pay
+            .as_ref()
+            .is_some_and(CardBlockingConfig::is_credit_blocked)
+    }
+}
+
+impl CardBlockingConfig {
+    pub fn should_block_if_bin_info_unavailable(&self) -> bool {
+        self.block_if_bin_info_unavailable.unwrap_or(false)
+    }
+
+    pub fn is_credit_blocked(&self) -> bool {
+        self.card_types
+            .as_ref()
+            .is_some_and(|card_types| card_types.contains(&common_enums::CardType::Credit))
+    }
+
+    pub fn should_block_by_attribute<T>(blocked: &Option<HashSet<T>>, value: Option<&str>) -> bool
+    where
+        T: std::str::FromStr + std::hash::Hash + Eq,
+    {
+        blocked
+            .as_ref()
+            .zip(value)
+            .and_then(|(set, s)| s.parse::<T>().ok().map(|v| (set, v)))
+            .is_some_and(|(set, v)| set.contains(&v))
+    }
+}
+
+common_utils::impl_to_sql_from_sql_json!(PaymentMethodBlockingConfig);

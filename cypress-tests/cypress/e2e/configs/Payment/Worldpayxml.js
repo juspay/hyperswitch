@@ -1,8 +1,4 @@
-import {
-  customerAcceptance,
-  singleUseMandateData,
-  multiUseMandateData,
-} from "./Commons";
+import { customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
@@ -15,7 +11,13 @@ const successfulNo3DSCardDetails = {
 
 const successful3DSTestCardDetails = {
   ...successfulNo3DSCardDetails,
-  card_number: "4242424242424242",
+  card_number: "4000000000001091",
+  card_holder_name: "AUTHORIZED",
+};
+
+const failedNo3DSCardDetails = {
+  ...successfulNo3DSCardDetails,
+  card_holder_name: "REFUSED33",
 };
 
 export const connectorDetails = {
@@ -51,6 +53,7 @@ export const connectorDetails = {
     PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -60,18 +63,18 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
-          shipping_cost: 50,
-          amount_received: null,
-          amount: 6000,
-          net_amount: 6050,
+          status: "succeeded",
         },
       },
     },
     "3DSManualCapture": getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successful3DSTestCardDetails,
         },
@@ -79,10 +82,20 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
     }),
-    "3DSAutoCapture": getCustomExchange({
+    "3DSAutoCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         amount: 6000,
         payment_method_data: {
           card: successful3DSTestCardDetails,
@@ -91,11 +104,18 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-    }),
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
     No3DSManualCapture: {
       Request: {
         description: "Test description",
         payment_method: "card",
+        payment_method_type: "debit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -113,6 +133,7 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -124,8 +145,28 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
-          amount_received: null,
+          status: "succeeded",
+          amount_received: 6000,
+        },
+      },
+    },
+    AuthCodeNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        amount: 6000,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method_data: {},
         },
       },
     },
@@ -162,7 +203,7 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "This Payment could not be captured because it has a capture_method of automatic. The expected state is manual_multiple",
+              "This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, processing",
             code: "IR_14",
           },
         },
@@ -175,7 +216,7 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "You cannot confirm this payment because it has status processing",
+              "You cannot confirm this payment because it has status succeeded",
             code: "IR_16",
           },
         },
@@ -206,14 +247,16 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
+            message: "The refund amount exceeds the amount captured",
+            code: "IR_13",
           },
         },
       },
     },
     ZeroAuthMandate: {
+      Request: {
+        amount: 0,
+      },
       Response: {
         status: 501,
         body: {
@@ -241,12 +284,15 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
-        payment_method_type: "credit",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 501,
@@ -265,6 +311,7 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -276,7 +323,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
@@ -297,6 +344,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -353,35 +401,14 @@ export const connectorDetails = {
         },
       },
     },
-    MandateMultiUseNo3DSAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
     Refund: {
       Request: {
         amount: 6000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
+          status: "pending",
         },
       },
     },
@@ -390,68 +417,17 @@ export const connectorDetails = {
         amount: 2000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
+          status: "pending",
         },
       },
     },
-    MandateSingleUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
+    SyncRefund: {
       Response: {
         status: 200,
         body: {
-          status: "processing",
-        },
-      },
-    },
-    MandateSingleUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    MandateMultiUseNo3DSManualCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
+          status: "pending",
         },
       },
     },
@@ -461,6 +437,7 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successful3DSTestCardDetails,
         },
@@ -493,6 +470,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -504,7 +482,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
@@ -513,7 +491,9 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -525,6 +505,90 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+        },
+      },
+    },
+    MITAutoCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: { amount: 6000 },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        amount: 6000,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    Response: {
+      status: 200,
+      body: {
+        status: "processing",
+      },
+    },
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successful3DSTestCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successful3DSTestCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },
@@ -544,7 +608,210 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "33",
+          error_message: "CARD EXPIRED",
+        },
+      },
+    },
+    ConnectorIntentMetadata: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        connector_metadata: {
+          worldpayxml: {
+            funding_transaction_type: "funds_transfer_me_to_me",
+            payment_purpose: "family_support",
+          },
+        },
+      },
+      // Non-AFT payment: funding_transaction_type and payment_purpose are optional at
+      // the API level, but hyperswitch validates the connector_metadata schema (unknown
+      // fields are rejected with IR_06) and echoes connector_metadata back on the
+      // payment response. The payment itself proceeds as a standard card payment and
+      // succeeds.
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          connector_metadata: {
+            apple_pay: null,
+            airwallex: null,
+            noon: null,
+            braintree: null,
+            adyen: null,
+            peachpayments: null,
+            santander: null,
+            worldpayxml: {
+              funding_transaction_type: "funds_transfer_me_to_me",
+              payment_purpose: "family_support",
+            },
+            checkout: null,
+            stripe: null,
+          },
+        },
+      },
+    },
+    ConnectorIntentMetadataMissing: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        connector_metadata: null,
+      },
+      // Without the AFT flag, connector_metadata is optional: hyperswitch accepts
+      // the payment and returns success even when it is absent.
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    ConnectorIntentMetadataMissingFundingTransactionType: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        connector_metadata: {
+          worldpayxml: {
+            payment_purpose: "family_support",
+          },
+        },
+      },
+      // funding_transaction_type is only required for AFT payments: without the AFT
+      // flag, partial connector_metadata is accepted and the payment succeeds.
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    ConnectorIntentMetadataMissingPaymentPurpose: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        connector_metadata: {
+          worldpayxml: {
+            funding_transaction_type: "funds_transfer_me_to_me",
+          },
+        },
+      },
+      // payment_purpose is only required for AFT payments: without the AFT flag,
+      // partial connector_metadata is accepted and the payment succeeds.
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    ConnectorIntentMetadataUnknownField: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        connector_metadata: {
+          worldpayxml: {
+            funding_transaction_type: "funds_transfer_me_to_me",
+            payment_purpose: "family_support",
+            unknown_field: "x",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            message:
+              "Json deserialize error: unknown field `unknown_field`, expected `funding_transaction_type` or `payment_purpose`",
+            code: "IR_06",
+          },
         },
       },
     },

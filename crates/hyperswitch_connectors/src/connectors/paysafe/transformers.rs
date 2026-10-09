@@ -18,30 +18,29 @@ use hyperswitch_domain_models::{
     },
     router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{CompleteAuthorizeData, PaymentsSyncData, ResponseId},
+    router_request_types::{
+        CompleteAuthorizeData, PaymentMethodTokenizationData, PaymentsSyncData, ResponseId,
+    },
     router_response_types::{
         ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RedirectForm,
         RefundsResponseData,
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
-        PaymentsPreProcessingRouterData, RefundsRouterData,
+        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, RefundsRouterData,
+        TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{
-        PaymentsPreprocessingResponseRouterData, PaymentsResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData,
-    },
+    types::{PaymentsResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, missing_field_err, to_connector_meta, BrowserInformationData, CardData,
-        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreProcessingRequestData, RouterData as RouterDataUtils,
+        self, to_connector_meta, BrowserInformationData, CardData,
+        PaymentMethodTokenizationRequestData, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, RouterData as RouterDataUtils,
     },
 };
 
@@ -73,6 +72,7 @@ pub struct PaysafePaymentMethodDetails {
     pub interac: Option<HashMap<Currency, RedirectAccountId>>,
     pub pay_safe_card: Option<HashMap<Currency, RedirectAccountId>>,
     pub skrill: Option<HashMap<Currency, RedirectAccountId>>,
+    pub neteller: Option<HashMap<Currency, RedirectAccountId>>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -117,7 +117,7 @@ impl TryFrom<&ConnectorCustomerRouterData> for PaysafeCustomerDetails {
                 received_length: customer_id.get_string_repr().len(),
             }),
             None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "customer_id".into(),
             }),
         }?;
 
@@ -238,6 +238,9 @@ pub enum PaysafePaymentMethod {
     },
     Skrill {
         skrill: SkrillWallet,
+    },
+    Neteller {
+        neteller: NetellerWallet,
     },
 }
 
@@ -360,6 +363,12 @@ pub struct SkrillWallet {
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct NetellerWallet {
+    pub consumer_id: Email,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct InteracBankRedirect {
     pub consumer_id: Email,
 }
@@ -392,6 +401,7 @@ pub enum PaysafePaymentType {
     // For Apple Pay and Google Pay, paymentType is 'CARD' as per Paysafe docs and is not reserved for card payments only
     Card,
     Skrill,
+    Neteller,
     InteracEtransfer,
     Paysafecard,
 }
@@ -468,6 +478,19 @@ impl PaysafePaymentMethodDetails {
             })
     }
 
+    pub fn get_neteller_account_id(
+        &self,
+        currency: Currency,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        self.neteller
+            .as_ref()
+            .and_then(|wallets| wallets.get(&currency))
+            .and_then(|neteller| neteller.three_ds.clone())
+            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Missing neteller account_id",
+            })
+    }
+
     pub fn get_interac_account_id(
         &self,
         currency: Currency,
@@ -534,11 +557,9 @@ where
     }
 }
 
-impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePaymentHandleRequest {
+impl TryFrom<&PaysafeRouterData<&TokenizationRouterData>> for PaysafePaymentHandleRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PaysafeRouterData<&PaymentsPreProcessingRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaysafeRouterData<&TokenizationRouterData>) -> Result<Self, Self::Error> {
         let metadata: PaysafeConnectorMetadataObject =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
@@ -546,7 +567,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                 })?;
 
         let amount = item.amount;
-        let currency_code = item.router_data.request.get_currency()?;
+        let currency_code = item.router_data.request.currency;
         let redirect_url = item.router_data.request.get_router_return_url()?;
         let return_links = vec![
             ReturnLink {
@@ -584,7 +605,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
         )?;
 
         let (payment_method, payment_type, account_id) =
-            match item.router_data.request.get_payment_method_data()?.clone() {
+            match item.router_data.request.payment_method_data.clone() {
                 PaymentMethodData::Card(req_card) => {
                     let card = PaysafeCard {
                         card_num: req_card.card_number.clone(),
@@ -642,6 +663,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                     | WalletData::AmazonPayRedirect(_)
                     | WalletData::Paysera(_)
                     | WalletData::Skrill(_)
+                    | WalletData::Neteller(_)
                     | WalletData::BluecodeRedirect {}
                     | WalletData::MomoRedirect(_)
                     | WalletData::KakaoPayRedirect(_)
@@ -661,6 +683,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                     | WalletData::SamsungPay(_)
                     | WalletData::TwintRedirect {}
                     | WalletData::VippsRedirect {}
+                    | WalletData::WeroRedirect {}
                     | WalletData::TouchNGoRedirect(_)
                     | WalletData::WeChatPayRedirect(_)
                     | WalletData::CashappQr(_)
@@ -753,32 +776,33 @@ pub struct PaysafeMeta {
     pub payment_handle_token: Secret<String>,
 }
 
-impl TryFrom<PaymentsPreprocessingResponseRouterData<PaysafePaymentHandleResponse>>
-    for PaymentsPreProcessingRouterData
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            PaysafePaymentHandleResponse,
+            PaymentMethodTokenizationData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentMethodTokenizationData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<PaysafePaymentHandleResponse>,
+        item: ResponseRouterData<
+            F,
+            PaysafePaymentHandleResponse,
+            PaymentMethodTokenizationData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::try_from(item.response.status)?,
-            preprocessing_id: Some(
-                item.response
-                    .payment_handle_token
-                    .to_owned()
-                    .peek()
-                    .to_string(),
-            ),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::NoResponseId,
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
+            response: Ok(PaymentsResponseData::TokenizationResponse {
+                token: item.response.payment_handle_token.peek().to_string(),
             }),
+            payment_method_token: Some(PaymentMethodToken::Token(
+                item.response.payment_handle_token.clone(),
+            )),
             ..item.data
         })
     }
@@ -813,9 +837,12 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentsResponse>> for PaymentsAu
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -850,9 +877,12 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentHandleResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -946,9 +976,11 @@ struct DecryptedApplePayTokenHeader {
     transaction_id: String,
 }
 
+/// Helper function to create Apple Pay decrypted data for Paysafe
 fn get_apple_pay_decrypt_data(
     apple_pay_predecrypt_data: &ApplePayPredecryptData,
-    item: &PaysafeRouterData<&PaymentsPreProcessingRouterData>,
+    currency: Currency,
+    amount: MinorUnit,
 ) -> Result<PaysafeApplePayDecryptedData, error_stack::Report<errors::ConnectorError>> {
     Ok(PaysafeApplePayDecryptedData {
         application_primary_account_number: apple_pay_predecrypt_data
@@ -957,17 +989,10 @@ fn get_apple_pay_decrypt_data(
         application_expiration_date: apple_pay_predecrypt_data
             .get_expiry_date_as_yymm()
             .change_context(errors::ConnectorError::InvalidDataFormat {
-                field_name: "application_expiration_date",
+                field_name: "application_expiration_date".into(),
             })?,
-        currency_code: Currency::iso_4217(
-            item.router_data
-                .request
-                .currency
-                .ok_or_else(missing_field_err("currency"))?,
-        )
-        .to_string(),
-
-        transaction_amount: Some(item.amount),
+        currency_code: Currency::iso_4217(currency).to_string(),
+        transaction_amount: Some(amount),
         cardholder_name: None,
         device_manufacturer_identifier: Some("Apple".to_string()),
         payment_data_type: Some("3DSecure".to_string()),
@@ -984,14 +1009,14 @@ fn get_apple_pay_decrypt_data(
 impl
     TryFrom<(
         &ApplePayWalletData,
-        &PaysafeRouterData<&PaymentsPreProcessingRouterData>,
+        &PaysafeRouterData<&TokenizationRouterData>,
     )> for PaysafeApplepayPayment
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (wallet_data, item): (
             &ApplePayWalletData,
-            &PaysafeRouterData<&PaymentsPreProcessingRouterData>,
+            &PaysafeRouterData<&TokenizationRouterData>,
         ),
     ) -> Result<Self, Self::Error> {
         let apple_pay_payment_token = PaysafeApplePayPaymentToken {
@@ -1000,7 +1025,11 @@ impl
                     item.router_data.get_payment_method_token()
                 {
                     PaysafeApplePayPaymentData::Decrypted(PaysafeApplePayDecryptedDataWrapper {
-                        decrypted_data: get_apple_pay_decrypt_data(token, item)?,
+                        decrypted_data: get_apple_pay_decrypt_data(
+                            token,
+                            item.router_data.request.currency,
+                            item.amount,
+                        )?,
                     })
                 } else {
                     match &wallet_data.payment_data {
@@ -1009,7 +1038,8 @@ impl
                                 PaysafeApplePayDecryptedDataWrapper {
                                     decrypted_data: get_apple_pay_decrypt_data(
                                         applepay_predecrypt_data,
-                                        item,
+                                        item.router_data.request.currency,
+                                        item.amount,
                                     )?,
                                 },
                             )
@@ -1018,13 +1048,13 @@ impl
                             let decoded_data = base64::prelude::BASE64_STANDARD
                                 .decode(applepay_encrypt_data)
                                 .change_context(errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "apple_pay_encrypted_data",
+                                    field_name: "apple_pay_encrypted_data".into(),
                                 })?;
 
                             let apple_pay_token: DecryptedApplePayTokenData =
                                 serde_json::from_slice(&decoded_data).change_context(
                                     errors::ConnectorError::InvalidDataFormat {
-                                        field_name: "apple_pay_token_json",
+                                        field_name: "apple_pay_token_json".into(),
                                     },
                                 )?;
 
@@ -1094,7 +1124,19 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PaysafeMandateData {
                 stored_credential: Some(
                     PaysafeStoredCredential::new_customer_initiated_transaction(),
                 ),
-                payment_token: item.get_preprocessing_id()?.into(),
+                payment_token: item
+                    .preprocessing_id
+                    .clone()
+                    .map(|id| id.into())
+                    .or_else(|| {
+                        item.get_payment_method_token()
+                            .ok()?
+                            .get_payment_method_token()
+                    })
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "payment_token (preprocessing_id or payment_method_token)"
+                            .into(),
+                    })?,
             }),
             (false, Some(mandate_data)) => {
                 let mandate_id = mandate_data
@@ -1117,7 +1159,19 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PaysafeMandateData {
             }
             _ => Ok(Self {
                 stored_credential: None,
-                payment_token: item.get_preprocessing_id()?.into(),
+                payment_token: item
+                    .preprocessing_id
+                    .clone()
+                    .map(|id| id.into())
+                    .or_else(|| {
+                        item.get_payment_method_token()
+                            .ok()?
+                            .get_payment_method_token()
+                    })
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "payment_token (preprocessing_id or payment_method_token)"
+                            .into(),
+                    })?,
             }),
         }
     }
@@ -1190,7 +1244,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                     "Mandate Payment with {} {}",
                     item.router_data.payment_method, item.router_data.auth_type
                 ),
-                connector: "Paysafe",
+                connector: "Paysafe".into(),
             })?
         };
 
@@ -1281,6 +1335,16 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                     };
                     let payment_type = PaysafePaymentType::Skrill;
                     let account_id = metadata.account_id.get_skrill_account_id(currency_code)?;
+                    (payment_method, payment_type, account_id, None, None)
+                }
+                PaymentMethodData::Wallet(WalletData::Neteller(_)) => {
+                    let payment_method = PaysafePaymentMethod::Neteller {
+                        neteller: NetellerWallet {
+                            consumer_id: item.router_data.get_billing_email()?,
+                        },
+                    };
+                    let payment_type = PaysafePaymentType::Neteller;
+                    let account_id = metadata.account_id.get_neteller_account_id(currency_code)?;
                     (payment_method, payment_type, account_id, None, None)
                 }
                 PaymentMethodData::Wallet(_) => Err(errors::ConnectorError::NotImplemented(
@@ -1411,9 +1475,12 @@ impl<F>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1631,6 +1698,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
                 reason,
                 attempt_status: None,
                 connector_transaction_id: Some(connector_transaction_id),
+                connector_response_reference_id: None,
                 status_code: item.http_code,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -1644,9 +1712,12 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
 
@@ -1719,9 +1790,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaysafeSettlementResponse, T, PaymentsR
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1787,9 +1861,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoidResponse, T, PaymentsResponseData>>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

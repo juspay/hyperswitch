@@ -42,9 +42,11 @@ impl PaymentMethodsSessionInterface for crate::services::Store {}
 #[cfg(feature = "v2")]
 mod storage {
     use error_stack::ResultExt;
-    use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::RedisConnInterface;
+    use storage_impl::{
+        behaviour::{Conversion, ReverseConversion},
+        redis::kv_store::RedisConnInterface,
+    };
 
     use super::PaymentMethodsSessionInterface;
     use crate::{
@@ -130,7 +132,7 @@ mod storage {
 
             let internal_obj = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateInternal::from(update_request);
 
-            let update_state = current_session.apply_changeset(internal_obj);
+            let update_state = internal_obj.apply_changeset(current_session);
 
             let db_model = update_state
                 .construct_new()

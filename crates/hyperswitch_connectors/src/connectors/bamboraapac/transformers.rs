@@ -12,7 +12,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -49,12 +49,6 @@ pub struct BamboraapacMeta {
 pub fn get_payment_body(
     req: &BamboraapacRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<Vec<u8>, Error> {
-    if req.router_data.is_three_ds() {
-        Err(errors::ConnectorError::NotSupported {
-            message: "Cards 3DS".to_string(),
-            connector: "Bamboraapac",
-        })?
-    }
     let transaction_data = get_transaction_body(req)?;
     let body = format!(
         r#"
@@ -111,6 +105,12 @@ fn get_transaction_body(
 fn get_card_data(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Error> {
     let card_data = match &req.request.payment_method_data {
         PaymentMethodData::Card(card) => {
+            if req.is_three_ds() {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Cards 3DS".to_string(),
+                    connector: "Bamboraapac".into(),
+                })?
+            }
             let card_holder_name = req.get_billing_full_name()?;
 
             if req.request.setup_future_usage == Some(enums::FutureUsage::OffSession) {
@@ -304,9 +304,12 @@ impl TryFrom<PaymentsResponseRouterData<BamboraapacPaymentsResponse>>
                     mandate_reference: Box::new(mandate_reference),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -339,6 +342,7 @@ impl TryFrom<PaymentsResponseRouterData<BamboraapacPaymentsResponse>>
                     reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -480,9 +484,12 @@ impl<F>
                     })),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -498,6 +505,7 @@ impl<F>
                     reason: None,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -618,9 +626,12 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BamboraapacCaptureResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -652,6 +663,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BamboraapacCaptureResponse>>
                     reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -895,9 +907,12 @@ impl TryFrom<PaymentsSyncResponseRouterData<BamboraapacSyncResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -931,6 +946,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BamboraapacSyncResponse>>
                     reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

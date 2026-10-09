@@ -1,7 +1,7 @@
 import { customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
-  card_number: "5181030000183696",
+  card_number: "5200000000000015",
   card_exp_month: "01",
   card_exp_year: "28",
   card_holder_name: "John",
@@ -14,6 +14,14 @@ const successfulThreeDSTestCardDetails = {
   card_exp_year: "28",
   card_holder_name: "Joseph",
   card_cvc: "576",
+};
+
+const failedNo3DSCardDetails = {
+  card_number: "4111111111111111",
+  card_exp_month: "08",
+  card_exp_year: "30",
+  card_holder_name: "joseph Doe",
+  card_cvc: "999",
 };
 
 const singleUseMandateData = {
@@ -87,6 +95,7 @@ export const connectorDetails = {
     PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -156,6 +165,7 @@ export const connectorDetails = {
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -175,6 +185,7 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -188,6 +199,26 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "15",
+          error_message: "No such issuer (invalid IIN)",
         },
       },
     },
@@ -281,6 +312,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Request: {
+        amount: 0,
+      },
       Response: {
         status: 501,
         body: {
@@ -307,12 +341,15 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 501,
@@ -322,6 +359,50 @@ export const connectorDetails = {
             message: "Setup Mandate flow for Peachpayments is not implemented",
             code: "IR_00",
           },
+        },
+      },
+    },
+    ZeroAuthConfirmPaymentManual: {
+      Request: {
+        amount: 0,
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    MITManualCapture: {
+      // Peach sandbox rejects the generic fixture card (4242424242424242) for
+      // NTID MIT with "Server couldn't find that" / acquirer timeout; the
+      // registered peach test card (same as the CIT card) succeeds and the
+      // network_transaction_id is injected at runtime by mitUsingNTID.
+      Request: {
+        amount: 6000,
+        recurring_details: {
+          type: "network_transaction_id_and_card_details",
+          data: {
+            card_number: "5200000000000015",
+            card_exp_month: "01",
+            card_exp_year: "28",
+            card_holder_name: "John",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },
@@ -425,6 +506,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -444,6 +526,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -463,6 +546,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -482,6 +566,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -501,6 +586,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -520,7 +606,7 @@ export const connectorDetails = {
       config: {
         TRIGGER_SKIP: true,
       },
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 400,
         body: {
@@ -533,11 +619,48 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCaptureWithCustomerAcceptance: {
+      config: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        amount: 6000,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            code: "IR_19",
+            message: "Payment method type not supported",
+            reason: "automatic is not supported by peachpayments",
+            type: "invalid_request",
+          },
+        },
+      },
+    },
+    MITWithLimitedCardData: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -569,6 +692,46 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
+        },
+      },
+    },
+    ConnectorIntentMetadata: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        connector_metadata: {
+          peachpayments: {
+            rrn: "123456789012",
+            card_on_file_transaction_type: "merchant_initiated_transaction",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          connector_metadata: {
+            apple_pay: null,
+            airwallex: null,
+            noon: null,
+            braintree: null,
+            adyen: null,
+            peachpayments: {
+              rrn: "123456789012",
+              card_on_file_transaction_type: "merchant_initiated_transaction",
+            },
+            santander: null,
+            worldpayxml: null,
+            checkout: null,
+            stripe: null,
+          },
         },
       },
     },

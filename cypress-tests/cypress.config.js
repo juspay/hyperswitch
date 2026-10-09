@@ -1,5 +1,6 @@
 import { defineConfig } from "cypress";
 import mochawesome from "cypress-mochawesome-reporter/plugin.js";
+import crypto from "crypto";
 import fs from "fs";
 import { getTimeoutMultiplier } from "./cypress/utils/RequestBodyUtils.js";
 
@@ -9,11 +10,48 @@ let globalState;
 const connectorId = process.env.CYPRESS_CONNECTOR || "service";
 const screenshotsFolderName = `screenshots/${connectorId}`;
 const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
+const retries = process.env.CYPRESS_MOCK_SERVER === "true" ? 0 : 2;
+
+// Cypress only auto-maps `CYPRESS_` prefixed variables onto `Cypress.env()`, so
+// these are forwarded explicitly and can be exported without the prefix. A
+// CYPRESS_ prefixed variable still wins, since those override the config file.
+// Names must match what `cypress/utils/State.js` reads.
+const forwardedEnv = [
+  "PM_SERVICE_URL",
+  "SUPERPOSITION_BASE_URL",
+  "SUPERPOSITION_SECRET",
+  "SUPERPOSITION_API_KEY",
+  "SUPERPOSITION_AUTH_TOKEN",
+  "SUPERPOSITION_ORG_ID",
+  "SUPERPOSITION_WORKSPACE_ID",
+  "OFFER_ENGINE_API_KEY",
+].reduce((acc, name) => {
+  // Only forward what is actually set, so an absent variable never shadows a
+  // CYPRESS_ prefixed one
+  if (process.env[name] !== undefined) {
+    acc[name] = process.env[name];
+  }
+  return acc;
+}, {});
 
 // Get timeout multiplier from shared utility
 const timeoutMultiplier = getTimeoutMultiplier();
 
+// Named ONLY_SPECS/SKIP_SPECS rather than SPEC_PATTERN/EXCLUDE_SPEC_PATTERN:
+// Cypress auto-maps any CYPRESS_<X> env var directly onto the matching
+// top-level config key (specPattern, excludeSpecPattern) before this file
+// even runs, with the raw unsplit string, bypassing the split(",") below
+// entirely — so the env var name must not collide with a real config key.
+const excludeSpecPattern = process.env.CYPRESS_SKIP_SPECS
+  ? process.env.CYPRESS_SKIP_SPECS.split(",")
+  : [];
+
+const specPattern = process.env.CYPRESS_ONLY_SPECS
+  ? process.env.CYPRESS_ONLY_SPECS.split(",")
+  : "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}";
+
 export default defineConfig({
+  env: forwardedEnv,
   e2e: {
     setupNodeEvents(on, config) {
       mochawesome(on);
@@ -25,12 +63,32 @@ export default defineConfig({
         getGlobalState: () => {
           return globalState || {};
         },
+        readFileOrNull: (filePath) => {
+          if (!fs.existsSync(filePath)) return null;
+          try {
+            return JSON.parse(fs.readFileSync(filePath, "utf8"));
+          } catch {
+            return null;
+          }
+        },
         cli_log: (message) => {
           // eslint-disable-next-line no-console
           console.log("Logging console message from task");
           // eslint-disable-next-line no-console
           console.log(message);
           return null;
+        },
+        computeHmac: ({ key, message, algorithm = "sha512" }) => {
+          if (!key || !message) {
+            throw new Error(
+              `computeHmac: 'key' and 'message' are required (got key=${!!key}, message=${!!message})`
+            );
+          }
+          const signature = crypto
+            .createHmac(algorithm, key)
+            .update(message)
+            .digest("hex");
+          return signature;
         },
       });
       on("after:spec", (spec, results) => {
@@ -62,7 +120,8 @@ export default defineConfig({
     },
     experimentalRunAllSpecs: true,
 
-    specPattern: "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}",
+    specPattern,
+    excludeSpecPattern,
     supportFile: "cypress/support/e2e.js",
 
     reporter: "cypress-mochawesome-reporter",
@@ -81,6 +140,7 @@ export default defineConfig({
     requestTimeout: Math.round(45000 * timeoutMultiplier),
     taskTimeout: Math.round(120000 * timeoutMultiplier),
     screenshotsFolder: screenshotsFolderName,
+    retries: retries,
     video: true,
     videoCompression: 32,
     videosFolder: `cypress/videos/${connectorId}`,

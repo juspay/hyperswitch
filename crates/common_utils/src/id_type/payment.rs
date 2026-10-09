@@ -54,6 +54,38 @@ impl PaymentId {
         format!("external_authentication_{}", self.get_string_repr())
     }
 
+    /// Get the Redis key used to store external surcharge details during eligibility
+    pub fn get_external_surcharge_redis_key(&self, merchant_id: &super::MerchantId) -> String {
+        format!(
+            "{}_{}_external_surcharge_details",
+            merchant_id.get_string_repr(),
+            self.get_string_repr()
+        )
+    }
+
+    /// Get the Redis key under which the payment-method vault session for this payment is cached
+    pub fn get_pm_vault_session_redis_key(&self, merchant_id: &super::MerchantId) -> String {
+        format!(
+            "{}_{}_pm_vault_session",
+            merchant_id.get_string_repr(),
+            self.get_string_repr()
+        )
+    }
+
+    /// Get the Redis key under which this payment's token for one saved payment method is pinned
+    pub fn get_pm_token_redis_key(
+        &self,
+        merchant_id: &super::MerchantId,
+        payment_method_id: &str,
+    ) -> String {
+        format!(
+            "{}_{}_{}_pm_token",
+            merchant_id.get_string_repr(),
+            self.get_string_repr(),
+            payment_method_id
+        )
+    }
+
     /// Generate a test payment id with prefix test_
     pub fn generate_test_payment_id_for_sample_data() -> Self {
         let id = generate_id_with_default_len("test");
@@ -79,6 +111,17 @@ crate::impl_try_from_cow_str_id_type!(PaymentReferenceId, "payment_reference_id"
 crate::impl_queryable_id_type!(PaymentReferenceId);
 crate::impl_to_sql_from_sql_id_type!(PaymentReferenceId);
 
+crate::id_type!(PaymentResourceId, "A type for payment_resource_id");
+crate::impl_id_type_methods!(PaymentResourceId, "payment_resource_id");
+
+// This is to display the `PaymentResourceId` as PaymentResourceId(abcd)
+crate::impl_debug_id_type!(PaymentResourceId);
+crate::impl_try_from_cow_str_id_type!(PaymentResourceId, "payment_resource_id");
+
+// Database related implementations so that this field can be used directly in the database tables
+crate::impl_queryable_id_type!(PaymentResourceId);
+crate::impl_to_sql_from_sql_id_type!(PaymentResourceId);
+
 // This is implemented so that we can use payment id directly as attribute in metrics
 #[cfg(feature = "metrics")]
 impl From<PaymentId> for router_env::opentelemetry::Value {
@@ -88,6 +131,15 @@ impl From<PaymentId> for router_env::opentelemetry::Value {
 }
 
 impl std::str::FromStr for PaymentReferenceId {
+    type Err = error_stack::Report<ValidationError>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let cow_string = std::borrow::Cow::Owned(s.to_string());
+        Self::try_from(cow_string)
+    }
+}
+
+impl std::str::FromStr for PaymentResourceId {
     type Err = error_stack::Report<ValidationError>;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

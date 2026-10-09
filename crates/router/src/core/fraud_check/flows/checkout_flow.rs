@@ -1,14 +1,18 @@
 use async_trait::async_trait;
-use common_utils::{ext_traits::ValueExt, pii::Email};
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
-use masking::ExposeInterface;
+use hyperswitch_domain_models::payments::payment_intent;
+#[cfg(feature = "v1")]
+use hyperswitch_interfaces::api::gateway;
+use hyperswitch_masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, FeatureFrm};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::types::FrmData,
-        payments::{self, helpers},
+        payments::{self, gateway::context::RouterGatewayContext, helpers},
+        utils::get_gateway_frm_metadata,
     },
     errors, services,
     types::{
@@ -30,7 +34,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         &self,
         _state: &SessionState,
         _connector_id: &str,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<MerchantRecipientData>,
@@ -45,8 +49,8 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
+        processor: &domain::Processor,
+        _business_profile: &domain::Profile,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -66,12 +70,34 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             })?;
 
         let browser_info: Option<BrowserInformation> = self.payment_attempt.get_browser_info().ok();
-        let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+        let client_ip = browser_info.as_ref().and_then(|info| info.ip_address);
+        let customer_id = self.payment_intent.customer_id.clone();
+
+        let customer_details = self
+            .payment_intent
+            .customer_details
+            .clone()
+            .map(|customer_details_encrypted| {
+                customer_details_encrypted
+                    .into_inner()
+                    .expose()
+                    .parse_value::<payment_intent::CustomerData>("CustomerData")
+            })
+            .transpose()
+            .change_context(errors::StorageError::DeserializationFailed)
+            .attach_printable("Failed to parse customer data from payment intent")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let email = customer_details.as_ref().and_then(|c| c.email.clone());
+        let phone = customer_details.as_ref().and_then(|c| c.phone.clone());
+        let phone_country_code = customer_details
+            .as_ref()
+            .and_then(|c| c.phone_country_code.clone());
 
         let router_data = RouterData {
             flow: std::marker::PhantomData,
-            merchant_id: platform.get_processor().get_account().get_id().clone(),
-            customer_id,
+            merchant_id: processor.get_account().get_id().clone(),
+            customer_id: customer_id.clone(),
             tenant_id: state.tenant.tenant_id.clone(),
             connector: connector_id.to_string(),
             payment_id: self.payment_intent.payment_id.get_string_repr().to_owned(),
@@ -92,40 +118,39 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             amount_captured: None,
             minor_amount_captured: None,
             request: FraudCheckCheckoutData {
-                amount: self
-                    .payment_attempt
-                    .net_amount
-                    .get_total_amount()
-                    .get_amount_as_i64(),
+                amount: self.payment_attempt.net_amount.get_total_amount(),
                 order_details: self.order_details.clone(),
                 currency: self.payment_attempt.currency,
                 browser_info,
-                payment_method_data: self
-                    .payment_attempt
-                    .payment_method_data
-                    .as_ref()
-                    .map(|pm_data| {
+                payment_method_data: self.payment_attempt.payment_method_data.as_ref().and_then(
+                    |pm_data| {
                         pm_data
                             .clone()
                             .parse_value::<api_models::payments::AdditionalPaymentData>(
                                 "AdditionalPaymentData",
                             )
-                    })
-                    .transpose()
-                    .unwrap_or_default(),
-                email: customer
-                    .clone()
-                    .and_then(|customer_data| {
-                        customer_data
-                            .email
-                            .map(|email| Email::try_from(email.into_inner().expose()))
-                    })
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "customer.customer_data.email",
-                    })?,
+                            .inspect_err(|err| {
+                                router_env::logger::warn!(
+                                    ?err,
+                                    "Failed to parse AdditionalPaymentData for FRM checkout flow"
+                                )
+                            })
+                            .ok()
+                    },
+                ),
                 gateway: self.payment_attempt.connector.clone(),
-            }, // self.order_details
+                client_ip,
+                customer_id,
+                email,
+                phone,
+                phone_country_code,
+                gateway_metadata: get_gateway_frm_metadata(
+                    &state.conf.connectors,
+                    &self.payment_attempt,
+                )?,
+                customer_name: customer_details.as_ref().and_then(|c| c.name.clone()),
+                payment_method_data_full: self.payment_method_data.clone(),
+            },
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
                 connector_metadata: None,
@@ -136,10 +161,10 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             access_token: None,
             session_token: None,
             reference_id: None,
-            payment_method_token: None,
+            payment_method_token: self.payment_method_token.clone(),
             connector_customer: None,
             preprocessing_id: None,
-            connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
+            connector_request_reference_id: common_utils::generate_uuid_v4().to_string(),
             test_mode: None,
             recurring_mandate_payment_data: None,
             #[cfg(feature = "payouts")]
@@ -154,8 +179,10 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             frm_metadata: self.frm_metadata.clone(),
             refund_id: None,
             dispute_id: None,
+            payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
+            accept_amount_mismatch: None,
             additional_merchant_data: None,
             header_payload,
             connector_mandate_request_reference_id: None,
@@ -166,6 +193,17 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            customer_document_details: self
+                .payment_intent
+                .get_customer_document_details()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to extract customer document details from payment_intent",
+                )?,
+            feature_data: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+            customer_date_of_birth: None,
         };
 
         Ok(router_data)
@@ -180,17 +218,62 @@ impl FeatureFrm<frm_api::Checkout, FraudCheckCheckoutData> for FrmCheckoutRouter
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         platform: &domain::Platform,
+        gateway_context: RouterGatewayContext,
     ) -> RouterResult<Self> {
-        decide_frm_flow(&mut self, state, connector, call_connector_action, platform).await
+        decide_frm_flow(
+            &mut self,
+            state,
+            connector,
+            call_connector_action,
+            platform,
+            gateway_context,
+        )
+        .await
     }
 }
 
+/// Dispatches on `gateway_context.execution_path`: `Direct` runs the in-process
+/// connector via `DirectGateway`, `UnifiedConnectorService` runs the UCS
+/// gateway in `core::fraud_check::gateway` under `ucs_logging_wrapper_granular`.
+#[cfg(feature = "v1")]
 pub async fn decide_frm_flow(
     router_data: &mut FrmCheckoutRouterData,
     state: &SessionState,
     connector: &FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
     _platform: &domain::Platform,
+    gateway_context: RouterGatewayContext,
+) -> RouterResult<FrmCheckoutRouterData> {
+    let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
+        frm_api::Checkout,
+        FraudCheckCheckoutData,
+        FraudCheckResponseData,
+    > = connector.connector.get_connector_integration();
+    let resp = gateway::execute_payment_gateway(
+        state,
+        connector_integration,
+        router_data,
+        call_connector_action,
+        None,
+        None,
+        gateway_context,
+    )
+    .await
+    .to_payment_failed_response()?;
+
+    Ok(resp)
+}
+
+/// The FRM UCS gateway is v1-only (v2 `call_frm_service` is unimplemented), so
+/// v2 keeps the direct call.
+#[cfg(feature = "v2")]
+pub async fn decide_frm_flow(
+    router_data: &mut FrmCheckoutRouterData,
+    state: &SessionState,
+    connector: &FraudCheckConnectorData,
+    call_connector_action: payments::CallConnectorAction,
+    _platform: &domain::Platform,
+    _gateway_context: RouterGatewayContext,
 ) -> RouterResult<FrmCheckoutRouterData> {
     let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         frm_api::Checkout,

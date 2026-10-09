@@ -7,7 +7,7 @@ use common_utils::{
         MinorUnit,
     },
 };
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use utoipa::ToSchema;
 
 use crate::merchant_key_store::MerchantKeyStore;

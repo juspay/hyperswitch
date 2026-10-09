@@ -125,7 +125,7 @@ impl PaymentDistributionAccumulator for ErrorDistributionAccumulator {
         if self.error_vec.is_empty() {
             None
         } else {
-            self.error_vec.sort_by(|a, b| b.count.cmp(&a.count));
+            self.error_vec.sort_by_key(|x| std::cmp::Reverse(x.count));
             let mut res: Vec<ErrorResult> = Vec::new();
             for val in self.error_vec.into_iter() {
                 let perc = f64::from(u32::try_from(val.count).ok()?) * 100.0

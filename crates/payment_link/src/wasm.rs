@@ -1,7 +1,8 @@
-use api_models::{admin::PaymentLinkConfig, payments::PaymentLinkData};
+use api_models::admin::PaymentLinkConfig;
 
 use crate::{
-    build_payment_link_html, get_css_script, get_js_script, get_meta_tags_html, PaymentLinkFormData,
+    build_payment_link_html, consts::DEFAULT_MERCHANT_LOGO, get_css_script, get_js_script,
+    get_meta_tags_html, types::PaymentLinkPreviewConfig, PaymentLinkFormData,
 };
 
 const SDK_URL: &str = env!("SDK_URL");
@@ -9,9 +10,14 @@ const SDK_URL: &str = env!("SDK_URL");
 /// Implementation function for generating payment link preview
 /// Called by the wasm_bindgen wrapper in lib.rs
 pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, String> {
-    let payment_link_details: api_models::payments::PaymentLinkDetails =
-        serde_json::from_str(config_json)
-            .map_err(|e| format!("Failed to deserialize PaymentLinkDetails: {}", e))?;
+    let mut preview_config: PaymentLinkPreviewConfig = serde_json::from_str(config_json)
+        .map_err(|e| format!("Failed to deserialize PaymentLinkPreviewConfig: {}", e))?;
+
+    if preview_config.payment_link_details.merchant_logo.is_empty() {
+        preview_config.payment_link_details.merchant_logo = DEFAULT_MERCHANT_LOGO.to_string();
+    }
+
+    let payment_link_details = &preview_config.payment_link_details;
 
     let mut payment_link_config = PaymentLinkConfig {
         theme: payment_link_details.theme.clone(),
@@ -40,36 +46,40 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
         color_icon_card_cvc_error: payment_link_details.color_icon_card_cvc_error.clone(),
         enabled_saved_payment_method: false,
         allowed_domains: None,
-        payment_link_ui_rules: None,
+        payment_link_ui_rules: preview_config.payment_link_ui_rules.clone(),
         custom_message_for_payment_method_types: payment_link_details
             .custom_message_for_payment_method_types
             .clone(),
+        show_merchant_name: payment_link_details.show_merchant_name,
+        payment_methods_separator_text: payment_link_details.payment_methods_separator_text.clone(),
+        redirect_delay_seconds: None,
     };
 
     if let Ok(config_from_json) = serde_json::from_str::<PaymentLinkConfig>(config_json) {
         payment_link_config.enabled_saved_payment_method =
             config_from_json.enabled_saved_payment_method;
         payment_link_config.allowed_domains = config_from_json.allowed_domains;
-        payment_link_config.payment_link_ui_rules = config_from_json.payment_link_ui_rules;
+        if config_from_json.payment_link_ui_rules.is_some() {
+            payment_link_config.payment_link_ui_rules = config_from_json.payment_link_ui_rules;
+        }
     }
 
     let sdk_url = url::Url::parse(SDK_URL).map_err(|e| format!("Invalid SDK URL: {}", e))?;
 
-    let js_script = get_js_script(&PaymentLinkData::PaymentLinkDetails(Box::new(
-        payment_link_details.clone(),
-    )))
-    .map_err(|e| format!("Failed to generate JS script: {:?}", e))?;
+    let js_script = get_js_script(&preview_config)
+        .map_err(|e| format!("Failed to generate JS script: {:?}", e))?;
 
     let css_script = get_css_script(&payment_link_config)
         .map_err(|e| format!("Failed to generate CSS script: {:?}", e))?;
 
-    let html_meta_tags = get_meta_tags_html(&payment_link_details);
+    let html_meta_tags = get_meta_tags_html(payment_link_details);
 
     let payment_link_form_data = PaymentLinkFormData {
         js_script,
         sdk_url,
         css_script,
         html_meta_tags,
+        redirection_log_endpoint: None,
     };
 
     build_payment_link_html(payment_link_form_data)
@@ -79,8 +89,11 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
 /// Implementation function for validating payment link config
 /// Called by the wasm_bindgen wrapper in lib.rs
 pub fn validate_payment_link_config_impl(config_json: &str) -> Result<String, String> {
-    let config: api_models::payments::PaymentLinkDetails =
+    let preview_config: PaymentLinkPreviewConfig =
         serde_json::from_str(config_json).map_err(|e| format!("Failed to parse config: {}", e))?;
+
+    let config = &preview_config.payment_link_details;
+    let is_test_mode = preview_config.test_mode == Some(true);
 
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -111,8 +124,23 @@ pub fn validate_payment_link_config_impl(config_json: &str) -> Result<String, St
         errors.push("Merchant name is required".to_string());
     }
 
-    if config.client_secret.is_empty() {
+    // Skip client_secret validation if test_mode is enabled
+    if config.client_secret.is_empty() && !is_test_mode {
         errors.push("Client secret is required".to_string());
+    }
+
+    // Validate preload_sdk_with_params if provided
+    if let Some(ref preload_params) = preview_config.preload_sdk_with_params {
+        let has_valid_params = preload_params.payment_methods_list.is_some()
+            || preload_params.customer_methods_list.is_some()
+            || preload_params.session_tokens.is_some()
+            || preload_params.blocked_bins.is_some();
+
+        if !has_valid_params {
+            errors.push(
+                "preload_sdk_with_params must have at least one valid field (payment_methods_list, customer_methods_list, session_tokens, or blocked_bins)".to_string(),
+            );
+        }
     }
 
     if config.pub_key.is_empty() {

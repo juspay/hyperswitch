@@ -1,5 +1,7 @@
 //! Errors and error specific types for universal use
 
+use std::borrow::Cow;
+
 use serde::Serialize;
 
 use crate::types::MinorUnit;
@@ -13,7 +15,7 @@ pub type CustomResult<T, E> = error_stack::Result<T, E>;
 
 /// Parsing Errors
 #[allow(missing_docs)] // Only to prevent warnings about struct fields not being documented
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum ParsingError {
     ///Failed to parse enum
     #[error("Failed to parse enum: {0}")]
@@ -72,7 +74,7 @@ pub enum ValidationError {
 
     /// An incorrect value was provided for the field specified by `field_name`.
     #[error("Incorrect value provided for field: {field_name}")]
-    IncorrectValueProvided { field_name: &'static str },
+    IncorrectValueProvided { field_name: Cow<'static, str> },
 
     /// An invalid input was provided.
     #[error("{message}")]
@@ -86,6 +88,8 @@ pub struct IntegrityCheckError {
     pub field_names: String,
     /// Connector transaction reference id
     pub connector_transaction_id: Option<String>,
+    /// Amount actually received/reported by the connector, as seen at integrity check time
+    pub amount: Option<MinorUnit>,
 }
 
 /// Cryptographic algorithm errors
@@ -136,10 +140,18 @@ pub enum PercentageError {
     #[error("Failed apply percentage of {percentage} on {amount}")]
     UnableToApplyPercentage {
         /// percentage value
-        percentage: f32,
+        percentage: f64,
         /// amount value
         amount: MinorUnit,
     },
+}
+
+/// Error type for installment interest rate operations
+#[derive(Debug, Clone, thiserror::Error, PartialEq)]
+pub enum InstallmentInterestRateError {
+    /// Error occurred while applying interest rate to amount
+    #[error("Failed to apply interest rate to amount")]
+    UnableToApplyInterestRate,
 }
 
 /// Allows [error_stack::Report] to change between error contexts
@@ -169,6 +181,7 @@ where
 
 #[allow(missing_docs)]
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum KeyManagerClientError {
     #[error("Failed to construct header from the given value")]
     FailedtoConstructHeader,

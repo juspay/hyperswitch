@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashSet;
 
 use ::payment_methods::state::PaymentMethodsStorageInterface;
 use common_enums::enums::MerchantStorageScheme;
@@ -21,7 +21,10 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::platform::Initiator;
 use hyperswitch_domain_models::{
+    authentication::AuthenticationInterface,
     cards_info::CardsInfoInterface,
     disputes,
     invoice::{Invoice as DomainInvoice, InvoiceInterface, InvoiceUpdate as DomainInvoiceUpdate},
@@ -35,21 +38,22 @@ use hyperswitch_domain_models::{
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
-use masking::Secret;
-use redis_interface::{errors::RedisError, RedisConnectionPool, RedisEntryId};
+use hyperswitch_masking::Secret;
+use redis_interface::{errors::RedisError, RedisEntryId};
 use router_env::{instrument, logger, tracing};
 use scheduler::{
     db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
     SchedulerInterface,
 };
 use serde::Serialize;
-use storage_impl::redis::kv_store::RedisConnInterface;
+use storage_impl::redis::{cache::CacheInterface, kv_store::RedisConnInterface};
+#[cfg(feature = "v2")]
+use storage_impl::revenue_recovery_retry_stats;
 use time::PrimitiveDateTime;
 
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     ephemeral_key::ClientSecretInterface,
-    hyperswitch_ai_interaction::HyperswitchAiInteractionInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
@@ -64,7 +68,6 @@ use crate::{
         self,
         address::AddressInterface,
         api_keys::ApiKeyInterface,
-        authentication::AuthenticationInterface,
         authorization::AuthorizationInterface,
         business_profile::ProfileInterface,
         callback_mapper::CallbackMapperInterface,
@@ -78,6 +81,7 @@ use crate::{
         generic_link::GenericLinkInterface,
         gsm::GsmInterface,
         health_check::HealthCheckDbInterface,
+        hierarchical_resource::HierarchicalResourceInterface,
         locker_mock_up::LockerMockUpInterface,
         mandate::MandateInterface,
         merchant_account::MerchantAccountInterface,
@@ -306,28 +310,11 @@ impl ConfigInterface for KafkaStore {
         self.diesel_store.insert_config(config).await
     }
 
-    async fn find_config_by_key(
+    async fn find_config_by_key_optional(
         &self,
         key: &str,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        self.diesel_store.find_config_by_key(key).await
-    }
-
-    async fn find_config_by_key_from_db(
-        &self,
-        key: &str,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        self.diesel_store.find_config_by_key_from_db(key).await
-    }
-
-    async fn update_config_in_database(
-        &self,
-        key: &str,
-        config_update: storage::ConfigUpdate,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        self.diesel_store
-            .update_config_in_database(key, config_update)
-            .await
+    ) -> CustomResult<Option<storage::Config>, errors::StorageError> {
+        self.diesel_store.find_config_by_key_optional(key).await
     }
 
     async fn update_config_by_key(
@@ -350,7 +337,7 @@ impl ConfigInterface for KafkaStore {
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
-        default_config: Option<String>,
+        default_config: String,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         self.diesel_store
             .find_config_by_key_unwrap_or(key, default_config)
@@ -423,6 +410,29 @@ impl CustomerInterface for KafkaStore {
                 key_store,
                 storage_scheme,
             )
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_customer_for_global_id_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<storage::CustomerGlobalIdMigrationRow, errors::StorageError> {
+        self.diesel_store
+            .find_customer_for_global_id_migration(customer_id, merchant_id)
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn update_customer_global_id_for_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        new_id: id_type::GlobalCustomerId,
+    ) -> CustomResult<storage::CustomerGlobalIdMigrationRow, errors::StorageError> {
+        self.diesel_store
+            .update_customer_global_id_for_migration(customer_id, merchant_id, new_id)
             .await
     }
 
@@ -532,6 +542,35 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v2")]
+    async fn find_customer_by_global_id_merchant_id(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::Customer, errors::StorageError> {
+        self.diesel_store
+            .find_customer_by_global_id_merchant_id(id, merchant_id, key_store, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::CustomerWithoutEncrypted, errors::StorageError> {
+        self.diesel_store
+            .find_customer_by_global_id_merchant_id_without_encrypted(
+                id,
+                merchant_id,
+                storage_scheme,
+            )
+            .await
+    }
+
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
@@ -549,8 +588,12 @@ impl DisputeInterface for KafkaStore {
     async fn insert_dispute(
         &self,
         dispute_new: storage::DisputeNew,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        let dispute = self.diesel_store.insert_dispute(dispute_new).await?;
+        let dispute = self
+            .diesel_store
+            .insert_dispute(dispute_new, storage_scheme)
+            .await?;
 
         if let Err(er) = self
             .kafka_producer
@@ -563,38 +606,87 @@ impl DisputeInterface for KafkaStore {
         Ok(dispute)
     }
 
-    async fn find_by_merchant_id_payment_id_connector_dispute_id(
+    async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         payment_id: &id_type::PaymentId,
         connector_dispute_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
         self.diesel_store
-            .find_by_merchant_id_payment_id_connector_dispute_id(
-                merchant_id,
+            .find_by_processor_merchant_id_payment_id_connector_dispute_id(
+                processor_merchant_id,
                 payment_id,
                 connector_dispute_id,
+                storage_scheme,
             )
             .await
     }
 
-    async fn find_dispute_by_merchant_id_dispute_id(
+    async fn find_dispute_by_processor_merchant_id_dispute_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         dispute_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         self.diesel_store
-            .find_dispute_by_merchant_id_dispute_id(merchant_id, dispute_id)
+            .find_dispute_by_processor_merchant_id_dispute_id(
+                processor_merchant_id,
+                dispute_id,
+                storage_scheme,
+            )
+            .await
+    }
+
+    async fn find_disputes_by_processor_merchant_id_payment_id(
+        &self,
+        processor_merchant_id: &id_type::MerchantId,
+        payment_id: &id_type::PaymentId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
+        self.diesel_store
+            .find_disputes_by_processor_merchant_id_payment_id(
+                processor_merchant_id,
+                payment_id,
+                storage_scheme,
+            )
             .await
     }
 
     async fn find_disputes_by_constraints(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
+        self.diesel_store
+            .find_disputes_by_constraints(
+                processor_merchant_id,
+                dispute_constraints,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_disputes_by_constraints_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
         dispute_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         self.diesel_store
-            .find_disputes_by_constraints(merchant_id, dispute_constraints)
+            .find_disputes_by_constraints_for_platform(platform_merchant_id, dispute_constraints)
+            .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn get_disputes_count_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_disputes_count_for_platform(platform_merchant_id, dispute_constraints)
             .await
     }
 
@@ -602,10 +694,11 @@ impl DisputeInterface for KafkaStore {
         &self,
         this: storage::Dispute,
         dispute: storage::DisputeUpdate,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let dispute_new = self
             .diesel_store
-            .update_dispute(this.clone(), dispute)
+            .update_dispute(this.clone(), dispute, storage_scheme)
             .await?;
         if let Err(er) = self
             .kafka_producer
@@ -618,24 +711,20 @@ impl DisputeInterface for KafkaStore {
         Ok(dispute_new)
     }
 
-    async fn find_disputes_by_merchant_id_payment_id(
-        &self,
-        merchant_id: &id_type::MerchantId,
-        payment_id: &id_type::PaymentId,
-    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
-        self.diesel_store
-            .find_disputes_by_merchant_id_payment_id(merchant_id, payment_id)
-            .await
-    }
-
     async fn get_dispute_status_with_count(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
         self.diesel_store
-            .get_dispute_status_with_count(merchant_id, profile_id_list, time_range)
+            .get_dispute_status_with_count(
+                processor_merchant_id,
+                profile_id_list,
+                time_range,
+                storage_scheme,
+            )
             .await
     }
 }
@@ -708,6 +797,16 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn find_event_by_event_id(
+        &self,
+        event_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .find_event_by_event_id(event_id, merchant_key_store)
+            .await
+    }
+
     async fn find_event_by_merchant_id_event_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -734,19 +833,44 @@ impl EventInterface for KafkaStore {
             .await
     }
 
-    async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
+    async fn find_event_by_initiator_merchant_id_idempotent_event_id(
         &self,
-        merchant_id: &id_type::MerchantId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        initiator_merchant_id: &id_type::MerchantId,
+        idempotent_event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .find_event_by_initiator_merchant_id_idempotent_event_id(
+                initiator_merchant_id,
+                idempotent_event_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_initial_events_by_initiator_merchant_id_constraints(
+        &self,
+        initiator_merchant_id: &id_type::MerchantId,
+        created_after: PrimitiveDateTime,
+        created_before: PrimitiveDateTime,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+        merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
-            .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
-                merchant_id,
-                primary_object_id,
-                initial_attempt_id,
+            .list_initial_events_by_initiator_merchant_id_constraints(
+                initiator_merchant_id,
+                created_after,
+                created_before,
+                limit,
+                offset,
+                event_types,
+                is_delivered,
                 merchant_key_store,
+                event_recipient,
             )
             .await
     }
@@ -761,6 +885,7 @@ impl EventInterface for KafkaStore {
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
             .list_initial_events_by_merchant_id_constraints(
@@ -772,6 +897,24 @@ impl EventInterface for KafkaStore {
                 event_types,
                 is_delivered,
                 merchant_key_store,
+                event_recipient,
+            )
+            .await
+    }
+
+    async fn list_events_by_initiator_merchant_id_initial_attempt_id(
+        &self,
+        initial_attempt_id: &str,
+        initiator_merchant_id: &id_type::MerchantId,
+        merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_events_by_initiator_merchant_id_initial_attempt_id(
+                initial_attempt_id,
+                initiator_merchant_id,
+                merchant_key_store,
+                event_recipient,
             )
             .await
     }
@@ -781,27 +924,63 @@ impl EventInterface for KafkaStore {
         merchant_id: &id_type::MerchantId,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
             .list_events_by_merchant_id_initial_attempt_id(
                 merchant_id,
                 initial_attempt_id,
                 merchant_key_store,
+                event_recipient,
             )
             .await
     }
 
-    async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
+    async fn list_initial_events_by_initiator_merchant_id_primary_object_id(
         &self,
-        profile_id: &id_type::ProfileId,
+        initiator_merchant_id: &id_type::MerchantId,
         primary_object_id: &str,
-        initial_attempt_id: &str,
+        profile_id: Option<id_type::ProfileId>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
-            .list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
-                profile_id,
+            .list_initial_events_by_initiator_merchant_id_primary_object_id(
+                initiator_merchant_id,
                 primary_object_id,
+                profile_id,
+                merchant_key_store,
+                event_recipient,
+            )
+            .await
+    }
+
+    async fn list_initial_events_by_merchant_id_primary_object_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        primary_object_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_merchant_id_primary_object_id(
+                merchant_id,
+                primary_object_id,
+                merchant_key_store,
+                event_recipient,
+            )
+            .await
+    }
+
+    async fn find_initial_event_by_merchant_id_initial_attempt_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        initial_attempt_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Option<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .find_initial_event_by_merchant_id_initial_attempt_id(
+                merchant_id,
                 initial_attempt_id,
                 merchant_key_store,
             )
@@ -818,6 +997,7 @@ impl EventInterface for KafkaStore {
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
             .list_initial_events_by_profile_id_constraints(
@@ -829,7 +1009,51 @@ impl EventInterface for KafkaStore {
                 event_types,
                 is_delivered,
                 merchant_key_store,
+                event_recipient,
             )
+            .await
+    }
+
+    async fn list_initial_events_by_profile_id_primary_object_id(
+        &self,
+        profile_id: &id_type::ProfileId,
+        primary_object_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_profile_id_primary_object_id(
+                profile_id,
+                primary_object_id,
+                merchant_key_store,
+                event_recipient,
+            )
+            .await
+    }
+
+    async fn find_initial_event_by_profile_id_initial_attempt_id(
+        &self,
+        profile_id: &id_type::ProfileId,
+        initial_attempt_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Option<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .find_initial_event_by_profile_id_initial_attempt_id(
+                profile_id,
+                initial_attempt_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn update_event_by_event_id(
+        &self,
+        event_id: &str,
+        event: domain::EventUpdate,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .update_event_by_event_id(event_id, event, merchant_key_store)
             .await
     }
 
@@ -845,6 +1069,50 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn count_initial_events_by_profile_id_constraints(
+        &self,
+        profile_id: &id_type::ProfileId,
+        created_after: PrimitiveDateTime,
+        created_before: PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .count_initial_events_by_profile_id_constraints(
+                profile_id,
+                created_after,
+                created_before,
+                event_types,
+                is_delivered,
+                event_recipient,
+            )
+            .await
+    }
+
+    async fn count_initial_events_by_initiator_merchant_id_constraints(
+        &self,
+        initiator_merchant_id: &id_type::MerchantId,
+        profile_id: Option<id_type::ProfileId>,
+        created_after: PrimitiveDateTime,
+        created_before: PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .count_initial_events_by_initiator_merchant_id_constraints(
+                initiator_merchant_id,
+                profile_id,
+                created_after,
+                created_before,
+                event_types,
+                is_delivered,
+                event_recipient,
+            )
+            .await
+    }
+
     async fn count_initial_events_by_constraints(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -853,6 +1121,7 @@ impl EventInterface for KafkaStore {
         created_before: PrimitiveDateTime,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
             .count_initial_events_by_constraints(
@@ -862,6 +1131,7 @@ impl EventInterface for KafkaStore {
                 created_before,
                 event_types,
                 is_delivered,
+                event_recipient,
             )
             .await
     }
@@ -999,13 +1269,33 @@ impl PaymentLinkInterface for KafkaStore {
             .await
     }
 
-    async fn list_payment_link_by_merchant_id(
+    async fn list_payment_link_by_processor_merchant_id(
         &self,
-        merchant_id: &id_type::MerchantId,
-        payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
+        processor_merchant_id: &id_type::MerchantId,
+        payment_link_constraints: &api_models::payments::PaymentLinkListConstraints,
+        profile_id: Option<id_type::ProfileId>,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError> {
         self.diesel_store
-            .list_payment_link_by_merchant_id(merchant_id, payment_link_constraints)
+            .list_payment_link_by_processor_merchant_id(
+                processor_merchant_id,
+                payment_link_constraints,
+                profile_id,
+            )
+            .await
+    }
+
+    async fn get_total_count_of_payment_links(
+        &self,
+        processor_merchant_id: &id_type::MerchantId,
+        payment_link_constraints: &api_models::payments::PaymentLinkListConstraints,
+        profile_id: Option<id_type::ProfileId>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_total_count_of_payment_links(
+                processor_merchant_id,
+                payment_link_constraints,
+                profile_id,
+            )
             .await
     }
 }
@@ -1143,23 +1433,23 @@ impl FileMetadataInterface for KafkaStore {
         self.diesel_store.insert_file_metadata(file).await
     }
 
-    async fn find_file_metadata_by_merchant_id_file_id(
+    async fn find_file_metadata_by_processor_merchant_id_file_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         file_id: &str,
     ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
         self.diesel_store
-            .find_file_metadata_by_merchant_id_file_id(merchant_id, file_id)
+            .find_file_metadata_by_processor_merchant_id_file_id(processor_merchant_id, file_id)
             .await
     }
 
-    async fn delete_file_metadata_by_merchant_id_file_id(
+    async fn delete_file_metadata_by_processor_merchant_id_file_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         file_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
-            .delete_file_metadata_by_merchant_id_file_id(merchant_id, file_id)
+            .delete_file_metadata_by_processor_merchant_id_file_id(processor_merchant_id, file_id)
             .await
     }
 
@@ -1299,6 +1589,42 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
+    async fn find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        get_disabled: bool,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, errors::StorageError> {
+        self.diesel_store
+            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+                merchant_id,
+                get_disabled,
+            )
+            .await
+    }
+
+    async fn list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        profile_id: &id_type::ProfileId,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, errors::StorageError> {
+        self.diesel_store
+            .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
+            .await
+    }
+
+    async fn list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        profile_id: &id_type::ProfileId,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, errors::StorageError> {
+        self.diesel_store
+            .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                merchant_id,
+                profile_id,
+            )
+            .await
+    }
+
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
         &self,
@@ -1367,6 +1693,17 @@ impl QueueInterface for KafkaStore {
     ) -> CustomResult<(), RedisError> {
         self.diesel_store
             .consumer_group_create(stream, group, id)
+            .await
+    }
+
+    async fn consumer_group_remove_consumer(
+        &self,
+        stream: &str,
+        group: &str,
+        consumer: &str,
+    ) -> CustomResult<(), RedisError> {
+        self.diesel_store
+            .consumer_group_remove_consumer(stream, group, consumer)
             .await
     }
 
@@ -1513,36 +1850,16 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
+    async fn find_payment_attempt_by_processor_merchant_id_connector_txn_id(
         &self,
-        connector_transaction_id: &common_utils::types::ConnectorTransactionId,
-        payment_id: &id_type::PaymentId,
-        merchant_id: &id_type::MerchantId,
-        storage_scheme: MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
-        self.diesel_store
-            .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
-                connector_transaction_id,
-                payment_id,
-                merchant_id,
-                storage_scheme,
-                key_store,
-            )
-            .await
-    }
-
-    #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_merchant_id_connector_txn_id(
-        &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         connector_txn_id: &str,
         storage_scheme: MerchantStorageScheme,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
-            .find_payment_attempt_by_merchant_id_connector_txn_id(
-                merchant_id,
+            .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
+                processor_merchant_id,
                 connector_txn_id,
                 storage_scheme,
                 key_store,
@@ -1569,18 +1886,18 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+    async fn find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
         &self,
         payment_id: &id_type::PaymentId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         attempt_id: &str,
         storage_scheme: MerchantStorageScheme,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
-            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 payment_id,
-                merchant_id,
+                processor_merchant_id,
                 attempt_id,
                 storage_scheme,
                 key_store,
@@ -1589,17 +1906,17 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_attempt_id_merchant_id(
+    async fn find_payment_attempt_by_attempt_id_processor_merchant_id(
         &self,
         attempt_id: &str,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
-            .find_payment_attempt_by_attempt_id_merchant_id(
+            .find_payment_attempt_by_attempt_id_processor_merchant_id(
                 attempt_id,
-                merchant_id,
+                processor_merchant_id,
                 storage_scheme,
                 key_store,
             )
@@ -1635,17 +1952,17 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+    async fn find_payment_attempt_last_successful_attempt_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
-            .find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+            .find_payment_attempt_last_successful_attempt_by_payment_id_processor_merchant_id(
                 payment_id,
-                merchant_id,
+                processor_merchant_id,
                 storage_scheme,
                 key_store,
             )
@@ -1653,17 +1970,17 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
-            .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+            .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
                 payment_id,
-                merchant_id,
+                processor_merchant_id,
                 storage_scheme,
                 key_store,
             )
@@ -1687,42 +2004,24 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_preprocessing_id_merchant_id(
-        &self,
-        preprocessing_id: &str,
-        merchant_id: &id_type::MerchantId,
-        storage_scheme: MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
-        self.diesel_store
-            .find_payment_attempt_by_preprocessing_id_merchant_id(
-                preprocessing_id,
-                merchant_id,
-                storage_scheme,
-                key_store,
-            )
-            .await
-    }
-
-    #[cfg(feature = "v1")]
     async fn get_filters_for_payments(
         &self,
         pi: &[hyperswitch_domain_models::payments::PaymentIntent],
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<
         hyperswitch_domain_models::payments::payment_attempt::PaymentListFilters,
         errors::StorageError,
     > {
         self.diesel_store
-            .get_filters_for_payments(pi, merchant_id, storage_scheme)
+            .get_filters_for_payments(pi, processor_merchant_id, storage_scheme)
             .await
     }
 
     #[cfg(feature = "v1")]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         active_attempt_ids: &[String],
         connector: Option<Vec<api_models::enums::Connector>>,
         payment_method: Option<Vec<common_enums::PaymentMethod>>,
@@ -1735,7 +2034,7 @@ impl PaymentAttemptInterface for KafkaStore {
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
             .get_total_count_of_filtered_payment_attempts(
-                merchant_id,
+                processor_merchant_id,
                 active_attempt_ids,
                 connector,
                 payment_method,
@@ -1778,16 +2077,16 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_attempts_by_merchant_id_payment_id(
+    async fn find_attempts_by_processor_merchant_id_payment_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         payment_id: &id_type::PaymentId,
         storage_scheme: MerchantStorageScheme,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<storage::PaymentAttempt>, errors::StorageError> {
         self.diesel_store
-            .find_attempts_by_merchant_id_payment_id(
-                merchant_id,
+            .find_attempts_by_processor_merchant_id_payment_id(
+                processor_merchant_id,
                 payment_id,
                 storage_scheme,
                 key_store,
@@ -1868,18 +2167,18 @@ impl PaymentIntentInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_intent_by_payment_id_merchant_id(
+    async fn find_payment_intent_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
-        merchant_id: &id_type::MerchantId,
-        key_store: &domain::MerchantKeyStore,
+        processor_merchant_id: &id_type::MerchantId,
+        merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentIntent, errors::StorageError> {
         self.diesel_store
-            .find_payment_intent_by_payment_id_merchant_id(
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 payment_id,
-                merchant_id,
-                key_store,
+                processor_merchant_id,
+                merchant_key_store,
                 storage_scheme,
             )
             .await
@@ -1900,27 +2199,60 @@ impl PaymentIntentInterface for KafkaStore {
     #[cfg(all(feature = "olap", feature = "v1"))]
     async fn filter_payment_intent_by_constraints(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::PaymentIntent>, errors::StorageError> {
         self.diesel_store
-            .filter_payment_intent_by_constraints(merchant_id, filters, key_store, storage_scheme)
+            .filter_payment_intent_by_constraints(
+                processor_merchant_id,
+                filters,
+                key_store,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(all(feature = "olap", feature = "v1"))]
+    async fn get_filtered_payment_intents_attempt_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+    ) -> CustomResult<
+        Vec<(
+            diesel_models::PaymentIntent,
+            diesel_models::payment_attempt::PaymentAttempt,
+        )>,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .get_filtered_payment_intents_attempt_for_platform(platform_merchant_id, filters)
+            .await
+    }
+
+    #[cfg(all(feature = "olap", feature = "v1"))]
+    async fn get_payment_intents_attempt_count_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_payment_intents_attempt_count_for_platform(platform_merchant_id, filters)
             .await
     }
 
     #[cfg(all(feature = "olap", feature = "v1"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         time_range: &common_utils::types::TimeRange,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::PaymentIntent>, errors::StorageError> {
         self.diesel_store
             .filter_payment_intents_by_time_range_constraints(
-                merchant_id,
+                processor_merchant_id,
                 time_range,
                 key_store,
                 storage_scheme,
@@ -1930,19 +2262,19 @@ impl PaymentIntentInterface for KafkaStore {
     #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError> {
         self.diesel_store
-            .get_intent_status_with_count(merchant_id, profile_id_list, time_range)
+            .get_intent_status_with_count(processor_merchant_id, profile_id_list, time_range)
             .await
     }
 
     #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -1955,7 +2287,7 @@ impl PaymentIntentInterface for KafkaStore {
     > {
         self.diesel_store
             .get_filtered_payment_intents_attempt(
-                merchant_id,
+                processor_merchant_id,
                 constraints,
                 key_store,
                 storage_scheme,
@@ -1990,13 +2322,13 @@ impl PaymentIntentInterface for KafkaStore {
     #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<String>, errors::StorageError> {
         self.diesel_store
             .get_filtered_active_attempt_ids_for_total_count(
-                merchant_id,
+                processor_merchant_id,
                 constraints,
                 storage_scheme,
             )
@@ -2117,6 +2449,30 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v1")]
+    async fn find_payment_method_by_customer_id_merchant_id_status_pm_type(
+        &self,
+        key_store: &domain::MerchantKeyStore,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+        payment_method_type: common_enums::PaymentMethodType,
+        limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_customer_id_merchant_id_status_pm_type(
+                key_store,
+                customer_id,
+                merchant_id,
+                status,
+                payment_method_type,
+                limit,
+                storage_scheme,
+            )
+            .await
+    }
+
     #[cfg(feature = "v2")]
     async fn find_payment_method_by_global_customer_id_merchant_id_status(
         &self,
@@ -2133,6 +2489,28 @@ impl PaymentMethodInterface for KafkaStore {
                 customer_id,
                 merchant_id,
                 status,
+                limit,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_method_by_global_customer_id_merchant_id_statuses(
+        &self,
+        key_store: &domain::MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        statuses: Vec<common_enums::PaymentMethodStatus>,
+        limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_global_customer_id_merchant_id_statuses(
+                key_store,
+                customer_id,
+                merchant_id,
+                statuses,
                 limit,
                 storage_scheme,
             )
@@ -2165,7 +2543,6 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id(
         &self,
         key_store: &domain::MerchantKeyStore,
@@ -2177,14 +2554,33 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v1")]
+    async fn find_payment_methods_by_merchant_id_payment_method_ids(
+        &self,
+        key_store: &domain::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        payment_method_ids: &[String],
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_methods_by_merchant_id_payment_method_ids(
+                key_store,
+                merchant_id,
+                payment_method_ids,
+                storage_scheme,
+            )
+            .await
+    }
+
     async fn insert_payment_method(
         &self,
         key_store: &domain::MerchantKeyStore,
         m: domain::PaymentMethod,
         storage_scheme: MerchantStorageScheme,
+        compat_action: Option<domain::PaymentMethodCompatAction>,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .insert_payment_method(key_store, m, storage_scheme)
+            .insert_payment_method(key_store, m, storage_scheme, compat_action)
             .await
     }
 
@@ -2194,6 +2590,7 @@ impl PaymentMethodInterface for KafkaStore {
         payment_method: domain::PaymentMethod,
         payment_method_update: storage::PaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
+        compat_action: Option<domain::PaymentMethodCompatAction>,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
             .update_payment_method(
@@ -2201,6 +2598,7 @@ impl PaymentMethodInterface for KafkaStore {
                 payment_method,
                 payment_method_update,
                 storage_scheme,
+                compat_action,
             )
             .await
     }
@@ -2226,13 +2624,13 @@ impl PaymentMethodInterface for KafkaStore {
         &self,
         key_store: &domain::MerchantKeyStore,
         payment_method: domain::PaymentMethod,
+        initiator: Option<&Initiator>,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .delete_payment_method(key_store, payment_method)
+            .delete_payment_method(key_store, payment_method, initiator)
             .await
     }
 
-    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         key_store: &domain::MerchantKeyStore,
@@ -2276,6 +2674,23 @@ impl PayoutAttemptInterface for KafkaStore {
         self.diesel_store
             .find_payout_attempt_by_merchant_id_payout_attempt_id(
                 merchant_id,
+                payout_attempt_id,
+                storage_scheme,
+            )
+            .await
+    }
+
+    async fn find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        payout_id: &id_type::PayoutId,
+        payout_attempt_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
+        self.diesel_store
+            .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+                merchant_id,
+                payout_id,
                 payout_attempt_id,
                 storage_scheme,
             )
@@ -2359,6 +2774,17 @@ impl PayoutAttemptInterface for KafkaStore {
     > {
         self.diesel_store
             .get_filters_for_payouts(payouts, merchant_id, storage_scheme)
+            .await
+    }
+
+    async fn find_payout_attempts_by_merchant_id_payout_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        payout_id: &id_type::PayoutId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::PayoutAttempt>, errors::StorageError> {
+        self.diesel_store
+            .find_payout_attempts_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
             .await
     }
 }
@@ -2476,6 +2902,7 @@ impl PayoutsInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         active_payout_ids: &[id_type::PayoutId],
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
         connector: Option<Vec<api_models::enums::PayoutConnectors>>,
         currency: Option<Vec<enums::Currency>>,
         status: Option<Vec<enums::PayoutStatus>>,
@@ -2485,6 +2912,7 @@ impl PayoutsInterface for KafkaStore {
             .get_total_count_of_filtered_payouts(
                 merchant_id,
                 active_payout_ids,
+                profile_id_list,
                 connector,
                 currency,
                 status,
@@ -2501,6 +2929,18 @@ impl PayoutsInterface for KafkaStore {
     ) -> CustomResult<Vec<id_type::PayoutId>, errors::StorageError> {
         self.diesel_store
             .filter_active_payout_ids_by_constraints(merchant_id, constraints)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn get_payout_intent_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
+        constraints: &common_utils::types::TimeRange,
+    ) -> error_stack::Result<Vec<(common_enums::PayoutStatus, i64)>, Self::Error> {
+        self.diesel_store
+            .get_payout_intent_status_with_count(merchant_id, profile_id_list, constraints)
             .await
     }
 }
@@ -2574,6 +3014,15 @@ impl ProcessTrackerInterface for KafkaStore {
             .finish_process_with_business_status(this, business_status)
             .await
     }
+    async fn finish_process_with_update(
+        &self,
+        this: storage::ProcessTracker,
+        update: storage::ProcessTrackerUpdate,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store
+            .finish_process_with_update(this, update)
+            .await
+    }
     async fn find_processes_by_time_status(
         &self,
         time_lower_limit: PrimitiveDateTime,
@@ -2631,56 +3080,64 @@ impl CaptureInterface for KafkaStore {
 #[async_trait::async_trait]
 impl RefundInterface for KafkaStore {
     #[cfg(feature = "v1")]
-    async fn find_refund_by_internal_reference_id_merchant_id(
+    async fn find_refund_by_internal_reference_id_processor_merchant_id(
         &self,
         internal_reference_id: &str,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
         self.diesel_store
-            .find_refund_by_internal_reference_id_merchant_id(
+            .find_refund_by_internal_reference_id_processor_merchant_id(
                 internal_reference_id,
-                merchant_id,
+                processor_merchant_id,
                 storage_scheme,
             )
             .await
     }
 
     #[cfg(feature = "v1")]
-    async fn find_refund_by_payment_id_merchant_id(
+    async fn find_refund_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
         self.diesel_store
-            .find_refund_by_payment_id_merchant_id(payment_id, merchant_id, storage_scheme)
+            .find_refund_by_payment_id_processor_merchant_id(
+                payment_id,
+                processor_merchant_id,
+                storage_scheme,
+            )
             .await
     }
 
     #[cfg(feature = "v1")]
-    async fn find_refund_by_merchant_id_refund_id(
+    async fn find_refund_by_processor_merchant_id_refund_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         refund_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
         self.diesel_store
-            .find_refund_by_merchant_id_refund_id(merchant_id, refund_id, storage_scheme)
+            .find_refund_by_processor_merchant_id_refund_id(
+                processor_merchant_id,
+                refund_id,
+                storage_scheme,
+            )
             .await
     }
 
     #[cfg(feature = "v1")]
-    async fn find_refund_by_merchant_id_connector_refund_id_connector(
+    async fn find_refund_by_processor_merchant_id_connector_refund_id_connector(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
         self.diesel_store
-            .find_refund_by_merchant_id_connector_refund_id_connector(
-                merchant_id,
+            .find_refund_by_processor_merchant_id_connector_refund_id_connector(
+                processor_merchant_id,
                 connector_refund_id,
                 connector,
                 storage_scheme,
@@ -2709,15 +3166,15 @@ impl RefundInterface for KafkaStore {
         Ok(refund)
     }
 
-    async fn find_refund_by_merchant_id_connector_transaction_id(
+    async fn find_refund_by_processor_merchant_id_connector_transaction_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         connector_transaction_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
         self.diesel_store
-            .find_refund_by_merchant_id_connector_transaction_id(
-                merchant_id,
+            .find_refund_by_processor_merchant_id_connector_transaction_id(
+                processor_merchant_id,
                 connector_transaction_id,
                 storage_scheme,
             )
@@ -2755,15 +3212,15 @@ impl RefundInterface for KafkaStore {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_refund_by_constraints(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         refund_details: &refunds::RefundListConstraints,
         storage_scheme: MerchantStorageScheme,
-        limit: i64,
-        offset: i64,
+        limit: diesel_models::list::PageSize,
+        offset: diesel_models::list::PageOffset,
     ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
         self.diesel_store
             .filter_refund_by_constraints(
-                merchant_id,
+                processor_merchant_id,
                 refund_details,
                 storage_scheme,
                 limit,
@@ -2778,8 +3235,8 @@ impl RefundInterface for KafkaStore {
         merchant_id: &id_type::MerchantId,
         refund_details: refunds::RefundListConstraints,
         storage_scheme: MerchantStorageScheme,
-        limit: i64,
-        offset: i64,
+        limit: diesel_models::list::PageSize,
+        offset: diesel_models::list::PageOffset,
     ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
         self.diesel_store
             .filter_refund_by_constraints(
@@ -2793,39 +3250,77 @@ impl RefundInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn filter_refund_by_platform_merchant_id(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        refund_details: &refunds::RefundListConstraints,
+        limit: diesel_models::list::PageSize,
+        offset: diesel_models::list::PageOffset,
+    ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
+        self.diesel_store
+            .filter_refund_by_platform_merchant_id(
+                platform_merchant_id,
+                refund_details,
+                limit,
+                offset,
+            )
+            .await
+    }
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn get_total_count_of_refunds_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        refund_details: &refunds::RefundListConstraints,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_total_count_of_refunds_for_platform(platform_merchant_id, refund_details)
+            .await
+    }
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_refund_by_meta_constraints(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         refund_details: &common_utils::types::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
         self.diesel_store
-            .filter_refund_by_meta_constraints(merchant_id, refund_details, storage_scheme)
+            .filter_refund_by_meta_constraints(
+                processor_merchant_id,
+                refund_details,
+                storage_scheme,
+            )
             .await
     }
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_refund_status_with_count(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         constraints: &common_utils::types::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
         self.diesel_store
-            .get_refund_status_with_count(merchant_id, profile_id_list, constraints, storage_scheme)
+            .get_refund_status_with_count(
+                processor_merchant_id,
+                profile_id_list,
+                constraints,
+                storage_scheme,
+            )
             .await
     }
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_total_count_of_refunds(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         refund_details: &refunds::RefundListConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
-            .get_total_count_of_refunds(merchant_id, refund_details, storage_scheme)
+            .get_total_count_of_refunds(processor_merchant_id, refund_details, storage_scheme)
             .await
     }
 
@@ -2891,6 +3386,58 @@ impl MerchantKeyStoreInterface for KafkaStore {
         to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
         self.diesel_store.get_all_key_stores(key, from, to).await
+    }
+}
+
+#[async_trait::async_trait]
+impl HierarchicalResourceInterface for KafkaStore {
+    type Error = errors::StorageError;
+
+    async fn insert_linked_resource(
+        &self,
+        resource: domain::HierarchicalResource,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::HierarchicalResource, errors::StorageError> {
+        self.diesel_store
+            .insert_linked_resource(resource, key)
+            .await
+    }
+
+    async fn find_linked_resource_by_id(
+        &self,
+        id: id_type::ResourceId,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::HierarchicalResource, errors::StorageError> {
+        self.diesel_store.find_linked_resource_by_id(id, key).await
+    }
+
+    async fn find_resource_scope_id(
+        &self,
+        id: id_type::ResourceId,
+    ) -> CustomResult<String, errors::StorageError> {
+        self.diesel_store.find_resource_scope_id(id).await
+    }
+
+    async fn list_linked_resources_by_scope_id_and_resource_type(
+        &self,
+        scope_id: String,
+        resource_type: String,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::HierarchicalResource>, errors::StorageError> {
+        self.diesel_store
+            .list_linked_resources_by_scope_id_and_resource_type(scope_id, resource_type, key)
+            .await
+    }
+
+    async fn update_linked_resource_data(
+        &self,
+        id: id_type::ResourceId,
+        update: domain::HierarchicalResourceDataUpdate,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::HierarchicalResource, errors::StorageError> {
+        self.diesel_store
+            .update_linked_resource_data(id, update, key)
+            .await
     }
 }
 
@@ -3027,13 +3574,16 @@ impl RoutingAlgorithmInterface for KafkaStore {
             .await
     }
 
-    async fn find_routing_algorithm_by_algorithm_id_merchant_id(
+    async fn find_routing_algorithm_by_algorithm_id_processor_merchant_id(
         &self,
         algorithm_id: &id_type::RoutingId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
     ) -> CustomResult<storage::RoutingAlgorithm, errors::StorageError> {
         self.diesel_store
-            .find_routing_algorithm_by_algorithm_id_merchant_id(algorithm_id, merchant_id)
+            .find_routing_algorithm_by_algorithm_id_processor_merchant_id(
+                algorithm_id,
+                processor_merchant_id,
+            )
             .await
     }
 
@@ -3083,6 +3633,33 @@ impl RoutingAlgorithmInterface for KafkaStore {
                 limit,
                 offset,
             )
+            .await
+    }
+
+    async fn list_routing_scope_page(
+        &self,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<(id_type::ProfileId, id_type::MerchantId)>, errors::StorageError> {
+        self.diesel_store
+            .list_routing_scope_page(limit, offset)
+            .await
+    }
+
+    async fn find_rule_ids_for_profiles(
+        &self,
+        profile_ids: &[id_type::ProfileId],
+    ) -> CustomResult<
+        Vec<(
+            id_type::ProfileId,
+            id_type::MerchantId,
+            id_type::RoutingId,
+            enums::RoutingAlgorithmKind,
+        )>,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .find_rule_ids_for_profiles(profile_ids)
             .await
     }
 }
@@ -3200,6 +3777,17 @@ impl StorageInterface for KafkaStore {
         Box::new(self.clone())
     }
 
+    #[cfg(feature = "v2")]
+    fn get_revenue_recovery_retry_stats_store(
+        &self,
+    ) -> Box<
+        dyn revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface<
+            Error = errors::StorageError,
+        >,
+    > {
+        self.diesel_store.get_revenue_recovery_retry_stats_store()
+    }
+
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {
         Box::new(self.clone())
     }
@@ -3258,58 +3846,98 @@ impl UserInterface for KafkaStore {
         self.diesel_store.insert_user(user_data).await
     }
 
-    async fn find_user_by_email(
+    async fn find_active_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        self.diesel_store.find_user_by_email(user_email).await
+        self.diesel_store
+            .find_active_user_by_user_email(user_email)
+            .await
     }
 
-    async fn find_user_by_id(
+    async fn find_user_by_user_email(
+        &self,
+        user_email: &domain::UserEmail,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        self.diesel_store.find_user_by_user_email(user_email).await
+    }
+
+    async fn find_active_user_by_user_id(
         &self,
         user_id: &str,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        self.diesel_store.find_user_by_id(user_id).await
+        self.diesel_store.find_active_user_by_user_id(user_id).await
     }
 
-    async fn update_user_by_user_id(
+    async fn find_user_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        self.diesel_store.find_user_by_user_id(user_id).await
+    }
+
+    async fn update_active_user_by_user_id(
         &self,
         user_id: &str,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         self.diesel_store
-            .update_user_by_user_id(user_id, user)
+            .update_active_user_by_user_id(user_id, user)
             .await
     }
 
-    async fn update_user_by_email(
+    async fn update_active_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         self.diesel_store
-            .update_user_by_email(user_email, user)
+            .update_active_user_by_user_email(user_email, user)
             .await
     }
 
-    async fn delete_user_by_user_id(
-        &self,
-        user_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
-        self.diesel_store.delete_user_by_user_id(user_id).await
-    }
-
-    async fn find_users_by_user_ids(
+    async fn find_active_users_by_user_ids(
         &self,
         user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
-        self.diesel_store.find_users_by_user_ids(user_ids).await
+        self.diesel_store
+            .find_active_users_by_user_ids(user_ids)
+            .await
+    }
+
+    async fn list_users_by_user_ids(
+        &self,
+        user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
+        self.diesel_store.list_users_by_user_ids(user_ids).await
+    }
+
+    async fn reactivate_user_by_user_id(
+        &self,
+        user_id: &str,
+        user_update: storage::ReactivateUserUpdate,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        self.diesel_store
+            .reactivate_user_by_user_id(user_id, user_update)
+            .await
     }
 }
 
 impl RedisConnInterface for KafkaStore {
-    fn get_redis_conn(&self) -> CustomResult<Arc<RedisConnectionPool>, RedisError> {
+    fn get_redis_conn(
+        &self,
+    ) -> CustomResult<redis_interface::RedisConnectionWithContext, RedisError> {
         self.diesel_store.get_redis_conn()
+    }
+}
+
+impl CacheInterface for KafkaStore {
+    fn caches(&self) -> &storage_impl::redis::cache::Caches {
+        self.diesel_store.caches()
+    }
+
+    fn cache_key_prefix(&self) -> &str {
+        self.diesel_store.cache_key_prefix()
     }
 }
 
@@ -3333,6 +3961,27 @@ impl UserRoleInterface for KafkaStore {
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         self.diesel_store
             .find_user_role_by_user_id_and_lineage(
+                user_id,
+                tenant_id,
+                org_id,
+                merchant_id,
+                profile_id,
+                version,
+            )
+            .await
+    }
+
+    async fn find_user_role_by_user_id_and_lineage_with_entity_type(
+        &self,
+        user_id: &str,
+        tenant_id: &id_type::TenantId,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: &id_type::ProfileId,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        self.diesel_store
+            .find_user_role_by_user_id_and_lineage_with_entity_type(
                 user_id,
                 tenant_id,
                 org_id,
@@ -3426,6 +4075,7 @@ impl DashboardMetadataInterface for KafkaStore {
         user_id: Option<String>,
         merchant_id: id_type::MerchantId,
         org_id: id_type::OrganizationId,
+        profile_id: Option<String>,
         data_key: enums::DashboardMetadata,
         dashboard_metadata_update: storage::DashboardMetadataUpdate,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
@@ -3434,6 +4084,7 @@ impl DashboardMetadataInterface for KafkaStore {
                 user_id,
                 merchant_id,
                 org_id,
+                profile_id,
                 data_key,
                 dashboard_metadata_update,
             )
@@ -3463,6 +4114,25 @@ impl DashboardMetadataInterface for KafkaStore {
             .await
     }
 
+    async fn find_profile_scoped_dashboard_metadata(
+        &self,
+        user_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
+        profile_id: Option<String>,
+        data_key: enums::DashboardMetadata,
+    ) -> CustomResult<Option<storage::DashboardMetadata>, errors::StorageError> {
+        self.diesel_store
+            .find_profile_scoped_dashboard_metadata(
+                user_id,
+                merchant_id,
+                org_id,
+                profile_id,
+                data_key,
+            )
+            .await
+    }
+
     async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,
@@ -3485,6 +4155,15 @@ impl DashboardMetadataInterface for KafkaStore {
                 merchant_id,
                 data_key,
             )
+            .await
+    }
+
+    async fn delete_all_metadata_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store
+            .delete_all_metadata_by_user_id(user_id)
             .await
     }
 }
@@ -3685,25 +4364,28 @@ impl AuthorizationInterface for KafkaStore {
         self.diesel_store.insert_authorization(authorization).await
     }
 
-    async fn find_all_authorizations_by_merchant_id_payment_id(
+    async fn find_all_authorizations_by_processor_merchant_id_payment_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         payment_id: &id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError> {
         self.diesel_store
-            .find_all_authorizations_by_merchant_id_payment_id(merchant_id, payment_id)
+            .find_all_authorizations_by_processor_merchant_id_payment_id(
+                processor_merchant_id,
+                payment_id,
+            )
             .await
     }
 
-    async fn update_authorization_by_merchant_id_authorization_id(
+    async fn update_authorization_by_processor_merchant_id_authorization_id(
         &self,
-        merchant_id: id_type::MerchantId,
+        processor_merchant_id: id_type::MerchantId,
         authorization_id: String,
         authorization: storage::AuthorizationUpdate,
     ) -> CustomResult<storage::Authorization, errors::StorageError> {
         self.diesel_store
-            .update_authorization_by_merchant_id_authorization_id(
-                merchant_id,
+            .update_authorization_by_processor_merchant_id_authorization_id(
+                processor_merchant_id,
                 authorization_id,
                 authorization,
             )
@@ -3713,13 +4395,21 @@ impl AuthorizationInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl AuthenticationInterface for KafkaStore {
+    type Error = errors::StorageError;
+
     async fn insert_authentication(
         &self,
-        authentication: storage::AuthenticationNew,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        authentication: hyperswitch_domain_models::authentication::Authentication,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         let auth = self
             .diesel_store
-            .insert_authentication(authentication)
+            .insert_authentication(state, key_store, authentication, storage_scheme)
             .await?;
 
         if let Err(er) = self
@@ -3733,39 +4423,69 @@ impl AuthenticationInterface for KafkaStore {
         Ok(auth)
     }
 
-    async fn find_authentication_by_merchant_id_authentication_id(
+    async fn find_authentication_by_processor_merchant_id_authentication_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         authentication_id: &id_type::AuthenticationId,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        key_store: &domain::MerchantKeyStore,
+        state: &KeyManagerState,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         self.diesel_store
-            .find_authentication_by_merchant_id_authentication_id(merchant_id, authentication_id)
-            .await
-    }
-
-    async fn find_authentication_by_merchant_id_connector_authentication_id(
-        &self,
-        merchant_id: id_type::MerchantId,
-        connector_authentication_id: String,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
-        self.diesel_store
-            .find_authentication_by_merchant_id_connector_authentication_id(
-                merchant_id,
-                connector_authentication_id,
+            .find_authentication_by_processor_merchant_id_authentication_id(
+                processor_merchant_id,
+                authentication_id,
+                key_store,
+                state,
+                storage_scheme,
             )
             .await
     }
 
-    async fn update_authentication_by_merchant_id_authentication_id(
+    async fn find_authentication_by_processor_merchant_id_connector_authentication_id(
         &self,
-        previous_state: storage::Authentication,
-        authentication_update: storage::AuthenticationUpdate,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        processor_merchant_id: id_type::MerchantId,
+        connector_authentication_id: String,
+        key_store: &domain::MerchantKeyStore,
+        state: &KeyManagerState,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .find_authentication_by_processor_merchant_id_connector_authentication_id(
+                processor_merchant_id,
+                connector_authentication_id,
+                key_store,
+                state,
+                storage_scheme,
+            )
+            .await
+    }
+
+    async fn update_authentication_by_processor_merchant_id_authentication_id(
+        &self,
+        previous_state: hyperswitch_domain_models::authentication::Authentication,
+        authentication_update: hyperswitch_domain_models::authentication::AuthenticationUpdate,
+        key_store: &domain::MerchantKeyStore,
+        state: &KeyManagerState,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         let auth = self
             .diesel_store
-            .update_authentication_by_merchant_id_authentication_id(
+            .update_authentication_by_processor_merchant_id_authentication_id(
                 previous_state.clone(),
                 authentication_update,
+                key_store,
+                state,
+                storage_scheme,
             )
             .await?;
 
@@ -4024,29 +4744,6 @@ impl UserAuthenticationMethodInterface for KafkaStore {
     > {
         self.diesel_store
             .list_user_authentication_methods_for_email_domain(email_domain)
-            .await
-    }
-}
-
-#[async_trait::async_trait]
-impl HyperswitchAiInteractionInterface for KafkaStore {
-    async fn insert_hyperswitch_ai_interaction(
-        &self,
-        hyperswitch_ai_interaction: storage::HyperswitchAiInteractionNew,
-    ) -> CustomResult<storage::HyperswitchAiInteraction, errors::StorageError> {
-        self.diesel_store
-            .insert_hyperswitch_ai_interaction(hyperswitch_ai_interaction)
-            .await
-    }
-
-    async fn list_hyperswitch_ai_interactions(
-        &self,
-        merchant_id: Option<id_type::MerchantId>,
-        limit: i64,
-        offset: i64,
-    ) -> CustomResult<Vec<storage::HyperswitchAiInteraction>, errors::StorageError> {
-        self.diesel_store
-            .list_hyperswitch_ai_interactions(merchant_id, limit, offset)
             .await
     }
 }

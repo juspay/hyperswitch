@@ -61,6 +61,7 @@ pub struct SubscriptionConfig {
     pub internal_merchant_id_profile_id_auth: configs::InternalMerchantIdProfileIdAuthSettings,
     pub internal_services: configs::InternalServicesConfig,
     pub connectors: configs::Connectors,
+    pub application_source: common_enums::ApplicationSource,
 }
 
 impl From<&SubscriptionState> for keymanager::KeyManagerState {

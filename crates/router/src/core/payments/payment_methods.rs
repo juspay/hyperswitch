@@ -56,8 +56,13 @@ pub async fn list_payment_methods(
 
     let customer_payment_methods = match &payment_intent.customer_id {
         Some(customer_id) => Some(
-            payment_methods::list_customer_payment_methods_core(&state, &platform, customer_id)
-                .await?,
+            payment_methods::list_customer_payment_methods_core(
+                &state,
+                platform.get_provider(),
+                customer_id,
+                false, // include_new field is false because we want to fetch saved payment methods for the customer, and not fetch new payment methods based on the current request
+            )
+            .await?,
         ),
         None => None,
     };
@@ -403,7 +408,8 @@ fn get_pm_subtype_specific_data(
         | common_enums::PaymentMethod::Upi
         | common_enums::PaymentMethod::Voucher
         | common_enums::PaymentMethod::GiftCard
-        | common_enums::PaymentMethod::MobilePayment => None,
+        | common_enums::PaymentMethod::MobilePayment
+        | common_enums::PaymentMethod::NetworkToken => None,
     }
 }
 
@@ -786,10 +792,11 @@ fn validate_payment_status_for_payment_method_list(
         | common_enums::IntentStatus::PartiallyCapturedAndProcessing
         | common_enums::IntentStatus::RequiresConfirmation
         | common_enums::IntentStatus::PartiallyCapturedAndCapturable
-        | common_enums::IntentStatus::Expired => {
+        | common_enums::IntentStatus::Expired
+        | common_enums::IntentStatus::Review => {
             Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                 current_flow: "list_payment_methods".to_string(),
-                field_name: "status".to_string(),
+                field_name: "status".into(),
                 current_value: intent_status.to_string(),
                 states: ["requires_payment_method".to_string()].join(", "),
             })

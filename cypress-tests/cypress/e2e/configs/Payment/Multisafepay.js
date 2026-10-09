@@ -1,8 +1,10 @@
 import {
   customerAcceptance,
+  standardBillingAddress,
   multiUseMandateData,
   singleUseMandateData,
 } from "./Commons";
+import { getCurrency, getCustomExchange } from "./Modifiers";
 
 const successfulThreeDSTestCardDetails = {
   card_number: "5500000000000004",
@@ -293,6 +295,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -312,6 +315,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Multisafepay does not support manual capture
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -328,6 +332,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -347,6 +352,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Multisafepay does not support manual capture
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -397,7 +403,26 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      Request: {},
+      Request: { amount: 6000 },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        amount: 6000,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {
@@ -406,7 +431,7 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -416,6 +441,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -450,12 +476,15 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 501,
@@ -576,6 +605,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -596,6 +626,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Multisafepay does not support manual capture
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -613,6 +644,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -634,6 +666,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Multisafepay does not support manual capture
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -964,5 +997,138 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: ["AliPay", "WeChatPay"].includes(paymentMethodType)
+            ? "EUR"
+            : getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+
+    AliPay: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            ali_pay_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Shanghai",
+            state: "Shanghai",
+            zip: "200000",
+            country: "CN",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+
+    PayPal: getCustomExchange({
+      // NOTE: MultiSafepay PayPal sandbox enforces CSRF protection, so the
+      // redirection handler skips the click-through (returns verifyUrl=false).
+      // See redirectionHandler.js::bankRedirectRedirection > multisafepay.
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+
+    WeChatPay: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "we_chat_pay",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            we_chat_pay_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Shanghai",
+            state: "Shanghai",
+            zip: "200000",
+            country: "CN",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+
+    MbWay: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "mb_way",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            mb_way_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            zip: "560095",
+            first_name: "John",
+            last_name: "Doe",
+            line1: "Main street",
+            country: "PT",
+            line2: "sub street",
+            city: "city",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
   },
 };

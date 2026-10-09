@@ -1,13 +1,22 @@
+use hyperswitch_domain_models::mandates::MandateReferenceId;
 pub mod request;
 pub mod response;
-use api_models::payments::MandateReferenceId;
+use api_models::{
+    payments::PaymentIdType,
+    webhooks::{IncomingWebhookEvent, RefundIdType},
+};
 use base64::Engine;
-use common_enums::{enums, AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3};
-use common_utils::types::MinorUnit;
+use common_enums::{
+    enums, AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3, DisputeStage,
+};
+use common_utils::{errors::CustomResult, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
-    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, PaymentMethodToken, RouterData,
+    },
     router_flow_types::{
         self as flows,
         refunds::{Execute, RSync},
@@ -22,8 +31,8 @@ use hyperswitch_domain_models::{
     },
     types::RefundsRouterData,
 };
-use hyperswitch_interfaces::{consts, errors::ConnectorError};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_interfaces::{consts, disputes::DisputePayload, errors::ConnectorError};
+use hyperswitch_masking::{ExposeInterface, Secret};
 pub use request::*;
 pub use response::*;
 
@@ -31,7 +40,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
-        get_unimplemented_payment_method_error_message, AddressDetailsData, CardData,
+        self, get_unimplemented_payment_method_error_message, AddressDetailsData, CardData,
         RouterData as _,
     },
 };
@@ -81,19 +90,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let customer_data: &ConnectorCustomerData = &item.router_data.request;
-        let personal_address = item.router_data.get_optional_billing().and_then(|address| {
-            let billing = address.address.as_ref();
-            billing.map(|billing_address| FinixAddress {
-                line1: billing_address.get_optional_line1(),
-                line2: billing_address.get_optional_line2(),
-                city: billing_address.get_optional_city(),
-                region: billing_address.get_optional_state(),
-                postal_code: billing_address.get_optional_zip(),
-                country: billing_address
-                    .get_optional_country()
-                    .map(CountryAlpha2::from_alpha2_to_alpha3),
-            })
-        });
+        let personal_address = get_billing_address_as_finix_address(item.router_data);
         let entity = FinixIdentityEntity {
             phone: customer_data.phone.clone(),
             first_name: item.router_data.get_optional_billing_first_name(),
@@ -188,14 +185,44 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
                 ))?,
             };
 
+        let three_d_secure =
+            if let Some(auth_data) = item.router_data.request.authentication_data.as_ref() {
+                Some(FinixThreeDSecure {
+                    cardholder_authentication: auth_data.cavv.clone(),
+                    electronic_commerce_indicator: auth_data.eci.clone().ok_or(
+                        ConnectorError::MissingRequiredField {
+                            field_name: "Electronic Commerce Indicator (ECI)".into(),
+                        },
+                    )?,
+                    transaction_id: auth_data.threeds_server_transaction_id.clone(),
+                })
+            } else {
+                None
+            };
+
+        let statement_descriptor = item
+            .router_data
+            .request
+            .billing_descriptor
+            .clone()
+            .and_then(|billing_descriptor| billing_descriptor.statement_descriptor);
+        let fraud_session_id: Option<String> = item
+            .router_data
+            .request
+            .feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.finix_additional_details.as_ref())
+            .and_then(|finix_details| finix_details.fraud_session_id.clone());
         Ok(Self {
             amount: item.amount,
             currency: item.router_data.request.currency,
             source,
+            fraud_session_id,
             merchant: item.merchant_id.clone(),
             idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
             tags: None,
-            three_d_secure: None,
+            three_d_secure_authentication: three_d_secure,
+            statement_descriptor,
         })
     }
 }
@@ -213,11 +240,30 @@ impl TryFrom<&FinixRouterData<'_, Capture, PaymentsCaptureData, PaymentsResponse
     }
 }
 
-fn get_token_request(
+fn get_billing_address_as_finix_address<Flow, Req, Res>(
+    router_data: &RouterData<Flow, Req, Res>,
+) -> Option<FinixAddress> {
+    router_data.get_optional_billing().and_then(|address| {
+        let billing = address.address.as_ref();
+        billing.map(|billing_address| FinixAddress {
+            line1: billing_address.get_optional_line1(),
+            line2: billing_address.get_optional_line2(),
+            city: billing_address.get_optional_city(),
+            region: billing_address.to_state_code_as_optional().ok().flatten(),
+            postal_code: billing_address.get_optional_zip(),
+            country: billing_address
+                .get_optional_country()
+                .map(CountryAlpha2::from_alpha2_to_alpha3),
+        })
+    })
+}
+
+fn get_token_request<Flow, Req, Res>(
     payment_method_data: PaymentMethodData,
     merchant_identity_id: Secret<String>,
     identity: String,
     customer_name: Option<Secret<String>>,
+    router_data: &RouterData<Flow, Req, Res>,
 ) -> Result<FinixCreatePaymentInstrumentRequest, error_stack::Report<ConnectorError>> {
     match &payment_method_data {
         PaymentMethodData::Card(card_data) => {
@@ -230,7 +276,7 @@ fn get_token_request(
                 expiration_year: Some(card_data.get_expiry_year_as_4_digit_i32()?),
                 identity: identity.clone(), // This would come from a previously created identity
                 tags: None,
-                address: None,
+                address: get_billing_address_as_finix_address(router_data),
                 card_brand: None, // Finix determines this from the card number
                 card_type: None,  // Finix determines this from the card number
                 additional_data: None,
@@ -244,7 +290,7 @@ fn get_token_request(
                     .tokenization_data
                     .get_encrypted_google_pay_token()
                     .change_context(ConnectorError::MissingRequiredField {
-                        field_name: "google_pay_token",
+                        field_name: "google_pay_token".into(),
                     })?;
                 Ok(FinixCreatePaymentInstrumentRequest {
                     instrument_type: FinixPaymentInstrumentType::GOOGLEPAY,
@@ -255,7 +301,7 @@ fn get_token_request(
                     expiration_month: None,
                     expiration_year: None,
                     tags: None,
-                    address: None,
+                    address: get_billing_address_as_finix_address(router_data),
                     card_brand: None,
                     card_type: None,
                     additional_data: None,
@@ -268,20 +314,20 @@ fn get_token_request(
                     .payment_data
                     .get_encrypted_apple_pay_payment_data_mandatory()
                     .change_context(ConnectorError::MissingRequiredField {
-                        field_name: "Apple pay encrypted data",
+                        field_name: "Apple pay encrypted data".into(),
                     })?;
 
                 let decoded_data = base64::prelude::BASE64_STANDARD
                     .decode(applepay_encrypt_data)
                     .change_context(ConnectorError::InvalidDataFormat {
-                        field_name: "apple_pay_encrypted_data",
+                        field_name: "apple_pay_encrypted_data".into(),
                     })?;
 
                 let apple_pay_token: FinixApplePayEncryptedData = serde_json::from_slice(
                     &decoded_data,
                 )
                 .change_context(ConnectorError::InvalidDataFormat {
-                    field_name: "apple_pay_token_json",
+                    field_name: "apple_pay_token_json".into(),
                 })?;
 
                 let finix_token = FinixApplePayPaymentToken {
@@ -318,7 +364,7 @@ fn get_token_request(
 
                 let third_party_token = serde_json::to_string(&finix_token).change_context(
                     ConnectorError::InvalidDataFormat {
-                        field_name: "apple pay token",
+                        field_name: "apple pay token".into(),
                     },
                 )?;
 
@@ -331,7 +377,7 @@ fn get_token_request(
                     expiration_year: None,
                     identity: identity.clone(),
                     tags: None,
-                    address: None,
+                    address: get_billing_address_as_finix_address(router_data),
                     card_brand: None,
                     card_type: None,
                     additional_data: None,
@@ -375,6 +421,7 @@ impl
             item.merchant_identity_id.clone(),
             item.router_data.get_connector_customer_id()?,
             item.router_data.get_optional_billing_full_name(),
+            item.router_data,
         )
     }
 }
@@ -420,9 +467,12 @@ pub(crate) fn get_setup_mandate_router_data<Request>(
             })),
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         }),
         ..item.data
     })
@@ -451,6 +501,7 @@ impl
             item.merchant_identity_id.clone(),
             item.router_data.get_connector_customer_id()?,
             item.router_data.get_optional_billing_full_name(),
+            item.router_data,
         )
     }
 }
@@ -500,11 +551,46 @@ fn get_attempt_status(state: FinixState, flow: FinixFlow, is_void: Option<bool>)
         | (FinixFlow::Transfer, FinixState::CANCELED)
         | (FinixFlow::Transfer, FinixState::UNKNOWN) => AttemptStatus::Failure,
         (FinixFlow::Capture, FinixState::PENDING) => AttemptStatus::Pending,
-        (FinixFlow::Capture, FinixState::SUCCEEDED) => AttemptStatus::Pending, // Psync with Transfer id can determine actuall success
+        (FinixFlow::Capture, FinixState::SUCCEEDED) => AttemptStatus::Pending, // Psync with Transfer id can determine actual success
         (FinixFlow::Capture, FinixState::FAILED)
         | (FinixFlow::Capture, FinixState::CANCELED)
         | (FinixFlow::Capture, FinixState::UNKNOWN) => AttemptStatus::Failure,
     }
+}
+
+pub(crate) fn convert_to_additional_payment_method_connector_response(
+    finix_payments_response: &FinixPaymentsResponse,
+) -> Option<AdditionalPaymentMethodConnectorResponse> {
+    let address_verification_check = finix_payments_response.address_verification.as_ref();
+    let network_details = finix_payments_response.network_details.as_ref();
+
+    if address_verification_check.is_none() && network_details.is_none() {
+        return None;
+    }
+
+    let mut payment_checks = serde_json::Map::new();
+    if let Some(code) = address_verification_check {
+        payment_checks.insert("avs_result".to_string(), serde_json::json!(code));
+    }
+
+    let card_network = network_details.and_then(|details| details.brand.clone());
+    let auth_code = network_details.and_then(|details| details.authorization_code.clone());
+
+    Some(AdditionalPaymentMethodConnectorResponse::Card {
+        authentication_data: None,
+        payment_checks: (!payment_checks.is_empty())
+            .then(|| serde_json::Value::Object(payment_checks)),
+        card_network,
+        domestic_network: None,
+        auth_code,
+        processor_card_network: None,
+        card_subtype: None,
+        card_segment_type: None,
+        funding_source: None,
+        card_type: None,
+        issuer_name: None,
+        issuer_country: None,
+    })
 }
 
 pub(crate) fn get_finix_response<F, T>(
@@ -516,6 +602,11 @@ pub(crate) fn get_finix_response<F, T>(
         finix_flow,
         router_data.response.is_void,
     );
+
+    let connector_response_data =
+        convert_to_additional_payment_method_connector_response(&router_data.response)
+            .map(ConnectorResponseData::with_additional_payment_method_data);
+
     Ok(RouterData {
         status,
         response: if router_data.response.state.is_failure() {
@@ -524,14 +615,18 @@ pub(crate) fn get_finix_response<F, T>(
                     .response
                     .failure_code
                     .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                message: router_data
-                    .response
-                    .messages
-                    .map_or(consts::NO_ERROR_MESSAGE.to_string(), |msg| msg.join(",")),
-                reason: router_data.response.failure_message,
+                message: router_data.response.failure_message.unwrap_or(
+                    router_data
+                        .response
+                        .messages
+                        .map(|msg| msg.join(","))
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                ),
+                reason: None,
                 status_code: router_data.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(router_data.response.id.clone()),
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -554,11 +649,15 @@ pub(crate) fn get_finix_response<F, T>(
                 })),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         },
+        connector_response: connector_response_data,
         ..router_data.data
     })
 }
@@ -634,5 +733,160 @@ impl FinixErrorResponse {
             .and_then(|errors| errors.first())
             .and_then(|error| error.code.clone())
             .unwrap_or(consts::NO_ERROR_MESSAGE.to_string())
+    }
+}
+
+impl FinixWebhookBody {
+    pub fn get_webhook_object_reference_id(
+        &self,
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, ConnectorError> {
+        match &self.webhook_embedded {
+            FinixEmbedded::Authorizations { authorizations } => {
+                let authorization = authorizations.get_first_event()?;
+
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    PaymentIdType::ConnectorTransactionId(authorization.id.to_string()),
+                ))
+            }
+            FinixEmbedded::Transfers { transfers } => {
+                let transfer = transfers.get_first_event()?;
+
+                match transfer.payment_type {
+                    Some(FinixPaymentType::REVERSAL) => {
+                        Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                            RefundIdType::ConnectorRefundId(transfer.id.to_string()),
+                        ))
+                    }
+                    Some(FinixPaymentType::DEBIT) => {
+                        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                            PaymentIdType::ConnectorTransactionId(transfer.id.to_string()),
+                        ))
+                    }
+                    Some(FinixPaymentType::DISPUTE)
+                    | Some(FinixPaymentType::ADJUSTMENT)
+                    | Some(FinixPaymentType::FEE)
+                    | Some(FinixPaymentType::CREDIT)
+                    | Some(FinixPaymentType::RESERVE)
+                    | Some(FinixPaymentType::SETTLEMENT)
+                    | Some(FinixPaymentType::UNKNOWN)
+                    | None => Err(ConnectorError::WebhookEventTypeNotFound.into()),
+                }
+            }
+
+            FinixEmbedded::Disputes { disputes } => {
+                let dispute = disputes.get_first_event()?;
+
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    PaymentIdType::ConnectorTransactionId(dispute.transfer.to_string()),
+                ))
+            }
+            FinixEmbedded::Evidences { .. } => Err(ConnectorError::WebhookEventTypeNotFound.into()),
+        }
+    }
+    pub fn get_webhook_event_type(&self) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
+        match &self.webhook_embedded {
+            FinixEmbedded::Authorizations { authorizations } => {
+                let authorizations = authorizations.get_first_event()?;
+
+                if authorizations.is_void == Some(true) {
+                    match authorizations.state {
+                        FinixState::FAILED | FinixState::CANCELED | FinixState::UNKNOWN => {
+                            Ok(IncomingWebhookEvent::PaymentIntentCancelFailure)
+                        }
+                        FinixState::PENDING => Ok(IncomingWebhookEvent::PaymentIntentProcessing),
+                        FinixState::SUCCEEDED => Ok(IncomingWebhookEvent::PaymentIntentCancelled),
+                    }
+                } else {
+                    match authorizations.state {
+                        FinixState::PENDING => Ok(IncomingWebhookEvent::PaymentIntentProcessing),
+
+                        FinixState::SUCCEEDED => {
+                            Ok(IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+                        }
+                        FinixState::FAILED | FinixState::CANCELED | FinixState::UNKNOWN => {
+                            Ok(IncomingWebhookEvent::PaymentIntentAuthorizationFailure)
+                        }
+                    }
+                }
+            }
+            FinixEmbedded::Transfers { transfers } => {
+                let transfers = transfers.get_first_event()?;
+
+                match transfers.payment_type {
+                    Some(FinixPaymentType::REVERSAL) => match transfers.state {
+                        FinixState::SUCCEEDED => Ok(IncomingWebhookEvent::RefundSuccess),
+                        FinixState::PENDING => Ok(IncomingWebhookEvent::EventNotSupported),
+                        FinixState::FAILED | FinixState::CANCELED | FinixState::UNKNOWN => {
+                            Ok(IncomingWebhookEvent::RefundFailure)
+                        }
+                    },
+                    Some(FinixPaymentType::DEBIT) => match transfers.state {
+                        FinixState::PENDING => Ok(IncomingWebhookEvent::PaymentIntentProcessing),
+                        FinixState::SUCCEEDED => Ok(IncomingWebhookEvent::PaymentIntentSuccess),
+                        FinixState::FAILED | FinixState::CANCELED => {
+                            Ok(IncomingWebhookEvent::PaymentIntentFailure)
+                        }
+
+                        FinixState::UNKNOWN => Ok(IncomingWebhookEvent::EventNotSupported),
+                    },
+
+                    Some(FinixPaymentType::DISPUTE)
+                    | Some(FinixPaymentType::ADJUSTMENT)
+                    | Some(FinixPaymentType::FEE)
+                    | Some(FinixPaymentType::CREDIT)
+                    | Some(FinixPaymentType::RESERVE)
+                    | Some(FinixPaymentType::SETTLEMENT)
+                    | Some(FinixPaymentType::UNKNOWN)
+                    | None => Ok(IncomingWebhookEvent::EventNotSupported),
+                }
+            }
+            FinixEmbedded::Disputes { disputes } => {
+                let dispute = disputes.get_first_event()?;
+
+                match dispute.state {
+                    FinixDisputeState::PENDING => Ok(IncomingWebhookEvent::DisputeOpened),
+                    FinixDisputeState::INQUIRY => Ok(IncomingWebhookEvent::DisputeChallenged),
+                    FinixDisputeState::LOST => Ok(IncomingWebhookEvent::DisputeLost),
+                    FinixDisputeState::WON => Ok(IncomingWebhookEvent::DisputeWon),
+                }
+            }
+            FinixEmbedded::Evidences { .. } => Ok(IncomingWebhookEvent::EventNotSupported),
+        }
+    }
+
+    pub fn get_dispute_details(
+        &self,
+        payment_currency: Option<enums::Currency>,
+    ) -> CustomResult<DisputePayload, ConnectorError> {
+        match &self.webhook_embedded {
+            FinixEmbedded::Disputes { disputes } => {
+                let dispute = disputes.get_first_event()?;
+                let currency = payment_currency.ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "currency".into(),
+                })?;
+                let amount = utils::convert_amount(
+                    super::Finix::new().amount_converter_webhooks,
+                    dispute.amount,
+                    currency,
+                )?;
+                Ok(DisputePayload {
+                    amount,
+                    currency,
+                    dispute_stage: DisputeStage::Dispute,
+                    connector_status: dispute.state.to_string(),
+                    connector_dispute_id: dispute.id,
+                    connector_reason: dispute.reason,
+                    connector_reason_code: None,
+                    challenge_required_by: dispute.respond_by,
+                    created_at: dispute.created_at,
+                    updated_at: dispute.updated_at,
+                    additional_details: None,
+                })
+            }
+            FinixEmbedded::Authorizations { .. }
+            | FinixEmbedded::Transfers { .. }
+            | FinixEmbedded::Evidences { .. } => Err(ConnectorError::ResponseDeserializationFailed)
+                .attach_printable("Expected Dispute webhooks, but found other webhooks")?,
+        }
     }
 }

@@ -200,6 +200,7 @@ pub struct PaymentAttemptBatchNew {
     pub mandate_data: Option<MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
+    pub fingerprint_type: Option<common_enums::FingerprintType>,
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
@@ -222,9 +223,11 @@ pub struct PaymentAttemptBatchNew {
     pub routing_approach: Option<common_enums::RoutingApproach>,
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
     pub network_details: Option<NetworkDetails>,
     pub is_stored_credential: Option<bool>,
     pub authorized_amount: Option<MinorUnit>,
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -296,6 +299,7 @@ impl PaymentAttemptBatchNew {
             mandate_data: self.mandate_data,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
+            fingerprint_type: self.fingerprint_type,
             client_source: self.client_source,
             client_version: self.client_version,
             customer_acceptance: self.customer_acceptance,
@@ -315,10 +319,21 @@ impl PaymentAttemptBatchNew {
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             network_details: self.network_details,
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
             tokenization: self.tokenization,
+            error_details: None,
+            retry_type: None,
+            installment_data: None,
+            external_surcharge_details: None,
+            applied_offer_details: None,
+            applied_overrides: None,
+            payment_account_reference: None,
+            sender_payment_instrument_id: None,
+            external_threeds_authentication_type: None,
+            active_frm_id: None,
         }
     }
 }

@@ -2,7 +2,7 @@
 //! & inbuilt datatypes.
 
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret, Strategy};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, Strategy};
 use quick_xml::de;
 #[cfg(all(feature = "logs", feature = "async_ext"))]
 use router_env::logger;
@@ -180,7 +180,7 @@ impl BytesExt for bytes::Bytes {
 
                 format!(
                     "Unable to parse {variable_type} from bytes {:?}",
-                    Secret::<_, masking::JsonMaskStrategy>::new(value)
+                    Secret::<_, hyperswitch_masking::JsonMaskStrategy>::new(value)
                 )
             })
     }
@@ -214,7 +214,7 @@ impl ByteSliceExt for [u8] {
 
                 format!(
                     "Unable to parse {type_name} from &[u8] {:?}",
-                    Secret::<_, masking::JsonMaskStrategy>::new(value)
+                    Secret::<_, hyperswitch_masking::JsonMaskStrategy>::new(value)
                 )
             })
     }
@@ -239,7 +239,7 @@ impl ValueExt for serde_json::Value {
                 format!(
                     "Unable to parse {type_name} from serde_json::Value: {:?}",
                     // Required to prevent logging sensitive data in case of deserialization failure
-                    Secret::<_, masking::JsonMaskStrategy>::new(self)
+                    Secret::<_, hyperswitch_masking::JsonMaskStrategy>::new(self)
                 )
             })
     }
@@ -307,9 +307,9 @@ impl<T> StringExt<T> for String {
             .attach_printable_lazy(|| {
                 format!(
                     "Unable to parse {type_name} from string {:?}",
-                    Secret::<_, masking::JsonMaskStrategy>::new(serde_json::Value::String(
-                        self.clone()
-                    ))
+                    Secret::<_, hyperswitch_masking::JsonMaskStrategy>::new(
+                        serde_json::Value::String(self.clone())
+                    )
                 )
             })
     }
@@ -561,6 +561,34 @@ pub trait OptionExt<T> {
 
     /// update option value
     fn update_value(&mut self, value: Option<T>);
+}
+
+/// Helper trait for the `apply_changeset` proc-macro.
+///
+/// This trait is an implementation detail and should not be used directly.
+#[doc(hidden)]
+pub trait ApplyOptionField<Target> {
+    /// Apply `self` to the given mutable reference, replacing the value
+    /// only when `self` is `Some`.
+    fn apply(self, target: &mut Target);
+}
+
+#[doc(hidden)]
+impl<T> ApplyOptionField<T> for Option<T> {
+    fn apply(self, target: &mut T) {
+        if let Some(v) = self {
+            *target = v;
+        }
+    }
+}
+
+#[doc(hidden)]
+impl<T> ApplyOptionField<Self> for Option<T> {
+    fn apply(self, target: &mut Self) {
+        if self.is_some() {
+            *target = self;
+        }
+    }
 }
 
 impl<T> OptionExt<T> for Option<T>

@@ -10,8 +10,21 @@ pub mod revenue_recovery;
 
 /// gRPC based Unified Connector Service Client interface implementation
 pub mod unified_connector_service;
+
+/// Deja gRPC egress boundary: the transport-layer tower Service wrapper.
+/// Installed at transport construction
+/// sites so every unary rpc crosses one deja boundary; identity is rank-2
+/// span-path (no explicit call-site tag), routing hardcoded Substitute.
+#[cfg(feature = "deja")]
+pub mod deja_transport;
+/// Deja gRPC egress semantics: recorded result envelope, byte-faithful response
+/// reconstruction.
+#[cfg(feature = "deja")]
+pub mod semantic_boundary;
+
 use std::{fmt::Debug, sync::Arc};
 
+use common_enums::{PaymentMethod, PaymentMethodType};
 #[cfg(feature = "dynamic_routing")]
 use common_utils::consts;
 use common_utils::{id_type, ucs_types};
@@ -40,9 +53,25 @@ use crate::grpc_client::unified_connector_service::{
     UnifiedConnectorServiceClient, UnifiedConnectorServiceClientConfig,
 };
 
-#[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
+#[cfg(all(
+    any(feature = "dynamic_routing", feature = "revenue_recovery"),
+    not(feature = "deja")
+))]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
 pub type Client = hyper_util::client::legacy::Client<HttpConnector, Body>;
+
+#[cfg(all(
+    any(feature = "dynamic_routing", feature = "revenue_recovery"),
+    feature = "deja"
+))]
+/// Hyper based Client type for maintaining connection pool for all gRPC services.
+///
+/// Under the `deja` feature the pool is wrapped in the deja gRPC egress boundary
+/// at this single definition site — every unary rpc on every service client built
+/// over it (dynamic routing, health check, recovery decider, future) is
+/// recorded/substituted at the wire level with zero call-site changes.
+pub type Client =
+    deja_transport::DejaGrpcTransport<hyper_util::client::legacy::Client<HttpConnector, Body>>;
 
 /// Struct contains all the gRPC Clients
 #[derive(Debug, Clone)]
@@ -76,8 +105,10 @@ pub struct GrpcClientSettings {
 impl GrpcClientSettings {
     /// # Panics
     ///
-    /// This function will panic if it fails to establish a connection with the gRPC server.
-    /// This function will be called at service startup.
+    /// This function will panic if it fails to establish a connection with the gRPC server, or if
+    /// the Unified Connector Service is configured but its client cannot be built. Both are fatal
+    /// at service startup by design: a pod that silently loses UCS would route every payment down
+    /// the direct connector path, which is not an option for `ucs_only_connectors`.
     #[allow(clippy::expect_used)]
     pub async fn get_grpc_client_interface(&self) -> Arc<GrpcClients> {
         #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
@@ -85,6 +116,13 @@ impl GrpcClientSettings {
             hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
                 .http2_only(true)
                 .build_http();
+        // deja: wrap the shared pool in the gRPC egress boundary at its one
+        // construction site.
+        #[cfg(all(
+            any(feature = "dynamic_routing", feature = "revenue_recovery"),
+            feature = "deja"
+        ))]
+        let client = deja_transport::DejaGrpcTransport::new(client);
 
         #[cfg(feature = "dynamic_routing")]
         let dynamic_routing_connection = self
@@ -101,7 +139,9 @@ impl GrpcClientSettings {
             .expect("Failed to build gRPC connections");
 
         let unified_connector_service_client =
-            UnifiedConnectorServiceClient::build_connections(self).await;
+            UnifiedConnectorServiceClient::build_connections(self)
+                .await
+                .expect("Failed to build the Unified Connector Service client from configuration");
 
         #[cfg(feature = "revenue_recovery")]
         let recovery_decider_client = {
@@ -164,13 +204,36 @@ pub struct GrpcHeadersUcs {
     external_vault_proxy_metadata: Option<String>,
     /// Merchant Reference Id
     merchant_reference_id: Option<ucs_types::UcsReferenceId>,
+    /// Resource id
+    resource_id: Option<ucs_types::UcsResourceId>,
 
     shadow_mode: Option<bool>,
+    /// Proxy name for UCS to select the proxy to route the request through
+    proxy_name: Option<&'static str>,
+    /// Config override as JSON string to pass to UCS
+    config_override: Option<String>,
+    /// Sent as `x-payment-method` / `x-payment-method-type` so UCS can attribute the call
+    /// (its rollout scope includes the payment method). `None` where the flow has no
+    /// payment method: access-token fetch, FRM notification, incoming webhooks, surcharge
+    /// calculation, notify-connector, account-updater refresh.
+    payment_method: Option<PaymentMethod>,
+    payment_method_type: Option<PaymentMethodType>,
 }
 
 /// Type aliase for GrpcHeaders builder in initial stage
-pub type GrpcHeadersUcsBuilderInitial =
-    GrpcHeadersUcsBuilder<((String,), (Option<RequestId>,), (), (), (), (Option<bool>,))>;
+pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<(
+    (String,),
+    (Option<RequestId>,),
+    (),
+    (),
+    (),
+    (),
+    (Option<bool>,),
+    (Option<&'static str>,),
+    (Option<String>,),
+    (),
+    (),
+)>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (String,),
@@ -178,7 +241,12 @@ pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (LineageIds,),
     (Option<String>,),
     (Option<ucs_types::UcsReferenceId>,),
+    (Option<ucs_types::UcsResourceId>,),
     (Option<bool>,),
+    (Option<&'static str>,),
+    (Option<String>,),
+    (Option<PaymentMethod>,),
+    (Option<PaymentMethodType>,),
 )>;
 
 /// struct to represent set of Lineage ids

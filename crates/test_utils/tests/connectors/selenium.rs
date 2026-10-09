@@ -16,8 +16,8 @@ use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
 
 #[derive(Clone)]
 pub enum Event<'a> {
-    RunIf(Assert<'a>, Vec<Event<'a>>),
-    EitherOr(Assert<'a>, Vec<Event<'a>>, Vec<Event<'a>>),
+    RunIf(Assert<'a>, Vec<Self>),
+    EitherOr(Assert<'a>, Vec<Self>, Vec<Self>),
     Assert(Assert<'a>),
     Trigger(Trigger<'a>),
 }

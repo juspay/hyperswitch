@@ -1,8 +1,8 @@
 import {
-  customerAcceptance,
   connectorDetails as commonConnectorDetails,
-  singleUseMandateData,
+  customerAcceptance,
   multiUseMandateData,
+  singleUseMandateData,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -11,21 +11,13 @@ const DUPLICATION_TIMEOUT = 30000; // 30 seconds
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "12",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "John Doe",
   card_cvc: "123",
 };
 
 const successfulThreeDSTestCardDetails = {
   ...successfulNo3DSCardDetails,
-};
-
-const failedNo3DSCardDetails = {
-  card_number: "4111111111119903",
-  card_exp_month: "01",
-  card_exp_year: "25",
-  card_holder_name: "John Doe",
-  card_cvc: "123",
 };
 
 export const connectorDetails = {
@@ -91,6 +83,99 @@ export const connectorDetails = {
           amount_received: 6050,
           amount: 6000,
           net_amount: 6050,
+        },
+      },
+    },
+    PaymentIntentWithBillingDescriptor: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        currency: "USD",
+        billing_descriptor: {
+          name: "Test Business",
+          city: "San Francisco",
+          phone: "1234567890",
+          statement_descriptor: "Test Descriptor",
+          statement_descriptor_suffix: "Suffix",
+          reference: "REF123",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        billing_descriptor: {
+          name: "Test Business",
+          city: "San Francisco",
+          phone: "1234567890",
+          statement_descriptor: "Test Descriptor",
+          statement_descriptor_suffix: "Suffix",
+          reference: "REF123",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount_received: 6000,
+        },
+      },
+    },
+    PaymentIntentWithProcessingMethodId: {
+      Request: {
+        currency: "USD",
+        metadata: {
+          processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          metadata: {
+            processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+          },
+        },
+      },
+    },
+    PaymentConfirmWithProcessingMethodId: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        metadata: {
+          processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          metadata: {
+            processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+          },
         },
       },
     },
@@ -165,7 +250,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
       Request: {
@@ -190,7 +275,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: failedNo3DSCardDetails,
+          card: successfulNo3DSCardDetails, //payload doesnt support failed cards
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -198,11 +283,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "card_declined",
-          error_message: "Your card was declined",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
         },
       },
     },
@@ -299,7 +382,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
       Request: {
@@ -350,6 +433,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -369,7 +453,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
       Request: {
@@ -472,7 +556,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
       Request: {
@@ -494,6 +578,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -517,6 +602,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -531,6 +617,35 @@ export const connectorDetails = {
         },
       },
     },
+    MandateSingleUseNo3DSAutoCaptureWithProcessingMethodId: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+        metadata: {
+          processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          metadata: {
+            processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+          },
+        },
+      },
+    },
     MandateSingleUseNo3DSManualCapture: {
       Configs: {
         DELAY: {
@@ -539,6 +654,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -561,6 +677,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -583,6 +700,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -626,6 +744,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "debit",
@@ -633,6 +752,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
+        mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
       Response: {
@@ -653,12 +773,14 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -678,6 +800,15 @@ export const connectorDetails = {
       },
       ...commonConnectorDetails.card_pm.MITAutoCapture,
     }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      ...commonConnectorDetails.card_pm.MITAutoCaptureWithCustomerAcceptance,
+    }),
     MITManualCapture: {
       Configs: {
         DELAY: {
@@ -685,13 +816,127 @@ export const connectorDetails = {
           TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
           status: "requires_capture",
         },
       },
+    },
+  },
+  bank_debit_pm: {
+    Ach: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "110000000",
+              bank_account_holder_name: "John Doe",
+              bank_type: "checking",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "John",
+            last_name: "Doe",
+            line1: "123 Main St",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    MandateSingleUseAch: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+        LOCAL_VAULT_REQUIRED: true,
+      },
+      Request: {
+        amount: 6540,
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        currency: "USD",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "110000000",
+              bank_account_holder_name: "John Doe",
+              bank_type: "checking",
+            },
+          },
+        },
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "USD",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            first_name: "John",
+            last_name: "Doe",
+            line1: "123 Main St",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    MITAutoCaptureAch: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+  },
+  webhook: {
+    TransactionIdConfig: {
+      path: "triggered_on.id",
+      type: "string",
     },
   },
 };

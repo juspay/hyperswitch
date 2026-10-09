@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData},
 };
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -110,7 +110,7 @@ impl TryFrom<&PlaidRouterData<&PaymentsAuthorizeRouterData>> for PlaidPaymentsRe
                         Some(payment_id)
                     }
                     .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "payment_id",
+                        field_name: "payment_id".into(),
                     })?;
                     let recipient_type = item
                         .router_data
@@ -122,7 +122,7 @@ impl TryFrom<&PlaidRouterData<&PaymentsAuthorizeRouterData>> for PlaidPaymentsRe
                             ) => data.clone(),
                         })
                         .ok_or(ConnectorError::MissingRequiredField {
-                            field_name: "additional_merchant_data",
+                            field_name: "additional_merchant_data".into(),
                         })?;
 
                     let recipient_id = match recipient_type {
@@ -130,7 +130,7 @@ impl TryFrom<&PlaidRouterData<&PaymentsAuthorizeRouterData>> for PlaidPaymentsRe
                             Ok(id.peek().to_string())
                         }
                         _ => Err(ConnectorError::MissingRequiredField {
-                            field_name: "ConnectorRecipientId",
+                            field_name: "ConnectorRecipientId".into(),
                         }),
                     }?;
 
@@ -188,7 +188,7 @@ impl TryFrom<&PaymentsPostProcessingRouterData> for PlaidLinkTokenRequest {
                             .country
                             .map(|code| vec![code.to_string()])
                             .ok_or(ConnectorError::MissingRequiredField {
-                                field_name: "billing.address.country",
+                                field_name: "billing.address.country".into(),
                             })?,
                         language: "en".to_string(),
                         products: vec!["payment_initiation".to_string()],
@@ -307,6 +307,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlaidPaymentsResponse, T, PaymentsRespo
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.payment_id),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -321,9 +322,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlaidPaymentsResponse, T, PaymentsRespo
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.payment_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 })
             },
             ..item.data
@@ -396,6 +400,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlaidSyncResponse, T, PaymentsResponseD
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.payment_id),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -410,9 +415,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlaidSyncResponse, T, PaymentsResponseD
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.payment_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 })
             },
             ..item.data

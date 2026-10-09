@@ -74,6 +74,7 @@ pub enum ApiEventsType {
     Webhooks {
         connector: String,
         payment_id: Option<id_type::PaymentId>,
+        refund_id: Option<String>,
     },
     #[cfg(feature = "v1")]
     NetworkTokenWebhook {
@@ -83,6 +84,7 @@ pub enum ApiEventsType {
     Webhooks {
         connector: id_type::MerchantConnectorAccountId,
         payment_id: Option<id_type::GlobalPaymentId>,
+        refund_id: Option<id_type::GlobalRefundId>,
     },
     Routing,
     Subscription,
@@ -105,7 +107,9 @@ pub enum ApiEventsType {
     ApplePayCertificatesMigration,
     FraudCheck,
     Recon,
-    ExternalServiceAuth,
+    ExternalServiceAuth {
+        service: String,
+    },
     Dispute {
         dispute_id: String,
     },
@@ -139,7 +143,45 @@ pub enum ApiEventsType {
         profile_acquirer_id: id_type::ProfileAcquirerId,
     },
     ThreeDsDecisionRule,
-    Chat,
+    Oidc,
+    CardIssuers,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "api_flow", rename_all = "snake_case")]
+pub enum ConnectorEventsType {
+    Payout {
+        payout_id: String,
+    },
+    Payment {
+        payment_id: String,
+    },
+    Refund {
+        payment_id: String,
+        refund_id: String,
+    },
+    Dispute {
+        dispute_id: String,
+    },
+}
+
+impl ConnectorEventsType {
+    pub fn new(
+        payment_id: String,
+        refund_id: Option<String>,
+        payout_id: Option<String>,
+        dispute_id: Option<String>,
+    ) -> Self {
+        match (refund_id, payout_id, dispute_id) {
+            (Some(refund_id), _, _) => Self::Refund {
+                payment_id,
+                refund_id,
+            },
+            (_, Some(payout_id), _) => Self::Payout { payout_id },
+            (_, _, Some(dispute_id)) => Self::Dispute { dispute_id },
+            _ => Self::Payment { payment_id },
+        }
+    }
 }
 
 impl ApiEventMetric for serde_json::Value {}
@@ -150,6 +192,15 @@ impl ApiEventMetric for id_type::PaymentId {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for id_type::PayoutId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payout {
+            payout_id: self.clone(),
         })
     }
 }

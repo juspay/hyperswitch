@@ -46,11 +46,11 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 #[cfg(feature = "payouts")]
-use masking::PeekInterface;
-use masking::{Mask as _, Maskable};
+use hyperswitch_masking::PeekInterface;
+use hyperswitch_masking::{Mask as _, Maskable};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 
@@ -84,8 +84,6 @@ where
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
-        use masking::Mask as _;
-
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             PayoutQuoteType::get_content_type(self).to_string().into(),
@@ -146,6 +144,7 @@ impl ConnectorCommon for Wise {
                         reason: None,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -159,6 +158,7 @@ impl ConnectorCommon for Wise {
                         reason: None,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -173,6 +173,7 @@ impl ConnectorCommon for Wise {
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -246,7 +247,7 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Wise {
     ) -> CustomResult<String, ConnectorError> {
         let transfer_id = req.request.connector_payout_id.clone().ok_or(
             ConnectorError::MissingRequiredField {
-                field_name: "transfer_id",
+                field_name: "transfer_id".into(),
             },
         )?;
         Ok(format!(
@@ -327,6 +328,7 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Wise {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -430,11 +432,11 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Wise {
     ) -> CustomResult<String, ConnectorError> {
         let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
             ConnectorError::MissingRequiredField {
-                field_name: "transfer_id",
+                field_name: "transfer_id".into(),
             },
         )?;
         Ok(format!(
-            "{}/v1/transfers/{}",
+            "{}v1/transfers/{}",
             connectors.wise.base_url, transfer_id
         ))
     }
@@ -583,7 +585,7 @@ impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Wise {
         _req: &PayoutsRouterData<PoCreate>,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        Ok(format!("{}/v1/transfers", connectors.wise.base_url))
+        Ok(format!("{}v1/transfers", connectors.wise.base_url))
     }
 
     fn get_headers(
@@ -673,7 +675,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Wise 
             .change_context(ConnectorError::FailedToObtainAuthType)?;
         let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
             ConnectorError::MissingRequiredField {
-                field_name: "transfer_id",
+                field_name: "transfer_id".into(),
             },
         )?;
         Ok(format!(
@@ -840,6 +842,7 @@ impl IncomingWebhook for Wise {
         &self,
         #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
         #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         #[cfg(feature = "payouts")]
         {
@@ -866,7 +869,7 @@ impl IncomingWebhook for Wise {
         &self,
         #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
         #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         #[cfg(feature = "payouts")]
         {
             let payload: wise::WisePayoutsWebhookBody = request

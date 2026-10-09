@@ -12,6 +12,13 @@ pub struct PaymentData {
     /// The currency of the payment.
     #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
+    /// The first 6 digits of the card number.
+    pub card_bin: Option<String>,
+    /// The first 8 digits of the card number.
+    pub extended_card_bin: Option<String>,
+    /// The business country of the payment.
+    #[schema(value_type = Option<Country>)]
+    pub business_country: Option<common_enums::Country>,
 }
 
 /// Represents metadata about the payment method used in the 3DS decision rule.
@@ -20,6 +27,9 @@ pub struct PaymentMethodMetaData {
     /// The card network (e.g., Visa, Mastercard) if the payment method is a card.
     #[schema(value_type = CardNetwork)]
     pub card_network: Option<common_enums::CardNetwork>,
+    /// The card discovery method (e.g., manual entry, saved card, click to pay).
+    #[schema(value_type = CardDiscovery)]
+    pub card_discovery: Option<common_enums::CardDiscovery>,
 }
 
 /// Represents data about the customer's device used in the 3DS decision rule.
@@ -70,6 +80,8 @@ pub struct ThreeDsDecisionRuleExecuteRequest {
     pub issuer: Option<IssuerData>,
     /// Optional data about the acquirer.
     pub acquirer: Option<AcquirerData>,
+    /// Optional metadata about the payment.
+    pub metadata: Option<serde_json::Value>,
 }
 
 /// Represents the response from executing a 3DS decision rule.

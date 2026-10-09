@@ -411,6 +411,7 @@ pub async fn create_invoice_sync_job(
         Some(0),
         common_utils::date_time::now(),
         common_types::consts::API_VERSION,
+        state.conf.application_source,
     )
     .change_context(router_errors::ApiErrorResponse::InternalServerError)
     .attach_printable("subscriptions: unable to form process_tracker type")?;
@@ -431,9 +432,15 @@ pub async fn get_subscription_invoice_sync_process_schedule_time(
     merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+    let config_key = format!("invoice_sync_pt_mapping_{connector}");
     let mapping: CustomResult<process_data::SubscriptionInvoiceSyncPTMapping, StorageError> = db
-        .find_config_by_key(&format!("invoice_sync_pt_mapping_{connector}"))
+        .find_config_by_key_optional(&config_key)
         .await
+        .and_then(|config_optional| {
+            config_optional.ok_or_else(|| {
+                error_stack::Report::new(StorageError::ValueNotFound(config_key.clone()))
+            })
+        })
         .map(|value| value.config)
         .and_then(|config| {
             config

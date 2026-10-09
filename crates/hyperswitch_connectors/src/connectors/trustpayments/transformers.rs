@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -356,7 +356,7 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                     | Some(common_enums::CaptureMethod::SequentialAutomatic) => {
                         return Err(errors::ConnectorError::NotSupported {
                             message: "Capture method not supported by TrustPayments".to_string(),
-                            connector: "TrustPayments",
+                            connector: "TrustPayments".into(),
                         }
                         .into());
                     }
@@ -597,6 +597,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: Some(status),
                     connector_transaction_id: response_data.transactionreference.clone(),
+                    connector_response_reference_id: response_data.transactionreference.clone(),
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -614,9 +615,12 @@ impl
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -670,6 +674,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: Some(status),
                     connector_transaction_id: Some(transaction_id.clone()),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -687,9 +692,12 @@ impl
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -743,6 +751,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: Some(status),
                     connector_transaction_id: Some(transaction_id.clone()),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -760,9 +769,12 @@ impl
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -816,6 +828,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: Some(status),
                     connector_transaction_id: Some(transaction_id.clone()),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -833,9 +846,12 @@ impl
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1261,7 +1277,7 @@ impl TrustpaymentsErrorResponse {
             | TrustpaymentsErrorCode::CardExpired
             | TrustpaymentsErrorCode::InvalidAmountValue => {
                 errors::ConnectorError::InvalidDataFormat {
-                    field_name: "payment_method_data",
+                    field_name: "payment_method_data".into(),
                 }
             }
             TrustpaymentsErrorCode::InsufficientFunds
@@ -1298,7 +1314,7 @@ impl TrustpaymentsErrorResponse {
             | TrustpaymentsErrorCode::InvalidAmount
             | TrustpaymentsErrorCode::NoSearchableFilter => {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "request_data",
+                    field_name: "request_data".into(),
                 }
             }
             TrustpaymentsErrorCode::Success => errors::ConnectorError::ProcessingStepFailed(Some(

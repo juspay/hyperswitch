@@ -1,9 +1,10 @@
 import { customerAcceptance } from "./Commons";
+import { getCurrency, getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4530910000012345",
   card_exp_month: "10",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "John",
   card_cvc: "111",
 };
@@ -11,7 +12,7 @@ const successfulNo3DSCardDetails = {
 const successfulNoThreeDsCardDetailsRequest = {
   card_number: "4530910000012345",
   card_exp_month: "10",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "John",
   card_cvc: "111",
 };
@@ -19,7 +20,7 @@ const successfulNoThreeDsCardDetailsRequest = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4000000000001091",
   card_exp_month: "10",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "Joseph",
   card_cvc: "111",
 };
@@ -270,6 +271,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Request: {
+        amount: 0,
+      },
       Response: {
         status: 501,
         body: {
@@ -297,12 +301,15 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 501,
@@ -406,6 +413,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -425,6 +433,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -444,6 +453,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -463,6 +473,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -482,6 +493,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -501,7 +513,7 @@ export const connectorDetails = {
       Configs: {
         TRIGGER_SKIP: true,
       },
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -514,6 +526,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -546,6 +559,126 @@ export const connectorDetails = {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
         },
+      },
+    },
+  },
+  bank_redirect_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: { currency: getCurrency(paymentMethodType) },
+        Response: {
+          status: 200,
+          body: { status: "requires_payment_method" },
+        },
+      }),
+    Interac: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "interac",
+        payment_method_data: {
+          bank_redirect: {
+            interac: {
+              email: "joseph.Doe@example.com",
+            },
+          },
+        },
+        billing: {
+          email: "joseph.Doe@example.com",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Toronto",
+            state: "ON",
+            zip: "M5V 2T6",
+            country: "CA",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+1",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: { status: "requires_customer_action" },
+      },
+    },
+  },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: { status: "requires_payment_method" },
+        },
+      }),
+    Skrill: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "skrill",
+        payment_method_data: {
+          wallet: {
+            skrill: {},
+          },
+        },
+        billing: {
+          email: "joseph.Doe@example.com",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "CA",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+1",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: { status: "requires_customer_action" },
+      },
+    },
+  },
+  gift_card_pm: {
+    PaySafeCard: {
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "pay_safe_card",
+        payment_method_data: {
+          gift_card: {
+            pay_safe_card: {},
+          },
+        },
+        billing: {
+          email: "guest@example.com",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "Toronto",
+            state: "ON",
+            zip: "M5V 2T6",
+            country: "CA",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: { status: "requires_customer_action" },
       },
     },
   },

@@ -31,6 +31,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
         let prev_pm_status = tracking_data.prev_status;
         let curr_pm_status = tracking_data.curr_status;
         let merchant_id = tracking_data.merchant_id;
+        let last_modified_by = tracking_data.last_modified_by;
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
@@ -59,7 +60,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
 
         let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
             status: Some(curr_pm_status),
-            last_modified_by: None,
+            last_modified_by,
         };
 
         let res = db
@@ -68,6 +69,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
                 payment_method,
                 pm_update,
                 merchant_account.storage_scheme,
+                // Status update workflow completion must not recursively enqueue PM modular compat.
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

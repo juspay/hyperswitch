@@ -1,10 +1,10 @@
 use common_utils::errors::ErrorSwitch;
 use error_stack::ResultExt;
 use external_services::http_client::client;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use oidc::TokenResponse;
 use openidconnect::{self as oidc, core as oidc_core};
-use redis_interface::RedisConnectionPool;
+use redis_interface::RedisConnectionWithContext;
 use storage_impl::errors::ApiClientError;
 
 use crate::{
@@ -198,7 +198,7 @@ fn get_oidc_redis_key(csrf: &str) -> String {
 
 fn get_redis_connection_for_global_tenant(
     state: &SessionState,
-) -> UserResult<std::sync::Arc<RedisConnectionPool>> {
+) -> UserResult<RedisConnectionWithContext> {
     state
         .global_store
         .get_redis_conn()

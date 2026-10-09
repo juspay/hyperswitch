@@ -11,10 +11,9 @@ use hyperswitch_domain_models::{
     types::{self, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
-use uuid::Uuid;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
@@ -122,7 +121,12 @@ impl TryFrom<&BokuRouterData<&types::PaymentsAuthorizeRouterData>> for BokuPayme
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("boku"),
                 ))?
@@ -158,7 +162,7 @@ impl
             country,
             merchant_id: auth_type.merchant_id,
             merchant_transaction_id: Secret::new(item.payment_id.to_string()),
-            merchant_request_id: Uuid::new_v4().to_string(),
+            merchant_request_id: common_utils::generate_uuid_v4().to_string(),
             merchant_item_description,
             notification_url: item.request.webhook_url.clone(),
             payment_method,
@@ -184,6 +188,7 @@ fn get_wallet_type(wallet_data: &WalletData) -> Result<String, errors::Connector
         | WalletData::AmazonPayRedirect(_)
         | WalletData::Paysera(_)
         | WalletData::Skrill(_)
+        | WalletData::Neteller(_)
         | WalletData::BluecodeRedirect {}
         | WalletData::ApplePay(_)
         | WalletData::ApplePayRedirect(_)
@@ -199,6 +204,7 @@ fn get_wallet_type(wallet_data: &WalletData) -> Result<String, errors::Connector
         | WalletData::SamsungPay(_)
         | WalletData::TwintRedirect {}
         | WalletData::VippsRedirect {}
+        | WalletData::WeroRedirect {}
         | WalletData::TouchNGoRedirect(_)
         | WalletData::WeChatPayRedirect(_)
         | WalletData::WeChatPayQr(_)
@@ -320,9 +326,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, BokuResponse, T, PaymentsResponseData>>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -346,7 +355,7 @@ fn get_authorize_response(
             .redirect_url
             .map(|url| RedirectForm::from((url, Method::Get)))),
         None => Err(errors::ConnectorError::MissingConnectorRedirectionPayload {
-            field_name: "redirect_url",
+            field_name: "redirect_url".into(),
         }),
     }?;
 
@@ -394,7 +403,7 @@ impl<F> TryFrom<&BokuRouterData<&RefundsRouterData<F>>> for BokuRefundRequest {
             refund_amount: item.amount,
             merchant_id: auth_type.merchant_id,
             merchant_refund_id: Secret::new(item.router_data.request.refund_id.to_string()),
-            merchant_request_id: Uuid::new_v4().to_string(),
+            merchant_request_id: common_utils::generate_uuid_v4().to_string(),
             charge_id: item
                 .router_data
                 .request

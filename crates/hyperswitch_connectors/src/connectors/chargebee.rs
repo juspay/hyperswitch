@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        revenue_recovery::InvoiceRecordBack,
+        revenue_recovery::{DisputeRecordBack, InvoiceRecordBack},
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
@@ -31,7 +31,7 @@ use hyperswitch_domain_models::{
         CreateConnectorCustomer,
     },
     router_request_types::{
-        revenue_recovery::InvoiceRecordBackRequest,
+        revenue_recovery::{DisputeRecordBackRequest, InvoiceRecordBackRequest},
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
             GetSubscriptionItemsRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
@@ -42,7 +42,7 @@ use hyperswitch_domain_models::{
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        revenue_recovery::InvoiceRecordBackResponse,
+        revenue_recovery::{DisputeRecordBackResponse, InvoiceRecordBackResponse},
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
@@ -51,12 +51,12 @@ use hyperswitch_domain_models::{
         ConnectorInfo, PaymentsResponseData, RefundsResponseData,
     },
     types::{
-        ConnectorCustomerRouterData, GetSubscriptionEstimateRouterData,
-        GetSubscriptionItemsRouterData, GetSubscriptionPlanPricesRouterData,
-        InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
-        SubscriptionCancelRouterData, SubscriptionCreateRouterData, SubscriptionPauseRouterData,
-        SubscriptionResumeRouterData,
+        ConnectorCustomerRouterData, DisputeRecordBackRouterData,
+        GetSubscriptionEstimateRouterData, GetSubscriptionItemsRouterData,
+        GetSubscriptionPlanPricesRouterData, InvoiceRecordBackRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
+        RefundSyncRouterData, RefundsRouterData, SubscriptionCancelRouterData,
+        SubscriptionCreateRouterData, SubscriptionPauseRouterData, SubscriptionResumeRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -74,7 +74,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{Mask, PeekInterface, Secret};
+use hyperswitch_masking::{Mask, PeekInterface, Secret};
 use transformers as chargebee;
 
 use crate::{
@@ -115,6 +115,8 @@ impl api::subscriptions::Subscriptions for Chargebee {}
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery::RevenueRecoveryRecordBack for Chargebee {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl api::revenue_recovery::RevenueRecoveryDisputeRecordBack for Chargebee {}
 
 fn build_chargebee_url<Flow, Request, Response>(
     connector: &Chargebee,
@@ -163,7 +165,7 @@ macro_rules! impl_chargebee_integration {
                 &self,
                 req: &$router_data,
                 connectors: &Connectors,
-            ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+            ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError> {
                 self.build_headers(req, connectors)
             }
 
@@ -295,7 +297,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.common_get_content_type().to_string().into(),
@@ -326,7 +329,8 @@ impl ConnectorCommon for Chargebee {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = chargebee::ChargebeeAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let encoded_api_key = BASE64_ENGINE.encode(auth.full_access_key_v1.peek());
@@ -356,6 +360,7 @@ impl ConnectorCommon for Chargebee {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -498,6 +503,16 @@ fn build_connector_customer_request_body(
     Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
 }
 
+fn build_dispute_record_back_request_body(
+    _connector: &Chargebee,
+    req: &DisputeRecordBackRouterData,
+) -> CustomResult<RequestContent, errors::ConnectorError> {
+    // The dispute amount is already in minor units, which is what Chargebee wants, so
+    // there is nothing to convert.
+    let connector_req = chargebee::ChargebeeRecordRefundRequest::try_from(req)?;
+    Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+}
+
 fn build_invoice_record_back_request_body(
     connector: &Chargebee,
     req: &InvoiceRecordBackRouterData,
@@ -568,6 +583,18 @@ impl_chargebee_integration!(
     url_path: |req| Some(format!("v2/invoices/{}/record_payment", req.request.merchant_reference_id.get_string_repr())),
     method: Method::Post,
     request_body: build_invoice_record_back_request_body
+);
+
+impl_chargebee_integration!(
+    flow: DisputeRecordBack,
+    flow_type: types::DisputeRecordBackType,
+    request: DisputeRecordBackRequest,
+    response: DisputeRecordBackResponse,
+    router_data: DisputeRecordBackRouterData,
+    connector_response: chargebee::ChargebeeRecordRefundResponse,
+    url_path: |req| Some(format!("v2/invoices/{}/record_refund", req.request.merchant_reference_id.get_string_repr())),
+    method: Method::Post,
+    request_body: build_dispute_record_back_request_body
 );
 
 fn get_chargebee_subscription_items_query_params(
@@ -807,6 +834,7 @@ impl webhooks::IncomingWebhook for Chargebee {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let webhook =
             chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
@@ -818,7 +846,8 @@ impl webhooks::IncomingWebhook for Chargebee {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let webhook =
             chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
@@ -831,7 +860,14 @@ impl webhooks::IncomingWebhook for Chargebee {
     ) -> CustomResult<revenue_recovery::RevenueRecoveryAttemptData, errors::ConnectorError> {
         let webhook =
             transformers::ChargebeeWebhookBody::get_webhook_object_from_body(request.body)?;
-        revenue_recovery::RevenueRecoveryAttemptData::try_from(webhook)
+        let attempt_data = revenue_recovery::RevenueRecoveryAttemptData::try_from(webhook)?;
+        // Log the Chargebee gateway ID to verify that it is configured on the billing connector.
+        router_env::logger::info!(
+            connector_account_reference_id = %attempt_data.connector_account_reference_id,
+            invoice_id = ?attempt_data.merchant_reference_id,
+            "chargebee revenue recovery attempt data"
+        );
+        Ok(attempt_data)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_revenue_recovery_invoice_details(

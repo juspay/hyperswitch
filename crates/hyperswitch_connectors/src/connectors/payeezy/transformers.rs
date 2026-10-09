@@ -3,6 +3,7 @@ use common_enums::{enums, AttemptStatus, CaptureMethod, Currency, PaymentMethod}
 use common_utils::{errors::ParsingError, ext_traits::Encode};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::Execute,
@@ -14,7 +15,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{api::CurrencyUnit, errors::ConnectorError};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -152,7 +153,8 @@ impl TryFrom<&PayeezyRouterData<&PaymentsAuthorizeRouterData>> for PayeezyPaymen
             | PaymentMethod::Upi
             | PaymentMethod::Voucher
             | PaymentMethod::OpenBanking
-            | PaymentMethod::GiftCard => {
+            | PaymentMethod::GiftCard
+            | PaymentMethod::NetworkToken => {
                 Err(ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
         }
@@ -186,9 +188,9 @@ fn get_transaction_type_and_stored_creds(
 {
     let connector_mandate_id = item.request.mandate_id.as_ref().and_then(|mandate_ids| {
         match mandate_ids.mandate_reference_id.clone() {
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                connector_mandate_ids,
-            )) => connector_mandate_ids.get_connector_mandate_id(),
+            Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                connector_mandate_ids.get_connector_mandate_id()
+            }
             _ => None,
         }
     });
@@ -274,7 +276,12 @@ fn get_payment_method_data(
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
-        | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+        | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::CardWithOptionalCVC(_)
+        | PaymentMethodData::CardWithNetworkTokenDetails(_)
+        | PaymentMethodData::CardWithLimitedDetails(_)
+        | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
             Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Payeezy"),
             ))?
@@ -443,13 +450,16 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayeezyPaymentsResponse, T, PaymentsRes
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     item.response
                         .reference
                         .unwrap_or(item.response.transaction_id),
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

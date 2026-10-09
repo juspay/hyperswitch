@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -105,9 +105,12 @@ impl TryFrom<PaymentsSyncResponseRouterData<CoingateSyncResponse>> for PaymentsS
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -180,7 +183,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsRe
                 redirection_data: Box::new(Some(RedirectForm::Form {
                     endpoint: item.response.payment_url.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "payment_url",
+                            field_name: "payment_url".into(),
                         },
                     )?,
                     method: Method::Get,
@@ -189,9 +192,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsRe
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -225,7 +231,7 @@ impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRe
             .as_ref()
             .get_required_value("refund_connector_metadata")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "refund_connector_metadata",
+                field_name: "refund_connector_metadata".into(),
             })?
             .clone()
             .expose();
@@ -233,23 +239,23 @@ impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRe
         let address: Secret<String> = serde_json::from_value::<Secret<String>>(
             refund_metadata.get("address").cloned().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "address",
+                    field_name: "address".into(),
                 }
             })?,
         )
         .change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "address",
+            field_name: "address".into(),
         })?;
 
         let email: pii::Email = serde_json::from_value::<pii::Email>(
             refund_metadata.get("email").cloned().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "email",
+                    field_name: "email".into(),
                 }
             })?,
         )
         .change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "email",
+            field_name: "email".into(),
         })?;
 
         Ok(Self {
@@ -259,7 +265,7 @@ impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRe
             platform_id: metadata.platform_id,
             reason: item.router_data.request.reason.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "refund.reason",
+                    field_name: "refund.reason".into(),
                 },
             )?,
             email,

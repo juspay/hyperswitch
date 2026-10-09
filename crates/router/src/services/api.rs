@@ -28,7 +28,7 @@ use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types
 pub use hyperswitch_domain_models::{
     api::{
         ApplicationResponse, GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData,
-        GenericLinks, PaymentLinkAction, RedirectionFormData,
+        GenericLinks, PaymentLinkAction, RedirectionFormData, WebhookResponse,
     },
     payment_method_data::PaymentMethodData,
     router_response_types::RedirectForm,
@@ -47,7 +47,7 @@ pub use hyperswitch_interfaces::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
     },
 };
-use masking::{Maskable, PeekInterface};
+use hyperswitch_masking::{Maskable, PeekInterface};
 pub use payment_link::{PaymentLinkFormData, PaymentLinkStatusData};
 use router_env::{instrument, tracing, RequestId, Tag};
 use serde::Serialize;
@@ -99,6 +99,8 @@ pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
 pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::InvoiceRecordBackData, Req, Res>;
+pub type BoxedRevenueRecoveryDisputeRecordBackInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::DisputeRecordBackData, Req, Res>;
 pub type BoxedGetSubscriptionPlansInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionItemsData, Req, Res>;
 pub type BoxedGetSubscriptionPlanPricesInterface<T, Req, Res> =
@@ -137,6 +139,14 @@ pub type BoxedGiftCardBalanceCheckIntegrationInterface<T, Req, Res> =
 
 pub type BoxedSubscriptionConnectorIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::SubscriptionCreateData, Req, Res>;
+
+pub type BoxedConnectorWebhookConfigurationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<
+        T,
+        common_types::ConnectorWebhookConfigurationFlowData,
+        Req,
+        Resp,
+    >;
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplicationRedirectResponse {
@@ -182,7 +192,7 @@ where
     let mut app_state = state.get_ref().clone();
 
     let start_instant = Instant::now();
-    let serialized_request = masking::masked_serialize(&payload)
+    let mut serialized_request = hyperswitch_masking::masked_serialize(&payload)
         .attach_printable("Failed to serialize json request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
@@ -282,15 +292,17 @@ where
 
     let status_code = match output.as_ref() {
         Ok(res) => {
+            let mut extracted_status_code: Option<http::StatusCode> = None;
+
             if let ApplicationResponse::Json(data) = res {
                 serialized_response.replace(
-                    masking::masked_serialize(&data)
+                    hyperswitch_masking::masked_serialize(&data)
                         .attach_printable("Failed to serialize json response")
                         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
                 );
             } else if let ApplicationResponse::JsonWithHeaders((data, headers)) = res {
                 serialized_response.replace(
-                    masking::masked_serialize(&data)
+                    hyperswitch_masking::masked_serialize(&data)
                         .attach_printable("Failed to serialize json response")
                         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
                 );
@@ -300,10 +312,37 @@ where
                         overhead_latency.replace(external_latency);
                     }
                 }
+
+                // Extract connector HTTP status code for ApiEvent logging
+                extracted_status_code = state
+                    .conf
+                    .proxy_status_mapping
+                    .extract_connector_http_status_code(headers);
+            } else if let ApplicationResponse::IncomingWebhookEvent { response, metadata } = res {
+                serialized_request = metadata.serialized_request.peek().clone();
+
+                if let Some(tracker_data) = &metadata.webhook_tracker_data {
+                    serialized_response = Some(tracker_data.clone());
+                }
+
+                if let WebhookResponse::JsonWithHeaders((_, headers)) = response.as_ref() {
+                    if let Some((_, value)) = headers.iter().find(|(key, _)| key == X_HS_LATENCY) {
+                        if let Ok(external_latency) = value.clone().into_inner().parse::<u128>() {
+                            overhead_latency.replace(external_latency);
+                        }
+                    }
+                    extracted_status_code = state
+                        .conf
+                        .proxy_status_mapping
+                        .extract_connector_http_status_code(headers);
+                }
             }
             event_type = res.get_api_event_type().or(event_type);
 
-            metrics::request::track_response_status_code(res)
+            // Use extracted status code if available, otherwise fall back to default
+            extracted_status_code
+                .map(|code| code.as_u16().into())
+                .unwrap_or_else(|| metrics::request::track_response_status_code(res))
         }
         Err(err) => {
             error.replace(
@@ -328,6 +367,13 @@ where
         state.infra_components.as_ref(),
     );
 
+    let auth_user_id = auth_type.get_user_id();
+
+    // The header still holds raw connector time here; it is only turned into Hyperswitch's own
+    // overhead later, on the wire.
+    let hs_latency =
+        overhead_latency.map(|overhead_latency| request_duration.saturating_sub(overhead_latency));
+
     let api_event = ApiEvent::new(
         tenant_id,
         Some(merchant_id.clone()),
@@ -337,8 +383,9 @@ where
         status_code,
         serialized_request,
         serialized_response,
-        overhead_latency,
+        hs_latency,
         auth_type,
+        auth_user_id,
         error,
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
@@ -413,6 +460,12 @@ where
     )
     .await
     .map(|response| {
+        let response = match response {
+            ApplicationResponse::IncomingWebhookEvent {
+                response: inner, ..
+            } => ApplicationResponse::from(*inner),
+            other => other,
+        };
         logger::info!(api_response =? response);
         response
     });
@@ -483,10 +536,15 @@ where
         }
 
         Ok(ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
+            let mut headers = HashSet::new();
+            headers.insert((
+                "content-security-policy",
+                "default-src 'self' http: https:; script-src 'self' 'unsafe-inline' http: https:; style-src 'self' 'unsafe-inline' http: https:; img-src * data: blob:; font-src * data:; connect-src *; frame-src *; object-src 'none';".to_string(),
+            ));
             match *boxed_payment_link_data {
                 PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
                     match build_payment_link_html(payment_link_data) {
-                        Ok(rendered_html) => http_response_html_data(rendered_html, None),
+                        Ok(rendered_html) => http_response_html_data(rendered_html, Some(headers)),
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
@@ -498,7 +556,7 @@ where
                 }
                 PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
                     match get_payment_link_status(payment_link_data) {
-                        Ok(rendered_html) => http_response_html_data(rendered_html, None),
+                        Ok(rendered_html) => http_response_html_data(rendered_html, Some(headers)),
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
@@ -519,38 +577,10 @@ where
                     None
                 }
             });
-            let proxy_connector_http_status_code = if state
+            let proxy_connector_http_status_code = state
                 .conf
                 .proxy_status_mapping
-                .proxy_connector_http_status_code
-            {
-                headers
-                    .iter()
-                    .find(|(key, _)| key == headers::X_CONNECTOR_HTTP_STATUS_CODE)
-                    .and_then(|(_, value)| {
-                        match value.clone().into_inner().parse::<u16>() {
-                            Ok(code) => match http::StatusCode::from_u16(code) {
-                                Ok(status_code) => Some(status_code),
-                                Err(err) => {
-                                    logger::error!(
-                                        "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
-                                        err
-                                    );
-                                    None
-                                }
-                            },
-                            Err(err) => {
-                                logger::error!(
-                                    "Failed to parse connector_http_status_code from header: {:?}",
-                                    err
-                                );
-                                None
-                            }
-                        }
-                    })
-            } else {
-                None
-            };
+                .extract_connector_http_status_code(&headers);
             match serde_json::to_string(&response) {
                 Ok(res) => http_response_json_with_headers(
                     res,
@@ -567,6 +597,7 @@ where
                 ),
             }
         }
+        Ok(ApplicationResponse::IncomingWebhookEvent { .. }) => http_response_ok(),
         Err(error) => log_and_return_error_response(error),
     };
 
@@ -585,50 +616,9 @@ where
 pub fn log_and_return_error_response<T>(error: Report<T>) -> HttpResponse
 where
     T: error_stack::Context + Clone + ResponseError,
-    Report<T>: EmbedError,
 {
     logger::error!(?error);
-    HttpResponse::from_error(error.embed().current_context().clone())
-}
-
-pub trait EmbedError: Sized {
-    fn embed(self) -> Self {
-        self
-    }
-}
-
-impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
-    fn embed(self) -> Self {
-        #[cfg(feature = "detailed_errors")]
-        {
-            let mut report = self;
-            let error_trace = serde_json::to_value(&report).ok().and_then(|inner| {
-                serde_json::from_value::<Vec<errors::NestedErrorStack<'_>>>(inner)
-                    .ok()
-                    .map(Into::<errors::VecLinearErrorStack<'_>>::into)
-                    .map(serde_json::to_value)
-                    .transpose()
-                    .ok()
-                    .flatten()
-            });
-
-            match report.downcast_mut::<api_models::errors::types::ApiErrorResponse>() {
-                None => {}
-                Some(inner) => {
-                    inner.get_internal_error_mut().stacktrace = error_trace;
-                }
-            }
-            report
-        }
-
-        #[cfg(not(feature = "detailed_errors"))]
-        self
-    }
-}
-
-impl EmbedError
-    for Report<hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse>
-{
+    HttpResponse::from_error(error.current_context().clone())
 }
 
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
@@ -658,7 +648,9 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
         if header_name == X_HS_LATENCY {
             if let Some(request_duration) = request_duration {
                 if let Ok(external_latency) = header_value.parse::<u128>() {
-                    let updated_duration = request_duration.as_millis() - external_latency;
+                    let updated_duration = request_duration
+                        .as_millis()
+                        .saturating_sub(external_latency);
                     header_value = updated_duration.to_string();
                 }
             }
@@ -747,6 +739,10 @@ pub trait Authenticate {
     fn is_external_three_ds_data_passed_by_merchant(&self) -> bool {
         false
     }
+
+    fn get_payment_method_data(&self) -> Option<api_models::payments::PaymentMethodData> {
+        None
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -776,6 +772,12 @@ impl Authenticate for api_models::payments::PaymentsRequest {
     fn is_external_three_ds_data_passed_by_merchant(&self) -> bool {
         self.three_ds_data.is_some()
     }
+
+    fn get_payment_method_data(&self) -> Option<api_models::payments::PaymentMethodData> {
+        self.payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.clone())
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -788,18 +790,22 @@ impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
 #[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsSessionRequest {
     fn get_client_secret(&self) -> Option<&String> {
-        Some(&self.client_secret)
+        self.client_secret.as_ref()
     }
 }
 impl Authenticate for api_models::payments::PaymentsDynamicTaxCalculationRequest {
     fn get_client_secret(&self) -> Option<&String> {
-        Some(self.client_secret.peek())
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
     }
 }
 
 impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
     fn get_client_secret(&self) -> Option<&String> {
-        Some(self.client_secret.peek())
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
     }
 }
 
@@ -817,8 +823,21 @@ impl Authenticate for api_models::payments::PaymentsRetrieveRequest {
         self.all_keys_required
     }
 }
-impl Authenticate for api_models::payments::PaymentsCancelRequest {}
+impl Authenticate for api_models::payments::PaymentsCancelRequest {
+    #[cfg(feature = "v2")]
+    fn should_return_raw_response(&self) -> Option<bool> {
+        self.return_raw_connector_response
+    }
+
+    #[cfg(feature = "v1")]
+    fn should_return_raw_response(&self) -> Option<bool> {
+        // In v1, this maps to `all_keys_required` to retain backward compatibility.
+        // The equivalent field in v2 is `return_raw_connector_response`.
+        self.all_keys_required
+    }
+}
 impl Authenticate for api_models::payments::PaymentsCancelPostCaptureRequest {}
+impl Authenticate for common_utils::id_type::PaymentId {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {
     #[cfg(feature = "v2")]
     fn should_return_raw_response(&self) -> Option<bool> {
@@ -972,7 +991,7 @@ pub fn build_redirection_form(
               (PreEscaped(format!("<script>
                 {logging_template}
                 window.addEventListener(\"message\", function(event) {{
-                    if (event.origin === \"https://centinelapistag.cardinalcommerce.com\" || event.origin === \"https://centinelapi.cardinalcommerce.com\") {{
+                    if (event.origin.endsWith(\"cardinaltrusted.com\") || event.origin.endsWith(\"cardinalcommerce.com\")) {{
                       window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
                     }}
                   }}, false);
@@ -1136,7 +1155,7 @@ pub fn build_redirection_form(
               (PreEscaped(format!("<script>
                 {logging_template}
                 window.addEventListener(\"message\", function(event) {{
-                    if (event.origin === \"https://centinelapistag.cardinalcommerce.com\" || event.origin === \"https://centinelapi.cardinalcommerce.com\") {{
+                    if (event.origin.endsWith(\"cardinaltrusted.com\") || event.origin.endsWith(\"cardinalcommerce.com\")) {{
                       window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
                     }}
                   }}, false);
@@ -1414,7 +1433,7 @@ pub fn build_redirection_form(
 
                     threeDSsecureInterface.on('complete', function(e) {{
                         var responseForm = document.createElement('form');
-                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/([^/]+)\\/([^/]+)\\/[^/]+/, \"payments/$1/$2/redirect/complete/nmi\");
                         responseForm.method='POST';
 
                         var item1=document.createElement('input');
@@ -1471,7 +1490,7 @@ pub fn build_redirection_form(
 
                     threeDSsecureInterface.on('failure', function(e) {{
                         var responseForm = document.createElement('form');
-                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/([^/]+)\\/([^/]+)\\/[^/]+/, \"payments/$1/$2/redirect/complete/nmi\");
                         responseForm.method='POST';
 
                         var error_code=document.createElement('input');
@@ -1674,6 +1693,142 @@ pub fn build_redirection_form(
                 }
             }
         },
+        RedirectForm::WorldpayxmlDDCForm { bin, jwt } => {
+            let base_url = config.connectors.worldpayxml.secondary_base_url;
+            maud::html! {
+                (maud::DOCTYPE)
+                html {
+                    head {
+                        meta name="viewport" content="width=device-width, initial-scale=1";
+                    }
+                body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
+
+                        h3 style="text-align: center;" { "Please wait while we perform Device Data Collection ..." }
+                        iframe id="ddcFrame" height="1" width="1" style="display: none;" {}
+
+                        (PreEscaped(format!(r#"<script>
+                            {logging_template}
+                            window.onload = function() {{
+                                var iframe = document.getElementById('ddcFrame');
+                                var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+                                var formHtml = '<form id="collectionForm" method="POST" action="{base_url}/V2/Cruise/Collect">' +
+                                    '<input type="hidden" name="Bin" value="{bin}" />' +
+                                    '<input type="hidden" name="JWT" value="{jwt}" />' +
+                                    '</form>';
+
+                                iframeDoc.open();
+                                iframeDoc.write(formHtml);
+                                iframeDoc.close();
+
+                                var form = iframeDoc.getElementById('collectionForm');
+                                form.submit();
+                            }}
+
+                            window.addEventListener("message", function(event) {{
+                                try {{
+                                    var data = JSON.parse(event.data);
+                                    var responseForm = document.createElement('form');
+                                    responseForm.action=window.location.pathname.replace(
+                                        new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
+                                        "payments/$1/$2/redirect/complete/worldpayxml"
+                                    );
+                                    responseForm.method='POST';
+
+                                    var item1=document.createElement('input');
+                                    item1.type='hidden';
+                                    item1.name='SessionId';
+                                    item1.value=data.Payload.SessionId;
+                                    responseForm.appendChild(item1);
+
+                                    var item2=document.createElement('input');
+                                    item2.type='hidden';
+                                    item2.name='ActionCode';
+                                    item2.value=data.Payload.ActionCode;
+                                    responseForm.appendChild(item2);
+
+                                    document.body.appendChild(responseForm);
+                                    responseForm.submit();
+                                }} catch (e) {{
+                                    var responseForm = document.createElement('form');
+                                    responseForm.action=window.location.pathname.replace(
+                                        new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
+                                        "payments/$1/$2/redirect/complete/worldpayxml"
+                                    );
+                                    responseForm.method='POST';
+
+                                    var item1=document.createElement('input');
+                                    item1.type='hidden';
+                                    item1.name='SessionId';
+                                    item1.value=null;
+                                    responseForm.appendChild(item1);
+
+                                    var item2=document.createElement('input');
+                                    item2.type='hidden';
+                                    item2.name='ActionCode';
+                                    item2.value="FAILURE";
+                                    responseForm.appendChild(item2);
+
+                                    document.body.appendChild(responseForm);
+                                    responseForm.submit();
+                                }}
+                            }}, false);
+                        </script>"#)))
+                    }
+                }
+            }
+        }
+        RedirectForm::WorldpayxmlRedirectForm { jwt } => {
+            let base_url = config.connectors.worldpayxml.secondary_base_url;
+            maud::html! {
+                (maud::DOCTYPE)
+                html {
+                    head {
+                        meta name="viewport" content="width=device-width, initial-scale=1";
+                    }
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+
+                        div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
+
+                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+
+                        (PreEscaped(r#"
+                    <script>
+                    var anime = bodymovin.loadAnimation({
+                        container: document.getElementById('loader1'),
+                        renderer: 'svg',
+                        loop: true,
+                        autoplay: true,
+                        name: 'hyperswitch loader',
+                        animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                    })
+                    </script>
+                "#))
+
+                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
+
+                        // (PreEscaped(r#"
+                        //  <iframe id="challengeFrame" name="challengeFrame"; width: 400px; height: 400px;"></iframe>
+                        // "#))
+
+                        (PreEscaped(format!(r#"<form id="challengeForm" method="POST" action="{base_url}/V2/Cruise/StepUp">
+                    <input type="hidden" name="JWT" value="{jwt}">
+                </form>"#)))
+
+                        (PreEscaped(format!("<script>
+                    {logging_template}
+                    window.onload = function() {{
+                        var challengeFormSetup = document.querySelector('#challengeForm');
+                        if (challengeFormSetup) {{
+                            challengeFormSetup.submit();
+                        }}
+                    }}
+                </script>")))
+                    }
+                }
+            }
+        }
     }
 }
 

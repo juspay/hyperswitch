@@ -42,7 +42,14 @@ pub async fn convert_forex(
             from_currency,
         ))
         .await
-        .change_context(ApiErrorResponse::InternalServerError)?,
+        .map_err(|err| match err.current_context() {
+            ForexCacheError::CurrencyNotAcceptable => {
+                err.change_context(ApiErrorResponse::InvalidRequestData {
+                    message: "The provided currency is not acceptable".to_string(),
+                })
+            }
+            _ => err.change_context(ApiErrorResponse::InternalServerError),
+        })?,
     ))
 }
 

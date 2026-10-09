@@ -4,7 +4,7 @@ use common_utils::pii;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::types::{self, PayoutsRouterData};
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{AdyenPlatformRouterData, Error};
@@ -12,8 +12,8 @@ use crate::{
     connectors::adyen::transformers as adyen,
     types::PayoutsResponseRouterData,
     utils::{
-        self, AddressDetailsData, CardData, PayoutFulfillRequestData, PayoutsData as _,
-        RouterData as _,
+        self, AdditionalPayoutMethodData as _, AddressDetailsData, CardData,
+        PayoutFulfillRequestData, PayoutsData as _, RouterData as _,
     },
 };
 
@@ -178,12 +178,12 @@ pub struct AdyenTransferResponse {
     status: AdyenTransferStatus,
     #[serde(rename = "type")]
     transaction_type: AdyenTransactionType,
-    reason: String,
+    reason: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AdyenPlatformAccountHolder {
-    description: String,
+    description: Option<String>,
     id: String,
 }
 
@@ -196,7 +196,7 @@ pub struct AdyenCategoryData {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AdyenBalanceAccount {
-    description: String,
+    description: Option<String>,
     id: String,
 }
 
@@ -213,6 +213,11 @@ pub enum AdyenTransferStatus {
     Authorised,
     Refused,
     Error,
+    Pending,
+    Booked,
+    Received,
+    Returned,
+    Failed,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -234,13 +239,13 @@ impl TryFrom<&hyperswitch_domain_models::address::AddressDetails> for AdyenAddre
         let line1 = address
             .get_line1()
             .change_context(ConnectorError::MissingRequiredField {
-                field_name: "billing.address.line1",
+                field_name: "billing.address.line1".into(),
             })?
             .clone();
         let line2 = address
             .get_line2()
             .change_context(ConnectorError::MissingRequiredField {
-                field_name: "billing.address.line2",
+                field_name: "billing.address.line2".into(),
             })?
             .clone();
         Ok(Self {
@@ -266,7 +271,7 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::CardPayout)> for AdyenAccountH
             .and_then(|billing| billing.address.as_ref().map(|addr| addr.try_into()))
             .transpose()?
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "address",
+                field_name: "address".into(),
             })?;
 
         let (first_name, last_name) = if let Some(card_holder_name) = &card.card_holder_name {
@@ -276,21 +281,21 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::CardPayout)> for AdyenAccountH
                 .first()
                 .map(|s| Secret::new(s.to_string()))
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "card_holder_name.first_name",
+                    field_name: "card_holder_name.first_name".into(),
                 })?;
             let last_name = if name_parts.len() > 1 {
                 let remaining_names: Vec<&str> = name_parts.iter().skip(1).copied().collect();
                 Some(Secret::new(remaining_names.join(" ")))
             } else {
                 return Err(ConnectorError::MissingRequiredField {
-                    field_name: "card_holder_name.last_name",
+                    field_name: "card_holder_name.last_name".into(),
                 }
                 .into());
             };
             (Some(first_name), last_name)
         } else {
             return Err(ConnectorError::MissingRequiredField {
-                field_name: "card_holder_name",
+                field_name: "card_holder_name".into(),
             }
             .into());
         };
@@ -309,11 +314,11 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::CardPayout)> for AdyenAccountH
     }
 }
 
-impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::Bank)> for AdyenAccountHolder {
+impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::BankTransfer)> for AdyenAccountHolder {
     type Error = Error;
 
     fn try_from(
-        (router_data, _bank): (&PayoutsRouterData<F>, &payouts::Bank),
+        (router_data, _bank): (&PayoutsRouterData<F>, &payouts::BankTransfer),
     ) -> Result<Self, Self::Error> {
         let billing_address = router_data.get_optional_billing();
 
@@ -321,7 +326,7 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::Bank)> for AdyenAccountHolder 
             .and_then(|billing| billing.address.as_ref().map(|addr| addr.try_into()))
             .transpose()?
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "address",
+                field_name: "address".into(),
             })?;
 
         let full_name = router_data.get_billing_full_name()?;
@@ -367,7 +372,7 @@ impl<F> TryFrom<StoredPaymentCounterparty<'_, F>>
                 let address = billing_address
                     .and_then(|billing| billing.address.as_ref())
                     .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "address",
+                        field_name: "address".into(),
                     })?
                     .try_into()?;
 
@@ -376,20 +381,13 @@ impl<F> TryFrom<StoredPaymentCounterparty<'_, F>>
                     .router_data
                     .get_connector_customer_id()?;
 
+                let required_name: Name = stored_payment.item.router_data.try_into()?;
+
                 let card_holder = AdyenAccountHolder {
                     address: Some(address),
-                    first_name: stored_payment
-                        .item
-                        .router_data
-                        .get_optional_billing_first_name(),
-                    last_name: stored_payment
-                        .item
-                        .router_data
-                        .get_optional_billing_last_name(),
-                    full_name: stored_payment
-                        .item
-                        .router_data
-                        .get_optional_billing_full_name(),
+                    first_name: Some(required_name.first_name.clone()),
+                    last_name: Some(required_name.last_name.clone()),
+                    full_name: Some(required_name.get_full_name()),
                     email: stored_payment.item.router_data.get_optional_billing_email(),
                     customer_id: Some(customer_id_reference),
                     entity_type: Some(EntityType::from(request.entity_type)),
@@ -411,10 +409,87 @@ impl<F> TryFrom<StoredPaymentCounterparty<'_, F>>
             }
             _ => Err(ConnectorError::NotSupported {
                 message: "Stored payment method is only supported for card payouts".to_string(),
-                connector: "Adyenplatform",
+                connector: "Adyenplatform".into(),
             }
             .into()),
         }
+    }
+}
+
+struct Name {
+    first_name: Secret<String>,
+    last_name: Secret<String>,
+}
+
+impl Name {
+    fn get_full_name(&self) -> Secret<String> {
+        Secret::new(format!(
+            "{} {}",
+            self.first_name.peek(),
+            self.last_name.peek()
+        ))
+    }
+}
+
+impl<F> TryFrom<&PayoutsRouterData<F>> for Name {
+    type Error = Error;
+    fn try_from(router_data: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+        let card_holder_name = router_data
+            .request
+            .get_optional_additional_payout_method_data()
+            .and_then(|additional_data| additional_data.get_optional_card_holder_name());
+
+        let billing_first_name = router_data
+            .get_optional_billing_first_name()
+            .map(|first_name| Secret::new(first_name.peek().trim().to_string()));
+        let billing_last_name = router_data
+            .get_optional_billing_last_name()
+            .map(|last_name| Secret::new(last_name.peek().trim().to_string()));
+
+        let mut should_fallback = billing_first_name.is_none() || billing_last_name.is_none();
+        //check for empty first name
+        billing_first_name.clone().inspect(|first_name| {
+            should_fallback = first_name.peek().is_empty() || should_fallback;
+        });
+        // check for empty last name
+        billing_last_name.clone().inspect(|last_name| {
+            should_fallback = last_name.peek().is_empty() || should_fallback;
+        });
+
+        // get first_name from the billing
+        // if not present in billing, get from card_holder_name
+        let first_name = if should_fallback {
+            card_holder_name.clone().and_then(|full_name| {
+                let mut name_collection = full_name.peek().split_whitespace();
+                name_collection
+                    .next()
+                    .map(|first_name| Secret::new(first_name.to_string()))
+            })
+        } else {
+            billing_first_name
+        };
+
+        // get last_name from the billing
+        // if not present in billing, get from card_holder_name
+        let last_name = if should_fallback {
+            card_holder_name.map(|full_name| {
+                let mut name_collection = full_name.peek().split_whitespace();
+                let _first_name = name_collection.next();
+
+                Secret::new(name_collection.collect::<Vec<_>>().join(" "))
+            })
+        } else {
+            billing_last_name
+        };
+
+        Ok(Self {
+            first_name: first_name.ok_or(ConnectorError::MissingRequiredField {
+                field_name: "first_name".into(),
+            })?,
+            last_name: last_name.ok_or(ConnectorError::MissingRequiredField {
+                field_name: "first_name".into(),
+            })?,
+        })
     }
 }
 
@@ -428,6 +503,7 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
 
         match raw_payment.raw_payout_method_data {
             payouts::PayoutMethodData::Wallet(_)
+            | payouts::PayoutMethodData::Bank(_)
             | payouts::PayoutMethodData::BankRedirect(_)
             | payouts::PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
@@ -453,27 +529,48 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
 
                 Ok((counterparty, None))
             }
-            payouts::PayoutMethodData::Bank(bd) => {
+            payouts::PayoutMethodData::BankTransfer(bd) => {
                 let account_holder: AdyenAccountHolder =
                     (raw_payment.item.router_data, &bd).try_into()?;
                 let bank_details = match bd {
-                    payouts::Bank::Sepa(b) => AdyenBankAccountIdentification {
+                    payouts::BankTransfer::Sepa(b) => AdyenBankAccountIdentification {
                         bank_type: "iban".to_string(),
                         account_details: AdyenBankAccountIdentificationDetails::Sepa(SepaDetails {
                             iban: b.iban,
                         }),
                     },
-                    payouts::Bank::Ach(..) => Err(ConnectorError::NotSupported {
+                    payouts::BankTransfer::Ach(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via ACH is not supported".to_string(),
-                        connector: "Adyenplatform",
+                        connector: "Adyenplatform".into(),
                     })?,
-                    payouts::Bank::Bacs(..) => Err(ConnectorError::NotSupported {
+                    payouts::BankTransfer::Bacs(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via Bacs is not supported".to_string(),
-                        connector: "Adyenplatform",
+                        connector: "Adyenplatform".into(),
                     })?,
-                    payouts::Bank::Pix(..) => Err(ConnectorError::NotSupported {
+                    payouts::BankTransfer::Pix(..)
+                    | payouts::BankTransfer::PixKey(..)
+                    | payouts::BankTransfer::PixEmv(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
-                        connector: "Adyenplatform",
+                        connector: "Adyenplatform".into(),
+                    })?,
+                    payouts::BankTransfer::Trustly(..) => Err(ConnectorError::NotSupported {
+                        message: "Bank transfer via Trustly is not supported".to_string(),
+                        connector: "Adyenplatform".into(),
+                    })?,
+                    payouts::BankTransfer::OpenBanking(..) => Err(ConnectorError::NotSupported {
+                        message: "Bank transfer via OpenBanking is not supported".to_string(),
+                        connector: "Adyenplatform".into(),
+                    })?,
+                    payouts::BankTransfer::Payshap(..)
+                    | payouts::BankTransfer::PayshapProxy(..) => {
+                        Err(ConnectorError::NotSupported {
+                            message: "Bank transfer via PayShap is not supported".to_string(),
+                            connector: "Adyenplatform".into(),
+                        })?
+                    }
+                    payouts::BankTransfer::Ted(..) => Err(ConnectorError::NotSupported {
+                        message: "Bank transfer via TED is not supported".to_string(),
+                        connector: std::borrow::Cow::Borrowed("Adyenplatform"),
                     })?,
                 };
                 let counterparty = AdyenPayoutMethodDetails::BankAccount(AdyenBankAccountDetails {
@@ -483,7 +580,7 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
                 let priority = request
                     .priority
                     .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "priority",
+                        field_name: "priority".into(),
                     })?;
 
                 Ok((counterparty, Some(AdyenPayoutPriority::from(priority))))
@@ -517,7 +614,7 @@ impl<F> TryFrom<&AdyenPlatformRouterData<&PayoutsRouterData<F>>> for AdyenTransf
                 .try_into()?
             } else {
                 return Err(ConnectorError::MissingRequiredField {
-                    field_name: "payout_method_data or stored_payment_method_id",
+                    field_name: "payout_method_data or stored_payment_method_id".into(),
                 }
                 .into());
             };
@@ -557,15 +654,15 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, AdyenTransferResponse>> for Payouts
             return Ok(Self {
                 response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: response.status.to_string(),
-                    message: if !response.reason.is_empty() {
-                        response.reason
-                    } else {
-                        response.status.to_string()
-                    },
+                    message: response
+                        .reason
+                        .filter(|r| !r.is_empty())
+                        .unwrap_or_else(|| response.status.to_string()),
                     reason: None,
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(response.id),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -584,6 +681,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, AdyenTransferResponse>> for Payouts
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -593,8 +691,12 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, AdyenTransferResponse>> for Payouts
 impl From<AdyenTransferStatus> for enums::PayoutStatus {
     fn from(adyen_status: AdyenTransferStatus) -> Self {
         match adyen_status {
-            AdyenTransferStatus::Authorised => Self::Initiated,
-            AdyenTransferStatus::Error | AdyenTransferStatus::Refused => Self::Failed,
+            AdyenTransferStatus::Authorised | AdyenTransferStatus::Booked => Self::Initiated,
+            AdyenTransferStatus::Pending | AdyenTransferStatus::Received => Self::Pending,
+            AdyenTransferStatus::Returned => Self::Reversed,
+            AdyenTransferStatus::Error
+            | AdyenTransferStatus::Refused
+            | AdyenTransferStatus::Failed => Self::Failed,
         }
     }
 }
@@ -636,7 +738,7 @@ impl TryFrom<enums::PayoutType> for AdyenPayoutMethod {
             enums::PayoutType::Wallet | enums::PayoutType::BankRedirect => {
                 Err(report!(ConnectorError::NotSupported {
                     message: "Bakredirect or wallet payouts".to_string(),
-                    connector: "Adyenplatform",
+                    connector: "Adyenplatform".into(),
                 }))
             }
         }

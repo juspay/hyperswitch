@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use common_utils::{errors, id_type, types::MinorUnit};
+use common_utils::{errors, id_type, pii::EmailStrategy, types::MinorUnit};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -8,6 +8,7 @@ pub use euclid::{
         dir::{DirKeyKind, EuclidDirFilter},
     },
 };
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -16,49 +17,121 @@ use crate::{
     payment_methods,
 };
 
+/// Request to decide the optimal gateway for routing a payment
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenRouterDecideGatewayRequest {
+    /// Payment information for routing decision
     pub payment_info: PaymentInfo,
-    #[schema(value_type = String)]
+
+    /// Profile ID of the merchant
+    #[schema(value_type = String, example = "pro_aMoPnEkgCVnh2WVsFe32")]
     pub merchant_id: id_type::ProfileId,
+
+    /// List of eligible gateways for routing consideration
+    #[schema(value_type = Option<Vec<String>>, example = "[\"stripe:mca_123\", \"adyen:mca_456\"]")]
     pub eligible_gateway_list: Option<Vec<String>>,
+
+    /// Algorithm to use for ranking and selecting gateways
+    #[schema(value_type = Option<RankingAlgorithm>, example = "SR_BASED_ROUTING")]
     pub ranking_algorithm: Option<RankingAlgorithm>,
-    pub elimination_enabled: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct DecideGatewayResponse {
+    /// The gateway decided by the routing engine
+    #[schema(value_type = Option<String>, example = "stripe:mca1")]
     pub decided_gateway: Option<String>,
+
+    /// Map of gateways with their priority scores
+    #[schema(value_type = Option<HashMap<String, f64>>, example = json!({"stripe:mca1": 1.0, "adyen:mca2": 1.0}))]
     pub gateway_priority_map: Option<serde_json::Value>,
+
+    /// Gateways organized by filter criteria
+    #[schema(value_type = Option<Object>)]
     pub filter_wise_gateways: Option<serde_json::Value>,
+
+    /// Tag identifying the priority logic used
+    #[schema(value_type = Option<String>)]
     pub priority_logic_tag: Option<String>,
+
+    /// The routing approach used for decision making
+    #[schema(value_type = Option<String>, example = "SR_SELECTION_V3_ROUTING")]
     pub routing_approach: Option<String>,
+
+    /// The gateway that was evaluated before the final decision
+    #[schema(value_type = Option<String>, example = "adyen:mca2")]
     pub gateway_before_evaluation: Option<String>,
+
+    /// Detailed output from the priority logic evaluation
+    #[schema(value_type = Option<PriorityLogicOutput>)]
     pub priority_logic_output: Option<PriorityLogicOutput>,
+
+    /// The reset approach applied during routing
+    #[schema(value_type = Option<String>, example = "NO_RESET")]
     pub reset_approach: Option<String>,
+
+    /// Dimensions used for routing decision (payment type, method, etc.)
+    #[schema(value_type = Option<String>, example = "ORDER_PAYMENT, UPI, upi")]
     pub routing_dimension: Option<String>,
+
+    /// Level at which routing dimension is evaluated
+    #[schema(value_type = Option<String>, example = "PM_LEVEL")]
     pub routing_dimension_level: Option<String>,
+
+    /// Indicates if routing decision was affected by scheduled outage
+    #[schema(value_type = Option<bool>, example = false)]
     pub is_scheduled_outage: Option<bool>,
+
+    /// Indicates if dynamic merchant gateway account is enabled
+    #[schema(value_type = Option<bool>, example = false)]
     pub is_dynamic_mga_enabled: Option<bool>,
+
+    /// Map of gateways to their MGA IDs
+    #[schema(value_type = Option<Object>)]
     pub gateway_mga_id_map: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PriorityLogicOutput {
+    /// Whether enforcement mode is enabled
+    #[schema(value_type = Option<bool>, example = false)]
     pub is_enforcement: Option<bool>,
+
+    /// List of gateways returned by the priority logic
+    #[schema(value_type = Option<Vec<String>>, example = json!(["stripe:mca1", "adyen:mca2"]))]
     pub gws: Option<Vec<String>>,
+
+    /// Tag identifying the priority logic used
+    #[schema(value_type = Option<String>)]
     pub priority_logic_tag: Option<String>,
+
+    /// Map of gateway reference IDs
+    #[schema(value_type = Option<Object>, example = json!({}))]
     pub gateway_reference_ids: Option<HashMap<String, String>>,
+
+    /// Primary logic details
+    #[schema(value_type = Option<PriorityLogicData>)]
     pub primary_logic: Option<PriorityLogicData>,
+
+    /// Fallback logic details
+    #[schema(value_type = Option<PriorityLogicData>)]
     pub fallback_logic: Option<PriorityLogicData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PriorityLogicData {
+    /// Name of the logic
+    #[schema(value_type = Option<String>, example = "success_rate_logic")]
     pub name: Option<String>,
+
+    /// Status of the logic execution
+    #[schema(value_type = Option<String>, example = "success")]
     pub status: Option<String>,
+
+    /// Reason for failure if the logic failed
+    #[schema(value_type = Option<String>, example = "insufficient_data")]
     pub failure_reason: Option<String>,
 }
 
@@ -70,26 +143,44 @@ pub enum RankingAlgorithm {
     NtwBasedRouting,
 }
 
+/// Payment information used for routing decision-making
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInfo {
-    #[schema(value_type = String)]
+    /// Unique identifier for the payment transaction
+    #[schema(value_type = String, example = "pay_12345")]
     pub payment_id: id_type::PaymentId,
+    /// Payment amount in minor units
+    #[schema(value_type = i64, example = "100")]
     pub amount: MinorUnit,
+    /// Currency code for the payment
+    #[schema(value_type = String, example = "USD")]
     pub currency: Currency,
     // customerId: Option<ETCu::CustomerId>,
-    // preferredGateway: Option<ETG::Gateway>,
+    /// Ordered preferred connector account identities in `connector:mca_id` format.
+    #[schema(value_type = Option<Vec<String>>, example = json!(["adyen:mca_5678"]))]
+    pub preferred_connectors: Option<Vec<String>>,
+    /// Type of payment transaction being processed
+    #[schema(value_type = String, example = "ORDER_PAYMENT")]
     pub payment_type: String,
+    /// Optional metadata associated with the payment
+    #[schema(value_type = String, example = "metadata")]
     pub metadata: Option<String>,
     // internalMetadata: Option<String>,
     // isEmi: Option<bool>,
     // emiBank: Option<String>,
     // emiTenure: Option<i32>,
+    /// Specific payment method type being used
+    #[schema(value_type = String, example = "upi")]
     pub payment_method_type: String,
+    /// General payment method category
+    #[schema(value_type = String, example = "upi")]
     pub payment_method: PaymentMethod,
     // paymentSource: Option<String>,
     // authType: Option<ETCa::txn_card_info::AuthType>,
     // cardIssuerBankName: Option<String>,
+    /// Card Issuer Identification Number (first 6 digits of card)
+    #[schema(value_type = String, example = "424242")]
     pub card_isin: Option<String>,
     // cardType: Option<ETCa::card_type::CardType>,
     // cardSwitchProvider: Option<Secret<String>>,
@@ -114,7 +205,7 @@ pub struct DebitRoutingOutput {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct CoBadgedCardNetworksInfo {
     pub network: common_enums::CardNetwork,
-    pub saving_percentage: f64,
+    pub saving_percentage: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -198,19 +289,32 @@ pub struct UnifiedError {
     pub developer_message: String,
 }
 
+/// Request payload to update gateway performance score based on transaction outcome
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateScorePayload {
-    #[schema(value_type = String)]
+    /// Profile ID of the merchant
+    #[schema(value_type = String, example = "pro_aMoPnEkgCVnh2WVsFe32")]
     pub merchant_id: id_type::ProfileId,
+
+    /// Payment Gateway identifier
+    #[schema(value_type = String, example = "stripe:mca1")]
     pub gateway: String,
+
+    /// Transaction status for feedback scoring
+    #[schema(value_type = TxnStatus, example = "CHARGED")]
     pub status: TxnStatus,
-    #[schema(value_type = String)]
+
+    /// Payment ID associated with the transaction
+    #[schema(value_type = String, example = "pay_1234")]
     pub payment_id: id_type::PaymentId,
 }
 
+/// Response after updating gateway score
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 pub struct UpdateScoreResponse {
+    /// Status message indicating the result of the score update
+    #[schema(value_type = String, example = "Gateway score updated successfully")]
     pub message: String,
 }
 
@@ -269,15 +373,36 @@ pub enum DecisionEngineConfigVariant {
     Elimination(DecisionEngineEliminationData),
 }
 
+/// Configuration for Decision Engine success rate based routing
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DecisionEngineSuccessRateData {
+    /// Default latency threshold in percentile for gateway selection
+    #[schema(value_type = Option<f64>, example = 90.0)]
     pub default_latency_threshold: Option<f64>,
+
+    /// Default number of transactions to consider for success rate calculation
+    #[schema(value_type = Option<i32>, example = 100)]
     pub default_bucket_size: Option<i32>,
+
+    /// Default percentage of traffic to route for exploration/hedging
+    #[schema(value_type = Option<f64>, example = 5.0)]
     pub default_hedging_percent: Option<f64>,
+
+    /// Lower reset factor for adjusting gateway scores
+    #[schema(value_type = Option<f64>, example = 0.5)]
     pub default_lower_reset_factor: Option<f64>,
+
+    /// Upper reset factor for adjusting gateway scores
+    #[schema(value_type = Option<f64>, example = 1.5)]
     pub default_upper_reset_factor: Option<f64>,
+
+    /// Gateway-specific extra scoring factors
+    #[schema(value_type = Option<Vec<DecisionEngineGatewayWiseExtraScore>>)]
     pub default_gateway_extra_score: Option<Vec<DecisionEngineGatewayWiseExtraScore>>,
+
+    /// Payment method level specific configurations
+    #[schema(value_type = Option<Vec<DecisionEngineSRSubLevelInputConfig>>)]
     pub sub_level_input_config: Option<Vec<DecisionEngineSRSubLevelInputConfig>>,
 }
 
@@ -310,16 +435,41 @@ impl DecisionEngineSuccessRateData {
         }
     }
 }
+
+/// Payment method level configuration for success rate based routing
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DecisionEngineSRSubLevelInputConfig {
+    /// Payment method type (e.g., "card", "wallet")
+    #[schema(value_type = Option<String>, example = "card")]
     pub payment_method_type: Option<String>,
+
+    /// Specific payment method (e.g., "credit", "debit")
+    #[schema(value_type = Option<String>, example = "credit")]
     pub payment_method: Option<String>,
+
+    /// Latency threshold in percentile for this payment method
+    #[schema(value_type = Option<f64>, example = 90.0)]
     pub latency_threshold: Option<f64>,
+
+    /// Number of transactions to consider for this payment method
+    #[schema(value_type = Option<i32>, example = 100)]
     pub bucket_size: Option<i32>,
+
+    /// Percentage of traffic to route for exploration for this payment method
+    #[schema(value_type = Option<f64>, example = 5.0)]
     pub hedging_percent: Option<f64>,
+
+    /// Lower reset factor for this payment method
+    #[schema(value_type = Option<f64>, example = 0.5)]
     pub lower_reset_factor: Option<f64>,
+
+    /// Upper reset factor for this payment method
+    #[schema(value_type = Option<f64>, example = 1.5)]
     pub upper_reset_factor: Option<f64>,
+
+    /// Gateway-specific extra scoring factors for this payment method
+    #[schema(value_type = Option<Vec<DecisionEngineGatewayWiseExtraScore>>)]
     pub gateway_extra_score: Option<Vec<DecisionEngineGatewayWiseExtraScore>>,
 }
 
@@ -371,6 +521,8 @@ impl DecisionEngineGatewayWiseExtraScore {
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DecisionEngineEliminationData {
+    /// Threshold for elimination logic in gateway selection
+    #[schema(value_type = f64, example = 0.3)]
     pub threshold: f64,
 }
 
@@ -386,6 +538,99 @@ pub struct MerchantAccount {
     pub gateway_success_rate_based_decider_input: Option<String>,
 }
 
+/// How much of the account tree a handed-over Decision Engine session may move within. Mirrors
+/// the Hyperswitch role that opened it, so the session is never broader than its origin.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GrantLevel {
+    Profile,
+    Merchant,
+    Org,
+}
+
+/// Request for a one-time Decision Engine SSO handoff code. Carries the profile to land on plus
+/// the user's grant and permissions, both omitted for an API key — which falls back to one profile.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MerchantTokenRequest {
+    /// The profile the session lands on. A Decision Engine routing scope *is* a Hyperswitch
+    /// profile, which is why this field is named for a merchant but carries a profile id.
+    pub merchant_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grant_level: Option<GrantLevel>,
+    /// The org or merchant id `grant_level` names. Unused for a profile grant, whose node is
+    /// `merchant_id`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grant_id: Option<String>,
+    /// What the user may do, as Decision Engine spells it (`routing:read`, `routing:write`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub permissions: Option<Vec<String>>,
+    /// Display only, so the dashboard can name the user rather than show a profile id.
+    /// Authorization comes from the grant and permissions, never from this.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<Secret<String, EmailStrategy>>,
+}
+
+/// Account hierarchy pushed to the Decision Engine. A DE scope is a Hyperswitch profile; the
+/// levels above are ancestry, used to group profiles, resolve merchant-level config, and scope
+/// API keys. Hyperswitch is the only side that knows the tree. Upserted, so safe to resend.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HierarchySyncRequest {
+    pub orgs: Vec<HierarchyOrg>,
+    /// Detecting merchant-id-keyed scopes makes DE read every merchant account, so it is off for
+    /// per-profile calls and on for the bulk backfill.
+    pub report_stranded: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HierarchyOrg {
+    pub org_id: String,
+    pub org_name: Option<String>,
+    pub merchants: Vec<HierarchyMerchant>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HierarchyMerchant {
+    /// The HS merchant account id — ancestry, never a DE routing scope.
+    pub merchant_id: String,
+    pub merchant_name: Option<String>,
+    pub profiles: Vec<HierarchyProfile>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HierarchyProfile {
+    /// The HS profile id — this *is* the DE routing scope.
+    pub profile_id: String,
+    pub profile_name: Option<String>,
+}
+
+impl HierarchySyncRequest {
+    /// Tree carrying exactly one profile, for provisioning a single scope.
+    pub fn single_profile(
+        org_id: String,
+        org_name: Option<String>,
+        merchant_id: String,
+        merchant_name: Option<String>,
+        profile_id: String,
+        profile_name: Option<String>,
+    ) -> Self {
+        Self {
+            orgs: vec![HierarchyOrg {
+                org_id,
+                org_name,
+                merchants: vec![HierarchyMerchant {
+                    merchant_id,
+                    merchant_name,
+                    profiles: vec![HierarchyProfile {
+                        profile_id,
+                        profile_name,
+                    }],
+                }],
+            }],
+            report_stranded: false,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FetchRoutingConfig {
     pub merchant_id: String,
@@ -398,4 +643,39 @@ pub enum AlgorithmType {
     SuccessRate,
     Elimination,
     DebitRouting,
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::indexing_slicing)]
+mod preferred_connectors_tests {
+    use serde_json::json;
+
+    use super::PaymentInfo;
+
+    #[test]
+    fn preferred_connectors_uses_decision_engine_wire_contract() {
+        let payload = json!({
+            "paymentId": "pay_12345",
+            "amount": 100,
+            "currency": "CAD",
+            "preferredConnectors": ["loonio:mca_one"],
+            "paymentType": "ORDER_PAYMENT",
+            "paymentMethodType": "interac",
+            "paymentMethod": "bank_redirect"
+        });
+        let payment: PaymentInfo = serde_json::from_value(payload).expect("valid DE payment info");
+        assert_eq!(
+            payment.preferred_connectors,
+            Some(vec!["loonio:mca_one".to_string()])
+        );
+        let serialized = serde_json::to_value(payment).expect("serialize DE payment info");
+        assert_eq!(serialized["preferredConnectors"], json!(["loonio:mca_one"]));
+        for removed_field in [
+            "preferredConnector",
+            "preferredGateways",
+            "preferredGateway",
+        ] {
+            assert!(serialized.get(removed_field).is_none());
+        }
+    }
 }

@@ -23,6 +23,7 @@ use crate::{
         storage::{self, revenue_recovery as revenue_recovery_types},
         transformers::ForeignFrom,
     },
+    utils,
 };
 
 pub async fn call_psync_api(
@@ -45,6 +46,7 @@ pub async fn call_psync_api(
         revenue_recovery_data.key_store.clone(),
         revenue_recovery_data.merchant_account.clone(),
         revenue_recovery_data.key_store.clone(),
+        None,
     );
     // TODO : Use api handler instead of calling get_tracker and payments_operation_core
     // Get the tracker related information. This includes payment intent and payment attempt
@@ -111,6 +113,7 @@ pub async fn call_proxy_api(
         revenue_recovery_payment_data.key_store.clone(),
         revenue_recovery_payment_data.merchant_account.clone(),
         revenue_recovery_payment_data.key_store.clone(),
+        None,
     );
 
     // TODO : Use api handler instead of calling get_tracker and payments_operation_core
@@ -162,8 +165,9 @@ pub async fn update_payment_intent_api(
         revenue_recovery_payment_data.key_store.clone(),
         revenue_recovery_payment_data.merchant_account.clone(),
         revenue_recovery_payment_data.key_store.clone(),
+        None,
     );
-    let (payment_data, _req, _) = payments::payments_intent_operation_core::<
+    let (payment_data, _req, _) = Box::pin(payments::payments_intent_operation_core::<
         api_types::PaymentUpdateIntent,
         _,
         _,
@@ -177,7 +181,7 @@ pub async fn update_payment_intent_api(
         update_req,
         global_payment_id,
         payments_domain::HeaderPayload::default(),
-    )
+    ))
     .await?;
     Ok(payment_data)
 }
@@ -224,6 +228,7 @@ pub async fn record_internal_attempt_api(
         revenue_recovery_payment_data.key_store.clone(),
         revenue_recovery_payment_data.merchant_account.clone(),
         revenue_recovery_payment_data.key_store.clone(),
+        None,
     );
 
     let attempt_response = Box::pin(payments::record_attempt_core(
@@ -260,6 +265,7 @@ pub async fn custom_revenue_recovery_core(
 ) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
     let store = state.store.as_ref();
     let payment_merchant_connector_account_id = request.payment_merchant_connector_id.to_owned();
+    let profile_id = profile.get_id();
     // Find the payment & billing merchant connector id at the top level to avoid multiple DB calls.
     let payment_merchant_connector_account = store
         .find_merchant_connector_account_by_id(
@@ -273,6 +279,18 @@ pub async fn custom_revenue_recovery_core(
                 .get_string_repr()
                 .to_string(),
         })?;
+
+    utils::when(
+        &payment_merchant_connector_account.profile_id != profile_id,
+        || {
+            Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: payment_merchant_connector_account_id
+                    .clone()
+                    .get_string_repr()
+                    .to_string(),
+            })
+        },
+    )?;
     let billing_connector_account = store
         .find_merchant_connector_account_by_id(
             &request.billing_merchant_connector_id.clone(),
@@ -286,6 +304,15 @@ pub async fn custom_revenue_recovery_core(
                 .get_string_repr()
                 .to_string(),
         })?;
+    utils::when(&billing_connector_account.profile_id != profile_id, || {
+        Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: request
+                .billing_merchant_connector_id
+                .clone()
+                .get_string_repr()
+                .to_string(),
+        })
+    })?;
 
     let recovery_intent =
         recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
@@ -333,7 +360,7 @@ pub async fn custom_revenue_recovery_core(
 
     router_env::logger::info!("Intent retry count: {:?}", intent_retry_count);
     let recovery_action = recovery_incoming::RecoveryAction {
-        action: request.action.to_owned(),
+        action: request.action.to_owned().into(),
     };
     let mca_retry_threshold = billing_connector_account
         .get_retry_threshold()

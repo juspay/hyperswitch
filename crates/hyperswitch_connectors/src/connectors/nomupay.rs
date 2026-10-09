@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -54,12 +52,12 @@ use hyperswitch_interfaces::{
     types::Response,
     webhooks,
 };
+use hyperswitch_masking::{ExposeInterface, Mask};
 use josekit::{
     jws::{self, JwsHeader, ES256},
     jwt::{self, JwtPayload},
     Map, Value,
 };
-use masking::{ExposeInterface, Mask};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use serde_json::json;
@@ -94,7 +92,7 @@ fn get_private_key(
 }
 
 fn box_to_jwt_payload(
-    body: Box<dyn masking::ErasedMaskSerialize + Send>,
+    body: Box<dyn hyperswitch_masking::ErasedMaskSerialize + Send>,
 ) -> CustomResult<JwtPayload, errors::ConnectorError> {
     let str_result = serde_json::to_string(&body)
         .change_context(errors::ConnectorError::ProcessingStepFailed(None))?;
@@ -117,14 +115,11 @@ fn get_signature(
 ) -> CustomResult<String, errors::ConnectorError> {
     match body {
         RequestContent::Json(masked_json) => {
-            let expiration_time = SystemTime::now() + Duration::from_secs(4 * 60);
-            let expires_in = match expiration_time.duration_since(UNIX_EPOCH) {
-                Ok(duration) => duration.as_secs(),
-                Err(_e) => 0,
-            };
+            let expires_in =
+                u64::try_from(common_utils::date_time::now_unix_timestamp() + 4 * 60).unwrap_or(0);
 
             let mut option_map = Map::new();
-            option_map.insert("alg".to_string(), json!(format!("ES256")));
+            option_map.insert("alg".to_string(), json!("ES256"));
             option_map.insert("aud".to_string(), json!(format!("{} {}", method, path)));
             option_map.insert("exp".to_string(), json!(expires_in));
             option_map.insert("kid".to_string(), json!(auth.kid));
@@ -158,7 +153,7 @@ fn get_signature(
                 .zip(jws_blocks.get(2))
                 .map(|(first, third)| format!("{first}..{third}"))
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "JWS blocks not sufficient for detached payload",
+                    field_name: "JWS blocks not sufficient for detached payload".into(),
                 })?;
 
             Ok(jws_detached)
@@ -193,7 +188,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let is_post_req = matches!(self.get_http_method(), Method::Post);
         let body = self.get_request_body(req, connectors)?;
         let auth = nomupay::NomupayAuthType::try_from(&req.connector_auth_type)
@@ -214,7 +210,7 @@ where
         )];
         header.push((
             headers::X_SIGNATURE.to_string(),
-            masking::Maskable::Normal(sign),
+            hyperswitch_masking::Maskable::Normal(sign),
         ));
 
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
@@ -255,7 +251,8 @@ impl ConnectorCommon for Nomupay {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = nomupay::NomupayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -291,6 +288,7 @@ impl ConnectorCommon for Nomupay {
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -308,6 +306,7 @@ impl ConnectorCommon for Nomupay {
                         reason: None,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -328,6 +327,7 @@ impl ConnectorCommon for Nomupay {
                         ),
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -340,6 +340,7 @@ impl ConnectorCommon for Nomupay {
                         reason: None,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -357,6 +358,7 @@ impl ConnectorCommon for Nomupay {
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -369,6 +371,7 @@ impl ConnectorCommon for Nomupay {
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -423,7 +426,8 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Nomupay 
         &self,
         req: &PayoutsRouterData<PoSync>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -513,7 +517,8 @@ impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Nom
         &self,
         req: &PayoutsRouterData<PoRecipient>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -595,7 +600,8 @@ impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> 
         &self,
         req: &PayoutsRouterData<PoRecipientAccount>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -674,7 +680,8 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Nomup
         &self,
         req: &PayoutsRouterData<PoFulfill>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -755,6 +762,7 @@ impl webhooks::IncomingWebhook for Nomupay {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -762,7 +770,8 @@ impl webhooks::IncomingWebhook for Nomupay {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

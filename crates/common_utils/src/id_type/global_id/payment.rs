@@ -9,7 +9,7 @@ crate::global_id_type!(
 
 The format will be `<cell_id>_<entity_prefix>_<time_ordered_id>`.
 
-Example: `cell1_pay_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p`"
+Example: `0a_pay_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p`"
 );
 
 // Database related implementations so that this field can be used directly in the database tables
@@ -43,13 +43,19 @@ impl GlobalPaymentId {
     }
 }
 
+impl crate::id_type::TargetingKey for GlobalPaymentId {
+    fn targeting_key_value(&self) -> &str {
+        self.get_string_repr()
+    }
+}
+
 // TODO: refactor the macro to include this id use case as well
 impl TryFrom<std::borrow::Cow<'static, str>> for GlobalPaymentId {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(value: std::borrow::Cow<'static, str>) -> Result<Self, Self::Error> {
         let merchant_ref_id = super::GlobalId::from_string(value).change_context(
             errors::ValidationError::IncorrectValueProvided {
-                field_name: "payment_id",
+                field_name: "payment_id".into(),
             },
         )?;
         Ok(Self(merchant_ref_id))
@@ -92,7 +98,7 @@ impl TryFrom<std::borrow::Cow<'static, str>> for GlobalAttemptId {
     fn try_from(value: std::borrow::Cow<'static, str>) -> Result<Self, Self::Error> {
         let global_attempt_id = super::GlobalId::from_string(value).change_context(
             errors::ValidationError::IncorrectValueProvided {
-                field_name: "payment_id",
+                field_name: "payment_id".into(),
             },
         )?;
         Ok(Self(global_attempt_id))
@@ -126,7 +132,7 @@ impl TryFrom<std::borrow::Cow<'static, str>> for GlobalAttemptGroupId {
     fn try_from(value: std::borrow::Cow<'static, str>) -> Result<Self, Self::Error> {
         let global_attempt_group_id = super::GlobalId::from_string(value).change_context(
             errors::ValidationError::IncorrectValueProvided {
-                field_name: "global_attempt_group_id",
+                field_name: "global_attempt_group_id".into(),
             },
         )?;
         Ok(Self(global_attempt_group_id))

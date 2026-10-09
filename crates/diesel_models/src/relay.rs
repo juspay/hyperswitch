@@ -33,6 +33,8 @@ pub struct Relay {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub response_data: Option<pii::SecretSerdeValue>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(
@@ -64,6 +66,8 @@ pub struct RelayNew {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub response_data: Option<pii::SecretSerdeValue>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -74,4 +78,5 @@ pub struct RelayUpdateInternal {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub modified_at: PrimitiveDateTime,
+    pub response_data: Option<pii::SecretSerdeValue>,
 }

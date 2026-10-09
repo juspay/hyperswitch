@@ -20,8 +20,8 @@ impl ConstructFlowSpecificData<api::Reject, types::PaymentsRejectData, types::Pa
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
+        processor: &domain::Processor,
+        business_profile: &domain::Profile,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -35,8 +35,8 @@ impl ConstructFlowSpecificData<api::Reject, types::PaymentsRejectData, types::Pa
             state,
             self.clone(),
             connector_id,
-            platform,
-            customer,
+            processor,
+            business_profile,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
@@ -51,7 +51,7 @@ impl ConstructFlowSpecificData<api::Reject, types::PaymentsRejectData, types::Pa
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -86,7 +86,7 @@ impl Feature<api::Reject, types::PaymentsRejectData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
@@ -96,6 +96,7 @@ impl Feature<api::Reject, types::PaymentsRejectData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }

@@ -3,7 +3,6 @@ pub mod transformers;
 use std::sync::LazyLock;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
-use chrono::Utc;
 use common_enums::enums;
 use common_utils::{
     crypto::{RsaPssSha256, SignMessage},
@@ -46,7 +45,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 use sha2::{Digest, Sha256};
 use transformers as amazonpay;
 
@@ -229,9 +228,11 @@ where
             ),
             (
                 HEADER_DATE.to_string(),
-                Utc::now()
-                    .format("%Y-%m-%dT%H:%M:%SZ")
-                    .to_string()
+                common_utils::date_time::now()
+                    .format(&time::macros::format_description!(
+                        "[year]-[month]-[day]T[hour]:[minute]:[second]Z"
+                    ))
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?
                     .into_masked(),
             ),
             (
@@ -314,6 +315,7 @@ impl ConnectorCommon for Amazonpay {
             message: response.message.clone(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             reason: None,
             network_advice_code: None,
             network_decline_code: None,
@@ -382,6 +384,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 | WalletDataPaymentMethod::SamsungPay(_)
                 | WalletDataPaymentMethod::TwintRedirect {}
                 | WalletDataPaymentMethod::VippsRedirect {}
+                | WalletDataPaymentMethod::WeroRedirect {}
                 | WalletDataPaymentMethod::BluecodeRedirect {}
                 | WalletDataPaymentMethod::TouchNGoRedirect(_)
                 | WalletDataPaymentMethod::WeChatPayRedirect(_)
@@ -391,6 +394,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 | WalletDataPaymentMethod::RevolutPay(_)
                 | WalletDataPaymentMethod::Paysera(_)
                 | WalletDataPaymentMethod::Skrill(_)
+                | WalletDataPaymentMethod::Neteller(_)
                 | WalletDataPaymentMethod::Mifinity(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("amazonpay"),
@@ -731,6 +735,7 @@ impl webhooks::IncomingWebhook for Amazonpay {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -738,7 +743,8 @@ impl webhooks::IncomingWebhook for Amazonpay {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

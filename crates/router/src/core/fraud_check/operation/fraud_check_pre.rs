@@ -3,12 +3,11 @@ use common_enums::FrmSuggestion;
 use common_utils::ext_traits::Encode;
 use diesel_models::enums::FraudCheckLastStep;
 use router_env::{instrument, tracing};
-use uuid::Uuid;
 
 use super::{Domain, FraudCheckOperation, GetTracker, UpdateTracker};
 use crate::{
     core::{
-        errors::RouterResult,
+        errors::{RouterResult, StorageErrorExt},
         fraud_check::{
             self as frm_core,
             types::{FrmData, PaymentDetails, PaymentToFrmData},
@@ -96,21 +95,16 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
             .encode_to_value()
             .ok();
 
-        let existing_fraud_check = db
-            .find_fraud_check_by_payment_id_if_present(
-                payment_data.payment_intent.get_id().to_owned(),
-                payment_data.merchant_account.get_id().clone(),
-            )
-            .await
-            .ok();
-
-        let fraud_check = match existing_fraud_check {
-            Some(Some(fraud_check)) => Ok(fraud_check),
-            _ => {
+        let fraud_check = match payment_data.payment_attempt.active_frm_id.clone() {
+            Some(frm_id) => db.find_fraud_check_by_frm_id(frm_id).await,
+            None => {
                 db.insert_fraud_check_response(FraudCheckNew {
-                    frm_id: Uuid::new_v4().simple().to_string(),
-                    payment_id: payment_data.payment_intent.get_id().to_owned(),
+                    frm_id: common_utils::generate_uuid_v4().simple().to_string(),
+                    payment_id: Some(payment_data.payment_intent.get_id().to_owned()),
                     merchant_id: payment_data.merchant_account.get_id().clone(),
+                    processor_merchant_id: Some(
+                        payment_data.payment_intent.processor_merchant_id.clone(),
+                    ),
                     attempt_id: payment_data.payment_attempt.attempt_id.clone(),
                     created_at: common_utils::date_time::now(),
                     frm_name: frm_connector_details.connector_name,
@@ -125,6 +119,8 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
                     modified_at: common_utils::date_time::now(),
                     last_step: FraudCheckLastStep::Processing,
                     payment_capture_method: payment_data.payment_attempt.capture_method,
+                    created_by: None,
+                    payout_id: None,
                 })
                 .await
             }
@@ -142,6 +138,8 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
                     order_details: payment_data.order_details,
                     refund: None,
                     frm_metadata: payment_data.frm_metadata,
+                    payment_method_data: payment_data.payment_method_data,
+                    payment_method_token: payment_data.payment_method_token,
                 };
                 Ok(Some(frm_data))
             }
@@ -168,7 +166,6 @@ where
         _payment_data: &mut D,
         _frm_data: &mut FrmData,
         _platform: &domain::Platform,
-        _customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>> {
         todo!()
     }
@@ -182,14 +179,12 @@ where
         payment_data: &mut D,
         frm_data: &mut FrmData,
         platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Transaction, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
             platform,
-            customer,
         )
         .await?;
         frm_data.fraud_check.last_step = FraudCheckLastStep::TransactionOrRecordRefund;
@@ -207,6 +202,7 @@ where
                 error_message: router_data.request.error_message,
                 connector_transaction_id: router_data.request.connector_transaction_id,
                 connector: router_data.request.connector,
+                frm_transaction_id: frm_data.fraud_check.frm_transaction_id.clone(),
             }),
             response: FrmResponse::Transaction(router_data.response),
         }))
@@ -218,16 +214,27 @@ where
         payment_data: &mut D,
         frm_data: &mut FrmData,
         platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
     ) -> RouterResult<FrmRouterData> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Checkout, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
             platform,
-            customer,
         )
         .await?;
+
+        // Extract frm_transaction_id from checkout response
+        if let Ok(FraudCheckResponseData::TransactionResponse {
+            ref resource_id, ..
+        }) = router_data.response
+        {
+            frm_data.fraud_check.frm_transaction_id = match resource_id {
+                ResponseId::NoResponseId => None,
+                ResponseId::ConnectorTransactionId(id) => Some(id.clone()),
+                ResponseId::EncodedData(id) => Some(id.clone()),
+            };
+        }
+
         frm_data.fraud_check.last_step = FraudCheckLastStep::CheckoutOrSale;
         Ok(FrmRouterData {
             merchant_id: router_data.merchant_id,
@@ -240,8 +247,15 @@ where
                 currency: router_data.request.currency,
                 browser_info: router_data.request.browser_info,
                 payment_method_data: router_data.request.payment_method_data,
-                email: router_data.request.email,
                 gateway: router_data.request.gateway,
+                client_ip: router_data.request.client_ip,
+                customer_id: router_data.request.customer_id,
+                email: router_data.request.email,
+                phone: router_data.request.phone,
+                phone_country_code: router_data.request.phone_country_code,
+                gateway_metadata: router_data.request.gateway_metadata,
+                customer_name: router_data.request.customer_name,
+                payment_method_data_full: router_data.request.payment_method_data_full,
             })),
             response: FrmResponse::Checkout(router_data.response),
         })
@@ -378,12 +392,12 @@ where
         let db = &*state.store;
         frm_data.fraud_check = match frm_check_update {
             Some(fraud_check_update) => db
-                .update_fraud_check_response_with_attempt_id(
+                .update_fraud_check_response_with_frm_id(
                     frm_data.clone().fraud_check,
                     fraud_check_update,
                 )
                 .await
-                .map_err(|error| error.change_context(errors::ApiErrorResponse::PaymentNotFound))?,
+                .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)?,
             None => frm_data.clone().fraud_check,
         };
 

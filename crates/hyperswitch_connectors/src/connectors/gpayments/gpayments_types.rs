@@ -1,7 +1,7 @@
 use api_models::payments::ThreeDsCompletionIndicator;
 use cards::CardNumber;
 use common_utils::types;
-use masking::{Deserialize, Secret, Serialize};
+use hyperswitch_masking::{Deserialize, Secret, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GpaymentsConnectorMetaData {

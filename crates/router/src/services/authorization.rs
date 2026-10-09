@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
 use common_utils::id_type;
 use error_stack::ResultExt;
-use redis_interface::RedisConnectionPool;
+use redis_interface::RedisConnectionWithContext;
 use router_env::logger;
 
 use super::authentication::AuthToken;
@@ -66,7 +64,9 @@ where
     redis_conn
         .get_and_deserialize_key(&get_cache_key_from_role_id(role_id).into(), "RoleInfo")
         .await
-        .change_context(ApiErrorResponse::InternalServerError)
+        .change_context(ApiErrorResponse::GenericNotFoundError {
+            message: "Role info not found in cache".to_string(),
+        })
 }
 
 pub fn get_cache_key_from_role_id(role_id: &str) -> String {
@@ -145,7 +145,7 @@ pub fn check_tenant(
 
 fn get_redis_connection_for_global_tenant<A: SessionStateInfo>(
     state: &A,
-) -> RouterResult<Arc<RedisConnectionPool>> {
+) -> RouterResult<RedisConnectionWithContext> {
     state
         .global_store()
         .get_redis_conn()

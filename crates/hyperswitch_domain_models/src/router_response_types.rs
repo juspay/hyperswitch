@@ -1,5 +1,6 @@
 pub mod disputes;
 pub mod fraud_check;
+pub mod merchant_connector_webhook_management;
 pub mod revenue_recovery;
 pub mod subscriptions;
 use std::collections::HashMap;
@@ -15,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::api_error_response::ApiErrorResponse,
-    router_request_types::{authentication::AuthNFlowType, ResponseId},
+    router_request_types::{authentication::AuthNFlowType, ResponseId, UcsAuthenticationData},
     vault::PaymentMethodVaultingData,
 };
 
@@ -30,7 +31,7 @@ pub struct RefundsResponseData {
 pub struct ConnectorCustomerResponseData {
     pub connector_customer_id: String,
     pub name: Option<String>,
-    pub email: Option<String>,
+    pub email: Option<pii::Email>,
     pub billing_address: Option<AddressDetails>,
 }
 
@@ -41,7 +42,7 @@ impl ConnectorCustomerResponseData {
     pub fn new(
         connector_customer_id: String,
         name: Option<String>,
-        email: Option<String>,
+        email: Option<pii::Email>,
         billing_address: Option<AddressDetails>,
     ) -> Self {
         Self {
@@ -61,9 +62,17 @@ pub enum PaymentsResponseData {
         mandate_reference: Box<Option<MandateReference>>,
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
+        network_txn_link_id: Option<String>,
         connector_response_reference_id: Option<String>,
+        payment_account_reference: Option<String>,
         incremental_authorization_allowed: Option<bool>,
+        authentication_data: Option<Box<UcsAuthenticationData>>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    },
+    PostCaptureVoidResponse {
+        post_capture_void_status: common_enums::PostCaptureVoidStatus,
+        connector_reference_id: Option<String>,
+        description: Option<String>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
@@ -111,6 +120,7 @@ pub enum PaymentsResponseData {
     },
     PaymentsCreateOrderResponse {
         order_id: String,
+        session_token: Option<api_models::payments::SessionToken>,
     },
 }
 
@@ -123,6 +133,48 @@ pub struct GiftCardBalanceCheckResponseData {
 #[derive(Debug, Clone)]
 pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
+}
+
+#[derive(Debug, Clone)]
+pub struct SurchargeCalculationResponseData {
+    /// Transaction fee amount in minor units
+    pub surcharge_amount: MinorUnit,
+    /// Transaction ID from surcharge calculator connector
+    pub connector_surcharge_id: String,
+    /// Transaction fee percentage (consumed by backend, NOT sent to SDK)
+    pub surcharge_fee_percent: Option<
+        common_utils::types::Percentage<
+            { common_utils::consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH },
+        >,
+    >,
+    /// Error code if calculation failed or returned 0
+    pub error_code: Option<String>,
+    /// Additional error codes
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct NotifyConnectorResponseData {
+    pub status_code: u16,
+    /// Error code if calculation failed or returned 0
+    pub error_code: Option<String>,
+    /// Additional error codes
+    pub error_message: Option<String>,
+}
+
+/// Response data for completing surcharge (sale notification)
+#[derive(Debug, Clone)]
+pub struct CompleteSurchargeResponseData {
+    pub connector_surcharge_id: String,
+}
+
+/// Response data for refunding surcharge
+#[derive(Debug, Clone)]
+pub struct CompleteRefundSurchrgeResponseData {
+    /// Surcharge amount that was refunded
+    pub refund_amount: MinorUnit,
+    /// Transaction ID for the refund
+    pub external_transaction_id: String,
 }
 
 #[derive(Serialize, Debug, Clone, serde::Deserialize)]
@@ -167,20 +219,42 @@ impl CaptureSyncResponse {
     }
 }
 impl PaymentsResponseData {
-    pub fn get_connector_metadata(&self) -> Option<masking::Secret<serde_json::Value>> {
+    pub fn get_connector_metadata(&self) -> Option<hyperswitch_masking::Secret<serde_json::Value>> {
         match self {
             Self::TransactionResponse {
                 connector_metadata, ..
             }
             | Self::PreProcessingResponse {
                 connector_metadata, ..
-            } => connector_metadata.clone().map(masking::Secret::new),
+            } => connector_metadata
+                .clone()
+                .map(hyperswitch_masking::Secret::new),
             _ => None,
         }
     }
     pub fn get_network_transaction_id(&self) -> Option<String> {
         match self {
             Self::TransactionResponse { network_txn_id, .. } => network_txn_id.clone(),
+            _ => None,
+        }
+    }
+
+    pub fn get_network_transaction_link_id(&self) -> Option<String> {
+        match self {
+            Self::TransactionResponse {
+                network_txn_link_id,
+                ..
+            } => network_txn_link_id.clone(),
+            _ => None,
+        }
+    }
+
+    pub fn get_payment_account_reference(&self) -> Option<String> {
+        match self {
+            Self::TransactionResponse {
+                payment_account_reference,
+                ..
+            } => payment_account_reference.clone(),
             _ => None,
         }
     }
@@ -194,7 +268,7 @@ impl PaymentsResponseData {
                 ..
             } => Ok(txn_id.to_string()),
             _ => Err(ApiErrorResponse::MissingRequiredField {
-                field_name: "ConnectorTransactionId",
+                field_name: "ConnectorTransactionId".into(),
             }
             .into()),
         }
@@ -212,8 +286,11 @@ impl PaymentsResponseData {
                     mandate_reference: auth_mandate_reference,
                     connector_metadata: auth_connector_metadata,
                     network_txn_id: auth_network_txn_id,
+                    network_txn_link_id: auth_network_txn_link_id,
                     connector_response_reference_id: auth_connector_response_reference_id,
+                    payment_account_reference: auth_payment_account_reference,
                     incremental_authorization_allowed: auth_incremental_auth_allowed,
+                    authentication_data: auth_authentication_data,
                     charges: auth_charges,
                 },
                 Self::TransactionResponse {
@@ -222,8 +299,11 @@ impl PaymentsResponseData {
                     mandate_reference: capture_mandate_reference,
                     connector_metadata: capture_connector_metadata,
                     network_txn_id: capture_network_txn_id,
+                    network_txn_link_id: capture_network_txn_link_id,
                     connector_response_reference_id: capture_connector_response_reference_id,
+                    payment_account_reference: capture_payment_account_reference,
                     incremental_authorization_allowed: capture_incremental_auth_allowed,
+                    authentication_data: capture_authentication_data,
                     charges: capture_charges,
                 },
             ) => Ok(Self::TransactionResponse {
@@ -244,11 +324,20 @@ impl PaymentsResponseData {
                 network_txn_id: capture_network_txn_id
                     .clone()
                     .or(auth_network_txn_id.clone()),
+                network_txn_link_id: capture_network_txn_link_id
+                    .clone()
+                    .or(auth_network_txn_link_id.clone()),
                 connector_response_reference_id: capture_connector_response_reference_id
                     .clone()
                     .or(auth_connector_response_reference_id.clone()),
+                payment_account_reference: capture_payment_account_reference
+                    .clone()
+                    .or(auth_payment_account_reference.clone()),
                 incremental_authorization_allowed: (*capture_incremental_auth_allowed)
                     .or(*auth_incremental_auth_allowed),
+                authentication_data: capture_authentication_data
+                    .clone()
+                    .or(auth_authentication_data.clone()),
                 charges: auth_charges.clone().or(capture_charges.clone()),
             }),
             _ => Err(ApiErrorResponse::NotSupported {
@@ -301,6 +390,15 @@ pub enum PreprocessingResponseId {
     ConnectorTransactionId(String),
 }
 
+impl PreprocessingResponseId {
+    pub fn get_string_repr(&self) -> &String {
+        match self {
+            Self::PreProcessingId(value) => value,
+            Self::ConnectorTransactionId(value) => value,
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, serde::Deserialize)]
 pub enum RedirectForm {
     Form {
@@ -346,7 +444,7 @@ pub enum RedirectForm {
     Nmi {
         amount: String,
         currency: common_enums::Currency,
-        public_key: masking::Secret<String>,
+        public_key: hyperswitch_masking::Secret<String>,
         customer_vault_id: String,
         order_id: String,
     },
@@ -358,6 +456,13 @@ pub enum RedirectForm {
         method: Method,
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
+    },
+    WorldpayxmlDDCForm {
+        bin: String,
+        jwt: String,
+    },
+    WorldpayxmlRedirectForm {
+        jwt: String,
     },
 }
 
@@ -474,6 +579,8 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
+            RedirectForm::WorldpayxmlDDCForm { bin, jwt } => Self::WorldpayxmlDDCForm { bin, jwt },
+            RedirectForm::WorldpayxmlRedirectForm { jwt } => Self::WorldpayxmlRedirectForm { jwt },
         }
     }
 }
@@ -574,6 +681,12 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 form_fields,
                 collection_id,
             },
+            diesel_models::payment_attempt::RedirectForm::WorldpayxmlDDCForm { bin, jwt } => {
+                Self::WorldpayxmlDDCForm { bin, jwt }
+            }
+            diesel_models::payment_attempt::RedirectForm::WorldpayxmlRedirectForm { jwt } => {
+                Self::WorldpayxmlRedirectForm { jwt }
+            }
         }
     }
 }
@@ -588,7 +701,7 @@ pub struct RetrieveFileResponse {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct PayoutsResponseData {
     pub status: Option<common_enums::PayoutStatus>,
     pub connector_payout_id: Option<String>,
@@ -597,6 +710,7 @@ pub struct PayoutsResponseData {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -635,10 +749,11 @@ pub enum AuthenticationResponseData {
         message_version: common_utils::types::SemanticVersion,
         connector_metadata: Option<serde_json::Value>,
         directory_server_id: Option<String>,
+        scheme_id: Option<String>,
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
-        authentication_value: Option<masking::Secret<String>>,
+        authentication_value: Option<hyperswitch_masking::Secret<String>>,
         trans_status: common_enums::TransactionStatus,
         connector_metadata: Option<serde_json::Value>,
         ds_trans_id: Option<String>,
@@ -650,7 +765,7 @@ pub enum AuthenticationResponseData {
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,
-        authentication_value: Option<masking::Secret<String>>,
+        authentication_value: Option<hyperswitch_masking::Secret<String>>,
         eci: Option<String>,
         challenge_cancel: Option<String>,
         challenge_code_reason: Option<String>,
@@ -695,6 +810,12 @@ pub trait SupportedPaymentMethodsExt {
         payment_method_type: common_enums::PaymentMethodType,
         payment_method_details: PaymentMethodDetails,
     );
+
+    fn is_refund_supported(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> bool;
 }
 
 impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
@@ -713,13 +834,30 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
             self.insert(payment_method, payment_method_type_metadata);
         }
     }
+
+    fn is_refund_supported(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> bool {
+        self.get(payment_method)
+            .and_then(|pm_types| pm_types.get(payment_method_type))
+            .map(|details| details.supports_refund())
+            .unwrap_or(true)
+    }
+}
+
+impl PaymentMethodDetails {
+    fn supports_refund(&self) -> bool {
+        self.refunds.is_supported()
+    }
 }
 
 #[derive(Debug, Clone)]
 pub enum VaultResponseData {
     ExternalVaultCreateResponse {
-        session_id: masking::Secret<String>,
-        client_secret: masking::Secret<String>,
+        session_id: hyperswitch_masking::Secret<String>,
+        client_secret: hyperswitch_masking::Secret<String>,
     },
     ExternalVaultInsertResponse {
         connector_vault_id: VaultIdType,
@@ -742,16 +880,16 @@ pub enum VaultIdType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MultiVaultIdType {
     Card {
-        tokenized_card_number: Option<masking::Secret<String>>,
-        tokenized_card_expiry_year: Option<masking::Secret<String>>,
-        tokenized_card_expiry_month: Option<masking::Secret<String>>,
-        tokenized_card_cvc: Option<masking::Secret<String>>,
+        tokenized_card_number: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_cvc: Option<hyperswitch_masking::Secret<String>>,
     },
     NetworkToken {
-        tokenized_network_token: Option<masking::Secret<String>>,
-        tokenized_network_token_exp_year: Option<masking::Secret<String>>,
-        tokenized_network_token_exp_month: Option<masking::Secret<String>>,
-        tokenized_cryptogram: Option<masking::Secret<String>>,
+        tokenized_network_token: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_network_token_exp_year: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_network_token_exp_month: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_cryptogram: Option<hyperswitch_masking::Secret<String>>,
     },
 }
 
@@ -760,7 +898,7 @@ impl VaultIdType {
         match self {
             Self::SingleVaultId(vault_id) => Ok(vault_id.to_string()),
             Self::MultiVauldIds(_) => Err(ApiErrorResponse::MissingRequiredField {
-                field_name: "SingleVaultId",
+                field_name: "SingleVaultId".into(),
             }
             .into()),
         }
@@ -814,5 +952,38 @@ impl Default for VaultResponseData {
             connector_vault_id: VaultIdType::SingleVaultId(String::new()),
             fingerprint_id: String::new(),
         }
+    }
+}
+
+#[cfg(test)]
+mod pii_masking_tests {
+    use super::ConnectorCustomerResponseData;
+
+    /// Connectors parse the customer email into a masked `Email`; this domain
+    /// type used to strip it back to a plain `String`, so the address reached
+    /// any log that serializes the struct via `masked_serialize`.
+    #[test]
+    fn connector_customer_email_is_masked_for_logging() {
+        let email = common_utils::pii::Email::try_from("jane.doe@example.com".to_string())
+            .expect("valid email");
+        let data = ConnectorCustomerResponseData::new(
+            "cus_1".to_string(),
+            Some("Jane Doe".to_string()),
+            Some(email),
+            None,
+        );
+
+        let masked = hyperswitch_masking::masked_serialize(&data)
+            .expect("masked serialization")
+            .to_string();
+
+        assert!(
+            !masked.contains("jane.doe@example.com"),
+            "email leaked into the log view: {masked}"
+        );
+        assert!(
+            masked.contains("@example.com"),
+            "EmailStrategy should retain the domain, got: {masked}"
+        );
     }
 }

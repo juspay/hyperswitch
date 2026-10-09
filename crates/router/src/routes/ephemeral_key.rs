@@ -27,12 +27,16 @@ pub async fn ephemeral_key_create(
             helpers::make_ephemeral_key(
                 state,
                 payload.customer_id,
-                auth.merchant_account.get_id().to_owned(),
+                auth.platform
+                    .get_processor()
+                    .get_account()
+                    .get_id()
+                    .to_owned(),
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     )
@@ -55,8 +59,8 @@ pub async fn ephemeral_key_delete(
         payload,
         |state, _: auth::AuthenticationData, req, _| helpers::delete_ephemeral_key(state, req),
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     )
@@ -78,17 +82,16 @@ pub async fn client_secret_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             helpers::make_client_secret(
                 state,
                 payload.resource_id.to_owned(),
-                platform,
+                auth.platform,
                 req.headers(),
             )
         },
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -111,8 +114,8 @@ pub async fn client_secret_delete(
         payload,
         |state, _: auth::AuthenticationData, req, _| helpers::delete_client_secret(state, req),
         &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))

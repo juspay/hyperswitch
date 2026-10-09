@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
     types::{PayoutsResponseData, PayoutsRouterData},
 };
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "payouts")]
@@ -149,7 +149,7 @@ impl TryFrom<PayoneRouterData<&PayoutsRouterData<PoFulfill>>> for PayonePayoutFu
                                     .clone()
                                     .get_required_value("card_holder_name")
                                     .change_context(ConnectorError::MissingRequiredField {
-                                        field_name: "payout_method_data.card.holder_name",
+                                        field_name: "payout_method_data.card.holder_name".into(),
                                     })?,
                                 expiry_date: card_data
                                     .get_card_expiry_month_year_2_digit_with_delimiter(
@@ -161,6 +161,7 @@ impl TryFrom<PayoneRouterData<&PayoutsRouterData<PoFulfill>>> for PayonePayoutFu
                             )?,
                         },
                         PayoutMethodData::Bank(_)
+                        | PayoutMethodData::BankTransfer(_)
                         | PayoutMethodData::Wallet(_)
                         | PayoutMethodData::BankRedirect(_)
                         | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(
@@ -273,6 +274,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, PayonePayoutFulfillResponse>>
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })

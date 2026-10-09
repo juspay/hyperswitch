@@ -2,6 +2,8 @@ use common_utils::{errors::CustomResult, id_type};
 use diesel_models::{organization as storage, organization::OrganizationBridge};
 use error_stack::report;
 use router_env::{instrument, tracing};
+#[cfg(feature = "accounts_cache")]
+use storage_impl::redis::cache::{self, CacheKind};
 
 use crate::{connection, core::errors, services::Store};
 
@@ -43,10 +45,28 @@ impl OrganizationInterface for Store {
         &self,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_read(self).await?;
-        storage::Organization::find_by_org_id(&conn, org_id.to_owned())
+        let find_call = || async {
+            let conn = connection::pg_accounts_connection_read(self).await?;
+            storage::Organization::find_by_org_id(&conn, org_id.to_owned())
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            find_call().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            Box::pin(cache::get_or_populate_in_memory_redis(
+                self,
+                org_id.get_string_repr(),
+                find_call(),
+                cache::CacheId::Accounts,
+            ))
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
     }
 
     #[instrument(skip_all)]
@@ -56,10 +76,26 @@ impl OrganizationInterface for Store {
         update: storage::OrganizationUpdate,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
         let conn = connection::pg_accounts_connection_write(self).await?;
+        let update_call = || async {
+            storage::Organization::update_by_org_id(&conn, org_id.to_owned(), update)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        };
 
-        storage::Organization::update_by_org_id(&conn, org_id.to_owned(), update)
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            update_call().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            cache::publish_and_redact(
+                self,
+                CacheKind::Accounts(org_id.get_string_repr().into()),
+                update_call,
+            )
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
     }
 }
 
@@ -118,14 +154,22 @@ impl OrganizationInterface for super::MockDb {
                     organization_name,
                     organization_details,
                     metadata,
-                    platform_merchant_id,
                 } => {
                     organization_name
                         .as_ref()
                         .map(|org_name| org.set_organization_name(org_name.to_owned()));
                     organization_details.clone_into(&mut org.organization_details);
                     metadata.clone_into(&mut org.metadata);
-                    platform_merchant_id.clone_into(&mut org.platform_merchant_id);
+                    org
+                }
+                storage::OrganizationUpdate::ConvertToPlatform => {
+                    org.organization_type = Some(common_enums::OrganizationType::Platform);
+                    org
+                }
+                storage::OrganizationUpdate::UpdatePlatformMerchant {
+                    platform_merchant_id,
+                } => {
+                    org.platform_merchant_id = Some(platform_merchant_id.clone());
                     org
                 }
             })

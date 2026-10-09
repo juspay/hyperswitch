@@ -2,7 +2,7 @@ pub mod utils;
 use api_models::verifications::{self, ApplepayMerchantResponse};
 use common_utils::{errors::CustomResult, request::RequestContent};
 use error_stack::ResultExt;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 
 use crate::{core::errors, headers, logger, routes::SessionState, services};
 
@@ -49,6 +49,7 @@ pub async fn verify_merchant_creds_for_applepay(
         &state,
         apple_pay_merch_verification_req,
         "verify_merchant_creds_for_applepay",
+        None,
     )
     .await;
     utils::log_applepay_verification_response_if_error(&response);

@@ -4,9 +4,11 @@
 
 pub mod consts;
 pub mod customers;
+pub mod disputes;
 pub mod domain;
 pub mod payment_methods;
 pub mod payments;
+pub mod payouts;
 /// types that are wrappers around primitive types
 pub mod primitive_wrappers;
 pub mod refunds;
@@ -15,3 +17,6 @@ pub mod three_ds_decision_rule_engine;
 
 ///types for callback mapper
 pub mod callback_mapper;
+
+///types for connector webhook configuration
+pub mod connector_webhook_configuration;

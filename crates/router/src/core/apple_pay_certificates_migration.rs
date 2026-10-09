@@ -1,7 +1,8 @@
 use api_models::apple_pay_certificates_migration;
 use common_utils::{errors::CustomResult, type_name, types::keymanager::Identifier};
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
+use storage_impl::behaviour::ForeignInto;
 
 use super::{
     errors::{self, StorageErrorExt},
@@ -83,7 +84,7 @@ pub async fn apple_pay_certificates_migration(
                         connector_wallets_details: encrypted_apple_pay_metadata,
                     };
 
-                mca_to_update.push((connector_account, updated_mca.into()));
+                mca_to_update.push((connector_account, updated_mca.foreign_into()));
             }
         }
 

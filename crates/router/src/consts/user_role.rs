@@ -15,3 +15,13 @@ pub const ROLE_ID_PROFILE_CUSTOMER_SUPPORT: &str = "profile_customer_support";
 
 pub const INTERNAL_USER_MERCHANT_ID: &str = "juspay000";
 pub const MAX_ROLE_NAME_LENGTH: usize = 64;
+
+pub const ROLE_ID_RECON_MERCHANT_ADMIN: &str = "recon_merchant_admin";
+pub const ROLE_ID_RECON_MERCHANT_DATA_ENGINEER: &str = "recon_merchant_data_engineer";
+pub const ROLE_ID_RECON_MERCHANT_OPERATOR: &str = "recon_merchant_operator";
+pub const ROLE_ID_RECON_MERCHANT_VIEW_ONLY: &str = "recon_merchant_view_only";
+
+pub const ROLE_ID_RECON_PROFILE_ADMIN: &str = "recon_profile_admin";
+pub const ROLE_ID_RECON_PROFILE_DATA_ENGINEER: &str = "recon_profile_data_engineer";
+pub const ROLE_ID_RECON_PROFILE_OPERATOR: &str = "recon_profile_operator";
+pub const ROLE_ID_RECON_PROFILE_VIEW_ONLY: &str = "recon_profile_view_only";

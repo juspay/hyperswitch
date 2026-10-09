@@ -1,0 +1,172 @@
+---
+title: "API Guide"
+description: "A practical, copy-paste guide to the Decision Engine API — from creating a merchant to running routed transactions and reading analytics."
+---
+
+# Decision Engine API Guide
+
+This guide walks the Decision Engine API in the order you'll actually use it: set up a merchant, configure how transactions should be routed, send transactions to `/decide-gateway`, feed outcomes back, and review analytics.
+
+Every page below includes ready-to-run `curl` examples with realistic payloads. For exact request and response schemas plus an interactive playground, use the [OpenAPI Reference](/decision-engine-api-reference/api-reference).
+
+<Note>
+  **Two reference surfaces are available.** Start here for task-oriented flows; switch to the OpenAPI Reference when you need exact schemas.
+
+  | Surface | Best for |
+  | --- | --- |
+  | **API Guide** (this section) | Copy-paste `curl` examples, end-to-end flows, and request variants. |
+  | **[OpenAPI Reference](/decision-engine-api-reference/api-reference)** | One page per endpoint with full schemas and a request playground. |
+</Note>
+
+## Integration flow
+
+A typical integration follows these steps. Each links to the page with the exact request.
+
+<Steps>
+  <Step title="Create a merchant">
+    Create the merchant record that owns your routing config, API keys, and analytics.
+    See [Create Merchant Account](/decision-engine-api-reference/api-reference/guides/merchant-accounts/merchant-account-create).
+  </Step>
+  <Step title="Create an API key">
+    Issue a server-to-server API key to authenticate the calls that follow.
+    See [API Keys](/decision-engine-api-reference/api-reference/guides/auth-onboarding/api-keys).
+  </Step>
+  <Step title="Configure routing">
+    Decide how connectors are chosen — a fixed connector, a priority list, a volume split, or an advanced rule tree — then activate it.
+    See [Create Routing Algorithm](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-create).
+  </Step>
+  <Step title="Run transactions">
+    Call `/decide-gateway` for each payment to get the connector to use.
+    See [Run Transactions](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-sr-based).
+  </Step>
+  <Step title="Send feedback">
+    Report the authorization outcome so scoring and analytics stay accurate.
+    See [Update Gateway Score](/decision-engine-api-reference/api-reference/guides/feedback-scoring/update-gateway-score).
+  </Step>
+  <Step title="Review analytics">
+    Inspect gateway scores, decisions, and audit trails.
+    See [Analytics & Audit](/decision-engine-api-reference/api-reference/guides/analytics-audit/analytics-endpoints).
+  </Step>
+</Steps>
+
+## Environment setup
+
+Set these once in your shell and reuse them across every example.
+
+```bash
+# Base URL — local source build or Docker Compose
+export BASE_URL=http://localhost:8080
+
+# Sandbox (routed through Hyperswitch), when applicable
+# export BASE_URL=https://sandbox.hyperswitch.io
+
+# Protected endpoints accept either a dashboard JWT or an API key
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# export AUTH_HEADER="x-api-key: DE_<api_key>"
+
+# Sandbox-only routing header
+export FEATURE_HEADER="x-feature: decision-engine"
+
+# Required on analytics routes, /health/diagnostics, and /gateway-score/reset only.
+# "public" is the only tenant the shipped config files define.
+export TENANT_HEADER="x-tenant-id: public"
+```
+
+Public routes need no auth. Protected routes include `AUTH_HEADER`:
+
+```bash
+curl "$BASE_URL/analytics/overview?range=1d" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER" \
+  --header "$FEATURE_HEADER"
+```
+
+## Authentication & access
+
+| Access class | Routes | Required headers |
+| --- | --- | --- |
+| Public health | `GET /health`, `GET /health/ready` | None |
+| Public health (tenant-scoped) | `GET /health/diagnostics` | `TENANT_HEADER` — no auth |
+| Public auth entry | `POST /auth/signup`, `POST /auth/login` | None |
+| Admin bootstrap | `POST /merchant-account/create` | Admin secret configured for the deployment |
+| Protected APIs | API keys, merchant reads/deletes, routing, rule config, decisions, score updates, config | `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>` |
+| Protected APIs (tenant-scoped) | All `GET /analytics/*`, `POST /gateway-score/reset` | The above, **plus** `TENANT_HEADER` |
+| Sandbox (Hyperswitch) | Same rules, served through `https://sandbox.hyperswitch.io` | Add `x-feature: decision-engine` |
+
+<Warning>
+  `TENANT_HEADER` (`x-tenant-id`) has no fallback — omitting it on a route that needs it fails with `TE_03: x-tenant-id not found in headers`, regardless of a valid `AUTH_HEADER`. It's easy to miss because most routes (`/decide-gateway`, `/routing/*`, `/rule/*`, `/merchant-account/*`, `/update-gateway-score`, `/auth/*`, `/api-key/*`) resolve the tenant internally and need no such header — only the routes listed above do.
+</Warning>
+
+## Browse by task
+
+<CardGroup cols={2}>
+  <Card title="Health & Status" icon="heart-pulse" href="/decision-engine-api-reference/api-reference/guides/health-status/health-check">
+    Liveness, readiness, and dependency diagnostics.
+  </Card>
+  <Card title="Authentication & Onboarding" icon="key" href="/decision-engine-api-reference/api-reference/guides/auth-onboarding/auth-and-onboarding">
+    Sign up, log in, switch merchants, and manage API keys.
+  </Card>
+  <Card title="Merchant Accounts" icon="building" href="/decision-engine-api-reference/api-reference/guides/merchant-accounts/merchant-account-create">
+    Create, read, delete a merchant, and manage debit routing.
+  </Card>
+  <Card title="Configure Routing" icon="route" href="/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-create">
+    Single, priority, volume-split, and advanced rule trees — plus activation.
+  </Card>
+  <Card title="Scoring Configuration" icon="sliders" href="/decision-engine-api-reference/api-reference/guides/scoring-config/success-rate-config-create">
+    Success-rate and elimination (downtime) scoring config.
+  </Card>
+  <Card title="Run Transactions" icon="bolt" href="/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-sr-based">
+    Choose a connector per payment via `/decide-gateway`.
+  </Card>
+  <Card title="Feedback & Scoring" icon="arrow-rotate-left" href="/decision-engine-api-reference/api-reference/guides/feedback-scoring/update-gateway-score">
+    Report authorization outcomes to keep scoring accurate.
+  </Card>
+  <Card title="Analytics & Audit" icon="chart-line" href="/decision-engine-api-reference/api-reference/guides/analytics-audit/analytics-endpoints">
+    Overview, gateway scores, decisions, routing stats, and audit.
+  </Card>
+  <Card title="Multi-Objective Routing" icon="scale-balanced" href="/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective">
+    Cost-aware post-step that re-ranks gateways on expected value.
+  </Card>
+  <Card title="Cost Data Ingestion" icon="file-invoice-dollar" href="/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-setup">
+    Learn real per-gateway fees from settlement reports and invoices.
+  </Card>
+  <Card title="A/B Testing" icon="flask" href="/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-create">
+    Compare two routing strategies on live traffic with guardrails.
+  </Card>
+  <Card title="Autopilot & Feature Flags" icon="sliders" href="/decision-engine-api-reference/api-reference/guides/autopilot/merchant-features">
+    Self-tuning SR scoring, plus every merchant-level toggle.
+  </Card>
+</CardGroup>
+
+## Ways to route transactions
+
+`/decide-gateway` supports several strategies, selected per request with `rankingAlgorithm`.
+
+| Strategy | Request value | Guide |
+| --- | --- | --- |
+| Success-rate (auth-rate) based | `SR_BASED_ROUTING` | [SR-based routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-sr-based) |
+| Priority-list based | `PL_BASED_ROUTING` | [Priority-list routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-pl-based) |
+| Debit / network based | `NTW_BASED_ROUTING` | [Debit routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-debit-routing) |
+| Network + SR hybrid | `NTW_SR_HYBRID_ROUTING` | [Hybrid routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-hybrid-routing) |
+
+<Info>
+  **Multi-objective (cost-aware) routing** is not a `rankingAlgorithm` value. It is a post-step on success-rate scoring, toggled per request with `enableMultiObjective` or per merchant with the `multi_objective_routing_enabled` feature flag. When active, responses carry a `multi_objective_info` block. See [Multi-objective routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective).
+</Info>
+
+## Advanced capabilities
+
+Beyond the core decide/feedback loop, Decision Engine ships several self-contained systems that build on it:
+
+| Capability | What it does | Start here |
+| --- | --- | --- |
+| Cost data ingestion | Learns each connector's actual fee (from settlement reports and invoices) at a per-cluster level, feeding multi-objective routing's expected-value ranking. | [Connector setup](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-setup) → [uploads](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-uploads) → [fees & coverage](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-fees) |
+| A/B testing | Splits traffic between a control and variant routing strategy — auth vs. cost-aware, manual vs. autopilot, or any two saved algorithms — with a guardrail and significance testing. | [Create an experiment](/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-create) → [read results](/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-results) |
+| Simulation | Preview what any routing algorithm (including an A/B test arm) would decide for a given payment context, without a real transaction. | [Evaluate Routing Algorithm](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-evaluate) |
+| Autopilot & auto-calibration | Background job that self-tunes SR hedging % and bucket size from observed traffic, with a hard-reset endpoint for simulation runs. | [Merchant Features](/decision-engine-api-reference/api-reference/guides/autopilot/merchant-features) |
+
+## Backward compatibility
+
+Legacy routes are kept for older integrations. New integrations should use `/decide-gateway` and `/update-gateway-score`.
+
+- [Legacy decision endpoint](/decision-engine-api-reference/api-reference/guides/legacy/decision-gateway-legacy) — the older `/decision_gateway` route.
+- [Legacy update score](/decision-engine-api-reference/api-reference/guides/legacy/update-score-legacy) — the older `/update-score` route.

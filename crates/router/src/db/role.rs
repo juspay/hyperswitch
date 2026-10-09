@@ -227,6 +227,7 @@ impl RoleInterface for MockDb {
             last_modified_by: role.last_modified_by,
             profile_id: role.profile_id,
             tenant_id: role.tenant_id,
+            merchant_product_type: role.merchant_product_type,
         };
         roles.push(role.clone());
         Ok(role)

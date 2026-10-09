@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -117,7 +117,7 @@ impl TryFrom<UpiCollectData> for DummyConnectorUpi {
     fn try_from(value: UpiCollectData) -> Result<Self, Self::Error> {
         Ok(Self::UpiCollect(DummyConnectorUpiCollect {
             vpa_id: value.vpa_id.ok_or(ConnectorError::MissingRequiredField {
-                field_name: "vpa_id",
+                field_name: "vpa_id".into(),
             })?,
         }))
     }
@@ -314,9 +314,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaymentsResponse, T, PaymentsResponseDa
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

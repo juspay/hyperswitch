@@ -8,6 +8,7 @@ use router_env::{instrument, tracing};
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
             helpers,
@@ -46,13 +47,14 @@ impl ValidateStatusForOperation for PaymentGet {
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
-            | common_enums::IntentStatus::Expired => Ok(()),
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Review => Ok(()),
             // These statuses are not valid for this operation
             common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresPaymentMethod => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
-                    field_name: "status".to_string(),
+                    field_name: "status".into(),
                     current_value: intent_status.to_string(),
                     states: [
                         common_enums::IntentStatus::RequiresCapture,
@@ -65,6 +67,7 @@ impl ValidateStatusForOperation for PaymentGet {
                         common_enums::IntentStatus::PartiallyCapturedAndCapturable,
                         common_enums::IntentStatus::PartiallyCaptured,
                         common_enums::IntentStatus::Cancelled,
+                        common_enums::IntentStatus::Review,
                     ]
                     .map(|enum_value| enum_value.to_string())
                     .join(", "),
@@ -177,7 +180,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
 
         let active_attempt_id = payment_intent.active_attempt_id.as_ref().ok_or_else(|| {
             errors::ApiErrorResponse::MissingRequiredField {
-                field_name: ("active_attempt_id"),
+                field_name: "active_attempt_id".into(),
             }
         })?;
 
@@ -194,7 +197,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
         payment_attempt.encoded_data = request
             .param
             .as_ref()
-            .map(|val| masking::Secret::new(val.clone()));
+            .map(|val| hyperswitch_masking::Secret::new(val.clone()));
 
         let should_sync_with_connector =
             request.force_sync && payment_intent.status.should_force_sync_with_connector();
@@ -284,8 +287,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
         _state: &'a SessionState,
         _payment_data: &mut PaymentStatusData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-        _key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -369,13 +371,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentStatusData<F>, PaymentsRetrieveReq
         &'b self,
         _state: &'b SessionState,
         _req_state: ReqState,
+        _processor: &domain::Processor,
         payment_data: PaymentStatusData<F>,
-        _customer: Option<domain::Customer>,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentStatusData<F>)>
     where
         F: 'b + Send,

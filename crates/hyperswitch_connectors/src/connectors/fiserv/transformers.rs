@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{ser::Serializer, Deserialize, Serialize};
 
 use crate::{
@@ -384,7 +384,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
         if item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "Cards 3DS".to_string(),
-                connector: "Fiserv",
+                connector: "Fiserv".into(),
             })?
         }
 
@@ -449,7 +449,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                         .tokenization_data
                         .get_encrypted_google_pay_token()
                         .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "gpay wallet_token",
+                            field_name: "gpay wallet_token".into(),
                         })?
                         .to_owned();
 
@@ -500,7 +500,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                         .complete_authorize_url
                         .clone()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "return_url",
+                            field_name: "return_url".into(),
                         })?;
                     Ok(FiservCheckoutChargesRequest::Checkout(
                         CheckoutPaymentsRequest {
@@ -558,7 +558,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                                         .get_expiry_month()
                                         .change_context(
                                             errors::ConnectorError::MissingRequiredField {
-                                                field_name: "apple_pay_expiry_month",
+                                                field_name: "apple_pay_expiry_month".into(),
                                             },
                                         )?,
                                     expiration_year: pre_decrypt_data.get_four_digit_expiry_year(),
@@ -607,12 +607,13 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                             application_data_hash: None,
                         };
 
-                        let apple_pay_metadata = item.router_data.get_connector_meta()?.expose();
+                        let apple_pay_metadata = item.router_data.get_connector_meta()?;
                         let applepay_metadata = apple_pay_metadata
                             .clone()
                             .parse_value::<ApplepayCombinedSessionTokenData>(
                                 "ApplepayCombinedSessionTokenData",
                             )
+                            .change_context(errors::ConnectorError::ParsingFailed)
                             .map(|combined_metadata| {
                                 ApplepaySessionTokenMetadata::ApplePayCombined(
                                     combined_metadata.apple_pay_combined,
@@ -623,17 +624,19 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                                     .parse_value::<ApplepaySessionTokenData>(
                                         "ApplepaySessionTokenData",
                                     )
+                                    .change_context(errors::ConnectorError::ParsingFailed)
                                     .map(|old_metadata| {
                                         ApplepaySessionTokenMetadata::ApplePay(
                                             old_metadata.apple_pay,
                                         )
                                     })
-                            })
-                            .change_context(errors::ConnectorError::ParsingFailed)?;
+                            })?;
 
                         let merchant_identifier = match applepay_metadata {
                             ApplepaySessionTokenMetadata::ApplePayCombined(ref combined) => {
-                                match combined {
+                                match combined.get_combined_metadata_required().change_context(
+                                    errors::ConnectorError::MissingApplePayTokenData,
+                                )? {
                                     ApplePayCombinedMetadata::Simplified { .. } => {
                                         return Err(
                                             errors::ConnectorError::MissingApplePayTokenData.into(),
@@ -641,7 +644,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                                     }
                                     ApplePayCombinedMetadata::Manual {
                                         session_token_data, ..
-                                    } => &session_token_data.merchant_identifier,
+                                    } => &session_token_data.merchant_identifier.clone(),
                                 }
                             }
                             ApplepaySessionTokenMetadata::ApplePay(ref data) => {
@@ -701,7 +704,12 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Err(
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Err(
                 error_stack::report!(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiserv"),
                 )),
@@ -939,6 +947,7 @@ pub enum FiservOrderStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum FiservPaymentsResponse {
     Charges(FiservChargesResponse),
     Checkout(FiservCheckoutResponse),
@@ -1012,11 +1021,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservPaymentsResponse, T, PaymentsResp
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     gateway_resp.transaction_processing_details.order_id,
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1070,9 +1082,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservSyncResponse, T, PaymentsResponse
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(connector_response_reference_id.to_string()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

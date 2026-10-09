@@ -3,21 +3,24 @@ use common_utils::types::{MinorUnit, StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{GiftCardData, PaymentMethodData},
-    router_data::{
-        AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodBalance, RouterData,
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{
+        refunds::{Execute, RSync},
+        GiftCardBalanceCheck,
     },
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, PreprocessingResponseId, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData},
+    router_request_types::{GiftCardBalanceCheckRequestData, ResponseId},
+    router_response_types::{
+        GiftCardBalanceCheckResponseData, PaymentsResponseData, RefundsResponseData,
+    },
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsGiftCardBalanceCheckRouterData, RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::{consts::NO_ERROR_MESSAGE, errors};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{
-    PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
-};
+use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 pub struct BlackhawknetworkRouterData<T> {
     pub amount: StringMajorUnit,
@@ -97,14 +100,14 @@ pub struct BlackhawknetworkVerifyAccountRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expiration_date: Option<Secret<String>>,
 }
-impl TryFrom<&PaymentsPreProcessingRouterData> for BlackhawknetworkVerifyAccountRequest {
+impl TryFrom<&PaymentsGiftCardBalanceCheckRouterData> for BlackhawknetworkVerifyAccountRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsGiftCardBalanceCheckRouterData) -> Result<Self, Self::Error> {
         let auth = BlackhawknetworkAuthType::try_from(&item.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
         let gift_card_data = match &item.request.payment_method_data {
-            Some(PaymentMethodData::GiftCard(gc)) => match gc.as_ref() {
+            PaymentMethodData::GiftCard(gc) => match gc.as_ref() {
                 GiftCardData::BhnCardNetwork(data) => data,
                 _ => {
                     return Err(errors::ConnectorError::FlowNotSupported {
@@ -133,26 +136,34 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for BlackhawknetworkVerifyAccount
         })
     }
 }
-
-impl TryFrom<PaymentsPreprocessingResponseRouterData<BlackhawknetworkVerifyAccountResponse>>
-    for PaymentsPreProcessingRouterData
+impl
+    TryFrom<
+        ResponseRouterData<
+            GiftCardBalanceCheck,
+            BlackhawknetworkVerifyAccountResponse,
+            GiftCardBalanceCheckRequestData,
+            GiftCardBalanceCheckResponseData,
+        >,
+    >
+    for RouterData<
+        GiftCardBalanceCheck,
+        GiftCardBalanceCheckRequestData,
+        GiftCardBalanceCheckResponseData,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<BlackhawknetworkVerifyAccountResponse>,
+        item: ResponseRouterData<
+            GiftCardBalanceCheck,
+            BlackhawknetworkVerifyAccountResponse,
+            GiftCardBalanceCheckRequestData,
+            GiftCardBalanceCheckResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(PaymentsResponseData::PreProcessingResponse {
-                pre_processing_id: PreprocessingResponseId::PreProcessingId(
-                    item.response.account.entity_id,
-                ),
-                connector_metadata: None,
-                session_token: None,
-                connector_response_reference_id: None,
-            }),
-            payment_method_balance: Some(PaymentMethodBalance {
+            response: Ok(GiftCardBalanceCheckResponseData {
                 currency: item.response.account.currency,
-                amount: item.response.account.balance,
+                balance: item.response.account.balance,
             }),
             ..item.data
         })
@@ -246,9 +257,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, BlackhawknetworkRedeemResponse, T, Paym
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -263,6 +277,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BlackhawknetworkRedeemResponse, T, Paym
                     reason: error_response.error_description,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

@@ -175,6 +175,7 @@ pub enum FraudCheckLastStep {
     CheckoutOrSale,
     TransactionOrRecordRefund,
     Fulfillment,
+    PoFrm,
 }
 
 #[derive(
@@ -237,6 +238,10 @@ pub enum DashboardMetadata {
     IsChangePasswordRequired,
     OnboardingSurvey,
     ReconStatus,
+    #[cfg(feature = "v1")]
+    PaymentViews,
+    #[cfg(feature = "v1")]
+    PaymentAdvancedViews,
 }
 
 #[derive(

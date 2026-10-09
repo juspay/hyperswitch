@@ -1,22 +1,27 @@
-#[cfg(feature = "v1")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 use std::fmt;
 use std::{
     collections::{HashMap, HashSet},
-    num::NonZeroI64,
+    num::{NonZeroI64, NonZeroU8},
 };
 pub mod additional_info;
+pub mod recipient;
 pub mod trait_impls;
-use cards::CardNumber;
+use cards::{CardBin, CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
-use common_enums::{GooglePayCardFundingSource, ProductType};
+#[cfg(feature = "v1")]
+pub use common_enums::FingerprintType;
+use common_enums::{self, GooglePayCardFundingSource, ProductType};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
-use common_types::{payments as common_payments_types, primitive_wrappers};
+use common_types::{
+    customers::DocumentKind, payments as common_payments_types, primitive_wrappers,
+};
 use common_utils::{
-    consts::default_payments_list_limit,
+    consts::DISCOUNT_PERCENTAGE_PRECISION_LENGTH,
     crypto,
     errors::ValidationError,
     ext_traits::{ConfigExt, Encode, ValueExt},
@@ -24,16 +29,22 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{AmountConvertor, MinorUnit, SemanticVersion, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, Percentage, SemanticVersion, StringMajorUnit, TimeRange},
 };
 use error_stack::ResultExt;
 
-#[cfg(feature = "v2")]
-fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
+pub use self::recipient::{
+    MaskedRecipientAccount, MaskedRecipientBankAccount, MaskedRecipientDetails, RecipientAccount,
+    RecipientBankAccount, RecipientDetails,
+};
+use crate::customers::CustomerDocumentDetails;
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+pub(crate) fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
 where
-    D: serde::Deserializer<'de>,
+    D: Deserializer<'de>,
     T: std::str::FromStr,
-    <T as std::str::FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
+    <T as std::str::FromStr>::Err: fmt::Debug + fmt::Display + std::error::Error,
 {
     let opt_str: Option<String> = Option::deserialize(v)?;
     match opt_str {
@@ -47,7 +58,7 @@ where
                 let trimmed_item = item.trim();
                 if !trimmed_item.is_empty() {
                     let parsed_item = trimmed_item.parse::<T>().map_err(|e| {
-                        <D::Error as serde::de::Error>::custom(format!(
+                        <D::Error as de::Error>::custom(format!(
                             "Invalid value '{trimmed_item}': {e}"
                         ))
                     })?;
@@ -59,9 +70,9 @@ where
         None => Ok(None),
     }
 }
-use masking::{PeekInterface, Secret, WithType};
+use hyperswitch_masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
-#[cfg(feature = "v1")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 use serde::{de, Deserializer};
 use serde::{ser::Serializer, Deserialize, Serialize};
 use smithy::SmithyModel;
@@ -70,6 +81,8 @@ use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
+#[cfg(all(feature = "v1", feature = "errors"))]
+use crate::errors::types::ErrorResponse;
 #[cfg(feature = "v2")]
 use crate::mandates;
 use crate::{
@@ -79,12 +92,13 @@ use crate::{
     payment_methods,
     payments::additional_info::{
         BankDebitAdditionalData, BankRedirectDetails, BankTransferAdditionalData,
-        CardTokenAdditionalData, GiftCardAdditionalData, UpiAdditionalData,
-        WalletAdditionalDataForCard,
+        CardTokenAdditionalData, GiftCardAdditionalData, PaypalWalletAdditionalData,
+        UpiAdditionalData, WalletAdditionalDataForCard,
     },
+    platform,
 };
 #[cfg(feature = "v1")]
-use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
+use crate::{disputes, refunds, ValidateFieldAndGet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -119,13 +133,15 @@ pub struct BankCodeResponse {
 }
 
 /// Passing this object creates a new customer or attaches an existing customer to the payment
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq, SmithyModel)]
+#[derive(
+    Debug, Default, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDetails {
     /// The identifier for the customer.
-    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    #[smithy(value_type = "String")]
-    pub id: id_type::CustomerId,
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[smithy(value_type = "Option<String>")]
+    pub id: Option<id_type::CustomerId>,
 
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "John Doe")]
@@ -151,6 +167,16 @@ pub struct CustomerDetails {
     #[schema(value_type=Option<String>,max_length = 255)]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: Option<Secret<String>>,
+
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub document_details: Option<CustomerDocumentDetails>,
+
+    /// The customer's date of birth
+    #[schema(value_type = Option<Date>, example = "1990-01-31")]
+    #[smithy(value_type = "Option<String>")]
+    pub date_of_birth: Option<Secret<Date>>,
 }
 
 #[cfg(feature = "v1")]
@@ -192,6 +218,11 @@ pub struct CustomerDetailsResponse {
     #[schema(max_length = 2, example = "+1")]
     #[smithy(value_type = "Option<String>")]
     pub phone_country_code: Option<String>,
+
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub customer_document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -253,7 +284,7 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -298,7 +329,7 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     pub connector_metadata: Option<ConnectorMetadata>,
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
@@ -340,6 +371,15 @@ pub struct PaymentsCreateIntentRequest {
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+
+    /// Indicates whether this payment is an account funded transaction, where funds are pulled
+    /// from a card account to fund another account rather than to pay for goods or services.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<RecipientDetails>)]
+    pub recipient_details: Option<RecipientDetails>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -483,7 +523,7 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     #[schema(value_type = Option<ConnectorMetadata>)]
     pub connector_metadata: Option<ConnectorMetadata>,
 
@@ -520,6 +560,14 @@ pub struct PaymentsUpdateIntentRequest {
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+
+    /// Indicates whether this payment is an account funded transaction.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<RecipientDetails>)]
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -553,6 +601,8 @@ impl PaymentsUpdateIntentRequest {
             frm_metadata: None,
             request_external_three_ds_authentication: None,
             enable_partial_authorization: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
         }
     }
 }
@@ -613,7 +663,7 @@ pub struct PaymentsIntentResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -658,7 +708,7 @@ pub struct PaymentsIntentResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     #[schema(value_type = Option<ConnectorMetadata>)]
     pub connector_metadata: Option<ConnectorMetadata>,
 
@@ -701,6 +751,14 @@ pub struct PaymentsIntentResponse {
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+
+    /// Indicates whether this payment is an account funded transaction.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Partially masked details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<MaskedRecipientDetails>)]
+    pub recipient_details: Option<MaskedRecipientDetails>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -759,7 +817,7 @@ pub struct RevenueRecoveryGetIntentResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -804,7 +862,7 @@ pub struct RevenueRecoveryGetIntentResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     #[schema(value_type = Option<ConnectorMetadata>)]
     pub connector_metadata: Option<ConnectorMetadata>,
 
@@ -1087,6 +1145,29 @@ impl AmountDetailsUpdate {
         self.tax_on_surcharge
     }
 }
+
+/// Installment selection sent by the customer during payment confirmation.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct InstallmentRequest {
+    /// Number of installments chosen by the customer
+    #[schema(value_type = u8)]
+    pub number_of_installments: NonZeroU8,
+    /// Billing frequency for the chosen installment plan
+    #[schema(value_type = BillingFrequency)]
+    pub billing_frequency: common_payments_types::BillingFrequency,
+}
+
+impl From<InstallmentRequest> for common_payments_types::InstallmentData {
+    fn from(data: InstallmentRequest) -> Self {
+        Self {
+            number_of_installments: data.number_of_installments,
+            billing_frequency: data.billing_frequency,
+            installment_interest: None,
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(
     Default,
@@ -1191,7 +1272,7 @@ pub struct PaymentsRequest {
     pub customer: Option<CustomerDetails>,
 
     /// The identifier for the customer
-    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44", deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub customer_id: Option<id_type::CustomerId>,
 
@@ -1288,6 +1369,7 @@ pub struct PaymentsRequest {
     pub client_secret: Option<String>,
 
     /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<MandateData>")]
     pub mandate_data: Option<MandateData>,
 
@@ -1297,7 +1379,7 @@ pub struct PaymentsRequest {
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
-    #[schema(max_length = 64, example = "mandate_iwer89rnjef349dni3")]
+    #[schema(max_length = 64, example = "mandate_iwer89rnjef349dni3", deprecated)]
     #[remove_in(PaymentsUpdateRequest)]
     #[smithy(value_type = "Option<String>")]
     pub mandate_id: Option<String>,
@@ -1329,14 +1411,14 @@ pub struct PaymentsRequest {
 
     /// Business country of the merchant for this payment.
     /// To be deprecated soon. Pass the profile_id instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     #[smithy(value_type = "Option<CountryAlpha2>")]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// Business label of the merchant for this payment.
     /// To be deprecated soon. Pass the profile_id instead
-    #[schema(example = "food")]
+    #[schema(example = "food", deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     #[smithy(value_type = "Option<String>")]
     pub business_label: Option<String>,
@@ -1350,7 +1432,8 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<Vec<PaymentMethodType>>")]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
-    /// Business sub label for the payment
+    /// Business sub label for the payment. To be deprecated soon. Pass the profile_id instead
+    #[schema(deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest, PaymentsCreateRequest)]
     pub business_sub_label: Option<String>,
 
@@ -1365,7 +1448,7 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<Object>")]
     pub metadata: Option<serde_json::Value>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     #[smithy(value_type = "Option<ConnectorMetadata>")]
     pub connector_metadata: Option<ConnectorMetadata>,
 
@@ -1395,6 +1478,11 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<RequestSurchargeDetails>)]
     #[smithy(value_type = "Option<RequestSurchargeDetails>")]
     pub surcharge_details: Option<RequestSurchargeDetails>,
+
+    /// Offer Engine offer selection to apply during confirm. When present, the
+    /// referenced quote is applied via Offer Engine `/apply` before the PSP call.
+    #[schema(value_type = Option<OfferSelection>)]
+    pub offer_details: Option<OfferSelection>,
 
     /// The type of the payment that differentiates between normal and various types of mandate payments
     #[schema(value_type = Option<PaymentType>)]
@@ -1528,7 +1616,7 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<bool>")]
     pub is_stored_credential: Option<bool>,
 
-    /// The category of the MIT transaction
+    /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     #[smithy(value_type = "Option<MitCategory>")]
     pub mit_category: Option<api_enums::MitCategory>,
@@ -1536,6 +1624,16 @@ pub struct PaymentsRequest {
     /// Billing descriptor information for the payment
     #[schema(value_type = Option<BillingDescriptor>)]
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+
+    /// Indicates whether this payment is an account funded transaction.
+    #[schema(value_type = Option<bool>, example = true)]
+    #[remove_in(PaymentsConfirmRequest)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<RecipientDetails>)]
+    #[remove_in(PaymentsConfirmRequest)]
+    pub recipient_details: Option<RecipientDetails>,
 
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>, example = "tokenize_at_psp")]
@@ -1545,6 +1643,21 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PartnerMerchantIdentifierDetails>)]
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+
+    /// Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.
+    #[schema(value_type = Option<Vec<InstallmentOption>>)]
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+
+    /// Installment data selected by the customer during payment confirmation. This is used to specify the chosen number of installments and billing frequency.
+    pub installment_data: Option<InstallmentRequest>,
+
+    /// Identification for the profile acquirer to be used for this payment.
+    #[schema(value_type = Option<String>)]
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+
+    /// The strategy to use when applying surcharge for this payment.
+    #[schema(value_type = Option<SurchargeStrategy>)]
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -1595,9 +1708,11 @@ impl PaymentsRequest {
     /// First check the id for `customer.id`
     /// If not present, check for `customer_id` at the root level
     pub fn get_customer_id(&self) -> Option<&id_type::CustomerId> {
-        self.customer_id
-            .as_ref()
-            .or(self.customer.as_ref().map(|customer| &customer.id))
+        self.customer_id.as_ref().or_else(|| {
+            self.customer
+                .as_ref()
+                .and_then(|customer| customer.id.as_ref())
+        })
     }
 
     pub fn validate_and_get_request_extended_authorization(
@@ -1626,7 +1741,7 @@ impl PaymentsRequest {
         }) = self.customer.as_ref()
         {
             let invalid_fields = [
-                are_optional_values_invalid(self.customer_id.as_ref(), Some(id))
+                are_optional_values_invalid(self.customer_id.as_ref(), id.as_ref())
                     .then_some("customer_id and customer.id"),
                 are_optional_values_invalid(self.email.as_ref(), email.as_ref())
                     .then_some("email and customer.email"),
@@ -1652,6 +1767,16 @@ impl PaymentsRequest {
         } else {
             None
         }
+    }
+
+    pub fn validate_document_details(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        self.customer
+            .as_ref()
+            .and_then(|data| data.document_details.as_ref())
+            .map(|doc| doc.validate())
+            .unwrap_or(Ok(()))
     }
 
     pub fn get_feature_metadata_as_value(
@@ -1724,17 +1849,58 @@ impl PaymentsRequest {
         }
     }
 
-    pub fn validate_mit_request(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
-        if self.mit_category.is_some()
-            && (!matches!(self.off_session, Some(true)) || self.recurring_details.is_none())
-        {
-            return Err(ValidationError::InvalidValue {
-                message: "`mit_category` requires both: (1) `off_session = true`, and (2) `recurring_details`.".to_string(),
-            }
-            .into());
+    pub fn validate_installment_options(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        if let Some(installment_options) = &self.installment_options {
+            installment_options
+                .iter()
+                .try_fold(HashSet::new(), |mut seen, opt| {
+                    opt.payment_method
+                        .supports_installments()
+                        .then_some(())
+                        .ok_or_else(|| ValidationError::InvalidValue {
+                            message:
+                                "installment_options is only supported for payment method card."
+                                    .to_string(),
+                        })?;
+                    seen.insert(opt.payment_method)
+                        .then_some(seen)
+                        .ok_or_else(|| ValidationError::InvalidValue {
+                            message: format!(
+                                "duplicate payment_method '{}' in installment_options.",
+                                opt.payment_method
+                            ),
+                        })
+                })?;
         }
-
         Ok(())
+    }
+
+    pub fn for_payment_link(self) -> Self {
+        Self {
+            amount: self.amount,
+            currency: self.currency,
+            return_url: self.return_url,
+            payment_id: self.payment_id,
+            authentication_type: self.authentication_type,
+            billing: self.billing,
+            customer: self.customer,
+            description: self.description,
+            setup_future_usage: self.setup_future_usage,
+            order_details: self.order_details,
+            metadata: self.metadata,
+            payment_link_config_id: self.payment_link_config_id,
+            profile_id: self.profile_id,
+            routing: self.routing,
+            session_expiry: self.session_expiry,
+            merchant_order_reference_id: self.merchant_order_reference_id,
+            allowed_payment_method_types: self.allowed_payment_method_types,
+            capture_method: self.capture_method,
+            payment_link: Some(true),
+            confirm: Some(false),
+            ..Default::default()
+        }
     }
 }
 
@@ -1763,12 +1929,14 @@ mod payments_request_test {
         let customer_id = generate_customer_id_of_default_length();
 
         let customer_object = CustomerDetails {
-            id: customer_id.clone(),
+            id: Some(customer_id.clone()),
             name: None,
             email: None,
             phone: None,
             phone_country_code: None,
             tax_registration_id: None,
+            document_details: None,
+            date_of_birth: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -1788,12 +1956,14 @@ mod payments_request_test {
         let another_customer_id = generate_customer_id_of_default_length();
 
         let customer_object = CustomerDetails {
-            id: customer_id.clone(),
+            id: Some(customer_id.clone()),
             name: None,
             email: None,
             phone: None,
             phone_country_code: None,
             tax_registration_id: None,
+            document_details: None,
+            date_of_birth: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -1828,6 +1998,12 @@ pub struct RequestSurchargeDetails {
     pub surcharge_amount: MinorUnit,
     #[smithy(value_type = "Option<i64>")]
     pub tax_amount: Option<MinorUnit>,
+    /// The surcharge percentage returned by the surcharge connector (e.g. InterPayments), if
+    /// available. Present only on responses when an external surcharge connector supplied it;
+    /// ignored on requests.
+    #[schema(value_type = Option<f64>, example = 3.25)]
+    #[smithy(value_type = "Option<f64>")]
+    pub surcharge_percentage: Option<f64>,
 }
 
 // for v2 use the type from common_utils::types
@@ -1985,6 +2161,7 @@ pub struct PaymentAttemptResponse {
     #[smithy(value_type = "Option<String>")]
     pub cancellation_reason: Option<String>,
     /// If this payment attempt is associated with a mandate (e.g., for a recurring or subsequent payment), this field will contain the ID of that mandate.
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub mandate_id: Option<String>,
     /// The error code returned by the connector if this payment attempt failed. This code is specific to the connector.
@@ -2020,6 +2197,10 @@ pub struct PaymentAttemptResponse {
     /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
     #[smithy(value_type = "Option<String>")]
     pub client_version: Option<String>,
+    /// Complete error details containing unified, issuer, and connector-level error information
+    #[schema(value_type = Option<PaymentErrorDetails>)]
+    #[smithy(value_type = "Option<PaymentErrorDetails>")]
+    pub error_details: Option<PaymentErrorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -2088,7 +2269,7 @@ pub struct PaymentAttemptResponse {
     pub connector_payment_id: Option<common_utils::types::ConnectorTransactionId>,
 
     /// Identifier for Payment Method used for the payment attempt
-    #[schema(value_type = Option<String>, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    #[schema(value_type = Option<String>, example = "0a_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 
     /// Value passed in X-CLIENT-SOURCE header during payments confirm request by the client
@@ -2131,7 +2312,7 @@ pub struct PaymentAttemptRecordResponse {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct RecoveryPaymentsResponse {
-    /// Unique identifier for the payment.
+    /// Unique identifier of the invoice in Hyperswitch against which the transaction has been recorded.
     #[schema(
         min_length = 30,
         max_length = 30,
@@ -2140,16 +2321,17 @@ pub struct RecoveryPaymentsResponse {
     )]
     pub id: id_type::GlobalPaymentId,
 
+    /// Current status of the payment after the transaction has been recorded.
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
     pub intent_status: api_enums::IntentStatus,
 
-    /// Unique identifier for the payment. This ensures idempotency for multiple payments
-    /// that have been done by a single merchant.
+    /// Unique identifier of the invoice in the merchant's billing system against which the
+    /// transaction is being recorded.
     #[schema(
         value_type = Option<String>,
         min_length = 30,
         max_length = 30,
-        example = "pay_mbabizu24mvu3mela5njyhpit4"
+        example = "invoice_mbabizu24mvu3mela5njyh"
     )]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 }
@@ -2279,182 +2461,6 @@ pub struct VerifyRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, Copy)]
-#[serde(rename_all = "snake_case")]
-pub enum MandateTransactionType {
-    NewMandateTransaction,
-    RecurringMandateTransaction,
-}
-
-#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct MandateIds {
-    pub mandate_id: Option<String>,
-    pub mandate_reference_id: Option<MandateReferenceId>,
-}
-
-impl MandateIds {
-    pub fn is_network_transaction_id_flow(&self) -> bool {
-        matches!(
-            self.mandate_reference_id,
-            Some(MandateReferenceId::NetworkMandateId(_))
-        )
-    }
-
-    pub fn get_connector_mandate_id(&self) -> Option<String> {
-        match &self.mandate_reference_id {
-            Some(MandateReferenceId::ConnectorMandateId(data)) => data.connector_mandate_id.clone(),
-            _ => None,
-        }
-    }
-
-    pub fn get_connector_mandate_metadata(&self) -> Option<pii::SecretSerdeValue> {
-        match &self.mandate_reference_id {
-            Some(MandateReferenceId::ConnectorMandateId(data)) => data.mandate_metadata.clone(),
-            _ => None,
-        }
-    }
-
-    pub fn get_updated_mandate_details_of_connector_mandate_id(
-        &self,
-    ) -> Option<UpdatedMandateDetails> {
-        match &self.mandate_reference_id {
-            Some(MandateReferenceId::ConnectorMandateId(data)) => {
-                data.updated_mandate_details.clone()
-            }
-            _ => None,
-        }
-    }
-}
-
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub enum MandateReferenceId {
-    ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id send by connector
-    NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with card data
-    NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with network token data
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
-pub struct NetworkTokenWithNTIRef {
-    pub network_transaction_id: String,
-    pub token_exp_month: Option<Secret<String>>,
-    pub token_exp_year: Option<Secret<String>>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
-pub struct ConnectorMandateReferenceId {
-    connector_mandate_id: Option<String>,
-    payment_method_id: Option<String>,
-    update_history: Option<Vec<UpdateHistory>>,
-    mandate_metadata: Option<pii::SecretSerdeValue>,
-    connector_mandate_request_reference_id: Option<String>,
-    updated_mandate_details: Option<UpdatedMandateDetails>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]
-pub struct UpdatedMandateDetails {
-    pub card_network: Option<common_enums::CardNetwork>,
-    pub card_exp_month: Option<Secret<String>>,
-    pub card_exp_year: Option<Secret<String>>,
-    pub card_isin: Option<String>,
-}
-
-impl From<AdditionalCardInfo> for UpdatedMandateDetails {
-    fn from(card_info: AdditionalCardInfo) -> Self {
-        Self {
-            card_network: card_info.card_network,
-            card_exp_month: card_info.card_exp_month,
-            card_exp_year: card_info.card_exp_year,
-            card_isin: card_info.card_isin,
-        }
-    }
-}
-
-impl From<&UpdatedMandateDetails> for AdditionalCardInfo {
-    fn from(card_info: &UpdatedMandateDetails) -> Self {
-        Self {
-            card_network: card_info.card_network.clone(),
-            card_exp_month: card_info.card_exp_month.clone(),
-            card_exp_year: card_info.card_exp_year.clone(),
-            card_isin: card_info.card_isin.clone(),
-            card_issuer: None,
-            card_type: None,
-            card_issuing_country: None,
-            bank_code: None,
-            last4: None,
-            card_extended_bin: None,
-            card_holder_name: None,
-            payment_checks: None,
-            authentication_data: None,
-            is_regulated: None,
-            signature_network: None,
-        }
-    }
-}
-
-impl ConnectorMandateReferenceId {
-    pub fn new(
-        connector_mandate_id: Option<String>,
-        payment_method_id: Option<String>,
-        update_history: Option<Vec<UpdateHistory>>,
-        mandate_metadata: Option<pii::SecretSerdeValue>,
-        connector_mandate_request_reference_id: Option<String>,
-        updated_mandate_details: Option<UpdatedMandateDetails>,
-    ) -> Self {
-        Self {
-            connector_mandate_id,
-            payment_method_id,
-            update_history,
-            mandate_metadata,
-            connector_mandate_request_reference_id,
-            updated_mandate_details,
-        }
-    }
-
-    pub fn get_connector_mandate_id(&self) -> Option<String> {
-        self.connector_mandate_id.clone()
-    }
-    pub fn get_payment_method_id(&self) -> Option<String> {
-        self.payment_method_id.clone()
-    }
-    pub fn get_mandate_metadata(&self) -> Option<pii::SecretSerdeValue> {
-        self.mandate_metadata.clone()
-    }
-    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
-        self.connector_mandate_request_reference_id.clone()
-    }
-
-    pub fn update(
-        &mut self,
-        connector_mandate_id: Option<String>,
-        payment_method_id: Option<String>,
-        update_history: Option<Vec<UpdateHistory>>,
-        mandate_metadata: Option<pii::SecretSerdeValue>,
-        connector_mandate_request_reference_id: Option<String>,
-    ) {
-        self.connector_mandate_id = connector_mandate_id.or(self.connector_mandate_id.clone());
-        self.payment_method_id = payment_method_id.or(self.payment_method_id.clone());
-        self.update_history = update_history.or(self.update_history.clone());
-        self.mandate_metadata = mandate_metadata.or(self.mandate_metadata.clone());
-        self.connector_mandate_request_reference_id = connector_mandate_request_reference_id
-            .or(self.connector_mandate_request_reference_id.clone());
-    }
-}
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]
-pub struct UpdateHistory {
-    pub connector_mandate_id: Option<String>,
-    pub payment_method_id: String,
-    pub original_payment_id: Option<id_type::PaymentId>,
-}
-
-impl MandateIds {
-    pub fn new(mandate_id: String) -> Self {
-        Self {
-            mandate_id: Some(mandate_id),
-            mandate_reference_id: None,
-        }
-    }
-}
-
 /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
 // The fields on this struct are optional, as we want to allow the merchant to provide partial
 // information about creating mandates
@@ -2470,6 +2476,7 @@ impl MandateIds {
     SmithyModel,
 )]
 #[serde(deny_unknown_fields)]
+#[schema(deprecated)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MandateData {
     /// A way to update the mandate's payment method details
@@ -2610,9 +2617,109 @@ pub struct Card {
     #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
 
+    /// The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`
+    #[schema(example = "CLASSIC")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_subtype: Option<String>,
+
+    /// The segment the card is issued to
+    #[schema(value_type = Option<CardSegmentType>, example = "consumer")]
+    #[smithy(value_type = "Option<CardSegmentType>")]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+
+    /// How the card is funded. More granular than `card_type`, which collapses
+    /// deferred debit and charge cards.
+    #[schema(value_type = Option<FundingSource>, example = "CREDIT")]
+    #[smithy(value_type = "Option<FundingSource>")]
+    pub funding_source: Option<api_enums::FundingSource>,
+
     #[schema(example = "INDIA")]
     #[smithy(value_type = "Option<String>")]
     pub card_issuing_country: Option<String>,
+
+    #[schema(example = "IN")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country_code: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    #[smithy(value_type = "Option<String>")]
+    pub bank_code: Option<String>,
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub nick_name: Option<Secret<String>>,
+}
+
+#[derive(
+    Default,
+    Eq,
+    PartialEq,
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    ToSchema,
+    SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct CardWithNoCVC {
+    /// The card number
+    #[schema(value_type = String, example = "4242424242424242")]
+    #[smithy(value_type = "String")]
+    pub card_number: CardNumber,
+
+    /// The card's expiry month
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    #[schema(example = "CREDIT")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_type: Option<String>,
+
+    /// The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`
+    #[schema(example = "CLASSIC")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_subtype: Option<String>,
+
+    /// The segment the card is issued to
+    #[schema(value_type = Option<CardSegmentType>, example = "consumer")]
+    #[smithy(value_type = "Option<CardSegmentType>")]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+
+    /// How the card is funded. More granular than `card_type`, which collapses
+    /// deferred debit and charge cards.
+    #[schema(value_type = Option<FundingSource>, example = "CREDIT")]
+    #[smithy(value_type = "Option<FundingSource>")]
+    pub funding_source: Option<api_enums::FundingSource>,
+
+    #[schema(example = "INDIA")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "IN")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country_code: Option<String>,
 
     #[schema(example = "JP_AMEX")]
     #[smithy(value_type = "Option<String>")]
@@ -2638,6 +2745,9 @@ impl TryFrom<payment_methods::CardDetail> for Card {
             nick_name,
             card_network,
             card_issuer,
+            card_subtype,
+            card_segment_type,
+            funding_source,
             card_cvc,
             ..
         } = value;
@@ -2653,7 +2763,11 @@ impl TryFrom<payment_methods::CardDetail> for Card {
             card_issuer,
             card_network,
             card_type: None,
+            card_subtype,
+            card_segment_type,
+            funding_source,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name,
         })
@@ -2758,33 +2872,36 @@ impl GetAddressFromPaymentMethodData for Card {
     }
 }
 
-impl Card {
-    fn apply_additional_card_info(
-        &self,
-        additional_card_info: AdditionalCardInfo,
-    ) -> Result<Self, error_stack::Report<ValidationError>> {
-        Ok(Self {
-            card_number: self.card_number.clone(),
-            card_exp_month: self.card_exp_month.clone(),
-            card_exp_year: self.card_exp_year.clone(),
-            card_holder_name: self.card_holder_name.clone(),
-            card_cvc: self.card_cvc.clone(),
-            card_issuer: self
-                .card_issuer
-                .clone()
-                .or(additional_card_info.card_issuer),
-            card_network: self
-                .card_network
-                .clone()
-                .or(additional_card_info.card_network.clone()),
-            card_type: self.card_type.clone().or(additional_card_info.card_type),
-            card_issuing_country: self
-                .card_issuing_country
-                .clone()
-                .or(additional_card_info.card_issuing_country),
-            bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
-            nick_name: self.nick_name.clone(),
-        })
+impl GetAddressFromPaymentMethodData for CardWithNoCVC {
+    fn get_billing_address(&self) -> Option<Address> {
+        self.card_holder_name
+            .as_ref()
+            .filter(|card_holder_name| !card_holder_name.is_empty_after_trim())
+            .map(|card_holder_name| card_holder_name.peek().split_whitespace())
+            .map(|mut card_holder_name_iter| {
+                let first_name = card_holder_name_iter
+                    .next()
+                    .map(ToOwned::to_owned)
+                    .map(Secret::new);
+
+                let last_name = card_holder_name_iter.collect::<Vec<_>>().join(" ");
+                let last_name = if last_name.is_empty_after_trim() {
+                    None
+                } else {
+                    Some(Secret::new(last_name))
+                };
+
+                AddressDetails {
+                    first_name,
+                    last_name,
+                    ..Default::default()
+                }
+            })
+            .map(|address_details| Address {
+                address: Some(address_details),
+                phone: None,
+                email: None,
+            })
     }
 }
 
@@ -2808,6 +2925,43 @@ pub struct CardToken {
     pub card_holder_name: Option<Secret<String>>,
 
     /// The CVC number for the card
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub card_cvc: Option<Secret<String>>,
+
+    /// Token referencing a CVC vaulted in the hyperswitch (self-hosted) vault. Used by the
+    /// self-hosted default-vault repeat-customer flow, where the card is referenced by the
+    /// top-level `payment_token` and the freshly-tokenized CVC arrives as this token; the server
+    /// resolves it to the raw CVC. Not used by the external vault proxy flow.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub card_cvc_token: Option<Secret<String>>,
+}
+
+/// Card token data carried by the external vault proxy `vault_card_token_data` variant. Its
+/// `card_cvc` is a vault token detokenized on the wire by the external vault (e.g. VGS). Kept as a
+/// distinct type from [`CardToken`] so the self-hosted `card_cvc_token` field does not leak into
+/// the proxy contract.
+#[derive(
+    Eq,
+    PartialEq,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    ToSchema,
+    Default,
+    SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct VaultCardToken {
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The CVC number for the card (a vault token for the external vault proxy flow)
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub card_cvc: Option<Secret<String>>,
@@ -2955,10 +3109,6 @@ pub enum BankDebitData {
         #[smithy(value_type = "String")]
         routing_number: Secret<String>,
 
-        #[schema(value_type = String, example = "John Test")]
-        #[smithy(value_type = "Option<String>")]
-        card_holder_name: Option<Secret<String>>,
-
         #[schema(value_type = String, example = "John Doe")]
         #[smithy(value_type = "Option<String>")]
         bank_account_holder_name: Option<Secret<String>>,
@@ -3039,6 +3189,34 @@ pub enum BankDebitData {
         #[smithy(value_type = "Option<String>")]
         bank_account_holder_name: Option<Secret<String>>,
     },
+    #[smithy(nested_value_type)]
+    EftDebitOrder {
+        /// Billing details for bank debit
+        #[smithy(value_type = "Option<BankDebitBilling>")]
+        billing_details: Option<BankDebitBilling>,
+
+        /// Account number for eft bank debit payment
+        #[schema(value_type = String, example = "000123456789")]
+        #[smithy(value_type = "String")]
+        account_number: Secret<String>,
+
+        /// Branch code for eft bank debit payment
+        #[schema(value_type = Option<String>, example = "110000000")]
+        #[smithy(value_type = "Option<String>")]
+        branch_code: Option<Secret<String>>,
+
+        #[schema(value_type = Option<String>, example = "John Doe")]
+        #[smithy(value_type = "Option<String>")]
+        bank_account_holder_name: Option<Secret<String>>,
+
+        #[schema(value_type = Option<BankNames>, example = "absa")]
+        #[smithy(value_type = "Option<BankNames>")]
+        bank_name: Option<common_enums::BankNames>,
+
+        #[schema(value_type = Option<BankType>, example = "savings")]
+        #[smithy(value_type = "Option<BankType>")]
+        bank_type: Option<common_enums::BankType>,
+    },
 }
 
 impl GetAddressFromPaymentMethodData for BankDebitData {
@@ -3083,6 +3261,11 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
                 ..
             }
             | Self::BacsBankDebit {
+                billing_details,
+                bank_account_holder_name,
+                ..
+            }
+            | Self::EftDebitOrder {
                 billing_details,
                 bank_account_holder_name,
                 ..
@@ -3182,6 +3365,16 @@ mod payment_method_data_serde {
                                     }
                                     Some(PaymentMethodData::Card(card.clone()))
                                 }
+                                (
+                                    PaymentMethodData::CardWithNoCVC(ref mut card),
+                                    Some(billing_address_details),
+                                ) => {
+                                    if card.card_holder_name.is_none() {
+                                        card.card_holder_name =
+                                            billing_address_details.get_optional_full_name();
+                                    }
+                                    Some(PaymentMethodData::CardWithNoCVC(card.clone()))
+                                }
                                 _ => Some(payment_method_data),
                             }
                         }
@@ -3237,6 +3430,10 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Upi(_)
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::Card(_)
+                    | PaymentMethodData::CardWithNoCVC(_)
+                    | PaymentMethodData::NetworkToken(_)
+                    | PaymentMethodData::ProxyCard(_)
+                    | PaymentMethodData::VaultCardTokenData(_)
                     | PaymentMethodData::MandatePayment
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::Wallet(_) => {
@@ -3268,6 +3465,15 @@ pub struct PaymentMethodDataRequest {
     /// This billing details will be passed to the processor as billing address.
     /// If not passed, then payment.billing will be considered
     pub billing: Option<Address>,
+}
+
+impl PaymentMethodDataRequest {
+    pub fn get_card(&self) -> Option<Card> {
+        match &self.payment_method_data {
+            Some(PaymentMethodData::Card(card)) => Some(card.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -3307,7 +3513,7 @@ pub struct ProxyPaymentMethodDataRequest {
 #[serde(rename_all = "snake_case")]
 pub enum ProxyPaymentMethodData {
     #[schema(title = "ProxyCardData")]
-    VaultDataCard(Box<ProxyCardData>),
+    ProxyCard(Box<ProxyCardData>),
     VaultToken(VaultToken),
 }
 
@@ -3374,6 +3580,140 @@ pub struct VaultToken {
 }
 
 #[derive(
+    Default,
+    Eq,
+    PartialEq,
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    ToSchema,
+    SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct NetworkTokenData {
+    /// The network token
+    #[schema(value_type = String, example = "4604000460040787")]
+    #[smithy(value_type = "String")]
+    pub network_token: NetworkToken,
+
+    /// The token's expiry month
+    #[schema(value_type = String, example = "05")]
+    #[smithy(value_type = "String")]
+    pub token_exp_month: Secret<String>,
+
+    /// The token's expiry year
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub token_exp_year: Secret<String>,
+
+    /// The token cryptogram
+    #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
+    pub token_cryptogram: Secret<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// The type of the card such as Credit, Debit
+    #[schema(example = "CREDIT")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_type: Option<String>,
+
+    /// The country in which the card was issued
+    #[schema(example = "INDIA")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country: Option<String>,
+
+    /// The bank code of the bank that issued the card
+    #[schema(example = "JP_AMEX")]
+    #[smithy(value_type = "Option<String>")]
+    pub bank_code: Option<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuer: Option<String>,
+
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub nick_name: Option<Secret<String>>,
+
+    /// The ECI(Electronic Commerce Indicator) value for this authentication.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub eci: Option<String>,
+
+    /// The Payment Account Reference (PAR) for this card.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub par: Option<Secret<String>>,
+}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct NetworkTokenResponse {
+    /// The last four digit of the network token
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub last4: Option<String>,
+
+    /// The type of the card such as Credit, Debit
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub card_type: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// The ISIN of the token
+    #[smithy(value_type = "Option<String>")]
+    pub token_isin: Option<String>,
+
+    /// The name of the issuer of card
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuer: Option<String>,
+
+    /// The country in which the card was issued
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country: Option<String>,
+
+    /// The expiry month of the network token
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub token_exp_month: Option<Secret<String>>,
+
+    /// The expiry year of the network token
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub token_exp_year: Option<Secret<String>>,
+
+    /// The card holder's name
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The Payment Account Reference (PAR) for this card
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub par: Option<Secret<String>>,
+}
+
+#[derive(
     Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel,
 )]
 #[serde(rename_all = "snake_case")]
@@ -3382,6 +3722,10 @@ pub enum PaymentMethodData {
     #[schema(title = "Card")]
     #[smithy(value_type = "Card")]
     Card(Card),
+    #[schema(title = "CardWithNoCVC")]
+    #[serde(rename = "card_with_no_cvc")]
+    #[smithy(value_type = "CardWithNoCVC")]
+    CardWithNoCVC(CardWithNoCVC),
     #[schema(title = "CardRedirect")]
     #[smithy(value_type = "CardRedirectData")]
     CardRedirect(CardRedirectData),
@@ -3429,6 +3773,20 @@ pub enum PaymentMethodData {
     #[schema(title = "MobilePayment")]
     #[smithy(value_type = "MobilePaymentData")]
     MobilePayment(MobilePaymentData),
+    #[schema(title = "NetworkToken")]
+    NetworkToken(NetworkTokenData),
+    /// Vault card data used for external vault proxy payments.
+    /// When this variant is used, the payment will be routed through the external vault proxy flow.
+    #[schema(title = "VaultDataCard")]
+    #[serde(rename = "vault_data_card", alias = "vault_card")]
+    ProxyCard(Box<ProxyCardData>),
+    /// Vault card token data used for external vault proxy payments with an already-saved card.
+    /// The top-level `payment_token` resolves to a stored payment method whose external vault
+    /// tokens are retrieved from the modular PM service; this variant carries the CVC / card
+    /// holder name to combine with those tokens. Routed through the external vault proxy flow.
+    #[schema(title = "VaultCardTokenData")]
+    #[serde(rename = "vault_card_token_data", alias = "vault_card_token")]
+    VaultCardTokenData(VaultCardToken),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -3439,6 +3797,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
     fn get_billing_address(&self) -> Option<Address> {
         match self {
             Self::Card(card_data) => card_data.get_billing_address(),
+            Self::CardWithNoCVC(card_data) => card_data.get_billing_address(),
             Self::CardRedirect(_) => None,
             Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
             Self::PayLater(pay_later) => pay_later.get_billing_address(),
@@ -3454,31 +3813,18 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::CardToken(_)
             | Self::OpenBanking(_)
             | Self::MandatePayment
-            | Self::MobilePayment(_) => None,
+            | Self::MobilePayment(_)
+            | Self::NetworkToken(_)
+            | Self::ProxyCard(_)
+            | Self::VaultCardTokenData(_) => None,
         }
     }
 }
 
 impl PaymentMethodData {
-    pub fn apply_additional_payment_data(
-        &self,
-        additional_payment_data: AdditionalPaymentData,
-    ) -> Result<Self, error_stack::Report<ValidationError>> {
-        if let AdditionalPaymentData::Card(additional_card_info) = additional_payment_data {
-            match self {
-                Self::Card(card) => Ok(Self::Card(
-                    card.apply_additional_card_info(*additional_card_info)?,
-                )),
-                _ => Ok(self.to_owned()),
-            }
-        } else {
-            Ok(self.to_owned())
-        }
-    }
-
     pub fn get_payment_method(&self) -> Option<api_enums::PaymentMethod> {
         match self {
-            Self::Card(_) => Some(api_enums::PaymentMethod::Card),
+            Self::Card(_) | Self::CardWithNoCVC(_) => Some(api_enums::PaymentMethod::Card),
             Self::CardRedirect(_) => Some(api_enums::PaymentMethod::CardRedirect),
             Self::Wallet(_) => Some(api_enums::PaymentMethod::Wallet),
             Self::PayLater(_) => Some(api_enums::PaymentMethod::PayLater),
@@ -3493,7 +3839,11 @@ impl PaymentMethodData {
             Self::GiftCard(_) => Some(api_enums::PaymentMethod::GiftCard),
             Self::OpenBanking(_) => Some(api_enums::PaymentMethod::OpenBanking),
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
+            Self::NetworkToken(_) => Some(api_enums::PaymentMethod::NetworkToken),
             Self::CardToken(_) | Self::MandatePayment => None,
+            Self::ProxyCard(_) | Self::VaultCardTokenData(_) => {
+                Some(api_enums::PaymentMethod::Card)
+            }
         }
     }
 }
@@ -3531,6 +3881,7 @@ impl GetPaymentMethodType for WalletData {
                 api_enums::PaymentMethodType::AmazonPay
             }
             Self::Skrill(_) => api_enums::PaymentMethodType::Skrill,
+            Self::Neteller(_) => api_enums::PaymentMethodType::Neteller,
             Self::Paysera(_) => api_enums::PaymentMethodType::Paysera,
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
@@ -3550,6 +3901,7 @@ impl GetPaymentMethodType for WalletData {
             Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
             Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
             Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,
+            Self::WeroRedirect {} => api_enums::PaymentMethodType::Wero,
             Self::TouchNGoRedirect(_) => api_enums::PaymentMethodType::TouchNGo,
             Self::WeChatPayRedirect(_) | Self::WeChatPayQr(_) => {
                 api_enums::PaymentMethodType::WeChatPay
@@ -3616,6 +3968,7 @@ impl GetPaymentMethodType for BankRedirectData {
                 api_enums::PaymentMethodType::OnlineBankingThailand
             }
             Self::LocalBankRedirect { .. } => api_enums::PaymentMethodType::LocalBankRedirect,
+            Self::OpenBanking { .. } => api_enums::PaymentMethodType::OpenBanking,
         }
     }
 }
@@ -3627,6 +3980,7 @@ impl GetPaymentMethodType for BankDebitData {
             Self::SepaBankDebit { .. } => api_enums::PaymentMethodType::Sepa,
             Self::BecsBankDebit { .. } => api_enums::PaymentMethodType::Becs,
             Self::BacsBankDebit { .. } => api_enums::PaymentMethodType::Bacs,
+            Self::EftDebitOrder { .. } => api_enums::PaymentMethodType::EftDebitOrder,
             Self::SepaGuarenteedBankDebit { .. } => {
                 api_enums::PaymentMethodType::SepaGuarenteedDebit
             }
@@ -3649,6 +4003,10 @@ impl GetPaymentMethodType for BankTransferData {
             Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
+            Self::PixEmv { .. } => api_enums::PaymentMethodType::PixEmv,
+            Self::PixQr { .. } => api_enums::PaymentMethodType::PixQr,
+            Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
+            Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
             Self::InstantBankTransfer {} => api_enums::PaymentMethodType::InstantBankTransfer,
@@ -3678,6 +4036,7 @@ impl GetPaymentMethodType for RealTimePaymentData {
             Self::DuitNow {} => api_enums::PaymentMethodType::DuitNow,
             Self::PromptPay {} => api_enums::PaymentMethodType::PromptPay,
             Self::VietQr {} => api_enums::PaymentMethodType::VietQr,
+            Self::Qris {} => api_enums::PaymentMethodType::Qris,
         }
     }
 }
@@ -3850,12 +4209,27 @@ pub struct AdditionalCardInfo {
     pub card_issuer: Option<String>,
 
     /// Card network of the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub card_network: Option<api_enums::CardNetwork>,
 
     /// Card type, can be either `credit` or `debit`
     pub card_type: Option<String>,
 
+    /// The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.
+    /// Free form, as the value comes straight from the BIN record.
+    pub card_subtype: Option<String>,
+
+    /// The segment the card is issued to, as recorded against its BIN
+    #[schema(value_type = Option<CardSegmentType>, example = "consumer")]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+
+    /// How the card is funded, as recorded against its BIN. More granular than
+    /// `card_type`, which collapses deferred debit and charge cards.
+    #[schema(value_type = Option<FundingSource>, example = "CREDIT")]
+    pub funding_source: Option<api_enums::FundingSource>,
+
     pub card_issuing_country: Option<String>,
+    pub card_issuing_country_code: Option<String>,
     pub bank_code: Option<String>,
 
     /// Last 4 digits of the card number
@@ -3867,10 +4241,13 @@ pub struct AdditionalCardInfo {
     /// Extended bin of card, contains the first 8 digits of card number
     pub card_extended_bin: Option<String>,
 
+    #[schema(value_type = Option<String>, example = "01")]
     pub card_exp_month: Option<Secret<String>>,
 
+    #[schema(value_type = Option<String>, example = "2026")]
     pub card_exp_year: Option<Secret<String>>,
 
+    #[schema(value_type = Option<String>, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
 
     /// Additional payment checks done on the cvv and billing address by the processors.
@@ -3888,7 +4265,47 @@ pub struct AdditionalCardInfo {
 
     /// The global signature network under which the card is issued.
     /// This represents the primary global card brand, even if the transaction uses a local network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub signature_network: Option<api_enums::CardNetwork>,
+    /// Unique authorisation code generated for the payment.
+    pub auth_code: Option<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct AdditionalNetworkTokenInfo {
+    /// The name of issuer of the card
+    pub card_issuer: Option<String>,
+
+    /// Card network of the card
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// Card type, can be either `credit` or `debit`
+    pub card_type: Option<String>,
+
+    /// The issuing country of the card
+    pub card_issuing_country: Option<String>,
+
+    /// The bank code of the card
+    pub bank_code: Option<String>,
+
+    /// Last 4 digits of the card number
+    pub last4: Option<String>,
+
+    /// The ISIN of the token
+    pub token_isin: Option<String>,
+
+    /// The expiry month of the token
+    pub token_exp_month: Option<Secret<String>>,
+
+    /// The expiry year of the token
+    pub token_exp_year: Option<Secret<String>>,
+
+    /// The card holder's name
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// Payment Account Reference (PAR) for the card
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3905,6 +4322,7 @@ pub enum AdditionalPaymentData {
         apple_pay: Option<Box<ApplepayPaymentMethod>>,
         google_pay: Option<Box<WalletAdditionalDataForCard>>,
         samsung_pay: Option<Box<WalletAdditionalDataForCard>>,
+        paypal: Option<Box<PaypalWalletAdditionalData>>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
@@ -3955,12 +4373,38 @@ pub enum AdditionalPaymentData {
         #[serde(flatten)]
         details: Option<MobilePaymentData>,
     },
+    NetworkToken(Box<AdditionalNetworkTokenInfo>),
 }
 
 impl AdditionalPaymentData {
     pub fn get_additional_card_info(&self) -> Option<AdditionalCardInfo> {
         match self {
             Self::Card(additional_card_info) => Some(*additional_card_info.clone()),
+            _ => None,
+        }
+    }
+
+    /// Wallet providers report the network as a free-form string in their own spelling.
+    pub fn get_wallet_card_network(&self) -> Option<&str> {
+        match self {
+            Self::Wallet {
+                apple_pay,
+                google_pay,
+                samsung_pay,
+                paypal: _,
+            } => apple_pay
+                .as_ref()
+                .map(|apple_pay| apple_pay.network.as_str())
+                .or_else(|| {
+                    google_pay
+                        .as_ref()
+                        .and_then(|google_pay| google_pay.card_network.as_deref())
+                })
+                .or_else(|| {
+                    samsung_pay
+                        .as_ref()
+                        .and_then(|samsung_pay| samsung_pay.card_network.as_deref())
+                }),
             _ => None,
         }
     }
@@ -3974,7 +4418,7 @@ pub struct KlarnaSdkPaymentMethod {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct InteracPaymentMethod {
     #[schema(value_type = Option<Object>)]
-    pub customer_info: Option<pii::SecretSerdeValue>,
+    pub customer_info: Option<common_types::payments::InteracCustomerInfoDetails>,
 }
 
 #[derive(
@@ -4149,9 +4593,9 @@ pub enum BankRedirectData {
     #[smithy(nested_value_type)]
     Trustly {
         /// The country for bank payment
-        #[schema(value_type = CountryAlpha2, example = "US")]
-        #[smithy(value_type = "CountryAlpha2")]
-        country: api_enums::CountryAlpha2,
+        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        #[smithy(value_type = "Option<CountryAlpha2>")]
+        country: Option<api_enums::CountryAlpha2>,
     },
     #[smithy(nested_value_type)]
     OnlineBankingFpx {
@@ -4175,6 +4619,7 @@ pub enum BankRedirectData {
         #[smithy(value_type = "String")]
         provider: String,
     },
+    OpenBanking {},
 }
 
 impl GetAddressFromPaymentMethodData for BankRedirectData {
@@ -4282,7 +4727,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             Self::Przelewy24 {
                 billing_details, ..
             } => get_billing_address_inner(billing_details.as_ref(), None, None),
-            Self::Trustly { country } => get_billing_address_inner(None, Some(country), None),
+            Self::Trustly { country } => get_billing_address_inner(None, country.as_ref(), None),
             Self::OnlineBankingFpx { .. }
             | Self::LocalBankRedirect {}
             | Self::OnlineBankingThailand { .. }
@@ -4291,7 +4736,8 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             | Self::OnlineBankingSlovakia { .. }
             | Self::OnlineBankingCzechRepublic { .. }
             | Self::Blik { .. }
-            | Self::Eft { .. } => None,
+            | Self::Eft { .. }
+            | Self::OpenBanking { .. } => None,
         }
     }
 }
@@ -4440,25 +4886,63 @@ pub enum UpiData {
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// The source type for UPI payments. This indicates what payment source is being used for the UPI transaction.
+pub enum UpiSource {
+    /// UPI payment using a credit card
+    UpiCc,
+    /// UPI payment using a credit line
+    UpiCl,
+    /// UPI payment using a bank account (savings)
+    UpiAccount,
+    /// UPI payment using a combination of credit card and credit line
+    UpiCcCl,
+    /// UPI payment using a prepaid payment instrument
+    UpiPpi,
+    /// UPI payment using a voucher
+    UpiVoucher,
+}
+
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiCollectData {
+    /// The Virtual Payment Address (VPA) for UPI collect payment
     #[schema(value_type = Option<String>, example = "successtest@iata")]
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
 }
 
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct UpiQrData {}
+pub struct UpiQrData {
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct UpiIntentData {}
+pub struct UpiIntentData {
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
+    /// App name for UPI intent payment
+    pub app_name: Option<String>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
@@ -4610,6 +5094,27 @@ pub enum BankTransferData {
         expiry_date: Option<PrimitiveDateTime>,
     },
     #[smithy(nested_value_type)]
+    PixEmv {},
+    #[smithy(nested_value_type)]
+    PixQr {},
+    #[smithy(nested_value_type)]
+    PixAutomaticoQr {},
+    #[smithy(nested_value_type)]
+    PixAutomaticoPush {
+        /// Account number for Pix Automatico Push payment method
+        #[schema(value_type = Option<String>, example = "550689")]
+        #[smithy(value_type = "Option<String>")]
+        account_number: Option<Secret<String>>,
+        /// Branch code for Pix Automatico Push payment method
+        #[schema(value_type = Option<String>, example = "2569")]
+        #[smithy(value_type = "Option<String>")]
+        branch_code: Option<Secret<String>>,
+        /// Bank identifier for Pix Automatico Push payment method
+        #[schema(value_type = Option<String>, example = "91193552")]
+        #[smithy(value_type = "Option<String>")]
+        bank_identifier: Option<Secret<String>>,
+    },
+    #[smithy(nested_value_type)]
     Pse {},
     #[smithy(nested_value_type)]
     LocalBankTransfer {
@@ -4635,6 +5140,30 @@ pub enum BankTransferData {
 )]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct DocumentDetails {
+    /// Specifies the type of document - Cpf or Cnpj
+    #[schema(value_type = Option<DocumentKind>, example = "cnpj")]
+    pub document_type: DocumentKind,
+    /// Cpf or Cnpj number
+    #[schema(value_type = String, example = "20201210000155")]
+    pub document_number: Secret<String>,
+}
+
+impl DocumentDetails {
+    pub fn get_cpf_cnpj_split(&self) -> (Option<Secret<String>>, Option<Secret<String>>) {
+        match self.document_type {
+            DocumentKind::Cpf => (Some(self.document_number.clone()), None),
+            DocumentKind::Cnpj => (None, Some(self.document_number.clone())),
+            DocumentKind::Psn | DocumentKind::Other => (None, None),
+        }
+    }
+}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum RealTimePaymentData {
     #[smithy(nested_value_type)]
     Fps {},
@@ -4644,6 +5173,8 @@ pub enum RealTimePaymentData {
     PromptPay {},
     #[smithy(nested_value_type)]
     VietQr {},
+    #[smithy(nested_value_type)]
+    Qris {},
 }
 
 impl GetAddressFromPaymentMethodData for BankTransferData {
@@ -4704,6 +5235,10 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
             }
             Self::LocalBankTransfer { .. }
             | Self::Pix { .. }
+            | Self::PixEmv {}
+            | Self::PixQr {}
+            | Self::PixAutomaticoPush { .. }
+            | Self::PixAutomaticoQr {}
             | Self::Pse {}
             | Self::InstantBankTransfer {}
             | Self::InstantBankTransferFinland {}
@@ -4873,6 +5408,10 @@ pub enum WalletData {
     #[schema(title = "Skrill")]
     #[smithy(value_type = "SkrillData")]
     Skrill(SkrillData),
+    /// The wallet data for Neteller
+    #[schema(title = "Neteller")]
+    #[smithy(value_type = "NetellerData")]
+    Neteller(NetellerData),
     // The wallet data for Swish
     #[schema(title = "SwishQr")]
     #[smithy(value_type = "SwishQrData")]
@@ -4889,6 +5428,9 @@ pub enum WalletData {
     #[schema(title = "VippsRedirect")]
     #[smithy(nested_value_type)]
     VippsRedirect {},
+    #[schema(title = "WeroRedirect")]
+    #[smithy(nested_value_type)]
+    WeroRedirect {},
     /// The wallet data for WeChat Pay Display QrCode
     #[schema(title = "WeChatPayQr")]
     #[smithy(value_type = "WeChatPayQr")]
@@ -4934,6 +5476,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::AmazonPay(_)
             | Self::AmazonPayRedirect(_)
             | Self::Skrill(_)
+            | Self::Neteller(_)
             | Self::Paysera(_)
             | Self::ApplePay(_)
             | Self::ApplePayRedirect(_)
@@ -4947,6 +5490,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::SamsungPay(_)
             | Self::TwintRedirect {}
             | Self::VippsRedirect {}
+            | Self::WeroRedirect {}
             | Self::TouchNGoRedirect(_)
             | Self::WeChatPayRedirect(_)
             | Self::WeChatPayQr(_)
@@ -5181,6 +5725,12 @@ pub struct AmazonPayRedirectData {}
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SkrillData {}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct NetellerData {}
 
 #[derive(
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
@@ -5434,8 +5984,30 @@ pub struct ApplepayPaymentMethod {
     #[schema(value_type = Option<String>, example = "12")]
     pub card_exp_month: Option<Secret<String>>,
     /// The card's expiry year
-    #[schema(value_type = Option<String>, example = "25")]
+    #[schema(value_type = Option<String>, example = "003925")]
     pub card_exp_year: Option<Secret<String>>,
+    /// Bin of the DPAN (device PAN) obtained from decrypting the Apple Pay payment data
+    pub device_pan_bin: Option<String>,
+    /// Bin of the underlying card, provided by the connector when it resolves the DPAN
+    pub card_bin: Option<String>,
+    // The card's type (eg. Credit, Debit), as returned by the connector
+    #[schema(value_type = Option<CardType>)]
+    pub card_type: Option<api_enums::CardType>,
+    /// Unique authorisation code generated for the payment
+    pub auth_code: Option<String>,
+    /// The card's product/subtype, as returned by the connector
+    pub card_subtype: Option<String>,
+    /// The card's segment (e.g. consumer, commercial), as returned by the connector
+    #[schema(value_type = Option<CardSegmentType>)]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+    /// The card's funding source (e.g. credit, debit), as returned by the connector
+    #[schema(value_type = Option<FundingSource>)]
+    pub funding_source: Option<api_enums::FundingSource>,
+    /// The name of the card issuer, as returned by the connector
+    pub issuer_name: Option<String>,
+    /// The country of the card issuer, as returned by the connector
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub issuer_country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(
@@ -5447,6 +6019,18 @@ pub struct CardResponse {
     pub last4: Option<String>,
     #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
+    /// The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.
+    #[smithy(value_type = "Option<String>")]
+    pub card_subtype: Option<String>,
+    /// The segment the card is issued to, as recorded against its BIN
+    #[schema(value_type = Option<CardSegmentType>, example = "consumer")]
+    #[smithy(value_type = "Option<CardSegmentType>")]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+    /// How the card is funded, as recorded against its BIN. More granular than
+    /// `card_type`, which collapses deferred debit and charge cards.
+    #[schema(value_type = Option<FundingSource>, example = "CREDIT")]
+    #[smithy(value_type = "Option<FundingSource>")]
+    pub funding_source: Option<api_enums::FundingSource>,
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
@@ -5471,6 +6055,8 @@ pub struct CardResponse {
     pub payment_checks: Option<serde_json::Value>,
     #[smithy(value_type = "Option<Object>")]
     pub authentication_data: Option<serde_json::Value>,
+    #[smithy(value_type = "Option<String>")]
+    pub auth_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5497,9 +6083,9 @@ pub struct BoletoVoucherData {
     pub bank_number: Option<Secret<String>>,
 
     /// The type of identification document used (e.g., CPF or CNPJ)
-    #[schema(value_type = Option<DocumentKind>, example = "Cpf", default = "Cnpj")]
+    #[schema(value_type = Option<DocumentKind>, example = "cpf")]
     #[smithy(value_type = "Option<DocumentKind>")]
-    pub document_type: Option<common_enums::DocumentKind>,
+    pub document_type: Option<DocumentKind>,
 
     /// The fine percentage charged if payment is overdue
     #[schema(value_type = Option<String>)]
@@ -5645,7 +6231,8 @@ where
                 | PaymentMethodDataResponse::Wallet(_)
                 | PaymentMethodDataResponse::BankTransfer(_)
                 | PaymentMethodDataResponse::OpenBanking(_)
-                | PaymentMethodDataResponse::Voucher(_) => {
+                | PaymentMethodDataResponse::Voucher(_)
+                | PaymentMethodDataResponse::NetworkToken(_) => {
                     payment_method_data_response.serialize(serializer)
                 }
             }
@@ -5698,6 +6285,7 @@ pub enum PaymentMethodDataResponse {
     OpenBanking(Box<OpenBankingResponse>),
     #[smithy(value_type = "MobilePaymentResponse")]
     MobilePayment(Box<MobilePaymentResponse>),
+    NetworkToken(Box<NetworkTokenResponse>),
 }
 
 #[derive(
@@ -5869,6 +6457,9 @@ pub enum WalletResponseData {
     #[schema(value_type = WalletAdditionalDataForCard)]
     #[smithy(value_type = "Option<WalletAdditionalDataForCard>")]
     SamsungPay(Box<WalletAdditionalDataForCard>),
+    #[schema(value_type = PaypalWalletAdditionalData)]
+    #[smithy(value_type = "Option<PaypalWalletAdditionalData>")]
+    Paypal(Box<PaypalWalletAdditionalData>),
 }
 
 #[derive(
@@ -5910,8 +6501,8 @@ pub struct CustomRecoveryPaymentMethodData {
     #[schema(value_type = String, example = "token_1234")]
     pub primary_processor_payment_method_token: Secret<String>,
 
-    /// AdditionalCardInfo for the primary token.
-    pub additional_payment_method_info: AdditionalCardInfo,
+    /// Card details associated with the primary payment method token.
+    pub payment_method_metadata: AdditionalCardInfo,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5923,8 +6514,6 @@ pub enum PaymentIdType {
     ConnectorTransactionId(String),
     /// The identifier for payment attempt
     PaymentAttemptId(String),
-    /// The identifier for preprocessing step
-    PreprocessingId(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5936,8 +6525,6 @@ pub enum PaymentIdType {
     ConnectorTransactionId(String),
     /// The identifier for payment attempt
     PaymentAttemptId(String),
-    /// The identifier for preprocessing step
-    PreprocessingId(String),
 }
 
 #[cfg(feature = "v1")]
@@ -5957,9 +6544,6 @@ impl fmt::Display for PaymentIdType {
             ),
             Self::PaymentAttemptId(payment_attempt_id) => {
                 write!(f, "payment_attempt_id = \"{payment_attempt_id}\"")
-            }
-            Self::PreprocessingId(preprocessing_id) => {
-                write!(f, "preprocessing_id = \"{preprocessing_id}\"")
             }
         }
     }
@@ -5998,7 +6582,7 @@ pub struct Address {
     pub email: Option<Email>,
 }
 
-impl masking::SerializableSecret for Address {}
+impl hyperswitch_masking::SerializableSecret for Address {}
 
 impl Address {
     /// Unify the address, giving priority to `self` when details are present in both
@@ -6194,7 +6778,8 @@ pub struct PaymentsCaptureRequest {
     /// Decider to refund the uncaptured amount. (Currently not fully supported or behavior may vary by connector).
     #[smithy(value_type = "Option<bool>")]
     pub refund_uncaptured_amount: Option<bool>,
-    /// A dynamic suffix that appears on your customer's credit card statement. This is concatenated with the (shortened) descriptor prefix set on your account to form the complete statement descriptor. The combined length should not exceed connector-specific limits (typically 22 characters).
+    /// A dynamic suffix that appears on your customer's credit card statement. This is concatenated with the (shortened) descriptor prefix set on your account to form the complete statement descriptor. The combined length should not exceed connector-specific limits (typically 22 characters). To be deprecated soon, use billing_descriptor instead.
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub statement_descriptor_suffix: Option<String>,
     /// An optional prefix for the statement descriptor that appears on your customer's credit card statement. This can override the default prefix set on your merchant account. The combined length of prefix and suffix should not exceed connector-specific limits (typically 22 characters).
@@ -6237,6 +6822,8 @@ pub struct PaymentsCaptureResponse {
 pub struct PaymentsCancelRequest {
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
+    /// If true, returns stringified connector raw response body
+    pub return_raw_connector_response: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -6294,7 +6881,7 @@ pub struct UrlDetails {
 pub struct AuthenticationForStartResponse {
     pub authentication: UrlDetails,
 }
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum NextActionType {
     RedirectToUrl,
@@ -6309,9 +6896,7 @@ pub enum NextActionType {
     InvokeUpiQrFlow,
 }
 
-#[derive(
-    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum NextActionData {
@@ -6331,7 +6916,7 @@ pub enum NextActionData {
     /// Contains the url for redirection flow
     #[cfg(feature = "v2")]
     RedirectToUrl {
-        #[schema(value_type = String)]
+        #[schema(value_type = String, example = "https://example.com/redirect")]
         redirect_to_url: Url,
     },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
@@ -6360,6 +6945,10 @@ pub enum NextActionData {
         display_text: Option<String>,
         #[smithy(value_type = "Option<String>")]
         border_color: Option<String>,
+        /// The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix
+        #[smithy(value_type = "Option<String>")]
+        #[schema(value_type = Option<String>)]
+        raw_qr_data: Option<String>,
     },
     /// Contains url to fetch Qr code data
     FetchQrCodeInformation {
@@ -6421,6 +7010,11 @@ pub enum NextActionData {
         #[smithy(value_type = "IframeData")]
         iframe_data: IframeData,
     },
+    /// The data required to trigger the DDC (Device Data Collection) flow by rendering the provided URL in a hidden iframe.
+    InvokeDdc {
+        #[smithy(value_type = "DDCData")]
+        ddc_data: DDCData,
+    },
 }
 
 #[derive(
@@ -6453,6 +7047,15 @@ pub enum IframeData {
 #[derive(
     Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
 )]
+pub struct DDCData {
+    #[schema(value_type = String)]
+    pub iframe_url: Url,
+    pub timeout_ms: Option<i32>,
+}
+
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ThreeDsData {
     /// ThreeDS authentication url - to initiate authentication
@@ -6477,7 +7080,7 @@ pub struct ThreeDsData {
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
-    /// Prefered 3ds Connector
+    /// Preferred 3ds Connector
     #[smithy(value_type = "Option<String>")]
     pub three_ds_connector: Option<String>,
 }
@@ -6501,7 +7104,7 @@ pub enum ThreeDsMethodData {
         /// Three DS Method Key
         #[smithy(value_type = "Option<ThreeDsMethodKey>")]
         three_ds_method_key: Option<ThreeDsMethodKey>,
-        /// Indicates whethere to wait for Post message after 3DS method data submission
+        /// Indicates whether to wait for Post message after 3DS method data submission
         #[smithy(value_type = "bool")]
         consume_post_message_for_three_ds_method_completion: bool,
     },
@@ -6541,8 +7144,10 @@ pub struct PollConfigResponse {
 pub enum QrCodeInformation {
     QrCodeUrl {
         image_data_url: Url,
-        qr_code_url: Url,
+        qr_code_url: Option<Url>,
         display_to_timestamp: Option<i64>,
+        expiry_type: Option<common_enums::enums::ExpiryType>,
+        raw_qr_data: Option<String>,
     },
     QrDataUrl {
         image_data_url: Url,
@@ -6606,6 +7211,9 @@ pub struct VoucherNextStepData {
     /// Voucher expiry date and time
     #[smithy(value_type = "Option<i64>")]
     pub expires_at: Option<i64>,
+    /// Voucher expiry date and time
+    #[smithy(value_type = "Option<String>")]
+    pub expiry_date: Option<PrimitiveDateTime>,
     /// Reference number required for the transaction
     #[smithy(value_type = "String")]
     pub reference: String,
@@ -6618,6 +7226,17 @@ pub struct VoucherNextStepData {
     /// Human-readable numeric version of the barcode.
     #[smithy(value_type = "Option<String>")]
     pub digitable_line: Option<Secret<String>>,
+    /// Machine-readable numeric code used to generate the barcode representation.
+    #[smithy(value_type = "Option<String>")]
+    pub barcode: Option<Secret<String>>,
+    /// The url for Pix Qr code given by the connector associated with the voucher
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub qr_code_url: Option<Url>,
+    /// The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>)]
+    pub raw_qr_data: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -6741,13 +7360,25 @@ pub struct SepaBankTransferInstructions {
     pub reference: Secret<String>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentsConnectorThreeDsInvokeData {
     pub directory_server_id: String,
     pub three_ds_method_url: String,
     pub three_ds_method_data: String,
     pub message_version: Option<String>,
     pub three_ds_method_data_submission: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PaymentConnectorInvokeDDCMetadata {
+    pub iframe_url: String,
+    pub timeout_ms: Option<i32>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PaymentConnectorInvokeDDCData {
+    pub iframe_url: Url,
+    pub timeout_ms: Option<i32>,
 }
 
 #[derive(
@@ -6889,10 +7520,47 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<i64>")]
     pub amount_received: Option<MinorUnit>,
 
+    /// The identifier for the processor merchant account. In platform-connected setups,
+    /// this is the connected merchant ID. For standard merchants, this is same as merchant_id.
+    #[schema(max_length = 255, example = "merchant_1689512302", value_type = String)]
+    #[smithy(value_type = "String")]
+    pub processor_merchant_id: id_type::MerchantId,
+
+    /// Indicates who initiated the payment in platform-connected setups.
+    /// - Some(Platform): Platform merchant initiated payment on behalf of connected merchant
+    /// - Some(Connected): Connected merchant initiated payment directly in a platform setup
+    /// - None: Standard merchant flow, JWT/Admin initiator, or insufficient information
+    #[schema(value_type = Option<Initiator>, example = "platform")]
+    #[smithy(value_type = "Option<Initiator>")]
+    pub initiator: Option<platform::Initiator>,
+
+    /// Token containing encoded information for sdk authorization.
+    #[schema(value_type = Option<String>, example = "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=")]
+    #[smithy(value_type = "Option<String>")]
+    pub sdk_authorization: Option<String>,
+
+    /// The combined payment-method list, returned only for `X-Integration-Type: server`.
+    #[cfg(feature = "errors")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<PaymentMethodListResult>)]
+    #[smithy(value_type = "Option<Object>")]
+    pub payment_method_list: Option<payment_methods::PaymentMethodListResult>,
+
+    /// Wallet session tokens for this payment, returned only for `X-Integration-Type: server`.
+    #[cfg(feature = "errors")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<SessionTokensResult>)]
+    #[smithy(value_type = "Option<Object>")]
+    pub session_tokens: Option<SessionTokensResult>,
+
     /// The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.
     #[schema(example = "stripe")]
     #[smithy(value_type = "Option<String>")]
     pub connector: Option<String>,
+
+    /// The current state metadata of the payment intent, providing additional context about its status.
+    #[schema(value_type = Option<PaymentIntentStateMetadata>)]
+    pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
 
     /// A secret token unique to this payment intent. It is primarily used by client-side applications (e.g., Hyperswitch SDKs) to authenticate actions like confirming the payment or handling next actions. This secret should be handled carefully and not exposed publicly beyond its intended client-side use.
     #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
@@ -6910,6 +7578,11 @@ pub struct PaymentsResponse {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     #[smithy(value_type = "Option<String>")]
     pub modified_at: Option<PrimitiveDateTime>,
+
+    /// A unique identifier for a customer provided by the connector.
+    #[schema(value_type = Option<String>, example = "cus_Rnm2pDKGyQi506")]
+    #[smithy(value_type = "Option<String>")]
+    pub connector_customer_id: Option<String>,
 
     /// Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.
     #[schema(value_type = Currency, example = "USD")]
@@ -6959,11 +7632,12 @@ pub struct PaymentsResponse {
     pub captures: Option<Vec<CaptureResponse>>,
 
     /// A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments
-    #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
+    #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3", deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub mandate_id: Option<String>,
 
     /// Provided mandate information for creating a mandate
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<MandateData>")]
     pub mandate_data: Option<MandateData>,
 
@@ -6989,6 +7663,14 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
     #[smithy(value_type = "Option<CaptureMethod>")]
     pub capture_method: Option<api_enums::CaptureMethod>,
+
+    /// The capture method the payment was sent to the connector with. Same as `capture_method`,
+    /// except when the profile's `auto_fallback_capture_method` is enabled and the connector did
+    /// not support the requested `capture_method`, in which case it is `automatic`. `null` until
+    /// the payment has been confirmed with a connector.
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    #[smithy(value_type = "Option<CaptureMethod>")]
+    pub capture_method_applied: Option<api_enums::CaptureMethod>,
 
     /// The payment method that is to be used
     #[schema(value_type = PaymentMethod, example = "bank_transfer")]
@@ -7027,19 +7709,19 @@ pub struct PaymentsResponse {
     /// This field will be deprecated soon. Please refer to `customer.email` object
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com", deprecated)]
     #[smithy(value_type = "Option<String>")]
-    pub email: crypto::OptionalEncryptableEmail,
+    pub email: Option<Email>,
 
     /// description: The customer's name
     /// This field will be deprecated soon. Please refer to `customer.name` object
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test", deprecated)]
     #[smithy(value_type = "Option<String>")]
-    pub name: crypto::OptionalEncryptableName,
+    pub name: Option<Secret<String>>,
 
     /// The customer's phone number
     /// This field will be deprecated soon. Please refer to `customer.phone` object
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789", deprecated)]
     #[smithy(value_type = "Option<String>")]
-    pub phone: crypto::OptionalEncryptablePhone,
+    pub phone: Option<Secret<String>>,
 
     /// The URL to redirect after the completion of the operation
     #[schema(example = "https://hyperswitch.io")]
@@ -7051,13 +7733,13 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<AuthenticationType>")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
-    /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
-    #[schema(max_length = 255, example = "Hyperswitch Router")]
+    /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters. To be deprecated soon, use billing_descriptor instead.
+    #[schema(max_length = 255, example = "Hyperswitch Router", deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub statement_descriptor_name: Option<String>,
 
-    /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor.
-    #[schema(max_length = 255, example = "Payment for shoes purchase")]
+    /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor. To be deprecated soon, use billing_descriptor instead.
+    #[schema(max_length = 255, example = "Payment for shoes purchase", deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub statement_descriptor_suffix: Option<String>,
 
@@ -7089,6 +7771,11 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub unified_message: Option<String>,
 
+    /// Complete error details containing unified, issuer, and connector-level error information.
+    #[schema(value_type = Option<PaymentErrorDetails>)]
+    #[smithy(value_type = "Option<PaymentErrorDetails>")]
+    pub error_details: Option<PaymentErrorDetails>,
+
     /// Describes the type of payment flow experienced by the customer (e.g., 'redirect_to_url', 'invoke_sdk', 'display_qr_code').
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
     #[smithy(value_type = "Option<PaymentExperience>")]
@@ -7104,16 +7791,18 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub connector_label: Option<String>,
 
-    /// The two-letter ISO country code (e.g., US, GB) of the business unit or profile under which this payment was processed.
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    /// The two-letter ISO country code (e.g., US, GB) of the business unit or profile under which this payment was processed. To be deprecated soon. Pass the profile_id instead
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     #[smithy(value_type = "Option<CountryAlpha2>")]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
-    /// The label identifying the specific business unit or profile under which this payment was processed by the merchant.
+    /// The label identifying the specific business unit or profile under which this payment was processed by the merchant. To be deprecated soon. Pass the profile_id instead
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub business_label: Option<String>,
 
-    /// An optional sub-label for further categorization of the business unit or profile used for this payment.
+    /// An optional sub-label for further categorization of the business unit or profile used for this payment. To be deprecated soon. Pass the profile_id instead
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub business_sub_label: Option<String>,
 
@@ -7121,10 +7810,6 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
     #[smithy(value_type = "Option<Vec<PaymentMethodType>>")]
     pub allowed_payment_method_types: Option<serde_json::Value>,
-
-    /// ephemeral_key for the customer_id mentioned
-    #[smithy(value_type = "Option<EphemeralKeyCreateResponse>")]
-    pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
 
     /// If true the payment can be retried with same or different payment method which means the confirm call can be made again.
     #[smithy(value_type = "Option<bool>")]
@@ -7149,10 +7834,15 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<ConnectorMetadata>")]
     pub connector_metadata: Option<serde_json::Value>, // This is Value because it is fetched from DB and before putting in DB the type is validated
 
+    /// Returns additional provider-specific metadata for certain connectors
+    #[schema(value_type = Option<ConnectorMetadataResponse>)]
+    #[smithy(value_type = "Option<ConnectorMetadataResponse>")]
+    pub connector_response_metadata: Option<ConnectorMetadataResponse>,
+
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     #[schema(value_type = Option<FeatureMetadata>)]
     #[smithy(value_type = "Option<FeatureMetadata>")]
-    pub feature_metadata: Option<serde_json::Value>, // This is Value because it is fetched from DB and before putting in DB the type is validated
+    pub feature_metadata: Option<FeatureMetadata>,
 
     /// reference(Identifier) to the payment at connector side
     #[schema(value_type = Option<String>, example = "993672945374576J")]
@@ -7169,6 +7859,10 @@ pub struct PaymentsResponse {
     /// Details of surcharge applied on this payment
     #[smithy(value_type = "Option<RequestSurchargeDetails>")]
     pub surcharge_details: Option<RequestSurchargeDetails>,
+
+    /// Applied Offer Engine offer details for this payment, if an offer was applied.
+    #[schema(value_type = Option<AppliedOffer>)]
+    pub applied_offer: Option<AppliedOffer>,
 
     /// Total number of attempts associated with this payment
     #[smithy(value_type = "i16")]
@@ -7214,6 +7908,11 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub fingerprint: Option<String>,
 
+    /// Identifies whether the payment fingerprint was generated from a funding PAN (FPAN)
+    /// or a wallet device PAN (DPAN).
+    #[smithy(value_type = "Option<FingerprintType>")]
+    pub fingerprint_type: Option<FingerprintType>,
+
     #[schema(value_type = Option<BrowserInformation>)]
     /// The browser information used for this payment
     #[smithy(value_type = "Option<BrowserInformation>")]
@@ -7233,6 +7932,17 @@ pub struct PaymentsResponse {
     /// Refer `payment_method_tokenization_details` for detailed view of payment method tokenization
     #[smithy(value_type = "Option<String>")]
     pub network_transaction_id: Option<String>,
+
+    /// Payment Account Reference (PAR) returned by the connector for the underlying card, used to link tokenized and non-tokenized transactions for the same card.
+    #[schema(example = "V001428640638148739")]
+    #[smithy(value_type = "Option<String>")]
+    pub payment_account_reference: Option<String>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) for this payment. Returned on CITs that set up
+    /// stored credentials. External-vault merchants should persist this and echo it back on subsequent
+    /// MIT requests. Mandatory for Mastercard recurring/MIT (no static fallback).
+    #[smithy(value_type = "Option<String>")]
+    pub network_transaction_link_id: Option<String>,
 
     /// Payment Method Status, refers to the status of the payment method used for this payment.
     /// Refer `payment_method_tokenization_details` for detailed view of payment method tokenization
@@ -7351,7 +8061,7 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<bool>")]
     pub is_stored_credential: Option<bool>,
 
-    /// The category of the MIT transaction
+    /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     #[smithy(value_type = "Option<MitCategory>")]
     pub mit_category: Option<api_enums::MitCategory>,
@@ -7359,6 +8069,15 @@ pub struct PaymentsResponse {
     /// Billing descriptor information for the payment
     #[schema(value_type = Option<BillingDescriptor>)]
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+
+    /// Indicates whether this payment is an account funded transaction, where funds are pulled
+    /// from a card account to fund another account rather than to pay for goods or services.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Partially masked details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<MaskedRecipientDetails>)]
+    pub recipient_details: Option<MaskedRecipientDetails>,
 
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>,example="skip_psp")]
@@ -7371,6 +8090,22 @@ pub struct PaymentsResponse {
 
     /// Tokenization details of the payment method data
     pub payment_method_tokenization_details: Option<PaymentMethodTokenizationDetails>,
+
+    /// Installment payment options associated with this payment, grouped by payment method
+    #[schema(value_type = Option<Vec<InstallmentOption>>)]
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+
+    /// Installment selection confirmed by the customer for this payment
+    #[schema(value_type = Option<InstallmentData>)]
+    pub installment_data: Option<common_types::payments::InstallmentData>,
+
+    /// A connector-specific identifier representing the stored payment instrument
+    #[schema(
+        value_type = Option<String>,
+        max_length = 255
+    )]
+    #[smithy(value_type = "Option<String>")]
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -7388,6 +8123,8 @@ pub struct PaymentMethodTokenizationDetails {
     pub network_tokenization: bool,
     /// This is the transaction id generated by the network
     pub network_transaction_id: Option<String>,
+    /// The Mastercard Transaction Link Identifier (TLID) stored on the saved payment method.
+    pub network_transaction_link_id: Option<String>,
     /// This indicates whether a payment method is eligible for performing a mit transaction
     pub is_eligible_for_mit_payment: bool,
 }
@@ -7399,7 +8136,7 @@ pub struct PaymentsListResponseItem {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_pay_01926c58bc6e77c09e809964e72af8c8",
         value_type = String,
     )]
     pub id: id_type::GlobalPaymentId,
@@ -7417,7 +8154,7 @@ pub struct PaymentsListResponseItem {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = Option<String>
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -7535,7 +8272,7 @@ pub struct RecoveryPaymentsListResponseItem {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_pay_01926c58bc6e77c09e809964e72af8c8",
         value_type = String,
     )]
     pub id: id_type::GlobalPaymentId,
@@ -7552,7 +8289,7 @@ pub struct RecoveryPaymentsListResponseItem {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = Option<String>
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -7639,8 +8376,8 @@ pub struct PaymentsConfirmIntentRequest {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// The shipping address for the payment. This will override the shipping address provided in the create-intent request
     pub shipping: Option<Address>,
@@ -7783,7 +8520,7 @@ pub struct PaymentsRequest {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -7828,7 +8565,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     pub connector_metadata: Option<ConnectorMetadata>,
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
@@ -7868,8 +8605,8 @@ pub struct PaymentsRequest {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]
@@ -7903,6 +8640,15 @@ pub struct PaymentsRequest {
     /// The webhook endpoint URL to receive payment status notifications
     #[schema(value_type = Option<String>, example = "https://merchant.example.com/webhooks/payment")]
     pub webhook_url: Option<common_utils::types::Url>,
+
+    /// Indicates whether this payment is an account funded transaction, where funds are pulled
+    /// from a card account to fund another account rather than to pay for goods or services.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<RecipientDetails>)]
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -7938,6 +8684,8 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             force_3ds_challenge: request.force_3ds_challenge,
             merchant_connector_details: request.merchant_connector_details.clone(),
             enable_partial_authorization: request.enable_partial_authorization,
+            is_account_funded_transaction: request.is_account_funded_transaction,
+            recipient_details: request.recipient_details.clone(),
         }
     }
 }
@@ -8007,29 +8755,107 @@ pub struct PaymentsStatusRequest {
     pub return_raw_connector_response: Option<bool>,
 }
 
+/// Complete error details for V1 PaymentsResponse containing unified, issuer, and connector-level error information.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct PaymentErrorDetails {
+    /// Unified error details (standardized across connectors)
+    pub unified_details: Option<ApiUnifiedErrorDetails>,
+    /// Error details from the card issuer
+    pub issuer_details: Option<ApiIssuerErrorDetails>,
+    /// Error details from the payment connector
+    pub connector_details: Option<ApiConnectorErrorDetails>,
+}
+
+/// Unified error details standardized across all payment connectors
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ApiUnifiedErrorDetails {
+    /// Error category
+    #[schema(value_type = Option<UnifiedCode>)]
+    pub category: Option<String>,
+    /// Human-readable error message
+    pub message: Option<String>,
+    /// Standardised error code
+    #[schema(value_type = Option<StandardisedCode>)]
+    pub standardised_code: Option<api_enums::StandardisedCode>,
+    /// Detailed description of the error
+    pub description: Option<String>,
+    /// User-friendly guidance message
+    pub user_guidance_message: Option<String>,
+    /// Recommended action (e.g., "do_not_retry", "retry_later")
+    #[schema(value_type = Option<RecommendedAction>)]
+    pub recommended_action: Option<api_enums::RecommendedAction>,
+}
+
+/// Error details from the card issuer
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ApiIssuerErrorDetails {
+    /// Error code from the issuer
+    pub code: Option<String>,
+    /// Error message from the issuer
+    pub message: Option<String>,
+    /// Network-specific error details
+    pub network_details: Option<ApiNetworkErrorDetails>,
+}
+
+/// Network-specific error details (e.g., Visa, Mastercard)
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ApiNetworkErrorDetails {
+    /// Card network (e.g., Visa, Mastercard)
+    #[schema(value_type = Option<CardNetwork>)]
+    pub name: Option<api_enums::CardNetwork>,
+    /// Network advice code
+    pub advice_code: Option<String>,
+    /// Network advice message
+    pub advice_message: Option<String>,
+}
+
+/// Error details from the payment connector
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ApiConnectorErrorDetails {
+    /// Connector-specific error code
+    pub code: Option<String>,
+    /// Connector-specific error message
+    pub message: Option<String>,
+    /// Additional error reason/details
+    pub reason: Option<String>,
+}
+
 /// Error details for the payment
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, ToSchema)]
 pub struct ErrorDetails {
     /// The error code
+    #[schema(value_type = String, example = "card_declined")]
     pub code: String,
     /// The error message
+    #[schema(value_type = String, example = "The card was declined.")]
     pub message: String,
     /// The detailed error reason that was returned by the connector.
+    #[schema(value_type = Option<String>, example = "The card was declined.")]
     pub reason: Option<String>,
     /// The unified error code across all connectors.
     /// This can be relied upon for taking decisions based on the error.
+    #[schema(value_type = Option<String>, example = "card_declined")]
     pub unified_code: Option<String>,
     /// The unified error message across all connectors.
     /// If there is a translation available, this will have the translated message
+    #[schema(value_type = Option<String>, example = "The card was declined.")]
     pub unified_message: Option<String>,
     /// This field can be returned for both approved and refused Mastercard payments.
     /// This code provides additional information about the type of transaction or the reason why the payment failed.
     /// If the payment failed, the network advice code gives guidance on if and when you can retry the payment.
+    #[schema(value_type = Option<String>, example = "01")]
     pub network_advice_code: Option<String>,
     /// For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.
+    #[schema(value_type = Option<String>, example = "05")]
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
+    #[schema(value_type = Option<String>, example = "Do not retry")]
     pub network_error_message: Option<String>,
 }
 
@@ -8058,7 +8884,7 @@ pub struct PaymentsResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_pay_01926c58bc6e77c09e809964e72af8c8",
         value_type = String,
     )]
     pub id: id_type::GlobalPaymentId,
@@ -8073,10 +8899,22 @@ pub struct PaymentsResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    /// The identifier for the processor merchant account. In platform-connected setups,
+    /// this is the connected merchant ID. For standard merchants, this is same as merchant_id.
+    #[schema(max_length = 255, example = "merchant_1689512302", value_type = String)]
+    pub processor_merchant_id: id_type::MerchantId,
+
+    /// Indicates who initiated the payment in platform-connected setups.
+    /// - Some(Platform): Platform merchant initiated payment on behalf of connected merchant
+    /// - Some(Connected): Connected merchant initiated payment directly in a platform setup
+    /// - None: Standard merchant flow, JWT/Admin initiator, or insufficient information
+    #[schema(value_type = Option<Initiator>, example = "platform")]
+    pub initiator: Option<platform::Initiator>,
 
     /// The connector used for the payment
     #[schema(example = "stripe")]
@@ -8151,7 +8989,7 @@ pub struct PaymentsResponse {
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The authentication type that was appliced for this order
-    /// This depeneds on the 3DS rules configured, If not a default authentication type will be applied
+    /// This depends on the 3DS rules configured, If not a default authentication type will be applied
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
     pub authentication_type_applied: Option<api_enums::AuthenticationType>,
 
@@ -8255,6 +9093,10 @@ pub struct ExternalAuthenticationDetailsResponse {
     /// Error Message
     #[smithy(value_type = "Option<String>")]
     pub error_message: Option<String>,
+    /// Challenge Cancel Code
+    pub challenge_cancel_code: Option<String>,
+    /// Trans Status Reason Code
+    pub trans_status_reason: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -8279,9 +9121,8 @@ pub struct PaymentListConstraints {
     pub ending_before: Option<id_type::PaymentId>,
 
     /// limit on the number of objects to return
-    #[schema(default = 10, maximum = 100)]
-    #[serde(default = "default_payments_list_limit")]
-    pub limit: u32,
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
 
     /// The time at which payment is created
     #[schema(example = "2022-09-10T10:11:12Z")]
@@ -8352,12 +9193,12 @@ pub struct PaymentListConstraints {
     pub ending_before: Option<id_type::GlobalPaymentId>,
 
     /// limit on the number of objects to return
-    #[param(default = 10, maximum = 100)]
-    #[serde(default = "default_payments_list_limit")]
-    pub limit: u32,
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
 
     /// The starting point within a list of objects
-    pub offset: Option<u32>,
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
 
     /// The time at which payment is created
     #[param(example = "2022-09-10T10:11:12Z")]
@@ -8475,6 +9316,273 @@ pub struct PaymentListResponse {
     pub data: Vec<PaymentsListResponseItem>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PlatformPaymentListConstraints {
+    /// The identifier for payment
+    pub payment_id: Option<id_type::PaymentId>,
+
+    /// The identifier for business profile
+    pub profile_id: Option<id_type::ProfileId>,
+
+    /// The connected (processor) merchant id to filter the list by.
+    /// When omitted, payments across all connected merchants under the platform are returned.
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+
+    /// The identifier for customer
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// limit on the number of objects to return
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
+
+    /// The starting point within a list of objects
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
+
+    /// The created-at time range (`start_time` / `end_time`) to filter payments by.
+    #[serde(flatten)]
+    pub time_range: Option<TimeRange>,
+
+    /// The start amount (inclusive) to filter payments by.
+    pub start_amount: Option<i64>,
+
+    /// The end amount (inclusive) to filter payments by.
+    pub end_amount: Option<i64>,
+
+    /// The comma separated list of connectors to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub connector: Option<Vec<api_enums::Connector>>,
+
+    /// The comma separated list of currencies to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub currency: Option<Vec<enums::Currency>>,
+
+    /// The comma separated list of payment status to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub status: Option<Vec<enums::IntentStatus>>,
+
+    /// The comma separated list of payment methods to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub payment_method: Option<Vec<enums::PaymentMethod>>,
+
+    /// The comma separated list of payment method types to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub payment_method_type: Option<Vec<enums::PaymentMethodType>>,
+
+    /// The comma separated list of authentication types to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub authentication_type: Option<Vec<enums::AuthenticationType>>,
+
+    /// The comma separated list of merchant connector ids to filter payments list for selected label
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+
+    /// The comma separated list of card networks to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub card_network: Option<Vec<enums::CardNetwork>>,
+
+    /// The comma separated list of card discovery methods to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub card_discovery: Option<Vec<enums::CardDiscovery>>,
+
+    /// The identifier for merchant order reference id
+    pub merchant_order_reference_id: Option<String>,
+
+    /// The field (`on`) and direction (`by`) on which the payments list should be sorted.
+    #[serde(flatten)]
+    pub order: Option<Order>,
+}
+
+/// A single item in the platform payments list.
+///
+/// Built directly from raw diesel rows with no decryption, since a platform listing spans many
+/// connected merchants each with their own key store. Encrypted/PII fields (customer, billing,
+/// shipping, payment method data) and `connector_response_metadata` (derived on the domain
+/// `PaymentAttempt`) are therefore omitted. Use the single-payment retrieve (scoped to the
+/// connected merchant) when full PII is required.
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PlatformPaymentListItem {
+    /// Unique identifier for the payment.
+    pub payment_id: id_type::PaymentId,
+
+    /// Identifier of the platform merchant. Equals the caller's merchant id.
+    pub merchant_id: id_type::MerchantId,
+
+    /// Identifier of the connected merchant that owns this payment.
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+
+    pub status: api_enums::IntentStatus,
+
+    /// Amount in lowest denomination of the currency.
+    pub amount: MinorUnit,
+
+    /// Net amount of the active attempt.
+    pub net_amount: Option<MinorUnit>,
+
+    /// Amount still capturable on the active attempt.
+    pub amount_capturable: MinorUnit,
+
+    /// The current state metadata of the payment intent.
+    pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
+
+    /// A secret token unique to this payment intent.
+    pub client_secret: Option<Secret<String>>,
+
+    #[serde(with = "common_utils::custom_serde::iso8601::option", default)]
+    pub created: Option<PrimitiveDateTime>,
+
+    #[serde(with = "common_utils::custom_serde::iso8601::option", default)]
+    pub modified_at: Option<PrimitiveDateTime>,
+
+    pub currency: Option<api_enums::Currency>,
+
+    /// Reference id of the customer (PII fields are intentionally excluded for platform listings).
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// Description of the payment.
+    pub description: Option<String>,
+
+    /// Order details associated with the payment.
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+
+    /// Connector used on the active attempt.
+    pub connector: Option<String>,
+
+    /// Payment method of the active attempt.
+    pub payment_method: Option<api_enums::PaymentMethod>,
+
+    /// Payment method type of the active attempt.
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// The business label of the profile under which this payment was processed.
+    pub business_label: Option<String>,
+
+    /// The business country of the profile under which this payment was processed.
+    pub business_country: Option<api_enums::CountryAlpha2>,
+
+    /// An optional sub-label for the business unit on the active attempt.
+    pub business_sub_label: Option<String>,
+
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+
+    pub capture_method: Option<api_enums::CaptureMethod>,
+
+    pub authentication_type: Option<api_enums::AuthenticationType>,
+
+    /// Connector's transaction id for the active attempt.
+    pub connector_transaction_id: Option<String>,
+
+    /// Total number of payment attempts associated with this payment.
+    pub attempt_count: i16,
+
+    /// Identifier of the business profile under which this payment was created.
+    pub profile_id: Option<id_type::ProfileId>,
+
+    /// The merchant connector account id used on the active attempt.
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Merchant-supplied order reference id.
+    pub merchant_order_reference_id: Option<String>,
+
+    /// Merchant-supplied metadata.
+    pub metadata: Option<serde_json::Value>,
+
+    /// A human-readable error message from the active attempt, if the payment failed.
+    pub error_message: Option<String>,
+
+    /// Date time at which the payment was last updated.
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub updated: Option<PrimitiveDateTime>,
+
+    /// Whether extended authorization is applied on this payment.
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+
+    /// Date time at which extended authorization was last applied.
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
+
+    /// Date time after which this payment cannot be captured.
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub capture_before: Option<PrimitiveDateTime>,
+
+    /// Method through which the card was discovered.
+    pub card_discovery: Option<enums::CardDiscovery>,
+
+    /// The category of a Merchant Initiated Transaction (MIT).
+    pub mit_category: Option<api_enums::MitCategory>,
+
+    /// The tokenization preference for the payment method.
+    pub tokenization: Option<enums::Tokenization>,
+
+    /// Whether 3ds challenge is forced.
+    pub force_3ds_challenge: Option<bool>,
+
+    /// Whether 3ds challenge is triggered.
+    pub force_3ds_challenge_trigger: Option<bool>,
+
+    /// Error code received from the issuer in case of failed payments.
+    pub issuer_error_code: Option<String>,
+
+    /// Error message received from the issuer in case of failed payments.
+    pub issuer_error_message: Option<String>,
+
+    /// Whether the redirection has to open in the iframe.
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates how the payment was initiated.
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+
+    /// Whether partial authorization is allowed for this payment.
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+
+    /// Whether overcapture must be requested for this payment.
+    pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
+
+    /// Whether overcapture is effectively enabled for this payment.
+    pub is_overcapture_enabled: Option<primitive_wrappers::OvercaptureEnabledBool>,
+
+    /// Card network response details (e.g. Visa/Mastercard advice codes).
+    pub network_details: Option<NetworkDetails>,
+
+    /// Whether this payment method is stored and previously used.
+    pub is_stored_credential: Option<bool>,
+
+    /// Whether extended authorization was requested for this payment.
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+
+    /// Billing descriptor information for the payment.
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+
+    /// Information identifying partner and merchant details.
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+
+    /// Installment selection confirmed by the customer for this payment.
+    pub installment_data: Option<common_types::payments::InstallmentData>,
+
+    /// A connector-specific identifier representing the stored payment instrument.
+    pub sender_payment_instrument_id: Option<String>,
+
+    /// Surcharge and tax-on-surcharge applied on the active attempt.
+    pub surcharge_details: Option<RequestSurchargeDetails>,
+
+    /// Installment options available/selected for this payment.
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PlatformPaymentListResponse {
+    /// The number of payments included in the current response.
+    pub count: usize,
+    /// The total number of payments matching the given constraints (ignores limit/offset).
+    pub total_count: i64,
+    /// The list of payment summaries across the platform's connected merchants.
+    pub data: Vec<PlatformPaymentListItem>,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct RecoveryPaymentListResponse {
@@ -8525,6 +9633,8 @@ pub struct PaymentListResponseV2 {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentListFilterConstraints {
+    /// Search text for scoped OpenSearch payment list search
+    pub query: Option<String>,
     /// The identifier for payment
     pub payment_id: Option<id_type::PaymentId>,
     /// The identifier for business profile
@@ -8532,15 +9642,16 @@ pub struct PaymentListFilterConstraints {
     /// The identifier for customer
     pub customer_id: Option<id_type::CustomerId>,
     /// The limit on the number of objects. The default limit is 10 and max limit is 20
-    #[serde(default = "default_payments_list_limit")]
-    pub limit: u32,
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
     /// The starting point within a list of objects
-    pub offset: Option<u32>,
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
     /// The amount to filter payments list
     pub amount_filter: Option<AmountFilter>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
-    pub time_range: Option<common_utils::types::TimeRange>,
+    pub time_range: Option<TimeRange>,
     /// The list of connectors to filter payments list
     pub connector: Option<Vec<api_enums::Connector>>,
     /// The list of currencies to filter payments list
@@ -8560,10 +9671,30 @@ pub struct PaymentListFilterConstraints {
     pub order: Order,
     /// The List of all the card networks to filter payments list
     pub card_network: Option<Vec<enums::CardNetwork>>,
+    /// The card last four digits to filter payments list
+    pub card_last_4: Option<Vec<String>>,
+    /// The active attempt ids to filter payments list
+    pub active_attempt_id: Option<Vec<String>>,
+    /// The card issuers to filter payments list
+    pub card_issuer: Option<Vec<String>>,
+    /// The routing approaches to filter payments list
+    pub routing_approach: Option<Vec<api_enums::RoutingApproach>>,
+    /// The refund statuses to filter sessionized payments list
+    pub refunds_status: Option<Vec<String>>,
+    /// The dispute statuses to filter sessionized payments list
+    pub dispute_status: Option<Vec<String>>,
+    /// The client sources to filter payments list
+    pub client_source: Option<Vec<String>>,
+    /// The client versions to filter payments list
+    pub client_version: Option<Vec<String>>,
+    /// Whether the payment succeeded on the first attempt. `true` maps to attempt_count = 1, `false` maps to attempt_count > 1.
+    pub first_attempt: Option<Vec<bool>>,
     /// The identifier for merchant order reference id
     pub merchant_order_reference_id: Option<String>,
     /// Indicates the method by which a card is discovered during a payment
     pub card_discovery: Option<Vec<enums::CardDiscovery>>,
+    /// The customer email to filter payments list
+    pub customer_email: Option<Email>,
 }
 
 #[cfg(feature = "v1")]
@@ -8575,6 +9706,15 @@ impl PaymentListFilterConstraints {
             && self.authentication_type.is_none()
             && self.merchant_connector_id.is_none()
             && self.card_network.is_none()
+            && self.card_last_4.is_none()
+            && self.active_attempt_id.is_none()
+            && self.card_issuer.is_none()
+            && self.routing_approach.is_none()
+            && self.refunds_status.is_none()
+            && self.dispute_status.is_none()
+            && self.client_source.is_none()
+            && self.client_version.is_none()
+            && self.first_attempt.is_none()
             && self.card_discovery.is_none()
     }
 }
@@ -8613,6 +9753,27 @@ pub struct PaymentListFiltersV2 {
     pub card_discovery: Vec<enums::CardDiscovery>,
 }
 
+/// Available filter values for a platform payments list, aggregated across all of the
+/// platform's connected merchants.
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PlatformPaymentListFilters {
+    /// The available connector filters, keyed by connector name
+    pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
+    /// The list of available currency filters
+    pub currency: Vec<enums::Currency>,
+    /// The list of available payment status filters
+    pub status: Vec<enums::IntentStatus>,
+    /// The available payment methods and their corresponding payment method types
+    pub payment_method: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+    /// The list of available authentication types
+    pub authentication_type: Vec<enums::AuthenticationType>,
+    /// The list of available card networks
+    pub card_network: Vec<enums::CardNetwork>,
+    /// The list of available card discovery methods
+    pub card_discovery: Vec<enums::CardDiscovery>,
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentsAggregateResponse {
     /// The list of intent status with their count
@@ -8645,9 +9806,13 @@ pub struct Order {
 pub enum SortOn {
     /// Sort by the amount field
     Amount,
+    /// Sort by the attempt_count field
+    AttemptCount,
     /// Sort by the created_at field
     #[default]
     Created,
+    /// Sort by the modified_at field
+    Modified,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -8667,9 +9832,9 @@ pub struct VerifyResponse {
     // pub status: enums::VerifyStatus,
     pub client_secret: Option<Secret<String>>,
     pub customer_id: Option<id_type::CustomerId>,
-    pub email: crypto::OptionalEncryptableEmail,
-    pub name: crypto::OptionalEncryptableName,
-    pub phone: crypto::OptionalEncryptablePhone,
+    pub email: Option<Email>,
+    pub name: Option<Secret<String>>,
+    pub phone: Option<Secret<String>>,
     pub mandate_id: Option<String>,
     #[auth_based]
     pub payment_method: Option<api_enums::PaymentMethod>,
@@ -8709,9 +9874,9 @@ impl From<&PaymentsRequest> for MandateValidationFields {
             customer_id: req
                 .customer
                 .as_ref()
-                .map(|customer_details| &customer_details.id)
+                .and_then(|customer_details| customer_details.id.as_ref())
                 .or(req.customer_id.as_ref())
-                .map(ToOwned::to_owned),
+                .cloned(),
             mandate_data: req.mandate_data.clone(),
             setup_future_usage: req.setup_future_usage,
             off_session: req.off_session,
@@ -8745,18 +9910,6 @@ impl From<&VerifyRequest> for MandateValidationFields {
 // }
 
 #[cfg(feature = "v1")]
-impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
-    fn from(item: PaymentsSessionRequest) -> Self {
-        let client_secret: Secret<String, pii::ClientSecret> = Secret::new(item.client_secret);
-        Self {
-            session_token: vec![],
-            payment_id: item.payment_id,
-            client_secret,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
 impl From<PaymentsStartRequest> for PaymentsRequest {
     fn from(item: PaymentsStartRequest) -> Self {
         Self {
@@ -8772,6 +9925,9 @@ impl From<AdditionalCardInfo> for CardResponse {
         Self {
             last4: card.last4,
             card_type: card.card_type,
+            card_subtype: card.card_subtype,
+            card_segment_type: card.card_segment_type,
+            funding_source: card.funding_source,
             card_network: card.card_network,
             card_issuer: card.card_issuer,
             card_issuing_country: card.card_issuing_country,
@@ -8782,6 +9938,24 @@ impl From<AdditionalCardInfo> for CardResponse {
             card_holder_name: card.card_holder_name,
             payment_checks: card.payment_checks,
             authentication_data: card.authentication_data,
+            auth_code: card.auth_code,
+        }
+    }
+}
+
+impl From<AdditionalNetworkTokenInfo> for NetworkTokenResponse {
+    fn from(network_token: AdditionalNetworkTokenInfo) -> Self {
+        Self {
+            last4: network_token.last4,
+            token_isin: network_token.token_isin,
+            card_type: network_token.card_type,
+            card_network: network_token.card_network,
+            card_issuer: network_token.card_issuer,
+            card_issuing_country: network_token.card_issuing_country,
+            token_exp_month: network_token.token_exp_month,
+            token_exp_year: network_token.token_exp_year,
+            card_holder_name: network_token.card_holder_name,
+            par: network_token.par,
         }
     }
 }
@@ -8808,32 +9982,48 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 apple_pay,
                 google_pay,
                 samsung_pay,
-            } => match (apple_pay, google_pay, samsung_pay) {
-                (Some(apple_pay_pm), _, _) => Self::Wallet(Box::new(WalletResponse {
+                paypal,
+            } => match (apple_pay, google_pay, samsung_pay, paypal) {
+                (Some(apple_pay_pm), _, _, _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::ApplePay(Box::new(
                         WalletAdditionalDataForCard {
-                            last4: apple_pay_pm
-                                .display_name
-                                .clone()
-                                .chars()
-                                .rev()
-                                .take(4)
-                                .collect::<String>()
-                                .chars()
-                                .rev()
-                                .collect::<String>(),
-                            card_network: apple_pay_pm.network.clone(),
-                            card_type: Some(apple_pay_pm.pm_type.clone()),
+                            last4: Some(
+                                apple_pay_pm
+                                    .display_name
+                                    .clone()
+                                    .chars()
+                                    .rev()
+                                    .take(4)
+                                    .collect::<String>()
+                                    .chars()
+                                    .rev()
+                                    .collect::<String>(),
+                            ),
+                            card_network: Some(apple_pay_pm.network.clone()),
+                            payment_method_data_type: Some(apple_pay_pm.pm_type.clone()),
                             card_exp_month: apple_pay_pm.card_exp_month,
                             card_exp_year: apple_pay_pm.card_exp_year,
+                            auth_code: apple_pay_pm.auth_code,
+                            email: None,
+                            device_pan_bin: apple_pay_pm.device_pan_bin,
+                            card_bin: apple_pay_pm.card_bin,
+                            card_subtype: apple_pay_pm.card_subtype,
+                            card_segment_type: apple_pay_pm.card_segment_type,
+                            funding_source: apple_pay_pm.funding_source,
+                            card_type: apple_pay_pm.card_type,
+                            issuer_name: apple_pay_pm.issuer_name,
+                            issuer_country: apple_pay_pm.issuer_country,
                         },
                     ))),
                 })),
-                (_, Some(google_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
+                (_, Some(google_pay_pm), _, _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::GooglePay(google_pay_pm)),
                 })),
-                (_, _, Some(samsung_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
+                (_, _, Some(samsung_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::SamsungPay(samsung_pay_pm)),
+                })),
+                (_, _, _, Some(paypal_pm)) => Self::Wallet(Box::new(WalletResponse {
+                    details: Some(WalletResponseData::Paypal(paypal_pm)),
                 })),
                 _ => Self::Wallet(Box::new(WalletResponse { details: None })),
             },
@@ -8878,6 +10068,9 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             }
             AdditionalPaymentData::MobilePayment { details } => {
                 Self::MobilePayment(Box::new(MobilePaymentResponse { details }))
+            }
+            AdditionalPaymentData::NetworkToken(network_token) => {
+                Self::NetworkToken(Box::new(NetworkTokenResponse::from(*network_token)))
             }
         }
     }
@@ -8943,6 +10136,9 @@ pub struct PaymentsRetrieveRequest {
     /// If enabled, provides whole connector response
     pub all_keys_required: Option<bool>,
 }
+
+/// Percentage value used to represent the discount applied on an item.
+pub type DiscountPercentage = Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>;
 
 #[derive(
     Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel,
@@ -9010,13 +10206,23 @@ pub struct OrderDetailsWithAmount {
     #[schema(value_type = Option<i64>)]
     #[smithy(value_type = "Option<i64>")]
     pub total_amount: Option<MinorUnit>, // total_amount,
+    /// Discount name applied to this item.
+    #[smithy(value_type = "Option<String>")]
+    pub discount_name: Option<String>,
     /// Discount amount applied to this item.
     #[schema(value_type = Option<i64>)]
     #[smithy(value_type = "Option<i64>")]
     pub unit_discount_amount: Option<MinorUnit>,
+    /// Discount percentage applied to this item.
+    #[schema(value_type = Option<Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>>)]
+    #[smithy(value_type = "Option<Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>>")]
+    pub discount_percentage: Option<DiscountPercentage>,
+    /// Discount type applied to this item.
+    #[smithy(value_type = "Option<String>")]
+    pub discount_type: Option<String>,
 }
 
-impl masking::SerializableSecret for OrderDetailsWithAmount {}
+impl hyperswitch_masking::SerializableSecret for OrderDetailsWithAmount {}
 
 #[derive(
     Default,
@@ -9050,7 +10256,7 @@ pub struct PaymentsSessionRequest {
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
-    pub client_secret: String,
+    pub client_secret: Option<String>,
     /// The list of the supported wallets
     #[schema(value_type = Vec<PaymentMethodType>)]
     pub wallets: Vec<api_enums::PaymentMethodType>,
@@ -9068,7 +10274,11 @@ pub struct PaymentsUpdateMetadataRequest {
     pub payment_id: id_type::PaymentId,
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Object, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub metadata: pii::SecretSerdeValue,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
+    /// Deprecated because feature_metadata update will be done via the /update api from now on
+    #[schema(value_type = Option<FeatureMetadata>, deprecated)]
+    pub feature_metadata: Option<FeatureMetadata>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -9079,6 +10289,15 @@ pub struct PaymentsUpdateMetadataResponse {
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// The status of the payment intent after the metadata update
+    /// Deprecated because there is no change in the status of payment intent after metadata update, and it might create confusion for the integrators.
+    #[schema(value_type = Option<IntentStatus>, example = "failed", default = "requires_confirmation", deprecated)]
+    pub status: Option<api_enums::IntentStatus>,
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    /// Deprecated because feature_metadata update will be done via the /update api from now on
+    #[deprecated(note = "feature_metadata update will be done via the /update api from now on")]
+    #[schema(value_type = Option<FeatureMetadata>)]
+    pub feature_metadata: Option<FeatureMetadata>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -9088,8 +10307,8 @@ pub struct PaymentsPostSessionTokensRequest {
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
     /// It's a token used for client side verification.
-    #[schema(value_type = String)]
-    pub client_secret: Secret<String>,
+    #[schema(value_type = Option<String>)]
+    pub client_secret: Option<Secret<String>>,
     /// Payment method type
     #[schema(value_type = PaymentMethodType)]
     pub payment_method_type: api_enums::PaymentMethodType,
@@ -9118,8 +10337,8 @@ pub struct PaymentsDynamicTaxCalculationRequest {
     /// The shipping address for the payment
     pub shipping: Address,
     /// Client Secret
-    #[schema(value_type = String)]
-    pub client_secret: Secret<String>,
+    #[schema(value_type = Option<String>)]
+    pub client_secret: Option<Secret<String>>,
     /// Payment method type
     #[schema(value_type = PaymentMethodType)]
     pub payment_method_type: api_enums::PaymentMethodType,
@@ -9178,6 +10397,10 @@ pub struct GpayAllowedMethodsParameters {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[smithy(value_type = "Option<bool>")]
     pub assurance_details_required: Option<bool>,
+    /// Set to false if you don't want to allow credit cards
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<bool>")]
+    pub allow_credit_cards: Option<bool>,
 }
 
 #[derive(
@@ -9235,6 +10458,44 @@ pub struct GpayTokenParameters {
     pub public_key: Option<Secret<String>>,
 }
 
+/// The tokenization type sent to the Google Pay SDK.
+///
+/// Unlike [`GooglePayTokenizationType`], this holds only the values Google itself understands:
+/// the Hyperswitch-internal `INTERNAL_GATEWAY` marker is resolved into `PAYMENT_GATEWAY` during
+/// the session flow before this is built, so it can never leak into an SDK response.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum GooglePayTokenizationSpecificationType {
+    PaymentGateway,
+    Direct,
+}
+
+/// Resolves the caller-facing [`GooglePayTokenizationType`] into the SDK-side equivalent.
+///
+/// `INTERNAL_GATEWAY` is not a tokenization type Google understands: sessions served through it
+/// go through Hyperswitch's own registered gateway, which the SDK knows as `PAYMENT_GATEWAY`.
+impl From<GooglePayTokenizationType> for GooglePayTokenizationSpecificationType {
+    fn from(tokenization_type: GooglePayTokenizationType) -> Self {
+        match tokenization_type {
+            GooglePayTokenizationType::Direct => Self::Direct,
+            GooglePayTokenizationType::PaymentGateway
+            | GooglePayTokenizationType::InternalGateway => Self::PaymentGateway,
+        }
+    }
+}
+
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
 )]
@@ -9242,8 +10503,8 @@ pub struct GpayTokenParameters {
 pub struct GpayTokenizationSpecification {
     /// The token specification type(ex: PAYMENT_GATEWAY)
     #[serde(rename = "type")]
-    #[smithy(value_type = "String")]
-    pub token_specification_type: String,
+    #[smithy(value_type = "GooglePayTokenizationSpecificationType")]
+    pub token_specification_type: GooglePayTokenizationSpecificationType,
     /// The parameters for the token specification Google Pay
     #[smithy(value_type = "GpayTokenParameters")]
     pub parameters: GpayTokenParameters,
@@ -9309,9 +10570,20 @@ pub struct GpayMetaData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayDetailsWrapper {
+    #[serde(flatten)]
+    pub data: Option<GpayMetaData>,
+    support_predecrypted_token: Option<bool>,
+}
+impl GooglePayDetailsWrapper {
+    pub fn is_predecrypted_token_supported(&self) -> bool {
+        self.support_predecrypted_token.unwrap_or(false)
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GpaySessionTokenData {
-    #[serde(rename = "google_pay")]
-    pub data: GpayMetaData,
+    pub google_pay: GooglePayDetailsWrapper,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -9392,6 +10664,155 @@ pub struct ConnectorMetadata {
     pub braintree: Option<BraintreeData>,
     #[smithy(value_type = "Option<AdyenConnectorMetadata>")]
     pub adyen: Option<AdyenConnectorMetadata>,
+    #[smithy(value_type = "Option<PeachpaymentsData>")]
+    pub peachpayments: Option<PeachpaymentsData>,
+    #[smithy(value_type = "Option<SantanderData>")]
+    pub santander: Option<SantanderConnectorMetadataData>,
+    #[smithy(value_type = "Option<WorldpayxmlData>")]
+    pub worldpayxml: Option<WorldpayxmlData>,
+    #[smithy(value_type = "Option<CheckoutData>")]
+    pub checkout: Option<CheckoutData>,
+    #[smithy(value_type = "Option<StripeConnectorMetadata>")]
+    pub stripe: Option<StripeConnectorMetadata>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct StripeConnectorMetadata {
+    /// For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright
+    /// instead of returning a `requires_action` status, since there's no customer present to
+    /// complete additional authentication.
+    #[smithy(value_type = "Option<bool>")]
+    pub error_on_requires_action: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct CheckoutData {
+    /// Purpose of Payment. Required for AFT.
+    #[schema(value_type = Option<String>, example = "wallet top-up")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub purpose_of_payment: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct WorldpayxmlData {
+    /// Funding Transfer Type. Required for AFT.
+    #[schema(value_type = Option<WorldpayxmlFundingTransactionType>, example = "account_to_account")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub funding_transaction_type: Option<WorldpayxmlFundingTransactionType>,
+    /// Purpose of Payment. Required for AFT.
+    #[schema(value_type = Option<WorldpayxmlPaymentPurpose>, example = "savings")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_purpose: Option<WorldpayxmlPaymentPurpose>,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum WorldpayxmlFundingTransactionType {
+    CreditCardBillRepayment,
+    GiftCardPurchase,
+    GiftCardPurchaseForAnother,
+    NonReloadablePrepaidCard,
+    ReloadablePrepaidCardOrAccount,
+    GamingChipsPurchase,
+    GamingStoredValueWallet,
+    GamingStagedDigitalWallet,
+    LiquidAndCryptoAssetsPurchase,
+    LiquidAndCryptoStoredValueWalletLoad,
+    StoredValueDigitalWalletLoad,
+    StoredValueDigitalWalletLoadNonSecurities,
+    SecuritiesStoredValueDigitalWalletLoad,
+    SecuritiesStagedDigitalWalletLoad,
+    SingleMerchantWalletLoad,
+    DebitCardLoad,
+    TransferToOwnDebitAccount,
+    FundsTransferMeToMe,
+    AccountToAccount,
+    BackToBackP2pWithoutWallet,
+    BackToBackP2pWithWallet,
+    AgentCashOut,
+    StagedDigitalWalletLoad,
+    StagedDigitalWalletPurchase,
+    BackToBackCardPurchase,
+    PayrollDisbursementFunding,
+    BusinessToConsumerDisbursement,
+    BusinessToBusinessInvoicePayment,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum WorldpayxmlPaymentPurpose {
+    FamilySupport,
+    RegularLabourTransfers,
+    TravelAndTourism,
+    Education,
+    HospitalisationAndMedicalTreatment,
+    EmergencyNeed,
+    Savings,
+    Gifts,
+    Other,
+    Salary,
+    CrowdLending,
+    CryptoCurrency,
+    HighRiskSecurities,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorMetadataResponse {
+    Santander(SantanderData),
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct SantanderData {
+    #[schema(value_type = Option<String>, example = "E9040088820260710172800044983797")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_to_end_id: Option<String>,
+    #[schema(value_type = Option<SantanderJourneyName>, example = "journey_1")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub journey_name: Option<SantanderJourneyName>,
+    /// Actual timestamp when the payment was completed, as reported by Santander.
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2025-07-20T14:35:00Z")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        with = "common_utils::custom_serde::iso8601::option"
+    )]
+    pub paid_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum SantanderJourneyName {
+    #[serde(rename = "journey_1")]
+    // PixAutomaticoPush payment method type for zero-amount payments.
+    Journey1,
+    #[serde(rename = "journey_2")]
+    // PixAutomaticoQr payment method type for zero-amount payments.
+    Journey2,
+    #[serde(rename = "journey_3")]
+    // PixAutomaticoQr payment method type for non-zero payments with immediate QR expiry.
+    Journey3,
+    #[serde(rename = "journey_4")]
+    // PixAutomaticoQr payment method type for non-zero payments with scheduled QR expiry.
+    Journey4,
+    #[serde(rename = "awaiting_definition")]
+    // Journey could not be determined from the connector response.
+    AwaitingDefinition,
 }
 
 impl ConnectorMetadata {
@@ -9477,14 +10898,35 @@ pub struct ApplepaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ApplePayCombinedWrapper {
+    #[serde(flatten)]
+    pub data: Option<ApplePayCombinedMetadata>,
+    support_predecrypted_token: Option<bool>,
+}
+impl ApplePayCombinedWrapper {
+    pub fn is_predecrypted_token_supported(&self) -> bool {
+        self.support_predecrypted_token.unwrap_or(false)
+    }
+    pub fn get_combined_metadata_required(
+        &self,
+    ) -> Result<ApplePayCombinedMetadata, ValidationError> {
+        self.data
+            .clone()
+            .ok_or(ValidationError::IncorrectValueProvided {
+                field_name: "metadata.apple_pay_combined".into(),
+            })
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplepayCombinedSessionTokenData {
-    pub apple_pay_combined: ApplePayCombinedMetadata,
+    pub apple_pay_combined: ApplePayCombinedWrapper,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplepaySessionTokenMetadata {
-    ApplePayCombined(ApplePayCombinedMetadata),
+    ApplePayCombined(ApplePayCombinedWrapper),
     ApplePay(ApplePayMetadata),
 }
 
@@ -9505,6 +10947,33 @@ pub enum ApplePayCombinedMetadata {
         payment_request_data: PaymentRequestMetadata,
         session_token_data: SessionTokenInfo,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PeachpaymentsData {
+    /// A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub rrn: Option<String>,
+    /// Indicates the card-on-file transaction classification to use for Peach Payments when recurring_details.card_with_limited_data is supplied.
+    #[schema(value_type = Option<PeachpaymentsCardOnFileTransactionType>)]
+    #[smithy(value_type = "Option<PeachpaymentsCardOnFileTransactionType>")]
+    pub card_on_file_transaction_type: Option<PeachpaymentsCardOnFileTransactionType>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PeachpaymentsCardOnFileTransactionType {
+    /// One-off card payment without CVV.
+    OneOff,
+    /// Card without CVV where the customer is present — telephone sales where the customer reads the card, hospitality pre-auth, etc.
+    CustomerInitiatedTransaction,
+    /// Card without CVV where the customer is not present — backoffice recurring setup, merchant loading credentials on behalf of the customer.
+    MerchantInitiatedMandate,
+    /// Merchant-initiated charge where the merchant holds the card credentials.
+    MerchantInitiatedTransaction,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -9536,6 +11005,11 @@ pub struct SessionTokenInfo {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     #[serde(flatten)]
     pub payment_processing_details_at: Option<PaymentProcessingDetailsAt>,
+    /// Optional in the request, always populated (defaults to `raw`) in the response
+    #[serde(serialize_with = "serialize_payment_processing_detail_input_type")]
+    #[schema(value_type = Option<PaymentProcessingDetailInputType>)]
+    #[smithy(value_type = "Option<PaymentProcessingDetailInputType>")]
+    pub payment_processing_detail_input_type: Option<PaymentProcessingDetailInputType>,
 }
 
 #[derive(
@@ -9571,11 +11045,51 @@ pub struct PaymentProcessingDetails {
     pub payment_processing_certificate_key: Secret<String>,
 }
 
+/// Specifies how the Apple Pay payment processing details are supplied.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PaymentProcessingDetailInputType {
+    /// The payment processing certificates are supplied as raw values.
+    #[default]
+    Raw,
+    /// The payment processing certificates are linked from an organization level resource.
+    LinkHierarchicalResource,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenForSimplifiedApplePay {
     pub initiative_context: String,
     #[schema(value_type = Option<CountryAlpha2>)]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+}
+
+/// Serializes the payment processing detail input type in its unwrapped form, so that the response
+/// always carries a concrete value even when it was not provided in the request.
+// serde's `serialize_with` requires the function to accept a reference to the field.
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn serialize_payment_processing_detail_input_type<S>(
+    payment_processing_detail_input_type: &Option<PaymentProcessingDetailInputType>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    Serialize::serialize(
+        &payment_processing_detail_input_type.unwrap_or_default(),
+        serializer,
+    )
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -9613,31 +11127,96 @@ pub struct GooglePayMerchantInfo {
 pub struct GooglePayTokenizationSpecification {
     #[serde(rename = "type")]
     pub tokenization_type: GooglePayTokenizationType,
+    /// Absent for `INTERNAL_GATEWAY`, where the merchant supplies no key material at all.
+    #[serde(default)]
     pub parameters: GooglePayTokenizationParameters,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, strum::Display)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, strum::Display,
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePayTokenizationType {
     PaymentGateway,
     Direct,
+    /// Hyperswitch-internal marker: the token is encrypted to Hyperswitch's own registered
+    /// gateway key. Never sent to Google as-is; resolved to `PAYMENT_GATEWAY` in the session flow.
+    InternalGateway,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayTokenizationParameters {
     pub gateway: Option<String>,
     pub public_key: Option<Secret<String>>,
     pub private_key: Option<Secret<String>>,
     pub recipient_id: Option<Secret<String>>,
     pub gateway_merchant_id: Option<Secret<String>>,
+    #[serde(rename = "stripe:publishableKey", alias = "stripe_publishable_key")]
     pub stripe_publishable_key: Option<Secret<String>>,
+    #[serde(rename = "stripe:version", alias = "stripe_version")]
     pub stripe_version: Option<Secret<String>>,
 }
 
-#[derive(
-    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
+/// Which integration the caller is building, taken from the `X-Integration-Type` header.
+///
+/// `Client` is the default by design: an integration that has never heard of the header keeps
+/// its current response shape.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntegrationType {
+    Client,
+    Server,
+}
+
+#[cfg(feature = "v1")]
+impl IntegrationType {
+    /// Parses the raw header value. `None`, or anything other than `server`, is a client
+    /// integration — the caller logs the unrecognised case, since this crate has no logger.
+    pub fn from_header_value(value: Option<&str>) -> Self {
+        value.map_or(Self::Client, |value| {
+            if value.trim().eq_ignore_ascii_case("server") {
+                Self::Server
+            } else {
+                Self::Client
+            }
+        })
+    }
+
+    pub fn is_server(self) -> bool {
+        matches!(self, Self::Server)
+    }
+
+    /// The header spelling of this value.
+    pub fn as_header_value(self) -> &'static str {
+        match self {
+            Self::Client => "client",
+            Self::Server => "server",
+        }
+    }
+}
+
+/// Wallet session tokens, or the error that prevented them being minted.
+///
+/// Serialized untagged: a success is the whole `PaymentsSessionResponse` object, a failure is
+/// `{ "error": {...} }`.
+/// Gated on `errors` as well as `v1` — see [`crate::payment_methods::PaymentMethodListResult`].
+#[cfg(all(feature = "v1", feature = "errors"))]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum SessionTokensResult {
+    /// The session response exactly as `POST /payments/session_tokens` returns it, including
+    /// `vault_details` — which carries the internal vault SDK authorization.
+    Success(Box<PaymentsSessionResponse>),
+    /// Serializes as `{ "error": { ... } }` — the same envelope the HTTP layer puts around
+    /// `ErrorResponse`, so this reads identically to the standalone endpoint's error body.
+    Failed {
+        #[schema(value_type = GenericErrorResponseOpenApi)]
+        error: Box<ErrorResponse>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -9674,14 +11253,32 @@ pub enum SessionToken {
     NoSessionTokenReceived,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+/// Top-level vault details returned in the session-tokens response.
+/// For v1: contains both internal vault (SDK authorization) and external vault details.
+/// For v2: contains only external vault details.
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct VaultDetails {
+    /// Internal vault details containing the SDK authorization token (v1 only)
+    pub internal_vault: Option<InternalVaultSessionDetails>,
+    /// External vault details (e.g. VGS or Hyperswitch Vault)
+    pub external_vault_details: Option<VaultSessionDetails>,
+}
+
+/// Internal vault details for SDK authorization
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct InternalVaultSessionDetails {
+    /// Base64-encoded SDK authorization token for the internal vault session
+    pub sdk_authorization: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VaultSessionDetails {
     Vgs(VgsSessionDetails),
     HyperswitchVault(HyperswitchVaultSessionDetails),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VgsSessionDetails {
     /// The identifier of the external vault
     #[schema(value_type = String)]
@@ -9690,20 +11287,67 @@ pub struct VgsSessionDetails {
     pub sdk_env: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct HyperswitchVaultSessionDetails {
-    /// Session ID for Hyperswitch Vault
+    /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
     #[schema(value_type = String)]
-    pub payment_method_session_id: Secret<String>,
-    /// Client secret for Hyperswitch Vault
+    pub sdk_authorization: Secret<String>,
+}
+
+/// V1-facing vault details for the session-tokens response, serialized as a tagged
+/// `{ "vault_type": ..., "vault_data": { ... } }` object. Exactly one variant is returned:
+/// external vault details when configured, otherwise the internal Hyperswitch vault session.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(tag = "vault_type", content = "vault_data", rename_all = "snake_case")]
+pub enum VaultDetailsResponse {
+    /// Internal/default Hyperswitch vault session
+    Hyperswitch(HyperswitchVaultData),
+    /// External VGS vault session
+    Vgs(VgsVaultData),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct HyperswitchVaultData {
+    /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
     #[schema(value_type = String)]
-    pub client_secret: Secret<String>,
-    /// Publishable key for Hyperswitch Vault
+    pub sdk_authorization: Secret<String>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct VgsVaultData {
+    /// The identifier of the external vault
     #[schema(value_type = String)]
-    pub publishable_key: Secret<String>,
-    /// Profile ID for Hyperswitch Vault
-    #[schema(value_type = String)]
-    pub profile_id: Secret<String>,
+    pub vault_id: Secret<String>,
+    /// The environment for the external vault initiation
+    pub environment: String,
+}
+
+#[cfg(feature = "v1")]
+impl From<VaultDetails> for Option<VaultDetailsResponse> {
+    fn from(details: VaultDetails) -> Self {
+        match details.external_vault_details {
+            // An external vault is configured: surface it as-is (VGS or Hyperswitch Vault).
+            Some(VaultSessionDetails::Vgs(vgs)) => Some(VaultDetailsResponse::Vgs(VgsVaultData {
+                vault_id: vgs.external_vault_id,
+                environment: vgs.sdk_env,
+            })),
+            Some(VaultSessionDetails::HyperswitchVault(hs)) => {
+                Some(VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
+                    sdk_authorization: hs.sdk_authorization,
+                }))
+            }
+            // No external vault configured (the SaaS default): fall back to the internal
+            // Hyperswitch vault SDK authorization.
+            None => details.internal_vault.map(|internal| {
+                VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
+                    sdk_authorization: Secret::new(internal.sdk_authorization),
+                })
+            }),
+        }
+    }
 }
 
 #[derive(
@@ -9932,6 +11576,28 @@ pub enum PaypalFlow {
     Checkout,
 }
 
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PaypalCaptureMethod {
+    Capture,
+    Authorize,
+}
+
+impl From<common_enums::CaptureMethod> for PaypalCaptureMethod {
+    fn from(from: common_enums::CaptureMethod) -> Self {
+        match from {
+            common_enums::CaptureMethod::SequentialAutomatic
+            | common_enums::CaptureMethod::Automatic => Self::Capture,
+            common_enums::CaptureMethod::Manual
+            | common_enums::CaptureMethod::ManualMultiple
+            | common_enums::CaptureMethod::Scheduled => Self::Authorize,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaypalTransactionInfo {
     /// Paypal flow type
@@ -9964,6 +11630,16 @@ pub struct PaypalSessionTokenResponse {
     pub client_token: Option<String>,
     /// The transaction info Paypal requires
     pub transaction_info: Option<PaypalTransactionInfo>,
+    /// User token required for returning customer flow, used by client to initiate sdk
+    pub data_user_id_token: Option<String>,
+    /// Transaction currency code
+    #[schema(example = "USD", value_type = Option<Currency>)]
+    #[smithy(value_type = "Option<Currency>")]
+    pub currency: Option<common_enums::Currency>,
+    /// PayPal capture method
+    #[schema(value_type = Option<PaypalCaptureMethod>)]
+    #[smithy(value_type = "Option<PaypalCaptureMethod>")]
+    pub intent: Option<PaypalCaptureMethod>,
 }
 
 #[derive(
@@ -9977,9 +11653,7 @@ pub struct OpenBankingSessionToken {
     pub open_banking_session_token: String,
 }
 
-#[derive(
-    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplepaySessionTokenResponse {
@@ -10019,6 +11693,8 @@ pub struct SdkNextAction {
     /// The type of next action
     #[smithy(value_type = "NextActionCall")]
     pub next_action: NextActionCall,
+    /// Whether the SDK should block the confirm call for user.
+    pub should_block_confirm: Option<bool>,
 }
 
 #[derive(
@@ -10038,14 +11714,18 @@ pub enum NextActionCall {
     /// The next action is to await for a merchant callback
     AwaitMerchantCallback,
     /// The next action is to deny the payment with an error message
-    Deny { message: String },
+    Deny {
+        message: String,
+        /// A stable, machine-readable identifier for the reason the payment was denied
+        #[schema(value_type = Option<BlockReasonCode>)]
+        #[smithy(value_type = "Option<BlockReasonCode>")]
+        code: Option<api_enums::BlockReasonCode>,
+    },
     /// The next action is to perform eligibility check
     EligibilityCheck,
 }
 
-#[derive(
-    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(untagged)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ApplePaySessionResponse {
@@ -10054,52 +11734,11 @@ pub enum ApplePaySessionResponse {
     ThirdPartySdk(ThirdPartySdkSessionResponse),
     ///  We get this session response, when there is no involvement of third party sdk
     /// This is the common response most of the times
-    #[smithy(value_type = "NoThirdPartySdkSessionResponse")]
-    NoThirdPartySdk(NoThirdPartySdkSessionResponse),
+    #[smithy(value_type = "smithy.api#Document")]
+    NoThirdPartySdk(serde_json::Value),
     /// This is for the empty session response
     #[smithy(value_type = "smithy.api#Unit")]
     NoSessionResponse(NullObject),
-}
-
-#[derive(
-    Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel,
-)]
-#[serde(rename_all(deserialize = "camelCase"))]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct NoThirdPartySdkSessionResponse {
-    /// Timestamp at which session is requested
-    #[smithy(value_type = "u64")]
-    pub epoch_timestamp: u64,
-    /// Timestamp at which session expires
-    #[smithy(value_type = "u64")]
-    pub expires_at: u64,
-    /// The identifier for the merchant session
-    #[smithy(value_type = "String")]
-    pub merchant_session_identifier: String,
-    /// Apple pay generated unique ID (UUID) value
-    #[smithy(value_type = "String")]
-    pub nonce: String,
-    /// The identifier for the merchant
-    #[smithy(value_type = "String")]
-    pub merchant_identifier: String,
-    /// The domain name of the merchant which is registered in Apple Pay
-    #[smithy(value_type = "String")]
-    pub domain_name: String,
-    /// The name to be displayed on Apple Pay button
-    #[smithy(value_type = "String")]
-    pub display_name: String,
-    /// A string which represents the properties of a payment
-    #[smithy(value_type = "String")]
-    pub signature: String,
-    /// The identifier for the operational analytics
-    #[smithy(value_type = "String")]
-    pub operational_analytics_identifier: String,
-    /// The number of retries to get the session response
-    #[smithy(value_type = "u8")]
-    pub retries: u8,
-    /// The identifier for the connector transaction
-    #[smithy(value_type = "String")]
-    pub psp_id: String,
 }
 
 #[derive(
@@ -10435,7 +12074,7 @@ impl AmazonPayDeliveryOptions {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Default, Debug, serde::Serialize, Clone, ToSchema)]
+#[derive(Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema)]
 pub struct PaymentsSessionResponse {
     /// The identifier for the payment
     #[schema(value_type = String)]
@@ -10445,6 +12084,8 @@ pub struct PaymentsSessionResponse {
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
+    /// Vault details for the session, returned as a tagged `{ vault_type, vault_data }` object
+    pub vault_details: Option<VaultDetailsResponse>,
 }
 
 #[cfg(feature = "v2")]
@@ -10456,7 +12097,7 @@ pub struct PaymentsSessionResponse {
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
     /// External vault session details
-    pub vault_details: Option<VaultSessionDetails>,
+    pub vault_details: Option<VaultDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -10499,8 +12140,8 @@ pub struct PaymentsCompleteAuthorizeRequest {
     /// The shipping address for the payment
     pub shipping: Option<Address>,
     /// Client Secret
-    #[schema(value_type = String)]
-    pub client_secret: Secret<String>,
+    #[schema(value_type = Option<String>)]
+    pub client_secret: Option<Secret<String>>,
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
 }
@@ -10519,6 +12160,9 @@ pub struct PaymentsCancelRequest {
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
     #[smithy(value_type = "Option<MerchantConnectorDetailsWrap>")]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+    /// If enabled, provides whole connector response
+    #[smithy(value_type = "Option<bool>")]
+    pub all_keys_required: Option<bool>,
 }
 
 /// Request to cancel a payment when the payment is already captured
@@ -10529,6 +12173,15 @@ pub struct PaymentsCancelPostCaptureRequest {
     pub payment_id: id_type::PaymentId,
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
+}
+
+/// Tracking data for the post_capture_void_sync workflow stored in process_tracker
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentsPostCaptureVoidSyncTrackingData {
+    /// The identifier for the payment
+    pub payment_id: id_type::PaymentId,
+    /// The identifier for the merchant
+    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -10556,8 +12209,8 @@ pub struct PaymentsExternalAuthenticationRequest {
     #[serde(skip)]
     pub payment_id: id_type::PaymentId,
     /// Client Secret
-    #[schema(value_type = String)]
-    pub client_secret: Secret<String>,
+    #[schema(value_type = Option<String>)]
+    pub client_secret: Option<Secret<String>>,
     /// SDK Information if request is from SDK
     pub sdk_information: Option<SdkInformation>,
     /// Device Channel indicating whether request is coming from App or Browser
@@ -10589,6 +12242,11 @@ pub struct PaymentsManualUpdateRequest {
     pub connector_transaction_id: Option<String>,
     /// The amount that can be captured on the payment.
     pub amount_capturable: Option<MinorUnit>,
+    /// Whether to update amount_captured using amount_to_capture from the attempt.
+    /// When true, amount_captured will be set to amount_to_capture
+    pub update_amount_captured: Option<bool>,
+    /// The amount that has been captured for the payment.
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -10612,6 +12270,41 @@ pub struct PaymentsManualUpdateResponse {
     pub connector_transaction_id: Option<String>,
     /// The amount that can be captured on the payment.
     pub amount_capturable: Option<MinorUnit>,
+    /// The amount that has been captured on the payment.
+    pub amount_captured: Option<MinorUnit>,
+}
+
+/// Request to manually update payment status from the Review or Conflicted state (Dashboard API)
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsManualStatusUpdateRequest {
+    /// The target status to transition to. From `review`, only Succeeded or Failed are valid;
+    /// from `conflicted`, the valid subset is returned by the `/manual-status-update` (GET)
+    /// eligibility check.
+    pub intent_status: enums::ManualUpdateIntentStatus,
+}
+
+/// Response for manual payment status update (Dashboard API)
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsManualStatusUpdateResponse {
+    /// The identifier for the payment
+    pub payment_id: id_type::PaymentId,
+    /// The identifier for the payment attempt
+    pub attempt_id: String,
+    /// The updated status of the intent
+    pub intent_status: enums::IntentStatus,
+    /// The updated status of the attempt
+    pub attempt_status: enums::AttemptStatus,
+}
+
+/// Response listing which statuses a payment is currently eligible for a manual status update
+/// to. Only returned for payments in the `conflicted` state.
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsManualStatusUpdateEligibleStatusesResponse {
+    /// The identifier for the payment
+    pub payment_id: id_type::PaymentId,
+    /// The statuses that a manual status update for this payment may currently target,
+    /// computed from the payment's capture method and requested/received/capturable amounts.
+    pub eligible_statuses: HashSet<enums::ManualUpdateIntentStatus>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, SmithyModel)]
@@ -10630,10 +12323,23 @@ pub enum ThreeDsCompletionIndicator {
 }
 
 /// Device Channel indicating whether request is coming from App or Browser
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Eq, PartialEq)]
+#[derive(
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    ToSchema,
+    Eq,
+    PartialEq,
+    Display,
+    strum::EnumString,
+)]
+#[strum(serialize_all = "UPPERCASE")]
 pub enum DeviceChannel {
+    #[strum(serialize = "APP")]
     #[serde(rename = "APP")]
     App,
+    #[strum(serialize = "BRW")]
     #[serde(rename = "BRW")]
     Browser,
 }
@@ -10655,6 +12361,21 @@ pub struct SdkInformation {
     pub sdk_max_timeout: u8,
     /// Indicates the type of 3DS SDK
     pub sdk_type: Option<SdkType>,
+    /// Device details for collecting Device information
+    pub device_details: Option<DeviceDetails>,
+}
+
+/// Device details for collecting Device information
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+pub struct DeviceDetails {
+    /// Device type
+    pub device_type: Option<String>,
+    /// Device brand
+    pub device_brand: Option<String>,
+    /// Device OS
+    pub device_os: Option<String>,
+    /// Device display
+    pub device_display: Option<String>,
 }
 
 /// Enum representing the type of 3DS SDK.
@@ -10773,6 +12494,8 @@ pub struct PaymentsExternalAuthenticationResponse {
     pub three_ds_requestor_url: String,
     /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred
     pub three_ds_requestor_app_url: Option<String>,
+    /// Error message if any
+    pub error_message: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -10814,6 +12537,14 @@ pub struct FeatureMetadata {
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
     pub revenue_recovery: Option<PaymentRevenueRecoveryMetadata>,
+    /// Pix QR Code expiry time for Merchants
+    pub pix_additional_details: Option<PixAdditionalDetails>,
+    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    pub boleto_additional_details: Option<BoletoAdditionalDetails>,
+    /// Pix Automatico additional details for Push and QR flows
+    pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
+    /// Extra information for Finix connector for fraud checks and risk evaluation
+    pub finix_additional_details: Option<FinixAdditionalDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -10822,6 +12553,92 @@ impl FeatureMetadata {
         self.revenue_recovery
             .as_ref()
             .map(|metadata| metadata.total_retry_count)
+    }
+    /// Helper to extract the optional covenant_code from boleto details
+    pub fn get_optional_boleto_covenant_code(&self) -> Option<Secret<String>> {
+        self.boleto_additional_details
+            .as_ref()
+            .and_then(|boleto| boleto.covenant_code.clone())
+    }
+    /// Gets the Pix Automatico Push expiry time in seconds, returns error if not present
+    pub fn get_pix_automatico_push_expiry_time(&self) -> Result<u32, ValidationError> {
+        self.pix_automatico_additional_details
+            .as_ref()
+            .ok_or(ValidationError::MissingRequiredField {
+                field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
+            })
+            .and_then(|details| match details {
+                PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => Ok(push.time),
+                PixAutomaticoAdditionalDetails::PixAutomaticoQr(_) => {
+                    Err(ValidationError::InvalidValue {
+                        message: "Expected PixAutomaticoPush, found PixAutomaticoQr".to_string(),
+                    })
+                }
+                PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                    Err(ValidationError::InvalidValue {
+                        message: "Expected CIT flow (PixAutomaticoPush), found MIT flow"
+                            .to_string(),
+                    })
+                }
+            })
+    }
+
+    /// Gets the optional fixed recurring mandate amount for Pix Automatico CIT flow
+    pub fn get_optional_fixed_recurring_mit_amount_for_pix_automatico(
+        &self,
+    ) -> common_utils::errors::CustomResult<Option<MinorUnit>, ValidationError> {
+        let pix_automatico = self.pix_automatico_additional_details.as_ref().ok_or(
+            ValidationError::MissingRequiredField {
+                field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
+            },
+        )?;
+
+        let mandate_details = match pix_automatico {
+            PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                push.mandate_details.as_ref()
+            }
+            PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
+            PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                return Err(error_stack::report!(ValidationError::InvalidValue {
+                    message: "Expected CIT flow, found MIT flow".to_string(),
+                }))
+            }
+        };
+
+        let mandate_details = mandate_details.ok_or(ValidationError::MissingRequiredField {
+            field_name: "mandate_details".to_string(),
+        })?;
+
+        Ok(mandate_details.fixed_recurring_amount)
+    }
+
+    /// Gets the optional minimum recurring mandate amount for Pix Automatico CIT flow
+    pub fn get_optional_min_recurring_amount_for_pix_automatico(
+        &self,
+    ) -> common_utils::errors::CustomResult<Option<MinorUnit>, ValidationError> {
+        let pix_automatico = self.pix_automatico_additional_details.as_ref().ok_or(
+            ValidationError::MissingRequiredField {
+                field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
+            },
+        )?;
+
+        let mandate_details = match pix_automatico {
+            PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                push.mandate_details.as_ref()
+            }
+            PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
+            PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                return Err(error_stack::report!(ValidationError::InvalidValue {
+                    message: "Expected CIT flow, found MIT flow".to_string(),
+                }))
+            }
+        };
+
+        let mandate_details = mandate_details.ok_or(ValidationError::MissingRequiredField {
+            field_name: "mandate_details".to_string(),
+        })?;
+
+        Ok(mandate_details.min_recurring_amount)
     }
 
     pub fn set_payment_revenue_recovery_metadata_using_api(
@@ -10833,13 +12650,55 @@ impl FeatureMetadata {
             search_tags: self.search_tags,
             apple_pay_recurring_details: self.apple_pay_recurring_details,
             revenue_recovery: Some(payment_revenue_recovery_metadata),
+            pix_additional_details: self.pix_additional_details,
+            boleto_additional_details: self.boleto_additional_details,
+            pix_automatico_additional_details: self.pix_automatico_additional_details,
+            finix_additional_details: self.finix_additional_details,
         }
+    }
+    /// Extracts the Pix key and its secret value specifically from PixAdditionalDetails
+    pub fn get_pix_key_and_value(&self) -> (Option<enums::PixKey>, Option<Secret<String>>) {
+        let pix_key = self
+            .pix_additional_details
+            .as_ref()
+            .and_then(|pix| match pix {
+                PixAdditionalDetails::Immediate(imm) => imm.pix_key.clone(),
+                PixAdditionalDetails::Scheduled(sch) => sch.pix_key.clone(),
+            });
+        let value = pix_key.as_ref().map(|pk| pk.get_inner_value());
+
+        (pix_key, value)
+    }
+    /// Extracts the Pix key and its secret value specifically from BoletoAdditionalDetails
+    pub fn get_boleto_pix_key_and_value(&self) -> (Option<enums::PixKey>, Option<Secret<String>>) {
+        let pix_key = self
+            .boleto_additional_details
+            .as_ref()
+            .and_then(|boleto| boleto.pix_key.clone());
+
+        let value = pix_key.as_ref().map(|pk| pk.get_inner_value());
+
+        (pix_key, value)
+    }
+    /// Checks if this is a Pix Automatico Journey 3 (Immediate expiration variant)
+    pub fn is_pix_immediate(&self) -> bool {
+        self.pix_additional_details
+            .as_ref()
+            .map(|details| matches!(details, PixAdditionalDetails::Immediate(_)))
+            .unwrap_or(false)
+    }
+    /// Checks if this is a Pix Automatico Journey 4 (Scheduled expiration variant)
+    pub fn is_pix_scheduled(&self) -> bool {
+        self.pix_additional_details
+            .as_ref()
+            .map(|details| matches!(details, PixAdditionalDetails::Scheduled(_)))
+            .unwrap_or(false)
     }
 }
 
 /// additional data that might be required by hyperswitch
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
@@ -10853,9 +12712,435 @@ pub struct FeatureMetadata {
     /// Recurring payment details required for apple pay Merchant Token
     #[smithy(value_type = "Option<ApplePayRecurringDetails>")]
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
+    /// Extra information for Pix Payment Method Type like fine expiry, pix key etc
+    #[smithy(value_type = "Option<PixAdditionalDetails>")]
+    pub pix_additional_details: Option<PixAdditionalDetails>,
+    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    #[smithy(value_type = "Option<BoletoAdditionalDetails>")]
+    pub boleto_additional_details: Option<BoletoAdditionalDetails>,
+    /// Pix Automatico additional details for Push Notification and QR based flows
+    #[smithy(value_type = "Option<PixAutomaticoAdditionalDetails>")]
+    pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
+    /// Extra information for Finix connector for fraud checks and risk evaluation
+    #[smithy(value_type = "Option<FinixAdditionalDetails>")]
+    pub finix_additional_details: Option<FinixAdditionalDetails>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[cfg(feature = "v1")]
+impl FeatureMetadata {
+    /// Helper to extract the optional covenant_code from boleto details
+    pub fn get_optional_boleto_covenant_code(&self) -> Option<Secret<String>> {
+        self.boleto_additional_details
+            .as_ref()
+            .and_then(|boleto| boleto.covenant_code.clone())
+    }
+    /// Gets the Pix Automatico Push expiry time in seconds, returns error if not present
+    pub fn get_pix_automatico_push_expiry_time(&self) -> Result<u32, ValidationError> {
+        self.pix_automatico_additional_details
+            .as_ref()
+            .ok_or(ValidationError::MissingRequiredField {
+                field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
+            })
+            .and_then(|details| match details {
+                PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => Ok(push.time),
+                PixAutomaticoAdditionalDetails::PixAutomaticoQr(_) => {
+                    Err(ValidationError::InvalidValue {
+                        message: "Expected PixAutomaticoPush, found PixAutomaticoQr".to_string(),
+                    })
+                }
+                PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                    Err(ValidationError::InvalidValue {
+                        message: "Expected CIT flow (PixAutomaticoPush), found MIT flow"
+                            .to_string(),
+                    })
+                }
+            })
+    }
+    pub fn merge(self, other: Option<Self>) -> Self {
+        if let Some(other) = other {
+            Self {
+                redirect_response: self.redirect_response.or(other.redirect_response),
+                search_tags: self.search_tags.or(other.search_tags),
+                apple_pay_recurring_details: self
+                    .apple_pay_recurring_details
+                    .or(other.apple_pay_recurring_details),
+                pix_additional_details: self
+                    .pix_additional_details
+                    .or(other.pix_additional_details),
+
+                boleto_additional_details: BoletoAdditionalDetails::merge_optional(
+                    self.boleto_additional_details,
+                    other.boleto_additional_details,
+                ),
+                pix_automatico_additional_details: self
+                    .pix_automatico_additional_details
+                    .or(other.pix_automatico_additional_details),
+                finix_additional_details: self
+                    .finix_additional_details
+                    .or(other.finix_additional_details),
+            }
+        } else {
+            self
+        }
+    }
+    /// Extracts the Pix key and its secret value specifically from PixAdditionalDetails
+    pub fn get_pix_key_and_value(&self) -> (Option<enums::PixKey>, Option<Secret<String>>) {
+        let pix_key = self
+            .pix_additional_details
+            .as_ref()
+            .and_then(|pix| match pix {
+                PixAdditionalDetails::Immediate(imm) => imm.pix_key.clone(),
+                PixAdditionalDetails::Scheduled(sch) => sch.pix_key.clone(),
+            });
+        let value = pix_key.as_ref().map(|pk| pk.get_inner_value());
+
+        (pix_key, value)
+    }
+    /// Extracts the Pix key and its secret value specifically from BoletoAdditionalDetails
+    pub fn get_boleto_pix_key_and_value(&self) -> (Option<enums::PixKey>, Option<Secret<String>>) {
+        let pix_key = self
+            .boleto_additional_details
+            .as_ref()
+            .and_then(|boleto| boleto.pix_key.clone());
+
+        let value = pix_key.as_ref().map(|pk| pk.get_inner_value());
+
+        (pix_key, value)
+    }
+    /// Checks if this is a Pix Automatico Journey 3 (Immediate expiration variant)
+    pub fn is_pix_immediate(&self) -> bool {
+        self.pix_additional_details
+            .as_ref()
+            .map(|details| matches!(details, PixAdditionalDetails::Immediate(_)))
+            .unwrap_or(false)
+    }
+    /// Checks if this is a Pix Automatico Journey 4 (Scheduled expiration variant)
+    pub fn is_pix_scheduled(&self) -> bool {
+        self.pix_additional_details
+            .as_ref()
+            .map(|details| matches!(details, PixAdditionalDetails::Scheduled(_)))
+            .unwrap_or(false)
+    }
+
+    /// Gets the optional fixed recurring mandate amount for Pix Automatico CIT flow
+    pub fn get_optional_fixed_recurring_mit_amount_for_pix_automatico(
+        &self,
+    ) -> common_utils::errors::CustomResult<Option<MinorUnit>, ValidationError> {
+        let pix_automatico = self.pix_automatico_additional_details.as_ref().ok_or(
+            ValidationError::MissingRequiredField {
+                field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
+            },
+        )?;
+
+        let mandate_details = match pix_automatico {
+            PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                push.mandate_details.as_ref()
+            }
+            PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
+            PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                return Err(error_stack::report!(ValidationError::InvalidValue {
+                    message: "Expected CIT flow, found MIT flow".to_string(),
+                }))
+            }
+        };
+
+        let mandate_details = mandate_details.ok_or(ValidationError::MissingRequiredField {
+            field_name: "mandate_details".to_string(),
+        })?;
+
+        Ok(mandate_details.fixed_recurring_amount)
+    }
+
+    /// Gets the optional minimum recurring mandate amount for Pix Automatico CIT flow
+    pub fn get_optional_min_recurring_amount_for_pix_automatico(
+        &self,
+    ) -> common_utils::errors::CustomResult<Option<MinorUnit>, ValidationError> {
+        let pix_automatico = self.pix_automatico_additional_details.as_ref().ok_or(
+            ValidationError::MissingRequiredField {
+                field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
+            },
+        )?;
+
+        let mandate_details = match pix_automatico {
+            PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                push.mandate_details.as_ref()
+            }
+            PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
+            PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                return Err(error_stack::report!(ValidationError::InvalidValue {
+                    message: "Expected CIT flow, found MIT flow".to_string(),
+                }))
+            }
+        };
+
+        let mandate_details = mandate_details.ok_or(ValidationError::MissingRequiredField {
+            field_name: "mandate_details".to_string(),
+        })?;
+
+        Ok(mandate_details.min_recurring_amount)
+    }
+}
+
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema, PartialEq)]
+pub struct BoletoAdditionalDetails {
+    /// Due Date for the Boleto
+    #[schema(value_type = Option<String>, example="2026-12-31")]
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub due_date: Option<PrimitiveDateTime>,
+    /// It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
+    /// Deprecated since it has been moved to connector_metadata
+    #[schema(value_type = Option<BoletoDocumentKind>, example="commercial_invoice")]
+    pub document_kind: Option<common_enums::BoletoDocumentKind>,
+    /// This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
+    /// Deprecated since it has been moved to connector_metadata
+    #[schema(value_type = Option<BoletoPaymentType>, example="fixed_amount", deprecated)]
+    pub payment_type: Option<common_enums::BoletoPaymentType>,
+    // It is a number which shows a contract between merchant and bank
+    #[schema(value_type = Option<String>, example="3568253")]
+    pub covenant_code: Option<Secret<String>>,
+    /// Pix identification details
+    #[schema(
+        value_type = Option<PixKey>, example = json!({
+            "type": "email",
+            "value": "user@example.com"
+        })
+    )]
+    pub pix_key: Option<enums::PixKey>,
+    /// Rules for applying discounts
+    #[schema(value_type = Option<SantanderPaymentDiscountRules>)]
+    #[serde(default)]
+    pub discount_rules: Option<SantanderPaymentDiscountRules>,
+    /// Rules for late payments (Interest and Fines)
+    #[schema(value_type = Option<PenaltyRules>)]
+    #[serde(default)]
+    pub penalties: Option<PenaltyRules>,
+    /// Legal or administrative actions for non-payment (Protest/Write-off)
+    #[schema(value_type = Option<CollectionActions>)]
+    #[serde(default)]
+    pub collection_actions: Option<CollectionActions>,
+    /// Constraints on how the payment can be made (Partial payments/Limits)
+    #[schema(value_type = Option<BoletoPaymentTypeConstraints>)]
+    #[serde(default)]
+    pub payment_constraints: Option<BoletoPaymentTypeConstraints>,
+    #[schema(value_type = Option<BeneficiaryDetails>)]
+    #[serde(default)]
+    pub beneficiary: Option<BeneficiaryDetails>,
+}
+
+impl BoletoAdditionalDetails {
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            due_date: self.due_date.or(other.due_date),
+            document_kind: self.document_kind.or(other.document_kind),
+            payment_type: self.payment_type.or(other.payment_type),
+            covenant_code: self.covenant_code.or(other.covenant_code),
+            pix_key: self.pix_key.or(other.pix_key),
+            discount_rules: self.discount_rules.or(other.discount_rules),
+            penalties: self.penalties.or(other.penalties),
+            collection_actions: self.collection_actions.or(other.collection_actions),
+            payment_constraints: self.payment_constraints.or(other.payment_constraints),
+            beneficiary: self.beneficiary.or(other.beneficiary),
+        }
+    }
+
+    pub fn merge_optional(left: Option<Self>, right: Option<Self>) -> Option<Self> {
+        match (left, right) {
+            (Some(l), Some(r)) => Some(l.merge(r)),
+            (l, r) => l.or(r),
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema, PartialEq)]
+pub struct FinixAdditionalDetails {
+    /// The fraud session ID used for Finix fraud detection
+    #[schema(value_type = Option<String>, example = "1234567890abcdef")]
+    pub fraud_session_id: Option<String>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub enum PixAdditionalDetails {
+    #[serde(rename = "immediate")]
+    Immediate(ImmediateExpirationTime),
+    #[serde(rename = "scheduled")]
+    Scheduled(ScheduledExpirationTime),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ImmediateExpirationTime {
+    /// Expiration time in seconds
+    #[schema(value_type = u32)]
+    pub time: u32,
+    /// Pix identification details
+    #[schema(
+        value_type = Option<PixKey>, example = json!({
+            "type": "email",
+            "value": "user@example.com"
+        })
+    )]
+    pub pix_key: Option<enums::PixKey>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ScheduledExpirationTime {
+    /// Expiration time in terms of date, format: YYYY-MM-DD
+    #[schema(value_type = String, example="2026-07-08")]
+    #[serde(with = "common_utils::custom_serde::date_only")]
+    pub date: PrimitiveDateTime,
+    /// Days after expiration date for which the QR code remains valid
+    #[schema(value_type = Option<u32>, example=10)]
+    pub validity_after_expiration: Option<u32>,
+    /// Pix identification details
+    #[schema(
+        value_type = Option<PixKey>, example = json!({
+            "type": "email",
+            "value": "user@example.com"
+        })
+    )]
+    pub pix_key: Option<enums::PixKey>,
+}
+
+/// Represents the specific data for Santander Pix Automatico (recurring PIX payments)
+/// Split into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum PixAutomaticoAdditionalDetails {
+    /// Customer Initiated Transaction - used during mandate setup for PixAutomaticoPush Payment Method Type
+    PixAutomaticoPush(PixAutomaticoPushData),
+    /// Customer Initiated Transaction - used during mandate setup + non 0$ mandate setup for PixAutomaticoQr Payment Method Type
+    PixAutomaticoQr(PixAutomaticoQrData),
+    /// Merchant Initiated Transaction - used during recurring charge creation
+    PixAutomaticoMit(PixAutomaticoMitData),
+}
+
+/// Data for PixAutomaticoPush Payment Method Type CIT (Customer Initiated Transaction) - used during mandate setup
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PixAutomaticoPushData {
+    /// Time in seconds until which the push notification is valid
+    #[schema(value_type = u32, example = 3600)]
+    pub time: u32,
+    /// Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)
+    #[smithy(value_type = "Option<bool>")]
+    #[schema(value_type = Option<bool>, example = true)]
+    pub retry_policy: Option<bool>,
+    /// Mandate details for the recurring charge
+    #[smithy(value_type = "Option<SantanderMandateDetails>")]
+    #[schema(value_type = Option<SantanderMandateDetails>)]
+    pub mandate_details: Option<SantanderMandateDetails>,
+}
+
+/// Data for PixAutomaticoQr Payment Method Type CIT (Customer Initiated Transaction) - used during mandate setup + non 0$ mandate setup
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PixAutomaticoQrData {
+    /// Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)
+    #[smithy(value_type = "Option<bool>")]
+    #[schema(value_type = Option<bool>, example = true)]
+    pub retry_policy: Option<bool>,
+    /// Mandate details for the recurring charge
+    #[smithy(value_type = "Option<SantanderMandateDetails>")]
+    #[schema(value_type = Option<SantanderMandateDetails>)]
+    pub mandate_details: Option<SantanderMandateDetails>,
+}
+
+/// Data for Santander Pix Automatico MIT (Merchant Initiated Transaction) - used during recurring charge creation
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PixAutomaticoMitData {
+    /// Receiver details for the recurring charge
+    #[smithy(value_type = "Option<SantanderPixAutomaticoReceiverDetails>")]
+    #[schema(value_type = Option<SantanderPixAutomaticoReceiverDetails>)]
+    pub receiver_details: Option<SantanderPixAutomaticoReceiverDetails>,
+    /// Execution date for the mandate charge (maps to data_de_vencimento). Format: YYYY-MM-DD.
+    /// If not provided, defaults to current date + 1 day.
+    #[schema(value_type = Option<String>, example = "2026-12-31")]
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub mandate_execution_date: Option<PrimitiveDateTime>,
+    /// Whether to automatically adjust the due date to the next business day if it falls on a non-business day.
+    /// Maps to ajuste_dia_util in Santander API. Defaults to true if not provided.
+    #[smithy(value_type = "Option<bool>")]
+    #[schema(value_type = Option<bool>, example = true)]
+    pub auto_adjust_date: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderMandateDetails {
+    /// Fixed amount for each recurring charge in minor units (e.g., cents). If not provided, the mandate will allow variable amounts.
+    #[schema(value_type = Option<u64>, example = 6540)]
+    #[smithy(value_type = "Option<MinorUnit>")]
+    pub fixed_recurring_amount: Option<MinorUnit>,
+    /// Minimum amount for each recurring charge in minor units (e.g., cents). If not provided, there will be no minimum limit on the amount.
+    #[schema(value_type = Option<u64>, example = 6540)]
+    #[smithy(value_type = "Option<MinorUnit>")]
+    pub min_recurring_amount: Option<MinorUnit>,
+    /// Start date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid immediately.
+    #[schema(value_type = Option<String>, example="2026-12-31")]
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub start_date: Option<PrimitiveDateTime>,
+    /// End date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid indefinitely.
+    #[schema(value_type = Option<String>, example="2026-12-31")]
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub end_date: Option<PrimitiveDateTime>,
+    /// Frequency of the recurring charges (e.g., weekly, monthly). If not provided, defaults to monthly.
+    #[schema(value_type = Option<SantanderMandatePeriodicity>, example = "weekly")]
+    #[smithy(value_type = "Option<SantanderMandatePeriodicity>")]
+    pub periodicity: Option<SantanderMandatePeriodicity>,
+}
+
+#[derive(
+    Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum SantanderMandatePeriodicity {
+    /// Every week
+    Weekly,
+    /// Every month
+    #[default]
+    Monthly,
+    /// Every 3 months
+    Quarterly,
+    /// Every 6 months
+    Semiannually,
+    /// Every year
+    Annually,
+}
+
+/// Account type for Santander Pix Automatico recurring charges
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum AccountType {
+    /// Checking account (Conta Corrente)
+    Current,
+    /// Savings account (Conta Poupança)
+    Savings,
+    /// Payment account (Conta Pagamento)
+    Payment,
+}
+
+/// Represents the receiver details for Santander Pix Automatico recurring charges
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderPixAutomaticoReceiverDetails {
+    /// Branch code (agencia) of the receiver's bank account
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>, example = "0001")]
+    pub branch_code: Option<Secret<String>>,
+    /// Account number (conta) of the receiver
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>, example = "130333323")]
+    pub account_number: Option<Secret<String>>,
+    /// Account type (tipoConta) - CORRENTE, POUPANCA, or PAGAMENTO
+    #[smithy(value_type = "Option<AccountType>")]
+    #[schema(value_type = Option<AccountType>)]
+    pub account_type: Option<AccountType>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayRecurringDetails {
     /// A description of the recurring payment that Apple Pay displays to the user in the payment sheet
@@ -10873,7 +13158,7 @@ pub struct ApplePayRecurringDetails {
     pub management_url: common_utils::types::Url,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayRegularBillingDetails {
     /// The label that Apple Pay displays to the user in the payment sheet with the recurring details
@@ -11200,9 +13485,18 @@ pub struct PaymentLinkResponse {
 pub struct RetrievePaymentLinkResponse {
     /// Identifier for Payment Link
     pub payment_link_id: String,
+    /// Identifier for the associated Payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
     /// Identifier for Merchant
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
+    /// Identifier for the processor merchant
+    #[schema(value_type = Option<String>)]
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    /// Identifier for the business profile
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
     /// Open payment link (without any security checks and listing SPMs)
     pub link_to_pay: String,
     /// The payment amount. Amount for the payment in the lowest denomination of the currency
@@ -11268,7 +13562,7 @@ pub struct PaymentLinkDetails {
     pub skip_status_screen: Option<bool>,
     pub custom_message_for_card_terms: Option<String>,
     pub custom_message_for_payment_method_types:
-        Option<common_enums::CustomTermsByPaymentMethodTypes>,
+        Option<common_types::payments::PaymentMethodsConfig>,
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
@@ -11282,6 +13576,8 @@ pub struct PaymentLinkDetails {
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
     pub color_icon_card_cvc_error: Option<String>,
+    pub show_merchant_name: Option<bool>,
+    pub payment_methods_separator_text: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -11295,7 +13591,7 @@ pub struct SecurePaymentLinkDetails {
     pub skip_status_screen: Option<bool>,
     pub custom_message_for_card_terms: Option<String>,
     pub custom_message_for_payment_method_types:
-        Option<common_enums::CustomTermsByPaymentMethodTypes>,
+        Option<common_types::payments::PaymentMethodsConfig>,
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
@@ -11305,6 +13601,7 @@ pub struct SecurePaymentLinkDetails {
     pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     pub color_icon_card_cvc_error: Option<String>,
+    pub payment_methods_separator_text: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -11328,59 +13625,32 @@ pub struct PaymentLinkStatusDetails {
     pub unified_message: Option<String>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentLinkListConstraints {
-    /// limit on the number of objects to return
-    pub limit: Option<i64>,
+    /// Limit on the number of objects to return (default: 10, max: 100)
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
 
-    /// The time at which payment link is created
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created: Option<PrimitiveDateTime>,
+    /// Number of records to skip (default: 0)
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
 
-    /// Time less than the payment link created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(
-        default,
-        with = "common_utils::custom_serde::iso8601::option",
-        rename = "created.lt"
-    )]
-    pub created_lt: Option<PrimitiveDateTime>,
-
-    /// Time greater than the payment link created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(
-        default,
-        with = "common_utils::custom_serde::iso8601::option",
-        rename = "created.gt"
-    )]
-    pub created_gt: Option<PrimitiveDateTime>,
-
-    /// Time less than or equals to the payment link created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(
-        default,
-        with = "common_utils::custom_serde::iso8601::option",
-        rename = "created.lte"
-    )]
-    pub created_lte: Option<PrimitiveDateTime>,
-
-    /// Time greater than or equals to the payment link created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    #[serde(rename = "created.gte")]
-    pub created_gte: Option<PrimitiveDateTime>,
+    /// Time range filter with start_time (mandatory) and optional end_time
+    #[serde(flatten)]
+    pub time_range: Option<TimeRange>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PaymentLinkListResponse {
-    /// The number of payment links included in the list
+    /// The number of payment links included in the current page
     pub size: usize,
-    // The list of payment link response objects
-    pub data: Vec<PaymentLinkResponse>,
+    /// The total number of payment links matching the given filters
+    pub total_count: i64,
+    /// The list of payment link response objects
+    pub data: Vec<RetrievePaymentLinkResponse>,
 }
 
 /// Configure a custom payment link for the particular payment
@@ -11474,7 +13744,7 @@ pub struct ClickToPaySessionResponse {
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, Clone, ToSchema)]
-pub struct PaymentsEligibilityRequest {
+pub struct PaymentsEligibilityCheckRequest {
     /// The identifier for the payment
     /// Added in the payload for ApiEventMetrics, populated from the path param
     #[serde(skip)]
@@ -11488,13 +13758,295 @@ pub struct PaymentsEligibilityRequest {
     /// The payment method type to be used for the payment
     #[schema(value_type = Option<PaymentMethodType>)]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
-    /// The payment instrument data to be used for the payment
-    pub payment_method_data: PaymentMethodDataRequest,
+    /// The payment instrument data for eligibility check
+    #[serde(with = "eligibility_payment_method_data_serde", default)]
+    pub payment_method_data: Option<EligibilityPaymentMethodDataRequest>,
     /// The browser information for the payment
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_info: Option<BrowserInformation>,
+    /// The payment token to look up the saved payment method
+    /// When provided, the system will fetch the payment method data from the locker/vault
+    #[schema(value_type = String, example = "token_abc123xyz")]
+    pub payment_token: Option<Secret<String>>,
 }
 
+#[cfg(feature = "v1")]
+impl PaymentsEligibilityCheckRequest {
+    /// Validates that either payment_token or payment_method_data is provided
+    pub fn validate_payment_method_input(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        let has_payment_token = self.payment_token.is_some();
+        let has_payment_method_data = self
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.as_ref())
+            .is_some();
+
+        if !has_payment_token && !has_payment_method_data {
+            return Err(ValidationError::MissingRequiredField {
+                field_name: "Either payment_token or payment_method_data".to_string(),
+            }
+            .into());
+        }
+
+        Ok(())
+    }
+}
+
+/// Card data for eligibility check — only card_number is required, no CVV needed
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct EligibilityCard {
+    /// The card number
+    #[schema(value_type = String, example = "4242424242424242")]
+    pub card_number: CardNumber,
+
+    /// The card's expiry month
+    #[schema(value_type = Option<String>, example = "24")]
+    pub card_exp_month: Option<Secret<String>>,
+
+    /// The card's expiry year
+    #[schema(value_type = Option<String>, example = "24")]
+    pub card_exp_year: Option<Secret<String>>,
+
+    /// The card's CVC/CVV
+    #[schema(value_type = Option<String>, example = "123")]
+    pub card_cvc: Option<Secret<String>>,
+
+    /// The card holder's name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    #[schema(example = "CREDIT")]
+    pub card_type: Option<String>,
+
+    #[schema(example = "INDIA")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "IN")]
+    pub card_issuing_country_code: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    pub bank_code: Option<String>,
+
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    pub nick_name: Option<Secret<String>>,
+}
+
+/// BIN-only input for the eligibility check. Enables BIN-level blocklist and profile-config
+/// blocking without the client having to share the full card number; fingerprint-level
+/// (exact-card) blocking requires the full card number via the `card` variant instead.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct EligibilityCardBin {
+    /// The card BIN: the leading 6 to 10 digits of the card number
+    #[schema(value_type = String, example = "42424242")]
+    pub card_bin: CardBin,
+}
+
+/// Payment method data for eligibility check
+#[derive(
+    Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum EligibilityPaymentMethodData {
+    #[schema(title = "EligibilityCard")]
+    #[smithy(value_type = "EligibilityCard")]
+    Card(EligibilityCard),
+    #[schema(title = "EligibilityCardBin")]
+    #[smithy(value_type = "EligibilityCardBin")]
+    CardBin(EligibilityCardBin),
+    #[schema(title = "CardRedirect")]
+    #[smithy(value_type = "CardRedirectData")]
+    CardRedirect(CardRedirectData),
+    #[schema(title = "Wallet")]
+    Wallet(WalletData),
+    #[schema(title = "PayLater")]
+    #[smithy(value_type = "PayLaterData")]
+    PayLater(PayLaterData),
+    #[schema(title = "BankRedirect")]
+    #[smithy(value_type = "BankRedirectData")]
+    BankRedirect(BankRedirectData),
+    #[schema(title = "BankDebit")]
+    #[smithy(value_type = "BankDebitData")]
+    BankDebit(BankDebitData),
+    #[schema(title = "BankTransfer")]
+    #[smithy(value_type = "BankTransferData")]
+    BankTransfer(Box<BankTransferData>),
+    #[schema(title = "RealTimePayment")]
+    #[smithy(value_type = "RealTimePaymentData")]
+    RealTimePayment(Box<RealTimePaymentData>),
+    #[schema(title = "Crypto")]
+    #[smithy(value_type = "CryptoData")]
+    Crypto(CryptoData),
+    #[schema(title = "MandatePayment")]
+    #[smithy(value_type = "smithy.api#Unit")]
+    MandatePayment,
+    #[schema(title = "Reward")]
+    #[smithy(value_type = "smithy.api#Unit")]
+    Reward,
+    #[schema(title = "Upi")]
+    #[smithy(value_type = "UpiData")]
+    Upi(UpiData),
+    #[schema(title = "Voucher")]
+    #[smithy(value_type = "VoucherData")]
+    Voucher(VoucherData),
+    #[schema(title = "GiftCard")]
+    #[smithy(value_type = "GiftCardData")]
+    GiftCard(Box<GiftCardData>),
+    #[schema(title = "CardToken")]
+    #[smithy(value_type = "CardToken")]
+    CardToken(CardToken),
+    #[schema(title = "OpenBanking")]
+    #[smithy(value_type = "OpenBankingData")]
+    OpenBanking(OpenBankingData),
+    #[schema(title = "MobilePayment")]
+    #[smithy(value_type = "MobilePaymentData")]
+    MobilePayment(MobilePaymentData),
+    #[schema(title = "NetworkToken")]
+    NetworkToken(NetworkTokenData),
+}
+
+/// Custom deserializer for `Option<EligibilityPaymentMethodDataRequest>`.
+/// Required to catch deserialization errors: bare #[serde(flatten)] on
+/// Option<ExternallyTaggedEnum> uses FlatMapDeserializer which swallows all
+/// errors and returns None, hiding malformed card data.
+#[cfg(feature = "v1")]
+mod eligibility_payment_method_data_serde {
+    use super::*;
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<EligibilityPaymentMethodDataRequest>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // Intermediate struct: flatten into raw serde_json::Value so errors are
+        // preserved — FlatMapDeserializer only swallows errors on typed enums,
+        // not on Value.
+        #[derive(serde::Deserialize, Debug)]
+        struct __Inner {
+            billing: Option<Address>,
+            #[serde(flatten)]
+            payment_method_data: Option<serde_json::Value>,
+        }
+
+        let parsed = Option::<__Inner>::deserialize(deserializer)?;
+
+        let inner = match parsed {
+            None => return Ok(None),
+            Some(inner) => inner,
+        };
+
+        let payment_method_data = if let Some(value) = inner.payment_method_data {
+            // Even when no payment method data is sent, flatten produces Some(Object {})
+            if let serde_json::Value::Object(ref map) = value {
+                if map.is_empty() {
+                    None
+                } else {
+                    Some(
+                        serde_json::from_value::<EligibilityPaymentMethodData>(value)
+                            .map_err(|e| de::Error::custom(e.to_string()))?,
+                    )
+                }
+            } else {
+                return Err(de::Error::custom("Expected a map for payment_method_data"));
+            }
+        } else {
+            None
+        };
+
+        // Return None if both billing and payment_method_data are absent
+        if payment_method_data.is_none() && inner.billing.is_none() {
+            return Ok(None);
+        }
+
+        Ok(Some(EligibilityPaymentMethodDataRequest {
+            payment_method_data,
+            billing: inner.billing,
+        }))
+    }
+}
+
+/// Payment method data request for eligibility check
+#[derive(
+    Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct EligibilityPaymentMethodDataRequest {
+    #[serde(flatten)]
+    #[smithy(value_type = "Option<EligibilityPaymentMethodData>")]
+    pub payment_method_data: Option<EligibilityPaymentMethodData>,
+    /// billing details for the payment method.
+    /// This billing details will be passed to the processor as billing address.
+    /// If not passed, then payment.billing will be considered
+    pub billing: Option<Address>,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsEligibilityCheckResponse {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+    /// Next action to be performed by the SDK
+    pub sdk_next_action: SdkNextAction,
+}
+
+/// Request body for the eligibility endpoint.
+/// Combines eligibility checks with external surcharge calculation in a single call.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, ToSchema)]
+pub struct PaymentsEligibilityRequest {
+    /// The identifier for the payment
+    /// Added in the payload for ApiEventMetrics, populated from the path param
+    #[serde(skip)]
+    pub payment_id: id_type::PaymentId,
+    /// Token used for client side verification
+    #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    pub client_secret: Option<Secret<String>>,
+    /// The payment method to be used for the payment
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method_type: api_enums::PaymentMethod,
+    /// The payment method type to be used for the payment
+    #[schema(value_type = Option<PaymentMethodType>)]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+    /// The payment instrument data for eligibility check and surcharge BIN lookup
+    #[serde(with = "eligibility_payment_method_data_serde", default)]
+    pub payment_method_data: Option<EligibilityPaymentMethodDataRequest>,
+    /// The browser information for the payment
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_info: Option<BrowserInformation>,
+    /// The payment token to look up the saved payment method
+    #[schema(value_type = String, example = "token_abc123xyz")]
+    pub payment_token: Option<Secret<String>>,
+}
+
+#[cfg(feature = "v1")]
+impl From<PaymentsEligibilityRequest> for PaymentsEligibilityCheckRequest {
+    fn from(req: PaymentsEligibilityRequest) -> Self {
+        Self {
+            payment_id: req.payment_id,
+            client_secret: req.client_secret,
+            payment_method_type: req.payment_method_type,
+            payment_method_subtype: req.payment_method_subtype,
+            payment_method_data: req.payment_method_data,
+            browser_info: req.browser_info,
+            payment_token: req.payment_token,
+        }
+    }
+}
+
+/// Response body for the eligibility endpoint.
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsEligibilityResponse {
     /// The identifier for the payment
@@ -11502,6 +14054,89 @@ pub struct PaymentsEligibilityResponse {
     pub payment_id: id_type::PaymentId,
     /// Next action to be performed by the SDK
     pub sdk_next_action: SdkNextAction,
+    /// Surcharge details if an external surcharge was calculated. None if eligibility was denied
+    /// or no surcharge connector is configured for this merchant.
+    #[schema(value_type = Option<SurchargeDetailsResponse>)]
+    pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
+    /// Payable amount details before and after any Offer Engine discount.
+    /// Present when Offer Engine eligibility is evaluated.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount_details: Option<EligibilityAmountDetails>,
+    /// Offer Engine eligibility result: selected quote ids and all eligible offers.
+    /// Present when Offer Engine eligibility is evaluated.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offer_details: Option<EligibilityOfferDetails>,
+}
+
+/// Payable amount details returned during eligibility, before and after the
+/// Offer Engine discount.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct EligibilityAmountDetails {
+    /// Payable amount before the Offer Engine discount, in minor units.
+    #[schema(value_type = i64)]
+    pub total_amount: MinorUnit,
+    /// Payable amount after the uplifted offer discount, in minor units.
+    #[schema(value_type = i64)]
+    pub net_amount: MinorUnit,
+    /// Currency of the amounts.
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency: common_enums::Currency,
+}
+
+/// Offer Engine eligibility details returned to the client.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct EligibilityOfferDetails {
+    /// Quote ids of the uplifted (selected) offers. First launch selects one.
+    #[serde(default)]
+    pub uplifted_offer_quote_ids: Vec<String>,
+    /// All eligible offers returned to the client.
+    #[serde(default)]
+    pub eligible_offers: Vec<EligibleOffer>,
+}
+
+/// A single eligible offer returned to the client during eligibility.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct EligibleOffer {
+    /// Quote id the client sends back in confirm to apply this offer.
+    pub offer_quote_id: String,
+    /// Charge-reducing offer amount, in minor units.
+    #[schema(value_type = i64)]
+    pub offer_amount: MinorUnit,
+    /// Currency of the offer amount.
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency: common_enums::Currency,
+    /// Offer code.
+    pub code: String,
+    /// Offer title, if provided.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// Offer description, if provided.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+/// Offer selection sent in a confirm request to apply an offer.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct OfferSelection {
+    /// Quote ids of the offers to apply. First launch applies a single offer.
+    pub offer_quote_ids: Vec<String>,
+}
+
+/// Normalized applied-offer details exposed in payment responses.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AppliedOffer {
+    /// Offer Engine merchant id the offer was applied under.
+    pub offer_engine_merchant_id: String,
+    /// Offer Engine transaction id (the payment attempt id used at `/apply`).
+    pub offer_engine_txn_id: String,
+    /// Offer Engine offer id that was applied.
+    pub offer_id: String,
+    /// Charge-reducing offer amount, in minor units.
+    #[schema(value_type = i64)]
+    pub offer_amount: MinorUnit,
+    /// Currency of the offer amount.
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency: common_enums::Currency,
 }
 
 #[cfg(feature = "v1")]
@@ -11632,6 +14267,19 @@ mod payments_response_api_contract {
         let stringified_payments_response = payments_response.encode_to_string_of_json();
         assert_eq!(stringified_payments_response.unwrap(), expected_response);
     }
+
+    #[cfg(feature = "v1")]
+    #[test]
+    fn test_fingerprint_type_serialization() {
+        assert_eq!(
+            serde_json::to_value(FingerprintType::Dpan).unwrap(),
+            serde_json::json!("dpan")
+        );
+        assert_eq!(
+            serde_json::to_value(FingerprintType::Fpan).unwrap(),
+            serde_json::json!("fpan")
+        );
+    }
 }
 
 /// Set of tests to extract billing details from payment method data
@@ -11639,7 +14287,7 @@ mod payments_response_api_contract {
 #[cfg(test)]
 mod billing_from_payment_method_data {
     use common_enums::CountryAlpha2;
-    use masking::ExposeOptionInterface;
+    use hyperswitch_masking::ExposeOptionInterface;
 
     use super::*;
 
@@ -11735,7 +14383,6 @@ mod billing_from_payment_method_data {
                 billing_details: Some(bank_redirect_billing),
                 account_number: Secret::new("1234".to_string()),
                 routing_number: Secret::new("1235".to_string()),
-                card_holder_name: None,
                 bank_account_holder_name: None,
                 bank_name: None,
                 bank_type: None,
@@ -11857,6 +14504,10 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// First Payment Attempt Network Advice Code
     #[schema(value_type = Option<String>, example = "02")]
     pub first_payment_attempt_network_advice_code: Option<String>,
+    /// Revenue Recovery A/B routing: the algorithm this invoice was assigned to.
+    #[schema(value_type = Option<RevenueRecoveryABAlgorithm>, example = "adaptive_retry")]
+    #[serde(default)]
+    pub revenue_recovery_ab_routing: Option<common_enums::RevenueRecoveryABAlgorithm>,
 }
 
 #[cfg(feature = "v2")]
@@ -11875,6 +14526,16 @@ pub struct BillingConnectorAdditionalCardInfo {
     #[schema(value_type = Option<String>, example = "JP MORGAN CHASE")]
     /// Card Issuer
     pub card_issuer: Option<String>,
+    /// Funding type of the card, `credit` or `debit`, enriched from the card bin
+    #[schema(value_type = Option<String>, example = "credit")]
+    pub card_type: Option<String>,
+    /// Country in which the card was issued, enriched from the card bin
+    #[schema(value_type = Option<String>, example = "INDIA")]
+    pub card_issuing_country: Option<String>,
+    /// Issuer identification number of the card, retained so that any further card details can
+    /// be looked up from it later
+    #[schema(value_type = Option<String>, example = "424242")]
+    pub card_isin: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -11911,6 +14572,15 @@ impl PaymentRevenueRecoveryMetadata {
         self.billing_connector_payment_details
             .connector_customer_id
             .to_owned()
+    }
+
+    /// Card network of the recovery card, from the billing-connector payment method
+    /// details
+    pub fn get_card_network(&self) -> Option<common_enums::enums::CardNetwork> {
+        self.billing_connector_payment_method_details
+            .as_ref()
+            .and_then(|details| details.get_billing_connector_card_info())
+            .and_then(|card| card.card_network.clone())
     }
 }
 
@@ -12028,64 +14698,71 @@ pub struct RecoveryPaymentsCreate {
     /// The amount details for the payment
     pub amount_details: AmountDetails,
 
-    /// Unique identifier for the payment. This ensures idempotency for multiple payments
-    /// that have been done by a single merchant.
+    /// Unique identifier of the invoice in the merchant's billing system against which the
+    /// transaction is being recorded.
     #[schema(
-        value_type = Option<String>,
+        value_type = String,
         min_length = 30,
         max_length = 30,
-        example = "pay_mbabizu24mvu3mela5njyhpit4"
+        example = "invoice_mbabizu24mvu3mela5njyh"
     )]
     pub merchant_reference_id: id_type::PaymentReferenceId,
 
     /// Error details for the payment if any
     pub error: Option<ErrorDetails>,
 
-    /// Billing connector id to update the invoices.
+    /// Unique identifier of the billing connector account, such as Chargebee, that manages the
+    /// invoice. The account must belong to the profile passed in the `X-Profile-Id` header.
     #[schema(value_type = String, example = "mca_1234567890")]
     pub billing_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
-    /// Payments connector id to update the invoices.
+    /// Unique identifier of the payment connector account, such as Stripe, on which the
+    /// transaction was processed. The account must belong to the profile passed in the
+    /// `X-Profile-Id` header.
     #[schema(value_type = String, example = "mca_1234567890")]
     pub payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
-    #[schema(value_type = AttemptStatus, example = "charged")]
-    pub attempt_status: enums::AttemptStatus,
+    /// Status of the transaction reported.
+    #[schema(value_type = RecoveryTransactionStatus, example = "failure")]
+    pub transaction_status: common_payments_types::RecoveryTransactionStatus,
 
-    /// The billing details of the payment attempt.
+    /// The billing details of the transaction.
     pub billing: Option<Address>,
 
-    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    /// The payment method subtype used for the transaction.
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_sub_type: api_enums::PaymentMethodType,
 
-    /// The time at which payment attempt was created.
+    /// The time at which the transaction was created at the payment connector.
     #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub transaction_created_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub transaction_created_at: PrimitiveDateTime,
 
-    /// Payment method type for the payment attempt
-    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    /// Payment method type used for the transaction.
+    #[schema(value_type = PaymentMethod, example = "wallet")]
     pub payment_method_type: common_enums::PaymentMethod,
 
-    /// customer id at payment connector for which mandate is attached.
+    /// Unique identifier of the customer at the payment connector, with which the payment
+    /// method token used for the transaction is associated.
     #[schema(value_type = String, example = "cust_12345")]
     pub connector_customer_id: Secret<String>,
 
-    /// Invoice billing started at billing connector end.
+    /// Invoice billing started at billing connector's end.
     #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub billing_started_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub billing_started_at: PrimitiveDateTime,
 
-    /// A unique identifier for a payment provided by the payment connector
-    #[schema(value_type = Option<String>, example = "993672945374576J")]
-    pub connector_transaction_id: Option<Secret<String>>,
+    /// Unique identifier of the transaction at the payment connector. It is used to identify
+    /// the transaction among the attempts recorded for the invoice.
+    #[schema(value_type = String, example = "993672945374576J")]
+    pub connector_transaction_id: String,
 
     /// payment method token units at payment processor end.
     pub payment_method_data: CustomRecoveryPaymentMethodData,
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
-    pub action: common_payments_types::RecoveryAction,
+    #[schema(value_type = RecoveryPaymentsAction, example = "schedule_failed_payment")]
+    pub action: common_payments_types::RecoveryPaymentsAction,
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
@@ -12198,4 +14875,291 @@ pub struct CartesBancairesParams {
     /// Cartes Bancaires risk score assigned during 3DS authentication.
     #[schema(value_type = i32)]
     pub cb_score: i32,
+}
+
+impl PaymentsUpdateMetadataRequest {
+    /// Helper function to validate that at least one of `metadata` or `feature_metadata` or `connector_metadata` is present in the request
+    pub fn validate(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
+        let Self {
+            metadata,
+            feature_metadata: _,
+            payment_id: _,
+        } = self;
+
+        if metadata.is_none() {
+            return Err(ValidationError::MissingRequiredField {
+                field_name: "metadata".to_string(),
+            }
+            .into());
+        }
+        Ok(())
+    }
+}
+
+/// Represents the connector-specific metadata for Santander payments, including boleto data and related rules.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderConnectorMetadataData {
+    /// Boleto-specific data and rules for Santander payments
+    #[smithy(value_type = "Option<SantanderBoletoData>")]
+    pub boleto: Option<SantanderBoletoData>,
+}
+
+/// Represents the specific data and rules related to Santander Boleto payments, including discounts, penalties, collection actions, payment constraints, beneficiary details, and document kind.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderBoletoData {
+    // Rules for applying discounts
+    #[smithy(value_type = "Option<SantanderPaymentDiscountRules>")]
+    #[schema(value_type = Option<SantanderPaymentDiscountRules>)]
+    pub discount_rules: Option<SantanderPaymentDiscountRules>,
+    /// Rules for late payments (Interest and Fines)
+    #[smithy(value_type = "Option<PenaltyRules>")]
+    #[schema(value_type = Option<PenaltyRules>)]
+    pub penalties: Option<PenaltyRules>,
+    /// Legal or administrative actions for non-payment (Protest/Write-off)
+    #[smithy(value_type = "Option<CollectionActions>")]
+    #[schema(value_type = Option<CollectionActions>)]
+    pub collection_actions: Option<CollectionActions>,
+    /// Constraints on how the payment can be made (Partial payments/Limits)
+    #[smithy(value_type = "Option<BoletoPaymentTypeConstraints>")]
+    #[schema(value_type = Option<BoletoPaymentTypeConstraints>)]
+    pub payment_constraints: Option<BoletoPaymentTypeConstraints>,
+    #[smithy(value_type = "Option<BeneficiaryDetails>")]
+    #[schema(value_type = Option<BeneficiaryDetails>)]
+    pub beneficiary: Option<BeneficiaryDetails>,
+    #[smithy(value_type = "Option<BoletoDocumentKind>")]
+    #[schema(value_type = Option<BoletoDocumentKind>, example = "commercial_invoice")]
+    pub document_kind: Option<common_enums::BoletoDocumentKind>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// Represents the end-recipient of a payout or fund transfer.
+pub struct BeneficiaryDetails {
+    /// The full legal name of the individual or entity receiving the funds.
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>, example = "João da Silva")]
+    pub name: Option<String>,
+    /// The customer's unique identification number (e.g., Tax ID, SSN, Passport Number).
+    /// Used by processors to verify the identity of the recipient and prevent fraud.
+    /// Length of the document number depends upon the document_type.
+    /// For CPF/CNPJ it is typically 11/14 digits long.
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>, example = "9615865832")]
+    pub document_number: Option<String>,
+    /// The category of identification provided (e.g., Passport, National ID, CPF).
+    #[smithy(value_type = "Option<DocumentKind>")]
+    #[schema(value_type = Option<DocumentKind>, example = "cpf")]
+    pub document_type: Option<DocumentKind>,
+}
+
+/// Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PenaltyRules {
+    /// Fixed fee applied once after the due date (Fine)
+    #[smithy(value_type = "Option<PenaltyDetail>")]
+    #[schema(value_type = Option<PenaltyDetail>)]
+    pub fixed_penalty: Option<PenaltyDetail>,
+    /// Recurring cost applied over time (Interest)
+    #[smithy(value_type = "Option<InterestDetail>")]
+    #[schema(value_type = Option<InterestDetail>)]
+    pub interest: Option<InterestDetail>,
+}
+
+/// Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct InterestDetail {
+    /// Percentage of Juros (Interest). Pattern: ^[0-9]{1,3}\.[0-9]{2}$
+    #[schema(value_type = Option<String>, example = "5.00")]
+    #[smithy(value_type = "Option<String>")]
+    pub interest_percentage: Option<StringMajorUnit>,
+    /// Percentage of IOF (Financial Operations Tax). Pattern: \d{3}$\.\d{5}
+    /// Only provided if the agreement is "Cobra IOF na Barra ou Cadastro"
+    #[schema(value_type = Option<String>, example = "32.45325")]
+    #[smithy(value_type = "Option<String>")]
+    pub iof_percentage: Option<StringMajorUnit>,
+}
+
+/// Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PenaltyDetail {
+    /// The numeric value (as a string to preserve decimal precision)
+    #[schema(value_type = Option<String>, example = "2.00")]
+    #[smithy(value_type = "Option<String>")]
+    pub value: Option<StringMajorUnit>,
+    /// Grace period: Days after due date before this applies
+    #[schema(example = 1)]
+    #[smithy(value_type = "Option<u32>")]
+    pub grace_period_days: Option<u32>,
+}
+
+/// Represents the legal or administrative actions that may be taken for non-payment, such as protest rules and automatic write-off timelines.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct CollectionActions {
+    /// Logic for legal protest (official debt registration)
+    #[schema(value_type = Option<ProtestRules>)]
+    #[smithy(value_type = "Option<ProtestRules>")]
+    pub legal_protest: Option<ProtestRules>,
+    /// Days after which the bill is automatically cancelled/written off
+    #[schema(value_type = Option<u32>, example = 60)]
+    #[smithy(value_type = "Option<u32>")]
+    pub auto_write_off_days: Option<u32>,
+}
+
+/// Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(rename_all = "snake_case", tag = "type", content = "details")]
+pub enum BoletoPaymentTypeConstraints {
+    /// Only the exact nominal amount can be paid.
+    FixedAmount,
+    /// The payer may pay any amount within an allowed range.
+    FlexibleAmount(FlexibleAmountDetails),
+    /// The payer may make multiple payments, up to a specific limit.
+    Installment(InstallmentDetails),
+}
+
+/// Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+pub struct FlexibleAmountDetails {
+    /// Minimum value allowed (e.g., "10.00")
+    #[schema(value_type = Option<String>, example = "38.02")]
+    #[smithy(value_type = "Option<String>")]
+    pub min_value: Option<StringMajorUnit>,
+    /// Maximum value allowed (e.g., "5000.00")
+    #[schema(value_type = Option<String>, example = "38.02")]
+    #[smithy(value_type = "Option<String>")]
+    pub max_value: Option<StringMajorUnit>,
+    /// Defines if the min/max values are percentages or flat amounts
+    #[schema(value_type = Option<CalculationType>, example = "percentage")]
+    #[smithy(value_type = "Option<CalculationType>")]
+    pub value_type: Option<CalculationType>,
+}
+
+/// Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+pub struct InstallmentDetails {
+    /// Maximum number of partial payments allowed (Up to 99 for Santander).
+    #[schema(value_type = Option<u32>, example = 99)]
+    #[smithy(value_type = "Option<u32>")]
+    pub max_partial_payments: Option<u32>,
+    /// Defines if the min/max values are percentages or flat amounts
+    #[schema(value_type = Option<CalculationType>, example = "percentage")]
+    #[smithy(value_type = "Option<CalculationType>")]
+    pub value_type: Option<CalculationType>,
+}
+
+/// Defines how the payment amount is calculated for penalties or discounts, either as a percentage or as a flat amount.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum CalculationType {
+    /// The value is treated as a percentage (e.g., "2.00" represents 2%).
+    /// In financial contexts, this is often used for late fees (fines) or
+    /// monthly interest rates.
+    Percentage,
+    /// The value is treated as a fixed monetary amount in the currency's major
+    /// or minor unit (e.g., "10.00" represents $10.00).
+    /// Typically used for flat-fee penalties or specific rebate amounts.
+    FlatAmount,
+}
+
+/// Defines the type of payment allowance for a boleto, such as whether only the exact amount is accepted, partial payments are allowed, or overpayment is permitted.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PaymentAllowanceType {
+    /// Only the exact amount is accepted
+    Exact,
+    /// Any amount between min and max
+    Partial,
+    /// Overpayment allowed (common in some B2B contexts)
+    Flexible,
+}
+
+/// Defines the type of protest for non-payment, such as whether the count is based on calendar days, business days, or if the protest logic is determined by a pre-signed contract with the bank.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum ProtestType {
+    /// No legal protest will be initiated
+    Disabled,
+    /// Count is based on calendar days (Standard)
+    CalendarDays,
+    /// Count is based on business days (Mon-Fri, excluding bank holidays)
+    BusinessDays,
+    /// Protest logic is handled based on the merchant's pre-signed contract/agreement with the bank
+    ContractDefault,
+}
+
+/// Defines the type of discount applied to a payment, such as whether it's a fixed date discount, a daily calendar discount, or a daily business discount.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderPaymentDiscountRules {
+    /// Generic label for the logic (e.g., "tier_based", "early_bird")
+    #[schema(value_type = Option<DiscountType>, example = "fixed_date")]
+    #[smithy(value_type = "Option<DiscountType>")]
+    pub discount_type: Option<DiscountType>,
+    /// A generic vector of discount tiers
+    #[schema(value_type = Vec<DiscountTier>)]
+    #[smithy(value_type = "Option<DiscountType>")]
+    pub tiers: Vec<DiscountTier>,
+}
+
+/// Defines the type of discount applied to a payment, such as whether it's a fixed date discount, a daily calendar discount, or a daily business discount.
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    Display,
+    ToSchema,
+    SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum DiscountType {
+    /// No discount logic will be applied. The payment amount remains at the base value.
+    #[default]
+    Standard,
+    /// A fixed amount reduction if paid on or before a specific date.
+    FixedDate,
+    /// A sliding discount calculated per calendar day until the due date.
+    DailyCalendar,
+    /// A sliding discount calculated per business day until the due date.
+    DailyBusiness,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct DiscountTier {
+    /// The discount value (e.g., "5.50").
+    #[schema(value_type = Option<String>, example = "5.50")]
+    #[smithy(value_type = "Option<String>")]
+    pub amount: Option<StringMajorUnit>,
+    /// The ISO-8601 date until which this discount is valid
+    #[schema(value_type = Option<String>, example="2027-12-31")]
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    #[smithy(value_type = "Option<String>")]
+    pub end_date: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct ProtestRules {
+    /// The timing logic for when the protest should occur
+    #[schema(value_type = ProtestType, example = "calendar_days")]
+    #[smithy(value_type = "ProtestType")]
+    pub protest_type: Option<ProtestType>,
+    /// Number of days after the due date to initiate the protest
+    #[schema(value_type = u32, example = 30)]
+    #[smithy(value_type = "u32")]
+    pub days_after_due_date: Option<u32>,
 }

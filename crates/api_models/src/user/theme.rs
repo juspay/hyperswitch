@@ -4,7 +4,7 @@ use common_utils::{
     id_type,
     types::user::{EmailThemeConfig, ThemeLineage},
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize)]
@@ -18,6 +18,12 @@ pub struct GetThemeResponse {
     pub profile_id: Option<id_type::ProfileId>,
     pub email_config: EmailThemeConfig,
     pub theme_data: ThemeData,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ThemeVersionResponse {
+    pub theme_id: String,
+    pub theme_config_version: String,
 }
 
 #[derive(Debug, MultipartForm)]

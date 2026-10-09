@@ -18,8 +18,8 @@ use hyperswitch_domain_models::{
     router_response_types::AuthenticationResponseData,
 };
 use hyperswitch_interfaces::{api::CurrencyUnit, consts::NO_ERROR_MESSAGE, errors};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use iso_currency::Currency;
-use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, to_string};
 
@@ -106,6 +106,7 @@ impl
                     .change_context(errors::ConnectorError::ParsingFailed)?,
                     connector_metadata: Some(connector_metadata),
                     directory_server_id: None,
+                    scheme_id: pre_authn_response.scheme,
                 })
             }
             ThreedsecureioPreAuthenticationResponse::Failure(error_response) => {
@@ -119,6 +120,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -203,6 +205,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -215,6 +218,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -259,7 +263,7 @@ impl TryFrom<&ThreedsecureioRouterData<&ConnectorAuthenticationRouterData>>
             None => {
                 if request.device_channel == DeviceChannel::Browser {
                     Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "browser_info",
+                        field_name: "browser_info".into(),
                     })?
                 } else {
                     Ok(None)
@@ -277,7 +281,7 @@ impl TryFrom<&ThreedsecureioRouterData<&ConnectorAuthenticationRouterData>>
             .attach_printable("error while parsing Currency")?;
         let billing_address = request.billing_address.address.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "billing_address.address",
+                field_name: "billing_address.address".into(),
             },
         )?;
         let billing_state = billing_address.clone().to_state_code()?;
@@ -285,7 +289,7 @@ impl TryFrom<&ThreedsecureioRouterData<&ConnectorAuthenticationRouterData>>
             &billing_address
                 .country
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_address.address.country",
+                    field_name: "billing_address.address.country".into(),
                 })?
                 .to_string(),
         )
@@ -302,7 +306,7 @@ impl TryFrom<&ThreedsecureioRouterData<&ConnectorAuthenticationRouterData>>
         let sdk_information = match request.device_channel {
             DeviceChannel::App => Some(item.router_data.request.sdk_information.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "sdk_information",
+                    field_name: "sdk_information".into(),
                 },
             )?),
             DeviceChannel::Browser => None,
@@ -313,7 +317,7 @@ impl TryFrom<&ThreedsecureioRouterData<&ConnectorAuthenticationRouterData>>
             .zip(pre_authentication_data.acquirer_merchant_id.clone())
             .get_required_value("acquirer_details")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "acquirer_details",
+                field_name: "acquirer_details".into(),
             })?;
         let meta: ThreeDSecureIoConnectorMetaData =
             to_connector_meta(request.pre_authentication_data.connector_metadata.clone())?;
@@ -345,18 +349,18 @@ impl TryFrom<&ThreedsecureioRouterData<&ConnectorAuthenticationRouterData>>
                 .city
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_address.address.city",
+                    field_name: "billing_address.address.city".into(),
                 })?
                 .to_string(),
             bill_addr_country: billing_country.numeric_id().to_string().into(),
             bill_addr_line1: billing_address.line1.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_address.address.line1",
+                    field_name: "billing_address.address.line1".into(),
                 },
             )?,
             bill_addr_post_code: billing_address.zip.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_address.address.zip",
+                    field_name: "billing_address.address.zip".into(),
                 },
             )?,
             bill_addr_state: billing_state,

@@ -32,7 +32,6 @@ where
     Q: Serialize + std::fmt::Debug + 'a + ApiEventMetric,
     S: TryFrom<Q> + Serialize,
     E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
-    error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
     T: std::fmt::Debug + Serialize + ApiEventMetric,
 {
@@ -56,6 +55,12 @@ where
     )
     .await
     .map(|response| {
+        let response = match response {
+            api::ApplicationResponse::IncomingWebhookEvent {
+                response: inner, ..
+            } => api::ApplicationResponse::from(*inner),
+            other => other,
+        };
         logger::info!(api_response =? response);
         response
     });
@@ -176,6 +181,9 @@ where
                 }
             }
         }
+        // This match arm should never be reached as we map the inner field of IncomingWebhookEvent
+        // to ApplicationResponse above
+        Ok(api::ApplicationResponse::IncomingWebhookEvent { .. }) => api::http_response_ok(),
         Err(error) => api::log_and_return_error_response(error),
     };
 

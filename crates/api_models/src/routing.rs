@@ -9,6 +9,7 @@ use common_utils::{
 use euclid::frontend::ast::Program;
 pub use euclid::{
     dssa::types::EuclidAnalysable,
+    enums::RoutableConnectors,
     frontend::{
         ast,
         dir::{DirKeyKind, EuclidDirFilter},
@@ -17,10 +18,7 @@ pub use euclid::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{
-    enums::{RoutableConnectors, TransactionType},
-    open_router,
-};
+use crate::{enums::TransactionType, open_router};
 
 // Define constants for default values
 const DEFAULT_LATENCY_THRESHOLD: f64 = 90.0;
@@ -60,12 +58,71 @@ pub struct RoutingConfigRequest {
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
-    #[schema(value_type = Option<String>)]
+    /// Unique name of the routing configuration.
+    ///
+    /// This identifier is used to reference the routing config internally.
+    ///
+    /// Example:
+    /// ```json
+    /// "default_card_routing"
+    /// ```
+    #[schema(value_type = Option<String>, example = "default_card_routing")]
     pub name: Option<RoutingConfigName>,
+
+    /// Optional human-readable description of the routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "Primary routing strategy for card payments in India"
+    /// ```
+    #[schema(example = "Primary routing strategy for card payments in Middle east")]
     pub description: Option<String>,
+
+    /// Static routing algorithm configuration.
+    ///
+    /// Defines how connectors should be selected.
+    ///
+    /// Possible structures:
+    /// - Priority routing
+    /// - Volume split routing
+    /// - Advanced routing
+    ///
+    /// Example (Priority):
+    /// ```json
+    /// {
+    ///   "type": "priority",
+    ///   "connectors": [
+    ///     {
+    ///       "connector": "stripe",
+    ///       "mca_id": "mca_ExbsYfO1xFErhNtwY1PX"
+    ///     }
+    ///   ]
+    /// }
+    /// ```
     pub algorithm: Option<StaticRoutingAlgorithm>,
-    #[schema(value_type = Option<String>)]
+
+    /// Profile ID associated with this routing configuration.
+    ///
+    /// Routing configs can be scoped per business profile.
+    ///
+    /// Example:
+    /// ```json
+    /// "profile_123"
+    /// ```
+    #[schema(value_type = Option<String>, example = "profile_123")]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
+
+    /// Transaction type for which this routing config applies.
+    ///
+    /// Example values:
+    /// - `payment`
+    /// - `payout`
+    ///
+    /// Example:
+    /// ```json
+    /// "payment"
+    /// ```
+    #[schema(example = "payment")]
     pub transaction_type: Option<TransactionType>,
 }
 
@@ -106,39 +163,148 @@ impl Deref for RoutingConfigName {
     }
 }
 
+/// Default routing configuration associated with a business profile.
+///
+/// This represents the fallback routing connectors configured
+/// at the profile level.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ProfileDefaultRoutingConfig {
-    #[schema(value_type = String)]
+    /// Unique identifier of the business profile.
+    ///
+    /// Example:
+    /// ```json
+    /// "profile_123"
+    /// ```
+    #[schema(value_type = String, example = "profile_123")]
     pub profile_id: common_utils::id_type::ProfileId,
+
+    /// List of connectors configured as default for this profile.
+    ///
+    /// Example:
+    /// ```json
+    /// [
+    ///   {
+    ///     "connector": "stripe",
+    ///     "merchant_connector_id": "mca_ExbsYfO1xFErhNtwY1PX"
+    ///   }
+    /// ]
+    /// ```
     pub connectors: Vec<RoutableConnectorChoice>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+/// Query parameters used to retrieve routing configurations.
+///
+/// Supports pagination and transaction-type filtering.
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RoutingRetrieveQuery {
+    /// Maximum number of routing configs to return.
+    ///
+    /// Example:
+    /// ```json
+    /// 10
+    /// ```
+    #[schema(example = 10)]
     pub limit: Option<u16>,
+
+    /// Offset for pagination.
+    ///
+    /// Example:
+    /// ```json
+    /// 0
+    /// ```
+    #[schema(example = 0)]
     pub offset: Option<u8>,
+
+    /// Filter routing configs by transaction type.
+    ///
+    /// Example:
+    /// ```json
+    /// "payment"
+    /// ```
+    #[schema(example = "payment")]
     pub transaction_type: Option<TransactionType>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+/// Payload used to activate a routing configuration.
+///
+/// Activation can be scoped by transaction type.
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RoutingActivatePayload {
+    /// Transaction type for which the routing config should be activated.
+    ///
+    /// Example:
+    /// ```json
+    /// "payment"
+    /// ```
+    #[schema(example = "payment")]
     pub transaction_type: Option<TransactionType>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+/// Query parameters used to retrieve routing configuration
+/// linked to a specific profile.
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RoutingRetrieveLinkQuery {
+    /// Profile ID for which routing config should be retrieved.
+    ///
+    /// Example:
+    /// ```json
+    /// "profile_123"
+    /// ```
+    #[schema(value_type = String, example = "profile_123")]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
+
+    /// Filter by transaction type.
+    ///
+    /// Example:
+    /// ```json
+    /// "payment"
+    /// ```
+    #[schema(example = "payment")]
     pub transaction_type: Option<TransactionType>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+/// Wrapper structure combining routing query parameters
+/// with a mandatory profile identifier.
+///
+/// Used internally for link-based routing retrieval.
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RoutingRetrieveLinkQueryWrapper {
+    /// Pagination and filtering parameters.
     pub routing_query: RoutingRetrieveQuery,
+
+    /// Mandatory profile ID.
+    ///
+    /// Example:
+    /// ```json
+    /// "profile_123"
+    /// ```
+    #[schema(value_type = String, example = "profile_123")]
     pub profile_id: common_utils::id_type::ProfileId,
 }
+
+/// Response returned when retrieving routing configuration
+/// for a merchant account.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-/// Response of the retrieved routing configs for a merchant account
 pub struct RoutingRetrieveResponse {
+    /// Merchant routing algorithm configuration.
+    ///
+    /// This may contain:
+    /// - Priority routing
+    /// - Volume split routing
+    /// - Other merchant-level routing strategies
+    ///
+    /// Example:
+    /// ```json
+    /// {
+    ///   "type": "priority",
+    ///   "connectors": [
+    ///     {
+    ///       "connector": "stripe",
+    ///       "mca_id": "mca_ExbsYfO1xFErhNtwY1PX"
+    ///     }
+    ///   ]
+    /// }
+    /// ```
     pub algorithm: Option<MerchantRoutingAlgorithm>,
 }
 
@@ -149,18 +315,83 @@ pub enum LinkedRoutingConfigRetrieveResponse {
     ProfileBased(Vec<RoutingDictionaryRecord>),
 }
 
+/// Routing algorithm configuration created for a merchant.
+///
+/// Represents a fully defined routing strategy scoped to a profile
+/// and transaction type.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-/// Routing Algorithm specific to merchants
 pub struct MerchantRoutingAlgorithm {
-    #[schema(value_type = String)]
+    /// Unique identifier of the routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "routing_abc123"
+    /// ```
+    #[schema(value_type = String, example = "routing_abc123")]
     pub id: common_utils::id_type::RoutingId,
-    #[schema(value_type = String)]
+
+    /// Profile ID to which this routing configuration belongs.
+    ///
+    /// Example:
+    /// ```json
+    /// "profile_123"
+    /// ```
+    #[schema(value_type = String, example = "profile_123")]
     pub profile_id: common_utils::id_type::ProfileId,
+
+    /// Human-readable name of the routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "default_card_routing"
+    /// ```
+    #[schema(example = "default_card_routing")]
     pub name: String,
+
+    /// Description explaining the purpose of this routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "Primary routing strategy for card payments"
+    /// ```
+    #[schema(example = "Primary routing strategy for card payments")]
     pub description: String,
+
+    /// Actual routing algorithm definition.
+    ///
+    /// Can represent:
+    /// - Priority routing
+    /// - Volume split routing
+    /// - Other supported algorithm types
     pub algorithm: RoutingAlgorithmWrapper,
+
+    /// Timestamp (in milliseconds since epoch) when the routing
+    /// configuration was created.
+    ///
+    /// Example:
+    /// ```json
+    /// 1718000000000
+    /// ```
+    #[schema(example = 1718000000000i64)]
     pub created_at: i64,
+
+    /// Timestamp (in milliseconds since epoch) when the routing
+    /// configuration was last modified.
+    ///
+    /// Example:
+    /// ```json
+    /// 1718050000000
+    /// ```
+    #[schema(example = 1718050000000i64)]
     pub modified_at: i64,
+
+    /// Transaction type for which this routing algorithm applies.
+    ///
+    /// Example:
+    /// ```json
+    /// "payment"
+    /// ```
+    #[schema(example = "payment")]
     pub algorithm_for: TransactionType,
 }
 
@@ -179,6 +410,7 @@ impl EuclidDirFilter for ConnectorSelection {
         DirKeyKind::CryptoType,
         DirKeyKind::MetaData,
         DirKeyKind::PaymentAmount,
+        DirKeyKind::SurchargeAmount,
         DirKeyKind::PaymentCurrency,
         DirKeyKind::AuthenticationType,
         DirKeyKind::MandateAcceptanceType,
@@ -187,6 +419,7 @@ impl EuclidDirFilter for ConnectorSelection {
         DirKeyKind::SetupFutureUsage,
         DirKeyKind::CaptureMethod,
         DirKeyKind::BillingCountry,
+        DirKeyKind::IssuerCountry,
         DirKeyKind::BusinessCountry,
         DirKeyKind::BusinessLabel,
         DirKeyKind::MetaData,
@@ -195,6 +428,8 @@ impl EuclidDirFilter for ConnectorSelection {
         DirKeyKind::CardRedirectType,
         DirKeyKind::BankTransferType,
         DirKeyKind::RealTimePaymentType,
+        DirKeyKind::TransactionInitiator,
+        DirKeyKind::NetworkTokenType,
     ];
 }
 
@@ -345,6 +580,23 @@ pub enum RoutingAlgorithmKind {
     Advanced,
     Dynamic,
     ThreeDsDecisionRule,
+}
+
+impl RoutingAlgorithmKind {
+    /// Why `/routing/rule/migrate` does not carry this kind, or `None` when it does. Both
+    /// excluded kinds reach the decision engine another way, so a rule migration that leaves
+    /// them behind is finished, not partial.
+    pub fn rule_migration_exclusion(self) -> Option<&'static str> {
+        match self {
+            Self::Single | Self::Priority | Self::VolumeSplit | Self::Advanced => None,
+            Self::Dynamic => {
+                Some("dynamic routing configuration, provisioned by the dynamic routing setup")
+            }
+            Self::ThreeDsDecisionRule => {
+                Some("3DS decision rules are not held in the decision engine rule store")
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -585,26 +837,113 @@ impl RoutingAlgorithmRef {
     }
 }
 
+/// Metadata record representing a stored routing configuration.
+///
+/// Used in routing dictionary listings.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingDictionaryRecord {
-    #[schema(value_type = String)]
+    /// Unique identifier of the routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "routing_abc123"
+    /// ```
+    #[schema(value_type = String, example = "routing_abc123")]
     pub id: common_utils::id_type::RoutingId,
-    #[schema(value_type = String)]
+
+    /// Profile ID associated with this routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "profile_123"
+    /// ```
+    #[schema(value_type = String, example = "profile_123")]
     pub profile_id: common_utils::id_type::ProfileId,
+
+    /// Name of the routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "india_card_routing"
+    /// ```
+    #[schema(example = "india_card_routing")]
     pub name: String,
+
+    /// Type/kind of routing algorithm.
+    ///
+    /// Example:
+    /// ```json
+    /// "static"
+    /// ```
+    #[schema(example = "static")]
     pub kind: RoutingAlgorithmKind,
+
+    /// Description of this routing configuration.
+    ///
+    /// Example:
+    /// ```json
+    /// "Volume split routing for domestic transactions"
+    /// ```
+    #[schema(example = "Volume split routing for domestic transactions")]
     pub description: String,
+
+    /// Creation timestamp (milliseconds since epoch).
+    #[schema(example = 1718000000000i64)]
     pub created_at: i64,
+
+    /// Last modification timestamp (milliseconds since epoch).
+    #[schema(example = 1718050000000i64)]
     pub modified_at: i64,
+
+    /// Transaction type for which this routing applies.
+    ///
+    /// May be `null` if not scoped.
+    ///
+    /// Example:
+    /// ```json
+    /// "payment"
+    /// ```
+    #[schema(example = "payment")]
     pub algorithm_for: Option<TransactionType>,
+
+    /// Associated Decision Engine routing identifier (if applicable).
+    ///
+    /// Present when routing is linked to an external decision engine.
+    ///
+    /// Example:
+    /// ```json
+    /// "de_route_456"
+    /// ```
+    #[schema(example = "de_route_456")]
     pub decision_engine_routing_id: Option<String>,
 }
 
+/// Routing dictionary for a merchant.
+///
+/// Contains all routing configurations created by the merchant,
+/// along with the currently active routing configuration.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingDictionary {
-    #[schema(value_type = String)]
+    /// Unique merchant identifier.
+    ///
+    /// Example:
+    /// ```json
+    /// "merchant_789"
+    /// ```
+    #[schema(value_type = String, example = "merchant_789")]
     pub merchant_id: common_utils::id_type::MerchantId,
+
+    /// Currently active routing configuration ID.
+    ///
+    /// Example:
+    /// ```json
+    /// "routing_abc123"
+    /// ```
+    #[schema(example = "routing_abc123")]
     pub active_id: Option<String>,
+
+    /// List of all routing configuration records
+    /// associated with this merchant.
     pub records: Vec<RoutingDictionaryRecord>,
 }
 
@@ -776,7 +1115,6 @@ impl DynamicRoutingAlgorithmRef {
                 }
                 success_based_routing.enabled_feature
                     == DynamicRoutingFeatures::DynamicConnectorSelection
-                    || success_based_routing.enabled_feature == DynamicRoutingFeatures::Metrics
             })
             .unwrap_or_default()
     }
@@ -794,7 +1132,6 @@ impl DynamicRoutingAlgorithmRef {
                 }
                 elimination_routing.enabled_feature
                     == DynamicRoutingFeatures::DynamicConnectorSelection
-                    || elimination_routing.enabled_feature == DynamicRoutingFeatures::Metrics
             })
             .unwrap_or_default()
     }
@@ -1015,7 +1352,9 @@ pub struct RoutingVolumeSplitResponse {
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EliminationRoutingConfig {
+    #[schema(deprecated)]
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
+    #[schema(deprecated)]
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
     #[schema(value_type = DecisionEngineEliminationData)]
     pub decision_engine_configs: Option<open_router::DecisionEngineEliminationData>,
@@ -1110,7 +1449,9 @@ impl EliminationRoutingConfig {
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SuccessBasedRoutingConfig {
+    #[schema(deprecated)]
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
+    #[schema(deprecated)]
     pub config: Option<SuccessBasedRoutingConfigBody>,
     #[schema(value_type = DecisionEngineSuccessRateData)]
     pub decision_engine_configs: Option<open_router::DecisionEngineSuccessRateData>,
@@ -1527,10 +1868,155 @@ impl RuleMigrationQuery {
     }
 }
 
+/// Migrate a batch of profiles, named explicitly so a run's blast radius is in the request.
+/// Each profile's merchant is resolved from its rules, so no contradictory pair is expressible.
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RuleMigrationRequest {
+    pub profile_ids: Vec<common_utils::id_type::ProfileId>,
+    /// Rules read per profile, not per batch.
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+}
+
+impl RuleMigrationRequest {
+    pub fn validated_limit(&self) -> u32 {
+        self.limit.unwrap_or(50).min(1000)
+    }
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct RuleMigrationResult {
+    pub profiles: Vec<RuleMigrationProfileResult>,
+    pub totals: RuleMigrationTotals,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationProfileResult {
+    pub profile_id: common_utils::id_type::ProfileId,
+    /// Absent when the profile holds no rules.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
     pub success: Vec<RuleMigrationResponse>,
+    /// Already in the decision engine, left alone. Apart from `errors` so a finished migration
+    /// is distinguishable from a failed one.
+    pub skipped: Vec<RuleMigrationSkipped>,
     pub errors: Vec<RuleMigrationError>,
+    /// Rules this endpoint does not carry, listed so a profile can still reach a clean finish.
+    /// Retrying will never move them, which is what separates these from `errors`.
+    pub not_applicable: Vec<RuleMigrationNotApplicable>,
+    /// Nothing was attempted: no rules, or the merchant could not be read. Per-rule failures
+    /// are `errors`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub not_attempted: Option<String>,
+}
+
+/// A rule outside this endpoint's scope, with the reason it is out of scope.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct RuleMigrationNotApplicable {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub kind: RoutingAlgorithmKind,
+    pub reason: String,
+}
+
+#[derive(Debug, Default, serde::Serialize)]
+pub struct RuleMigrationTotals {
+    pub profiles: usize,
+    pub rules_migrated: usize,
+    pub rules_skipped: usize,
+    pub rules_failed: usize,
+    pub rules_not_applicable: usize,
+    pub profiles_not_attempted: usize,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RoutingMigrationStatusQuery {
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+}
+
+impl RoutingMigrationStatusQuery {
+    /// Each profile costs a decision engine call, so the page size bounds the work.
+    pub fn validated_limit(&self) -> u32 {
+        self.limit.unwrap_or(50).min(500)
+    }
+}
+
+/// Where one profile stands in the migration. The order is the lifecycle.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RoutingMigrationState {
+    /// Rules exist in Hyperswitch and none of them are in the decision engine.
+    Pending,
+    /// Some rules made it across and some did not — a dual-write that failed, usually.
+    Partial,
+    /// Both sides hold rules, but not the same ones — counts can match, so ids are compared.
+    Diverged,
+    /// Every rule is in the decision engine, and Hyperswitch is still routing.
+    Migrated,
+    /// Cut over: the decision engine decides this profile's routing.
+    Enabled,
+    /// Cut over with rules missing, so traffic falls through to the default connector list.
+    /// The one state that is actively wrong rather than unfinished.
+    EnabledWithoutRules,
+    /// Something could not be read, so no claim is made. Never conflated with a zero.
+    Unknown,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RoutingMigrationProfileStatus {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    /// Counts only the kinds a rule migration carries, so it can be compared with the decision
+    /// engine directly. Dynamic and 3DS rules are `rules_out_of_scope`.
+    pub rules_hyperswitch: i64,
+    /// Held by Hyperswitch but never migrated by this endpoint — see
+    /// [`RoutingAlgorithmKind::rule_migration_exclusion`].
+    pub rules_out_of_scope: i64,
+    /// `None` when the decision engine could not be reached for this profile.
+    pub rules_decision_engine: Option<i64>,
+    /// Held by Hyperswitch, absent in the decision engine — what a migration run would write.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub rules_missing_in_decision_engine: Vec<String>,
+    /// Held by the decision engine, absent in Hyperswitch. Migration does not remove them.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub rules_only_in_decision_engine: Vec<String>,
+    /// The cut-over as configured, not as enforced — the diff kill switch can suppress it at
+    /// runtime. `None` when unresolved, which is not the same as "on Hyperswitch".
+    pub routing_source: Option<RoutingResultSource>,
+    pub state: RoutingMigrationState,
+}
+
+/// Counts for the returned page only — an estate-wide total would mean scanning everything.
+#[derive(Debug, Default, serde::Serialize)]
+pub struct RoutingMigrationPageTotals {
+    pub profiles: usize,
+    pub pending: usize,
+    pub partial: usize,
+    pub migrated: usize,
+    pub enabled: usize,
+    pub enabled_without_rules: usize,
+    pub diverged: usize,
+    pub unknown: usize,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RoutingMigrationStatusResponse {
+    pub profiles: Vec<RoutingMigrationProfileStatus>,
+    pub limit: u32,
+    pub offset: u32,
+    /// The page came back full, so another is worth asking for.
+    pub has_more: bool,
+    pub page_totals: RoutingMigrationPageTotals,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationSkipped {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub decision_engine_algorithm_id: String,
+    /// This run linked it as the profile's active rule.
+    pub linked_active_rule: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -1564,6 +2050,11 @@ impl RuleMigrationResponse {
     }
 }
 
+/// Source from which the routing result was generated.
+///
+/// Possible values:
+/// - `decision_engine` → External Decision Engine evaluated the rule
+/// - `hyperswitch_routing` → Internal Hyperswitch routing logic was used
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -1573,39 +2064,162 @@ pub enum RoutingResultSource {
     /// Inbuilt Hyperswitch Routing Engine
     HyperswitchRouting,
 }
+
 //TODO: temporary change will be refactored afterwards
+/// Request body used to evaluate routing rules.
+///
+/// This API evaluates routing logic based on dynamic parameters
+/// like payment method, amount, country, card_bin, etc.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
 pub struct RoutingEvaluateRequest {
+    /// Identifier of the user/system triggering routing evaluation.
+    ///
+    /// Example:
+    /// ```json
+    /// "created_by": "some_id"
+    /// ```
+    #[schema(example = "profile_123")]
     pub created_by: String,
+    /// Payment ID for debugging and tracing routing decisions.
+    ///
+    /// Example:
+    /// ```json
+    /// "payment_id": "pay_abc123"
+    /// ```
+    #[schema(example = "pay_abc123")]
+    pub payment_id: Option<String>,
+    /// Dynamic parameters used during routing evaluation.
+    ///
+    /// Each key represents a routing attribute.
+    ///
+    /// Example fields:
+    ///
+    /// - `payment_method`
+    /// - `payment_method_type`
+    /// - `amount`
+    /// - `currency`
+    /// - `authentication_type`
+    /// - `card_bin`
+    /// - `capture_method`
+    /// - `business_country`
+    /// - `billing_country`
+    /// - `business_label`
+    /// - `setup_future_usage`
+    /// - `card_network`
+    /// - `payment_type`
+    /// - `mandate_type`
+    /// - `mandate_acceptance_type`
+    /// - `metadata`
+    ///
+    /// Example:
+    /// ```json
+    /// {
+    ///   "payment_method": { "type": "enum_variant", "value": "card" },
+    ///   "amount": { "type": "number", "value": 10 },
+    ///   "currency": { "type": "str_value", "value": "INR" },
+    ///   "authentication_type": { "type": "enum_variant", "value": "three_ds" },
+    ///   "card_bin": { "type": "str_value", "value": "424242" },
+    ///   "business_country": { "type": "str_value", "value": "IN" },
+    ///   "setup_future_usage": { "type": "enum_variant", "value": "off_session" },
+    ///   "card_network": { "type": "enum_variant", "value": "visa" },
+    ///   "metadata": {
+    ///     "type": "metadata_variant",
+    ///     "value": { "key": "key1", "value": "value1" }
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// For the complete superset of supported routing keys,
+    /// refer to `routing_configs.keys` in:
+    /// https://github.com/juspay/decision-engine/blob/main/config/development.toml
     #[schema(value_type = Object)]
-    ///Parameters that can be used in the routing evaluate request.
-    ///eg: {"parameters": {
-    ///    "payment_method": {"type": "enum_variant", "value": "card"},
-    ///    "payment_method_type": {"type": "enum_variant", "value": "credit"},
-    ///    "amount": {"type": "number", "value": 10},
-    ///    "currency": {"type": "str_value", "value": "INR"},
-    ///    "authentication_type": {"type": "enum_variant", "value": "three_ds"},
-    /// "card_bin": {"type": "str_value", "value": "424242"},
-    ///    "capture_method": {"type": "enum_variant", "value": "scheduled"},
-    ///    "business_country": {"type": "str_value", "value": "IN"},
-    ///    "billing_country": {"type": "str_value", "value": "IN"},
-    ///    "business_label": {"type": "str_value", "value": "business_label"},
-    ///    "setup_future_usage": {"type": "enum_variant", "value": "off_session"},
-    ///    "card_network": {"type": "enum_variant", "value": "visa"},
-    ///    "payment_type": {"type": "enum_variant", "value": "recurring_mandate"},
-    ///    "mandate_type": {"type": "enum_variant", "value": "single_use"},
-    ///    "mandate_acceptance_type": {"type": "enum_variant", "value": "online"},
-    ///    "metadata":{"type": "metadata_variant", "value": {"key": "key1", "value": "value1"}}
-    ///  }}
     pub parameters: std::collections::HashMap<String, Option<ValueType>>,
+
+    /// Fallback connectors used if routing rule evaluation fails.
+    ///
+    /// These connectors will be returned if no rule matches.
+    ///
+    /// Example:
+    /// ```json
+    /// [
+    ///   {
+    ///     "gateway_name": "stripe",
+    ///     "gateway_id": "mca_123"
+    ///   }
+    /// ]
+    /// ```
     pub fallback_output: Vec<DeRoutableConnectorChoice>,
+
+    /// Transaction type whose active rule should be evaluated; absent keeps the
+    /// DE's legacy type-blind lookup.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<TransactionType>)]
+    pub algorithm_for: Option<TransactionType>,
 }
 impl common_utils::events::ApiEventMetric for RoutingEvaluateRequest {}
 
+/// Response returned after routing evaluation.
+///
+/// Contains:
+/// - Routing status
+/// - Raw output structure (priority / volume_split)
+/// - Final evaluated connectors
+/// - Eligible connectors list
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct RoutingEvaluateResponse {
+    /// Status of routing evaluation.
+    ///
+    /// Example:
+    /// ```json
+    /// "success"
+    /// ```
+    #[schema(example = "success")]
     pub status: String,
+
+    /// Raw routing output returned by routing engine.
+    ///
+    /// Possible structures:
+    ///
+    /// 1. Volume Split:
+    /// ```json
+    /// {
+    ///   "type": "volume_split",
+    ///   "splits": [
+    ///     {
+    ///       "connector": { "gateway_name": "adyen", "gateway_id": "mca_124" },
+    ///       "split": 60
+    ///     },
+    ///     {
+    ///       "connector": { "gateway_name": "stripe", "gateway_id": "mca_123" },
+    ///       "split": 40
+    ///     }
+    ///   ]
+    /// }
+    /// ```
+    ///
+    /// 2. Priority:
+    /// ```json
+    /// {
+    ///   "type": "priority",
+    ///   "connectors": [
+    ///     { "gateway_name": "stripe", "gateway_id": "mca_123" },
+    ///     { "gateway_name": "adyen", "gateway_id": "mca_124" }
+    ///   ]
+    /// }
+    /// ```
     pub output: serde_json::Value,
+
+    /// Final connector(s) selected after evaluation.
+    ///
+    /// Example:
+    /// ```json
+    /// [
+    ///   {
+    ///     "connector": "stripe",
+    ///     "merchant_connector_id": "mca_123"
+    ///   }
+    /// ]
+    /// ```
     #[serde(deserialize_with = "deserialize_connector_choices")]
     pub evaluated_output: Vec<RoutableConnectorChoice>,
     #[serde(deserialize_with = "deserialize_connector_choices")]
@@ -1635,14 +2249,29 @@ impl From<DeRoutableConnectorChoice> for RoutableConnectorChoice {
         }
     }
 }
-
-/// Routable Connector chosen for a payment
+/// Connector representation used in API request/response.
+///
+/// Represents a Merchant Connector Account.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct DeRoutableConnectorChoice {
+    /// Connector name (e.g., stripe, adyen).
+    ///
+    /// Example:
+    /// ```json
+    /// "stripe"
+    /// ```
     pub gateway_name: RoutableConnectors,
-    #[schema(value_type = String)]
+
+    /// Merchant Connector Account ID.
+    ///
+    /// Example:
+    /// ```json
+    /// "mca_ExbsYfO1xFErhNtwY1PX"
+    /// ```
+    #[schema(value_type = String,example = "authipay_1705")]
     pub gateway_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
+
 /// Represents a value in the DSL
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
@@ -1691,4 +2320,43 @@ pub enum ComparisonType {
     LessThanEqual,
     GreaterThan,
     GreaterThanEqual,
+}
+
+/// Which Decision Engine routing page a cut-over profile's dashboard card should deep-link to.
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DecisionEngineRoutingTarget {
+    Volume,
+    Rule,
+    MultiObjective,
+    Debit,
+}
+
+impl DecisionEngineRoutingTarget {
+    const VOLUME_PATH: &'static str = "routing/volume";
+    const RULE_PATH: &'static str = "routing/rules";
+    const MULTI_OBJECTIVE_PATH: &'static str = "routing/sr";
+    const DEBIT_PATH: &'static str = "routing/debit";
+
+    pub fn dashboard_path(self) -> &'static str {
+        match self {
+            Self::Volume => Self::VOLUME_PATH,
+            Self::Rule => Self::RULE_PATH,
+            Self::MultiObjective => Self::MULTI_OBJECTIVE_PATH,
+            Self::Debit => Self::DEBIT_PATH,
+        }
+    }
+}
+
+/// Routing entry query params; `target` selects the DE page to deep-link for a cut-over profile.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct RoutingEntryRequest {
+    pub target: Option<DecisionEngineRoutingTarget>,
+}
+
+/// Routing entry response: `is_cutover` for the source, `redirect_url` for a per-`target` DE deep-link.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct RoutingEntryResponse {
+    pub is_cutover: bool,
+    pub redirect_url: Option<String>,
 }

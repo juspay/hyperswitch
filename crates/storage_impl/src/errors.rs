@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 pub use common_enums::{ApiClientError, ApplicationError, ApplicationResult};
 pub use redis_interface::errors::RedisError;
 
@@ -37,6 +39,14 @@ pub enum StorageError {
     DecryptionError,
     #[error("RedisError: {0:?}")]
     RedisError(error_stack::Report<RedisError>),
+    #[error("InvalidDataFormat: {0}")]
+    InvalidDataFormat(String),
+    #[error("In-memory cache compute returned an operation it was never asked for")]
+    CacheInvariantViolation,
+    #[error("In-memory cache populate was cut off at the configured cap")]
+    CachePopulateTimedOut,
+    #[error("In-memory cache entry could not be downcast to the expected type")]
+    CacheTypeMismatch,
 }
 
 impl From<error_stack::Report<RedisError>> for StorageError {
@@ -52,7 +62,10 @@ impl From<error_stack::Report<RedisError>> for StorageError {
 
 impl From<diesel::result::Error> for StorageError {
     fn from(err: diesel::result::Error) -> Self {
-        Self::from(error_stack::report!(DatabaseError::from(err)))
+        use common_utils::errors::ErrorSwitchFrom;
+
+        let database_error = DatabaseError::switch_from(&err);
+        Self::from(error_stack::report!(err).change_context(database_error))
     }
 }
 
@@ -140,9 +153,9 @@ pub enum ConnectorError {
     #[error("Failed to handle connector response")]
     ResponseHandlingFailed,
     #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
+    MissingRequiredField { field_name: Cow<'static, str> },
     #[error("Missing required fields: {field_names:?}")]
-    MissingRequiredFields { field_names: Vec<&'static str> },
+    MissingRequiredFields { field_names: Vec<Cow<'static, str>> },
     #[error("Failed to obtain authentication type")]
     FailedToObtainAuthType,
     #[error("Failed to obtain certificate")]
@@ -197,7 +210,7 @@ pub enum ConnectorError {
     #[error("Date Formatting Failed")]
     DateFormattingFailed,
     #[error("Invalid Data format")]
-    InvalidDataFormat { field_name: &'static str },
+    InvalidDataFormat { field_name: Cow<'static, str> },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
     #[error("Field {fields} doesn't match with the ones used during mandate creation")]
@@ -209,7 +222,7 @@ pub enum ConnectorError {
     #[error("File Validation failed")]
     FileValidationFailed { reason: String },
     #[error("Missing 3DS redirection payload: {field_name}")]
-    MissingConnectorRedirectionPayload { field_name: &'static str },
+    MissingConnectorRedirectionPayload { field_name: Cow<'static, str> },
 }
 
 #[derive(Debug, thiserror::Error)]

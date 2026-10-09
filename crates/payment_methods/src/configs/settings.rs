@@ -7,7 +7,7 @@ use hyperswitch_interfaces::secrets_interface::{
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{self, Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -94,6 +94,51 @@ pub struct SupportedConnectorsForMandate {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
 }
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct SupportedPaymentMethodsForInstallments(
+    pub HashMap<enums::PaymentMethod, SupportedPaymentMethodTypesForInstallments>,
+);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct SupportedPaymentMethodTypesForInstallments(
+    pub HashMap<enums::PaymentMethodType, SupportedConnectorsForInstallments>,
+);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct SupportedConnectorsForInstallments(
+    #[serde(deserialize_with = "deserialize_hashset")] pub HashSet<enums::Connector>,
+);
+
+#[derive(Debug, Clone, Default)]
+pub struct CurrencyList(pub HashSet<common_enums::enums::Currency>);
+
+impl<'de> Deserialize<'de> for CurrencyList {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserialize_hashset(deserializer).map(CurrencyList)
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct InstallmentConfig(pub HashMap<enums::Connector, CurrencyList>);
+
+impl InstallmentConfig {
+    pub fn is_connector_currency_supported(
+        &self,
+        connector: &enums::Connector,
+        currency: common_enums::enums::Currency,
+    ) -> bool {
+        self.0
+            .get(connector)
+            .map(|currencies| currencies.0.contains(&currency))
+            .unwrap_or(false)
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Mandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
@@ -103,6 +148,12 @@ pub struct Mandates {
 #[derive(Debug, Deserialize, Clone)]
 pub struct ZeroMandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct Installments {
+    pub supported_payment_methods: SupportedPaymentMethodsForInstallments,
 }
 
 fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>

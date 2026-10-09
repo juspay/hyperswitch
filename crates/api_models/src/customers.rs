@@ -1,11 +1,20 @@
-use common_types::primitive_wrappers::CustomerListLimit;
-use common_utils::{crypto, custom_serde, id_type, pii, types::Description};
-use masking::Secret;
+use common_types::{customers::DocumentKind, primitive_wrappers::CustomerListLimit};
+use common_utils::{
+    crypto, custom_serde,
+    errors::{ParsingError, ValidationError},
+    ext_traits::{Encode, ValueExt},
+    id_type, pii,
+    types::Description,
+};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 use crate::payments;
+
+#[cfg(feature = "v2")]
+pub mod migrate;
 
 /// The customer details
 #[cfg(feature = "v1")]
@@ -54,6 +63,10 @@ pub struct CustomerRequest {
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: Option<Secret<String>>,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema, SmithyModel)]
@@ -100,12 +113,19 @@ impl CustomerRequest {
     pub fn get_optional_email(&self) -> Option<pii::Email> {
         self.email.clone()
     }
+    pub fn validate_document_details(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        self.document_details
+            .as_ref()
+            .map(|doc| doc.validate())
+            .unwrap_or(Ok(()))
+    }
 }
 
 /// The customer details
 #[cfg(feature = "v2")]
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct CustomerRequest {
     /// The merchant identifier for the customer object.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
@@ -139,6 +159,9 @@ pub struct CustomerRequest {
     /// The customer's tax registration number.
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     pub tax_registration_id: Option<Secret<String>>,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -211,6 +234,10 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: crypto::OptionalEncryptableSecretString,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -227,7 +254,7 @@ pub struct CustomerResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub id: id_type::GlobalCustomerId,
@@ -268,11 +295,14 @@ pub struct CustomerResponse {
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// The identifier for the default payment method.
-    #[schema(value_type = Option<String>, max_length = 64, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    #[schema(value_type = Option<String>, max_length = 64, example = "0a_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     /// The customer's tax registration number.
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     pub tax_registration_id: crypto::OptionalEncryptableSecretString,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -311,7 +341,7 @@ pub struct CustomerDeleteResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub id: id_type::GlobalCustomerId,
@@ -372,6 +402,10 @@ pub struct CustomerUpdateRequest {
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: Option<Secret<String>>,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    #[smithy(value_type = "Option<CustomerDocumentDetails>")]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -383,7 +417,6 @@ impl CustomerUpdateRequest {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct CustomerUpdateRequest {
     /// The customer's name
     #[schema(max_length = 255, value_type = String, example = "Jon Test")]
@@ -412,11 +445,14 @@ pub struct CustomerUpdateRequest {
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// The unique identifier of the payment method
-    #[schema(value_type = Option<String>, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    #[schema(value_type = Option<String>, example = "0a_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     /// The customer's tax registration number.
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     pub tax_registration_id: Option<Secret<String>>,
+    /// Customer’s country-specific identification number and type used for regulatory or tax purposes
+    #[schema(value_type = Option<CustomerDocumentDetails>)]
+    pub document_details: Option<CustomerDocumentDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -450,4 +486,39 @@ pub struct CustomerListResponse {
     pub data: Vec<CustomerResponse>,
     /// Total count of customers
     pub total_count: usize,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
+pub struct CustomerDocumentDetails {
+    /// The customer's document type
+    #[schema(value_type = DocumentKind, example = "cpf")]
+    pub document_type: DocumentKind,
+    /// The customer's document number
+    /// Length of the document number depends upon the document_type.
+    /// For CPF/CNPJ it is typically 11/14 digits long
+    #[schema(max_length = 255, value_type = String, example = "12345678911")]
+    pub document_number: Secret<String>,
+}
+
+impl CustomerDocumentDetails {
+    pub fn from(
+        value: &Option<pii::SecretSerdeValue>,
+    ) -> common_utils::errors::CustomResult<Option<Self>, ParsingError> {
+        value
+            .as_ref()
+            .map(|pii_value| {
+                pii_value
+                    .peek()
+                    .clone()
+                    .parse_value::<Self>("CustomerDocumentDetails")
+            })
+            .transpose()
+    }
+    pub fn to(&self) -> common_utils::errors::CustomResult<pii::SecretSerdeValue, ParsingError> {
+        self.encode_to_value().map(Secret::new)
+    }
+
+    pub fn validate(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
+        self.document_type.validate(self.document_number.peek())
+    }
 }

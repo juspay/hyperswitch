@@ -13,6 +13,8 @@ pub mod pm_auth;
 
 pub mod card_testing_guard;
 #[cfg(feature = "olap")]
+pub mod oidc_provider;
+#[cfg(feature = "olap")]
 pub mod openidconnect;
 
 use std::sync::Arc;
@@ -22,14 +24,21 @@ use error_stack::ResultExt;
 pub use hyperswitch_interfaces::connector_integration_v2::{
     BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
 };
-use masking::{ExposeInterface, StrongSecret};
+use hyperswitch_masking::{ExposeInterface, StrongSecret};
 #[cfg(feature = "kv_store")]
 use storage_impl::kv_router_store::KVRouterStore;
-use storage_impl::{errors::StorageResult, redis::RedisStore, RouterStore};
+use storage_impl::{
+    errors::StorageResult,
+    redis::{cache::Caches, RedisStore},
+    RouterStore,
+};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
-use crate::{configs::Settings, core::errors};
+use crate::{
+    configs::{settings::Database, Settings},
+    core::errors,
+};
 
 #[cfg(not(feature = "olap"))]
 pub type StoreType = storage_impl::database::store::Store;
@@ -44,18 +53,23 @@ pub type Store = KVRouterStore<StoreType>;
 /// # Panics
 ///
 /// Will panic if hex decode of master key fails
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::too_many_arguments)]
 pub async fn get_store(
     config: &Settings,
     tenant: &dyn TenantConfig,
+    master_config: Database,
+    accounts_config: Database,
     cache_store: Arc<RedisStore>,
+    caches: Arc<Caches>,
     test_transaction: bool,
     key_manager_state: keymanager::KeyManagerState,
 ) -> StorageResult<Store> {
-    let master_config = config.master_database.clone().into_inner();
-
+    let database_event_emitter = Arc::clone(&key_manager_state.event_emitter);
+    // Reads are served off a single replica pool regardless of tenant/accounts/global role.
     #[cfg(feature = "olap")]
     let replica_config = config.replica_database.clone().into_inner();
+    #[cfg(feature = "olap")]
+    let accounts_replica_config = replica_config.clone();
 
     #[allow(clippy::expect_used)]
     let master_enc_key = hex::decode(config.secrets.get_inner().master_enc_key.clone().expose())
@@ -63,11 +77,16 @@ pub async fn get_store(
         .expect("Failed to decode master key from hex");
 
     #[cfg(not(feature = "olap"))]
-    let conf = master_config.into();
+    let conf = (master_config.into(), accounts_config.into());
     #[cfg(feature = "olap")]
     // this would get abstracted, for all cases
     #[allow(clippy::useless_conversion)]
-    let conf = (master_config.into(), replica_config.into());
+    let conf = (
+        master_config.into(),
+        replica_config.into(),
+        accounts_config.into(),
+        accounts_replica_config.into(),
+    );
 
     let store: RouterStore<StoreType> = if test_transaction {
         RouterStore::test_store(
@@ -75,7 +94,9 @@ pub async fn get_store(
             tenant,
             &config.redis,
             master_enc_key,
+            caches,
             Some(key_manager_state.clone()),
+            Arc::clone(&database_event_emitter),
         )
         .await?
     } else {
@@ -84,8 +105,9 @@ pub async fn get_store(
             tenant,
             master_enc_key,
             cache_store,
-            storage_impl::redis::cache::IMC_INVALIDATION_CHANNEL,
+            caches,
             Some(key_manager_state.clone()),
+            database_event_emitter,
         )
         .await?
     };
@@ -107,12 +129,25 @@ pub async fn get_store(
 pub async fn get_cache_store(
     config: &Settings,
     shut_down_signal: oneshot::Sender<()>,
+    event_emitter: Arc<dyn common_utils::external_service::ExternalServiceEventEmitter>,
     _test_transaction: bool,
 ) -> StorageResult<Arc<RedisStore>> {
-    RouterStore::<StoreType>::cache_store(&config.redis, shut_down_signal).await
+    RouterStore::<StoreType>::cache_store(&config.redis, shut_down_signal, event_emitter).await
 }
 
+// deja: the per-merchant data-encryption key (DEK) is random. It is stored
+// (master-key-encrypted) in merchant_key_store AND used to encrypt the merchant's
+// own columns, so it must replay to the recorded value or the substituted DB rows
+// and the response body diverge. Ok-only: the ring error type is non-serializable.
 #[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "router::services",
+        operation = "generate_aes256_key",
+        codec = ResultOkCodec,
+    )
+)]
 pub fn generate_aes256_key() -> errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {
     use ring::rand::SecureRandom;
 

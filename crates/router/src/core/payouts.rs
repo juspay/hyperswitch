@@ -1,13 +1,19 @@
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
 pub mod access_token;
+pub mod gateway;
+#[cfg(feature = "v1")]
+pub mod guards;
 pub mod helpers;
+#[cfg(feature = "v1")]
+pub mod proxy;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
 pub mod transformers;
 pub mod validator;
 use std::{
     collections::{HashMap, HashSet},
+    str::FromStr,
     vec::IntoIter,
 };
 
@@ -21,38 +27,50 @@ use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
     id_type::{self, GenerateId},
     link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
+    payout_method_utils,
     types::{MinorUnit, UnifiedCode, UnifiedMessage},
 };
 use diesel_models::{
     enums as storage_enums,
     generic_link::{GenericLinkNew, PayoutLink},
+    types::FeatureMetadata,
     CommonMandateReference, PayoutsMandateReference, PayoutsMandateReferenceRecord,
 };
 use error_stack::{report, ResultExt};
+use external_services::grpc_client;
 #[cfg(feature = "olap")]
 use futures::future::join_all;
 use hyperswitch_domain_models::{self as domain_models, payment_methods::PaymentMethod};
-use masking::{PeekInterface, Secret};
+use hyperswitch_interfaces::api::gateway as payout_gateway;
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
 use router_env::{instrument, logger, tracing, Env};
 use scheduler::utils as pt_utils;
 use time::Duration;
+use validator::PayoutExecutionKindValidation;
 
-#[cfg(feature = "olap")]
-use crate::types::domain::behaviour::Conversion;
+#[cfg(all(feature = "olap", feature = "payouts"))]
+use crate::consts as payout_consts;
 #[cfg(feature = "olap")]
 use crate::types::PayoutActionData;
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{
             self, ConnectorErrorExt, CustomResult, RouterResponse, RouterResult, StorageErrorExt,
         },
-        payments::{self, customers, helpers as payment_helpers},
+        fraud_check::{
+            self, get_frm_merchant_connector_account_and_routing_algorithm,
+            get_payout_frm_applicability, types::PayoutFrmOutcome,
+        },
+        payments::{self, customers, helpers as payment_helpers, HeaderPayload},
+        payouts::gateway::context as gateway_context,
+        unified_connector_service::should_call_unified_connector_service,
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::SessionState,
+    routes::{metrics, SessionState},
     services,
     types::{
         self,
@@ -62,7 +80,41 @@ use crate::{
         transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{self, OptionExt},
+    workflows::payout_sync,
 };
+
+macro_rules! handle_payout_pre_frm_result {
+    ($result:expr, $failure_mode:expr, $platform:expr, $fail_open_value:expr) => {{
+        match $result {
+            Ok(value) => Ok(value),
+            Err(error) => match $failure_mode {
+                common_enums::PreFrmFailureMode::FailOpen => {
+                    logger::info!(
+                        "Payout pre FRM actions failed, continuing due to FailOpen mode. Error: {:?}",
+                        error
+                    );
+                    metrics::FRM_FAILURE.add(
+                        1,
+                        router_env::metric_attributes!(
+                            (
+                                "merchant_id",
+                                $platform.get_processor().get_account().get_id().clone()
+                            ),
+                            ("error_type", error.current_context().to_string())
+                        ),
+                    );
+                    Ok($fail_open_value)
+                }
+                common_enums::PreFrmFailureMode::FailClosed => {
+                    logger::info!(
+                        "Payout pre FRM actions failed, propagating error due to FailClosed mode"
+                    );
+                    Err(error)
+                }
+            },
+        }
+    }};
+}
 
 // ********************************************** TYPES **********************************************
 #[derive(Clone)]
@@ -74,6 +126,11 @@ pub struct PayoutData {
     pub payouts: storage::Payouts,
     pub payout_attempt: storage::PayoutAttempt,
     pub payout_method_data: Option<payouts::PayoutMethodData>,
+    /// Request-only vault tokens; never treat them as raw payout data.
+    #[cfg(feature = "v1")]
+    pub external_vault_pmd: Option<domain_models::payouts::proxy::ExternalVaultPayoutMethodData>,
+    #[cfg(feature = "v1")]
+    pub execution_context: proxy::PayoutExecutionContext,
     pub profile_id: id_type::ProfileId,
     pub should_terminate: bool,
     pub payout_link: Option<PayoutLink>,
@@ -81,6 +138,9 @@ pub struct PayoutData {
     pub payment_method: Option<PaymentMethod>,
     pub connector_transfer_method_id: Option<String>,
     pub browser_info: Option<domain_models::router_request_types::BrowserInformation>,
+    pub source_bank_data: Option<api_models::payouts::BankTransfer>,
+    pub attempts: Option<Vec<storage::PayoutAttempt>>,
+    pub fraud_check: Option<storage::FraudCheck>,
 }
 
 // ********************************************** CORE FLOWS **********************************************
@@ -96,7 +156,8 @@ pub fn get_next_connector(
 #[cfg(all(feature = "payouts", feature = "v1"))]
 pub async fn get_connector_choice(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     connector: Option<String>,
     routing_algorithm: Option<serde_json::Value>,
     payout_data: &mut PayoutData,
@@ -131,15 +192,22 @@ pub async fn get_connector_choice(
                     pre_routing_results: None,
                 },
             };
-            helpers::decide_payout_connector(
+            let decided_connector = helpers::decide_payout_connector(
                 state,
-                platform,
+                processor,
+                dimensions,
                 Some(request_straight_through),
                 &mut routing_data,
                 payout_data,
                 eligible_routable_connectors,
             )
-            .await
+            .await?;
+
+            payout_data.payout_attempt.connector = routing_data.routed_through.clone();
+            payout_data.payout_attempt.merchant_connector_id =
+                routing_data.merchant_connector_id.clone();
+
+            Ok(decided_connector)
         }
 
         api::ConnectorChoice::Decide => {
@@ -152,15 +220,22 @@ pub async fn get_connector_choice(
                     pre_routing_results: None,
                 },
             };
-            helpers::decide_payout_connector(
+            let decided_connector = helpers::decide_payout_connector(
                 state,
-                platform,
+                processor,
+                dimensions,
                 None,
                 &mut routing_data,
                 payout_data,
                 eligible_routable_connectors,
             )
-            .await
+            .await?;
+
+            payout_data.payout_attempt.connector = routing_data.routed_through.clone();
+            payout_data.payout_attempt.merchant_connector_id =
+                routing_data.merchant_connector_id.clone();
+
+            Ok(decided_connector)
         }
     }
 }
@@ -169,36 +244,97 @@ pub async fn get_connector_choice(
 pub async fn make_connector_decision(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_call_type: api::ConnectorCallType,
     payout_data: &mut PayoutData,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
+    let profile_dimensions =
+        dimensions.with_profile_id(payout_data.business_profile.get_id().clone());
+
+    let pre_frm_failure_mode = profile_dimensions
+        .get_pre_frm_failure_mode(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+
+    let payout_frm_call = profile_dimensions
+        .get_payout_frm_call(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+
+    let frm_merchant_connector_account_and_routing_algorithm = if payout_frm_call {
+        handle_payout_pre_frm_result!(
+            get_frm_merchant_connector_account_and_routing_algorithm(state, platform, payout_data)
+                .await,
+            &pre_frm_failure_mode,
+            platform,
+            None
+        )?
+    } else {
+        None
+    };
+
+    let payout_frm_applicability = match frm_merchant_connector_account_and_routing_algorithm {
+        Some((mca, fra)) => handle_payout_pre_frm_result!(
+            get_payout_frm_applicability(payout_data, mca, fra).await,
+            &pre_frm_failure_mode,
+            platform,
+            None
+        )?,
+        None => None,
+    };
+
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(routing_data) => {
-            Box::pin(call_connector_payout(
-                state,
-                platform,
-                &routing_data.connector_data,
-                payout_data,
-            ))
-            .await?;
+            let frm_outcome = match payout_frm_applicability {
+                Some(applicability) => handle_payout_pre_frm_result!(
+                    Box::pin(fraud_check::pre_payouts_frm_core(
+                        state,
+                        platform,
+                        payout_data,
+                        &routing_data.connector_data,
+                        applicability,
+                        &pre_frm_failure_mode,
+                    ))
+                    .await,
+                    &pre_frm_failure_mode,
+                    platform,
+                    PayoutFrmOutcome::Continue
+                )?,
+                None => PayoutFrmOutcome::Continue,
+            };
 
-            #[cfg(feature = "payout_retry")]
-            {
-                let config_bool = retry::config_should_call_gsm_payout(
-                    &*state.store,
-                    platform.get_processor().get_account().get_id(),
-                    PayoutRetryType::SingleConnector,
-                )
-                .await;
+            match frm_outcome {
+                PayoutFrmOutcome::Continue => {
+                    Box::pin(call_connector_payout(
+                        state,
+                        platform,
+                        header_payload.clone(),
+                        &routing_data.connector_data,
+                        payout_data,
+                        dimensions,
+                    ))
+                    .await?;
 
-                if config_bool && payout_data.should_call_gsm() {
-                    Box::pin(retry::do_gsm_single_connector_actions(
+                    #[cfg(feature = "payout_retry")]
+                    predetermined_call_connector_type_payout_retry(
                         state,
                         routing_data.connector_data,
                         payout_data,
                         platform,
-                    ))
+                        dimensions,
+                        header_payload,
+                    )
                     .await?;
+                }
+                PayoutFrmOutcome::Blocked => {
+                    update_frm_blocked_payout_tracker(state, platform, payout_data).await?;
                 }
             }
 
@@ -209,49 +345,50 @@ pub async fn make_connector_decision(
 
             let connector_data = get_next_connector(&mut routing_data)?.connector_data;
 
-            Box::pin(call_connector_payout(
-                state,
-                platform,
-                &connector_data,
-                payout_data,
-            ))
-            .await?;
-
-            #[cfg(feature = "payout_retry")]
-            {
-                let config_multiple_connector_bool = retry::config_should_call_gsm_payout(
-                    &*state.store,
-                    platform.get_processor().get_account().get_id(),
-                    PayoutRetryType::MultiConnector,
-                )
-                .await;
-
-                if config_multiple_connector_bool && payout_data.should_call_gsm() {
-                    Box::pin(retry::do_gsm_multiple_connector_actions(
+            let frm_outcome = match payout_frm_applicability {
+                Some(applicability) => handle_payout_pre_frm_result!(
+                    Box::pin(fraud_check::pre_payouts_frm_core(
                         state,
-                        routing_data,
-                        connector_data.clone(),
-                        payout_data,
                         platform,
+                        payout_data,
+                        &connector_data,
+                        applicability,
+                        &pre_frm_failure_mode,
+                    ))
+                    .await,
+                    &pre_frm_failure_mode,
+                    platform,
+                    PayoutFrmOutcome::Continue
+                )?,
+                None => PayoutFrmOutcome::Continue,
+            };
+
+            match frm_outcome {
+                PayoutFrmOutcome::Continue => {
+                    Box::pin(call_connector_payout(
+                        state,
+                        platform,
+                        header_payload.clone(),
+                        &connector_data,
+                        payout_data,
+                        dimensions,
                     ))
                     .await?;
-                }
 
-                let config_single_connector_bool = retry::config_should_call_gsm_payout(
-                    &*state.store,
-                    platform.get_processor().get_account().get_id(),
-                    PayoutRetryType::SingleConnector,
-                )
-                .await;
-
-                if config_single_connector_bool && payout_data.should_call_gsm() {
-                    Box::pin(retry::do_gsm_single_connector_actions(
+                    #[cfg(feature = "payout_retry")]
+                    retryable_call_connector_type_payout_retry(
                         state,
+                        routing_data,
                         connector_data,
                         payout_data,
                         platform,
-                    ))
+                        dimensions,
+                        header_payload,
+                    )
                     .await?;
+                }
+                PayoutFrmOutcome::Blocked => {
+                    update_frm_blocked_payout_tracker(state, platform, payout_data).await?;
                 }
             }
 
@@ -263,21 +400,178 @@ pub async fn make_connector_decision(
     }
 }
 
+#[cfg(feature = "payout_retry")]
+async fn predetermined_call_connector_type_payout_retry(
+    state: &SessionState,
+    connector_data: api::ConnectorData,
+    payout_data: &mut PayoutData,
+    platform: &domain::Platform,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    header_payload: HeaderPayload,
+) -> RouterResult<()> {
+    let config_bool = retry::config_should_call_gsm_payout(
+        state,
+        dimensions,
+        PayoutRetryType::SingleConnector,
+        payout_data.payouts.customer_id.as_ref(),
+    )
+    .await;
+
+    if config_bool && payout_data.should_call_gsm() {
+        Box::pin(retry::do_gsm_single_connector_actions(
+            state,
+            connector_data,
+            payout_data,
+            platform,
+            dimensions,
+            header_payload,
+        ))
+        .await?;
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "payout_retry")]
+async fn retryable_call_connector_type_payout_retry(
+    state: &SessionState,
+    routing_data: IntoIter<api::ConnectorRoutingData>,
+    connector_data: api::ConnectorData,
+    payout_data: &mut PayoutData,
+    platform: &domain::Platform,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    header_payload: HeaderPayload,
+) -> RouterResult<()> {
+    let config_multiple_connector_bool = retry::config_should_call_gsm_payout(
+        state,
+        dimensions,
+        PayoutRetryType::MultiConnector,
+        payout_data.payouts.customer_id.as_ref(),
+    )
+    .await;
+
+    if config_multiple_connector_bool && payout_data.should_call_gsm() {
+        Box::pin(retry::do_gsm_multiple_connector_actions(
+            state,
+            routing_data,
+            connector_data.clone(),
+            payout_data,
+            platform,
+            dimensions,
+            header_payload.clone(),
+        ))
+        .await?;
+    }
+
+    let config_single_connector_bool = retry::config_should_call_gsm_payout(
+        state,
+        dimensions,
+        PayoutRetryType::SingleConnector,
+        payout_data.payouts.customer_id.as_ref(),
+    )
+    .await;
+
+    if config_single_connector_bool && payout_data.should_call_gsm() {
+        Box::pin(retry::do_gsm_single_connector_actions(
+            state,
+            connector_data,
+            payout_data,
+            platform,
+            dimensions,
+            header_payload,
+        ))
+        .await?;
+    }
+
+    Ok(())
+}
+
+#[instrument(skip_all)]
+async fn update_frm_blocked_payout_tracker(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payout_data: &mut PayoutData,
+) -> RouterResult<()> {
+    let fraud_check = payout_data
+        .fraud_check
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Missing fraud_check on FRM blocked payout")?;
+
+    let db = &*state.store;
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+
+    let active_frm_id = fraud_check.frm_id.clone();
+    let error_code = fraud_check.frm_status.to_string();
+    let error_message = fraud_check
+        .frm_reason
+        .as_ref()
+        .map(|reason| match reason {
+            serde_json::Value::String(value) => value.clone(),
+            other => other.to_string(),
+        })
+        .or(fraud_check.frm_error.clone());
+
+    payout_data.payout_attempt = db
+        .update_payout_attempt(
+            &payout_data.payout_attempt,
+            storage::PayoutAttemptUpdate::StatusUpdate {
+                status: common_enums::PayoutStatus::Failed,
+                error_code: Some(error_code),
+                error_message,
+                active_frm_id: Some(active_frm_id),
+                is_eligible: Some(false),
+                unified_code: None,
+                unified_message: None,
+                connector_eligibility_reference_id: None,
+                connector_payout_id: None,
+                payout_connector_metadata: None,
+            },
+            &payout_data.payouts,
+            storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error updating payout attempt after FRM rejection")?;
+
+    payout_data.payouts = db
+        .update_payout(
+            &payout_data.payouts,
+            storage::PayoutsUpdate::StatusUpdate {
+                status: common_enums::PayoutStatus::Failed,
+            },
+            &payout_data.payout_attempt,
+            storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error updating payout after FRM rejection")?;
+
+    Ok(())
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn payouts_core(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     payout_data: &mut PayoutData,
     routing_algorithm: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
+    payout_data
+        .payout_attempt
+        .execution_kind
+        .validate_normal_execution_kind()?;
     let payout_attempt = &payout_data.payout_attempt;
 
     // Form connector data
     let connector_call_type = get_connector_choice(
         state,
-        platform,
+        platform.get_processor(),
+        &dimensions.with_profile_id(payout_data.business_profile.get_id().clone()),
         payout_attempt.connector.clone(),
         routing_algorithm,
         payout_data,
@@ -289,8 +583,10 @@ pub async fn payouts_core(
     Box::pin(make_connector_decision(
         state,
         platform,
+        header_payload,
         connector_call_type,
         payout_data,
+        dimensions,
     ))
     .await
 }
@@ -300,35 +596,101 @@ pub async fn payouts_core(
 pub async fn payouts_core(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     payout_data: &mut PayoutData,
     routing_algorithm: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
     todo!()
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn payouts_create_core_wrapper(
+    state: SessionState,
+    platform: domain::Platform,
+    auth_profile: Option<domain::Profile>,
+    header_payload: HeaderPayload,
+    req: payouts::PayoutCreateRequest,
+) -> RouterResponse<payouts::PayoutCreateResponse> {
+    let mut req = req;
+    let profile = match auth_profile {
+        Some(profile) => {
+            validator::validate_payout_condition(
+                profile.merchant_id != *platform.get_processor().get_account().get_id()
+                    || req
+                        .profile_id
+                        .as_ref()
+                        .is_some_and(|id| id != profile.get_id()),
+                "Payout profile does not match the authenticated merchant and profile",
+            )?;
+            req.profile_id = Some(profile.get_id().clone());
+            profile
+        }
+        // V1 API-key authentication has no profile when X-Profile-Id is omitted.
+        None => {
+            core_utils::get_profile_from_business_details(
+                req.business_country,
+                req.business_label.as_ref(),
+                platform.get_processor(),
+                req.profile_id.as_ref(),
+                &*state.store,
+            )
+            .await?
+        }
+    };
+    let provider_profile =
+        payment_helpers::resolve_provider_profile(&state, &platform, &profile).await?;
+    match provider_profile
+        .external_vault_details
+        .is_external_vault_enabled()
+    {
+        true => {
+            Box::pin(
+                proxy::ExternalVaultPayout {
+                    state: &state,
+                    platform: &platform,
+                }
+                .payouts_proxy_core(header_payload, req, profile, provider_profile),
+            )
+            .await
+        }
+        false => Box::pin(payouts_create_core(state, platform, header_payload, req)).await,
+    }
 }
 
 #[instrument(skip_all)]
 pub async fn payouts_create_core(
     state: SessionState,
     platform: domain::Platform,
+    header_payload: HeaderPayload,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     // Validate create request
-    let (payout_id, payout_method_data, profile_id, customer, payment_method) =
-        validator::validate_create_request(&state, &platform, &req).await?;
+    let (payout_id, payout_method_data, business_profile, customer, payment_method) = Box::pin(
+        validator::validate_create_request(&state, &platform, &req, &dimensions),
+    )
+    .await?;
 
+    let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
     // Create DB entries
-    let mut payout_data = payout_create_db_entries(
+    let mut payout_data = Box::pin(payout_create_db_entries(
         &state,
         &platform,
         &req,
         &payout_id,
-        &profile_id,
+        business_profile,
         payout_method_data.as_ref(),
         &state.locale,
         customer.as_ref(),
         payment_method.clone(),
-    )
+        &dimensions,
+        api_enums::PayoutExecutionKind::Normal,
+    ))
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -359,9 +721,11 @@ pub async fn payouts_create_core(
         payouts_core(
             &state,
             &platform,
+            header_payload,
             &mut payout_data,
             req.routing.clone(),
             req.connector.clone(),
+            &dimensions.without_profile_id(),
         )
         .await?
     };
@@ -374,7 +738,12 @@ pub async fn payouts_confirm_core(
     state: SessionState,
     platform: domain::Platform,
     req: payouts::PayoutCreateRequest,
+    header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
@@ -394,6 +763,7 @@ pub async fn payouts_confirm_core(
             storage_enums::PayoutStatus::Failed,
             storage_enums::PayoutStatus::Pending,
             storage_enums::PayoutStatus::Ineligible,
+            storage_enums::PayoutStatus::NotPermitted,
             storage_enums::PayoutStatus::RequiresFulfillment,
             storage_enums::PayoutStatus::RequiresVendorAccountCreation,
         ],
@@ -422,9 +792,11 @@ pub async fn payouts_confirm_core(
     payouts_core(
         &state,
         &platform,
+        header_payload,
         &mut payout_data,
         req.routing.clone(),
         req.connector.clone(),
+        &dimensions,
     )
     .await?;
 
@@ -435,7 +807,12 @@ pub async fn payouts_update_core(
     state: SessionState,
     platform: domain::Platform,
     req: payouts::PayoutCreateRequest,
+    header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     let payout_id = req.payout_id.clone().get_required_value("payout_id")?;
     let mut payout_data = Box::pin(make_payout_data(
         &state,
@@ -492,9 +869,11 @@ pub async fn payouts_update_core(
         payouts_core(
             &state,
             &platform,
+            header_payload,
             &mut payout_data,
             req.routing.clone(),
             req.connector.clone(),
+            &dimensions,
         )
         .await?;
     }
@@ -507,6 +886,7 @@ pub async fn payouts_update_core(
 pub async fn payouts_retrieve_core(
     state: SessionState,
     platform: domain::Platform,
+    header_payload: HeaderPayload,
     profile_id: Option<id_type::ProfileId>,
     req: payouts::PayoutRetrieveRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
@@ -518,6 +898,10 @@ pub async fn payouts_retrieve_core(
         &state.locale,
     ))
     .await?;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_profile_id(payout_data.business_profile.get_id().clone());
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 
@@ -525,7 +909,8 @@ pub async fn payouts_retrieve_core(
         // Form connector data
         let connector_call_type = get_connector_choice(
             &state,
-            &platform,
+            platform.get_processor(),
+            &dimensions,
             payout_attempt.connector.clone(),
             None,
             &mut payout_data,
@@ -536,6 +921,7 @@ pub async fn payouts_retrieve_core(
         Box::pin(complete_payout_retrieve(
             &state,
             &platform,
+            header_payload,
             connector_call_type,
             &mut payout_data,
         ))
@@ -551,6 +937,7 @@ pub async fn payouts_retrieve_core(
 pub async fn payouts_cancel_core(
     state: SessionState,
     platform: domain::Platform,
+    header_payload: HeaderPayload,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = Box::pin(make_payout_data(
@@ -565,6 +952,11 @@ pub async fn payouts_cancel_core(
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 
+    let connector_name = payout_attempt
+        .connector
+        .as_deref()
+        .and_then(|connector| common_enums::connector_enums::Connector::from_str(connector).ok());
+
     // Verify if cancellation can be triggered
     if helpers::is_payout_terminal_state(status) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
@@ -575,9 +967,15 @@ pub async fn payouts_cancel_core(
         }));
 
     // Make local cancellation
-    } else if helpers::is_eligible_for_local_payout_cancellation(status) {
+    } else if helpers::is_eligible_for_local_payout_cancellation(status)
+        && connector_name
+            .as_ref()
+            .map(|name| name.supports_instant_payout(payout_data.payouts.payout_type))
+            .unwrap_or(true)
+    {
         let status = storage_enums::PayoutStatus::Cancelled;
         let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+            connector_eligibility_reference_id: None,
             connector_payout_id: payout_attempt.connector_payout_id.to_owned(),
             status,
             error_message: Some("Cancelled by user".to_string()),
@@ -586,6 +984,7 @@ pub async fn payouts_cancel_core(
             unified_code: None,
             unified_message: None,
             payout_connector_metadata: None,
+            active_frm_id: None,
         };
         payout_data.payout_attempt = state
             .store
@@ -626,7 +1025,7 @@ pub async fn payouts_cancel_core(
                 "Connector not found in payout_attempt - should not reach here".to_string(),
             ))
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "connector",
+                field_name: "connector".into(),
             })
             .attach_printable("Connector not found for payout cancellation")?,
         };
@@ -634,6 +1033,7 @@ pub async fn payouts_cancel_core(
         Box::pin(cancel_payout(
             &state,
             &platform,
+            header_payload,
             &connector_data,
             &mut payout_data,
         ))
@@ -641,15 +1041,14 @@ pub async fn payouts_cancel_core(
         .attach_printable("Payout cancellation failed for given Payout request")?;
     }
 
-    Ok(services::ApplicationResponse::Json(
-        response_handler(&state, &platform, &payout_data).await?,
-    ))
+    trigger_webhook_and_handle_response(&state, &platform, &payout_data).await
 }
 
 #[instrument(skip_all)]
 pub async fn payouts_fulfill_core(
     state: SessionState,
     platform: domain::Platform,
+    header_payload: HeaderPayload,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = Box::pin(make_payout_data(
@@ -663,6 +1062,9 @@ pub async fn payouts_fulfill_core(
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     // Verify if fulfillment can be triggered
     if helpers::is_payout_terminal_state(status)
@@ -690,17 +1092,40 @@ pub async fn payouts_fulfill_core(
             "Connector not found in payout_attempt - should not reach here.".to_string(),
         ))
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable("Connector not found for payout fulfillment")?,
     };
 
     helpers::fetch_payout_method_data(&state, &mut payout_data, &connector_data, &platform).await?;
+
+    // Fetch source_bank_data if not present
+    if payout_data.source_bank_data.is_none() {
+        payout_data.source_bank_data = helpers::SourceBankDataOperation::get_temp_source_bank_data(
+            &state,
+            payout_data.payout_attempt.source_bank_data_token.clone(),
+            payout_data.customer_details.as_ref().map(|customer| {
+                #[cfg(feature = "v1")]
+                {
+                    customer.get_id().clone()
+                }
+                #[cfg(not(feature = "v1"))]
+                {
+                    customer.id.clone()
+                }
+            }),
+            platform.get_processor().get_key_store(),
+        )
+        .await?;
+    }
+
     Box::pin(fulfill_payout(
         &state,
         &platform,
+        header_payload,
         &connector_data,
         &mut payout_data,
+        &dimensions,
     ))
     .await
     .attach_printable("Payout fulfillment failed for given Payout request")?;
@@ -725,7 +1150,6 @@ pub async fn payouts_list_core(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     constraints: payouts::PayoutListConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
-    validator::validate_payout_list_request(&constraints)?;
     let merchant_id = platform.get_processor().get_account().get_id();
     let db = state.store.as_ref();
     let payouts = helpers::filter_by_constraints(
@@ -736,14 +1160,16 @@ pub async fn payouts_list_core(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
-    let payouts = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, payouts);
+    let payouts =
+        core_utils::filter_objects_based_on_profile_id_list(profile_id_list.clone(), payouts);
 
     let mut pi_pa_tuple_vec = PayoutActionData::new();
 
     for payout in payouts {
         match db
-            .find_payout_attempt_by_merchant_id_payout_attempt_id(
+            .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
                 merchant_id,
+                &payout.payout_id,
                 &utils::get_payout_attempt_id(
                     payout.payout_id.get_string_repr(),
                     payout.attempt_count,
@@ -829,11 +1255,32 @@ pub async fn payouts_list_core(
         .map(ForeignFrom::foreign_from)
         .collect();
 
+    let constraints = constraints.into();
+    let active_payout_ids = db
+        .filter_active_payout_ids_by_constraints(merchant_id, &constraints)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to filter active payout ids based on the constraints")?;
+
+    let total_count = db
+        .get_total_count_of_filtered_payouts(
+            merchant_id,
+            &active_payout_ids,
+            profile_id_list,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get total count of filtered payouts")?;
+
     Ok(services::ApplicationResponse::Json(
         api::PayoutListResponse {
             size: data.len(),
             data,
-            total_count: None,
+            total_count: Some(total_count),
         },
     ))
 }
@@ -845,8 +1292,8 @@ pub async fn payouts_filtered_list_core(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     filters: payouts::PayoutListFilterConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
-    let limit = &filters.limit;
-    validator::validate_payout_list_request_for_joins(*limit)?;
+    let limit = filters.limit;
+    validator::validate_payout_list_request_for_joins(limit)?;
     let db = state.store.as_ref();
     let constraints = filters.clone().into();
     let list: Vec<(
@@ -862,12 +1309,12 @@ pub async fn payouts_filtered_list_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
-    let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
+    let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list.clone(), list);
     let data: Vec<api::PayoutCreateResponse> =
         join_all(list.into_iter().map(|(p, pa, customer, address)| async {
             let customer: Option<domain::Customer> = customer
                 .async_and_then(|cust| async {
-                    domain::Customer::convert_back(
+                    <domain::Customer as storage_impl::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         cust,
                         &(platform.get_processor().get_key_store().clone()).key,
@@ -889,7 +1336,7 @@ pub async fn payouts_filtered_list_core(
 
             let payout_addr: Option<payment_enums::Address> = address
                 .async_and_then(|addr| async {
-                    domain::Address::convert_back(
+                    <domain::Address as domain::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         addr,
                         &(platform.get_processor().get_key_store().clone()).key,
@@ -931,6 +1378,7 @@ pub async fn payouts_filtered_list_core(
         .get_total_count_of_filtered_payouts(
             platform.get_processor().get_account().get_id(),
             &active_payout_ids,
+            profile_id_list,
             filters.connector.clone(),
             filters.currency.clone(),
             filters.status.clone(),
@@ -969,7 +1417,7 @@ pub async fn payouts_list_available_filters_core(
             platform.get_processor().get_account().storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     let payouts = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, payouts);
 
@@ -980,7 +1428,7 @@ pub async fn payouts_list_available_filters_core(
             storage_enums::MerchantStorageScheme::PostgresOnly,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     Ok(services::ApplicationResponse::Json(
         api::PayoutListFilters {
@@ -996,12 +1444,13 @@ pub async fn payouts_list_available_filters_core(
 pub async fn get_payout_filters_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id_list: Option<Vec<id_type::ProfileId>>,
 ) -> RouterResponse<api::PayoutListFiltersV2> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
         super::admin::list_payment_connectors(
             state,
-            platform.get_processor().get_account().get_id().to_owned(),
-            None,
+            platform.get_processor().clone(),
+            profile_id_list,
         )
         .await?
     {
@@ -1059,12 +1508,23 @@ pub async fn get_payout_filters_core(
 }
 
 // ********************************************** HELPERS **********************************************
+fn should_update_payout_attempt_routing(payout_attempt: &storage::PayoutAttempt) -> bool {
+    payout_attempt.connector_request_reference_id.is_none()
+        || payout_attempt.active_frm_id.is_some()
+}
+
 pub async fn call_connector_payout(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
+    payout_data
+        .payout_attempt
+        .execution_kind
+        .validate_normal_execution_kind()?;
     let payout_attempt = &payout_data.payout_attempt.to_owned();
     let payouts = &payout_data.payouts.to_owned();
 
@@ -1088,15 +1548,21 @@ pub async fn call_connector_payout(
         payout_data.merchant_connector_account = Some(merchant_connector_account);
     }
 
-    // update connector_name
-    if payout_data.payout_attempt.connector.is_none()
-        || payout_data.payout_attempt.connector != Some(connector_data.connector_name.to_string())
-    {
-        payout_data.payout_attempt.connector = Some(connector_data.connector_name.to_string());
+    let connector_request_reference_id = core_utils::get_payout_connector_request_reference_id(
+        connector_data,
+        &payout_data.payout_attempt,
+    );
+    let connector_name = connector_data.connector_name.to_string();
+
+    // Update routing and persist the request reference ID before calling the connector.
+    if should_update_payout_attempt_routing(&payout_data.payout_attempt) {
+        payout_data.payout_attempt.connector = Some(connector_name.clone());
         let updated_payout_attempt = storage::PayoutAttemptUpdate::UpdateRouting {
-            connector: connector_data.connector_name.to_string(),
+            connector: connector_name,
             routing_info: payout_data.payout_attempt.routing_info.clone(),
             merchant_connector_id: payout_data.payout_attempt.merchant_connector_id.clone(),
+            connector_request_reference_id,
+            active_frm_id: payout_data.payout_attempt.active_frm_id.clone(),
         };
         let db = &*state.store;
         payout_data.payout_attempt = db
@@ -1115,10 +1581,61 @@ pub async fn call_connector_payout(
     if payout_data.payout_method_data.is_none() || payout_attempt.payout_token.is_none() {
         helpers::fetch_payout_method_data(state, payout_data, connector_data, platform).await?;
     }
+
+    #[cfg(feature = "v1")]
+    let is_blocked = guards::is_payout_blocked(state, platform, payout_data, dimensions).await?;
+    #[cfg(feature = "v2")]
+    let is_blocked = false;
+
+    if !is_blocked {
+        Box::pin(run_payout_connector_flows(
+            state,
+            platform,
+            header_payload,
+            connector_data,
+            payout_data,
+            dimensions,
+        ))
+        .await?;
+    }
+
+    Ok(())
+}
+
+async fn run_payout_connector_flows(
+    state: &SessionState,
+    platform: &domain::Platform,
+    header_payload: HeaderPayload,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+) -> RouterResult<()> {
+    let payouts = &payout_data.payouts.to_owned();
+
+    // Fetch source_bank_data if not present
+    if payout_data.source_bank_data.is_none() {
+        payout_data.source_bank_data = helpers::SourceBankDataOperation::get_temp_source_bank_data(
+            state,
+            payout_data.payout_attempt.source_bank_data_token.clone(),
+            payout_data.customer_details.as_ref().map(|customer| {
+                #[cfg(feature = "v1")]
+                {
+                    customer.get_id().clone()
+                }
+                #[cfg(not(feature = "v1"))]
+                {
+                    customer.id.clone()
+                }
+            }),
+            platform.get_processor().get_key_store(),
+        )
+        .await?;
+    }
     // Eligibility flow
     Box::pin(complete_payout_eligibility(
         state,
         platform,
+        header_payload.clone(),
         connector_data,
         payout_data,
     ))
@@ -1127,6 +1644,7 @@ pub async fn call_connector_payout(
     Box::pin(complete_create_recipient(
         state,
         platform,
+        header_payload.clone(),
         connector_data,
         payout_data,
     ))
@@ -1135,6 +1653,7 @@ pub async fn call_connector_payout(
     Box::pin(complete_create_recipient_disburse_account(
         state,
         platform,
+        header_payload.clone(),
         connector_data,
         payout_data,
     ))
@@ -1143,6 +1662,7 @@ pub async fn call_connector_payout(
     Box::pin(complete_create_payout(
         state,
         platform,
+        header_payload.clone(),
         connector_data,
         payout_data,
     ))
@@ -1151,9 +1671,16 @@ pub async fn call_connector_payout(
     // Auto fulfillment flow
     let status = payout_data.payout_attempt.status;
     if payouts.auto_fulfill && status == storage_enums::PayoutStatus::RequiresFulfillment {
-        Box::pin(fulfill_payout(state, platform, connector_data, payout_data))
-            .await
-            .attach_printable("Payout fulfillment failed for given Payout request")?;
+        Box::pin(fulfill_payout(
+            state,
+            platform,
+            header_payload,
+            connector_data,
+            payout_data,
+            dimensions,
+        ))
+        .await
+        .attach_printable("Payout fulfillment failed for given Payout request")?;
     }
 
     Ok(())
@@ -1162,9 +1689,15 @@ pub async fn call_connector_payout(
 pub async fn complete_create_recipient(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
+    let is_passthrough = payout_data
+        .payout_method_data
+        .as_ref()
+        .is_some_and(|payout_method_data| payout_method_data.is_passthrough());
+
     if !payout_data.should_terminate
         && matches!(
             payout_data.payout_attempt.status,
@@ -1174,11 +1707,12 @@ pub async fn complete_create_recipient(
         )
         && connector_data
             .connector_name
-            .supports_create_recipient(payout_data.payouts.payout_type)
+            .supports_create_recipient(payout_data.payouts.payout_type, is_passthrough)
     {
         Box::pin(create_recipient(
             state,
             platform,
+            header_payload,
             connector_data,
             payout_data,
         ))
@@ -1193,6 +1727,7 @@ pub async fn complete_create_recipient(
 pub async fn create_recipient(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1218,6 +1753,16 @@ pub async fn create_recipient(
             core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
                 .await?;
 
+        let (gateway_context, updated_state) = decide_unified_connector_service_payout(
+            state,
+            platform,
+            header_payload,
+            &router_data,
+            connector_data,
+            payout_data,
+        )
+        .await?;
+
         // 2. Fetch connector integration details
         let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
             api::PoRecipient,
@@ -1226,32 +1771,34 @@ pub async fn create_recipient(
         > = connector_data.connector.get_connector_integration();
 
         // 3. Call connector service
-        let router_resp = services::execute_connector_processing_step(
-            state,
+        let router_resp = payout_gateway::execute_payout_gateway(
+            &updated_state,
             connector_integration,
             &router_data,
             payments::CallConnectorAction::Trigger,
             None,
             None,
+            gateway_context.clone(),
         )
         .await
         .to_payout_failed_response()?;
 
         match router_resp.response {
             Ok(recipient_create_data) => {
-                let db = &*state.store;
+                let db = &*updated_state.store;
                 if let Some(customer) = customer_details {
                     if let Some(updated_customer) =
                         customers::update_connector_customer_in_customers(
                             &connector_label,
-                            Some(&customer),
+                            customer.connector_customer.as_ref(),
                             recipient_create_data.connector_payout_id.clone(),
+                            platform.get_initiator(),
                         )
                         .await
                     {
                         #[cfg(feature = "v1")]
                         {
-                            let customer_id = customer.customer_id.to_owned();
+                            let customer_id = customer.get_id().to_owned();
                             payout_data.customer_details = Some(
                                 db.update_customer_by_customer_id_merchant_id(
                                     customer_id,
@@ -1272,7 +1819,7 @@ pub async fn create_recipient(
                             let customer_id = customer.get_id().clone();
                             payout_data.customer_details = Some(
                                 db.update_customer_by_global_id(
-                                    &state.into(),
+                                    &updated_state.into(),
                                     &customer_id,
                                     customer,
                                     updated_customer,
@@ -1289,20 +1836,31 @@ pub async fn create_recipient(
 
                 // Add next step to ProcessTracker
                 if recipient_create_data.should_add_next_step_to_process_tracker {
-                    add_external_account_addition_task(
-                        &*state.store,
-                        payout_data,
-                        common_utils::date_time::now().saturating_add(Duration::seconds(consts::STRIPE_ACCOUNT_ONBOARDING_DELAY_IN_SECONDS)),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while adding attach_payout_account_workflow workflow to process tracker")?;
+                    if payout_data.payout_attempt.execution_kind
+                        == api_enums::PayoutExecutionKind::Normal
+                    {
+                        let schedule_time = common_utils::date_time::now().saturating_add(
+                            Duration::seconds(consts::STRIPE_ACCOUNT_ONBOARDING_DELAY_IN_SECONDS),
+                        );
+                        add_external_account_addition_task(
+                            &*updated_state.store,
+                            payout_data,
+                            schedule_time,
+                            updated_state.conf.application_source,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to add attach_payout_account_workflow to process tracker",
+                        )?;
+                    }
 
-                    // Update payout status in DB
+                    // Proxy tokens are request-scoped, so defer asynchronous resume.
                     let status = recipient_create_data
                         .status
                         .unwrap_or(api_enums::PayoutStatus::RequiresVendorAccountCreation);
                     let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                        connector_eligibility_reference_id: None,
                         connector_payout_id: payout_data
                             .payout_attempt
                             .connector_payout_id
@@ -1313,10 +1871,11 @@ pub async fn create_recipient(
                         is_eligible: recipient_create_data.payout_eligible,
                         unified_code: None,
                         unified_message: None,
-                        payout_connector_metadata: payout_data
-                            .payout_attempt
+                        payout_connector_metadata: recipient_create_data
                             .payout_connector_metadata
-                            .to_owned(),
+                            .clone()
+                            .or(payout_data.payout_attempt.payout_connector_metadata.clone()),
+                        active_frm_id: None,
                     };
                     payout_data.payout_attempt = db
                         .update_payout_attempt(
@@ -1343,6 +1902,7 @@ pub async fn create_recipient(
                     payout_data.should_terminate = true;
                 } else if let Some(status) = recipient_create_data.status {
                     let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                        connector_eligibility_reference_id: None,
                         connector_payout_id: payout_data
                             .payout_attempt
                             .connector_payout_id
@@ -1353,10 +1913,11 @@ pub async fn create_recipient(
                         is_eligible: recipient_create_data.payout_eligible,
                         unified_code: None,
                         unified_message: None,
-                        payout_connector_metadata: payout_data
-                            .payout_attempt
+                        payout_connector_metadata: recipient_create_data
                             .payout_connector_metadata
-                            .to_owned(),
+                            .clone()
+                            .or(payout_data.payout_attempt.payout_connector_metadata.clone()),
+                        active_frm_id: None,
                     };
                     payout_data.payout_attempt = db
                         .update_payout_attempt(
@@ -1384,11 +1945,12 @@ pub async fn create_recipient(
                 let status = storage_enums::PayoutStatus::Failed;
                 let (error_code, error_message) = (Some(err.code), Some(err.message));
                 let (unified_code, unified_message) = helpers::get_gsm_record(
-                    state,
+                    &updated_state,
                     error_code.clone(),
                     error_message.clone(),
                     payout_data.payout_attempt.connector.clone(),
                     consts::PAYOUT_FLOW_STR,
+                    crate::consts::DEFAULT_SUBFLOW_STR,
                 )
                 .await
                 .map_or(
@@ -1399,6 +1961,7 @@ pub async fn create_recipient(
                     |gsm| (gsm.unified_code, gsm.unified_message),
                 );
                 let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                    connector_eligibility_reference_id: None,
                     connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                     status,
                     error_code,
@@ -1408,18 +1971,19 @@ pub async fn create_recipient(
                         .map(UnifiedCode::try_from)
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "unified_code",
+                            field_name: "unified_code".into(),
                         })?,
                     unified_message: unified_message
                         .map(UnifiedMessage::try_from)
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "unified_message",
+                            field_name: "unified_message".into(),
                         })?,
                     payout_connector_metadata: payout_data
                         .payout_attempt
                         .payout_connector_metadata
                         .to_owned(),
+                    active_frm_id: None,
                 };
                 let db = &*state.store;
                 payout_data.payout_attempt = db
@@ -1452,6 +2016,7 @@ pub async fn create_recipient(
 pub async fn create_recipient(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1461,6 +2026,7 @@ pub async fn create_recipient(
 pub async fn complete_payout_eligibility(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1468,13 +2034,15 @@ pub async fn complete_payout_eligibility(
 
     if !payout_data.should_terminate
         && payout_attempt.is_eligible.is_none()
-        && connector_data
-            .connector_name
-            .supports_payout_eligibility(payout_data.payouts.payout_type)
+        && connector_data.connector_name.supports_payout_eligibility(
+            payout_attempt.execution_kind,
+            payout_data.payouts.payout_type,
+        )
     {
         Box::pin(check_payout_eligibility(
             state,
             platform,
+            header_payload,
             connector_data,
             payout_data,
         ))
@@ -1500,6 +2068,7 @@ pub async fn complete_payout_eligibility(
 pub async fn check_payout_eligibility(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1508,21 +2077,34 @@ pub async fn check_payout_eligibility(
         core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
             .await?;
 
-    // 2. Fetch connector integration details
+    // 2. Decide UCS vs Direct execution path for this flow.
+    let (gateway_context, updated_state) = decide_unified_connector_service_payout(
+        state,
+        platform,
+        header_payload,
+        &router_data,
+        connector_data,
+        payout_data,
+    )
+    .await?;
+
+    // 3. Fetch connector integration details
     let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
         api::PoEligibility,
         types::PayoutsData,
         types::PayoutsResponseData,
     > = connector_data.connector.get_connector_integration();
 
-    // 3. Call connector service
-    let router_data_resp = services::execute_connector_processing_step(
-        state,
+    // 4. Dispatch through the gateway (UCS for connectors that route there,
+    //    Direct connector integration otherwise).
+    let router_data_resp = payout_gateway::execute_payout_gateway(
+        &updated_state,
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        gateway_context.clone(),
     )
     .await
     .to_payout_failed_response()?;
@@ -1535,7 +2117,13 @@ pub async fn check_payout_eligibility(
             let status = payout_response_data
                 .status
                 .unwrap_or(payout_attempt.status.to_owned());
+            let metadata = helpers::merge_connector_metadata(
+                payout_data.payouts.metadata.clone(),
+                payout_response_data.payout_connector_metadata.clone(),
+            );
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_eligibility_reference_id: payout_response_data
+                    .connector_eligibility_reference_id,
                 connector_payout_id: payout_response_data.connector_payout_id,
                 status,
                 error_code: payout_response_data.error_code,
@@ -1544,6 +2132,7 @@ pub async fn check_payout_eligibility(
                 unified_code: None,
                 unified_message: None,
                 payout_connector_metadata: payout_response_data.payout_connector_metadata,
+                active_frm_id: None,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -1558,7 +2147,7 @@ pub async fn check_payout_eligibility(
             payout_data.payouts = db
                 .update_payout(
                     &payout_data.payouts,
-                    storage::PayoutsUpdate::StatusUpdate { status },
+                    storage::PayoutsUpdate::StatusAndMetadataUpdate { status, metadata },
                     &payout_data.payout_attempt,
                     platform.get_processor().get_account().storage_scheme,
                 )
@@ -1575,6 +2164,7 @@ pub async fn check_payout_eligibility(
                 error_message.clone(),
                 payout_data.payout_attempt.connector.clone(),
                 consts::PAYOUT_FLOW_STR,
+                crate::consts::DEFAULT_SUBFLOW_STR,
             )
             .await
             .map_or(
@@ -1585,6 +2175,7 @@ pub async fn check_payout_eligibility(
                 |gsm| (gsm.unified_code, gsm.unified_message),
             );
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_eligibility_reference_id: None,
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
                 error_code,
@@ -1594,18 +2185,19 @@ pub async fn check_payout_eligibility(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: payout_data
                     .payout_attempt
                     .payout_connector_metadata
                     .to_owned(),
+                active_frm_id: None,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -1636,6 +2228,7 @@ pub async fn check_payout_eligibility(
 pub async fn complete_create_payout(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1655,6 +2248,7 @@ pub async fn complete_create_payout(
             let db = &*state.store;
             let payout_attempt = &payout_data.payout_attempt;
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_eligibility_reference_id: None,
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.clone(),
                 status: storage::enums::PayoutStatus::RequiresFulfillment,
                 error_code: None,
@@ -1666,6 +2260,7 @@ pub async fn complete_create_payout(
                     .payout_attempt
                     .payout_connector_metadata
                     .to_owned(),
+                active_frm_id: None,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -1691,9 +2286,15 @@ pub async fn complete_create_payout(
                 .attach_printable("Error updating payouts in db")?;
         } else {
             // create payout_object in connector as well as router
-            Box::pin(create_payout(state, platform, connector_data, payout_data))
-                .await
-                .attach_printable("Payout creation failed for given Payout request")?;
+            Box::pin(create_payout(
+                state,
+                platform,
+                header_payload,
+                connector_data,
+                payout_data,
+            ))
+            .await
+            .attach_printable("Payout creation failed for given Payout request")?;
         }
     }
     Ok(())
@@ -1702,6 +2303,7 @@ pub async fn complete_create_payout(
 pub async fn create_payout(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1710,24 +2312,36 @@ pub async fn create_payout(
         core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
             .await?;
 
+    let (gateway_context, updated_state) = decide_unified_connector_service_payout(
+        state,
+        platform,
+        header_payload,
+        &router_data,
+        connector_data,
+        payout_data,
+    )
+    .await?;
+
     // 2. Get/Create access token
     access_token::create_access_token(
-        state,
+        &updated_state,
         connector_data,
         platform,
         &mut router_data,
         payout_data.payouts.payout_type.to_owned(),
+        &gateway_context,
     )
     .await?;
 
-    // 3. Execute pretasks
+    // 4. Execute pretasks
     if helpers::should_continue_payout(&router_data) {
-        complete_payout_quote_steps_if_required(state, connector_data, &mut router_data).await?;
+        complete_payout_quote_steps_if_required(&updated_state, connector_data, &mut router_data)
+            .await?;
     };
 
     let connector_meta_data = router_data.connector_meta_data.clone();
 
-    // 4. Call connector service
+    // 5. Call connector service (UCS or Direct based on execution path)
     let router_data_resp = match helpers::should_continue_payout(&router_data) {
         true => {
             let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
@@ -1736,13 +2350,14 @@ pub async fn create_payout(
                 types::PayoutsResponseData,
             > = connector_data.connector.get_connector_integration();
 
-            services::execute_connector_processing_step(
-                state,
+            payout_gateway::execute_payout_gateway(
+                &updated_state,
                 connector_integration,
                 &router_data,
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
+                gateway_context.clone(),
             )
             .await
             .to_payout_failed_response()?
@@ -1759,6 +2374,7 @@ pub async fn create_payout(
                 .status
                 .unwrap_or(payout_attempt.status.to_owned());
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_eligibility_reference_id: None,
                 connector_payout_id: payout_response_data.connector_payout_id,
                 status,
                 error_code: payout_response_data.error_code,
@@ -1767,6 +2383,7 @@ pub async fn create_payout(
                 unified_code: None,
                 unified_message: None,
                 payout_connector_metadata: connector_meta_data.clone(),
+                active_frm_id: None,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -1798,6 +2415,7 @@ pub async fn create_payout(
                 error_message.clone(),
                 payout_data.payout_attempt.connector.clone(),
                 consts::PAYOUT_FLOW_STR,
+                crate::consts::DEFAULT_SUBFLOW_STR,
             )
             .await
             .map_or(
@@ -1808,6 +2426,7 @@ pub async fn create_payout(
                 |gsm| (gsm.unified_code, gsm.unified_message),
             );
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_eligibility_reference_id: None,
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
                 error_code,
@@ -1817,15 +2436,16 @@ pub async fn create_payout(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: connector_meta_data,
+                active_frm_id: None,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -1897,6 +2517,7 @@ async fn complete_payout_quote_steps_if_required<F>(
 pub async fn complete_payout_retrieve(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_call_type: api::ConnectorCallType,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1905,6 +2526,7 @@ pub async fn complete_payout_retrieve(
             Box::pin(create_payout_retrieve(
                 state,
                 platform,
+                header_payload,
                 &routing_data.connector_data,
                 payout_data,
             ))
@@ -1933,6 +2555,7 @@ pub async fn complete_payout_retrieve(
 pub async fn create_payout_retrieve(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1941,13 +2564,24 @@ pub async fn create_payout_retrieve(
         core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
             .await?;
 
+    let (gateway_context, updated_state) = decide_unified_connector_service_payout(
+        state,
+        platform,
+        header_payload,
+        &router_data,
+        connector_data,
+        payout_data,
+    )
+    .await?;
+
     // 2. Get/Create access token
     access_token::create_access_token(
-        state,
+        &updated_state,
         connector_data,
         platform,
         &mut router_data,
         payout_data.payouts.payout_type.to_owned(),
+        &gateway_context,
     )
     .await?;
 
@@ -1960,13 +2594,14 @@ pub async fn create_payout_retrieve(
                 types::PayoutsResponseData,
             > = connector_data.connector.get_connector_integration();
 
-            services::execute_connector_processing_step(
-                state,
+            payout_gateway::execute_payout_gateway(
+                &updated_state,
                 connector_integration,
                 &router_data,
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
+                gateway_context.clone(),
             )
             .await
             .to_payout_failed_response()?
@@ -1975,7 +2610,8 @@ pub async fn create_payout_retrieve(
     };
 
     // 4. Process data returned by the connector
-    update_retrieve_payout_tracker(state, platform, payout_data, &router_data_resp).await?;
+    update_retrieve_payout_tracker(&updated_state, platform, payout_data, &router_data_resp)
+        .await?;
 
     Ok(())
 }
@@ -2005,6 +2641,7 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                     error_message.clone(),
                     payout_data.payout_attempt.connector.clone(),
                     consts::PAYOUT_FLOW_STR,
+                    crate::consts::DEFAULT_SUBFLOW_STR,
                 )
                 .await
                 .map_or(
@@ -2015,6 +2652,7 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                     |gsm| (gsm.unified_code, gsm.unified_message),
                 );
                 storage::PayoutAttemptUpdate::StatusUpdate {
+                    connector_eligibility_reference_id: None,
                     connector_payout_id: payout_response_data.connector_payout_id.clone(),
                     status,
                     error_code,
@@ -2024,20 +2662,22 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                         .map(UnifiedCode::try_from)
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "unified_code",
+                            field_name: "unified_code".into(),
                         })?,
                     unified_message: unified_message
                         .map(UnifiedMessage::try_from)
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "unified_message",
+                            field_name: "unified_message".into(),
                         })?,
                     payout_connector_metadata: payout_response_data
                         .payout_connector_metadata
                         .clone(),
+                    active_frm_id: None,
                 }
             } else {
                 storage::PayoutAttemptUpdate::StatusUpdate {
+                    connector_eligibility_reference_id: None,
                     connector_payout_id: payout_response_data.connector_payout_id.clone(),
                     status,
                     error_code: None,
@@ -2048,6 +2688,7 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                     payout_connector_metadata: payout_response_data
                         .payout_connector_metadata
                         .clone(),
+                    active_frm_id: None,
                 }
             };
 
@@ -2086,6 +2727,7 @@ pub async fn update_retrieve_payout_tracker<F, T>(
 pub async fn complete_create_recipient_disburse_account(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -2103,6 +2745,7 @@ pub async fn complete_create_recipient_disburse_account(
         Box::pin(create_recipient_disburse_account(
             state,
             platform,
+            header_payload,
             connector_data,
             payout_data,
         ))
@@ -2115,6 +2758,7 @@ pub async fn complete_create_recipient_disburse_account(
 pub async fn create_recipient_disburse_account(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -2122,6 +2766,16 @@ pub async fn create_recipient_disburse_account(
     let router_data =
         core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
             .await?;
+
+    let (gateway_context, updated_state) = decide_unified_connector_service_payout(
+        state,
+        platform,
+        header_payload,
+        &router_data,
+        connector_data,
+        payout_data,
+    )
+    .await?;
 
     // 2. Fetch connector integration details
     let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
@@ -2131,19 +2785,20 @@ pub async fn create_recipient_disburse_account(
     > = connector_data.connector.get_connector_integration();
 
     // 3. Call connector service
-    let router_data_resp = services::execute_connector_processing_step(
-        state,
+    let router_data_resp = payout_gateway::execute_payout_gateway(
+        &updated_state,
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        gateway_context.clone(),
     )
     .await
     .to_payout_failed_response()?;
 
     // 4. Process data returned by the connector
-    let db = &*state.store;
+    let db = &*updated_state.store;
     match router_data_resp.response {
         Ok(payout_response_data) => {
             let payout_attempt = &payout_data.payout_attempt;
@@ -2151,6 +2806,7 @@ pub async fn create_recipient_disburse_account(
                 .status
                 .unwrap_or(payout_attempt.status.to_owned());
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_eligibility_reference_id: None,
                 connector_payout_id: payout_response_data.connector_payout_id.clone(),
                 status,
                 error_code: payout_response_data.error_code,
@@ -2159,6 +2815,7 @@ pub async fn create_recipient_disburse_account(
                 unified_code: None,
                 unified_message: None,
                 payout_connector_metadata: payout_response_data.payout_connector_metadata,
+                active_frm_id: None,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2211,11 +2868,16 @@ pub async fn create_recipient_disburse_account(
                     let pm_update =
                         diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                             #[cfg(feature = "v1")]
-                            connector_mandate_details: Some(connector_mandate_details_value),
+                            connector_mandate_details: Some(Secret::new(
+                                connector_mandate_details_value,
+                            )),
 
                             #[cfg(feature = "v2")]
                             connector_mandate_details: Some(common_connector_mandate),
-                            last_modified_by: None,
+                            last_modified_by: platform
+                                .get_initiator()
+                                .and_then(|initiator| initiator.to_created_by())
+                                .map(|last_modified_by| last_modified_by.to_string()),
                         };
 
                     payout_data.payment_method = Some(
@@ -2224,6 +2886,8 @@ pub async fn create_recipient_disburse_account(
                             pm_method,
                             pm_update,
                             platform.get_processor().get_account().storage_scheme,
+                            // Payout payment method writes are outside PM modular card compat.
+                            None,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -2231,14 +2895,14 @@ pub async fn create_recipient_disburse_account(
                     );
                 } else {
                     #[cfg(feature = "v1")]
-                    let customer_id = Some(customer_details.customer_id);
+                    let customer_id = Some(customer_details.get_id().clone());
 
                     #[cfg(feature = "v2")]
                     let customer_id = customer_details.merchant_reference_id;
 
                     if let Some(customer_id) = customer_id {
                         helpers::save_payout_data_to_locker(
-                            state,
+                            &updated_state,
                             payout_data,
                             &customer_id,
                             payout_method_data,
@@ -2254,11 +2918,12 @@ pub async fn create_recipient_disburse_account(
         Err(err) => {
             let (error_code, error_message) = (Some(err.code), Some(err.message));
             let (unified_code, unified_message) = helpers::get_gsm_record(
-                state,
+                &updated_state,
                 error_code.clone(),
                 error_message.clone(),
                 payout_data.payout_attempt.connector.clone(),
                 consts::PAYOUT_FLOW_STR,
+                crate::consts::DEFAULT_SUBFLOW_STR,
             )
             .await
             .map_or(
@@ -2269,6 +2934,7 @@ pub async fn create_recipient_disburse_account(
                 |gsm| (gsm.unified_code, gsm.unified_message),
             );
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_eligibility_reference_id: None,
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status: storage_enums::PayoutStatus::Failed,
                 error_code,
@@ -2278,18 +2944,19 @@ pub async fn create_recipient_disburse_account(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: payout_data
                     .payout_attempt
                     .payout_connector_metadata
                     .to_owned(),
+                active_frm_id: None,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2310,6 +2977,7 @@ pub async fn create_recipient_disburse_account(
 pub async fn cancel_payout(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -2317,6 +2985,16 @@ pub async fn cancel_payout(
     let router_data =
         core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
             .await?;
+
+    let (gateway_context, updated_state) = decide_unified_connector_service_payout(
+        state,
+        platform,
+        header_payload,
+        &router_data,
+        connector_data,
+        payout_data,
+    )
+    .await?;
 
     // 2. Fetch connector integration details
     let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
@@ -2326,25 +3004,27 @@ pub async fn cancel_payout(
     > = connector_data.connector.get_connector_integration();
 
     // 3. Call connector service
-    let router_data_resp = services::execute_connector_processing_step(
-        state,
+    let router_data_resp = payout_gateway::execute_payout_gateway(
+        &updated_state,
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        gateway_context.clone(),
     )
     .await
     .to_payout_failed_response()?;
 
     // 4. Process data returned by the connector
-    let db = &*state.store;
+    let db = &*updated_state.store;
     match router_data_resp.response {
         Ok(payout_response_data) => {
             let status = payout_response_data
                 .status
                 .unwrap_or(payout_data.payout_attempt.status.to_owned());
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_eligibility_reference_id: None,
                 connector_payout_id: payout_response_data.connector_payout_id,
                 status,
                 error_code: None,
@@ -2353,6 +3033,7 @@ pub async fn cancel_payout(
                 unified_code: None,
                 unified_message: None,
                 payout_connector_metadata: payout_response_data.payout_connector_metadata,
+                active_frm_id: None,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2379,11 +3060,12 @@ pub async fn cancel_payout(
             let status = storage_enums::PayoutStatus::Failed;
             let (error_code, error_message) = (Some(err.code), Some(err.message));
             let (unified_code, unified_message) = helpers::get_gsm_record(
-                state,
+                &updated_state,
                 error_code.clone(),
                 error_message.clone(),
                 payout_data.payout_attempt.connector.clone(),
                 consts::PAYOUT_FLOW_STR,
+                crate::consts::DEFAULT_SUBFLOW_STR,
             )
             .await
             .map_or(
@@ -2394,6 +3076,7 @@ pub async fn cancel_payout(
                 |gsm| (gsm.unified_code, gsm.unified_message),
             );
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_eligibility_reference_id: None,
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
                 error_code,
@@ -2403,18 +3086,19 @@ pub async fn cancel_payout(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: payout_data
                     .payout_attempt
                     .payout_connector_metadata
                     .to_owned(),
+                active_frm_id: None,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2445,40 +3129,69 @@ pub async fn cancel_payout(
 pub async fn fulfill_payout(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
     // 1. Form Router data
     let mut router_data =
         core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
             .await?;
 
+    let (gateway_context, updated_state) = decide_unified_connector_service_payout(
+        state,
+        platform,
+        header_payload,
+        &router_data,
+        connector_data,
+        payout_data,
+    )
+    .await?;
+
     // 2. Get/Create access token
     access_token::create_access_token(
-        state,
+        &updated_state,
         connector_data,
         platform,
         &mut router_data,
         payout_data.payouts.payout_type.to_owned(),
+        &gateway_context,
     )
     .await?;
 
     // 3. Call connector service
+    let db = &*state.store;
+    let dimension_with_connector = dimensions.with_connector(connector_data.connector_name);
     let router_data_resp = match helpers::should_continue_payout(&router_data) {
         true => {
+            // Proxy tokens are request-scoped, so do not schedule normal sync.
+            if payout_data.payout_attempt.execution_kind == api_enums::PayoutExecutionKind::Normal {
+                payout_sync::PayoutSyncWorkFlow::add_payout_sync_task_to_process_tracker(
+                    &updated_state,
+                    payout_data,
+                    updated_state.conf.application_source,
+                    &dimension_with_connector,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to add payout sync task to process tracker")?;
+            }
+
             let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
                 api::PoFulfill,
                 types::PayoutsData,
                 types::PayoutsResponseData,
             > = connector_data.connector.get_connector_integration();
 
-            services::execute_connector_processing_step(
-                state,
+            payout_gateway::execute_payout_gateway(
+                &updated_state,
                 connector_integration,
                 &router_data,
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
+                gateway_context.clone(),
             )
             .await
             .to_payout_failed_response()?
@@ -2487,7 +3200,6 @@ pub async fn fulfill_payout(
     };
 
     // 4. Process data returned by the connector
-    let db = &*state.store;
     match router_data_resp.response {
         Ok(payout_response_data) => {
             let status = payout_response_data
@@ -2495,6 +3207,7 @@ pub async fn fulfill_payout(
                 .unwrap_or(payout_data.payout_attempt.status.to_owned());
             payout_data.payouts.status = status;
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_eligibility_reference_id: None,
                 connector_payout_id: payout_response_data.connector_payout_id,
                 status,
                 error_code: payout_response_data.error_code,
@@ -2503,6 +3216,7 @@ pub async fn fulfill_payout(
                 unified_code: None,
                 unified_message: None,
                 payout_connector_metadata: payout_response_data.payout_connector_metadata,
+                active_frm_id: None,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2531,35 +3245,36 @@ pub async fn fulfill_payout(
                     .payout_method_data
                     .clone()
                     .get_required_value("payout_method_data")?;
-                payout_data
-                    .payouts
-                    .customer_id
-                    .clone()
-                    .async_map(|customer_id| async move {
-                        helpers::save_payout_data_to_locker(
-                            state,
-                            payout_data,
-                            &customer_id,
-                            &payout_method_data,
-                            None,
-                            platform,
-                        )
-                        .await
-                    })
+
+                if let Some(customer_id) = payout_data.payouts.customer_id.clone() {
+                    helpers::save_payout_data_to_locker(
+                        &updated_state,
+                        payout_data,
+                        &customer_id,
+                        &payout_method_data,
+                        None,
+                        platform,
+                    )
                     .await
-                    .transpose()
                     .attach_printable("Failed to save payout data to locker")?;
+                }
             }
         }
         Err(err) => {
-            let status = storage_enums::PayoutStatus::Failed;
+            // Only explicit client errors establish that the payout failed. Keep all other
+            // outcomes pending so the payout sync workflow can reconcile the final status.
+            let status = match err.status_code {
+                400..=499 => storage_enums::PayoutStatus::Failed,
+                _ => storage_enums::PayoutStatus::Pending,
+            };
             let (error_code, error_message) = (Some(err.code), Some(err.message));
             let (unified_code, unified_message) = helpers::get_gsm_record(
-                state,
+                &updated_state,
                 error_code.clone(),
                 error_message.clone(),
                 payout_data.payout_attempt.connector.clone(),
                 consts::PAYOUT_FLOW_STR,
+                crate::consts::DEFAULT_SUBFLOW_STR,
             )
             .await
             .map_or(
@@ -2570,6 +3285,7 @@ pub async fn fulfill_payout(
                 |gsm| (gsm.unified_code, gsm.unified_message),
             );
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                connector_eligibility_reference_id: None,
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
                 error_code,
@@ -2579,18 +3295,19 @@ pub async fn fulfill_payout(
                     .map(UnifiedCode::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_code",
+                        field_name: "unified_code".into(),
                     })?,
                 unified_message: unified_message
                     .map(UnifiedMessage::try_from)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "unified_message",
+                        field_name: "unified_message".into(),
                     })?,
                 payout_connector_metadata: payout_data
                     .payout_attempt
                     .payout_connector_metadata
                     .to_owned(),
+                active_frm_id: None,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2624,7 +3341,13 @@ pub async fn trigger_webhook_and_handle_response(
     payout_data: &PayoutData,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let response = response_handler(state, platform, payout_data).await?;
-    utils::trigger_payouts_webhook(state, platform, &response).await?;
+    utils::trigger_payouts_webhook(
+        state,
+        platform,
+        &response,
+        payout_data.payouts.created_by.as_ref(),
+    )
+    .await?;
     Ok(services::ApplicationResponse::Json(response))
 }
 
@@ -2651,7 +3374,7 @@ pub async fn response_handler(
     let payout_link = payout_data.payout_link.to_owned();
     let billing_address = payout_data.billing_address.to_owned();
     let customer_details = payout_data.customer_details.to_owned();
-    let customer_id = payouts.customer_id;
+    let customer_id = payouts.customer_id.clone();
     let billing = billing_address.map(From::from);
 
     let translated_unified_message = helpers::get_translated_unified_code_and_message(
@@ -2667,6 +3390,11 @@ pub async fn response_handler(
     let payout_method_data =
         additional_payout_method_data.map(payouts::PayoutMethodDataResponse::from);
 
+    let frm_message = payout_data
+        .fraud_check
+        .clone()
+        .map(api_models::payments::FrmMessage::foreign_from);
+
     let response = api::PayoutCreateResponse {
         payout_id: payouts.payout_id.to_owned(),
         merchant_id: platform.get_processor().get_account().get_id().to_owned(),
@@ -2676,6 +3404,7 @@ pub async fn response_handler(
         connector: payout_attempt.connector,
         payout_type: payouts.payout_type.to_owned(),
         payout_method_data,
+        source_bank_data: payout_attempt.additional_source_bank_data.clone(),
         billing,
         auto_fulfill: payouts.auto_fulfill,
         customer_id,
@@ -2693,18 +3422,26 @@ pub async fn response_handler(
         business_country: payout_attempt.business_country,
         business_label: payout_attempt.business_label,
         description: payouts.description.to_owned(),
+        billing_descriptor: payouts.billing_descriptor.to_owned(),
         entity_type: payouts.entity_type.to_owned(),
         recurring: payouts.recurring,
-        metadata: payouts.metadata,
+        metadata: payouts.metadata.clone(),
         merchant_connector_id: payout_attempt.merchant_connector_id.to_owned(),
         status: payout_attempt.status.to_owned(),
         error_message: payout_attempt.error_message.to_owned(),
         error_code: payout_attempt.error_code,
+        frm_message,
         profile_id: payout_attempt.profile_id,
         created: Some(payouts.created_at),
         connector_transaction_id: payout_attempt.connector_payout_id,
+        connector_eligibility_reference_id: payout_attempt.connector_eligibility_reference_id,
         priority: payouts.priority,
-        attempts: None,
+        attempts: payout_data.attempts.as_ref().map(|attempts| {
+            attempts
+                .iter()
+                .map(|attempt| attempt.to_payout_attempt_response(&payouts))
+                .collect()
+        }),
         unified_code: payout_attempt.unified_code,
         unified_message: translated_unified_message,
         payout_link: payout_link
@@ -2730,11 +3467,13 @@ pub async fn payout_create_db_entries(
     _platform: &domain::Platform,
     _req: &payouts::PayoutCreateRequest,
     _payout_id: &str,
-    _profile_id: &str,
+    _business_profile: domain::Profile,
     _stored_payout_method_data: Option<&payouts::PayoutMethodData>,
     _locale: &str,
     _customer: Option<&domain::Customer>,
     _payment_method: Option<PaymentMethod>,
+    _dimesnions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    _execution_kind: api_enums::PayoutExecutionKind,
 ) -> RouterResult<PayoutData> {
     todo!()
 }
@@ -2747,24 +3486,18 @@ pub async fn payout_create_db_entries(
     platform: &domain::Platform,
     req: &payouts::PayoutCreateRequest,
     payout_id: &id_type::PayoutId,
-    profile_id: &id_type::ProfileId,
+    business_profile: domain::Profile,
     stored_payout_method_data: Option<&payouts::PayoutMethodData>,
     locale: &str,
     customer: Option<&domain::Customer>,
     payment_method: Option<PaymentMethod>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    execution_kind: api_enums::PayoutExecutionKind,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
-    let customer_id = customer.map(|cust| cust.customer_id.clone());
-
-    // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile = validate_and_get_business_profile(
-        state,
-        platform.get_processor().get_key_store(),
-        profile_id,
-        merchant_id,
-    )
-    .await?;
+    let customer_id = customer.map(|cust| cust.get_id().clone());
+    let profile_id = business_profile.get_id().to_owned();
 
     let payout_link = match req.payout_link {
         Some(true) => Some(
@@ -2839,6 +3572,7 @@ pub async fn payout_create_db_entries(
     let status = if req.payout_method_data.is_some()
         || req.payout_token.is_some()
         || stored_payout_method_data.is_some()
+        || execution_kind == api_enums::PayoutExecutionKind::ExternalVaultProxy
     {
         match req.confirm {
             Some(true) => storage_enums::PayoutStatus::RequiresCreation,
@@ -2858,6 +3592,7 @@ pub async fn payout_create_db_entries(
         destination_currency: currency,
         source_currency: currency,
         description: req.description.to_owned(),
+        billing_descriptor: req.billing_descriptor.to_owned(),
         recurring: req.recurring.unwrap_or(false),
         auto_fulfill: req.auto_fulfill.unwrap_or(false),
         return_url: req.return_url.to_owned(),
@@ -2882,6 +3617,10 @@ pub async fn payout_create_db_entries(
         status,
         created_at: common_utils::date_time::now(),
         last_modified_at: common_utils::date_time::now(),
+        processor_merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+        created_by: platform
+            .get_initiator()
+            .and_then(|initiator| initiator.to_created_by()),
     };
     let payouts = db
         .insert_payout(
@@ -2896,13 +3635,19 @@ pub async fn payout_create_db_entries(
     // Make payout_attempt entry
     let payout_attempt_id = utils::get_payout_attempt_id(payout_id.get_string_repr(), 1);
 
+    let customer_id_for_pm_data = customer_id.clone();
     let additional_pm_data_value = req
         .payout_method_data
         .clone()
         .or(stored_payout_method_data.cloned())
         .async_and_then(|payout_method_data| async move {
-            helpers::get_additional_payout_data(&payout_method_data, &*state.store, profile_id)
-                .await
+            helpers::get_additional_payout_data(
+                &payout_method_data,
+                state,
+                dimensions,
+                customer_id_for_pm_data.as_ref(),
+            )
+            .await
         })
         .await
         // If no payout method data in request but we have a stored payment method, populate from it
@@ -2914,7 +3659,22 @@ pub async fn payout_create_db_entries(
             })
         });
 
+    let source_bank_data_token = helpers::SourceBankDataOperation::temp_store_source_bank_data(
+        state,
+        req.source_bank_data.clone(),
+        customer_id.clone(),
+        business_profile.intent_fulfillment_time,
+        platform.get_processor().get_key_store(),
+    )
+    .await?;
+
+    let additional_source_bank_data = req
+        .source_bank_data
+        .clone()
+        .map(payout_method_utils::BankAdditionalData::from);
+
     let payout_attempt_req = storage::PayoutAttemptNew {
+        connector_eligibility_reference_id: None,
         payout_attempt_id: payout_attempt_id.to_string(),
         payout_id: payout_id.clone(),
         additional_payout_method_data: additional_pm_data_value,
@@ -2925,7 +3685,7 @@ pub async fn payout_create_db_entries(
         business_label: req.business_label.to_owned(),
         payout_token: req.payout_token.to_owned(),
         profile_id: profile_id.to_owned(),
-        customer_id,
+        customer_id: customer_id.clone(),
         address_id,
         connector: None,
         connector_payout_id: None,
@@ -2939,6 +3699,15 @@ pub async fn payout_create_db_entries(
         unified_code: None,
         unified_message: None,
         payout_connector_metadata: None,
+        processor_merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+        created_by: platform
+            .get_initiator()
+            .and_then(|initiator| initiator.to_created_by()),
+        source_bank_data_token,
+        additional_source_bank_data,
+        connector_request_reference_id: None,
+        active_frm_id: None,
+        execution_kind,
     };
     let payout_attempt = db
         .insert_payout_attempt(
@@ -2965,6 +3734,8 @@ pub async fn payout_create_db_entries(
             .as_ref()
             .cloned()
             .or(stored_payout_method_data.cloned()),
+        external_vault_pmd: None,
+        execution_context: proxy::PayoutExecutionContext::Normal,
         should_terminate: false,
         profile_id: profile_id.to_owned(),
         payout_link,
@@ -2972,6 +3743,9 @@ pub async fn payout_create_db_entries(
         payment_method,
         connector_transfer_method_id: None,
         browser_info: req.browser_info.clone().map(Into::into),
+        source_bank_data: req.source_bank_data.clone(),
+        attempts: None,
+        fraud_check: None,
     })
 }
 
@@ -2996,6 +3770,9 @@ pub async fn make_payout_data(
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let payout_id = match req {
         payouts::PayoutRequest::PayoutActionRequest(r) => r.payout_id.clone(),
         payouts::PayoutRequest::PayoutCreateRequest(r) => {
@@ -3008,6 +3785,31 @@ pub async fn make_payout_data(
         payouts::PayoutRequest::PayoutActionRequest(_) => None,
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.browser_info.clone().map(Into::into),
         payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
+    };
+
+    let attempts = match req {
+        payouts::PayoutRequest::PayoutActionRequest(_) => None,
+        payouts::PayoutRequest::PayoutCreateRequest(_) => None,
+        payouts::PayoutRequest::PayoutRetrieveRequest(retrieve_request) => {
+            match retrieve_request.expand_attempts {
+                Some(true) => db
+                    .find_payout_attempts_by_merchant_id_payout_id(
+                        merchant_id,
+                        &retrieve_request.payout_id,
+                        platform.get_processor().get_account().storage_scheme,
+                    )
+                    .await
+                    .map_err(|err| {
+                        let err_msg = format!(
+                            "failed to fetch payout_attempts for payout_id: {:?}",
+                            retrieve_request.payout_id
+                        );
+                        logger::error!(?err, err_msg);
+                    })
+                    .ok(),
+                Some(false) | None => None,
+            }
+        }
     };
 
     let payouts = db
@@ -3024,13 +3826,19 @@ pub async fn make_payout_data(
         utils::get_payout_attempt_id(payouts.payout_id.get_string_repr(), payouts.attempt_count);
 
     let mut payout_attempt = db
-        .find_payout_attempt_by_merchant_id_payout_attempt_id(
+        .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
             merchant_id,
+            &payouts.payout_id,
             &payout_attempt_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+
+    // Reject proxy mutations before normal method or locker resolution.
+    payout_attempt
+        .execution_kind
+        .validate_persisted_execution_kind(req)?;
 
     let customer_id = payouts.customer_id.as_ref();
 
@@ -3081,13 +3889,8 @@ pub async fn make_payout_data(
     let profile_id = payout_attempt.profile_id.clone();
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile = validate_and_get_business_profile(
-        state,
-        platform.get_processor().get_key_store(),
-        &profile_id,
-        merchant_id,
-    )
-    .await?;
+    let business_profile =
+        validate_and_get_business_profile(state, platform.get_processor(), &profile_id).await?;
     let payout_method_data_req = match req {
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_method_data.to_owned(),
         payouts::PayoutRequest::PayoutActionRequest(_) => {
@@ -3095,7 +3898,7 @@ pub async fn make_payout_data(
                 Some(payout_token) => {
                     let customer_id = customer_details
                         .as_ref()
-                        .map(|cd| cd.customer_id.to_owned())
+                        .map(|cd| cd.get_id().to_owned())
                         .get_required_value("customer_id when payout_token is sent")?;
                     helpers::make_payout_method_data(
                         state,
@@ -3116,14 +3919,109 @@ pub async fn make_payout_data(
         payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
     };
 
+    let (source_bank_data, updated_additional_source_bank_data, updated_source_bank_data_token) =
+        match req {
+            payouts::PayoutRequest::PayoutCreateRequest(req) => {
+                let source_bank_data_token =
+                    helpers::SourceBankDataOperation::temp_store_source_bank_data(
+                        state,
+                        req.source_bank_data.clone(),
+                        customer_id.cloned(),
+                        business_profile.intent_fulfillment_time,
+                        platform.get_processor().get_key_store(),
+                    )
+                    .await?;
+
+                let additional_source_bank_data = req
+                    .source_bank_data
+                    .clone()
+                    .map(payout_method_utils::BankAdditionalData::from);
+
+                (
+                    req.source_bank_data.to_owned(),
+                    additional_source_bank_data,
+                    source_bank_data_token,
+                )
+            }
+            payouts::PayoutRequest::PayoutActionRequest(_) => {
+                match payout_attempt.source_bank_data_token.to_owned() {
+                    Some(source_bank_data_token) => {
+                        let customer_id = customer_details
+                            .as_ref()
+                            .map(|cd| cd.get_id().to_owned())
+                            .get_required_value("customer_id when payout_token is sent")?;
+                        let source_bank_data =
+                            helpers::SourceBankDataOperation::get_temp_source_bank_data(
+                                state,
+                                Some(source_bank_data_token),
+                                Some(customer_id),
+                                platform.get_processor().get_key_store(),
+                            )
+                            .await?;
+
+                        (source_bank_data, None, None)
+                    }
+                    None => (None, None, None),
+                }
+            }
+            // Read-only proxy retrieval must not recover any temporary locker values.
+            payouts::PayoutRequest::PayoutRetrieveRequest(_)
+                if payout_attempt.execution_kind
+                    == api_enums::PayoutExecutionKind::ExternalVaultProxy =>
+            {
+                (None, None, None)
+            }
+            payouts::PayoutRequest::PayoutRetrieveRequest(_) => {
+                let requires_source_bank_data = payout_attempt
+                    .connector
+                    .as_deref()
+                    .and_then(|connector| {
+                        common_enums::connector_enums::Connector::from_str(connector).ok()
+                    })
+                    .is_some_and(|connector| {
+                        connector.requires_source_bank_data_for_sync(payouts.payout_type)
+                    });
+
+                match (
+                    requires_source_bank_data,
+                    payout_attempt.source_bank_data_token.to_owned(),
+                ) {
+                    (true, Some(source_bank_data_token)) => {
+                        let customer_id = customer_details
+                            .as_ref()
+                            .map(|cd| cd.get_id().to_owned())
+                            .get_required_value("customer_id when payout_token is sent")?;
+                        let source_bank_data =
+                            helpers::SourceBankDataOperation::get_temp_source_bank_data(
+                                state,
+                                Some(source_bank_data_token),
+                                Some(customer_id),
+                                platform.get_processor().get_key_store(),
+                            )
+                            .await?;
+
+                        (source_bank_data, None, None)
+                    }
+                    _ => (None, None, None),
+                }
+            }
+        };
+
+    let dimensions = dimensions.with_profile_id(profile_id.clone());
     if let Some(payout_method_data) = payout_method_data_req.clone() {
-        let additional_payout_method_data =
-            helpers::get_additional_payout_data(&payout_method_data, &*state.store, &profile_id)
-                .await;
+        let additional_payout_method_data = helpers::get_additional_payout_data(
+            &payout_method_data,
+            state,
+            &dimensions,
+            customer_id,
+        )
+        .await;
 
         let update_additional_payout_method_data =
-            storage::PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+            storage::PayoutAttemptUpdate::AdditionalPayoutDataUpdate {
                 additional_payout_method_data,
+                additional_source_bank_data: updated_additional_source_bank_data,
+                source_bank_data_token: updated_source_bank_data_token,
             };
 
         payout_attempt = db
@@ -3147,9 +4045,8 @@ pub async fn make_payout_data(
             Some(
                 payment_helpers::get_merchant_connector_account(
                     state,
-                    platform.get_processor().get_account().get_id(),
+                    platform.get_processor(),
                     None,
-                    platform.get_processor().get_key_store(),
                     &profile_id,
                     connector_name.as_str(),
                     payout_attempt.merchant_connector_id.as_ref(),
@@ -3188,6 +4085,16 @@ pub async fn make_payout_data(
         .await
         .transpose()?;
 
+    let fraud_check = match &payout_attempt.active_frm_id {
+        Some(active_frm_id) => db
+            .find_fraud_check_by_frm_id(active_frm_id.clone())
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)
+            .inspect_err(|error| logger::error!(?error, "Failed to fetch fraud check record"))
+            .ok(),
+        None => None,
+    };
+
     Ok(PayoutData {
         billing_address,
         business_profile,
@@ -3195,6 +4102,8 @@ pub async fn make_payout_data(
         payouts,
         payout_attempt,
         payout_method_data: payout_method_data_req.to_owned(),
+        external_vault_pmd: None,
+        execution_context: proxy::PayoutExecutionContext::Normal,
         merchant_connector_account,
         should_terminate: false,
         profile_id,
@@ -3203,6 +4112,9 @@ pub async fn make_payout_data(
         payment_method,
         connector_transfer_method_id: None,
         browser_info,
+        source_bank_data,
+        attempts,
+        fraud_check,
     })
 }
 
@@ -3210,6 +4122,7 @@ pub async fn add_external_account_addition_task(
     db: &dyn StorageInterface,
     payout_data: &PayoutData,
     schedule_time: time::PrimitiveDateTime,
+    application_source: common_enums::ApplicationSource,
 ) -> CustomResult<(), errors::StorageError> {
     let runner = storage::ProcessTrackerRunner::AttachPayoutAccountWorkflow;
     let task = "STRPE_ATTACH_EXTERNAL_ACCOUNT";
@@ -3224,6 +4137,7 @@ pub async fn add_external_account_addition_task(
         payout_id: payout_data.payouts.payout_id.to_owned(),
         force_sync: None,
         merchant_id: Some(payout_data.payouts.merchant_id.to_owned()),
+        expand_attempts: None,
     };
     let process_tracker_entry = storage::ProcessTrackerNew::new(
         process_tracker_id,
@@ -3234,6 +4148,7 @@ pub async fn add_external_account_addition_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .map_err(errors::StorageError::from)?;
 
@@ -3243,23 +4158,17 @@ pub async fn add_external_account_addition_task(
 
 async fn validate_and_get_business_profile(
     state: &SessionState,
-    merchant_key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
     profile_id: &id_type::ProfileId,
-    merchant_id: &id_type::MerchantId,
 ) -> RouterResult<domain::Profile> {
     let db = &*state.store;
 
-    if let Some(business_profile) = core_utils::validate_and_get_business_profile(
-        db,
-        merchant_key_store,
-        Some(profile_id),
-        merchant_id,
-    )
-    .await?
+    if let Some(business_profile) =
+        core_utils::validate_and_get_business_profile(db, processor, Some(profile_id)).await?
     {
         Ok(business_profile)
     } else {
-        db.find_business_profile_by_profile_id(merchant_key_store, profile_id)
+        db.find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -3437,9 +4346,8 @@ pub async fn get_mca_from_profile_id(
 ) -> RouterResult<payment_helpers::MerchantConnectorAccountType> {
     let merchant_connector_account = payment_helpers::get_merchant_connector_account(
         state,
-        platform.get_processor().get_account().get_id(),
+        platform.get_processor(),
         None,
-        platform.get_processor().get_key_store(),
         profile_id,
         connector_name,
         merchant_connector_id,
@@ -3447,4 +4355,371 @@ pub async fn get_mca_from_profile_id(
     .await?;
 
     Ok(merchant_connector_account)
+}
+
+#[cfg(feature = "olap")]
+pub async fn get_aggregates_for_payouts(
+    state: SessionState,
+    platform: domain::Platform,
+    profile_id_list: Option<Vec<id_type::ProfileId>>,
+    time_range: common_utils::types::TimeRange,
+) -> RouterResponse<api_models::payouts::PayoutsAggregateResponse> {
+    let db = state.store.as_ref();
+    let intent_status_with_count = db
+        .get_payout_intent_status_with_count(
+            platform.get_processor().get_account().get_id(),
+            profile_id_list,
+            &time_range,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+
+    let mut status_map: HashMap<common_enums::PayoutStatus, i64> =
+        intent_status_with_count.into_iter().collect();
+    for status in common_enums::PayoutStatus::iter() {
+        status_map.entry(status).or_default();
+    }
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::payouts::PayoutsAggregateResponse {
+            status_with_count: status_map,
+        },
+    ))
+}
+
+#[cfg(all(feature = "olap", feature = "payouts"))]
+pub async fn payouts_manual_update_core(
+    state: SessionState,
+    req: api_models::payouts::PayoutsManualUpdateRequest,
+) -> RouterResponse<api_models::payouts::PayoutsManualUpdateResponse> {
+    if req.is_update_parameter_present() {
+        let api_models::payouts::PayoutsManualUpdateRequest {
+            payout_id,
+            payout_attempt_id,
+            merchant_id,
+            status,
+            error_code,
+            error_message,
+            connector_payout_id,
+        } = req;
+
+        let key_store = state
+            .store
+            .get_merchant_key_store_by_merchant_id(
+                &merchant_id,
+                &state.store.get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while fetching the key store by merchant_id")?;
+
+        let merchant_account = state
+            .store
+            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+            .attach_printable("Error while fetching the merchant_account by merchant_id")?;
+
+        let payout_attempt = state
+            .store
+            .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+                &merchant_id,
+                &payout_id,
+                &payout_attempt_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)
+            .attach_printable(
+                "Error while fetching the payout_attempt by merchant_id and attempt_id",
+            )?;
+
+        let payouts = state
+            .store
+            .find_payout_by_merchant_id_payout_id(
+                &merchant_id,
+                &payout_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)
+            .attach_printable("Error while fetching the payout by merchant_id and payout_id")?;
+
+        let option_gsm = if let Some(((code, message), connector_name)) = error_code
+            .as_ref()
+            .zip(error_message.as_ref())
+            .zip(payout_attempt.connector.as_ref())
+        {
+            helpers::get_gsm_record(
+                &state,
+                Some(code.to_string()),
+                Some(message.to_string()),
+                Some(connector_name.to_string()),
+                consts::PAYOUT_FLOW_STR,
+                payout_consts::DEFAULT_SUBFLOW_STR,
+            )
+            .await
+        } else {
+            None
+        };
+
+        // Update the payout_attempt
+        let attempt_update = storage::PayoutAttemptUpdate::ManualUpdate {
+            status,
+            error_code: error_code.clone(),
+            error_message: error_message.clone(),
+            unified_code: option_gsm
+                .as_ref()
+                .and_then(|gsm| gsm.unified_code.clone())
+                .and_then(|unified_code| UnifiedCode::try_from(unified_code).ok()),
+            unified_message: option_gsm
+                .and_then(|gsm| gsm.unified_message)
+                .and_then(|unified_code| UnifiedMessage::try_from(unified_code).ok()),
+            connector_payout_id: connector_payout_id.clone(),
+        };
+
+        let updated_payout_attempt = state
+            .store
+            .update_payout_attempt(
+                &payout_attempt,
+                attempt_update,
+                &payouts,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)
+            .attach_printable("Error while updating the payout_attempt")?;
+
+        let active_attempt_id =
+            utils::get_payout_attempt_id(payout_id.get_string_repr(), payouts.attempt_count);
+
+        // If the payout_attempt is the active attempt for the payout, update the payout status
+        if active_attempt_id == payout_attempt_id {
+            let payout_update = storage::PayoutsUpdate::ManualUpdate { status };
+            state
+                .store
+                .update_payout(
+                    &payouts,
+                    payout_update,
+                    &updated_payout_attempt,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)
+                .attach_printable("Error while updating payout")?;
+        }
+
+        Ok(services::ApplicationResponse::Json(
+            api_models::payouts::PayoutsManualUpdateResponse {
+                payout_id: updated_payout_attempt.payout_id,
+                payout_attempt_id: updated_payout_attempt.payout_attempt_id,
+                merchant_id: updated_payout_attempt.merchant_id,
+                attempt_status: updated_payout_attempt.status,
+                error_code,
+                error_message,
+                connector_payout_id,
+            },
+        ))
+    } else {
+        Err(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "Request must contain atleast one parameter to update".to_string(),
+        }
+        .into())
+    }
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
+#[instrument(skip_all)]
+pub async fn decide_unified_connector_service_payout<F: Clone>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    header_payload: HeaderPayload,
+    router_data: &types::RouterData<F, types::PayoutsData, types::PayoutsResponseData>,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+) -> RouterResult<(gateway_context::RouterGatewayContext, SessionState)> {
+    match payout_data.payout_attempt.execution_kind {
+        api_enums::PayoutExecutionKind::ExternalVaultProxy => {
+            let context = proxy::ExternalVaultPayout { state, platform }
+                .proxy_gateway_context(header_payload, connector_data, payout_data)
+                .await?;
+            update_gateway_system_in_payout_metadata(
+                payout_data,
+                common_enums::GatewaySystem::UnifiedConnectorService,
+            )?;
+            Ok((context, state.clone()))
+        }
+        api_enums::PayoutExecutionKind::Normal => {
+            decide_normal_payout_gateway(
+                state,
+                platform,
+                header_payload,
+                router_data,
+                connector_data,
+                payout_data,
+            )
+            .await
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+async fn decide_normal_payout_gateway<F: Clone>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    header_payload: HeaderPayload,
+    router_data: &types::RouterData<F, types::PayoutsData, types::PayoutsResponseData>,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+) -> RouterResult<(gateway_context::RouterGatewayContext, SessionState)> {
+    // Extract previous gateway from payment data
+    let previous_gateway = extract_gateway_system_from_payouts(payout_data);
+
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
+        state,
+        platform.get_processor(),
+        router_data,
+        previous_gateway,
+        common_enums::enums::CallConnectorAction::Trigger,
+        None,
+        common_enums::TransactionType::Payout,
+    )
+    .await?;
+
+    let lineage_ids = grpc_client::LineageIds::new(
+        payout_data.payouts.merchant_id.clone(),
+        payout_data.profile_id.clone(),
+    );
+
+    let execution_mode = match execution_path {
+        common_enums::enums::ExecutionPath::UnifiedConnectorService => {
+            common_enums::enums::ExecutionMode::Primary
+        }
+        common_enums::enums::ExecutionPath::ShadowUnifiedConnectorService => {
+            common_enums::enums::ExecutionMode::Shadow
+        }
+        // ExecutionMode is irrelevant for Direct path in this context
+        common_enums::enums::ExecutionPath::Direct => {
+            common_enums::enums::ExecutionMode::NotApplicable
+        }
+    };
+
+    let merchant_connector_account = match payout_data.merchant_connector_account.clone() {
+        Some(mca) => mca,
+        None => {
+            // If not present, perform the async fetch
+            get_mca_from_profile_id(
+                state,
+                platform,
+                &payout_data.profile_id,
+                &connector_data.connector_name.to_string(),
+                payout_data
+                    .payout_attempt
+                    .merchant_connector_id
+                    .as_ref() // Use as_ref() directly on the existing Option
+                    .or(connector_data.merchant_connector_id.as_ref()),
+            )
+            .await?
+        }
+    };
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: None,
+        processor: platform.get_processor().clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account,
+        execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
+        execution_mode,
+        payout_execution_context: payout_data.execution_context.clone(),
+    };
+    // Update feature metadata to track Direct routing usage for stickiness
+    update_gateway_system_in_payout_metadata(payout_data, gateway_context.get_gateway_system())?;
+    Ok((gateway_context, updated_state))
+}
+
+/// Extracts the gateway system from the payout's metadata.
+/// Returns None if metadata is missing, corrupted, or doesn't contain gateway_system.
+pub fn extract_gateway_system_from_payouts(
+    payout_data: &PayoutData,
+) -> Option<common_enums::GatewaySystem> {
+    #[cfg(feature = "v1")]
+    {
+        payout_data.payouts.metadata.as_ref().and_then(|metadata| {
+            match serde_json::from_value::<FeatureMetadata>(metadata.clone().expose()) {
+                Ok(feature_metadata) => feature_metadata.gateway_system,
+                Err(err) => {
+                    router_env::logger::warn!(
+                        "Failed to parse payout metadata for gateway_system extraction: {}",
+                        err
+                    );
+                    None
+                }
+            }
+        })
+    }
+    #[cfg(feature = "v2")]
+    {
+        None // V2 does not use feature metadata for gateway system tracking
+    }
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
+#[instrument(skip_all)]
+pub async fn decide_unified_connector_service_payout<F: Clone>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    header_payload: HeaderPayload,
+    router_data: &types::RouterData<F, types::PayoutsData, types::PayoutsResponseData>,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+) -> RouterResult<(gateway_context::RouterGatewayContext, SessionState)> {
+    todo!()
+}
+
+/// Updates the payout intent's metadata to track the gateway system being used.
+/// Merges gateway_system into the existing metadata map so merchant-provided fields are preserved.
+#[cfg(feature = "v1")]
+pub fn update_gateway_system_in_payout_metadata(
+    payout_data: &mut PayoutData,
+    gateway_system: common_enums::GatewaySystem,
+) -> RouterResult<()> {
+    let gateway_system_metadata = FeatureMetadata {
+        gateway_system: Some(gateway_system),
+        ..Default::default()
+    };
+
+    let gateway_system_metadata_value = serde_json::to_value(gateway_system_metadata)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize gateway_system metadata")?;
+
+    let mut metadata = payout_data
+        .payouts
+        .metadata
+        .as_ref()
+        .map(|metadata| {
+            metadata.peek().as_object().cloned().unwrap_or_else(|| {
+                router_env::logger::warn!(
+                    "Payout metadata is not a JSON object; gateway_system will be written to a fresh map"
+                );
+                serde_json::Map::new()
+            })
+        })
+        .unwrap_or_default();
+
+    if let Some(gateway_system_metadata) = gateway_system_metadata_value.as_object() {
+        metadata.extend(gateway_system_metadata.clone());
+    }
+
+    payout_data.payouts.metadata = Some(Secret::new(serde_json::Value::Object(metadata)));
+
+    Ok(())
 }

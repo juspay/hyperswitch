@@ -5,11 +5,11 @@ use common_utils::{
     types::keymanager::{KeyManagerState, ToEncryptable},
 };
 use diesel_models::{
-    enums::{EventClass, EventObjectType, EventType, WebhookDeliveryAttempt},
+    enums::{EventClass, EventObjectType, EventRecipient, EventType, WebhookDeliveryAttempt},
     events::{EventMetadata, EventUpdateInternal},
 };
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 
 use crate::{
@@ -71,6 +71,40 @@ pub struct Event {
 
     /// Indicates whether the event was ultimately delivered.
     pub is_overall_delivery_successful: Option<bool>,
+
+    /// The merchant_id of the merchant whose connector credentials are used for payment processing.
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+
+    /// The merchant_id of the merchant that initiated the operation for which this event was
+    /// generated. This is also the webhook recipient.
+    pub initiator_merchant_id: Option<common_utils::id_type::MerchantId>,
+
+    /// The intended recipient of the webhook event.
+    pub recipient: Option<EventRecipient>,
+}
+
+/// The API that is asking for this event's delivery-success value.
+#[derive(Clone, Copy, Debug)]
+pub enum DeliverySuccessSource {
+    ListInitialEvents,
+    ListDeliveryAttempts,
+}
+
+/// Pairs an event with the API context needed to resolve its delivery-success value — see
+/// `DeliverySuccessSource`.
+pub struct EventWithDeliverySuccessSource {
+    pub event: Event,
+    pub source: DeliverySuccessSource,
+}
+
+impl Event {
+    /// Resolves the correct delivery-success value for the given API context.
+    pub fn resolve_delivery_success(&self, source: DeliverySuccessSource) -> Option<bool> {
+        match source {
+            DeliverySuccessSource::ListInitialEvents => self.is_overall_delivery_successful,
+            DeliverySuccessSource::ListDeliveryAttempts => Some(self.is_webhook_notified),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -130,6 +164,9 @@ impl super::behaviour::Conversion for Event {
             delivery_attempt: self.delivery_attempt,
             metadata: self.metadata,
             is_overall_delivery_successful: self.is_overall_delivery_successful,
+            processor_merchant_id: self.processor_merchant_id,
+            initiator_merchant_id: self.initiator_merchant_id,
+            recipient: self.recipient,
         })
     }
 
@@ -180,6 +217,9 @@ impl super::behaviour::Conversion for Event {
             delivery_attempt: item.delivery_attempt,
             metadata: item.metadata,
             is_overall_delivery_successful: item.is_overall_delivery_successful,
+            processor_merchant_id: item.processor_merchant_id,
+            initiator_merchant_id: item.initiator_merchant_id,
+            recipient: item.recipient,
         })
     }
 
@@ -202,6 +242,9 @@ impl super::behaviour::Conversion for Event {
             delivery_attempt: self.delivery_attempt,
             metadata: self.metadata,
             is_overall_delivery_successful: self.is_overall_delivery_successful,
+            processor_merchant_id: self.processor_merchant_id,
+            initiator_merchant_id: self.initiator_merchant_id,
+            recipient: self.recipient,
         })
     }
 }

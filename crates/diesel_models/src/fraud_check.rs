@@ -1,6 +1,6 @@
 use common_enums as storage_enums;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::{Deserialize, Serialize};
+use hyperswitch_masking::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -8,10 +8,10 @@ use crate::{
     schema::fraud_check,
 };
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
-#[diesel(table_name = fraud_check,  primary_key(payment_id, merchant_id), check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = fraud_check, primary_key(frm_id), check_for_backend(diesel::pg::Pg))]
 pub struct FraudCheck {
     pub frm_id: String,
-    pub payment_id: common_utils::id_type::PaymentId,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub attempt_id: String,
     pub created_at: PrimitiveDateTime,
@@ -27,13 +27,16 @@ pub struct FraudCheck {
     pub modified_at: PrimitiveDateTime,
     pub last_step: FraudCheckLastStep,
     pub payment_capture_method: Option<storage_enums::CaptureMethod>, // In postFrm, we are updating capture method from automatic to manual. To store the merchant actual capture method, we are storing the actual capture method in payment_capture_method. It will be useful while approving the FRM decision.
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
+    pub payout_id: Option<common_utils::id_type::PayoutId>,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = fraud_check)]
 pub struct FraudCheckNew {
     pub frm_id: String,
-    pub payment_id: common_utils::id_type::PaymentId,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub attempt_id: String,
     pub created_at: PrimitiveDateTime,
@@ -49,6 +52,9 @@ pub struct FraudCheckNew {
     pub modified_at: PrimitiveDateTime,
     pub last_step: FraudCheckLastStep,
     pub payment_capture_method: Option<storage_enums::CaptureMethod>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
+    pub payout_id: Option<common_utils::id_type::PayoutId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

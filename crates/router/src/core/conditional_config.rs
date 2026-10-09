@@ -65,7 +65,7 @@ pub async fn upsert_conditional_config(
 #[cfg(feature = "v1")]
 pub async fn upsert_conditional_config(
     state: SessionState,
-    platform: domain::Platform,
+    processor: domain::Processor,
     request: DecisionManager,
 ) -> RouterResponse<DecisionManagerRecord> {
     use common_utils::ext_traits::{Encode, OptionExt, ValueExt};
@@ -83,7 +83,7 @@ pub async fn upsert_conditional_config(
                 .algorithm
                 .get_required_value("algorithm")
                 .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "algorithm",
+                    field_name: "algorithm".into(),
                 })
                 .attach_printable("Algorithm for config not given")?;
             (name, prog)
@@ -95,15 +95,14 @@ pub async fn upsert_conditional_config(
                 .program
                 .get_required_value("program")
                 .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "program",
+                    field_name: "program".into(),
                 })
                 .attach_printable("Program for config not given")?;
             (name, prog)
         }
     };
     let timestamp = common_utils::date_time::now_unix_timestamp();
-    let mut algo_id: api_models::routing::RoutingAlgorithmRef = platform
-        .get_processor()
+    let mut algo_id: api_models::routing::RoutingAlgorithmRef = processor
         .get_account()
         .routing_algorithm
         .clone()
@@ -113,12 +112,11 @@ pub async fn upsert_conditional_config(
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
 
-    let key = platform
-        .get_processor()
+    let key = processor
         .get_account()
         .get_id()
         .get_payment_config_routing_id();
-    let read_config_key = db.find_config_by_key(&key).await;
+    let read_config_key = db.find_config_by_key_optional(&key).await;
 
     euclid::frontend::ast::lowering::lower_program(prog.clone())
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -127,7 +125,7 @@ pub async fn upsert_conditional_config(
         .attach_printable("The Request has an Invalid Comparison")?;
 
     match read_config_key {
-        Ok(config) => {
+        Ok(Some(config)) => {
             let previous_record: DecisionManagerRecord = config
                 .config
                 .parse_struct("DecisionManagerRecord")
@@ -159,7 +157,7 @@ pub async fn upsert_conditional_config(
             let config_key = cache::CacheKind::DecisionManager(key.into());
             update_merchant_active_algorithm_ref(
                 &state,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
                 config_key,
                 algo_id,
             )
@@ -169,12 +167,12 @@ pub async fn upsert_conditional_config(
 
             Ok(service_api::ApplicationResponse::Json(new_algo))
         }
-        Err(e) if e.current_context().is_db_not_found() => {
+        Ok(None) => {
             let new_rec = DecisionManagerRecord {
                 name: name
                     .get_required_value("name")
                     .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "name",
+                        field_name: "name".into(),
                     })
                     .attach_printable("name of the config not found")?,
                 program: prog,
@@ -200,7 +198,7 @@ pub async fn upsert_conditional_config(
             let config_key = cache::CacheKind::DecisionManager(key.into());
             update_merchant_active_algorithm_ref(
                 &state,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
                 config_key,
                 algo_id,
             )
@@ -219,7 +217,7 @@ pub async fn upsert_conditional_config(
 #[cfg(feature = "v2")]
 pub async fn delete_conditional_config(
     _state: SessionState,
-    _platform: domain::Platform,
+    _processor: domain::Processor,
 ) -> RouterResponse<()> {
     todo!()
 }
@@ -227,7 +225,7 @@ pub async fn delete_conditional_config(
 #[cfg(feature = "v1")]
 pub async fn delete_conditional_config(
     state: SessionState,
-    platform: domain::Platform,
+    processor: domain::Processor,
 ) -> RouterResponse<()> {
     use common_utils::ext_traits::ValueExt;
     use storage_impl::redis::cache;
@@ -235,13 +233,11 @@ pub async fn delete_conditional_config(
     use super::routing::helpers::update_merchant_active_algorithm_ref;
 
     let db = state.store.as_ref();
-    let key = platform
-        .get_processor()
+    let key = processor
         .get_account()
         .get_id()
         .get_payment_config_routing_id();
-    let mut algo_id: api_models::routing::RoutingAlgorithmRef = platform
-        .get_processor()
+    let mut algo_id: api_models::routing::RoutingAlgorithmRef = processor
         .get_account()
         .routing_algorithm
         .clone()
@@ -252,15 +248,10 @@ pub async fn delete_conditional_config(
         .unwrap_or_default();
     algo_id.config_algo_id = None;
     let config_key = cache::CacheKind::DecisionManager(key.clone().into());
-    update_merchant_active_algorithm_ref(
-        &state,
-        platform.get_processor().get_key_store(),
-        config_key,
-        algo_id,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update deleted algorithm ref")?;
+    update_merchant_active_algorithm_ref(&state, processor.get_key_store(), config_key, algo_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update deleted algorithm ref")?;
 
     db.delete_config_by_key(&key)
         .await
@@ -272,18 +263,19 @@ pub async fn delete_conditional_config(
 #[cfg(feature = "v1")]
 pub async fn retrieve_conditional_config(
     state: SessionState,
-    platform: domain::Platform,
+    processor: domain::Processor,
 ) -> RouterResponse<DecisionManagerResponse> {
     let db = state.store.as_ref();
-    let algorithm_id = platform
-        .get_processor()
+    let algorithm_id = processor
         .get_account()
         .get_id()
         .get_payment_config_routing_id();
     let algo_config = db
-        .find_config_by_key(&algorithm_id)
+        .find_config_by_key_optional(&algorithm_id)
         .await
         .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
+        .attach_printable("Error fetching the conditional config from the DB")?
+        .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)
         .attach_printable("The conditional config was not found in the DB")?;
     let record: DecisionManagerRecord = algo_config
         .config

@@ -5,7 +5,10 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, errors, schema::process_tracker, StorageResult};
+use crate::{
+    enums as storage_enums, enums::ApplicationSource, errors, schema::process_tracker,
+    StorageResult,
+};
 
 #[derive(
     Clone,
@@ -40,6 +43,7 @@ pub struct ProcessTracker {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub updated_at: PrimitiveDateTime,
     pub version: ApiVersion,
+    pub application_source: Option<ApplicationSource>,
 }
 
 impl ProcessTracker {
@@ -66,6 +70,7 @@ pub struct ProcessTrackerNew {
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
     pub version: ApiVersion,
+    pub application_source: Option<ApplicationSource>,
 }
 
 impl ProcessTrackerNew {
@@ -79,6 +84,7 @@ impl ProcessTrackerNew {
         retry_count: Option<i32>,
         schedule_time: PrimitiveDateTime,
         api_version: ApiVersion,
+        application_source: ApplicationSource,
     ) -> StorageResult<Self>
     where
         T: Serialize + std::fmt::Debug,
@@ -102,6 +108,7 @@ impl ProcessTrackerNew {
             created_at: current_time,
             updated_at: current_time,
             version: api_version,
+            application_source: Some(application_source),
         })
     }
 }
@@ -231,6 +238,11 @@ pub mod business_status {
     /// The task was executed for the maximum possible number of times without a successful outcome.
     /// A task that reaches this status should not be retried (rescheduled for execution) later.
     pub const RETRIES_EXCEEDED: &str = "RETRIES_EXCEEDED";
+
+    /// A revenue recovery invoice reached the end of its grace window, so there is no legitimate
+    /// time left to schedule a retry at — whatever retry budget remains. Distinct from
+    /// `RETRIES_EXCEEDED`, which is the budget itself running out.
+    pub const GRACE_WINDOW_EXPIRED: &str = "GRACE_WINDOW_EXPIRED";
 
     /// The outgoing webhook was successfully delivered in the initial attempt.
     /// Further retries of the task are not required.

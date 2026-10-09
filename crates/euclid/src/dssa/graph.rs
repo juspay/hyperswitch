@@ -54,6 +54,7 @@ impl cgraph::NodeViz for dir::DirValue {
             Self::CryptoType(ct) => ct.to_string(),
             Self::RewardType(rt) => rt.to_string(),
             Self::PaymentAmount(amt) => amt.number.to_string(),
+            Self::SurchargeAmount(amt) => amt.number.to_string(),
             Self::PaymentCurrency(curr) => curr.to_string(),
             Self::AuthenticationType(at) => at.to_string(),
             Self::CaptureMethod(cm) => cm.to_string(),
@@ -83,6 +84,9 @@ impl cgraph::NodeViz for dir::DirValue {
             }
             Self::AcquirerCountry(acquirer_country) => acquirer_country.to_string(),
             Self::AcquirerFraudRate(acquirer_fraud_rate) => acquirer_fraud_rate.number.to_string(),
+            Self::TransactionInitiator(transaction_initiator) => transaction_initiator.to_string(),
+            Self::NetworkTokenType(ntt) => ntt.to_string(),
+            Self::CardDiscovery(card_discovery) => card_discovery.to_string(),
         }
     }
 }

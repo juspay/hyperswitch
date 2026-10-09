@@ -13,27 +13,27 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data,
     router_data::{AccessToken, AccessTokenAuthenticationResponse, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        AccessTokenAuthentication, PreProcessing,
+        AccessTokenAuthentication, CreateOrder,
     },
     router_request_types::{
-        AccessTokenAuthenticationRequestData, AccessTokenRequestData,
+        AccessTokenAuthenticationRequestData, AccessTokenRequestData, CreateOrderRequestData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        AccessTokenAuthenticationRouterData, PaymentsAuthorizeRouterData,
-        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
-        RefundsRouterData,
+        AccessTokenAuthenticationRouterData, CreateOrderRouterData, PaymentsAuthorizeRouterData,
+        PaymentsSyncRouterData, RefreshTokenRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -48,8 +48,8 @@ use hyperswitch_interfaces::{
     types::{self, AuthenticationTokenType, RefreshTokenType, Response},
     webhooks,
 };
+use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use lazy_static::lazy_static;
-use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use ring::{
     digest,
     signature::{RsaKeyPair, RSA_PKCS1_SHA256},
@@ -238,6 +238,7 @@ impl Nordea {
 }
 
 impl api::Payment for Nordea {}
+impl api::PaymentsCreateOrder for Nordea {}
 impl api::PaymentSession for Nordea {}
 impl api::ConnectorAuthenticationToken for Nordea {}
 impl api::ConnectorAccessToken for Nordea {}
@@ -250,7 +251,6 @@ impl api::Refund for Nordea {}
 impl api::RefundExecute for Nordea {}
 impl api::RefundSync for Nordea {}
 impl api::PaymentToken for Nordea {}
-impl api::PaymentsPreProcessing for Nordea {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Nordea
@@ -267,7 +267,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let access_token = req
             .access_token
             .clone()
@@ -410,6 +411,7 @@ impl ConnectorCommon for Nordea {
                 .and_then(|failure| failure.failure_type.clone()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
@@ -547,7 +549,7 @@ impl
                 res.headers
                     .as_ref()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "headers",
+                        field_name: "headers".into(),
                     })?;
             let location_header = headers
                 .get("Location")
@@ -563,7 +565,9 @@ impl
                 .query_pairs()
                 .find(|(key, _)| key == "code")
                 .map(|(_, value)| value.to_string())
-                .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "code" })?;
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "code".into(),
+                })?;
 
             // Return auth code as "token" with short expiry
             Ok(RouterData {
@@ -740,14 +744,13 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     }
 }
 
-impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
-    for Nordea
-{
+impl ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData> for Nordea {
     fn get_headers(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &CreateOrderRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -757,18 +760,13 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn get_url(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &CreateOrderRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         // Determine the payment endpoint based on country and currency
         let country = req.get_billing_country()?;
 
-        let currency =
-            req.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
+        let currency = req.request.currency;
 
         let endpoint = match (country, currency) {
             (api_models::enums::CountryAlpha2::FI, api_models::enums::Currency::EUR) => {
@@ -787,7 +785,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
                     message: format!("Country {country:?} is not supported by Nordea"),
-                    connector: "Nordea",
+                    connector: "Nordea".into(),
                 }
                 .into())
             }
@@ -798,21 +796,11 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn get_request_body(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &CreateOrderRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let minor_amount =
-            req.request
-                .minor_amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
-                })?;
-        let currency =
-            req.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
+        let minor_amount = req.request.minor_amount;
+        let currency = req.request.currency;
 
         let amount = utils::convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = NordeaRouterData::from((amount, req));
@@ -822,20 +810,16 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn build_request(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &CreateOrderRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::PaymentsPreProcessingType::get_url(
-                    self, req, connectors,
-                )?)
+                .url(&types::CreateOrderType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsPreProcessingType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsPreProcessingType::get_request_body(
+                .headers(types::CreateOrderType::get_headers(self, req, connectors)?)
+                .set_body(types::CreateOrderType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -844,10 +828,10 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn handle_response(
         &self,
-        data: &PaymentsPreProcessingRouterData,
+        data: &CreateOrderRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
+    ) -> CustomResult<CreateOrderRouterData, errors::ConnectorError> {
         let response: NordeaPaymentsInitiateResponse = res
             .response
             .parse_struct("NordeaPaymentsInitiateResponse")
@@ -877,7 +861,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -974,7 +959,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nor
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -1055,7 +1041,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Capture".to_string(),
-            connector: "Nordea",
+            connector: "Nordea".into(),
         }
         .into())
     }
@@ -1069,7 +1055,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for No
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Payments Cancel".to_string(),
-            connector: "Nordea",
+            connector: "Nordea".into(),
         }
         .into())
     }
@@ -1083,7 +1069,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nordea 
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Personal API Refunds flow".to_string(),
-            connector: "Nordea",
+            connector: "Nordea".into(),
         }
         .into())
     }
@@ -1105,6 +1091,7 @@ impl webhooks::IncomingWebhook for Nordea {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -1112,7 +1099,8 @@ impl webhooks::IncomingWebhook for Nordea {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
@@ -1152,6 +1140,23 @@ lazy_static! {
 }
 
 impl ConnectorSpecifications for Nordea {
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type: _,
+                request_data,
+            } => matches!(
+                &request_data.payment_method_data,
+                payment_method_data::PaymentMethodData::BankDebit(_)
+            ),
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&*NORDEA_CONNECTOR_INFO)
     }

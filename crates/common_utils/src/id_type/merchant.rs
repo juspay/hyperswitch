@@ -110,6 +110,11 @@ impl MerchantId {
         format!("{}_requires_cvv", self.get_string_repr())
     }
 
+    /// get_implicit_customer_update_key
+    pub fn get_implicit_customer_update_key(&self) -> String {
+        format!("{}_implicit_customer_update", self.get_string_repr())
+    }
+
     /// get_pm_filters_cgraph_key
     pub fn get_pm_filters_cgraph_key(&self) -> String {
         format!("pm_filters_cgraph_{}", self.get_string_repr())
@@ -123,11 +128,6 @@ impl MerchantId {
     /// get_pre_routing_disabled_pm_pmt_key
     pub fn get_pre_routing_disabled_pm_pmt_key(&self) -> String {
         format!("pre_routing_disabled_pm_pmt_for_{}", self.get_string_repr())
-    }
-
-    /// get_merchant_fingerprint_secret_key
-    pub fn get_merchant_fingerprint_secret_key(&self) -> String {
-        format!("fingerprint_secret_{}", self.get_string_repr())
     }
 
     /// get_surcharge_dsk_key
@@ -165,14 +165,6 @@ impl MerchantId {
         format!("payment_method_surcharge_id_{}", self.get_string_repr())
     }
 
-    /// get_webhook_config_disabled_events_key
-    pub fn get_webhook_config_disabled_events_key(&self, connector_id: &str) -> String {
-        format!(
-            "whconf_disabled_events_{}_{connector_id}",
-            self.get_string_repr()
-        )
-    }
-
     /// get_should_call_gsm_payout_key
     pub fn get_should_call_gsm_payout_key(
         &self,
@@ -196,28 +188,24 @@ impl MerchantId {
     }
 
     /// get should call auth tokenization for modular authentication
-    pub fn get_should_disable_auth_tokenization(&self) -> String {
+    pub fn get_should_disable_vault_tokenization(&self) -> String {
         format!(
-            "should_disable_auth_tokenization_{}",
+            "should_disable_vault_tokenization_{}",
             self.get_string_repr()
         )
     }
 
-    /// get_max_auto_single_connector_payout_retries_enabled_
-    pub fn get_max_auto_single_connector_payout_retries_enabled(
-        &self,
-        payout_retry_type: common_enums::PayoutRetryType,
-    ) -> String {
-        match payout_retry_type {
-            common_enums::PayoutRetryType::SingleConnector => format!(
-                "max_auto_single_connector_payout_retries_enabled_{}",
-                self.get_string_repr()
-            ),
-            common_enums::PayoutRetryType::MultiConnector => format!(
-                "max_auto_multiple_connector_payout_retries_enabled_{}",
-                self.get_string_repr()
-            ),
-        }
+    /// get should enable MIT with limited card data
+    pub fn get_should_enable_mit_with_limited_card_data(&self) -> String {
+        format!(
+            "should_enable_mit_with_limited_card_data_{}",
+            self.get_string_repr()
+        )
+    }
+
+    /// get_authentication_service_eligible_key
+    pub fn get_authentication_service_eligible_key(&self) -> String {
+        format!("authentication_service_eligible_{}", self.get_string_repr())
     }
     /// allow payment update via client auth default should be false
     pub fn get_payment_update_enabled_for_client_auth_key(&self) -> String {
@@ -236,6 +224,14 @@ impl MerchantId {
     pub fn get_should_store_eligibility_check_data_for_authentication(&self) -> String {
         format!(
             "should_store_eligibility_check_data_for_authentication_{}",
+            self.get_string_repr()
+        )
+    }
+
+    /// fetch should_return_raw_payment_method_details key for organization
+    pub fn should_return_raw_payment_method_details_key(&self) -> String {
+        format!(
+            "should_return_raw_payment_method_details_{}",
             self.get_string_repr()
         )
     }
