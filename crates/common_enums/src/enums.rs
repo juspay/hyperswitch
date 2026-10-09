@@ -9310,6 +9310,7 @@ pub enum PaymentSource {
 pub enum BrowserName {
     #[default]
     Safari,
+    Chrome,
     #[serde(other)]
     Unknown,
 }
