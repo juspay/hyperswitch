@@ -29,7 +29,8 @@ use crate::{
             transformers::{GenerateResponse, ToResponse},
         },
         webhooks::{
-            create_event_and_trigger_outgoing_webhook, utils::construct_webhook_router_data,
+            create_event_and_trigger_outgoing_webhook, unverified_rate_limit,
+            utils::construct_webhook_router_data,
         },
     },
     db::StorageInterface,
@@ -301,6 +302,17 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         ) {
             (true, false) => Err(errors::ApiErrorResponse::WebhookAuthenticationFailed)?,
             _ => {
+                // Unverified webhooks fall back to syncing with the connector, so cap how many of
+                // them each merchant, profile and merchant connector account can push through
+                if !source_verified {
+                    unverified_rate_limit::check_unverified_webhook_rate_limit(
+                        &state,
+                        &platform,
+                        &merchant_connector_account,
+                    )
+                    .await?;
+                }
+
                 event_object = connector
                     .get_webhook_resource_object(&request_details)
                     .switch()
