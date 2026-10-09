@@ -835,6 +835,9 @@ export const CONNECTOR_LISTS = {
     ZERO_AUTH_MANDATE: ["peachpayments"],
     BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
     ERROR_ON_REQUIRES_ACTION: ["stripe"],
+    AFT_PURPOSE_OF_PAYMENT: ["checkout"],
+    AFT_FUNDING_TRANSACTION_TYPE: ["worldpayxml"],
+    PEACHPAYMENTS_CONNECTOR_METADATA: ["peachpayments"],
     // Add more inclusion lists
   },
 };

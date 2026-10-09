@@ -1,6 +1,8 @@
 // This file is the default. To override, add to connector.js
 import { getCurrency, getCustomExchange } from "./Modifiers";
 
+export const OFFER_QUOTE_ID_PLACEHOLDER = "OFFER_QUOTE_ID_FROM_STATE";
+
 export const blockedPaymentErrorBodyForIssuingCountry = {
   status: 200,
   expectBlockedPayment: true,
@@ -4705,6 +4707,138 @@ export const connectorDetails = {
       },
     }),
   },
+  offer_engine: {
+    PaymentIntentForOffer: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 100000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    OfferEligibilityCheck: getCustomExchange({
+      Request: {
+        payment_method_type: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: standardBillingAddress,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          amount_details: {
+            total_amount: 100000,
+            net_amount: 98000,
+            currency: "USD",
+          },
+          offer_details: {
+            uplifted_offer_quote_ids: [""],
+            eligible_offers: [
+              {
+                offer_amount: 2000,
+                currency: "USD",
+                code: "TESTHS",
+              },
+            ],
+          },
+        },
+      },
+    }),
+    ConfirmWithOfferApplied: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: standardBillingAddress,
+        },
+        offer_details: {
+          offer_quote_ids: [OFFER_QUOTE_ID_PLACEHOLDER],
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 100000,
+          net_amount: 98000,
+          amount_received: 98000,
+          currency: "USD",
+        },
+      },
+    }),
+    AppliedOfferOnRetrieve: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          net_amount: 98000,
+          amount_received: 98000,
+          applied_offer: {
+            offer_amount: 2000,
+            currency: "USD",
+          },
+        },
+      },
+    }),
+    ConfirmWithoutOffer: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: standardBillingAddress,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 100000,
+          net_amount: 100000,
+          amount_received: 100000,
+          currency: "USD",
+          applied_offer: null,
+        },
+      },
+    }),
+    // PR #13850: a saved-card confirm carries only payment_token + card_token
+    // (CVC), not the PAN. Verifies /apply still resolves card_bin/network
+    // correctly at confirm time for a repeat customer, instead of sending
+    // them null (the bug this PR fixed). Card is saved via the existing
+    // card_pm.SaveCardUseNo3DSAutoCapture fixture; the eligibility/confirm/
+    // retrieve expectations for this flow are identical to the plain-card
+    // case above (OfferEligibilityCheck/ConfirmWithOfferApplied/
+    // AppliedOfferOnRetrieve), reused directly rather than duplicated here —
+    // saveCardConfirmCallTest already strips payment_method_data out of
+    // whatever confirm fixture it's given.
+    // PR #13766: once a card has availed an offer, Offer Engine blocks that
+    // same card (via card_alias, a PAN-free fingerprint) from availing it
+    // again, independent of the customer.
+    VelocityEligibilityCheckSecondUse: getCustomExchange({
+      Request: {
+        payment_method_type: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: standardBillingAddress,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          amount_details: {
+            total_amount: 100000,
+            net_amount: 100000,
+            currency: "USD",
+          },
+        },
+      },
+    }),
+  },
   auth_service_eligibility: {
     OrgEnabledMerchantEnabled: getCustomExchange({
       Request: {
@@ -5846,3 +5980,15 @@ export const connectorDetails = {
     }),
   },
 };
+
+// Separate keys, not a reuse of ConfirmWithOfferApplied/
+// AppliedOfferOnRetrieve in place, so that connectors which can't actually
+// complete a saved-card confirm (e.g. ilixium, which doesn't implement
+// repeat_payment) can override just these keys via getConnectorDetails()
+// without disturbing the plain-card case, which still passes for them.
+// Default to the exact same expectation as the plain-card case for every
+// other connector.
+connectorDetails.offer_engine.ConfirmWithOfferAppliedSavedCard =
+  connectorDetails.offer_engine.ConfirmWithOfferApplied;
+connectorDetails.offer_engine.AppliedOfferOnRetrieveSavedCard =
+  connectorDetails.offer_engine.AppliedOfferOnRetrieve;
