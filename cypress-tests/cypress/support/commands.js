@@ -13350,6 +13350,42 @@ Cypress.Commands.add("deleteSuperpositionConfig", (globalState, context) => {
   cy.deleteSuperpositionContext(globalState, context);
 });
 
+// Probe the superposition service and publish `superpositionAvailable` on
+// globalState. Sets it to false when credentials are absent or the endpoint
+// does not answer with < 500 (e.g. sandbox, where the superposition host is
+// only reachable from the internal network). Specs that mutate superposition
+// config should consult the flag and skip rather than fail in a hook.
+Cypress.Commands.add("checkSuperpositionAvailability", (globalState) => {
+  const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
+  const superpositionSecret = globalState.get("superpositionSecret");
+  const superpositionAuthToken = globalState.get("superpositionAuthToken");
+
+  if (
+    !superpositionBaseUrl ||
+    !superpositionSecret ||
+    !superpositionAuthToken
+  ) {
+    cy.task(
+      "cli_log",
+      "Superposition credentials not set (SUPERPOSITION_BASE_URL, SUPERPOSITION_SECRET, SUPERPOSITION_AUTH_TOKEN)"
+    );
+    globalState.set("superpositionAvailable", false);
+    return;
+  }
+
+  cy.task("probeUrl", `${superpositionBaseUrl}/context`).then((probe) => {
+    globalState.set("superpositionAvailable", Boolean(probe?.ok));
+    if (!probe?.ok) {
+      cy.task(
+        "cli_log",
+        `Superposition unreachable at ${superpositionBaseUrl} (status=${
+          probe?.status ?? "n/a"
+        }${probe?.error ? `, error=${probe.error}` : ""})`
+      );
+    }
+  });
+});
+
 // Set enable_extended_card_bin for a profile.
 // Uses DimensionsWithProcessorAndProviderMerchantIdAndProfileId (see dimension_config.rs).
 Cypress.Commands.add(
