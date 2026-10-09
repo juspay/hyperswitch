@@ -3985,10 +3985,25 @@ async fn is_vault_card_fallback_eligible(
         // `retry.rs`, so a merchant that turned clear-PAN retries off does not get the fallback
         // either. Checked first, so a disabled profile costs no GSM lookup.
         (enums::IntentStatus::Failed, Some(connector)) => {
-            is_clear_pan_retry_enabled_for_profile(state, platform, network_token_response).await
+            // The vault card arm inherits arm one's gateway, and the external vault proxy has no
+            // Direct implementation — a fallback that would land on Direct cannot authorize, so it
+            // is not worth creating an attempt for.
+            crate::core::unified_connector_service::is_ucs_execution_path_for_external_vault_proxy(
+                state,
+                platform.get_processor(),
+                &connector,
+                network_token_response
+                    .payment_method
+                    .unwrap_or(common_enums::PaymentMethod::Card),
+                network_token_response.payment_method_type,
+            )
+            .await
+            .unwrap_or(false)
+                && is_clear_pan_retry_enabled_for_profile(state, platform, network_token_response)
+                    .await
                 && helpers::get_gsm_record(
                     state,
-                    connector,
+                    connector.clone(),
                     consts::PAYMENT_FLOW_STR,
                     &core_utils::get_flow_name::<api::Authorize>().unwrap_or_default(),
                     network_token_response.error_code.clone(),
@@ -4048,6 +4063,8 @@ where
         + Clone
         + Operation<api::Authorize, payments_api::PaymentsRequest, Data = PaymentData<api::Authorize>>,
 {
+    let all_keys_required = req.all_keys_required;
+
     let network_token_request = payments_api::PaymentsRequest {
         recurring_details: Some(fallback.to_network_token_arm()),
         ..req.clone()
@@ -4079,7 +4096,11 @@ where
     let fallback_target = match network_token_response {
         Some(response) => {
             match is_vault_card_fallback_eligible(&state, &platform, response).await {
-                true => Some(response.payment_id.clone()),
+                true => Some((
+                    response.payment_id.clone(),
+                    response.payment_method,
+                    response.payment_method_type,
+                )),
                 false => None,
             }
         }
@@ -4088,7 +4109,7 @@ where
 
     match fallback_target {
         None => Ok(network_token_outcome),
-        Some(payment_id) => {
+        Some((payment_id, payment_method, payment_method_type)) => {
             logger::info!(
                 payment_id = ?payment_id,
                 "network token arm declined as clear-pan eligible, falling back to the vault card arm"
@@ -4097,7 +4118,12 @@ where
             let vault_card_request = payments_api::PaymentsRequest {
                 payment_id: Some(payments_api::PaymentIdType::PaymentIntentId(payment_id)),
                 recurring_details: Some(fallback.to_vault_card_arm()),
-                ..req.clone()
+                // A confirm call may omit these, having supplied them at create. Arm two creates a
+                // fresh attempt, which needs them, so carry arm one's resolved values forward
+                // rather than relying on the request repeating them.
+                payment_method: payment_method.or(req.payment_method),
+                payment_method_type: payment_method_type.or(req.payment_method_type),
+                ..req
             };
 
             // No attempt bookkeeping here: the external vault proxy confirm operation always
@@ -4122,7 +4148,7 @@ where
                 auth_flow,
                 CallConnectorAction::Trigger,
                 header_payload,
-                req.all_keys_required,
+                all_keys_required,
             ))
             .await
         }

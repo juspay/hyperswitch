@@ -1025,8 +1025,10 @@ impl NetworkTokenDetailsForNetworkTransactionId {
     pub fn get_nti_and_network_token_details_for_mit_flow(
         network_transaction_id_and_network_token_details: NetworkTransactionIdAndNetworkTokenDetails,
     ) -> (mandates::MandateReferenceId, PaymentMethodData) {
+        // A network token replay carries its own mandate reference variant: connectors match on
+        // it to pick the token payment source, and `NetworkMandateId` is the raw-card one.
         let mandate_reference_id =
-            mandates::MandateReferenceId::NetworkMandateId(mandates::NetworkMandateIdRef {
+            mandates::MandateReferenceId::NetworkTokenWithNTI(mandates::NetworkTokenWithNTIRef {
                 network_transaction_id: network_transaction_id_and_network_token_details
                     .network_transaction_id
                     .peek()
@@ -1034,6 +1036,16 @@ impl NetworkTokenDetailsForNetworkTransactionId {
                 transaction_link_id: network_transaction_id_and_network_token_details
                     .transaction_link_id
                     .clone(),
+                token_exp_month: Some(
+                    network_transaction_id_and_network_token_details
+                        .token_exp_month
+                        .clone(),
+                ),
+                token_exp_year: Some(
+                    network_transaction_id_and_network_token_details
+                        .token_exp_year
+                        .clone(),
+                ),
             });
 
         (
