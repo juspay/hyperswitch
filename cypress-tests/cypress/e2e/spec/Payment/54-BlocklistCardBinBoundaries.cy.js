@@ -121,9 +121,7 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
     });
 
     it("should enable blocklist functionality using configs API", () => {
-      const merchantId = globalState.get("merchantId");
-      const key = `guard_blocklist_for_${merchantId}`;
-      cy.setupConfigs(globalState, key, "true");
+      cy.setBlocklistGuard(globalState, true);
       // The router reads this guard through a cache that doesn't pick up
       // the fresh value immediately — same class of race as the card_bin
       // cache noted below. Give it time to propagate before relying on it.
@@ -179,9 +177,7 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
     });
 
     it("should disable blocklist functionality using configs API", () => {
-      const merchantId = globalState.get("merchantId");
-      const key = `guard_blocklist_for_${merchantId}`;
-      cy.setConfigs(globalState, key, "true", "DELETE");
+      cy.setBlocklistGuard(globalState, false);
     });
   });
 });
