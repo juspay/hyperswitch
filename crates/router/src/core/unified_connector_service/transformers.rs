@@ -5005,6 +5005,9 @@ impl
             ),
             token_exp_month: Some(wallet_token_data.token_exp_month.expose().into()),
             token_exp_year: Some(wallet_token_data.token_exp_year.expose().into()),
+            device_manufacturer_identifier: wallet_token_data
+                .device_manufacturer_identifier
+                .map(|identifier| identifier.expose().into()),
             card_holder_name: wallet_token_data
                 .card_holder_name
                 .map(|name| name.expose().into()),

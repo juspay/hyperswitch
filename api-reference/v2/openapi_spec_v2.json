@@ -20933,6 +20933,11 @@
               }
             ],
             "nullable": true
+          },
+          "device_manufacturer_identifier": {
+            "type": "string",
+            "description": "Identifier of the device that generated the token",
+            "nullable": true
           }
         }
       },
@@ -25285,6 +25290,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/AcknowledgementStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
