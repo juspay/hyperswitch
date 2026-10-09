@@ -332,6 +332,16 @@ enum WorldpayXmlCardClass {
 }
 
 impl WorldpayXmlCardClass {
+    fn as_card_type(self) -> common_enums::CardType {
+        match self {
+            Self::C => common_enums::CardType::Credit,
+            Self::D => common_enums::CardType::Debit,
+            Self::H => common_enums::CardType::ChargeCard,
+            Self::P => common_enums::CardType::Prepaid,
+            Self::R => common_enums::CardType::Debit,
+        }
+    }
+
     fn as_funding_source(self) -> common_enums::FundingSource {
         match self {
             Self::C => common_enums::FundingSource::Credit,
@@ -798,15 +808,6 @@ struct WorldpayXmlAmount {
 enum DebitCreditIndicator {
     Credit,
     Debit,
-}
-
-impl DebitCreditIndicator {
-    fn as_card_type(self) -> common_enums::CardType {
-        match self {
-            Self::Credit => common_enums::CardType::Credit,
-            Self::Debit => common_enums::CardType::Debit,
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -4272,8 +4273,7 @@ fn get_mandate_reference(
     }
 }
 
-/// Extracts the `AuthorisationId` returned by Worldpay (the scheme authorization code) and maps it
-/// to the auth code exposed in the connector response.
+/// Extracts optional authorization and card metadata returned by Worldpay.
 fn get_connector_response_data(
     payment_data: &Payment,
     token: Option<&Token>,
@@ -4283,13 +4283,12 @@ fn get_connector_response_data(
         .authorisation_id
         .as_ref()
         .and_then(|authorisation_id| authorisation_id.id.clone())
-        .map(|id| id.expose())?;
+        .map(|id| id.expose());
 
-    let issuer_name = payment_data.issuer_name.clone();
-    // Worldpay can return "N/A" here instead of an ISO alpha-2 code; parse leniently.
-    let issuer_country = payment_data
-        .issuer_country_code
-        .as_deref()
+    let card_bin = payment_data.card_bin.as_ref();
+    let issuer_name = card_bin.and_then(|card_bin| card_bin.issuer_name.clone());
+    let issuer_country = card_bin
+        .and_then(|card_bin| card_bin.issuer_country_code.as_deref())
         .and_then(connector_utils::parse_country_code);
     let card_subtype = token
         .and_then(|token| token.payment_instrument.as_ref())
@@ -4300,33 +4299,38 @@ fn get_connector_response_data(
                 .and_then(|emvco_token_details| emvco_token_details.derived.as_ref())
                 .and_then(|derived| derived.card_sub_brand.clone())
         });
+    let card_class = card_bin
+        .and_then(|card_bin| card_bin.card_class.as_deref())
+        .and_then(connector_utils::parse_or_log_unrecognised::<WorldpayXmlCardClass>);
+    let card_type = card_class.map(WorldpayXmlCardClass::as_card_type);
+    let funding_source = card_class.map(WorldpayXmlCardClass::as_funding_source);
+    let card_segment_type = card_bin
+        .and_then(|card_bin| card_bin.product_type.as_deref())
+        .and_then(connector_utils::parse_or_log_unrecognised::<WorldpayXmlProductType>)
+        .map(WorldpayXmlProductType::as_card_segment_type);
 
     let additional_payment_method_data = match payment_method_type {
         Some(enums::PaymentMethodType::GooglePay) => {
             AdditionalPaymentMethodConnectorResponse::GooglePay {
-                auth_code: Some(auth_code),
+                auth_code,
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype,
-                card_segment_type: None,
-                funding_source: None,
-                card_type: payment_data
-                    .amount
-                    .as_ref()
-                    .and_then(|amount| amount.debit_credit_indicator)
-                    .map(DebitCreditIndicator::as_card_type),
+                card_segment_type,
+                funding_source,
+                card_type,
                 issuer_name,
                 issuer_country,
             }
         }
         Some(enums::PaymentMethodType::ApplePay) => {
             AdditionalPaymentMethodConnectorResponse::ApplePay {
-                auth_code: Some(auth_code),
+                auth_code,
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype,
-                card_segment_type: None,
-                funding_source: None,
+                card_segment_type,
+                funding_source,
                 issuer_name,
                 issuer_country,
             }
@@ -4345,36 +4349,14 @@ fn get_connector_response_data(
                 payment_checks: None,
                 card_network: None,
                 domestic_network: None,
-                auth_code: Some(auth_code),
+                auth_code,
                 processor_card_network,
-                card_type: payment_data
-                    .amount
-                    .as_ref()
-                    .and_then(|amount| amount.debit_credit_indicator)
-                    .map(DebitCreditIndicator::as_card_type),
-                funding_source: payment_data
-                    .card_bin
-                    .as_ref()
-                    .and_then(|card_bin| card_bin.card_class.as_deref())
-                    .and_then(connector_utils::parse_or_log_unrecognised::<WorldpayXmlCardClass>)
-                    .map(WorldpayXmlCardClass::as_funding_source),
-                card_segment_type: payment_data
-                    .card_bin
-                    .as_ref()
-                    .and_then(|card_bin| card_bin.product_type.as_deref())
-                    .and_then(connector_utils::parse_or_log_unrecognised::<WorldpayXmlProductType>)
-                    .map(WorldpayXmlProductType::as_card_segment_type),
+                card_type,
+                funding_source,
+                card_segment_type,
                 card_subtype,
-                issuer_name: payment_data
-                    .card_bin
-                    .as_ref()
-                    .and_then(|card_bin| card_bin.issuer_name.clone()),
-                issuer_country: payment_data
-                    .card_bin
-                    .as_ref()
-                    .and_then(|card_bin| card_bin.issuer_country_code.as_deref())
-                    // Worldpay's `-1` for an unknown country fails this parse, leaving it empty.
-                    .and_then(connector_utils::parse_country_code),
+                issuer_name,
+                issuer_country,
             }
         }
     };
