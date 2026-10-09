@@ -36,6 +36,10 @@ import getConnectorDetails, {
   shouldIncludeConnector,
   stringifyWithBigInt,
 } from "../e2e/configs/Payment/Utils";
+import {
+  connectorDetails as commonConnectorDetails,
+  integrationTypeMismatchMessage,
+} from "../e2e/configs/Payment/Commons";
 import { OFFER_QUOTE_ID_PLACEHOLDER } from "../e2e/configs/Payment/Commons";
 import { injectGotymePayoutBankTransfer } from "../e2e/configs/Payout/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
@@ -2987,7 +2991,8 @@ Cypress.Commands.add(
     authentication_type,
     capture_method,
     globalState,
-    connectedMerchantId
+    connectedMerchantId,
+    integrationTypeHeader
   ) => {
     const {
       Configs: configs = {},
@@ -3034,6 +3039,10 @@ Cypress.Commands.add(
 
     if (connectedMerchantId) {
       headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
+    if (integrationTypeHeader !== undefined) {
+      headers["X-Integration-Type"] = integrationTypeHeader;
     }
 
     globalState.set("paymentAmount", body.amount);
@@ -8845,6 +8854,76 @@ Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
   cy.setConfigs(globalState, key, value, "CREATE");
 });
 
+// Creates a payment intent with an optional X-Integration-Type header and
+// asserts the expected status/body for it, via
+// connectorDetails.card_pm.IntegrationTypeValidation (Payment/Commons.js) —
+// success shape, or the full IR_06 mismatch error (code + message) built
+// from the header/merchantConfig actually in effect for this call.
+Cypress.Commands.add(
+  "integrationTypeChecker",
+  (
+    createPaymentBody,
+    globalState,
+    { expectedStatus, header, merchantConfig } = {}
+  ) => {
+    cy.createPaymentIntentTest(
+      createPaymentBody,
+      commonConnectorDetails.card_pm.IntegrationTypeValidation(
+        expectedStatus,
+        header,
+        merchantConfig
+      ),
+      "no_three_ds",
+      "automatic",
+      globalState,
+      undefined,
+      header
+    );
+  }
+);
+
+Cypress.Commands.add(
+  "paymentUpdate",
+  (
+    paymentId,
+    requestBody,
+    globalState,
+    { headerValue, expectedStatus, merchantConfig } = {}
+  ) => {
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+    if (headerValue !== undefined) {
+      headers["X-Integration-Type"] = headerValue;
+    }
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/payments/${paymentId}`,
+        headers,
+        body: requestBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        expect(response.status).to.equal(expectedStatus);
+        if (expectedStatus === 200) {
+          expect(response.body.amount).to.equal(requestBody.amount);
+        } else {
+          expect(response.body).to.have.property("error");
+          expect(response.body.error.code).to.equal("IR_06");
+          expect(response.body.error.message).to.equal(
+            integrationTypeMismatchMessage(headerValue, merchantConfig)
+          );
+        }
+        return cy.wrap(response);
+      });
+  }
+);
+
 // UCS Configuration Commands
 Cypress.Commands.add("setupUCSConfigs", (globalState) => {
   cy.setupConfigs(globalState, "ucs_enabled", "true");
@@ -13191,8 +13270,13 @@ Cypress.Commands.add(
         );
       });
     });
-    // Polling interval is 10 s in CI and 15 s in all other envs
-    cy.wait(15000);
+    // Polling interval is 10 s in CI (ROUTER__SUPERPOSITION__POLLING_INTERVAL)
+    // and 15 s elsewhere. Wait for two full CI poll cycles plus a buffer —
+    // a single 15 s wait only has ~5 s of margin over one CI poll tick, which
+    // isn't enough if the write lands just after a tick or there's network
+    // jitter: the next test can then run against stale config (seen as
+    // flaky failures in 54-IntegrationTypeValidation.cy.js in CI).
+    cy.wait(21000);
   }
 );
 
