@@ -120,6 +120,16 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
       setBlocklistGuard(true);
     });
 
+    // Saved cards without mandates are listed only when requires_cvv is true
+    itIfGuardOperable("should set requires_cvv=true", () => {
+      cy.setSuperpositionConfig(
+        globalState,
+        "payments.requires_cvv",
+        true,
+        blocklistContext()
+      );
+    });
+
     it("should create blocklist rule for card_bin 411111", () => {
       cy.blocklistCreateRule(
         fixtures.blocklistCreateBody,
@@ -366,6 +376,11 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
 
     itIfGuardOperable("should disable blocklist guard", () => {
       setBlocklistGuard(false);
+    });
+
+    // Removes both the guard and requires_cvv overrides for this merchant
+    itIfGuardOperable("should delete superposition overrides", () => {
+      cy.deleteSuperpositionConfig(globalState, blocklistContext());
     });
   });
 });
