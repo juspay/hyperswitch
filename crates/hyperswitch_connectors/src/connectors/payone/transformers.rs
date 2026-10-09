@@ -164,7 +164,8 @@ impl TryFrom<PayoneRouterData<&PayoutsRouterData<PoFulfill>>> for PayonePayoutFu
                         | PayoutMethodData::BankTransfer(_)
                         | PayoutMethodData::Wallet(_)
                         | PayoutMethodData::BankRedirect(_)
-                        | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(
+                        | PayoutMethodData::Passthrough(_)
+                        | PayoutMethodData::GiftCard(_) => Err(ConnectorError::NotImplemented(
                             get_unimplemented_payment_method_error_message("Payone"),
                         ))?,
                     };
@@ -178,6 +179,9 @@ impl TryFrom<PayoneRouterData<&PayoutsRouterData<PoFulfill>>> for PayonePayoutFu
                     get_unimplemented_payment_method_error_message("Payone"),
                 ))?
             }
+            PayoutType::GiftCard => Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("Payone"),
+            ))?,
         }
     }
 }

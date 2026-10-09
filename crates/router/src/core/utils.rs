@@ -354,7 +354,10 @@ pub(super) async fn construct_payout_router_data_common<F>(
                     phone_country_code: c.phone_country_code,
                     tax_registration_id: c.tax_registration_id.map(Encryptable::into_inner),
                     document_details: None,
-                    date_of_birth: None,
+                    date_of_birth: payout_data
+                        .customer_request_details
+                        .as_ref()
+                        .and_then(|customer| customer.date_of_birth.clone()),
                 }),
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),

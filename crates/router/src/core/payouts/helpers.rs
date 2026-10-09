@@ -510,7 +510,8 @@ pub async fn save_payout_data_to_locker(
                 ),
                 payouts::PayoutMethodData::Card(_)
                 | payouts::PayoutMethodData::BankRedirect(_)
-                | payouts::PayoutMethodData::Passthrough(_) => {
+                | payouts::PayoutMethodData::Passthrough(_)
+                | payouts::PayoutMethodData::GiftCard(_) => {
                     Err(errors::ApiErrorResponse::InternalServerError)?
                 }
             }
@@ -1598,6 +1599,11 @@ pub(super) fn get_customer_details_from_request(
         .as_ref()
         .and_then(|customer_details| customer_details.document_details.clone());
 
+    let customer_date_of_birth = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.date_of_birth.clone());
+
     CustomerDetails {
         customer_id,
         name: customer_name,
@@ -1606,7 +1612,7 @@ pub(super) fn get_customer_details_from_request(
         phone_country_code: customer_phone_code,
         tax_registration_id,
         document_details,
-        date_of_birth: None,
+        date_of_birth: customer_date_of_birth,
     }
 }
 
@@ -1730,6 +1736,11 @@ pub async fn get_additional_payout_data(
         api::PayoutMethodData::Passthrough(passthrough) => {
             Some(payout_additional::AdditionalPayoutMethodData::Passthrough(
                 Box::new(passthrough.to_owned().into()),
+            ))
+        }
+        api::PayoutMethodData::GiftCard(gift_card_data) => {
+            Some(payout_additional::AdditionalPayoutMethodData::GiftCard(
+                Box::new(gift_card_data.to_owned().into()),
             ))
         }
     }

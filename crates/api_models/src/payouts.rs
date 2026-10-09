@@ -258,6 +258,7 @@ pub enum PayoutMethodData {
     BankRedirect(BankRedirect),
     Passthrough(Passthrough),
     BankTransfer(BankTransfer),
+    GiftCard(GiftCardPayout),
 }
 
 impl Default for PayoutMethodData {
@@ -763,6 +764,24 @@ pub struct Passthrough {
     pub token_type: api_enums::PaymentMethodType,
 }
 
+/// The brand of gift card being paid out, mirroring the payment-side
+/// `GiftCardData` enumeration so each issuer can carry its own payout fields
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GiftCardPayout {
+    /// Paysafe card gift card
+    PaySafeCard(PaysafeCardPayout),
+}
+
+/// The consumer's details for a Paysafe card gift card
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct PaysafeCardPayout {
+    // Paysafecard account ID, used to identify the consumer's account for payout.
+    #[schema(value_type = String, example = "1234567890")]
+    pub paysafecard_id: Option<Secret<String>>,
+}
+
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct Paypal {
     /// Email linked with paypal account
@@ -1061,6 +1080,8 @@ pub enum PayoutMethodDataResponse {
     BankRedirect(Box<payout_method_utils::BankRedirectAdditionalData>),
     #[schema(value_type = PassthroughAdditionalData)]
     Passthrough(Box<payout_method_utils::PassthroughAdditionalData>),
+    #[schema(value_type = GiftCardAdditionalData)]
+    GiftCard(Box<payout_method_utils::GiftCardAdditionalData>),
 }
 
 #[derive(
@@ -1775,6 +1796,18 @@ impl From<Passthrough> for payout_method_utils::PassthroughAdditionalData {
     }
 }
 
+impl From<GiftCardPayout> for payout_method_utils::GiftCardAdditionalData {
+    fn from(gift_card_data: GiftCardPayout) -> Self {
+        match gift_card_data {
+            GiftCardPayout::PaySafeCard(PaysafeCardPayout { paysafecard_id }) => {
+                Self::PaySafeCard(Box::new(payout_method_utils::PaySafeCardAdditionalData {
+                    paysafecard_id,
+                }))
+            }
+        }
+    }
+}
+
 impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataResponse {
     fn from(additional_data: payout_method_utils::AdditionalPayoutMethodData) -> Self {
         match additional_data {
@@ -1792,6 +1825,9 @@ impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataR
             }
             payout_method_utils::AdditionalPayoutMethodData::Passthrough(passthrough) => {
                 Self::Passthrough(passthrough)
+            }
+            payout_method_utils::AdditionalPayoutMethodData::GiftCard(gift_card) => {
+                Self::GiftCard(gift_card)
             }
         }
     }
@@ -1894,6 +1930,9 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 BankRedirect::OpenBankingUk(_) => Self::OpenBankingUk,
             },
             PayoutMethodData::Passthrough(passthrough) => passthrough.token_type,
+            PayoutMethodData::GiftCard(gift_card) => match gift_card {
+                GiftCardPayout::PaySafeCard(_) => Self::PaySafeCard,
+            },
         }
     }
 }

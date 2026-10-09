@@ -1246,7 +1246,7 @@ credit = { country = "US", currency = "USD" }
 debit = { country = "US", currency = "USD" }
 
 [connector_customer]
-payout_connector_list = "nomupay,stripe,wise,trustly"
+payout_connector_list = "nomupay,stripe,wise,trustly,paysafe"
 
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
@@ -1568,7 +1568,7 @@ request_timeout = 35                    # Per-RPC Request Timeout in Seconds
 keep_alive_interval = 30                # HTTP/2 PING keepalive interval in Seconds on the shared channel
 keep_alive_timeout = 20                 # Time in Seconds to wait for a keepalive PING acknowledgement before the connection is treated as dead
 tcp_keepalive = 60                      # TCP keepalive idle time in Seconds on the shared channel
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer, paysafe"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url

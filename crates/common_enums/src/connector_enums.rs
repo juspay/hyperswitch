@@ -248,6 +248,7 @@ impl Connector {
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
                 | (Self::Itaubank, Some(PayoutType::Bank))
                 | (Self::Deutschebank, Some(PayoutType::Bank))
+                | (Self::Paysafe, Some(PayoutType::GiftCard))
         )
     }
     #[cfg(feature = "payouts")]
@@ -260,6 +261,10 @@ impl Connector {
             !is_passthrough
         } else {
             matches!(payout_method, Some(PayoutType::Bank))
+                || matches!(
+                    (self, payout_method),
+                    (Self::Paysafe, Some(PayoutType::GiftCard))
+                )
         }
     }
     #[cfg(feature = "payouts")]

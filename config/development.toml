@@ -1314,7 +1314,7 @@ worldpayxml = { payment_method = "card,wallet" }
 paydotcom = { payment_method = "card" }    # Pay.com gateway 3DS settles on CompleteAuthorize; the card must be restorable
 
 [connector_customer]
-payout_connector_list = "nomupay,stripe,wise,trustly"
+payout_connector_list = "nomupay,stripe,wise,trustly,paysafe"
 
 [dummy_connector]
 enabled = true
@@ -1687,7 +1687,7 @@ request_timeout = 35
 keep_alive_interval = 30
 keep_alive_timeout = 20
 tcp_keepalive = 60
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer, paysafe"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
