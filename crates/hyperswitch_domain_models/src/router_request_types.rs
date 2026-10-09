@@ -879,6 +879,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             device_channel,
             webhook_url: data.webhook_url,
             force_3ds_challenge: data.force_3ds_challenge,
+            router_return_url: data.router_return_url,
         })
     }
 }
@@ -900,6 +901,7 @@ pub struct PaymentsAuthenticateData {
     pub device_channel: Option<api_models::payments::DeviceChannel>,
     pub webhook_url: Option<String>,
     pub force_3ds_challenge: Option<bool>,
+    pub router_return_url: Option<String>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -925,6 +927,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             device_channel,
             webhook_url: None,
             force_3ds_challenge: data.force_3ds_challenge,
+            router_return_url: data.router_return_url,
         })
     }
 }

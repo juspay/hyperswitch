@@ -1036,10 +1036,14 @@ where
                     (GatewaySystem::Direct, ExecutionPath::Direct)
                 }
             }
+            CallConnectorAction::StatusUpdate { .. } => {
+                // A status update makes no connector call (hyperswitch_interfaces api_client
+                // applies it locally), so there is nothing for UCS to serve.
+                (GatewaySystem::Direct, ExecutionPath::Direct)
+            }
             CallConnectorAction::Trigger
             | CallConnectorAction::HandleResponseWithoutBuildRequest
-            | CallConnectorAction::Avoid
-            | CallConnectorAction::StatusUpdate { .. } => {
+            | CallConnectorAction::Avoid => {
                 // If a rollout config key exists use its execution mode,
                 // otherwise default to Shadow so all traffic mirrors through UCS.
                 let execution_mode = if rollout_result.should_execute {
@@ -4390,14 +4394,29 @@ where
     tracing::Span::current().record("flow_type", flow);
 
     let grpc_header = grpc_header_builder.build();
-    let grpc_request_body =
-        hyperswitch_masking::masked_serialize(&grpc_request).unwrap_or_else(|error| {
+    let mut grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
+        .unwrap_or_else(|error| {
             logger::warn!(
                 ?error,
                 "Failed to mask-serialize UCS webhook gRPC request for logging"
             );
             serde_json::json!({"error": "failed_to_serialize_grpc_request"})
         });
+    // WebhookSecrets carries the secret as a plain proto string; older UCS clients serialize it
+    // unmasked. It must never reach the log.
+    if let Some(webhook_secrets) = grpc_request_body
+        .get_mut("webhook_secrets")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        for key in ["secret", "additional_secret"] {
+            if let Some(value) = webhook_secrets
+                .get_mut(key)
+                .filter(|value| value.is_string())
+            {
+                *value = serde_json::Value::String("*** masked ***".to_string());
+            }
+        }
+    }
     logger::info!(
         flow,
         ucs_webhook_grpc_request = ?grpc_request_body,
