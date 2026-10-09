@@ -49,7 +49,8 @@ pub use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath,
 use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
-    id_type, pii,
+    id_type::{self, MerchantConnectorAccountId},
+    pii,
     types::{AmountConvertor, MinorUnit, Surcharge},
 };
 use diesel_models::{fraud_check::FraudCheck, refund as diesel_refund};
@@ -12081,7 +12082,7 @@ where
     let txn = TransactionData::Payment(transaction_data.clone());
     let txn_data = transaction_data.clone();
     let fallback = fallback_config.clone();
-    let mut mca_accounts = None;
+    let mut active_mca_ids = None;
     let fallback_outcome = (
         fallback.clone(),
         common_enums::RoutingApproach::DefaultFallback,
@@ -12104,12 +12105,13 @@ where
                 )
             })
     } else {
-        let accounts = routing::get_active_merchant_connector_accounts(
+        let ids = routing::get_active_merchant_connector_accounts(
             &state,
             processor.get_key_store(),
             business_profile.get_id(),
         )
-        .await;
+        .await
+        .map(|accounts| accounts.get_ids());
         let outcome = static_dynamic_routing_v1_for_payments(
             &state,
             processor.get_key_store(),
@@ -12119,7 +12121,7 @@ where
             backend_input,
             fallback,
             preferred_connector,
-            &accounts,
+            &ids,
         )
         .await
         .inspect_err(|err| {
@@ -12133,7 +12135,7 @@ where
                 out.requires_eligibility,
             )
         });
-        mca_accounts = Some(accounts);
+        active_mca_ids = Some(ids);
         outcome
     };
 
@@ -12141,14 +12143,15 @@ where
         routing_outcome.unwrap_or(fallback_outcome);
 
     let final_connectors = if requires_eligibility {
-        if mca_accounts.is_none() {
-            mca_accounts = Some(
+        if active_mca_ids.is_none() {
+            active_mca_ids = Some(
                 routing::get_active_merchant_connector_accounts(
                     &state,
                     processor.get_key_store(),
                     business_profile.get_id(),
                 )
-                .await,
+                .await
+                .map(|accounts| accounts.get_ids()),
             );
         }
         routing::perform_eligibility_analysis_with_fallback(
@@ -12158,7 +12161,7 @@ where
             &txn,
             eligible_connectors.clone(),
             business_profile,
-            mca_accounts.as_ref(),
+            active_mca_ids.as_ref(),
         )
         .await
         .inspect_err(|err| {
@@ -13129,7 +13132,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     preferred_connector: Option<String>,
-    mca_accounts: &routing::RoutingResult<domain::MerchantConnectorAccountsWithoutEncrypted>,
+    active_mca_ids: &routing::RoutingResult<HashSet<MerchantConnectorAccountId>>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
     let (static_connectors, static_approach) = routing::perform_static_routing_locally(
         state,
@@ -13151,7 +13154,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
         &static_connectors,
         static_approach,
         preferred_connector,
-        mca_accounts,
+        active_mca_ids,
     )
     .await;
 
