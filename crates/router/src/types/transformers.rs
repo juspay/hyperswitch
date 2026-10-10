@@ -161,6 +161,24 @@ impl
     }
 }
 
+#[cfg(feature = "v2")]
+impl ForeignFrom<storage::CardInfo> for payment_methods::CardInfoDetails {
+    fn foreign_from(card_info: storage::CardInfo) -> Self {
+        Self {
+            prepaid: card_info.prepaid,
+            regulated: card_info.regulated,
+            virtual_card: card_info.virtual_card,
+            domestic_only: card_info.domestic_only,
+            reloadable_prepaid: card_info.reloadable_prepaid,
+            gambling_blocked: card_info.gambling_blocked,
+            ecom_enabled: card_info.ecom_enabled,
+            billpay_enabled: card_info.billpay_enabled,
+            issuer_currency: card_info.issuer_currency,
+            authentication: card_info.authentication,
+        }
+    }
+}
+
 // TODO: remove this usage in v1 code
 impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
     fn foreign_from(s: storage_enums::AttemptStatus) -> Self {
