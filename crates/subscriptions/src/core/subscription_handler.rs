@@ -408,7 +408,7 @@ impl SubscriptionWithHandler<'_> {
                 // Fallback to profile-based lookup when merchant_connector_id is not set
                 #[cfg(feature = "v1")]
                 {
-                    db.find_merchant_connector_account_by_profile_id_connector_name(
+                    db.find_enabled_merchant_connector_account_by_profile_id_connector_name(
                         &self.subscription.profile_id,
                         connector_name,
                         self.handler.platform.get_processor().get_key_store(),

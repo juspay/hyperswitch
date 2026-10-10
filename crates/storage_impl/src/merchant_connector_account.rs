@@ -216,6 +216,23 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
 
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
+    async fn find_enabled_merchant_connector_account_by_profile_id_connector_name(
+        &self,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_name: &str,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
+        self.router_store
+            .find_enabled_merchant_connector_account_by_profile_id_connector_name(
+                profile_id,
+                connector_name,
+                key_store,
+            )
+            .await
+    }
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -528,6 +545,32 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             })
             .await
         }
+    }
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn find_enabled_merchant_connector_account_by_profile_id_connector_name(
+        &self,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_name: &str,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
+        let conn = pg_accounts_connection_read(self).await?;
+        storage::MerchantConnectorAccount::find_enabled_by_profile_id_connector_name(
+            &conn,
+            profile_id,
+            connector_name,
+        )
+        .await
+        .map_err(|error| report!(Self::Error::from(error)))?
+        .convert(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            key_store.key.get_inner(),
+            key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(Self::Error::DeserializationFailed)
     }
 
     #[cfg(feature = "v1")]
@@ -1389,6 +1432,42 @@ impl MerchantConnectorAccountInterface for MockDb {
                 .change_context(StorageError::DecryptionError),
             None => Err(StorageError::ValueNotFound(
                 "cannot find merchant connector account".to_string(),
+            )
+            .into()),
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_enabled_merchant_connector_account_by_profile_id_connector_name(
+        &self,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_name: &str,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, StorageError> {
+        let maybe_mca = self
+            .merchant_connector_accounts
+            .lock()
+            .await
+            .iter()
+            .find(|account| {
+                account.profile_id.eq(&Some(profile_id.to_owned()))
+                    && account.connector_name == connector_name
+                    && !account.disabled.unwrap_or(false)
+            })
+            .cloned();
+
+        match maybe_mca {
+            Some(mca) => mca
+                .convert(
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError),
+            None => Err(StorageError::ValueNotFound(
+                "cannot find enabled merchant connector account".to_string(),
             )
             .into()),
         }
