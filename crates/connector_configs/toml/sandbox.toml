@@ -7315,6 +7315,8 @@ payment_method_type = "UnionPay"
 [hipay.connector_auth.BodyKey]
 api_key = "API Login ID"
 key1 = "API password"
+[hipay.connector_webhook_details]
+merchant_secret = "Secret Passphrase"
 
 [ctp_visa]
 [ctp_visa.connector_auth.NoKey]
