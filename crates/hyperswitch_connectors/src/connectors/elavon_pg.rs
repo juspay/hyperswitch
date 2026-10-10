@@ -624,7 +624,14 @@ impl webhooks::IncomingWebhook for ElavonPg {
 
 static ELAVON_PG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
-        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+        // Both are implemented in UCS. Manual capture settles through EPG's capture
+        // resources and releases through `type: "void"`; declaring only `Automatic` let
+        // `auto_fallback_capture_method` silently downgrade a manual-capture payment to
+        // auto-capture, and left the manual path reachable but undeclared.
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+        ];
 
         let supported_card_networks = vec![
             common_enums::CardNetwork::Visa,
@@ -642,18 +649,21 @@ static ELAVON_PG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
-                // One-time card payments only: no mandates/MIT, and refunds are not in
-                // scope for the initial integration.
+                // One-time card payments only: no mandates/MIT. Refunds and refund
+                // sync are implemented in UCS (`POST /transactions` with
+                // `type: "refund"`, read back from `/transactions/{id}`).
                 mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            // External-3DS passthrough: the challenge happens in the
-                            // merchant's own MPI and the cryptogram is forwarded on
-                            // Authorize. Elavon Payment Gateway performs no
-                            // authentication itself and drives no redirect.
+                            // Two 3DS paths, both supported: external passthrough,
+                            // where the challenge happens in the merchant's own MPI and
+                            // the cryptogram rides along on Authorize; and EPG's own
+                            // gateway 3DS, which runs inside its hosted payment page and
+                            // does drive a redirect — see
+                            // `is_pre_authentication_flow_required` below.
                             three_ds: common_enums::FeatureStatus::Supported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_networks.clone(),
@@ -667,18 +677,21 @@ static ELAVON_PG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
-                // One-time card payments only: no mandates/MIT, and refunds are not in
-                // scope for the initial integration.
+                // One-time card payments only: no mandates/MIT. Refunds and refund
+                // sync are implemented in UCS (`POST /transactions` with
+                // `type: "refund"`, read back from `/transactions/{id}`).
                 mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            // External-3DS passthrough: the challenge happens in the
-                            // merchant's own MPI and the cryptogram is forwarded on
-                            // Authorize. Elavon Payment Gateway performs no
-                            // authentication itself and drives no redirect.
+                            // Two 3DS paths, both supported: external passthrough,
+                            // where the challenge happens in the merchant's own MPI and
+                            // the cryptogram rides along on Authorize; and EPG's own
+                            // gateway 3DS, which runs inside its hosted payment page and
+                            // does drive a redirect — see
+                            // `is_pre_authentication_flow_required` below.
                             three_ds: common_enums::FeatureStatus::Supported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks,
