@@ -1,0 +1,32 @@
+[package]
+name = "cloud_services"
+description = "Cloud provider clients (KMS, object storage) shared across Hyperswitch services"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# Deliberately free of Hyperswitch crates (no `common_utils`, `router_env` or `error-stack`),
+# so services outside this workspace can depend on it without pulling in Hyperswitch.
+[features]
+default = []
+s3 = ["dep:aws-config", "dep:aws-sdk-s3", "dep:url"]
+oci_object_storage = ["s3"]
+oci_kms = ["dep:oci_kms"]
+
+[dependencies]
+aws-config = { version = "1.5.10", optional = true, features = [
+    "behavior-version-latest",
+] }
+aws-sdk-s3 = { version = "1.65.0", optional = true }
+oci_kms = { version = "0.1.0", path = "../oci_kms", optional = true }
+serde = { version = "1.0.219", features = ["derive"] }
+thiserror = "1.0.69"
+url = { version = "2.5.4", optional = true }
+
+[dev-dependencies]
+serde_json = "1.0.140"
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

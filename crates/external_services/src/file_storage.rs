@@ -45,9 +45,11 @@ impl FileStorageConfig {
     pub fn validate(&self) -> Result<(), InvalidFileStorageConfig> {
         match self {
             #[cfg(feature = "aws_s3")]
-            Self::AwsS3 { aws_s3 } => aws_s3.validate(),
+            Self::AwsS3 { aws_s3 } => aws_s3.validate().map_err(InvalidFileStorageConfig),
             #[cfg(feature = "oci_object_storage")]
-            Self::OciObjectStorage { oci_object_storage } => oci_object_storage.validate(),
+            Self::OciObjectStorage { oci_object_storage } => oci_object_storage
+                .validate()
+                .map_err(InvalidFileStorageConfig),
             Self::FileSystem => Ok(()),
         }
     }
