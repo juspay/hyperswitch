@@ -10,6 +10,7 @@ creds.json
 cypress.env.json
 run_all.sh
 run-givepayments-ucs.sh
+run_stripe_ucs.sh
 
 # Cypress Dashboard build
 **/dist

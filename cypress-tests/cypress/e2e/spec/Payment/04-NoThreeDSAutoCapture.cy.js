@@ -76,6 +76,10 @@ describe("Card - NoThreeDS payment flow test", () => {
         ]["No3DSAutoCapture"];
 
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
+
+        if (globalState.get("ucsEnabled")) {
+          cy.assertPaymentAccountReference(globalState);
+        }
       });
     });
   });
