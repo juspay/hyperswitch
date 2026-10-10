@@ -182,6 +182,10 @@ where
                     router_data.minor_amount_captured = recurring_payment_charge_response
                         .captured_amount
                         .map(MinorUnit::new);
+                    router_data.minor_amount_capturable = recurring_payment_charge_response
+                        .capturable_money
+                        .as_ref()
+                        .map(|capturable_money| MinorUnit::new(capturable_money.minor_amount));
                     if return_raw_connector_response.unwrap_or(false) {
                         router_data.raw_connector_response = recurring_payment_charge_response
                             .raw_connector_response
