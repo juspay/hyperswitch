@@ -118,7 +118,10 @@ impl transformers::ForeignTryFrom<&api_models::payments::ConnectorMetadata>
                 .map(|data| payments_grpc::StripeAdditionalInformation {
                     error_on_requires_action: data.error_on_requires_action,
                 }),
-            jpmorgan: jpmorgan.as_ref().map(payments_grpc::JpmorganAdditionalInformation::foreign_try_from).transpose()?,
+            jpmorgan: jpmorgan
+                .as_ref()
+                .map(payments_grpc::JpmorganAdditionalInformation::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -928,7 +931,11 @@ impl
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
-            authentication_data: jpmorgan_authentication_data(&router_data.connector, authentication_data, router_data.request.connector_intent_metadata.as_ref()),
+            authentication_data: jpmorgan_authentication_data(
+                &router_data.connector,
+                authentication_data,
+                router_data.request.connector_intent_metadata.as_ref(),
+            ),
             request_extended_authorization: router_data
                 .request
                 .request_extended_authorization
@@ -1216,7 +1223,11 @@ impl
             customer_acceptance,
             order_category: None,
             payment_experience: None,
-            authentication_data: jpmorgan_authentication_data(&router_data.connector, authentication_data, router_data.request.connector_intent_metadata.as_ref()),
+            authentication_data: jpmorgan_authentication_data(
+                &router_data.connector,
+                authentication_data,
+                router_data.request.connector_intent_metadata.as_ref(),
+            ),
             request_extended_authorization: None,
             merchant_order_id: None,
             shipping_cost: None,
@@ -2523,7 +2534,11 @@ impl
                 .transpose()?,
             order_category: None,
             payment_experience: None,
-            authentication_data: jpmorgan_authentication_data(&router_data.connector, authentication_data, router_data.request.connector_intent_metadata.as_ref()),
+            authentication_data: jpmorgan_authentication_data(
+                &router_data.connector,
+                authentication_data,
+                router_data.request.connector_intent_metadata.as_ref(),
+            ),
             request_extended_authorization: None,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             shipping_cost: None,
@@ -2711,7 +2726,11 @@ impl
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
-            authentication_data: jpmorgan_authentication_data(&router_data.connector, authentication_data, router_data.request.connector_intent_metadata.as_ref()),
+            authentication_data: jpmorgan_authentication_data(
+                &router_data.connector,
+                authentication_data,
+                router_data.request.connector_intent_metadata.as_ref(),
+            ),
             request_extended_authorization: router_data
                 .request
                 .request_extended_authorization
@@ -3123,12 +3142,16 @@ impl
             address: Some(address),
             auth_type: auth_type.into(),
             enrolled_for_3ds: false,
-            authentication_data: jpmorgan_authentication_data(&router_data.connector, router_data
-                .request
-                .authentication_data
-                .clone()
-                .map(payments_grpc::AuthenticationData::foreign_try_from)
-                .transpose()?, router_data.request.connector_intent_metadata.as_ref()),
+            authentication_data: jpmorgan_authentication_data(
+                &router_data.connector,
+                router_data
+                    .request
+                    .authentication_data
+                    .clone()
+                    .map(payments_grpc::AuthenticationData::foreign_try_from)
+                    .transpose()?,
+                router_data.request.connector_intent_metadata.as_ref(),
+            ),
             metadata: router_data
                 .request
                 .metadata
@@ -3667,7 +3690,11 @@ impl
                 .request
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
-            authentication_data: jpmorgan_authentication_data(&router_data.connector, authentication_data, router_data.request.connector_intent_metadata.as_ref()),
+            authentication_data: jpmorgan_authentication_data(
+                &router_data.connector,
+                authentication_data,
+                router_data.request.connector_intent_metadata.as_ref(),
+            ),
             connector_feature_data: None,
             locale: router_data.request.locale.clone(),
             connector_testing_data: router_data
@@ -5443,7 +5470,9 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
                         .map(|cryptogram| cryptogram.expose().into()),
                     eci_indicator: decrypted_data.eci_indicator.clone(),
                     auth_method: decrypted_data.auth_method.map(|method| match method {
-                        common_enums::GooglePayAuthMethod::PanOnly => payments_grpc::GooglePayAuthMethod::PanOnly.into(),
+                        common_enums::GooglePayAuthMethod::PanOnly => {
+                            payments_grpc::GooglePayAuthMethod::PanOnly.into()
+                        }
                         common_enums::GooglePayAuthMethod::Cryptogram => {
                             payments_grpc::GooglePayAuthMethod::Cryptogram3ds.into()
                         }
