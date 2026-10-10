@@ -133,8 +133,9 @@ pub async fn create_blocklist_export(
     state: SessionState,
     platform: domain::Platform,
     profile_id: Option<common_utils::id_type::ProfileId>,
+    transaction_type: common_enums::BlocklistTransactionType,
 ) -> RouterResponse<api_blocklist::BlocklistExportResponse> {
-    export::initiate_blocklist_export(&state, &platform, profile_id)
+    export::initiate_blocklist_export(&state, &platform, profile_id, transaction_type)
         .await
         .map(services::ApplicationResponse::Json)
 }

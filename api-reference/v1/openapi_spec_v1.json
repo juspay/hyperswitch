@@ -8199,6 +8199,20 @@
         "operationId": "Start a blocklist CSV export",
         "parameters": [
           {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Blocklist flow to export: payment (default) or payout.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BlocklistTransactionType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "The business profile whose blocklist is exported. Resolution follows the same rules as blocking a single entry.",

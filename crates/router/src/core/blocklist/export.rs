@@ -74,6 +74,7 @@ pub async fn initiate_blocklist_export(
     state: &SessionState,
     platform: &domain::Platform,
     profile_id: Option<id_type::ProfileId>,
+    transaction_type: common_enums::BlocklistTransactionType,
 ) -> RouterResult<api_blocklist::BlocklistExportResponse> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let profile_id = core_utils::get_profile_from_business_details(
@@ -117,6 +118,7 @@ pub async fn initiate_blocklist_export(
         merchant_id: platform.get_provider().get_account().get_id().clone(),
         processor_merchant_id: Some(processor_merchant_id.clone()),
         profile_id,
+        transaction_type,
         snapshot_at: now,
         upload_id: None,
     };
@@ -207,5 +209,54 @@ pub(crate) async fn presign_export_download(
                 )
             }),
         None => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common_enums::BlocklistTransactionType;
+    use serde_json::json;
+
+    use super::{batch, rows_to_csv_bytes, storage};
+
+    #[test]
+    fn exported_twins_reimport_into_their_original_blocklists() {
+        let entries = [
+            ("424242", "generic_card_bin", "payment"),
+            ("424242", "generic_card_bin", "payout"),
+            ("fp_exact", "payment_method", "payment"),
+            ("fp_exact", "payment_method", "payout"),
+        ]
+        .into_iter()
+        .map(|(fingerprint, kind, flow)| {
+            serde_json::from_value::<storage::Blocklist>(json!({
+                "merchant_id": "merchant_test",
+                "fingerprint_id": fingerprint,
+                "data_kind": kind,
+                "metadata": {"reason": "fraud"},
+                "created_at": common_utils::date_time::now(),
+                "processor_merchant_id": "merchant_test",
+                "created_by": null,
+                "profile_id": "pro_source",
+                "transaction_type": flow
+            }))
+            .unwrap()
+        })
+        .collect::<Vec<_>>();
+        let csv = rows_to_csv_bytes(&entries).unwrap();
+        let imported = batch::parse_chunk_csv(&csv).unwrap();
+        let identities = imported
+            .iter()
+            .map(|row| (row.data.as_str(), row.transaction_type))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            identities,
+            vec![
+                ("424242", BlocklistTransactionType::Payment),
+                ("424242", BlocklistTransactionType::Payout),
+                ("fp_exact", BlocklistTransactionType::Payment),
+                ("fp_exact", BlocklistTransactionType::Payout),
+            ]
+        );
     }
 }
