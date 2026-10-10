@@ -1338,7 +1338,7 @@ impl CardData for Card {
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
-            "{}{}{}",
+            "{}{}{:0>2}",
             year.peek(),
             delimiter,
             self.card_exp_month.peek()
@@ -1445,7 +1445,7 @@ impl CardData for CardDetailsForNetworkTransactionId {
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
-            "{}{}{}",
+            "{}{}{:0>2}",
             year.peek(),
             delimiter,
             self.card_exp_month.peek()
@@ -1552,7 +1552,7 @@ impl CardData for payment_method_data::DecryptedWalletTokenDetailsForNetworkTran
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
-            "{}{}{}",
+            "{}{}{:0>2}",
             year.peek(),
             delimiter,
             self.token_exp_month.peek()
@@ -1661,7 +1661,7 @@ impl CardData for api_models::payouts::ApplePayDecrypt {
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
-            "{}{}{}",
+            "{}{}{:0>2}",
             year.peek(),
             delimiter,
             self.expiry_month.peek()
@@ -1770,7 +1770,7 @@ impl CardData for api_models::payouts::GooglePayDecrypt {
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
-            "{}{}{}",
+            "{}{}{:0>2}",
             year.peek(),
             delimiter,
             self.expiry_month.peek()
@@ -6744,11 +6744,37 @@ impl QrImage {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils;
+    use hyperswitch_domain_models::payment_method_data::Card;
+    use hyperswitch_masking::{PeekInterface, Secret};
+
+    use crate::utils::{self, CardData};
     #[test]
     fn test_image_data_source_url() {
         let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
         assert!(qr_image_data_source_url.is_ok());
+    }
+
+    #[test]
+    fn test_get_expiry_date_as_yyyymm_zero_pads_the_month() {
+        // A connector documenting `YYYY-MM` must not receive `2030-3`.
+        let single_digit_month = Card {
+            card_exp_month: Secret::new("3".to_string()),
+            card_exp_year: Secret::new("2030".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            single_digit_month.get_expiry_date_as_yyyymm("-").peek(),
+            "2030-03"
+        );
+
+        let already_padded = Card {
+            card_exp_month: Secret::new("11".to_string()),
+            ..single_digit_month
+        };
+        assert_eq!(
+            already_padded.get_expiry_date_as_yyyymm("-").peek(),
+            "2030-11"
+        );
     }
 }
 
@@ -7443,7 +7469,7 @@ impl CardData for api_models::payouts::CardPayout {
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
-            "{}{}{}",
+            "{}{}{:0>2}",
             year.peek(),
             delimiter,
             self.expiry_month.peek()
