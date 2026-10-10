@@ -49,6 +49,14 @@ describe("Step-Up Retry Tests", () => {
 
           cy.setConfigs(globalState, key, value, "CREATE");
 
+          // Ensure the connector's GSM rule for the decline exists on the
+          // environment with step_up_possible enabled, so the step-up retry
+          // path doesn't depend on pre-seeded environment data.
+          cy.ensureAutoRetryGsmRule(globalState, {
+            decision: "retry",
+            stepUpPossible: true,
+          });
+
           // Set flag indicating Step-Up retry is enabled for assertion validation
           globalState.set("isStepUpRetryEnabled", true);
 

@@ -67,6 +67,11 @@ describe("Auto Retry Tests", () => {
             return;
           }
 
+          // Ensure the connector's GSM rule for the decline retry exists on
+          // the environment with decision = retry, so the spec doesn't depend
+          // on pre-seeded environment data.
+          cy.ensureAutoRetryGsmRule(globalState, { decision: "retry" });
+
           const updateBusinessProfileBody = {
             is_auto_retries_enabled: true,
             max_auto_retries_enabled: 1,

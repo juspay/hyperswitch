@@ -272,7 +272,9 @@ function createIndividualRolloutConfig(
     };
 
     return makeRequest("POST", url, requestBody, "created").then((response) => {
-      if (response.status === 200) {
+      // makeRequest resolves { success: true } on HTTP 200; a raw response
+      // object (with .status/.body) is only returned for non-200 outcomes.
+      if (response.success) {
         return cy.wrap({ success: true, flow: methodFlow });
       }
 
@@ -290,7 +292,9 @@ function createIndividualRolloutConfig(
   const updateConfig = () => {
     return makeRequest("POST", `${url}${key}`, { value }, "updated").then(
       (updateResponse) => {
-        if (updateResponse.status === 200) {
+        // makeRequest resolves { success: true } on HTTP 200; a raw response
+        // object (with .status/.body) is only returned for non-200 outcomes.
+        if (updateResponse.success) {
           return cy.wrap({ success: true, flow: methodFlow });
         }
 
@@ -391,14 +395,24 @@ function createUcsConfigs(globalState, flow, type, configValueOverride = null) {
   const connector = getConnectorIdForRedirect(globalState);
   const methodFlowInput = flow || globalState.get("methodFlow");
 
-  if ((!httpUrl || !httpsUrl) && !configValueOverride) {
-    throw new Error(
-      `Missing proxyHttp or proxyHttps in globalState. globalState.proxyHttp=${httpUrl}, globalState.proxyHttps=${httpsUrl}, Cypress.env("PROXY_HTTP")=${Cypress.env("PROXY_HTTP")}, Cypress.env("PROXY_HTTPS")=${Cypress.env("PROXY_HTTPS")}`
+  // Proxy URLs are optional: since #14222 the router sources UCS/comparison
+  // endpoints from its own deployment config and ignores http_url/https_url
+  // in the rollout config value. Warn and continue when they are absent -
+  // hard failing here breaks otherwise valid runs (e.g. distributed UCS and
+  // sharded CI would never run a season without PROXY_HTTP/PROXY_HTTPS set).
+  if (!httpUrl || !httpsUrl) {
+    cy.task(
+      "cli_log",
+      "INFO: proxyHttp/proxyHttps not set - creating rollout config without http_url/https_url; the router will use its deployment-configured UCS endpoints"
     );
   }
 
   if (!connector || !methodFlowInput) {
-    throw new Error("Missing connectorId or methodFlow in globalState");
+    cy.task(
+      "cli_log",
+      `UCS ${type} config creation skipped - connectorId or methodFlow not set in globalState`
+    );
+    return;
   }
 
   if (!globalState) {
@@ -1262,6 +1276,27 @@ Cypress.Commands.add(
             expect(response.body.merchant_category_code).to.equal(
               updateBusinessProfileBody.merchant_category_code
             );
+          }
+          // Auto-retry specs rely on these flags being persisted on the
+          // profile; assert them so a stale/rejected update fails at the
+          // setup step instead of surfacing as a retry that never happened.
+          if (
+            typeof updateBusinessProfileBody.is_auto_retries_enabled !==
+            "undefined"
+          ) {
+            expect(
+              response.body.is_auto_retries_enabled,
+              "is_auto_retries_enabled"
+            ).to.equal(updateBusinessProfileBody.is_auto_retries_enabled);
+          }
+          if (
+            typeof updateBusinessProfileBody.max_auto_retries_enabled !==
+            "undefined"
+          ) {
+            expect(
+              response.body.max_auto_retries_enabled,
+              "max_auto_retries_enabled"
+            ).to.equal(updateBusinessProfileBody.max_auto_retries_enabled);
           }
         } else {
           throw new Error(
@@ -8650,6 +8685,126 @@ Cypress.Commands.add(
   }
 );
 
+// Ensures the GSM rule that auto-retry / step-up-retry specs depend on exists
+// on the environment with the expected retry decision. The rule is keyed by
+// the raw connector error (connector, flow, sub_flow, code, message); the
+// connector configs mirror the raw connector error in
+// `card_pm.No3DSFailPayment.Response.body`. The rule is updated in place when
+// present and created when missing, so the specs don't silently depend on
+// pre-seeded environment data that can drift.
+//
+// NOTE: feature flags (`step_up_possible`, `clear_pan_possible`) are only
+// sent when explicitly provided, so existing values on the rule are preserved
+// and earlier specs don't clobber flags other specs may rely on.
+Cypress.Commands.add(
+  "ensureAutoRetryGsmRule",
+  (globalState, { decision = "retry", stepUpPossible } = {}) => {
+    const connectorId = globalState.get("connectorId");
+    const baseUrl = globalState.get("baseUrl");
+    const apiKey = globalState.get("adminApiKey");
+
+    const failResponseBody =
+      getConnectorDetails(connectorId)?.card_pm?.No3DSFailPayment?.Response
+        ?.body || {};
+
+    const errorCode = failResponseBody.error_code;
+    const errorMessage = failResponseBody.error_message;
+
+    if (!errorCode || !errorMessage) {
+      cy.task(
+        "cli_log",
+        `Skipping GSM rule seed - error_code/error_message missing in card_pm.No3DSFailPayment config for connector: ${connectorId}`
+      );
+      return;
+    }
+
+    const gsmRuleIdentity = {
+      connector: connectorId,
+      flow: "Payment",
+      sub_flow: "Authorize",
+      code: errorCode,
+      message: errorMessage,
+    };
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    };
+
+    const updateBody = {
+      ...gsmRuleIdentity,
+      decision,
+      ...(stepUpPossible !== undefined && {
+        step_up_possible: stepUpPossible,
+      }),
+    };
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/gsm/update`,
+      headers,
+      body: updateBody,
+      failOnStatusCode: false,
+    }).then((updateResponse) => {
+      logRequestId(updateResponse.headers["x-request-id"]);
+
+      if (updateResponse.status === 200) {
+        expect(updateResponse.body)
+          .to.have.property("connector")
+          .to.equal(connectorId);
+        expect(updateResponse.body)
+          .to.have.property("decision")
+          .to.equal(decision);
+        return;
+      }
+
+      if (updateResponse.status !== 404) {
+        Cypress.log({
+          name: "ensureAutoRetryGsmRule",
+          message: `GSM update failed for ${connectorId} → status ${updateResponse.status}, message: ${updateResponse.body?.error?.message}`,
+        });
+        return;
+      }
+
+      // Rule does not exist on this environment; create it.
+      cy.request({
+        method: "POST",
+        url: `${baseUrl}/gsm`,
+        headers,
+        body: {
+          ...gsmRuleIdentity,
+          status: "failure",
+          router_error: null,
+          decision,
+          step_up_possible: stepUpPossible ?? false,
+          unified_code: failResponseBody.unified_code ?? null,
+          unified_message: failResponseBody.unified_message ?? null,
+          error_category: null,
+          clear_pan_possible: false,
+          feature_data: null,
+          standardised_code: failResponseBody.standardised_code ?? null,
+          description: null,
+          user_guidance_message: null,
+        },
+        failOnStatusCode: false,
+      }).then((createResponse) => {
+        logRequestId(createResponse.headers["x-request-id"]);
+
+        if (createResponse.status === 200) {
+          expect(createResponse.body)
+            .to.have.property("connector")
+            .to.equal(connectorId);
+        } else {
+          Cypress.log({
+            name: "ensureAutoRetryGsmRule",
+            message: `GSM create failed for ${connectorId} → status ${createResponse.status}, message: ${createResponse.body?.error?.message}`,
+          });
+        }
+      });
+    });
+  }
+);
+
 Cypress.Commands.add("incrementalAuth", (globalState, data) => {
   const { Request: reqData, Response: resData } = data || {};
 
@@ -8833,36 +8988,85 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
 
   const apiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
-  const url = `${baseUrl}/configs/${config.useKey ? key : ""}`;
 
   const getRequestBody = {
     CREATE: () => ({ key, value }),
     UPDATE: () => ({ value }),
   };
-  const body = getRequestBody[requestType]?.() || undefined;
 
-  cy.request({
-    method: config.method,
-    url,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": apiKey,
-    },
-    ...(body && { body }),
-    failOnStatusCode: false,
-  }).then((response) => {
+  const didConfigExistError = (response) =>
+    /already exists/i.test(response.body?.error?.message ?? "");
+
+  const didConfigNotExistError = (response) =>
+    response.status === 404 ||
+    /does not exist/i.test(response.body?.error?.message ?? "");
+
+  const sendSetConfigRequest = (reqType) => {
+    const reqConfig = REQUEST_CONFIG[reqType];
+    const body = getRequestBody[reqType]?.() || undefined;
+
+    return cy.request({
+      method: reqConfig.method,
+      url: `${baseUrl}/configs/${reqConfig.useKey ? key : ""}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      ...(body && { body }),
+      failOnStatusCode: false,
+    });
+  };
+
+  sendSetConfigRequest(requestType).then((response) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
       if (response.status === 200) {
         expect(response.body).to.have.property("key").to.equal(key);
         expect(response.body).to.have.property("value").to.equal(value);
-      } else {
+        return;
+      }
+
+      // Upsert fallback: a CREATE colliding with an existing key is retried as
+      // UPDATE, and an UPDATE against a missing key is retried as CREATE. This
+      // keeps specs idempotent across re-runs and stale shared environments.
+      const fallbackType =
+        requestType === "CREATE" && didConfigExistError(response)
+          ? "UPDATE"
+          : requestType === "UPDATE" && didConfigNotExistError(response)
+            ? "CREATE"
+            : null;
+
+      if (!fallbackType) {
         Cypress.log({
           name: "setConfigs",
           message: `Failed for key: ${key} → status ${response.status}, message: ${response.body?.error?.message}`,
         });
+        return;
       }
+
+      Cypress.log({
+        name: "setConfigs",
+        message: `${requestType} failed for key: ${key} → status ${response.status}, retrying as ${fallbackType}`,
+      });
+
+      sendSetConfigRequest(fallbackType).then((retryResponse) => {
+        logRequestId(retryResponse.headers["x-request-id"]);
+
+        cy.wrap(retryResponse).then(() => {
+          if (retryResponse.status === 200) {
+            expect(retryResponse.body).to.have.property("key").to.equal(key);
+            expect(retryResponse.body)
+              .to.have.property("value")
+              .to.equal(value);
+          } else {
+            Cypress.log({
+              name: "setConfigs",
+              message: `${fallbackType} fallback failed for key: ${key} → status ${retryResponse.status}, message: ${retryResponse.body?.error?.message}`,
+            });
+          }
+        });
+      });
     });
   });
 });
