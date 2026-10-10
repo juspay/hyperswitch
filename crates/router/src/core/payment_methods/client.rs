@@ -613,7 +613,7 @@ async fn filter_customer_pms_by_blocklist(
         blocklist_utils::get_blocked_bins(
             state,
             processor,
-            common_enums::TransactionType::Payment,
+            common_enums::BlocklistTransactionType::Payment,
             profile_id,
             bins,
         )

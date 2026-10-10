@@ -20,14 +20,14 @@ pub trait BlocklistInterface {
     async fn find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError>;
 
     async fn find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError>;
@@ -35,7 +35,7 @@ pub trait BlocklistInterface {
     async fn find_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_ids(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_ids: Vec<String>,
     ) -> CustomResult<Option<storage::Blocklist>, errors::StorageError>;
@@ -45,7 +45,7 @@ pub trait BlocklistInterface {
     async fn list_blocklist_entries_by_processor_merchant_id_profile_id_card_bins(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         card_bins: Vec<String>,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError>;
@@ -53,14 +53,14 @@ pub trait BlocklistInterface {
     async fn delete_blocklist_entry_by_processor_merchant_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError>;
 
     async fn delete_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError>;
@@ -72,7 +72,7 @@ pub trait BlocklistInterface {
     async fn list_blocklist_entries_by_processor_merchant_id_profile_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: Option<&common_utils::id_type::ProfileId>,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
@@ -83,7 +83,7 @@ pub trait BlocklistInterface {
     async fn list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         after_fingerprint_id: String,
         snapshot_at: time::PrimitiveDateTime,
@@ -94,7 +94,7 @@ pub trait BlocklistInterface {
     async fn list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         after_fingerprint_id: String,
         snapshot_at: time::PrimitiveDateTime,
@@ -104,7 +104,7 @@ pub trait BlocklistInterface {
     async fn get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: Option<&common_utils::id_type::ProfileId>,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError>;
@@ -114,7 +114,7 @@ pub trait BlocklistInterface {
     async fn count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<Vec<(i32, i64)>, errors::StorageError>;
@@ -122,13 +122,13 @@ pub trait BlocklistInterface {
     async fn list_blocklist_entries_by_processor_merchant_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError>;
 
     async fn list_blocklist_entries_by_processor_merchant_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
@@ -137,7 +137,7 @@ pub trait BlocklistInterface {
     async fn get_blocklist_entries_count_by_processor_merchant_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError>;
 
@@ -168,7 +168,7 @@ impl BlocklistInterface for Store {
     async fn find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -208,7 +208,7 @@ impl BlocklistInterface for Store {
     async fn find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
@@ -249,7 +249,7 @@ impl BlocklistInterface for Store {
     async fn find_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_ids(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_ids: Vec<String>,
     ) -> CustomResult<Option<storage::Blocklist>, errors::StorageError> {
@@ -269,7 +269,7 @@ impl BlocklistInterface for Store {
     async fn list_blocklist_entries_by_processor_merchant_id_profile_id_card_bins(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         card_bins: Vec<String>,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
@@ -289,7 +289,7 @@ impl BlocklistInterface for Store {
     async fn list_blocklist_entries_by_processor_merchant_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Blocklist::list_by_processor_merchant_id(
@@ -305,7 +305,7 @@ impl BlocklistInterface for Store {
     async fn list_blocklist_entries_by_processor_merchant_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
@@ -329,7 +329,7 @@ impl BlocklistInterface for Store {
     async fn get_blocklist_entries_count_by_processor_merchant_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -349,7 +349,7 @@ impl BlocklistInterface for Store {
     async fn delete_blocklist_entry_by_processor_merchant_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -389,7 +389,7 @@ impl BlocklistInterface for Store {
     async fn delete_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
@@ -430,7 +430,7 @@ impl BlocklistInterface for Store {
     async fn list_blocklist_entries_by_processor_merchant_id_profile_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: Option<&common_utils::id_type::ProfileId>,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
@@ -471,7 +471,7 @@ impl BlocklistInterface for Store {
     async fn list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         after_fingerprint_id: String,
         snapshot_at: time::PrimitiveDateTime,
@@ -495,7 +495,7 @@ impl BlocklistInterface for Store {
     async fn list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         after_fingerprint_id: String,
         snapshot_at: time::PrimitiveDateTime,
@@ -519,7 +519,7 @@ impl BlocklistInterface for Store {
     async fn get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: Option<&common_utils::id_type::ProfileId>,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError> {
@@ -554,7 +554,7 @@ impl BlocklistInterface for Store {
     async fn count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<Vec<(i32, i64)>, errors::StorageError> {
@@ -597,7 +597,7 @@ impl BlocklistInterface for MockDb {
     async fn find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _transaction_type: common_enums::TransactionType,
+        _transaction_type: common_enums::BlocklistTransactionType,
         _fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
@@ -606,7 +606,7 @@ impl BlocklistInterface for MockDb {
     async fn find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _transaction_type: common_enums::TransactionType,
+        _transaction_type: common_enums::BlocklistTransactionType,
         _profile_id: &common_utils::id_type::ProfileId,
         _fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
@@ -616,7 +616,7 @@ impl BlocklistInterface for MockDb {
     async fn find_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_ids(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _transaction_type: common_enums::TransactionType,
+        _transaction_type: common_enums::BlocklistTransactionType,
         _profile_id: &common_utils::id_type::ProfileId,
         _fingerprint_ids: Vec<String>,
     ) -> CustomResult<Option<storage::Blocklist>, errors::StorageError> {
@@ -626,7 +626,7 @@ impl BlocklistInterface for MockDb {
     async fn list_blocklist_entries_by_processor_merchant_id_profile_id_card_bins(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _transaction_type: common_enums::TransactionType,
+        _transaction_type: common_enums::BlocklistTransactionType,
         _profile_id: &common_utils::id_type::ProfileId,
         _card_bins: Vec<String>,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
@@ -636,7 +636,7 @@ impl BlocklistInterface for MockDb {
     async fn list_blocklist_entries_by_processor_merchant_id(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _transaction_type: common_enums::TransactionType,
+        _transaction_type: common_enums::BlocklistTransactionType,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
@@ -644,7 +644,7 @@ impl BlocklistInterface for MockDb {
     async fn list_blocklist_entries_by_processor_merchant_id_data_kind(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _transaction_type: common_enums::TransactionType,
+        _transaction_type: common_enums::BlocklistTransactionType,
         _data_kind: common_enums::BlocklistDataKind,
         _limit: i64,
         _offset: i64,
@@ -655,7 +655,7 @@ impl BlocklistInterface for MockDb {
     async fn get_blocklist_entries_count_by_processor_merchant_id_data_kind(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _transaction_type: common_enums::TransactionType,
+        _transaction_type: common_enums::BlocklistTransactionType,
         _data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
@@ -664,7 +664,7 @@ impl BlocklistInterface for MockDb {
     async fn delete_blocklist_entry_by_processor_merchant_id_fingerprint_id(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _transaction_type: common_enums::TransactionType,
+        _transaction_type: common_enums::BlocklistTransactionType,
         _fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
@@ -673,7 +673,7 @@ impl BlocklistInterface for MockDb {
     async fn delete_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _transaction_type: common_enums::TransactionType,
+        _transaction_type: common_enums::BlocklistTransactionType,
         _profile_id: &common_utils::id_type::ProfileId,
         _fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
@@ -683,7 +683,7 @@ impl BlocklistInterface for MockDb {
     async fn list_blocklist_entries_by_processor_merchant_id_profile_id_data_kind(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _transaction_type: common_enums::TransactionType,
+        _transaction_type: common_enums::BlocklistTransactionType,
         _profile_id: Option<&common_utils::id_type::ProfileId>,
         _data_kind: common_enums::BlocklistDataKind,
         _limit: i64,
@@ -695,7 +695,7 @@ impl BlocklistInterface for MockDb {
     async fn list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         after_fingerprint_id: String,
         snapshot_at: time::PrimitiveDateTime,
@@ -723,7 +723,7 @@ impl BlocklistInterface for MockDb {
     async fn list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         after_fingerprint_id: String,
         snapshot_at: time::PrimitiveDateTime,
@@ -752,7 +752,7 @@ impl BlocklistInterface for MockDb {
     async fn get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _transaction_type: common_enums::TransactionType,
+        _transaction_type: common_enums::BlocklistTransactionType,
         _profile_id: Option<&common_utils::id_type::ProfileId>,
         _data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError> {
@@ -762,7 +762,7 @@ impl BlocklistInterface for MockDb {
     async fn count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _transaction_type: common_enums::TransactionType,
+        _transaction_type: common_enums::BlocklistTransactionType,
         _profile_id: &common_utils::id_type::ProfileId,
         _data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<Vec<(i32, i64)>, errors::StorageError> {
@@ -817,7 +817,7 @@ impl BlocklistInterface for KafkaStore {
     async fn find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         self.diesel_store
@@ -833,7 +833,7 @@ impl BlocklistInterface for KafkaStore {
     async fn find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
@@ -851,7 +851,7 @@ impl BlocklistInterface for KafkaStore {
     async fn find_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_ids(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_ids: Vec<String>,
     ) -> CustomResult<Option<storage::Blocklist>, errors::StorageError> {
@@ -869,7 +869,7 @@ impl BlocklistInterface for KafkaStore {
     async fn list_blocklist_entries_by_processor_merchant_id_profile_id_card_bins(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         card_bins: Vec<String>,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
@@ -887,7 +887,7 @@ impl BlocklistInterface for KafkaStore {
     async fn delete_blocklist_entry_by_processor_merchant_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         self.diesel_store
@@ -903,7 +903,7 @@ impl BlocklistInterface for KafkaStore {
     async fn list_blocklist_entries_by_processor_merchant_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
@@ -923,7 +923,7 @@ impl BlocklistInterface for KafkaStore {
     async fn delete_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
@@ -941,7 +941,7 @@ impl BlocklistInterface for KafkaStore {
     async fn list_blocklist_entries_by_processor_merchant_id_profile_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: Option<&common_utils::id_type::ProfileId>,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
@@ -963,7 +963,7 @@ impl BlocklistInterface for KafkaStore {
     async fn list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         after_fingerprint_id: String,
         snapshot_at: time::PrimitiveDateTime,
@@ -985,7 +985,7 @@ impl BlocklistInterface for KafkaStore {
     async fn list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         after_fingerprint_id: String,
         snapshot_at: time::PrimitiveDateTime,
@@ -1007,7 +1007,7 @@ impl BlocklistInterface for KafkaStore {
     async fn get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: Option<&common_utils::id_type::ProfileId>,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError> {
@@ -1025,7 +1025,7 @@ impl BlocklistInterface for KafkaStore {
     async fn get_blocklist_entries_count_by_processor_merchant_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError> {
         self.diesel_store
@@ -1041,7 +1041,7 @@ impl BlocklistInterface for KafkaStore {
     async fn count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<Vec<(i32, i64)>, errors::StorageError> {
@@ -1058,7 +1058,7 @@ impl BlocklistInterface for KafkaStore {
     async fn list_blocklist_entries_by_processor_merchant_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         self.diesel_store
             .list_blocklist_entries_by_processor_merchant_id(

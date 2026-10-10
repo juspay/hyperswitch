@@ -15,7 +15,7 @@ use crate::{
     path = "/blocklist",
     request_body = BlocklistRequest,
     params (
-        ("transaction_type" = Option<TransactionType>, Query, description = "Blocklist flow: payment (default) or payout. three_ds_authentication is not supported."),
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "The business profile to block this \
          entry under. Ignored when authenticating with a JWT, which carries its own profile. If \
          omitted, the merchant's default profile is used; merchants with more than one profile have \
@@ -74,7 +74,7 @@ pub async fn add_entry_to_blocklist(
     path = "/blocklist",
     request_body = BlocklistRequest,
     params (
-        ("transaction_type" = Option<TransactionType>, Query, description = "Blocklist flow: payment (default) or payout. three_ds_authentication is not supported."),
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "The business profile to unblock \
          this entry from. Only entries belonging to that profile, or entries with no profile, are \
          removed - an entry blocked under a different profile is not affected and the request \
@@ -134,7 +134,7 @@ pub async fn remove_entry_from_blocklist(
     path = "/blocklist",
     params (
         ("data_kind" = BlocklistDataKind, Query, description = "Kind of the fingerprint list requested"),
-        ("transaction_type" = Option<TransactionType>, Query, description = "Blocklist flow: payment (default) or payout. three_ds_authentication is not supported."),
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "Restricts the listing to entries \
          belonging to this business profile, plus entries with no profile. When no profile can be \
          resolved - as with publishable-key authentication - all of the merchant's entries are \
@@ -206,7 +206,7 @@ pub async fn list_blocked_payment_methods(
     path = "/blocklist/count",
     params (
         ("data_kind" = BlocklistDataKind, Query, description = "Kind of blocklist entries to count"),
-        ("transaction_type" = Option<TransactionType>, Query, description = "Blocklist flow: payment (default) or payout. three_ds_authentication is not supported."),
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "Restricts the count to entries \
          belonging to this business profile, plus entries with no profile. If omitted, the \
          merchant's default profile is used; merchants with more than one profile have no default \
@@ -262,7 +262,7 @@ pub async fn get_blocklist_count(
     path = "/blocklist/lookup",
     params (
         ("data" = String, Query, description = "The raw value to check against the blocklist, e.g. a card BIN"),
-        ("transaction_type" = Option<TransactionType>, Query, description = "Blocklist flow: payment (default) or payout. three_ds_authentication is not supported."),
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "Restricts the lookup to entries \
          belonging to this business profile, plus entries with no profile. If omitted, the \
          merchant's default profile is used; merchants with more than one profile have no default \

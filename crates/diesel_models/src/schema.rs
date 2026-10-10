@@ -234,7 +234,7 @@ diesel::table! {
         created_by -> Nullable<Varchar>,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
-        transaction_type -> TransactionType,
+        transaction_type -> Text,
     }
 }
 

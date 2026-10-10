@@ -17,7 +17,7 @@ pub async fn add_entry_to_blocklist(
     state: SessionState,
     platform: domain::Platform,
     profile_id: Option<common_utils::id_type::ProfileId>,
-    transaction_type: common_enums::TransactionType,
+    transaction_type: common_enums::BlocklistTransactionType,
     body: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResponse<api_blocklist::AddToBlocklistResponse> {
     utils::insert_entry_into_blocklist(&state, &platform, profile_id, transaction_type, body)
@@ -29,7 +29,7 @@ pub async fn remove_entry_from_blocklist(
     state: SessionState,
     processor: domain::Processor,
     profile_id: Option<common_utils::id_type::ProfileId>,
-    transaction_type: common_enums::TransactionType,
+    transaction_type: common_enums::BlocklistTransactionType,
     body: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResponse<api_blocklist::DeleteFromBlocklistResponse> {
     utils::delete_entry_from_blocklist(&state, &processor, profile_id, transaction_type, body)

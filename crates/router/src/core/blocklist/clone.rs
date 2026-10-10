@@ -157,7 +157,7 @@ async fn enqueue_clone_job(
         current_target: 0,
         snapshot_at: now,
         draining_legacy_rows: false,
-        transaction_type: common_enums::TransactionType::Payment,
+        transaction_type: common_enums::BlocklistTransactionType::Payment,
         last_fingerprint_id: String::new(),
         processed_rows: 0,
     };

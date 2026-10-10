@@ -77,7 +77,7 @@ impl Blocklist {
     pub async fn find_by_processor_merchant_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -95,7 +95,7 @@ impl Blocklist {
     pub async fn find_by_processor_merchant_id_profile_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
@@ -117,7 +117,7 @@ impl Blocklist {
     pub async fn find_by_processor_merchant_id_profile_id_fingerprint_ids(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_ids: Vec<String>,
     ) -> StorageResult<Option<Self>> {
@@ -147,7 +147,7 @@ impl Blocklist {
     pub async fn find_by_processor_merchant_id_profile_id_card_bins(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         card_bins: Vec<String>,
     ) -> StorageResult<Vec<Self>> {
@@ -179,7 +179,7 @@ impl Blocklist {
     pub async fn find_by_merchant_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -195,7 +195,7 @@ impl Blocklist {
     pub async fn find_by_merchant_id_profile_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
@@ -217,7 +217,7 @@ impl Blocklist {
     pub async fn list_by_processor_merchant_id_data_kind(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
@@ -242,7 +242,7 @@ impl Blocklist {
     pub async fn list_by_processor_merchant_id_profile_id_data_kind(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
@@ -273,7 +273,7 @@ impl Blocklist {
     pub async fn get_count_by_processor_merchant_id_data_kind(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         data_kind: common_enums::BlocklistDataKind,
     ) -> StorageResult<usize> {
         let data_kinds = equivalent_data_kinds(data_kind);
@@ -293,7 +293,7 @@ impl Blocklist {
     pub async fn get_count_by_processor_merchant_id_profile_id_data_kind(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> StorageResult<usize> {
@@ -319,7 +319,7 @@ impl Blocklist {
     pub async fn count_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> StorageResult<Vec<(i32, i64)>> {
@@ -357,7 +357,7 @@ impl Blocklist {
     pub async fn list_by_processor_merchant_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
@@ -377,7 +377,7 @@ impl Blocklist {
     pub async fn list_after_fingerprint_by_processor_merchant_id_profile_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         after_fingerprint_id: String,
         snapshot_at: time::PrimitiveDateTime,
@@ -405,7 +405,7 @@ impl Blocklist {
     pub async fn list_after_fingerprint_by_legacy_merchant_id_profile_id(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         after_fingerprint_id: String,
         snapshot_at: time::PrimitiveDateTime,
@@ -434,7 +434,7 @@ impl Blocklist {
     pub async fn delete_by_processor_merchant_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
@@ -450,7 +450,7 @@ impl Blocklist {
     pub async fn delete_by_processor_merchant_id_profile_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
@@ -473,7 +473,7 @@ impl Blocklist {
     pub async fn delete_by_merchant_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
@@ -489,7 +489,7 @@ impl Blocklist {
     pub async fn delete_by_merchant_id_profile_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        transaction_type: common_enums::TransactionType,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {

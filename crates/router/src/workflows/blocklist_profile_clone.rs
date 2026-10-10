@@ -63,9 +63,11 @@ async fn run_clone_job(
                 if !tracking_data.draining_legacy_rows {
                     tracking_data.draining_legacy_rows = true;
                 } else {
-                    #[cfg(feature = "payouts")]
-                    if tracking_data.transaction_type == common_enums::TransactionType::Payment {
-                        tracking_data.transaction_type = common_enums::TransactionType::Payout;
+                    if tracking_data.transaction_type
+                        == common_enums::BlocklistTransactionType::Payment
+                    {
+                        tracking_data.transaction_type =
+                            common_enums::BlocklistTransactionType::Payout;
                         tracking_data.draining_legacy_rows = false;
                         tracking_data.last_fingerprint_id = String::new();
                         persist_cursor(state, process_id, tracking_data).await?;
@@ -221,7 +223,7 @@ async fn settle_current_target(
 fn move_to_next_target(tracking_data: &mut storage::BlocklistProfileCloneTrackingData) -> bool {
     tracking_data.current_target = tracking_data.current_target.saturating_add(1);
     tracking_data.draining_legacy_rows = false;
-    tracking_data.transaction_type = common_enums::TransactionType::Payment;
+    tracking_data.transaction_type = common_enums::BlocklistTransactionType::Payment;
     tracking_data.last_fingerprint_id = String::new();
     tracking_data.processed_rows = 0;
     tracking_data.current_target < tracking_data.target_profile_ids.len()
@@ -469,7 +471,7 @@ impl ProcessTrackerWorkflow<SessionState> for BlocklistProfileCloneWorkflow {
 
 #[cfg(test)]
 mod tests {
-    use common_enums::TransactionType;
+    use common_enums::BlocklistTransactionType;
     use serde_json::json;
 
     use super::{move_to_next_target, storage};
@@ -493,21 +495,34 @@ mod tests {
     #[test]
     fn legacy_clone_resume_preserves_its_payment_cursor() {
         let tracking = legacy_tracking();
-        assert_eq!(tracking.transaction_type, TransactionType::Payment);
+        assert_eq!(tracking.transaction_type, BlocklistTransactionType::Payment);
         assert!(tracking.draining_legacy_rows);
         assert_eq!(tracking.last_fingerprint_id, "424242");
         assert_eq!(tracking.processed_rows, 7);
     }
 
-    #[cfg(feature = "payouts")]
+    #[test]
+    fn payout_clone_tracking_round_trips_without_resetting_its_cursor() {
+        let mut tracking = legacy_tracking();
+        tracking.transaction_type = BlocklistTransactionType::Payout;
+        let serialized = serde_json::to_value(&tracking).unwrap();
+        assert_eq!(serialized["transaction_type"], "payout");
+        let resumed: storage::BlocklistProfileCloneTrackingData =
+            serde_json::from_value(serialized).unwrap();
+        assert_eq!(resumed.transaction_type, BlocklistTransactionType::Payout);
+        assert!(resumed.draining_legacy_rows);
+        assert_eq!(resumed.last_fingerprint_id, "424242");
+        assert_eq!(resumed.processed_rows, 7);
+    }
+
     #[test]
     fn next_target_restarts_at_payment_instead_of_skipping_payment_rows() {
         let mut tracking = legacy_tracking();
-        tracking.transaction_type = TransactionType::Payout;
+        tracking.transaction_type = BlocklistTransactionType::Payout;
 
         assert!(move_to_next_target(&mut tracking));
         assert_eq!(tracking.current_target, 1);
-        assert_eq!(tracking.transaction_type, TransactionType::Payment);
+        assert_eq!(tracking.transaction_type, BlocklistTransactionType::Payment);
         assert!(!tracking.draining_legacy_rows);
         assert_eq!(tracking.last_fingerprint_id, "");
         assert_eq!(tracking.processed_rows, 0);

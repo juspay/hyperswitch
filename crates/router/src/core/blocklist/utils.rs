@@ -27,7 +27,7 @@ pub async fn delete_entry_from_blocklist(
     state: &SessionState,
     processor: &domain::Processor,
     profile_id: Option<common_utils::id_type::ProfileId>,
-    transaction_type: common_enums::TransactionType,
+    transaction_type: common_enums::BlocklistTransactionType,
     request: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResult<api_blocklist::DeleteFromBlocklistResponse> {
     let processor_merchant_id = processor.get_account().get_id();
@@ -317,7 +317,7 @@ pub async fn insert_entry_into_blocklist(
     state: &SessionState,
     platform: &domain::Platform,
     profile_id: Option<common_utils::id_type::ProfileId>,
-    transaction_type: common_enums::TransactionType,
+    transaction_type: common_enums::BlocklistTransactionType,
     to_block: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResult<api_blocklist::AddToBlocklistResponse> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
@@ -479,7 +479,7 @@ async fn duplicate_check_insert_bin(
     platform: &domain::Platform,
     profile_id: &common_utils::id_type::ProfileId,
     data_kind: common_enums::BlocklistDataKind,
-    transaction_type: common_enums::TransactionType,
+    transaction_type: common_enums::BlocklistTransactionType,
 ) -> RouterResult<storage::Blocklist> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
 
@@ -535,7 +535,7 @@ async fn delete_card_bin_blocklist_entry(
     state: &SessionState,
     bin: &str,
     processor_merchant_id: &common_utils::id_type::MerchantId,
-    transaction_type: common_enums::TransactionType,
+    transaction_type: common_enums::BlocklistTransactionType,
     profile_id: &common_utils::id_type::ProfileId,
 ) -> RouterResult<storage::Blocklist> {
     state
@@ -555,7 +555,7 @@ async fn delete_card_bin_blocklist_entry(
 pub async fn check_blocklist(
     state: &SessionState,
     processor: &domain::Processor,
-    transaction_type: common_enums::TransactionType,
+    transaction_type: common_enums::BlocklistTransactionType,
     payment_method_data: &Option<domain::EligibilityPaymentMethodData>,
     business_profile: &domain::Profile,
 ) -> CustomResult<Option<BlockReason>, errors::ApiErrorResponse> {
@@ -653,7 +653,7 @@ pub async fn check_blocklist(
 pub async fn get_blocked_bins(
     state: &SessionState,
     processor: &domain::Processor,
-    transaction_type: common_enums::TransactionType,
+    transaction_type: common_enums::BlocklistTransactionType,
     profile_id: &common_utils::id_type::ProfileId,
     bins: HashSet<String>,
 ) -> HashSet<String> {
@@ -693,7 +693,7 @@ where
     let block_reason = check_blocklist(
         state,
         processor,
-        common_enums::TransactionType::Payment,
+        common_enums::BlocklistTransactionType::Payment,
         &payment_data
             .payment_method_data
             .clone()

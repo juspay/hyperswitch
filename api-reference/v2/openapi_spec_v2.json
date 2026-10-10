@@ -10651,7 +10651,7 @@
             "$ref": "#/components/schemas/BlocklistDataKind"
           },
           "transaction_type": {
-            "$ref": "#/components/schemas/TransactionType"
+            "$ref": "#/components/schemas/BlocklistTransactionType"
           },
           "created_at": {
             "type": "string",
@@ -10663,6 +10663,14 @@
             "nullable": true
           }
         }
+      },
+      "BlocklistTransactionType": {
+        "type": "string",
+        "description": "The transaction namespace of a blocklist entry, stored as text.",
+        "enum": [
+          "payment",
+          "payout"
+        ]
       },
       "BoletoAdditionalDetails": {
         "type": "object",
@@ -18420,7 +18428,7 @@
             "$ref": "#/components/schemas/BlocklistDataKind"
           },
           "transaction_type": {
-            "$ref": "#/components/schemas/TransactionType"
+            "$ref": "#/components/schemas/BlocklistTransactionType"
           },
           "limit": {
             "type": "integer",

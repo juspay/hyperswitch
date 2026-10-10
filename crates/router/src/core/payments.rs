@@ -14494,7 +14494,7 @@ impl EligibilityCheck for BlockListCheck {
         let block_reason = blocklist_utils::check_blocklist(
             state,
             platform.get_processor(),
-            common_enums::TransactionType::Payment,
+            common_enums::BlocklistTransactionType::Payment,
             &payment_method_data,
             business_profile,
         )

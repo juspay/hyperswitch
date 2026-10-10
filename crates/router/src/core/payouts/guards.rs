@@ -74,7 +74,7 @@ impl PayoutGuard for BlocklistGuard {
                 blocklist_utils::check_blocklist(
                     state,
                     platform.get_processor(),
-                    common_enums::TransactionType::Payout,
+                    common_enums::BlocklistTransactionType::Payout,
                     &Some(payment_method_data),
                     &payout_data.business_profile,
                 )

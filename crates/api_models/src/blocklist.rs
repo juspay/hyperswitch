@@ -35,26 +35,9 @@ pub type DeleteFromBlocklistRequest = BlocklistRequest;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BlocklistTransactionQuery {
     /// Only `payment` and `payout` are supported. Defaults to `payment`.
-    #[serde(default, deserialize_with = "deserialize_blocklist_transaction_type")]
-    #[schema(value_type = TransactionType)]
-    pub transaction_type: common_enums::TransactionType,
-}
-
-fn deserialize_blocklist_transaction_type<'de, D>(
-    deserializer: D,
-) -> Result<common_enums::TransactionType, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let transaction_type =
-        <common_enums::TransactionType as serde::Deserialize>::deserialize(deserializer)?;
-    if transaction_type.is_three_ds_authentication() {
-        Err(serde::de::Error::custom(
-            "transaction_type must be payment or payout",
-        ))
-    } else {
-        Ok(transaction_type)
-    }
+    #[serde(default)]
+    #[schema(value_type = BlocklistTransactionType)]
+    pub transaction_type: common_enums::BlocklistTransactionType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -62,8 +45,8 @@ pub struct BlocklistResponse {
     pub fingerprint_id: String,
     #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
-    #[schema(value_type = TransactionType)]
-    pub transaction_type: common_enums::TransactionType,
+    #[schema(value_type = BlocklistTransactionType)]
+    pub transaction_type: common_enums::BlocklistTransactionType,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
     #[schema(value_type = Option<String>, example = "pro_abcdefghijklmnop")]
@@ -98,9 +81,9 @@ pub struct ListBlocklistQuery {
     #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
     /// Only `payment` and `payout` are supported. Defaults to `payment`.
-    #[serde(default, deserialize_with = "deserialize_blocklist_transaction_type")]
-    #[schema(value_type = TransactionType)]
-    pub transaction_type: common_enums::TransactionType,
+    #[serde(default)]
+    #[schema(value_type = BlocklistTransactionType)]
+    pub transaction_type: common_enums::BlocklistTransactionType,
     #[serde(default = "default_list_limit")]
     pub limit: u16,
     #[serde(default)]
@@ -123,9 +106,9 @@ pub struct BlocklistCountQuery {
     #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
     /// Only `payment` and `payout` are supported. Defaults to `payment`.
-    #[serde(default, deserialize_with = "deserialize_blocklist_transaction_type")]
-    #[schema(value_type = TransactionType)]
-    pub transaction_type: common_enums::TransactionType,
+    #[serde(default)]
+    #[schema(value_type = BlocklistTransactionType)]
+    pub transaction_type: common_enums::BlocklistTransactionType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -149,9 +132,9 @@ pub struct BlocklistLookupQuery {
     #[schema(value_type = String, max_length = 20)]
     pub data: common_utils::types::BlocklistLookupData,
     /// Only `payment` and `payout` are supported. Defaults to `payment`.
-    #[serde(default, deserialize_with = "deserialize_blocklist_transaction_type")]
-    #[schema(value_type = TransactionType)]
-    pub transaction_type: common_enums::TransactionType,
+    #[serde(default)]
+    #[schema(value_type = BlocklistTransactionType)]
+    pub transaction_type: common_enums::BlocklistTransactionType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -339,7 +322,7 @@ impl ApiEventMetric for CloneBlocklistEntriesResponse {}
 
 #[cfg(test)]
 mod tests {
-    use common_enums::TransactionType;
+    use common_enums::BlocklistTransactionType;
     use serde_json::json;
 
     use super::{
@@ -356,13 +339,12 @@ mod tests {
         let lookup: BlocklistLookupQuery =
             serde_json::from_value(json!({"data": "424242"})).unwrap();
 
-        assert_eq!(single.transaction_type, TransactionType::Payment);
-        assert_eq!(list.transaction_type, TransactionType::Payment);
-        assert_eq!(count.transaction_type, TransactionType::Payment);
-        assert_eq!(lookup.transaction_type, TransactionType::Payment);
+        assert_eq!(single.transaction_type, BlocklistTransactionType::Payment);
+        assert_eq!(list.transaction_type, BlocklistTransactionType::Payment);
+        assert_eq!(count.transaction_type, BlocklistTransactionType::Payment);
+        assert_eq!(lookup.transaction_type, BlocklistTransactionType::Payment);
     }
 
-    #[cfg(feature = "payouts")]
     #[test]
     fn payout_selection_is_retained_by_management_queries() {
         let single: BlocklistTransactionQuery =
@@ -379,10 +361,10 @@ mod tests {
             serde_json::from_value(json!({"data": "424242", "transaction_type": "payout"}))
                 .unwrap();
 
-        assert_eq!(single.transaction_type, TransactionType::Payout);
-        assert_eq!(list.transaction_type, TransactionType::Payout);
-        assert_eq!(count.transaction_type, TransactionType::Payout);
-        assert_eq!(lookup.transaction_type, TransactionType::Payout);
+        assert_eq!(single.transaction_type, BlocklistTransactionType::Payout);
+        assert_eq!(list.transaction_type, BlocklistTransactionType::Payout);
+        assert_eq!(count.transaction_type, BlocklistTransactionType::Payout);
+        assert_eq!(lookup.transaction_type, BlocklistTransactionType::Payout);
     }
 
     #[test]
