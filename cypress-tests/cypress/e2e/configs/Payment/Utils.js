@@ -614,6 +614,7 @@ export const CONNECTOR_LISTS = {
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
     UCS_CONNECTORS: [
+      "airwallex",
       "authorizedotnet",
       "fiservcommercehub",
       "givepayments",

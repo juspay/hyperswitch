@@ -1870,6 +1870,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
         recipient_details,
         business_country: None,
+        order_id: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -7374,6 +7375,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .is_account_funded_transaction,
             recipient_details,
             business_country: payment_data.payment_intent.business_country,
+            order_id: None,
         })
     }
 }

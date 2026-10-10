@@ -1253,7 +1253,15 @@ impl
             phone_number: router_data.request.phone.clone(),
             address: Some(address),
             metadata: None,
-            connector_feature_data: None,
+            // CustomerServiceCreateRequest has no `state`; UCS connectors that need a bearer
+            // token for customer creation (Airwallex) read it from connector_feature_data.
+            connector_feature_data: router_data
+                .access_token
+                .as_ref()
+                .map(|token| {
+                    serde_json::json!({ "access_token": token.token.clone().expose() }).to_string()
+                })
+                .map(Secret::new),
             test_mode: router_data.test_mode,
         })
     }
@@ -3001,7 +3009,7 @@ impl
             browser_info,
             payment_experience: None,
             state,
-            order_id: None,
+            order_id: router_data.request.order_id.clone(),
             connector_feature_data: None,
             enable_partial_authorization: router_data
                 .request
@@ -3510,7 +3518,14 @@ impl
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
             authentication_data,
-            connector_feature_data: None,
+            // No connector_order_id field on this request; order-first connectors
+            // (Airwallex) read it from connector_feature_data.
+            connector_feature_data: router_data
+                .request
+                .order_id
+                .as_ref()
+                .map(|id| serde_json::json!({ "connector_order_id": id }).to_string())
+                .map(Secret::new),
             locale: router_data.request.locale.clone(),
             connector_testing_data: router_data
                 .request
