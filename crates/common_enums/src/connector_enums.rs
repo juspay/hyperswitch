@@ -446,7 +446,6 @@ impl Connector {
             | Self::Placetopay
             | Self::Powertranz
             | Self::Prophetpay
-            | Self::Rapyd
             | Self::Recurly
             | Self::Redsys
             | Self::Revolv3
@@ -512,7 +511,10 @@ impl Connector {
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen | Self::Fiservcommercehub | Self::Worldpayxml
             // Portico cannot authenticate: its Secure3D block only carries results computed
             // by a separate authentication connector, so external 3DS is its only 3DS mode.
-            | Self::GlobalpaymentsHeartland => true,
+            | Self::GlobalpaymentsHeartland
+            // Rapyd accepts externally obtained 3DS results (3d_version, cavv, eci,
+            // ds_trans_id, xid) on the payment request, forwarded through UCS.
+            | Self::Rapyd => true,
         }
     }
 
