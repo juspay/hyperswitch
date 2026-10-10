@@ -7552,6 +7552,20 @@
         "operationId": "Unblock a Fingerprint",
         "parameters": [
           {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Blocklist flow: payment (default) or payout. three_ds_authentication is not supported.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/TransactionType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "The business profile to unblock this entry from. Only entries belonging to that profile, or entries with no profile, are removed - an entry blocked under a different profile is not affected and the request returns 404. Resolution follows the same rules as blocking.",
@@ -7626,6 +7640,20 @@
             }
           },
           {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Blocklist flow: payment (default) or payout. three_ds_authentication is not supported.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/TransactionType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "Restricts the listing to entries belonging to this business profile, plus entries with no profile. When no profile can be resolved - as with publishable-key authentication - all of the merchant's entries are returned, as before.",
@@ -7680,6 +7708,20 @@
         ],
         "operationId": "Block a Fingerprint",
         "parameters": [
+          {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Blocklist flow: payment (default) or payout. three_ds_authentication is not supported.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/TransactionType"
+                }
+              ],
+              "nullable": true
+            }
+          },
           {
             "name": "X-Profile-Id",
             "in": "header",
@@ -7807,6 +7849,20 @@
             }
           },
           {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Blocklist flow: payment (default) or payout. three_ds_authentication is not supported.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/TransactionType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "Restricts the count to entries belonging to this business profile, plus entries with no profile. If omitted, the merchant's default profile is used; merchants with more than one profile have no default and will receive an error asking for this header.",
@@ -7867,6 +7923,20 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Blocklist flow: payment (default) or payout. three_ds_authentication is not supported.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/TransactionType"
+                }
+              ],
+              "nullable": true
             }
           },
           {
@@ -17081,6 +17151,9 @@
         "properties": {
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/TransactionType"
           }
         }
       },
@@ -17152,6 +17225,9 @@
             "type": "string",
             "description": "The raw value to check against the blocklist, e.g. a card BIN. Limited to 20 characters,\nthe longest value a `fingerprint_id` can hold.",
             "maxLength": 20
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/TransactionType"
           }
         }
       },
@@ -17260,6 +17336,7 @@
         "required": [
           "fingerprint_id",
           "data_kind",
+          "transaction_type",
           "created_at"
         ],
         "properties": {
@@ -17268,6 +17345,9 @@
           },
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/TransactionType"
           },
           "created_at": {
             "type": "string",
@@ -27452,6 +27532,9 @@
         "properties": {
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/TransactionType"
           },
           "limit": {
             "type": "integer",

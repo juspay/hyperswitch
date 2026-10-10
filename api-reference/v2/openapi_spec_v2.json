@@ -10640,6 +10640,7 @@
         "required": [
           "fingerprint_id",
           "data_kind",
+          "transaction_type",
           "created_at"
         ],
         "properties": {
@@ -10648,6 +10649,9 @@
           },
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/TransactionType"
           },
           "created_at": {
             "type": "string",
@@ -18414,6 +18418,9 @@
         "properties": {
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/TransactionType"
           },
           "limit": {
             "type": "integer",
