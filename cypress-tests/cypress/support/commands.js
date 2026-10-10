@@ -57,6 +57,35 @@ import {
   MICRODEPOSIT_CONFIG,
 } from "./redirectionHandler";
 
+/**
+ * Resolves custom headers from globalState or Cypress.env.
+ * @param {Object} [globalState] - State instance (optional)
+ * @returns {Object} Custom header key-value pairs
+ */
+export function getCustomHeaders(globalState) {
+  if (globalState && typeof globalState.get === "function") {
+    const stateHeaders = globalState.get("customHeaders");
+    if (stateHeaders && typeof stateHeaders === "object") {
+      return stateHeaders;
+    }
+  }
+  const envHeaders = Cypress.env("CUSTOM_HEADERS");
+  if (!envHeaders) {
+    return {};
+  }
+  if (typeof envHeaders === "object") {
+    return envHeaders;
+  }
+  if (typeof envHeaders === "string") {
+    try {
+      return JSON.parse(envHeaders);
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
 // Returns true (after logging a consistent skip line) when a redirection
 // command should bail out early because we're in replay mode.
 function skipRedirectionInMockServer(commandName) {
