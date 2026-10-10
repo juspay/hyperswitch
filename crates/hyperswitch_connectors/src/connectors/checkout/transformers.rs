@@ -47,6 +47,26 @@ use crate::{
     },
 };
 
+#[derive(Debug, Default, Deserialize)]
+pub struct CheckoutConnectorMetadataObject {
+    pub endpoint_prefix: Option<String>,
+}
+
+impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for CheckoutConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> Result<Self, Self::Error> {
+        match meta_data {
+            Some(metadata) => utils::to_connector_meta_from_secret::<Self>(Some(metadata.clone()))
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                }),
+            None => Ok(Self::default()),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct CheckoutRouterData<T> {
     pub amount: MinorUnit,

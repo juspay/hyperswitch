@@ -2036,6 +2036,12 @@ label="Acquirer Country Code"
 placeholder="Enter Acquirer Country Code"
 required=false
 type="Text"
+[checkout.metadata.endpoint_prefix]
+name="endpoint_prefix"
+label="Merchant-specific subdomain prefix"
+placeholder="Enter the prefix of your Checkout.com API base URL"
+required=false
+type="Text"
 
 [coinbase]
 [[coinbase.crypto]]

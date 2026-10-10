@@ -64,6 +64,11 @@ pub struct AdyenMetadata {
 }
 
 #[derive(Debug, serde::Deserialize)]
+pub struct CheckoutMetadata {
+    endpoint_prefix: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
 pub struct JpmorganMetadata {
     company_name: Secret<String>,
     product_name: Secret<String>,
@@ -344,6 +349,7 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         api_secret: Secret<String>,
         processing_channel_id: Secret<String>,
+        endpoint_prefix: Option<Secret<String>>,
     },
     /// Authorize.net connector configuration
     Authorizedotnet {
@@ -1422,11 +1428,19 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key,
                     key1,
                     api_secret,
-                } => Ok(Self::Checkout {
-                    api_key: api_key.clone(),
-                    api_secret: api_secret.clone(),
-                    processing_channel_id: key1.clone(),
-                }),
+                } => {
+                    // Metadata that doesn't parse keeps the configured base URL instead of failing.
+                    let endpoint_prefix = metadata
+                        .and_then(|m| serde_json::from_value::<CheckoutMetadata>(m.clone()).ok())
+                        .and_then(|m| m.endpoint_prefix);
+
+                    Ok(Self::Checkout {
+                        api_key: api_key.clone(),
+                        api_secret: api_secret.clone(),
+                        processing_channel_id: key1.clone(),
+                        endpoint_prefix,
+                    })
+                }
                 _ => Err(err("Checkout requires SignatureKey auth type")),
             },
             Connector::Dlocal => match auth {
