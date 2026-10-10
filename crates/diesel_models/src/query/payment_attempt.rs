@@ -50,20 +50,44 @@ impl PaymentAttempt {
         conn: &DatabaseConnectionWithContext<'_>,
         payment_attempt: PaymentAttemptUpdate,
     ) -> StorageResult<Self> {
-        match Box::pin(generics::generic_update_with_unique_predicate_get_result::<
-            <Self as HasTable>::Table,
-            _,
-            _,
-            _,
-        >(
-            conn,
-            dsl::attempt_id
-                .eq(self.attempt_id.to_owned())
-                .and(dsl::processor_merchant_id.eq(self.processor_merchant_id.to_owned())),
-            PaymentAttemptUpdateInternal::from(payment_attempt).populate_derived_fields(&self),
-        ))
-        .await
-        {
+        let payment_method_id_must_be_null = matches!(
+            &payment_attempt,
+            PaymentAttemptUpdate::PaymentMethodDetailsUpdate { .. }
+        );
+        let update =
+            PaymentAttemptUpdateInternal::from(payment_attempt).populate_derived_fields(&self);
+        let result = if payment_method_id_must_be_null {
+            Box::pin(generics::generic_update_with_unique_predicate_get_result::<
+                <Self as HasTable>::Table,
+                _,
+                _,
+                _,
+            >(
+                conn,
+                dsl::attempt_id
+                    .eq(self.attempt_id.to_owned())
+                    .and(dsl::processor_merchant_id.eq(self.processor_merchant_id.to_owned()))
+                    .and(dsl::payment_method_id.is_null()),
+                update,
+            ))
+            .await
+        } else {
+            Box::pin(generics::generic_update_with_unique_predicate_get_result::<
+                <Self as HasTable>::Table,
+                _,
+                _,
+                _,
+            >(
+                conn,
+                dsl::attempt_id
+                    .eq(self.attempt_id.to_owned())
+                    .and(dsl::processor_merchant_id.eq(self.processor_merchant_id.to_owned())),
+                update,
+            ))
+            .await
+        };
+
+        match result {
             Err(error) => match error.current_context() {
                 DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
@@ -565,18 +589,36 @@ impl PaymentAttemptUpdate {
         conn: &mut DatabaseConnectionWithContext<'_>,
         source_payment_attempt: &PaymentAttempt,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_update_query_with_predicate::<<PaymentAttempt as HasTable>::Table, _, _>(
-            conn,
-            dsl::attempt_id
-                .eq(source_payment_attempt.attempt_id.clone())
-                .and(
-                    dsl::processor_merchant_id
-                        .eq(source_payment_attempt.processor_merchant_id.clone()),
-                ),
-            PaymentAttemptUpdateInternal::from(self)
-                .populate_derived_fields(source_payment_attempt),
-        )
-        .await
+        let payment_method_id_must_be_null =
+            matches!(&self, Self::PaymentMethodDetailsUpdate { .. });
+        let update = PaymentAttemptUpdateInternal::from(self)
+            .populate_derived_fields(source_payment_attempt);
+        if payment_method_id_must_be_null {
+            kv::generate_update_query_with_predicate::<<PaymentAttempt as HasTable>::Table, _, _>(
+                conn,
+                dsl::attempt_id
+                    .eq(source_payment_attempt.attempt_id.clone())
+                    .and(
+                        dsl::processor_merchant_id
+                            .eq(source_payment_attempt.processor_merchant_id.clone()),
+                    )
+                    .and(dsl::payment_method_id.is_null()),
+                update,
+            )
+            .await
+        } else {
+            kv::generate_update_query_with_predicate::<<PaymentAttempt as HasTable>::Table, _, _>(
+                conn,
+                dsl::attempt_id
+                    .eq(source_payment_attempt.attempt_id.clone())
+                    .and(
+                        dsl::processor_merchant_id
+                            .eq(source_payment_attempt.processor_merchant_id.clone()),
+                    ),
+                update,
+            )
+            .await
+        }
         .attach_printable("Failed to generate update query for payment attempt")
     }
 }
