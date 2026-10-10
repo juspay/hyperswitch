@@ -12,9 +12,6 @@ CREATE UNIQUE INDEX blocklist_pm_fingerprint_null_profile_transaction_type_index
     WHERE profile_id IS NULL;
 CREATE UNIQUE INDEX blocklist_merchant_fingerprint_profile_transaction_type_index
     ON blocklist (merchant_id, fingerprint_id, profile_id, transaction_type);
-CREATE UNIQUE INDEX blocklist_legacy_null_profile_transaction_type_index
-    ON blocklist (merchant_id, fingerprint_id, transaction_type)
-    WHERE processor_merchant_id IS NULL AND profile_id IS NULL;
 
 DROP INDEX IF EXISTS blocklist_processor_merchant_id_fingerprint_id_profile_id_index;
 DROP INDEX IF EXISTS blocklist_pm_fingerprint_null_profile_index;

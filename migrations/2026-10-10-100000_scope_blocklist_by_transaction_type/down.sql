@@ -29,7 +29,6 @@ CREATE UNIQUE INDEX blocklist_merchant_id_fingerprint_id_profile_id_index
 DROP INDEX blocklist_pm_fingerprint_profile_transaction_type_index;
 DROP INDEX blocklist_pm_fingerprint_null_profile_transaction_type_index;
 DROP INDEX blocklist_merchant_fingerprint_profile_transaction_type_index;
-DROP INDEX blocklist_legacy_null_profile_transaction_type_index;
 ALTER TABLE blocklist
     DROP CONSTRAINT blocklist_transaction_type_check,
     DROP COLUMN transaction_type;

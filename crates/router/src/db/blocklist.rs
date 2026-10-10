@@ -777,10 +777,7 @@ impl BlocklistInterface for MockDb {
         let mut inserted = 0usize;
         for entry in entries {
             let already_exists = blocklists.iter().any(|b| {
-                ((b.merchant_id == entry.merchant_id
-                    && (entry.profile_id.is_some()
-                        || (entry.processor_merchant_id.is_none()
-                            && b.processor_merchant_id.is_none())))
+                ((b.merchant_id == entry.merchant_id && entry.profile_id.is_some())
                     || (entry.processor_merchant_id.is_some()
                         && b.processor_merchant_id == entry.processor_merchant_id))
                     && b.profile_id == entry.profile_id
