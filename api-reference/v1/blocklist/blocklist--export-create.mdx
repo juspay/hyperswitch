@@ -1,3 +1,9 @@
 ---
 openapi: post /blocklist/export
 ---
+
+Set the `transaction_type` query parameter to `payment` or `payout`; omission
+exports the payment blocklist. The selected flow is retained if the job retries.
+
+The downloaded CSV includes `transaction_type` on every row. Uploading that
+file through `/blocklist/batch` restores entries into the original blocklist.
