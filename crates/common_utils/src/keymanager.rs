@@ -183,6 +183,8 @@ where
 // Deja: the one seam every keymanager operation crosses. Substituted on replay
 // so recorded ciphertext comes back verbatim and replay does not depend on a
 // live keymanager.
+// A miss answers with a transport failure: no response body can be synthesized
+// honestly, and callers already handle the error.
 #[cfg_attr(
     feature = "deja",
     deja::boundary(
@@ -200,6 +202,11 @@ where
             "endpoint": endpoint,
             "request": request_body.wire_image(),
         }),
+        on_miss = Err(errors::KeyManagerClientError::RequestNotSent(format!(
+            "deja: no recorded key manager response for {endpoint} (occurrence {})",
+            __deja_miss.occurrence,
+        ))
+        .into()),
     )
 )]
 pub async fn call_encryption_service<T, R>(

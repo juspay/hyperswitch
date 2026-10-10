@@ -1091,7 +1091,9 @@ impl<F, T>
         let response = match item.response {
             UnifiedAuthenticationServiceAuthenticateResponse::Success(auth_response) => {
                 let authn_flow_type = match auth_response.three_ds_auth_response.trans_status {
-                    common_enums::TransactionStatus::ChallengeRequired => {
+                    // SPC is not supported, so `S` falls back to the regular ACS challenge
+                    common_enums::TransactionStatus::ChallengeRequired
+                    | common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
                         AuthNFlowType::Challenge(Box::new(ChallengeParams {
                             acs_url: auth_response.three_ds_auth_response.acs_url.clone(),
                             challenge_request: auth_response
