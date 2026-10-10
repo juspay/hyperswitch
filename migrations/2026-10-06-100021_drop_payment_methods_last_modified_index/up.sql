@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS payment_methods_last_modified_index;
