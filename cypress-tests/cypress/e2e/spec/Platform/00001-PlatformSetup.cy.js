@@ -14,27 +14,36 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Create Platform Merchant", () => {
-    it("create-platform-merchant", () => {
-      const merchantCreateBody = {
-        ...fixtures.merchantCreateBody,
-        merchant_account_type: "platform",
-      };
+  context("Create Platform Organization And Merchant", () => {
+    it("signup-platform-user", () => {
+      cy.signupUserWithMerchant("QAPlatformOrg", globalState, "platform");
+    });
 
-      cy.merchantCreateCallTest(merchantCreateBody, globalState, {
-        expectedMerchantAccountType: "platform",
-      });
+    it("platform-user-signin", () => {
+      cy.userLogin(globalState);
+    });
+
+    it("platform-user-terminate-2fa", () => {
+      cy.terminate2Fa(globalState);
+    });
+
+    it("platform-user-info", () => {
+      cy.userInfo(globalState);
+
       cy.then(() => {
         globalState.set("platformMerchantId", globalState.get("merchantId"));
-        globalState.set(
-          "platformPublishableKey",
-          globalState.get("publishableKey")
-        );
       });
     });
 
     it("retrieve-platform-merchant", () => {
       cy.merchantRetrieveCall(globalState);
+
+      cy.then(() => {
+        globalState.set(
+          "platformPublishableKey",
+          globalState.get("publishableKey")
+        );
+      });
     });
 
     it("create-api-key-for-platform-merchant", () => {
