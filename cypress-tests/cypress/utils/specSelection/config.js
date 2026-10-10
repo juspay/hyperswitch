@@ -50,6 +50,7 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   givepayments: ["card"],
   globepay: ["wallet"],
   iatapay: ["bank_redirect", "real_time_payment", "upi"],
+  ilixium: ["card"],
   inespay: ["bank_debit"],
   itaubank: ["bank_transfer"],
   klarna: ["pay_later"],
@@ -176,6 +177,7 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "54-RefundType.cy.js": ["card"],
   "55-DynamicFields.cy.js": ["card"],
   "56-VaultTokenizationDisable.cy.js": ["card"],
+  "54-OfferEngine.cy.js": ["card"],
   "54-ConnectorAgnosticMandates.cy.js": ["card"],
 });
 

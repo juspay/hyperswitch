@@ -46,7 +46,7 @@ use crate::config_metrics;
 // the tape on replay — no live Superposition service is consulted in replay. The
 // WHOLE `CustomResult<T, SuperpositionError>` round-trips ("recording threw ⇒
 // replay throws"). Identity is rank-2 span-path (no call-site id). A genuine tape
-// MISS returns `Err(SuperpositionError)` (via `dispatch_async_or_miss`) so the
+// MISS returns `Err(SuperpositionError)` (the `Miss` arm of `reconstruct`) so the
 // caller's `fetch_db_config` ladder degrades to DB/default and replay progresses,
 // instead of the egress fail-stop. Reads are deja's per-request business config;
 // writes are deliberately NOT wrapped (they are leaving the OLTP path).
@@ -87,9 +87,23 @@ mod deja_boundary {
     /// Rebuild the typed `CustomResult` from a recorded tape value. A recorded
     /// `Err` replays as `Err(report!(E))` carrying the SAME typed context.
     pub(super) fn reconstruct<T: serde::de::DeserializeOwned>(
-        recorded: serde_json::Value,
+        input: deja::__private::ReconstructInput<'_>,
     ) -> deja::__private::Reconstructed<CustomResult<T, SuperpositionError>> {
-        use deja::__private::Reconstructed;
+        use deja::__private::{ReconstructInput, Reconstructed};
+        // A miss returns an error the caller survives via its DB/default fallback.
+        // `Synthesized` keeps the miss scored; the message depends only on the miss.
+        let recorded = match input {
+            ReconstructInput::Hit(recorded) => recorded,
+            ReconstructInput::Miss(miss) => {
+                return Reconstructed::Synthesized(Err(report!(SuperpositionError::NotFound(
+                    format!(
+                        "deja replay: no recorded Superposition value for `{}` (novel config \
+                         read); caller falls back to DB/default",
+                        miss.method
+                    )
+                ))));
+            }
+        };
         let Some(object) = recorded.as_object() else {
             return Reconstructed::Failed(format!(
                 "superposition envelope is not an object: {recorded}"
@@ -186,6 +200,7 @@ mod deja_boundary {
             lexical_path: Some(scope.clone()),
             syntax_hash: Some(deja::__private::stable_callsite_hash(&scope)),
             span_path: deja::__private::current_span_path(),
+            span_instance: deja::__private::current_span_instance(),
         };
 
         let semantics = deja::__private::BoundarySemantics {
@@ -205,22 +220,13 @@ mod deja_boundary {
             correlation,
         );
 
-        deja::__private::dispatch_async_or_miss(
+        deja::__private::dispatch_async(
             observation,
             move || args,
             run,
             reconstruct::<T>,
             capture::<T>,
-            // `Absorb`: the thunk hands back an error the caller survives —
-            // the DB->default fallback runs and the correlation continues. The
-            // miss is still scored, only named as survivable.
-            deja::MissPolicy::Absorb,
-            move || {
-                Err(report!(SuperpositionError::NotFound(format!(
-                    "deja replay: no recorded Superposition value for `{operation}` (novel \
-                     config read); caller falls back to DB/default"
-                ))))
-            },
+            deja::__private::round_trip!(CustomResult<T, SuperpositionError>),
         )
         .await
     }

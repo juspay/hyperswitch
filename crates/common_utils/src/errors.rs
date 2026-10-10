@@ -93,7 +93,8 @@ pub struct IntegrityCheckError {
 }
 
 /// Cryptographic algorithm errors
-#[derive(Debug, thiserror::Error)]
+// Serializable so a `ResultCodec` can replay a recorded crypto failure.
+#[derive(Debug, thiserror::Error, serde::Serialize, serde::Deserialize)]
 pub enum CryptoError {
     /// The cryptographic algorithm was unable to encode the message
     #[error("Failed to encode given message")]

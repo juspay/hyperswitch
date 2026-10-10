@@ -59,6 +59,7 @@ frm = [
 ]
 stripe = []
 gcp_kms = ["external_services/gcp_kms"]
+oci_kms = ["external_services/oci_kms"]
 release = [
     "stripe",
     "email",
@@ -67,6 +68,7 @@ release = [
     "vergen",
     "external_services/aws_kms",
     "gcp_kms",
+    "oci_kms",
     "external_services/aws_s3",
     "keymanager_mtls",
     "keymanager_create",
@@ -163,6 +165,10 @@ deja = [
     "redis_interface/deja",
     "hyperswitch_domain_models/deja",
     "storage_impl/deja",
+    # analytics is an optional dependency, but `release` and `v1` each enable it
+    # through several of their features, so this seam is present in every
+    # shipped build. The `?` matters only for a build that enables none of them.
+    "analytics?/deja",
 ]
 # Partial Auth
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
@@ -244,8 +250,8 @@ rust_decimal = { version = "1.37.1", features = [
 ] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.09.30.2",package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.09.30.2", package = "ucs_cards" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.10.09.0",package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.10.09.0", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = { version = "0.23", default-features = false, features = [
     "aws-lc-rs",
@@ -301,8 +307,8 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = [
     "keymanager",
 ] }
 common_types = { version = "0.1.0", path = "../common_types" }
-deja = { git = "https://github.com/juspay/deja", rev = "ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "9230641b943a469ef4b506c05e3e9201363f3d10", optional = true, default-features = false, features = ["error-stack"] }
+deja-core = { git = "https://github.com/juspay/deja", rev = "9230641b943a469ef4b506c05e3e9201363f3d10", optional = true }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = [

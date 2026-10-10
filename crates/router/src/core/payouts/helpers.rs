@@ -18,7 +18,7 @@ use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperati
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::logger;
 
-use super::PayoutData;
+use super::{validator::PayoutExecutionKindValidation, PayoutData};
 #[cfg(feature = "payouts")]
 use crate::core::payments::route_connector_v1_for_payouts;
 use crate::{
@@ -60,6 +60,11 @@ pub async fn make_payout_method_data(
     payout_data: Option<&mut PayoutData>,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
+    payout_data
+        .as_ref()
+        .map(|data| data.payout_attempt.execution_kind)
+        .unwrap_or_default()
+        .validate_normal_execution_kind()?;
     let db = &*state.store;
     let hyperswitch_token = if let Some(payout_token) = payout_token {
         if payout_token.starts_with("temporary_token_") {
@@ -141,12 +146,12 @@ pub async fn make_payout_method_data(
                     )?;
                     Ok(pm)
                 } else {
-                    let resp = cards::get_card_from_locker(
+                    let resp = Box::pin(cards::get_card_from_locker(
                         state,
                         customer_id,
                         merchant_id,
                         payout_token.as_ref(),
-                    )
+                    ))
                     .await
                     .attach_printable("Payout method [card] could not be fetched from HS locker")?
                     .get_card();
@@ -326,6 +331,10 @@ pub async fn fetch_payout_method_data(
     connector_data: &api::ConnectorData,
     platform: &domain::Platform,
 ) -> RouterResult<()> {
+    payout_data
+        .payout_attempt
+        .execution_kind
+        .validate_normal_execution_kind()?;
     let connector_transfer_method_id =
         should_create_connector_transfer_method(payout_data, connector_data)?;
 
@@ -343,7 +352,7 @@ pub async fn fetch_payout_method_data(
         let merchant_id = payout_data.payout_attempt.merchant_id.clone();
         let payout_type = payout_data.payouts.payout_type;
 
-        let payout_method_data = make_payout_method_data(
+        let payout_method_data = Box::pin(make_payout_method_data(
             state,
             payout_method_data_clone.as_ref(),
             payout_token.as_deref(),
@@ -353,7 +362,7 @@ pub async fn fetch_payout_method_data(
             platform.get_processor().get_key_store(),
             Some(payout_data),
             platform.get_processor().get_account().storage_scheme,
-        )
+        ))
         .await?
         .get_required_value("payout_method_data")?;
 
@@ -372,6 +381,10 @@ pub async fn save_payout_data_to_locker(
     connector_mandate_details: Option<serde_json::Value>,
     platform: &domain::Platform,
 ) -> RouterResult<()> {
+    payout_data
+        .payout_attempt
+        .execution_kind
+        .validate_normal_execution_kind()?;
     let mut pm_id: Option<String> = None;
     let payouts = &payout_data.payouts;
     let key_manager_state = state.into();
