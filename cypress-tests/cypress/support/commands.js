@@ -1686,7 +1686,8 @@ Cypress.Commands.add(
     connectorName,
     connectorLabel,
     profilePrefix = "profile",
-    mcaPrefix = "merchantConnector"
+    mcaPrefix = "merchantConnector",
+    frmPaymentMethod = "card"
   ) => {
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get(`${profilePrefix}Id`);
@@ -1705,7 +1706,7 @@ Cypress.Commands.add(
           gateway: getOriginalConnectorName(globalState.get("connectorId")),
           payment_methods: [
             {
-              payment_method: "card",
+              payment_method: frmPaymentMethod,
               flow: "pre",
             },
           ],
@@ -2375,6 +2376,35 @@ Cypress.Commands.add("setFrmRoutingAlgorithm", (body, globalState) => {
       "frm_routing_algorithm update should return 200 (success) or 400 (already set)"
     ).to.include(response.status);
   });
+});
+
+// Overwrites the FRM connector's account details with an invalid api_key, to
+// force the FRM connector itself to fail (4xx) - used to test
+// fail_open/fail_closed behavior when pre-FRM is unreachable.
+Cypress.Commands.add("breakFrmConnectorCredentials", (globalState) => {
+  const mcaUrl = `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/connectors/${globalState.get("frmConnectorId")}`;
+
+  return cy
+    .request({
+      method: "POST",
+      url: mcaUrl,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      body: {
+        connector_type: "payment_vas",
+        connector_account_details: {
+          auth_type: "HeaderKey",
+          api_key: "invalid_key_to_force_frm_failure",
+        },
+      },
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.status).to.equal(200);
+      return cy.wrap(response);
+    });
 });
 
 Cypress.Commands.add("deleteFrmConnector", (globalState) => {
@@ -7969,6 +7999,54 @@ Cypress.Commands.add(
     });
   }
 );
+
+// Fetches the current payout and asserts against an `expected` shape:
+// - top-level or one-level-nested (e.g. `frm_message.frm_status`) keys are
+//   compared with `.to.equal`
+// - `expected.greaterThan` / `expected.notEqual` take dotted paths for the
+//   handful of non-deterministic/negative checks (e.g. `frm_message.frm_score`)
+//   that a plain equality can't express.
+// Centralizes the pre-FRM payout assertions used across
+// `Payout/00009-PayoutFrm.cy.js` so scenario-specific expectations live in
+// connector configs (e.g. `GotymeSanlam.js`) instead of the spec file.
+Cypress.Commands.add("verifyPayoutFrmDetails", (globalState, expected = {}) => {
+  const getByPath = (obj, path) =>
+    path.split(".").reduce((value, key) => value?.[key], obj);
+
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    Object.entries(expected).forEach(([key, value]) => {
+      if (key === "greaterThan") {
+        Object.entries(value).forEach(([path, threshold]) => {
+          expect(getByPath(response.body, path)).to.be.greaterThan(threshold);
+        });
+        return;
+      }
+
+      if (key === "notEqual") {
+        Object.entries(value).forEach(([path, notExpected]) => {
+          expect(getByPath(response.body, path)).to.not.equal(notExpected);
+        });
+        return;
+      }
+
+      if (value !== null && typeof value === "object") {
+        Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+          expect(response.body[key]?.[nestedKey]).to.equal(nestedValue);
+        });
+      } else {
+        expect(response.body[key]).to.equal(value);
+      }
+    });
+  });
+});
 
 Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
   const payout_id = globalState.get("payoutID");
