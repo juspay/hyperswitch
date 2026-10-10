@@ -12185,6 +12185,7 @@ where
 
     plan_payment_execution_after_routing(
         &state,
+        processor,
         payment_data,
         routing_data,
         connector_data,
@@ -12200,6 +12201,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn plan_payment_execution_after_routing<F: Clone, D>(
     state: &SessionState,
+    processor: &domain::Processor,
     payment_data: &mut D,
     routing_data: &mut storage::RoutingData,
     connectors: Vec<api::ConnectorRoutingData>,
@@ -12285,6 +12287,35 @@ where
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
                 .attach_printable("no eligible connector found for token-based MIT payment")?;
 
+            // NTI routed MITs have no original authorized amount in memory: the amount is only
+            // ever stored alongside a connector mandate id, and a card routed this way has none
+            // for the connector being charged. Recover it from the attempt that produced the
+            // network transaction id - the same authorization `previousTransactionId` refers to,
+            // so the two fields describe one transaction. Both dispatch paths read the resulting
+            // `RouterData`, so this fixes Direct and UCS together.
+            if let Some(network_transaction_id) = chosen_connector_routing_data
+                .action_type
+                .as_ref()
+                .and_then(|action_type| match action_type {
+                    ActionType::CardWithNetworkTransactionId(data) => {
+                        Some(data.network_transaction_id.as_str())
+                    }
+                    ActionType::NetworkTokenWithNetworkTransactionId(data) => {
+                        Some(data.network_transaction_id.as_str())
+                    }
+                    ActionType::ConnectorMandate(_) => None,
+                })
+            {
+                recover_original_authorized_amount_from_network_transaction_id(
+                    state,
+                    processor,
+                    payment_data,
+                    &payment_method_info,
+                    network_transaction_id,
+                )
+                .await;
+            }
+
             let mandate_reference_id = get_mandate_reference_id(
                 chosen_connector_routing_data.action_type.clone(),
                 chosen_connector_routing_data.clone(),
@@ -12358,6 +12389,62 @@ where
             Ok(ConnectorCallType::Retryable(connectors))
         }
     }
+}
+
+#[cfg(feature = "v1")]
+/// Recovers the original authorized amount for an NTI routed MIT from the attempt that produced
+/// the network transaction id.
+///
+/// A lookup miss is not fatal: the payment then behaves exactly as it does today, which every
+/// connector but Cybersource-on-Discover already tolerates. Failing the payment on a bookkeeping
+/// lookup would be worse than sending no amount.
+async fn recover_original_authorized_amount_from_network_transaction_id<F: Clone, D>(
+    state: &SessionState,
+    processor: &domain::Processor,
+    payment_data: &mut D,
+    payment_method_info: &domain::PaymentMethod,
+    network_transaction_id: &str,
+) where
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let original_payment_attempt = match state
+        .store
+        .find_payment_attempt_by_processor_merchant_id_network_transaction_id(
+            processor.get_account().get_id(),
+            network_transaction_id,
+            processor.get_account().storage_scheme,
+            processor.get_key_store(),
+        )
+        .await
+    {
+        Ok(original_payment_attempt) => original_payment_attempt,
+        Err(error) => {
+            logger::warn!(
+                ?error,
+                "Failed to retrieve the original payment attempt for an NTI based MIT flow"
+            );
+            return;
+        }
+    };
+
+    let Some(original_payment_authorized_currency) = original_payment_attempt.currency else {
+        logger::warn!("original payment attempt has no currency, not setting original amount");
+        return;
+    };
+
+    payment_data.set_recurring_mandate_payment_data(
+        hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
+            payment_method_type: payment_method_info.get_payment_method_subtype(),
+            original_payment_authorized_amount: Some(
+                original_payment_attempt
+                    .net_amount
+                    .get_total_amount()
+                    .get_amount_as_i64(),
+            ),
+            original_payment_authorized_currency: Some(original_payment_authorized_currency),
+            mandate_metadata: None,
+        },
+    );
 }
 
 #[cfg(feature = "v1")]
