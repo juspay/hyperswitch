@@ -50,6 +50,7 @@ async fn drain_scope(
                     .store
                     .list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id(
                         scope.merchant_id,
+                        common_enums::TransactionType::Payment,
                         scope.profile_id,
                         cursor.clone(),
                         scope.snapshot_at,
@@ -61,6 +62,7 @@ async fn drain_scope(
                         .store
                         .list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id(
                             scope.merchant_id,
+                            common_enums::TransactionType::Payment,
                             scope.profile_id,
                             cursor.clone(),
                             scope.snapshot_at,

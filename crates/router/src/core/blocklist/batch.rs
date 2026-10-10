@@ -512,6 +512,7 @@ pub(crate) async fn process_chunk(
             merchant_id: merchant_id.to_owned(),
             fingerprint_id: row.data.clone(),
             data_kind: row.data_kind,
+            transaction_type: common_enums::TransactionType::Payment,
             metadata: row.metadata.clone(),
             created_at: now,
             processor_merchant_id: processor_merchant_id.map(|id| id.to_owned()),

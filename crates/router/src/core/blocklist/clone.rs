@@ -157,6 +157,7 @@ async fn enqueue_clone_job(
         current_target: 0,
         snapshot_at: now,
         draining_legacy_rows: false,
+        transaction_type: common_enums::TransactionType::Payment,
         last_fingerprint_id: String::new(),
         processed_rows: 0,
     };
@@ -232,5 +233,6 @@ pub(crate) fn to_target_entry(
         processor_merchant_id: entry.processor_merchant_id,
         created_by: entry.created_by,
         profile_id: Some(target_profile_id.clone()),
+        transaction_type: entry.transaction_type,
     }
 }

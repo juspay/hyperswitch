@@ -1,3 +1,7 @@
 ---
 openapi: post /blocklist/clone
 ---
+
+Profile cloning copies both payment and payout entries without changing their
+`transaction_type`. An entry already present in the same target blocklist is
+skipped; an identical value in the other blocklist does not prevent cloning.

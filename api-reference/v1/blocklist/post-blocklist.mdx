@@ -1,3 +1,10 @@
 ---
 openapi: post /blocklist
 ---
+
+## Payment and payout blocklists
+
+Set the `transaction_type` query parameter to `payment` or `payout` on add,
+delete, list, count, and lookup requests. Omission selects `payment`.
+The request body remains `type` and `data`. Identical BINs or fingerprints can
+exist in both blocklists; operations affect only the selected blocklist.

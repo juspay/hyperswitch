@@ -610,7 +610,14 @@ async fn filter_customer_pms_by_blocklist(
     let blocked_bins = if bins.is_empty() {
         std::collections::HashSet::new()
     } else {
-        blocklist_utils::get_blocked_bins(state, processor, profile_id, bins).await
+        blocklist_utils::get_blocked_bins(
+            state,
+            processor,
+            common_enums::TransactionType::Payment,
+            profile_id,
+            bins,
+        )
+        .await
     };
 
     if blocked_bins.is_empty() {
