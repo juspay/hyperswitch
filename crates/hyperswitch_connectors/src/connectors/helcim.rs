@@ -864,7 +864,7 @@ static HELCIM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
         enums::PaymentMethod::Card,
         enums::PaymentMethodType::Credit,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::Supported,
+            mandates: enums::FeatureStatus::NotSupported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: Some(
@@ -883,7 +883,7 @@ static HELCIM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
         enums::PaymentMethod::Card,
         enums::PaymentMethodType::Debit,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::Supported,
+            mandates: enums::FeatureStatus::NotSupported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: Some(
@@ -963,5 +963,51 @@ impl ConnectorTransactionId for Helcim {
                 .get_connector_payment_id()
                 .map(ToString::to_string))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common_enums::enums::{FeatureStatus, PaymentMethod, PaymentMethodType};
+    use hyperswitch_interfaces::api::ConnectorSpecifications;
+
+    use super::Helcim;
+
+    fn declared_mandate_support(payment_method_type: PaymentMethodType) -> Option<FeatureStatus> {
+        Helcim::new()
+            .get_supported_payment_methods()
+            .and_then(|payment_methods| payment_methods.get(&PaymentMethod::Card))
+            .and_then(|payment_method_types| payment_method_types.get(&payment_method_type))
+            .map(|details| details.mandates)
+    }
+
+    /// Helcim implements no part of the mandate lifecycle: `SetupMandate` returns
+    /// `NotImplemented`, `PaymentMethodData::MandatePayment` is rejected in both
+    /// request builders, and every response sets `mandate_reference: None`, so no
+    /// reference is ever stored to reuse.
+    #[test]
+    fn declares_mandates_not_supported_for_credit_and_debit() {
+        assert_eq!(
+            declared_mandate_support(PaymentMethodType::Credit),
+            Some(FeatureStatus::NotSupported)
+        );
+        assert_eq!(
+            declared_mandate_support(PaymentMethodType::Debit),
+            Some(FeatureStatus::NotSupported)
+        );
+    }
+
+    /// Refunds are a separate question and stay `Supported`: the flow is
+    /// implemented, and the known failures are a Helcim sandbox limitation
+    /// (transactions never settle into a closed batch), not a missing integration.
+    #[test]
+    fn leaves_refund_support_declared() {
+        let refunds = Helcim::new()
+            .get_supported_payment_methods()
+            .and_then(|payment_methods| payment_methods.get(&PaymentMethod::Card))
+            .and_then(|payment_method_types| payment_method_types.get(&PaymentMethodType::Credit))
+            .map(|details| details.refunds);
+
+        assert_eq!(refunds, Some(FeatureStatus::Supported));
     }
 }
