@@ -226,11 +226,25 @@ for your distribution and follow along.
    sudo apt install pkg-config libssl-dev
    ```
 
+6. Install the Protocol Buffers compiler (`protoc`), which is required to build
+   the project:
+
+   ```shell
+   sudo apt install protobuf-compiler
+   ```
+
+   The project requires `protoc` version 3.15 or newer. Older distributions
+   (such as Ubuntu 22.04, which ships version 3.12) provide an outdated package;
+   in that case, install a recent release following the
+   [official installation docs][protoc-install] instead. You can check the
+   installed version with `protoc --version`.
+
 Once you're done with setting up the dependencies, proceed with
 [setting up the database](#set-up-the-database).
 
 [postgresql-install]: https://www.postgresql.org/download/
 [redis-install]: https://redis.io/docs/getting-started/installation/
+[protoc-install]: https://protobuf.dev/installation/
 [wsl-config]: https://learn.microsoft.com/en-us/windows/wsl/wsl-config/
 
 ### Set up dependencies on Windows (Ubuntu on WSL2)
@@ -319,6 +333,19 @@ packages for your distribution and follow along.
    sudo apt install pkg-config libssl-dev
    ```
 
+8. Install the Protocol Buffers compiler (`protoc`), which is required to build
+   the project:
+
+   ```shell
+   sudo apt install protobuf-compiler
+   ```
+
+   The project requires `protoc` version 3.15 or newer. Older distributions
+   (such as Ubuntu 22.04, which ships version 3.12) provide an outdated package;
+   in that case, install a recent release following the
+   [official installation docs][protoc-install] instead. You can check the
+   installed version with `protoc --version`.
+
 Once you're done with setting up the dependencies, proceed with
 [setting up the database](#set-up-the-database).
 
@@ -354,6 +381,10 @@ You can opt to use your favorite package manager instead.
    ```shell
    winget install openssl
    ```
+
+6. Install the Protocol Buffers compiler (`protoc`), which is required to build
+   the project, following the [official installation docs][protoc-install].
+   Make sure `protoc` is available on your `PATH`.
 
 Once you're done with setting up the dependencies, proceed with
 [setting up the database](#set-up-the-database).
@@ -432,6 +463,13 @@ You can opt to use your favorite package manager instead.
 
    ```shell
    cargo install just
+   ```
+
+6. Install the Protocol Buffers compiler (`protoc`), which is required to build
+   the project:
+
+   ```shell
+   brew install protobuf
    ```
 
 Once you're done with setting up the dependencies, proceed with
