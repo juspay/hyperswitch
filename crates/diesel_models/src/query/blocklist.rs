@@ -57,12 +57,8 @@ impl BlocklistNew {
     ) -> StorageResult<usize> {
         let query = diesel::insert_into(<Blocklist as HasTable>::table())
             .values(entries)
-            .on_conflict((
-                dsl::processor_merchant_id,
-                dsl::profile_id,
-                dsl::fingerprint_id,
-            ))
-            .do_nothing();
+            // Legacy and NULL-profile rows use different unique indexes from processor/profile rows.
+            .on_conflict_do_nothing();
 
         generics::db_metrics::track_database_call::<<Blocklist as HasTable>::Table, _, _>(
             conn.request_id(),
@@ -81,13 +77,15 @@ impl Blocklist {
     pub async fn find_by_processor_merchant_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::processor_merchant_id
+            (dsl::processor_merchant_id
                 .eq(processor_merchant_id.to_owned())
-                .and(dsl::fingerprint_id.eq(fingerprint_id.to_owned())),
+                .and(dsl::fingerprint_id.eq(fingerprint_id.to_owned())))
+            .and(dsl::transaction_type.eq(transaction_type)),
         )
         .await
     }
@@ -97,19 +95,21 @@ impl Blocklist {
     pub async fn find_by_processor_merchant_id_profile_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::processor_merchant_id
+            (dsl::processor_merchant_id
                 .eq(processor_merchant_id.to_owned())
                 .and(dsl::fingerprint_id.eq(fingerprint_id.to_owned()))
                 .and(
                     dsl::profile_id
                         .eq(profile_id.to_owned())
                         .or(dsl::profile_id.is_null()),
-                ),
+                ))
+            .and(dsl::transaction_type.eq(transaction_type)),
         )
         .await
     }
@@ -117,12 +117,13 @@ impl Blocklist {
     pub async fn find_by_processor_merchant_id_profile_id_fingerprint_ids(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_ids: Vec<String>,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::processor_merchant_id
+            (dsl::processor_merchant_id
                 .eq(processor_merchant_id.to_owned())
                 .or(dsl::processor_merchant_id
                     .is_null()
@@ -132,7 +133,8 @@ impl Blocklist {
                     dsl::profile_id
                         .eq(profile_id.to_owned())
                         .or(dsl::profile_id.is_null()),
-                ),
+                ))
+            .and(dsl::transaction_type.eq(transaction_type)),
         )
         .await
     }
@@ -145,12 +147,13 @@ impl Blocklist {
     pub async fn find_by_processor_merchant_id_profile_id_card_bins(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         card_bins: Vec<String>,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::processor_merchant_id
+            (dsl::processor_merchant_id
                 .eq(processor_merchant_id.to_owned())
                 .or(dsl::processor_merchant_id
                     .is_null()
@@ -163,7 +166,8 @@ impl Blocklist {
                     dsl::profile_id
                         .eq(profile_id.to_owned())
                         .or(dsl::profile_id.is_null()),
-                ),
+                ))
+            .and(dsl::transaction_type.eq(transaction_type)),
             None,
             None,
             Some(dsl::created_at.desc()),
@@ -175,13 +179,15 @@ impl Blocklist {
     pub async fn find_by_merchant_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::merchant_id
+            (dsl::merchant_id
                 .eq(processor_merchant_id.to_owned())
-                .and(dsl::fingerprint_id.eq(fingerprint_id.to_owned())),
+                .and(dsl::fingerprint_id.eq(fingerprint_id.to_owned())))
+            .and(dsl::transaction_type.eq(transaction_type)),
         )
         .await
     }
@@ -189,19 +195,21 @@ impl Blocklist {
     pub async fn find_by_merchant_id_profile_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::merchant_id
+            (dsl::merchant_id
                 .eq(processor_merchant_id.to_owned())
                 .and(dsl::fingerprint_id.eq(fingerprint_id.to_owned()))
                 .and(
                     dsl::profile_id
                         .eq(profile_id.to_owned())
                         .or(dsl::profile_id.is_null()),
-                ),
+                ))
+            .and(dsl::transaction_type.eq(transaction_type)),
         )
         .await
     }
@@ -209,6 +217,7 @@ impl Blocklist {
     pub async fn list_by_processor_merchant_id_data_kind(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
@@ -216,12 +225,13 @@ impl Blocklist {
         let data_kinds = equivalent_data_kinds(data_kind);
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::processor_merchant_id
+            (dsl::processor_merchant_id
                 .eq(processor_merchant_id.to_owned())
                 .or(dsl::processor_merchant_id
                     .is_null()
                     .and(dsl::merchant_id.eq(processor_merchant_id.to_owned())))
-                .and(dsl::data_kind.eq_any(data_kinds)),
+                .and(dsl::data_kind.eq_any(data_kinds)))
+            .and(dsl::transaction_type.eq(transaction_type)),
             Some(limit),
             Some(offset),
             Some(dsl::created_at.desc()),
@@ -232,6 +242,7 @@ impl Blocklist {
     pub async fn list_by_processor_merchant_id_profile_id_data_kind(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
@@ -240,7 +251,7 @@ impl Blocklist {
         let data_kinds = equivalent_data_kinds(data_kind);
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::processor_merchant_id
+            (dsl::processor_merchant_id
                 .eq(processor_merchant_id.to_owned())
                 .or(dsl::processor_merchant_id
                     .is_null()
@@ -250,7 +261,8 @@ impl Blocklist {
                     dsl::profile_id
                         .eq(profile_id.to_owned())
                         .or(dsl::profile_id.is_null()),
-                ),
+                ))
+            .and(dsl::transaction_type.eq(transaction_type)),
             Some(limit),
             Some(offset),
             Some(dsl::created_at.desc()),
@@ -261,17 +273,19 @@ impl Blocklist {
     pub async fn get_count_by_processor_merchant_id_data_kind(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         data_kind: common_enums::BlocklistDataKind,
     ) -> StorageResult<usize> {
         let data_kinds = equivalent_data_kinds(data_kind);
         generics::generic_count::<<Self as HasTable>::Table, _>(
             conn,
-            dsl::processor_merchant_id
+            (dsl::processor_merchant_id
                 .eq(processor_merchant_id.to_owned())
                 .or(dsl::processor_merchant_id
                     .is_null()
                     .and(dsl::merchant_id.eq(processor_merchant_id.to_owned())))
-                .and(dsl::data_kind.eq_any(data_kinds)),
+                .and(dsl::data_kind.eq_any(data_kinds)))
+            .and(dsl::transaction_type.eq(transaction_type)),
         )
         .await
     }
@@ -279,13 +293,14 @@ impl Blocklist {
     pub async fn get_count_by_processor_merchant_id_profile_id_data_kind(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> StorageResult<usize> {
         let data_kinds = equivalent_data_kinds(data_kind);
         generics::generic_count::<<Self as HasTable>::Table, _>(
             conn,
-            dsl::processor_merchant_id
+            (dsl::processor_merchant_id
                 .eq(processor_merchant_id.to_owned())
                 .or(dsl::processor_merchant_id
                     .is_null()
@@ -295,7 +310,8 @@ impl Blocklist {
                     dsl::profile_id
                         .eq(profile_id.to_owned())
                         .or(dsl::profile_id.is_null()),
-                ),
+                ))
+            .and(dsl::transaction_type.eq(transaction_type)),
         )
         .await
     }
@@ -303,13 +319,14 @@ impl Blocklist {
     pub async fn count_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> StorageResult<Vec<(i32, i64)>> {
         let data_kinds = equivalent_data_kinds(data_kind);
         let query = <Self as HasTable>::table()
             .filter(
-                dsl::processor_merchant_id
+                (dsl::processor_merchant_id
                     .eq(processor_merchant_id.to_owned())
                     .or(dsl::processor_merchant_id
                         .is_null()
@@ -319,7 +336,8 @@ impl Blocklist {
                         dsl::profile_id
                             .eq(profile_id.to_owned())
                             .or(dsl::profile_id.is_null()),
-                    ),
+                    ))
+                .and(dsl::transaction_type.eq(transaction_type)),
             )
             .group_by(fingerprint_length())
             .select((fingerprint_length(), count_star()));
@@ -339,14 +357,16 @@ impl Blocklist {
     pub async fn list_by_processor_merchant_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::processor_merchant_id
+            (dsl::processor_merchant_id
                 .eq(processor_merchant_id.to_owned())
                 .or(dsl::processor_merchant_id
                     .is_null()
-                    .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
+                    .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))))
+            .and(dsl::transaction_type.eq(transaction_type)),
             None,
             None,
             Some(dsl::created_at.desc()),
@@ -357,6 +377,7 @@ impl Blocklist {
     pub async fn list_after_fingerprint_by_processor_merchant_id_profile_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         after_fingerprint_id: String,
         snapshot_at: time::PrimitiveDateTime,
@@ -364,7 +385,7 @@ impl Blocklist {
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::processor_merchant_id
+            (dsl::processor_merchant_id
                 .eq(processor_merchant_id.to_owned())
                 .and(dsl::fingerprint_id.gt(after_fingerprint_id))
                 .and(dsl::created_at.le(snapshot_at))
@@ -372,7 +393,8 @@ impl Blocklist {
                     dsl::profile_id
                         .eq(profile_id.to_owned())
                         .or(dsl::profile_id.is_null()),
-                ),
+                ))
+            .and(dsl::transaction_type.eq(transaction_type)),
             Some(limit),
             None,
             Some(dsl::fingerprint_id.asc()),
@@ -383,6 +405,7 @@ impl Blocklist {
     pub async fn list_after_fingerprint_by_legacy_merchant_id_profile_id(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         after_fingerprint_id: String,
         snapshot_at: time::PrimitiveDateTime,
@@ -390,7 +413,7 @@ impl Blocklist {
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::merchant_id
+            (dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::processor_merchant_id.is_null())
                 .and(dsl::fingerprint_id.gt(after_fingerprint_id))
@@ -399,7 +422,8 @@ impl Blocklist {
                     dsl::profile_id
                         .eq(profile_id.to_owned())
                         .or(dsl::profile_id.is_null()),
-                ),
+                ))
+            .and(dsl::transaction_type.eq(transaction_type)),
             Some(limit),
             None,
             Some(dsl::fingerprint_id.asc()),
@@ -410,13 +434,15 @@ impl Blocklist {
     pub async fn delete_by_processor_merchant_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::processor_merchant_id
+            (dsl::processor_merchant_id
                 .eq(processor_merchant_id.to_owned())
-                .and(dsl::fingerprint_id.eq(fingerprint_id.to_owned())),
+                .and(dsl::fingerprint_id.eq(fingerprint_id.to_owned())))
+            .and(dsl::transaction_type.eq(transaction_type)),
         )
         .await
     }
@@ -424,19 +450,21 @@ impl Blocklist {
     pub async fn delete_by_processor_merchant_id_profile_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::processor_merchant_id
+            (dsl::processor_merchant_id
                 .eq(processor_merchant_id.to_owned())
                 .and(dsl::fingerprint_id.eq(fingerprint_id.to_owned()))
                 .and(
                     dsl::profile_id
                         .eq(profile_id.to_owned())
                         .or(dsl::profile_id.is_null()),
-                ),
+                ))
+            .and(dsl::transaction_type.eq(transaction_type)),
         )
         .await
     }
@@ -445,13 +473,15 @@ impl Blocklist {
     pub async fn delete_by_merchant_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::merchant_id
+            (dsl::merchant_id
                 .eq(processor_merchant_id.to_owned())
-                .and(dsl::fingerprint_id.eq(fingerprint_id.to_owned())),
+                .and(dsl::fingerprint_id.eq(fingerprint_id.to_owned())))
+            .and(dsl::transaction_type.eq(transaction_type)),
         )
         .await
     }
@@ -459,19 +489,21 @@ impl Blocklist {
     pub async fn delete_by_merchant_id_profile_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: common_enums::BlocklistTransactionType,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::merchant_id
+            (dsl::merchant_id
                 .eq(processor_merchant_id.to_owned())
                 .and(dsl::fingerprint_id.eq(fingerprint_id.to_owned()))
                 .and(
                     dsl::profile_id
                         .eq(profile_id.to_owned())
                         .or(dsl::profile_id.is_null()),
-                ),
+                ))
+            .and(dsl::transaction_type.eq(transaction_type)),
         )
         .await
     }

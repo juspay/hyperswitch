@@ -1064,6 +1064,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::BatchBlocklistJobStatus,
         api_models::enums::BatchBlocklistJobType,
         api_models::enums::BlocklistDataKind,
+        api_models::enums::BlocklistTransactionType,
         api_models::enums::ErrorCategory,
         api_models::webhook_events::EventListConstraints,
         api_models::webhook_events::EventListItemResponse,

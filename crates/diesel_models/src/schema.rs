@@ -220,7 +220,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    blocklist (merchant_id, fingerprint_id) {
+    blocklist (merchant_id, fingerprint_id, profile_id, transaction_type) {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
@@ -234,6 +234,7 @@ diesel::table! {
         created_by -> Nullable<Varchar>,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        transaction_type -> Text,
     }
 }
 

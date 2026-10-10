@@ -38,10 +38,12 @@ pub struct BlocklistProfileCloneTrackingData {
     pub current_target: usize,
     /// Bounds the scan, so a run spanning minutes still copies one moment of the source.
     pub snapshot_at: time::PrimitiveDateTime,
-    /// The source is drained in two passes, the same split the export uses: rows carrying a
-    /// `processor_merchant_id` first, then the legacy rows without one.
+    /// Each flow drains processor-scoped rows, then legacy rows, before advancing to the next flow.
     pub draining_legacy_rows: bool,
-    /// Keyset cursor within the current pass. `""` starts the pass from the beginning.
+    /// Older trackers only contain payment rows; retain their strict fingerprint cursor on resume.
+    #[serde(default)]
+    pub transaction_type: common_enums::BlocklistTransactionType,
+    /// Keyset cursor within the current flow and merchant pass. `""` starts at the beginning.
     pub last_fingerprint_id: String,
     /// Source rows fully handled by this target tracker. This advances with the cursor.
     pub processed_rows: i32,

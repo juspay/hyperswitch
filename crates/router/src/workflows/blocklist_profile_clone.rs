@@ -34,6 +34,7 @@ async fn run_clone_job(
             false => {
                 db.list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id(
                     merchant_id_obj,
+                    tracking_data.transaction_type,
                     &tracking_data.source_profile_id,
                     tracking_data.last_fingerprint_id.clone(),
                     tracking_data.snapshot_at,
@@ -44,6 +45,7 @@ async fn run_clone_job(
             true => {
                 db.list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id(
                     merchant_id_obj,
+                    tracking_data.transaction_type,
                     &tracking_data.source_profile_id,
                     tracking_data.last_fingerprint_id.clone(),
                     tracking_data.snapshot_at,
@@ -56,15 +58,26 @@ async fn run_clone_job(
         .attach_printable_lazy(|| format!("Failed to read a source page for clone job {job_id}"))?;
 
         match page.last().map(|entry| entry.fingerprint_id.clone()) {
-            // End of a pass: switch to the legacy rows, or stop if that pass is already done.
-            None => match tracking_data.draining_legacy_rows {
-                true => break,
-                false => {
+            // Drain both merchant passes for each flow, persisting every pass transition.
+            None => {
+                if !tracking_data.draining_legacy_rows {
                     tracking_data.draining_legacy_rows = true;
-                    tracking_data.last_fingerprint_id = String::new();
-                    persist_cursor(state, process_id, tracking_data).await?;
+                } else {
+                    if tracking_data.transaction_type
+                        == common_enums::BlocklistTransactionType::Payment
+                    {
+                        tracking_data.transaction_type =
+                            common_enums::BlocklistTransactionType::Payout;
+                        tracking_data.draining_legacy_rows = false;
+                        tracking_data.last_fingerprint_id = String::new();
+                        persist_cursor(state, process_id, tracking_data).await?;
+                        continue;
+                    }
+                    break;
                 }
-            },
+                tracking_data.last_fingerprint_id = String::new();
+                persist_cursor(state, process_id, tracking_data).await?;
+            }
             Some(cursor) => {
                 let page_len = page.len();
                 let now = common_utils::date_time::now();
@@ -210,6 +223,7 @@ async fn settle_current_target(
 fn move_to_next_target(tracking_data: &mut storage::BlocklistProfileCloneTrackingData) -> bool {
     tracking_data.current_target = tracking_data.current_target.saturating_add(1);
     tracking_data.draining_legacy_rows = false;
+    tracking_data.transaction_type = common_enums::BlocklistTransactionType::Payment;
     tracking_data.last_fingerprint_id = String::new();
     tracking_data.processed_rows = 0;
     tracking_data.current_target < tracking_data.target_profile_ids.len()
@@ -452,5 +466,66 @@ impl ProcessTrackerWorkflow<SessionState> for BlocklistProfileCloneWorkflow {
                 }
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common_enums::BlocklistTransactionType;
+    use serde_json::json;
+
+    use super::{move_to_next_target, storage};
+
+    fn legacy_tracking() -> storage::BlocklistProfileCloneTrackingData {
+        serde_json::from_value(json!({
+            "job_id": "clone_job",
+            "merchant_id": "merchant_test",
+            "processor_merchant_id": null,
+            "source_profile_id": "pro_source",
+            "target_profile_ids": ["pro_target_one", "pro_target_two"],
+            "current_target": 0,
+            "snapshot_at": common_utils::date_time::now(),
+            "draining_legacy_rows": true,
+            "last_fingerprint_id": "424242",
+            "processed_rows": 7
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn legacy_clone_resume_preserves_its_payment_cursor() {
+        let tracking = legacy_tracking();
+        assert_eq!(tracking.transaction_type, BlocklistTransactionType::Payment);
+        assert!(tracking.draining_legacy_rows);
+        assert_eq!(tracking.last_fingerprint_id, "424242");
+        assert_eq!(tracking.processed_rows, 7);
+    }
+
+    #[test]
+    fn payout_clone_tracking_round_trips_without_resetting_its_cursor() {
+        let mut tracking = legacy_tracking();
+        tracking.transaction_type = BlocklistTransactionType::Payout;
+        let serialized = serde_json::to_value(&tracking).unwrap();
+        assert_eq!(serialized["transaction_type"], "payout");
+        let resumed: storage::BlocklistProfileCloneTrackingData =
+            serde_json::from_value(serialized).unwrap();
+        assert_eq!(resumed.transaction_type, BlocklistTransactionType::Payout);
+        assert!(resumed.draining_legacy_rows);
+        assert_eq!(resumed.last_fingerprint_id, "424242");
+        assert_eq!(resumed.processed_rows, 7);
+    }
+
+    #[test]
+    fn next_target_restarts_at_payment_instead_of_skipping_payment_rows() {
+        let mut tracking = legacy_tracking();
+        tracking.transaction_type = BlocklistTransactionType::Payout;
+
+        assert!(move_to_next_target(&mut tracking));
+        assert_eq!(tracking.current_target, 1);
+        assert_eq!(tracking.transaction_type, BlocklistTransactionType::Payment);
+        assert!(!tracking.draining_legacy_rows);
+        assert_eq!(tracking.last_fingerprint_id, "");
+        assert_eq!(tracking.processed_rows, 0);
+        assert!(!move_to_next_target(&mut tracking));
     }
 }

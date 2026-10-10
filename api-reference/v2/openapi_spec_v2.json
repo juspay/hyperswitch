@@ -10640,6 +10640,7 @@
         "required": [
           "fingerprint_id",
           "data_kind",
+          "transaction_type",
           "created_at"
         ],
         "properties": {
@@ -10648,6 +10649,9 @@
           },
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/BlocklistTransactionType"
           },
           "created_at": {
             "type": "string",
@@ -10659,6 +10663,14 @@
             "nullable": true
           }
         }
+      },
+      "BlocklistTransactionType": {
+        "type": "string",
+        "description": "The transaction namespace of a blocklist entry, stored as text.",
+        "enum": [
+          "payment",
+          "payout"
+        ]
       },
       "BoletoAdditionalDetails": {
         "type": "object",
@@ -18414,6 +18426,9 @@
         "properties": {
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/BlocklistTransactionType"
           },
           "limit": {
             "type": "integer",

@@ -15,6 +15,7 @@ use crate::{
     path = "/blocklist",
     request_body = BlocklistRequest,
     params (
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "The business profile to block this \
          entry under. Ignored when authenticating with a JWT, which carries its own profile. If \
          omitted, the merchant's default profile is used; merchants with more than one profile have \
@@ -32,8 +33,10 @@ pub async fn add_entry_to_blocklist(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<api_blocklist::AddToBlocklistRequest>,
+    query_payload: web::Query<api_blocklist::BlocklistTransactionQuery>,
 ) -> HttpResponse {
     let flow = Flow::AddToBlocklist;
+    let transaction_type = query_payload.into_inner().transaction_type;
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -41,7 +44,13 @@ pub async fn add_entry_to_blocklist(
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-            blocklist::add_entry_to_blocklist(state, auth.platform, profile_id, body)
+            blocklist::add_entry_to_blocklist(
+                state,
+                auth.platform,
+                profile_id,
+                transaction_type,
+                body,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -65,6 +74,7 @@ pub async fn add_entry_to_blocklist(
     path = "/blocklist",
     request_body = BlocklistRequest,
     params (
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "The business profile to unblock \
          this entry from. Only entries belonging to that profile, or entries with no profile, are \
          removed - an entry blocked under a different profile is not affected and the request \
@@ -83,8 +93,10 @@ pub async fn remove_entry_from_blocklist(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<api_blocklist::DeleteFromBlocklistRequest>,
+    query_payload: web::Query<api_blocklist::BlocklistTransactionQuery>,
 ) -> HttpResponse {
     let flow = Flow::DeleteFromBlocklist;
+    let transaction_type = query_payload.into_inner().transaction_type;
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -96,6 +108,7 @@ pub async fn remove_entry_from_blocklist(
                 state,
                 auth.platform.get_processor().clone(),
                 profile_id,
+                transaction_type,
                 body,
             )
         },
@@ -121,6 +134,7 @@ pub async fn remove_entry_from_blocklist(
     path = "/blocklist",
     params (
         ("data_kind" = BlocklistDataKind, Query, description = "Kind of the fingerprint list requested"),
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "Restricts the listing to entries \
          belonging to this business profile, plus entries with no profile. When no profile can be \
          resolved - as with publishable-key authentication - all of the merchant's entries are \
@@ -192,6 +206,7 @@ pub async fn list_blocked_payment_methods(
     path = "/blocklist/count",
     params (
         ("data_kind" = BlocklistDataKind, Query, description = "Kind of blocklist entries to count"),
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "Restricts the count to entries \
          belonging to this business profile, plus entries with no profile. If omitted, the \
          merchant's default profile is used; merchants with more than one profile have no default \
@@ -247,6 +262,7 @@ pub async fn get_blocklist_count(
     path = "/blocklist/lookup",
     params (
         ("data" = String, Query, description = "The raw value to check against the blocklist, e.g. a card BIN"),
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "Restricts the lookup to entries \
          belonging to this business profile, plus entries with no profile. If omitted, the \
          merchant's default profile is used; merchants with more than one profile have no default \
