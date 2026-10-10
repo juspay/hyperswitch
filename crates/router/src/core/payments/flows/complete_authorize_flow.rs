@@ -365,6 +365,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 request_data: Box::new(self.request.clone()),
                 payment_method: Some(self.payment_method),
             },
+            gateway_context.execution_path,
         ) {
             let router_data = self;
             logger::info!(
@@ -452,6 +453,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 request_data: Box::new(self.request.clone()),
                 payment_method: Some(self.payment_method),
             },
+            gateway_context.execution_path,
         ) {
             let router_data = self;
             logger::info!(

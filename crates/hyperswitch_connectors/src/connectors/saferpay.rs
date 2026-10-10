@@ -356,7 +356,11 @@ impl ConnectorSpecifications for Saferpay {
     /// its own hosted DCC + 3DS pages. That opening call is the PreAuthenticate leg, so
     /// it must fire on Authorize for any 3DS card attempt. Without this the connector
     /// would fall through to `AuthorizeDirect`, which never authenticates.
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+    fn is_pre_authentication_flow_required(
+        &self,
+        current_flow: api::CurrentFlowInfo,
+        _execution_path: common_enums::ExecutionPath,
+    ) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 request_data,
@@ -374,7 +378,11 @@ impl ConnectorSpecifications for Saferpay {
     /// following Authorize; Saferpay's second call *is* the authorization, so it runs as
     /// the complete-authorize Authorize instead. Leaving `is_post_authentication_flow_required`
     /// at its `false` default is what lets the return go straight there.
-    fn is_authentication_flow_required(&self, _current_flow: api::CurrentFlowInfo) -> bool {
+    fn is_authentication_flow_required(
+        &self,
+        _current_flow: api::CurrentFlowInfo,
+        _execution_path: common_enums::ExecutionPath,
+    ) -> bool {
         false
     }
 

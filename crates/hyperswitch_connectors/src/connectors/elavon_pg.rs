@@ -747,7 +747,11 @@ impl ConnectorSpecifications for ElavonPg {
     /// `should_continue_after_preauthenticate` in `authorize_flow.rs` has no arm for this
     /// connector, so its default `false` applies: HS stops after PreAuthenticate and redirects
     /// the shopper rather than settling immediately. That is the behaviour this flow needs.
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+    fn is_pre_authentication_flow_required(
+        &self,
+        current_flow: api::CurrentFlowInfo,
+        _execution_path: common_enums::ExecutionPath,
+    ) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
