@@ -746,6 +746,7 @@ async fn restore_pre_call_state<F, D>(
         applied_offer_details: attempt.applied_offer_details.clone(),
         applied_overrides: attempt.applied_overrides.clone(),
         active_frm_id: attempt.active_frm_id.clone(),
+        setup_future_usage_applied: attempt.setup_future_usage_applied,
     };
 
     let intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
@@ -12240,76 +12241,16 @@ where
             Some(api::MandateTransactionType::RecurringMandateTransaction),
         )
         | (None, true, None, Some(true), _) => {
-            if !has_token_data {
-                logger::debug!("euclid_routing: modular fallback token-MIT path selected");
-            }
-            logger::debug!("euclid_routing: performing routing for token-based MIT flow");
-            let payment_method_info = payment_data
-                .get_payment_method_info()
-                .get_required_value("payment_method_info")?
-                .clone();
-            let payment_method_data = payment_data.get_payment_method_data().cloned();
-            let retryable_connectors =
-                join_all(connectors.into_iter().map(|connector_routing_data| {
-                    let payment_method = payment_method_info.clone();
-                    let payment_method_data = payment_method_data.clone();
-                    async move {
-                        let action_types = get_all_action_types(
-                            state,
-                            is_payment_method_modular_allowed,
-                            is_connector_agnostic_mit_enabled,
-                            is_network_tokenization_enabled,
-                            &payment_method.clone(),
-                            payment_method_data.as_ref(),
-                            connector_routing_data.connector_data.clone(),
-                        )
-                        .await;
-
-                        action_types
-                            .into_iter()
-                            .map(|action_type| api::ConnectorRoutingData {
-                                connector_data: connector_routing_data.connector_data.clone(),
-                                action_type: Some(action_type),
-                                network: connector_routing_data.network.clone(),
-                            })
-                            .collect::<Vec<_>>()
-                    }
-                }))
-                .await
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-
-            let chosen_connector_routing_data = retryable_connectors
-                .first()
-                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-                .attach_printable("no eligible connector found for token-based MIT payment")?;
-
-            let mandate_reference_id = get_mandate_reference_id(
-                chosen_connector_routing_data.action_type.clone(),
-                chosen_connector_routing_data.clone(),
+            route_token_based_mandate_payment(
+                state,
                 payment_data,
-                &payment_method_info,
-            )?;
-
-            routing_data.routed_through = Some(
-                chosen_connector_routing_data
-                    .connector_data
-                    .connector_name
-                    .to_string(),
-            );
-
-            routing_data.merchant_connector_id.clone_from(
-                &chosen_connector_routing_data
-                    .connector_data
-                    .merchant_connector_id,
-            );
-
-            payment_data.set_mandate_id(mandates::MandateIds {
-                mandate_id: None,
-                mandate_reference_id,
-            });
-            Ok(ConnectorCallType::Retryable(retryable_connectors))
+                routing_data,
+                connectors,
+                is_payment_method_modular_allowed,
+                is_connector_agnostic_mit_enabled,
+                is_network_tokenization_enabled,
+            )
+            .await
         }
         (
             None,
@@ -12341,23 +12282,126 @@ where
             }
         }
         _ => {
-            helpers::override_setup_future_usage_to_on_session(state.store.as_ref(), payment_data)
-                .await?;
+            // Saved wallets require a connector mandate even when off_session is not set.
+            if matches!(
+                payment_data.get_token_data(),
+                Some(storage::PaymentTokenData::WalletToken(_))
+            ) {
+                logger::debug!("euclid_routing: modular fallback token-MIT path selected for saved wallet supporting customer initated payment flows");
+                route_token_based_mandate_payment(
+                    state,
+                    payment_data,
+                    routing_data,
+                    connectors,
+                    is_payment_method_modular_allowed,
+                    is_connector_agnostic_mit_enabled,
+                    is_network_tokenization_enabled,
+                )
+                .await
+            } else {
+                helpers::override_setup_feature_usage(state, payment_data).await?;
 
-            let first_choice = connectors
-                .first()
-                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-                .attach_printable("no eligible connector found for payment")?
-                .clone();
+                let first_choice = connectors
+                    .first()
+                    .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                    .attach_printable("no eligible connector found for payment")?
+                    .clone();
 
-            routing_data.routed_through =
-                Some(first_choice.connector_data.connector_name.to_string());
+                routing_data.routed_through =
+                    Some(first_choice.connector_data.connector_name.to_string());
 
-            routing_data.merchant_connector_id = first_choice.connector_data.merchant_connector_id;
+                routing_data.merchant_connector_id =
+                    first_choice.connector_data.merchant_connector_id;
 
-            Ok(ConnectorCallType::Retryable(connectors))
+                Ok(ConnectorCallType::Retryable(connectors))
+            }
         }
     }
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+async fn route_token_based_mandate_payment<F: Clone, D>(
+    state: &SessionState,
+    payment_data: &mut D,
+    routing_data: &mut storage::RoutingData,
+    connectors: Vec<api::ConnectorRoutingData>,
+    is_payment_method_modular_allowed: bool,
+    is_connector_agnostic_mit_enabled: Option<bool>,
+    is_network_tokenization_enabled: bool,
+) -> RouterResult<ConnectorCallType>
+where
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    if payment_data.get_token_data().is_none() {
+        logger::debug!("euclid_routing: modular fallback token-MIT path selected");
+    }
+    logger::debug!("euclid_routing: performing routing for token-based MIT flow");
+    let payment_method_info = payment_data
+        .get_payment_method_info()
+        .get_required_value("payment_method_info")?
+        .clone();
+    let payment_method_data = payment_data.get_payment_method_data().cloned();
+    let retryable_connectors = join_all(connectors.into_iter().map(|connector_routing_data| {
+        let payment_method = payment_method_info.clone();
+        let payment_method_data = payment_method_data.clone();
+        async move {
+            let action_types = get_all_action_types(
+                state,
+                is_payment_method_modular_allowed,
+                is_connector_agnostic_mit_enabled,
+                is_network_tokenization_enabled,
+                &payment_method.clone(),
+                payment_method_data.as_ref(),
+                connector_routing_data.connector_data.clone(),
+            )
+            .await;
+
+            action_types
+                .into_iter()
+                .map(|action_type| api::ConnectorRoutingData {
+                    connector_data: connector_routing_data.connector_data.clone(),
+                    action_type: Some(action_type),
+                    network: connector_routing_data.network.clone(),
+                })
+                .collect::<Vec<_>>()
+        }
+    }))
+    .await
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+
+    let chosen_connector_routing_data = retryable_connectors
+        .first()
+        .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+        .attach_printable("no eligible connector found for token-based MIT payment")?;
+
+    let mandate_reference_id = get_mandate_reference_id(
+        chosen_connector_routing_data.action_type.clone(),
+        chosen_connector_routing_data.clone(),
+        payment_data,
+        &payment_method_info,
+    )?;
+
+    routing_data.routed_through = Some(
+        chosen_connector_routing_data
+            .connector_data
+            .connector_name
+            .to_string(),
+    );
+
+    routing_data.merchant_connector_id.clone_from(
+        &chosen_connector_routing_data
+            .connector_data
+            .merchant_connector_id,
+    );
+
+    payment_data.set_mandate_id(mandates::MandateIds {
+        mandate_id: None,
+        mandate_reference_id,
+    });
+    Ok(ConnectorCallType::Retryable(retryable_connectors))
 }
 
 #[cfg(feature = "v1")]
@@ -15628,6 +15672,12 @@ pub trait OperationSessionSetters<F> {
     );
 
     #[cfg(feature = "v1")]
+    fn set_setup_future_usage_applied_in_payment_attempt(
+        &mut self,
+        setup_future_usage: storage_enums::FutureUsage,
+    );
+
+    #[cfg(feature = "v1")]
     fn set_straight_through_algorithm_in_payment_attempt(
         &mut self,
         straight_through_algorithm: serde_json::Value,
@@ -15999,6 +16049,14 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_mandate_id(&mut self, mandate_id: mandates::MandateIds) {
         self.mandate_id = Some(mandate_id);
+    }
+
+    #[cfg(feature = "v1")]
+    fn set_setup_future_usage_applied_in_payment_attempt(
+        &mut self,
+        setup_future_usage: storage_enums::FutureUsage,
+    ) {
+        self.payment_attempt.setup_future_usage_applied = Some(setup_future_usage);
     }
 
     #[cfg(feature = "v1")]

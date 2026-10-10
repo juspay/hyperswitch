@@ -1145,6 +1145,7 @@ impl ConnectorSpecifications for Nordea {
             api::CurrentFlowInfo::Authorize {
                 auth_type: _,
                 request_data,
+                ..
             } => matches!(
                 &request_data.payment_method_data,
                 payment_method_data::PaymentMethodData::BankDebit(_)

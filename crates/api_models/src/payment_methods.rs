@@ -1712,6 +1712,7 @@ impl From<WalletPaymentMethodData> for PaymentMethodsData {
                     card_exp_month: None,
                     card_exp_year: None,
                     auth_code: None,
+                    paypal_id: None,
                     email: data.email,
                 })
             }
@@ -1889,6 +1890,10 @@ pub struct PaymentMethodDataWalletInfo {
     /// Email address associated with the wallet (e.g. PayPal email)
     #[schema(value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<pii::Email>,
+    /// Unique identifier of the payer's PayPal account.
+    #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paypal_id: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1917,6 +1922,7 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
             email: item.email,
+            paypal_id: None,
         }
     }
 }
@@ -1962,6 +1968,7 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
             email: None,
+            paypal_id: None,
         }
     }
 }
@@ -3204,8 +3211,17 @@ pub struct ResponsePaymentMethodsEnabledForClient {
 pub enum WalletPaymentMethodDataForClient {
     ApplePay(Box<PaymentMethodDataWalletInfo>),
     GooglePay(Box<PaymentMethodDataWalletInfo>),
-    #[schema(value_type = PaypalRedirection)]
-    PayPal(Box<payments::PaypalRedirection>),
+    Paypal(Box<PaypalWalletInfo>),
+}
+
+/// PayPal account details returned for a saved wallet.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PaypalWalletInfo {
+    #[schema(value_type = Option<String>, example = "johntest@test.com")]
+    pub email: Option<pii::Email>,
+    #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
+    #[serde(alias = "payer_id")]
+    pub paypal_id: Option<hyperswitch_masking::Secret<String>>,
 }
 
 /// Bank debit payment method data returned in the client-facing PM list.
@@ -3235,6 +3251,7 @@ pub enum CustomerPaymentMethodDataForClient {
     /// Masked card details from the card locker.
     Card(Box<CardDetailFromLocker>),
     /// Wallet details (Apple Pay, Google Pay, PayPal).
+    #[serde(rename = "wallets")]
     Wallet(WalletPaymentMethodDataForClient),
     /// Bank debit details (ACH, …).
     BankDebit(BankDebitDataForClient),
@@ -3818,6 +3835,10 @@ pub struct CustomerPaymentMethod {
     /// Card details from card locker
     #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
     pub card: Option<CardDetailFromLocker>,
+
+    /// Saved wallet account details.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wallets: Option<WalletPaymentMethodDataForClient>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]

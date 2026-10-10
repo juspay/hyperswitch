@@ -270,6 +270,7 @@ impl PaymentMethodVaultingData {
                         card_exp_month: Some(expiry_month.clone()),
                         card_exp_year: Some(expiry_year.clone()),
                         auth_code: None,
+                        paypal_id: None,
                         email: None,
                     },
                 };

@@ -41,9 +41,10 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
         PaymentsExtendAuthorizationRouterData, PaymentsIncrementalAuthorizationRouterData,
-        PaymentsPostSessionTokensRouterData, PaymentsSessionRouterData, PaymentsSyncRouterData,
-        RefreshTokenRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
-        SetupMandateRouterData, VerifyWebhookSourceRouterData,
+        PaymentsPostSessionTokensRouterData, PaymentsPreAuthenticateRouterData,
+        PaymentsSessionRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
+        RefundsRouterData, SdkSessionUpdateRouterData, SetupMandateRouterData,
+        VerifyWebhookSourceRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -55,7 +56,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -95,6 +96,29 @@ impl GetRequestIncrementalAuthorization for CompleteAuthorizeData {
 impl GetRequestIncrementalAuthorization for PaymentsSyncData {
     fn get_request_incremental_authorization(&self) -> Option<bool> {
         None
+    }
+}
+
+/// Connector level metadata for Paypal, validated at the time of merchant connector account
+/// creation. Contains the `enable_stc` switch for the Set Transaction Context (STC)
+/// preprocessing call (PayPal's Risk-as-a-Service API).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PaypalConnectorMetadataObject {
+    pub enable_stc: Option<bool>,
+}
+
+impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for PaypalConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> Result<Self, Self::Error> {
+        match meta_data {
+            Some(metadata) => utils::to_connector_meta_from_secret::<Self>(Some(metadata.clone()))
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                }),
+            None => Ok(Self::default()),
+        }
     }
 }
 
@@ -147,6 +171,7 @@ pub mod auth_headers {
     pub const PAYPAL_PARTNER_ATTRIBUTION_ID: &str = "PayPal-Partner-Attribution-Id";
     pub const PREFER: &str = "Prefer";
     pub const PAYPAL_REQUEST_ID: &str = "PayPal-Request-Id";
+    pub const PAYPAL_CLIENT_METADATA_ID: &str = "PAYPAL-CLIENT-METADATA-ID";
     pub const PAYPAL_AUTH_ASSERTION: &str = "PayPal-Auth-Assertion";
 }
 
@@ -482,6 +507,31 @@ pub struct CustomerRequestData {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BillingAgreementStruct {
     billing_agreement_id: Secret<String>,
+    payment_initiator: PaymentInitiator,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaymentInitiator {
+    Customer,
+    Merchant,
+}
+
+impl From<Option<bool>> for PaymentInitiator {
+    fn from(off_session: Option<bool>) -> Self {
+        match off_session {
+            Some(true) => Self::Merchant,
+            Some(false) | None => Self::Customer,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaypalVaultRequest {
+    vault_id: Secret<String>,
+    payment_initiator: PaymentInitiator,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attributes: Option<VaultRequestAttributes>,
 }
 
 impl BillingAgreementStruct {
@@ -557,8 +607,30 @@ pub enum ShippingPreference {
 #[serde(untagged)]
 pub enum PaypalRedirectionRequest {
     PaypalRedirectionStruct(PaypalRedirectionStruct),
-    PaypalVaultStruct(VaultStruct),
+    PaypalVaultStruct(PaypalVaultRequest),
     BillingAgreementStruct(BillingAgreementStruct),
+}
+
+impl PaypalRedirectionRequest {
+    fn from_mandate_id(
+        source_payment_instrument_id: String,
+        attributes: Option<VaultRequestAttributes>,
+        off_session: Option<bool>,
+    ) -> Self {
+        let payment_initiator = PaymentInitiator::from(off_session);
+        if BillingAgreementStruct::is_billing_agreement_id(&source_payment_instrument_id) {
+            Self::BillingAgreementStruct(BillingAgreementStruct {
+                billing_agreement_id: source_payment_instrument_id.into(),
+                payment_initiator,
+            })
+        } else {
+            Self::PaypalVaultStruct(PaypalVaultRequest {
+                vault_id: source_payment_instrument_id.into(),
+                payment_initiator,
+                attributes,
+            })
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -1306,26 +1378,17 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                         }),
                     ))),
                     enums::PaymentMethodType::Paypal => Ok(Some(PaymentSourceItem::Paypal(
-                        if BillingAgreementStruct::is_billing_agreement_id(&connector_mandate_id) {
-                            PaypalRedirectionRequest::BillingAgreementStruct(
-                                BillingAgreementStruct {
-                                    billing_agreement_id: connector_mandate_id.into(),
-                                },
-                            )
-                        } else {
-                            PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
-                                vault_id: connector_mandate_id.into(),
-                                attributes: item
-                                    .router_data
-                                    .get_optional_customer_id()
-                                    .as_ref()
-                                    .map(|customer_id| VaultRequestAttributes {
-                                        customer: Some(CustomerRequestData {
-                                            merchant_customer_id: Some(customer_id.clone()),
-                                        }),
+                        PaypalRedirectionRequest::from_mandate_id(
+                            connector_mandate_id,
+                            item.router_data.get_optional_customer_id().as_ref().map(
+                                |customer_id| VaultRequestAttributes {
+                                    customer: Some(CustomerRequestData {
+                                        merchant_customer_id: Some(customer_id.clone()),
                                     }),
-                            })
-                        },
+                                },
+                            ),
+                            item.router_data.request.off_session,
+                        ),
                     ))),
                     enums::PaymentMethodType::Ach
                     | enums::PaymentMethodType::Affirm
@@ -2448,6 +2511,94 @@ pub struct PaypalMeta {
     pub order_id: Option<String>,
 }
 
+// Keys of the sender profile data dictionary expected by PayPal's Risk-as-a-Service API
+pub const STC_SENDER_ACCOUNT_ID: &str = "sender_account_id";
+pub const STC_SENDER_FIRST_NAME: &str = "sender_first_name";
+pub const STC_SENDER_LAST_NAME: &str = "sender_last_name";
+pub const STC_SENDER_EMAIL: &str = "sender_email";
+pub const STC_SENDER_PHONE: &str = "sender_phone";
+pub const STC_SENDER_COUNTRY_CODE: &str = "sender_country_code";
+
+/// Request for PayPal's Risk-as-a-Service Set Transaction Context (STC) API
+/// Ref: https://developer.paypal.com/api/limited-release/raas/v1/#transaction-contexts_set
+#[derive(Debug, Serialize)]
+pub struct PaypalSetTransactionContextRequest {
+    pub tracking_id: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub additional_data: Vec<PaypalAdditionalDataItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalAdditionalDataItem {
+    pub key: String,
+    pub value: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalSetTransactionContextResponse {
+    pub tracking_id: Option<String>,
+    pub additional_data: Option<Vec<PaypalAdditionalDataItem>>,
+}
+
+/// Whether the Set Transaction Context (STC) preprocessing call is enabled for the merchant
+/// (via the `enable_stc` flag in the merchant connector account metadata).
+pub fn is_stc_enabled(connector_meta_data: &Option<common_utils::pii::SecretSerdeValue>) -> bool {
+    PaypalConnectorMetadataObject::try_from(connector_meta_data)
+        .ok()
+        .and_then(|metadata| metadata.enable_stc)
+        .unwrap_or(false)
+}
+
+impl PaypalSetTransactionContextRequest {
+    pub fn build(
+        router_data: &PaymentsPreAuthenticateRouterData,
+    ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
+        let sender_account_id = router_data
+            .customer_id
+            .as_ref()
+            .map(|customer_id| customer_id.get_string_repr().to_string());
+        let sender_first_name = router_data.get_optional_billing_first_name();
+        let sender_last_name = router_data.get_optional_billing_last_name();
+        let sender_email = router_data
+            .get_optional_billing_email()
+            .or_else(|| router_data.request.email.clone());
+        let sender_phone = router_data.get_optional_billing_phone_number();
+        let sender_country_code = router_data.get_optional_billing_country();
+
+        let mut additional_data = Vec::new();
+        let mut push = |key: &str, value: Option<String>| {
+            if let Some(value) = value.filter(|value| !value.is_empty()) {
+                additional_data.push(PaypalAdditionalDataItem {
+                    key: key.to_string(),
+                    value: Secret::new(value),
+                });
+            }
+        };
+        push(STC_SENDER_ACCOUNT_ID, sender_account_id);
+        push(
+            STC_SENDER_FIRST_NAME,
+            sender_first_name.map(|name| name.peek().clone()),
+        );
+        push(
+            STC_SENDER_LAST_NAME,
+            sender_last_name.map(|name| name.peek().clone()),
+        );
+        push(
+            STC_SENDER_EMAIL,
+            sender_email.map(|email| email.peek().clone()),
+        );
+        push(STC_SENDER_PHONE, sender_phone.map(|phone| phone.expose()));
+        push(
+            STC_SENDER_COUNTRY_CODE,
+            sender_country_code.map(|country| country.to_string()),
+        );
+        Ok(Self {
+            tracking_id: router_data.connector_request_reference_id.clone(),
+            additional_data,
+        })
+    }
+}
+
 fn get_id_based_on_intent(
     intent: &PaypalPaymentIntent,
     purchase_unit: &PurchaseUnitItem,
@@ -3420,7 +3571,8 @@ impl Payer {
     }
 }
 
-/// Builds the connector response with the payer details received from paypal.
+/// Builds the connector response with the payer details received from PayPal.
+/// Reads email and the PayPal identifier only from `payer.email_address` and `payer.payer_id`.
 /// This should only be populated for paypal wallet payments (PaypalRedirect and PaypalSdk
 /// flows, both of which use `PaymentMethodType::Paypal`), and not for payments processed
 /// via paypal as a card processor.
@@ -3428,12 +3580,12 @@ fn get_connector_response_with_payer_details(
     payment_method_type: Option<common_enums::PaymentMethodType>,
     payer: Option<&Payer>,
 ) -> Option<ConnectorResponseData> {
-    match payment_method_type {
-        Some(common_enums::PaymentMethodType::Paypal) => payer
-            .and_then(|payer| payer.get_wallet_additional_data())
-            .map(ConnectorResponseData::with_additional_payment_method_data),
-        _ => None,
+    if payment_method_type != Some(common_enums::PaymentMethodType::Paypal) {
+        return None;
     }
+    payer
+        .and_then(|payer| payer.get_wallet_additional_data())
+        .map(ConnectorResponseData::with_additional_payment_method_data)
 }
 
 fn get_payment_attempt_status(

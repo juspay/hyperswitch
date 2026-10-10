@@ -36,6 +36,8 @@ use common_utils::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v1")]
+use external_services::superposition::Config;
 use futures::future::Either;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
@@ -80,6 +82,7 @@ use super::{
 use crate::core::mandate::helpers::MandateGenericData;
 #[cfg(feature = "v1")]
 use crate::core::{
+    configs::dimension_config::ShouldOverrideSetupFutureUsageToOffSession,
     payments::{OperationSessionGetters, OperationSessionSetters},
     utils as core_utils,
 };
@@ -9536,6 +9539,62 @@ where
     )
 }
 
+/// Override the attempt's applied future usage during routing, preserving the intent's usage.
+/// Missing or unavailable configuration
+/// leaves the usage unchanged. Direct connector mandate support checks still run afterward.
+#[cfg(feature = "v1")]
+pub async fn override_setup_future_usage_to_off_session<F, D>(
+    state: &SessionState,
+    payment_data: &mut D,
+) where
+    F: Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
+{
+    let payment_attempt = payment_data.get_payment_attempt();
+    let should_override = match (
+        payment_attempt.setup_future_usage_applied,
+        payment_attempt.get_payment_method(),
+    ) {
+        (Some(enums::FutureUsage::OffSession), _) | (_, None) => false,
+        (_, Some(payment_method)) => {
+            let merchant_id = &payment_data.get_payment_intent().processor_merchant_id;
+            let context = setup_future_usage_override_context(
+                merchant_id,
+                payment_method,
+                payment_attempt.get_payment_method_type(),
+            );
+            ShouldOverrideSetupFutureUsageToOffSession::fetch(
+                state.superposition_service.as_ref(),
+                Some(&context),
+                Some(merchant_id),
+            )
+            .await
+            .unwrap_or(false)
+        }
+    };
+
+    if should_override {
+        logger::debug!("Override setup_future_usage_applied to off_session based on Superposition configuration");
+        payment_data
+            .set_setup_future_usage_applied_in_payment_attempt(enums::FutureUsage::OffSession);
+    }
+}
+
+fn setup_future_usage_override_context(
+    merchant_id: &id_type::MerchantId,
+    payment_method: enums::PaymentMethod,
+    payment_method_type: Option<enums::PaymentMethodType>,
+) -> external_services::superposition::ConfigContext {
+    // Payment method dimensions use PascalCase values in the Superposition seed schema.
+    let mut context = external_services::superposition::ConfigContext::new()
+        .with("processor_merchant_id", merchant_id.get_string_repr())
+        .with("payment_method", &format!("{payment_method:?}"));
+    if let Some(payment_method_type) = payment_method_type {
+        context = context.with("payment_method_type", &format!("{payment_method_type:?}"));
+    }
+    context
+}
+
 pub async fn config_skip_saving_wallet_at_connector(
     db: &dyn StorageInterface,
     merchant_id: &id_type::MerchantId,
@@ -9559,6 +9618,20 @@ pub async fn config_skip_saving_wallet_at_connector(
     })
 }
 
+/// Apply the off-session override before the merchant's on-session override.
+#[cfg(feature = "v1")]
+pub async fn override_setup_feature_usage<F, D>(
+    state: &SessionState,
+    payment_data: &mut D,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    F: Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
+{
+    override_setup_future_usage_to_off_session(state, payment_data).await;
+    override_setup_future_usage_to_on_session(state.store.as_ref(), payment_data).await
+}
+
 #[cfg(feature = "v1")]
 pub async fn override_setup_future_usage_to_on_session<F, D>(
     db: &dyn StorageInterface,
@@ -9568,7 +9641,11 @@ where
     F: Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
-    if payment_data.get_payment_intent().setup_future_usage == Some(enums::FutureUsage::OffSession)
+    if payment_data
+        .get_payment_attempt()
+        .setup_future_usage_applied
+        .or(payment_data.get_payment_intent().setup_future_usage)
+        == Some(enums::FutureUsage::OffSession)
     {
         let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(
             db,
@@ -9581,9 +9658,10 @@ where
                 payment_data.get_payment_attempt().get_payment_method_type()
             {
                 if skip_saving_wallet_at_connector.contains(&payment_method_type) {
-                    logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
-                    payment_data
-                        .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
+                    logger::debug!("Override setup_future_usage_applied from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
+                    payment_data.set_setup_future_usage_applied_in_payment_attempt(
+                        enums::FutureUsage::OnSession,
+                    );
                 }
             }
         };

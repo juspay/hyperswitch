@@ -10668,12 +10668,24 @@ pub struct ConnectorMetadata {
     pub peachpayments: Option<PeachpaymentsData>,
     #[smithy(value_type = "Option<SantanderData>")]
     pub santander: Option<SantanderConnectorMetadataData>,
+    #[smithy(value_type = "Option<PaypalConnectorMetadata>")]
+    pub paypal: Option<PaypalConnectorMetadata>,
     #[smithy(value_type = "Option<WorldpayxmlData>")]
     pub worldpayxml: Option<WorldpayxmlData>,
     #[smithy(value_type = "Option<CheckoutData>")]
     pub checkout: Option<CheckoutData>,
     #[smithy(value_type = "Option<StripeConnectorMetadata>")]
     pub stripe: Option<StripeConnectorMetadata>,
+}
+
+/// PayPal-specific metadata supplied with a payment request.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PaypalConnectorMetadata {
+    /// FraudNet session identifier sent in the PAYPAL-CLIENT-METADATA-ID request header.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub paypal_client_metadata_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]

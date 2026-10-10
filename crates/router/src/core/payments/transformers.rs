@@ -436,7 +436,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .and_then(|noon| noon.order_category.clone())
     });
 
-    let is_off_session = get_off_session(payment_data.mandate_data.as_ref(), None);
+    let is_off_session = get_off_session(payment_data.mandate_data.as_ref(), None, None);
 
     // Account funded transaction details are merchant supplied and are always read
     // from the payment intent, never from the confirm request.
@@ -5379,7 +5379,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             complete_authorize_url,
             setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
             mandate_id: payment_data.mandate_id.clone(),
-            off_session: get_off_session(payment_data.mandate_id.as_ref(), None),
+            off_session: get_off_session(
+                payment_data.mandate_id.as_ref(),
+                None,
+                payment_data.token_data.as_ref(),
+            ),
             customer_acceptance: None,
             setup_mandate_details: None,
             browser_info,
@@ -5437,11 +5441,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 fn get_off_session(
     mandate_id: Option<&MandateIds>,
     off_session_flag: Option<bool>,
+    token_data: Option<&storage::PaymentTokenData>,
 ) -> Option<bool> {
-    match (mandate_id, off_session_flag) {
-        (_, Some(false)) => Some(false),
-        (Some(_), _) | (_, Some(true)) => Some(true),
-        (None, None) => None,
+    match token_data {
+        #[cfg(feature = "v1")]
+        Some(storage::PaymentTokenData::WalletToken(_)) => off_session_flag,
+        _ => match (mandate_id, off_session_flag) {
+            (_, Some(false)) => Some(false),
+            (Some(_), _) | (_, Some(true)) => Some(true),
+            (None, None) => None,
+        },
     }
 }
 
@@ -5614,6 +5623,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         let is_off_session = get_off_session(
             payment_data.mandate_id.as_ref(),
             payment_data.payment_intent.off_session,
+            payment_data.token_data.as_ref(),
         );
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
@@ -7272,6 +7282,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
         let is_off_session = get_off_session(
             payment_data.mandate_id.as_ref(),
             payment_data.payment_intent.off_session,
+            payment_data.token_data.as_ref(),
         );
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
@@ -7489,6 +7500,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
         let is_off_session = get_off_session(
             payment_data.mandate_id.as_ref(),
             payment_data.payment_intent.off_session,
+            payment_data.token_data.as_ref(),
         );
 
         let router_return_url = Some(helpers::create_redirect_url(

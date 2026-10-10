@@ -118,6 +118,7 @@ fn to_client_pm(pm: CustomerPaymentMethod) -> CustomerPaymentMethodForClient {
     let payment_method_data = pm
         .card
         .map(|card| CustomerPaymentMethodDataForClient::Card(Box::new(card)))
+        .or_else(|| pm.wallets.map(CustomerPaymentMethodDataForClient::Wallet))
         .or_else(|| bank_redirect_data_for_client(pm.payment_method, pm.bank));
 
     CustomerPaymentMethodForClient {

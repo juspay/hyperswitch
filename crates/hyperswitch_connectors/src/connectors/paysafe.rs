@@ -1245,6 +1245,7 @@ impl ConnectorSpecifications for Paysafe {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
+                ..
             } => {
                 if self.is_3ds_setup_required(&request_data, auth_type) {
                     Some(api::AlternateFlow::PreAuthenticate)
@@ -1265,6 +1266,7 @@ impl ConnectorSpecifications for Paysafe {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
+                ..
             } => self.is_3ds_setup_required(&request_data, auth_type),
             api::CurrentFlowInfo::CompleteAuthorize { .. }
             | api::CurrentFlowInfo::SetupMandate { .. }

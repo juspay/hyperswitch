@@ -1125,10 +1125,10 @@ pub async fn retrieve_payment_method_with_token(
             .unwrap_or_default()
         }
 
-        storage::PaymentTokenData::WalletToken(_) => storage::PaymentMethodDataWithId {
-            payment_method: None,
-            payment_method_data: None,
-            payment_method_id: None,
+        storage::PaymentTokenData::WalletToken(wallet_token) => storage::PaymentMethodDataWithId {
+            payment_method: Some(enums::PaymentMethod::Wallet),
+            payment_method_data: Some(domain::PaymentMethodData::MandatePayment),
+            payment_method_id: Some(wallet_token.payment_method_id.clone()),
         },
         storage::PaymentTokenData::BankDebit(bank_debit) => {
             let customer_id = payment_intent.customer_id.as_ref().ok_or(
@@ -4249,6 +4249,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                             card_exp_month: None,
                             card_exp_year: None,
                             auth_code: None,
+                            paypal_id: None,
                             email: data.email,
                         },
                     ))
@@ -5148,6 +5149,7 @@ fn build_payment_methods_additional_data_for_create(
                         .or(vaulted_wallet_info.card_exp_year),
                     auth_code: wallet_info.auth_code.or(vaulted_wallet_info.auth_code),
                     email: wallet_info.email.or(vaulted_wallet_info.email),
+                    paypal_id: wallet_info.paypal_id.or(vaulted_wallet_info.paypal_id),
                 },
             )
         }
