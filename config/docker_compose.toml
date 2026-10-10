@@ -576,6 +576,7 @@ workers = 1
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
+jpmorgan = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "enable_only", list = "apple_pay,google_pay" }, apple_pay_pre_decrypt_flow = "network_tokenization", google_pay_pre_decrypt_flow = "network_tokenization" }
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization", google_pay_pre_decrypt_flow = "network_tokenization" }
 datatrans = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "enable_only", list = "google_pay" } }
@@ -1259,12 +1260,12 @@ bank_debit.ach = { connector_list = "gocardless,adyen" }
 bank_debit.becs = { connector_list = "gocardless,adyen" }
 bank_debit.bacs = { connector_list = "gocardless" }
 bank_debit.sepa = { connector_list = "gocardless,adyen" }
-card.credit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,mollie,imerchantsolutions,peachpayments,shift4"
-card.debit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,mollie,imerchantsolutions,peachpayments,shift4"
+card.credit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,mollie,imerchantsolutions,peachpayments,shift4,jpmorgan"
+card.debit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,mollie,imerchantsolutions,peachpayments,shift4,jpmorgan"
 pay_later.klarna.connector_list = "adyen"
-wallet.apple_pay.connector_list = "aci,stripe,adyen,cybersource,bankofamerica,novalnet,authorizedotnet,worldpayxml,imerchantsolutions,datatrans,moneris,shift4,revolv3"
+wallet.apple_pay.connector_list = "aci,stripe,adyen,cybersource,bankofamerica,novalnet,authorizedotnet,worldpayxml,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan"
 wallet.samsung_pay.connector_list = "aci,cybersource"
-wallet.google_pay.connector_list = "aci,stripe,adyen,cybersource,bankofamerica,novalnet,authorizedotnet,worldpayxml,imerchantsolutions,datatrans,moneris,shift4,revolv3"
+wallet.google_pay.connector_list = "aci,stripe,adyen,cybersource,bankofamerica,novalnet,authorizedotnet,worldpayxml,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan"
 wallet.paypal.connector_list = "adyen,novalnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
@@ -1283,12 +1284,12 @@ network_token.network_token.connector_list = "peachpayments"
 
 [mandates.supported_payment_methods]
 pay_later.klarna = { connector_list = "adyen,aci" }
-wallet.google_pay = { connector_list = "stripe,cybersource,adyen,zift,bankofamerica,authorizedotnet,noon,novalnet,multisafepay,wellsfargo,nuvei,worldpayxml,imerchantsolutions,datatrans,moneris,shift4,revolv3,fiservcommercehub" }
-wallet.apple_pay = { connector_list = "stripe,adyen,braintree,cybersource,zift,noon,bankofamerica,authorizedotnet,novalnet,multisafepay,wellsfargo,nuvei,worldpayxml,payme,imerchantsolutions,datatrans,moneris,shift4,revolv3,fiservcommercehub" }
+wallet.google_pay = { connector_list = "stripe,cybersource,adyen,zift,bankofamerica,authorizedotnet,noon,novalnet,multisafepay,wellsfargo,nuvei,worldpayxml,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan,fiservcommercehub" }
+wallet.apple_pay = { connector_list = "stripe,adyen,braintree,cybersource,zift,noon,bankofamerica,authorizedotnet,novalnet,multisafepay,wellsfargo,nuvei,worldpayxml,payme,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan,fiservcommercehub" }
 wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.paypal = { connector_list = "adyen,novalnet,authorizedotnet" }
-card.credit = { connector_list = "aci,checkout,stripe,adyen,authorizedotnet,zift,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv,payload,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4" }
-card.debit = { connector_list = "aci,checkout,stripe,adyen,authorizedotnet,zift,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv,payload,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4" }
+card.credit = { connector_list = "aci,checkout,stripe,adyen,authorizedotnet,zift,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv,payload,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan" }
+card.debit = { connector_list = "aci,checkout,stripe,adyen,authorizedotnet,zift,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv,payload,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan" }
 bank_debit.ach = { connector_list = "gocardless,adyen" }
 bank_debit.becs = { connector_list = "gocardless" }
 bank_debit.bacs = { connector_list = "adyen" }
@@ -1312,7 +1313,7 @@ card.debit = "adyen"
 adyen = "BRL,MXN,JPY"
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit"
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit

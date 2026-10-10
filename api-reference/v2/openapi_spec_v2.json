@@ -6662,6 +6662,11 @@
             "type": "string",
             "description": "Identifier of the device that generated the token.",
             "nullable": true
+          },
+          "merchant_token_identifier": {
+            "type": "string",
+            "description": "Identifies a merchant-provisioned Apple Pay token.",
+            "nullable": true
           }
         }
       },

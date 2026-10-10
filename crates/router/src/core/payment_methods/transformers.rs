@@ -1879,6 +1879,7 @@ impl
                                     eci_indicator: None,
                                 },
                                 device_manufacturer_identifier: None,
+                                merchant_token_identifier: None,
                             },
                         ),
                         payment_method: domain::ApplepayPaymentMethod {

@@ -73,10 +73,14 @@ const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
 
-impl ForeignFrom<&api_models::payments::ConnectorMetadata>
+impl transformers::ForeignTryFrom<&api_models::payments::ConnectorMetadata>
     for payments_grpc::AdditionalConnectorDetails
 {
-    fn foreign_from(metadata: &api_models::payments::ConnectorMetadata) -> Self {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        metadata: &api_models::payments::ConnectorMetadata,
+    ) -> Result<Self, Self::Error> {
         let api_models::payments::ConnectorMetadata {
             checkout,
             apple_pay: _,
@@ -88,13 +92,14 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             santander: _,
             worldpayxml,
             stripe,
+            jpmorgan,
         } = metadata;
         fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
             serde_json::to_value(value)
                 .ok()
                 .and_then(|value| value.as_str().map(ToString::to_string))
         }
-        Self {
+        Ok(Self {
             checkout: checkout
                 .as_ref()
                 .map(|data| payments_grpc::CheckoutAdditionalInformation {
@@ -113,8 +118,155 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
                 .map(|data| payments_grpc::StripeAdditionalInformation {
                     error_on_requires_action: data.error_on_requires_action,
                 }),
+            jpmorgan: jpmorgan
+                .as_ref()
+                .map(payments_grpc::JpmorganAdditionalInformation::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
+impl ForeignFrom<&api_models::payments::JpmorganAuthenticationUseCase>
+    for payments_grpc::JpmorganAuthenticationUseCase
+{
+    fn foreign_from(value: &api_models::payments::JpmorganAuthenticationUseCase) -> Self {
+        use api_models::payments::JpmorganAuthenticationUseCase;
+        match value {
+            JpmorganAuthenticationUseCase::SinglePayment => Self::SinglePayment,
+            JpmorganAuthenticationUseCase::RecurringPaymentFixed => Self::RecurringPaymentFixed,
+            JpmorganAuthenticationUseCase::InstallmentPayment => Self::InstallmentPayment,
+            JpmorganAuthenticationUseCase::PaymentOnShipment => Self::PaymentOnShipment,
+            JpmorganAuthenticationUseCase::RecurringPaymentOther => Self::RecurringPaymentOther,
+            JpmorganAuthenticationUseCase::PreauthorizationRental => Self::PreauthorizationRental,
+            JpmorganAuthenticationUseCase::PreauthorizationNoRental => {
+                Self::PreauthorizationNoRental
+            }
         }
     }
+}
+
+impl ForeignFrom<&api_models::payments::JpmorganChallengePreference>
+    for payments_grpc::JpmorganChallengePreference
+{
+    fn foreign_from(value: &api_models::payments::JpmorganChallengePreference) -> Self {
+        use api_models::payments::JpmorganChallengePreference;
+        match value {
+            JpmorganChallengePreference::NoPreference => Self::NoPreference,
+            JpmorganChallengePreference::NoChallenge => Self::NoChallenge,
+            JpmorganChallengePreference::ChallengeRequested => Self::ChallengeRequested,
+            JpmorganChallengePreference::ChallengeMandate => Self::ChallengeMandate,
+            JpmorganChallengePreference::NoChallengeLvp => Self::NoChallengeLvp,
+            JpmorganChallengePreference::NoChallengeTra => Self::NoChallengeTra,
+            JpmorganChallengePreference::NoChallengeMit => Self::NoChallengeMit,
+            JpmorganChallengePreference::NoChallengeData => Self::NoChallengeData,
+            JpmorganChallengePreference::NoChallengeDa => Self::NoChallengeDa,
+            JpmorganChallengePreference::NoChallengeTrusted => Self::NoChallengeTrusted,
+            JpmorganChallengePreference::ChallengeTrusted => Self::ChallengeTrusted,
+            JpmorganChallengePreference::NoChallengeScp => Self::NoChallengeScp,
+            JpmorganChallengePreference::ChallengeDeviceBinding => Self::ChallengeDeviceBinding,
+            JpmorganChallengePreference::ChallengeIssuerRequested => Self::ChallengeIssuerRequested,
+            JpmorganChallengePreference::ChallengeMit => Self::ChallengeMit,
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<&api_models::payments::JpmorganConnectorMetadata>
+    for payments_grpc::JpmorganAdditionalInformation
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: &api_models::payments::JpmorganConnectorMetadata,
+    ) -> Result<Self, Self::Error> {
+        let original_three_ds = value
+            .original_three_ds
+            .as_ref()
+            .map(|original| -> Result<_, Self::Error> {
+                if let Some(timestamp) = &original.authentication_timestamp {
+                    time::OffsetDateTime::parse(
+                        timestamp,
+                        &time::format_description::well_known::Rfc3339,
+                    )
+                    .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
+                        field_name:
+                            "connector_metadata.jpmorgan.original_three_ds.authentication_timestamp"
+                                .into(),
+                    })?;
+                }
+                let authentication_amount = original
+                    .authentication_amount
+                    .as_ref()
+                    .map(|amount| -> Result<_, Self::Error> {
+                        Ok(payments_grpc::Money {
+                            minor_amount: amount.minor_amount.get_amount_as_i64(),
+                            currency: payments_grpc::Currency::foreign_try_from(amount.currency)?
+                                .into(),
+                        })
+                    })
+                    .transpose()?;
+                Ok(payments_grpc::JpmorganOriginalThreeDs {
+                    program_protocol: original.program_protocol.clone(),
+                    authentication_timestamp: original.authentication_timestamp.clone(),
+                    authentication_amount,
+                    directory_server_transaction_id: original
+                        .directory_server_transaction_id
+                        .clone(),
+                    authentication_method: original.authentication_method.map(|method| {
+                        payments_grpc::DecoupledAuthenticationType::foreign_from(method).into()
+                    }),
+                    requested_challenge_preference: original
+                        .requested_challenge_preference
+                        .as_ref()
+                        .map(|preference| {
+                            payments_grpc::JpmorganChallengePreference::foreign_from(preference)
+                                .into()
+                        }),
+                    issuer_fraud_score: original.issuer_fraud_score.clone(),
+                })
+            })
+            .transpose()?;
+        Ok(Self {
+            authentication_use_case: value.authentication_use_case.as_ref().map(|use_case| {
+                payments_grpc::JpmorganAuthenticationUseCase::foreign_from(use_case).into()
+            }),
+            merchant_fraud_risk_score: value.merchant_fraud_risk_score.clone(),
+            requested_challenge_preference: value.requested_challenge_preference.as_ref().map(
+                |preference| {
+                    payments_grpc::JpmorganChallengePreference::foreign_from(preference).into()
+                },
+            ),
+            original_three_ds,
+            trans_status_reason: value.trans_status_reason.clone(),
+        })
+    }
+}
+
+fn jpmorgan_authentication_data(
+    connector: &str,
+    mut authentication: Option<payments_grpc::AuthenticationData>,
+    metadata: Option<&api_models::payments::ConnectorMetadata>,
+) -> Option<payments_grpc::AuthenticationData> {
+    if connector == "jpmorgan" {
+        if let Some(proof) = authentication.as_mut().filter(|proof| {
+            proof
+                .network_params
+                .as_ref()
+                .is_some_and(|params| params.cartes_bancaires.is_some())
+        }) {
+            // HS created_at can be processing time. Carry genuine authentication time only in original_three_ds.
+            proof.created_at = None;
+            if proof.authentication_type.is_none() {
+                proof.authentication_type = metadata
+                    .and_then(|metadata| metadata.jpmorgan.as_ref())
+                    .and_then(|details| details.original_three_ds.as_ref())
+                    .and_then(|original| original.authentication_method)
+                    .map(|method| {
+                        payments_grpc::DecoupledAuthenticationType::foreign_from(method).into()
+                    });
+            }
+        }
+    }
+    authentication
 }
 
 impl ForeignFrom<common_enums::ProductType> for payments_grpc::ProductType {
@@ -718,7 +870,11 @@ impl
                 .as_ref()
                 .map(payments_grpc::SplitPaymentsDetails::foreign_from),
             domain_data: None,
-            mit_category: None,
+            mit_category: router_data
+                .request
+                .mit_category
+                .map(payments_grpc::MitCategory::foreign_from)
+                .map(|mit_category| mit_category.into()),
             surcharge_amount: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -775,7 +931,11 @@ impl
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
-            authentication_data,
+            authentication_data: jpmorgan_authentication_data(
+                &router_data.connector,
+                authentication_data,
+                router_data.request.connector_intent_metadata.as_ref(),
+            ),
             request_extended_authorization: router_data
                 .request
                 .request_extended_authorization
@@ -874,7 +1034,8 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_try_from)
+                .transpose()?,
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
         })
@@ -1062,7 +1223,11 @@ impl
             customer_acceptance,
             order_category: None,
             payment_experience: None,
-            authentication_data,
+            authentication_data: jpmorgan_authentication_data(
+                &router_data.connector,
+                authentication_data,
+                router_data.request.connector_intent_metadata.as_ref(),
+            ),
             request_extended_authorization: None,
             merchant_order_id: None,
             shipping_cost: None,
@@ -1135,7 +1300,8 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_try_from)
+                .transpose()?,
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
         })
@@ -2368,7 +2534,11 @@ impl
                 .transpose()?,
             order_category: None,
             payment_experience: None,
-            authentication_data,
+            authentication_data: jpmorgan_authentication_data(
+                &router_data.connector,
+                authentication_data,
+                router_data.request.connector_intent_metadata.as_ref(),
+            ),
             request_extended_authorization: None,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             shipping_cost: None,
@@ -2413,7 +2583,8 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_try_from)
+                .transpose()?,
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
         })
@@ -2555,7 +2726,11 @@ impl
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
-            authentication_data,
+            authentication_data: jpmorgan_authentication_data(
+                &router_data.connector,
+                authentication_data,
+                router_data.request.connector_intent_metadata.as_ref(),
+            ),
             request_extended_authorization: router_data
                 .request
                 .request_extended_authorization
@@ -2630,7 +2805,8 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_try_from)
+                .transpose()?,
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
         })
@@ -2966,12 +3142,16 @@ impl
             address: Some(address),
             auth_type: auth_type.into(),
             enrolled_for_3ds: false,
-            authentication_data: router_data
-                .request
-                .authentication_data
-                .clone()
-                .map(payments_grpc::AuthenticationData::foreign_try_from)
-                .transpose()?,
+            authentication_data: jpmorgan_authentication_data(
+                &router_data.connector,
+                router_data
+                    .request
+                    .authentication_data
+                    .clone()
+                    .map(payments_grpc::AuthenticationData::foreign_try_from)
+                    .transpose()?,
+                router_data.request.connector_intent_metadata.as_ref(),
+            ),
             metadata: router_data
                 .request
                 .metadata
@@ -3057,7 +3237,8 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -3509,7 +3690,11 @@ impl
                 .request
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
-            authentication_data,
+            authentication_data: jpmorgan_authentication_data(
+                &router_data.connector,
+                authentication_data,
+                router_data.request.connector_intent_metadata.as_ref(),
+            ),
             connector_feature_data: None,
             locale: router_data.request.locale.clone(),
             connector_testing_data: router_data
@@ -3600,7 +3785,8 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -5046,8 +5232,10 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                     ),
                 )?;
                 Ok(Self::DecryptedData(payments_grpc::ApplePayDecryptedData {
-                    // New in the bumped client; not populated by the router yet.
-                    merchant_token_identifier: None,
+                    merchant_token_identifier: decrypted_data
+                        .merchant_token_identifier
+                        .as_deref()
+                        .map(str::to_owned),
                     application_primary_account_number: Some(application_primary_account_number),
                     application_expiration_month: Some(
                         decrypted_data
@@ -5281,6 +5469,14 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
                         .clone()
                         .map(|cryptogram| cryptogram.expose().into()),
                     eci_indicator: decrypted_data.eci_indicator.clone(),
+                    auth_method: decrypted_data.auth_method.map(|method| match method {
+                        common_enums::GooglePayAuthMethod::PanOnly => {
+                            payments_grpc::GooglePayAuthMethod::PanOnly.into()
+                        }
+                        common_enums::GooglePayAuthMethod::Cryptogram => {
+                            payments_grpc::GooglePayAuthMethod::Cryptogram3ds.into()
+                        }
+                    }),
                 }))
             }
         }
@@ -6863,7 +7059,7 @@ impl transformers::ForeignTryFrom<api_models::payments::CartesBancairesParams>
         Ok(Self {
             cavv_algorithm: payments_grpc::CavvAlgorithm::foreign_from(value.cavv_algorithm).into(),
             cb_exemption: value.cb_exemption,
-            cb_score: value.cb_score,
+            cb_score: Some(value.cb_score),
         })
     }
 }
