@@ -1429,18 +1429,16 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     key1,
                     api_secret,
                 } => {
-                    let checkout_meta = metadata
-                        .map(|m| {
-                            serde_json::from_value::<CheckoutMetadata>(m.clone())
-                                .map_err(|_| err("Invalid Checkout metadata format"))
-                        })
-                        .transpose()?;
+                    // Metadata that doesn't parse keeps the configured base URL instead of failing.
+                    let endpoint_prefix = metadata
+                        .and_then(|m| serde_json::from_value::<CheckoutMetadata>(m.clone()).ok())
+                        .and_then(|m| m.endpoint_prefix);
 
                     Ok(Self::Checkout {
                         api_key: api_key.clone(),
                         api_secret: api_secret.clone(),
                         processing_channel_id: key1.clone(),
-                        endpoint_prefix: checkout_meta.and_then(|m| m.endpoint_prefix),
+                        endpoint_prefix,
                     })
                 }
                 _ => Err(err("Checkout requires SignatureKey auth type")),

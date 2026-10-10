@@ -79,7 +79,15 @@ fn build_base_url(
     connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
 ) -> CustomResult<String, errors::ConnectorError> {
     let endpoint_prefix =
-        checkout::CheckoutConnectorMetadataObject::try_from(connector_metadata)?.endpoint_prefix;
+        match checkout::CheckoutConnectorMetadataObject::try_from(connector_metadata) {
+            Ok(metadata) => metadata.endpoint_prefix,
+            Err(_) => {
+                router_env::logger::warn!(
+                    "checkout connector metadata could not be parsed, using the configured base_url"
+                );
+                None
+            }
+        };
     let Some(prefix) = endpoint_prefix
         .as_deref()
         .map(str::trim)
@@ -1789,6 +1797,12 @@ mod tests {
             build_base_url(SANDBOX, &metadata).unwrap(),
             "https://abcd1234.api.sandbox.checkout.com/"
         );
+    }
+
+    #[test]
+    fn falls_back_to_base_url_when_metadata_is_not_an_object() {
+        let metadata = Some(Secret::new(serde_json::json!("not an object")));
+        assert_eq!(build_base_url(SANDBOX, &metadata).unwrap(), SANDBOX);
     }
 
     #[test]
