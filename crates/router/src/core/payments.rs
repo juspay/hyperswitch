@@ -3464,12 +3464,13 @@ where
                     "SessionMultiple connector call type is not supported for external vault proxy",
                 )),
                 None => {
-                    return Err(
-                        error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "No eligible connector resolved for external vault proxy",
-                            ),
+                    // Matches the plain proxy core: an unresolved connector is a merchant
+                    // configuration problem, not an internal failure. Reached when the request
+                    // only creates the intent, so there is nothing to authorize yet.
+                    return Err(error_stack::report!(
+                        errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration
                     )
+                    .attach_printable("No eligible connector resolved for external vault proxy"));
                 }
             };
 
