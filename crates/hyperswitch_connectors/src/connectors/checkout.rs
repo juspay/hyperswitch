@@ -1774,6 +1774,7 @@ impl ConnectorSpecifications for Checkout {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use hyperswitch_masking::Secret;
 
