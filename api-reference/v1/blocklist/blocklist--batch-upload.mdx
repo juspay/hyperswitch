@@ -1,3 +1,8 @@
 ---
 openapi: post /blocklist/batch
 ---
+
+The CSV header is `type,data,metadata,transaction_type`. Set the last field to
+`payment` or `payout` per row; a single upload can contain both blocklists.
+Older files without the column, or rows with an empty selection, are imported
+as payment entries. Unsupported selections are rejected.
