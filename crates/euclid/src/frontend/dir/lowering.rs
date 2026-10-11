@@ -8,7 +8,7 @@ use crate::{
     dssa::types::{AnalysisError, AnalysisErrorType},
     enums as global_enums,
     frontend::{dir, vir},
-    types::EuclidValue,
+    types::{EuclidValue, NumValueRefinement},
 };
 
 impl From<enums::CardType> for global_enums::PaymentMethodType {
@@ -320,11 +320,29 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
 fn lower_comparison(
     dir_comparison: dir::DirComparison,
 ) -> Result<vir::ValuedComparison, AnalysisErrorType> {
+    let is_negative = matches!(
+        dir_comparison.logic,
+        dir::DirComparisonLogic::NegativeConjunction
+    );
     Ok(vir::ValuedComparison {
         values: dir_comparison
             .values
             .into_iter()
-            .map(lower_value)
+            .map(|mut value| {
+                if is_negative {
+                    match &mut value {
+                        dir::DirValue::PaymentAmount(num)
+                        | dir::DirValue::SurchargeAmount(num)
+                        | dir::DirValue::AcquirerFraudRate(num)
+                            if num.refinement == Some(NumValueRefinement::NotEqual) =>
+                        {
+                            num.refinement = None;
+                        }
+                        _ => {}
+                    }
+                }
+                lower_value(value)
+            })
             .collect::<Result<_, _>>()?,
         logic: match dir_comparison.logic {
             dir::DirComparisonLogic::NegativeConjunction => {

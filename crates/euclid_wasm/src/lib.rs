@@ -20,7 +20,7 @@ use currency_conversion::{
     conversion::convert as convert_currency, types as currency_conversion_types,
 };
 use euclid::{
-    backend::{inputs, interpreter::InterpreterBackend, EuclidBackend},
+    backend::{inputs, vir_interpreter::VirInterpreterBackend, EuclidBackend},
     dssa::{self, analyzer, graph::CgraphExt, state_machine},
     enums::RoutableConnectors,
     frontend::{
@@ -270,7 +270,7 @@ pub fn run_program(program: JsValue, input: JsValue) -> JsResult {
     let program: ast::Program<ConnectorSelection> = serde_wasm_bindgen::from_value(program)?;
     let input: inputs::BackendInput = serde_wasm_bindgen::from_value(input)?;
 
-    let backend = InterpreterBackend::with_program(program).err_to_js()?;
+    let backend = VirInterpreterBackend::with_program(program).err_to_js()?;
 
     let res: euclid::backend::BackendOutput<ConnectorSelection> =
         backend.execute(input).err_to_js()?;
