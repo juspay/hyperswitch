@@ -324,6 +324,30 @@ impl ForeignTryFrom<payments_grpc::PaymentMethod> for domain_pm::PaymentMethodDa
                         .transpose()?
                         .map(common_enums::CountryAlpha2::foreign_try_from)
                         .transpose()?,
+                    account_holder_name: trustly.account_holder_name,
+                    bank_last_digits: trustly.bank_last_digits,
+                    connector_instrument_id: trustly.connector_instrument_id,
+                    additional_details: trustly
+                        .additional_details
+                        .and_then(|details| serde_json::from_str(details.peek()).ok())
+                        .map(Secret::new),
+                    bank_name: trustly
+                        .bank_name
+                        .map(parse_grpc_enum::<payments_grpc::BankNames>)
+                        .transpose()?
+                        .map(
+                            <common_enums::BankNames as interface_helpers::ForeignTryFrom<
+                                payments_grpc::BankNames,
+                            >>::foreign_try_from,
+                        )
+                        .transpose()
+                        .unwrap_or_else(|error| {
+                            router_env::logger::warn!(
+                                ?error,
+                                "Failed to map Trustly bank_name returned by UCS"
+                            );
+                            None
+                        }),
                 }))
             }
             PaymentMethod::Interac(interac) => {
@@ -1761,9 +1785,29 @@ pub fn build_unified_connector_service_payment_method(
                     payment_method: Some(PaymentMethod::Blik(blik)),
                 })
             }
-            hyperswitch_domain_models::payment_method_data::BankRedirectData::Trustly { country } => {
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Trustly {
+                country,
+                account_holder_name,
+                additional_details,
+                bank_name,
+                bank_last_digits,
+                connector_instrument_id,
+            } => {
                 let trustly = payments_grpc::Trustly {
-                    country: country.and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string())).map(|c| c.into()),
+                    country: country
+                        .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                        .map(|c| c.into()),
+                    bank_last_digits: bank_last_digits.map(|v| v.expose().into()),
+                    account_holder_name: account_holder_name.map(|v| v.expose().into()),
+                    connector_instrument_id: connector_instrument_id
+                        .map(|v| v.expose().into()),
+                    additional_details: additional_details
+                        .and_then(|v| serde_json::to_string(v.peek()).ok())
+                        .map(Secret::new),
+                    bank_name: bank_name
+                        .map(payments_grpc::BankNames::foreign_try_from)
+                        .transpose()?
+                        .map(|b| b.into()),
                 };
 
                 Ok(payments_grpc::PaymentMethod {
@@ -2532,6 +2576,33 @@ pub fn build_unified_connector_service_payment_method(
             "Unimplemented payment method: {payment_method_data:?}"
         ))
         .into()),
+    }
+}
+
+/// The MIT counterpart of [`build_unified_connector_service_payment_method_for_external_proxy`].
+///
+/// Emits `ProxyCardDetailsForNetworkTransactionId` rather than `CardProxy`, so UCS substitutes the
+/// alias on its recurring charge flow. No CVC: an MIT has no cardholder present.
+pub fn build_unified_connector_service_payment_method_for_external_proxy_mit(
+    payment_method_data: hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+    payment_method_type: Option<PaymentMethodType>,
+) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
+    match payment_method_data {
+        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+            external_vault_card,
+        ) => Ok(payments_grpc::PaymentMethod {
+            payment_method: Some(PaymentMethod::ProxyCardDetailsForNetworkTransactionId(
+                payments_grpc::ProxyCardDetailsForNetworkTransactionId::foreign_from(
+                    *external_vault_card,
+                ),
+            )),
+        }),
+        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(_) => {
+            Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented payment method subtype: {payment_method_type:?}"
+            ))
+            .into())
+        }
     }
 }
 
@@ -3884,7 +3955,7 @@ where
     // Box::pin the handler to reduce the monomorphized future size and prevent stack overflow
     let start_time = Instant::now();
     let result = Box::pin(handler(router_data, grpc_request, grpc_header)).await;
-    let external_latency = start_time.elapsed().as_millis();
+    let external_latency = common_utils::elapsed::millis_since(start_time);
 
     // Create and emit connector event after UCS call
     let (status_code, response_body, router_result) = match result {
@@ -4125,7 +4196,7 @@ where
     // Box::pin the handler to reduce the monomorphized future size and prevent stack overflow
     let start_time = Instant::now();
     let result = Box::pin(handler(router_data, grpc_request, grpc_header)).await;
-    let external_latency = start_time.elapsed().as_millis();
+    let external_latency = common_utils::elapsed::millis_since(start_time);
 
     // Create and emit connector event after UCS call
     let (status_code, response_body, router_result) = match result {
@@ -4335,7 +4406,7 @@ where
 
     let start_time = Instant::now();
     let result = handler(grpc_request, grpc_header).await;
-    let external_latency = start_time.elapsed().as_millis();
+    let external_latency = common_utils::elapsed::millis_since(start_time);
 
     match result {
         Ok(grpc_response) => {

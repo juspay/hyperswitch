@@ -423,6 +423,8 @@ pub async fn get_filters(
             PaymentIntentDimensions::CardLast4 => fil.card_last_4,
             PaymentIntentDimensions::CardIssuer => fil.card_issuer,
             PaymentIntentDimensions::ErrorReason => fil.error_reason,
+            PaymentIntentDimensions::OffSession => fil.off_session.map(|i| i.to_string()),
+            PaymentIntentDimensions::SetupFutureUsage => fil.setup_future_usage.map(|i| i.as_ref().to_string()),
         })
         .collect::<Vec<String>>();
         res.query_data.push(PaymentIntentFilterValue {

@@ -494,6 +494,15 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(false)
     }
 
+    #[instrument(skip_all)]
+    async fn populate_payment_fingerprint<'a>(
+        &'a self,
+        _state: &SessionState,
+        _processor: &domain::Processor,
+        _payment_data: &mut D,
+    ) {
+    }
+
     async fn store_extended_card_info_temporarily<'a>(
         &'a self,
         _state: &SessionState,

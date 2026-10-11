@@ -9,7 +9,7 @@ pub use api_models::{
         MerchantConnectorDeleteResponse, MerchantConnectorDetails, MerchantConnectorDetailsWrap,
         MerchantConnectorId, MerchantConnectorResponse, MerchantDetails, MerchantId,
         PaymentMethodsEnabled, ProfileCreate, ProfileResponse, ProfileUpdate, ToggleAllKVRequest,
-        ToggleAllKVResponse, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
+        ToggleAllKVResponse, ToggleKVRequest, ToggleKVResponse,
     },
     organization::{
         ConvertOrganizationToPlatformRequest, ConvertOrganizationToPlatformResponse,
@@ -281,6 +281,9 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             merchant_country_code: item.merchant_country_code,
             dispute_polling_interval: item.dispute_polling_interval,
             is_manual_retry_enabled: item.is_manual_retry_enabled,
+            auto_fallback_capture_method: item
+                .auto_fallback_capture_method
+                .map(common_enums::AutoFallbackCaptureMethod::is_enabled),
             always_enable_overcapture: item.always_enable_overcapture,
             is_external_vault_enabled,
             external_vault_connector_details: external_vault_connector_details
@@ -406,6 +409,22 @@ pub async fn create_profile_from_merchant_account(
     let merchant_id = merchant_account.get_id().to_owned();
 
     let current_time = common_utils::date_time::now();
+
+    if let Some(url) = request
+        .webhook_details
+        .as_ref()
+        .and_then(|details| details.webhook_url.as_ref())
+        .map(|secret| secret.peek())
+    {
+        external_services::http_client::outbound_destination::validate_destination(
+            url,
+            state.conf.proxy.bypass_proxy_hosts.as_deref(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "webhook_url is not valid".to_string(),
+        })?;
+    }
 
     let webhook_details = request.webhook_details.map(ForeignInto::foreign_into);
 
@@ -557,6 +576,9 @@ pub async fn create_profile_from_merchant_account(
         merchant_country_code: request.merchant_country_code,
         dispute_polling_interval: request.dispute_polling_interval,
         is_manual_retry_enabled: request.is_manual_retry_enabled,
+        auto_fallback_capture_method: request
+            .auto_fallback_capture_method
+            .map(common_enums::AutoFallbackCaptureMethod::from),
         always_enable_overcapture: request.always_enable_overcapture,
         external_vault_details: domain::ExternalVaultDetails::try_from((
             request.is_external_vault_enabled,
