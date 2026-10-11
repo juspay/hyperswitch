@@ -108,10 +108,38 @@ describe("Card - Payment sync after void flow test", () => {
           "card_pm"
         ]["VoidAfterConfirm"];
 
-        cy.retrievePaymentCallTest({
-          globalState,
-          data,
-          expectedIntentStatus: data.Response.body.status,
+        // `retrievePaymentCallTest`'s default `force_sync=true` is not enough here:
+        // once the attempt is already terminal (Voided), Hyperswitch's own
+        // `should_call_connector` skips re-querying the connector, so the retrieve
+        // would be served entirely from the DB and never actually exercise Zift's
+        // `transactionType=void` sync response (the exact thing PR #14637 fixes).
+        // `all_keys_required=true` forces a genuine connector round-trip regardless
+        // of terminal status, which is required to hit the new deserialization path.
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get(
+            "paymentID"
+          )}?force_sync=true&all_keys_required=true`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status, "status code").to.equal(200);
+          expect(response.body.status, "payment status").to.equal(
+            data.Response.body.status
+          );
+          // Proves a real connector round-trip happened (not a cached DB read)
+          // and that Zift's void response deserialized without error.
+          expect(
+            response.body.whole_connector_response,
+            "whole_connector_response"
+          ).to.be.a("string").and.to.not.be.empty;
+          expect(
+            response.body.whole_connector_response,
+            "whole_connector_response should reflect a void transaction"
+          ).to.include("transactionType=void");
         });
       });
     });
