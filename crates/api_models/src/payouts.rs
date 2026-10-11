@@ -8,7 +8,9 @@ use common_utils::types::BrowserInformation;
 use common_utils::{
     crypto,
     errors::ValidationError,
-    id_type, link_utils, payout_method_utils,
+    id_type, link_utils,
+    new_type::MaskedValue,
+    payout_method_utils,
     pii::{self, Email},
     transformers::ForeignFrom,
     types::{UnifiedCode, UnifiedMessage},
@@ -1801,7 +1803,7 @@ impl From<GiftCardPayout> for payout_method_utils::GiftCardAdditionalData {
         match gift_card_data {
             GiftCardPayout::PaySafeCard(PaysafeCardPayout { paysafecard_id }) => {
                 Self::PaySafeCard(Box::new(payout_method_utils::PaySafeCardAdditionalData {
-                    paysafecard_id,
+                    paysafecard_id: paysafecard_id.map(MaskedValue::from),
                 }))
             }
         }
