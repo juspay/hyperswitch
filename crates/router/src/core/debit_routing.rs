@@ -1,8 +1,8 @@
-use std::{collections::HashSet, fmt::Debug};
+use std::fmt::Debug;
 
 use api_models::{enums as api_enums, open_router};
 use common_enums::enums;
-use common_utils::{errors::CustomResult, ext_traits::ValueExt, id_type};
+use common_utils::{collections::HashSet, errors::CustomResult, ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 

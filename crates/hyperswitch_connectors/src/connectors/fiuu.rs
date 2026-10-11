@@ -1,9 +1,10 @@
 pub mod transformers;
 
-use std::{any::type_name, borrow::Cow, collections::HashMap, sync::LazyLock};
+use std::{any::type_name, borrow::Cow, sync::LazyLock};
 
 use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
+    collections::HashMap,
     crypto::{self, GenerateDigest},
     errors::{self as common_errors, CustomResult},
     ext_traits::{ByteSliceExt, BytesExt},

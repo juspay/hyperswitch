@@ -1,7 +1,8 @@
-use std::{collections::HashMap, marker::PhantomData, str::FromStr};
+use std::{marker::PhantomData, str::FromStr};
 
 use api_models::{enums as api_enums, payments as api_payments, webhooks};
 use common_utils::{
+    collections::HashMap,
     ext_traits::{AsyncExt, ValueExt},
     id_type,
 };

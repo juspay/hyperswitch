@@ -1,7 +1,8 @@
-use std::collections::{HashMap, HashSet};
-
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::errors::CustomResult;
+use common_utils::{
+    collections::{HashMap, HashSet},
+    errors::CustomResult,
+};
 use hyperswitch_interfaces::secrets_interface::{
     secret_handler::SecretsHandler,
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},

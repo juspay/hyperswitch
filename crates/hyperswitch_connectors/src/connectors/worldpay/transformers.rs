@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
-    consts::BASE64_ENGINE, errors::CustomResult, ext_traits::OptionExt, pii, types::MinorUnit,
+    collections::HashMap, consts::BASE64_ENGINE, errors::CustomResult, ext_traits::OptionExt, pii,
+    types::MinorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{

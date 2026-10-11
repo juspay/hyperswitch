@@ -1,7 +1,7 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::fmt::Debug;
 
 use api_models::health_check::{HealthCheckMap, HealthCheckServices};
-use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
+use common_utils::{collections::HashMap, errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::ResultExt;
 pub use health_check::{
     health_check_response::ServingStatus, health_client::HealthClient, HealthCheckRequest,

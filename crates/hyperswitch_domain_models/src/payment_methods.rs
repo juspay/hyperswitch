@@ -1,4 +1,4 @@
-use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
+use std::{future::Future, pin::Pin, sync::Arc};
 
 #[cfg(feature = "v1")]
 use api_models::payments;
@@ -7,15 +7,16 @@ use api_models::{customers, payment_methods};
 use common_enums::enums::MerchantStorageScheme;
 #[cfg(feature = "v1")]
 use common_utils::errors::ValidationError;
-#[cfg(feature = "v2")]
-use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
-#[cfg(feature = "v1")]
-use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
 use common_utils::{
+    collections::HashMap,
     errors::{CustomResult, ParsingError},
     id_type, pii,
     types::CreatedBy,
 };
+#[cfg(feature = "v2")]
+use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
+#[cfg(feature = "v1")]
+use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
 pub use diesel_models::{
     enums as storage_enums, PaymentMethodUpdate as StoragePaymentMethodUpdate,
 };

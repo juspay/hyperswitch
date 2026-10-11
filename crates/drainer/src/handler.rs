@@ -1,9 +1,6 @@
-use std::{
-    collections::HashMap,
-    sync::{atomic, Arc},
-};
+use std::sync::{atomic, Arc};
 
-use common_utils::id_type;
+use common_utils::{collections::HashMap, id_type};
 use router_env::tracing::Instrument;
 use tokio::{
     sync::{mpsc, oneshot},
@@ -77,7 +74,7 @@ impl Handler {
             metrics::DRAINER_HEALTH.add(1, &[]);
             for store in self.stores.values() {
                 if store.is_stream_available(stream_index).await {
-                    let _task_handle = tokio::spawn(
+                    let _task_handle = router_env::spawn(
                         drainer_handler(
                             store.clone(),
                             stream_index,
@@ -140,14 +137,14 @@ impl Handler {
             }
             Some(redis_conn_clone) => {
                 // Spawn a task to monitor if redis is down or not
-                let _task_handle = tokio::spawn(
+                let _task_handle = router_env::spawn(
                     async move { redis_conn_clone.on_error(redis_error_tx).await }
                         .in_current_span(),
                 );
 
                 //Spawns a task to send shutdown signal if redis goes down
                 let _task_handle =
-                    tokio::spawn(redis_error_receiver(redis_error_rx, tx).in_current_span());
+                    router_env::spawn(redis_error_receiver(redis_error_rx, tx).in_current_span());
 
                 Ok(())
             }

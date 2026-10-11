@@ -1,9 +1,10 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use api_models::payments::SessionToken;
 use cards::NetworkToken;
 use common_enums::enums;
 use common_utils::{
+    collections::HashMap,
     errors::CustomResult,
     ext_traits::OptionExt,
     pii::{self, Email},

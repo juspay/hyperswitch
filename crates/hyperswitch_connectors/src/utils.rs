@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData, str::FromStr, sync::LazyLock};
+use std::{marker::PhantomData, str::FromStr, sync::LazyLock};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
@@ -34,6 +34,7 @@ use common_enums::{
 };
 use common_types::primitive_wrappers;
 use common_utils::{
+    collections::HashMap,
     consts::{
         BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD, BASE64_ENGINE_URL_SAFE,
         BASE64_ENGINE_URL_SAFE_NO_PAD,

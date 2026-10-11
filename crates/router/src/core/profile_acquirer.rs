@@ -55,7 +55,7 @@ pub async fn create_profile_acquirer(
     let configs_map = business_profile.acquirer_config_map.get_or_insert_with(|| {
         common_types::domain::AcquirerConfigBucket {
             default_acquirer_config: None,
-            configs: std::collections::HashMap::new(),
+            configs: common_utils::collections::HashMap::new(),
         }
     });
 

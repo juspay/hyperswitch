@@ -1,7 +1,6 @@
-use std::collections::{HashMap, HashSet};
-
 use common_types::primitive_wrappers;
 use common_utils::{
+    collections::{HashMap, HashSet},
     consts,
     crypto::Encryptable,
     errors::{self, CustomResult},

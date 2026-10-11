@@ -1,7 +1,8 @@
-use std::collections::{HashMap, HashSet};
-
 use api_models::{admin::MerchantConnectorInfo, enums};
-use common_utils::id_type;
+use common_utils::{
+    collections::{HashMap, HashSet},
+    id_type,
+};
 #[cfg(feature = "v1")]
 use error_stack::{report, ResultExt};
 use strum::IntoEnumIterator;

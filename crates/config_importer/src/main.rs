@@ -1,3 +1,6 @@
+// A standalone tool that does not depend on common_utils.
+#![allow(clippy::disallowed_types, clippy::disallowed_methods)]
+
 mod cli;
 
 use std::io::{BufWriter, Write};

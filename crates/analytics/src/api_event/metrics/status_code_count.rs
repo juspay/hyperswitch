@@ -1,10 +1,8 @@
-use std::collections::HashSet;
-
 use api_models::analytics::{
     api_event::{ApiEventDimensions, ApiEventFilters, ApiEventMetricsBucketIdentifier},
     Granularity, TimeRange,
 };
-use common_utils::errors::ReportSwitchExt;
+use common_utils::{collections::HashSet, errors::ReportSwitchExt};
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 

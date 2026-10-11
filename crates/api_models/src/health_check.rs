@@ -1,4 +1,4 @@
-use std::collections::hash_map::HashMap;
+use common_utils::collections::HashMap;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RouterHealthCheckResponse {
     pub database: bool,

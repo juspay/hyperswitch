@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use api_models::analytics::{
     api_event::{
         ApiEventMetricsBucketIdentifier, ApiEventMetricsBucketValue, ApiLogsRequest,
@@ -8,7 +6,7 @@ use api_models::analytics::{
     AnalyticsMetadata, ApiEventFiltersResponse, GetApiEventFiltersRequest,
     GetApiEventMetricRequest, MetricsResponse,
 };
-use common_utils::errors::ReportSwitchExt;
+use common_utils::{collections::HashMap, errors::ReportSwitchExt};
 use error_stack::ResultExt;
 use router_env::{
     instrument, logger,
@@ -109,7 +107,8 @@ pub async fn get_api_event_metrics(
         // TODO: lifetime issues with joinset,
         // can be optimized away if joinset lifetime requirements are relaxed
         let merchant_id_scoped = merchant_id.to_owned();
-        set.spawn(
+        router_env::spawn_in_set(
+            &mut set,
             async move {
                 let data = pool
                     .get_api_event_metrics(

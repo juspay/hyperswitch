@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use base64::Engine;
 use common_utils::{
+    collections::HashMap,
     consts::BASE64_ENGINE,
     errors::{CustomResult, ValidationError},
     id_type,

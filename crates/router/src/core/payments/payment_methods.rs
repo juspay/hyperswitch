@@ -1,12 +1,10 @@
 //! Contains functions of payment methods that are used in payments
 //! one of such functions is `list_payment_methods`
 
-use std::{
-    collections::{BTreeMap, HashSet},
-    str::FromStr,
-};
+use std::{collections::BTreeMap, str::FromStr};
 
 use common_utils::{
+    collections::HashSet,
     ext_traits::{OptionExt, ValueExt},
     id_type,
 };

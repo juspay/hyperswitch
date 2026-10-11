@@ -399,7 +399,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsRe
         let gateway_resp = item.response.gateway_response();
 
         // Store order_id in connector_metadata for void operations (like Fiserv)
-        let mut metadata = std::collections::HashMap::new();
+        let mut metadata = common_utils::collections::HashMap::new();
         metadata.insert(
             "order_id".to_string(),
             serde_json::Value::String(gateway_resp.transaction_processing_details.order_id.clone()),

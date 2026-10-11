@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use common_enums::MerchantStorageScheme;
 use common_utils::{
+    collections::HashMap,
     encryption::Encryption,
     errors::{CustomResult, ParsingError},
     pii,

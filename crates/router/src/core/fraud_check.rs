@@ -1,9 +1,9 @@
-#[cfg(feature = "payouts")]
-use std::collections::HashSet;
 use std::fmt::Debug;
 
 use api_models::{self, enums as api_enums};
 use common_enums::{CaptureMethod, PaymentMethod, PreFrmFailureMode};
+#[cfg(feature = "payouts")]
+use common_utils::collections::HashSet;
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use router_env::{

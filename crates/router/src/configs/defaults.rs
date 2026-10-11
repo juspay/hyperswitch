@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use common_utils::collections::HashSet;
 
 #[cfg(feature = "payouts")]
 pub mod payout_required_fields;

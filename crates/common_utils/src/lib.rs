@@ -7,6 +7,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use crate::synth_shape::Synthesize;
 
 pub mod access_token;
+pub mod collections;
 pub mod consts;
 pub mod crypto;
 pub mod custom_serde;

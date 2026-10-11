@@ -1,10 +1,12 @@
-use std::collections::{HashMap, HashSet};
-
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use api_models::payment_methods::{
     PaymentMethodsBatchRecord, PaymentMethodsBatchRetrieveResponse, PaymentMethodsData,
 };
-use common_utils::{ext_traits::ValueExt, id_type};
+use common_utils::{
+    collections::{HashMap, HashSet},
+    ext_traits::ValueExt,
+    id_type,
+};
 use error_stack::ResultExt;
 use hyperswitch_masking::ExposeInterface;
 use router_env::logger;

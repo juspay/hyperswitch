@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 use api_models::enums::{AuthenticationType, PaymentMethod};
 use common_enums::enums;
 use common_utils::{
+    collections::HashMap,
     ext_traits::OptionExt,
     pii,
     types::{MinorUnit, StringMajorUnit},

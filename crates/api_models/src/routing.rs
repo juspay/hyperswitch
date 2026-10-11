@@ -446,7 +446,7 @@ impl EuclidAnalysable for ConnectorSelection {
 
                 (
                     euclid::frontend::dir::DirValue::Connector(Box::new(connector_choice.into())),
-                    std::collections::HashMap::from_iter([(
+                    common_utils::collections::HashMap::from_iter([(
                         "CONNECTOR_SELECTION".to_string(),
                         serde_json::json!({
                             "rule_name": rule_name,
@@ -643,7 +643,7 @@ pub struct ProgramThreeDsDecisionRule {
     #[schema(value_type = RuleThreeDsDecisionRule)]
     pub rules: Vec<ast::Rule<ThreeDSDecisionRule>>,
     #[schema(value_type = HashMap<String, serde_json::Value>)]
-    pub metadata: std::collections::HashMap<String, serde_json::Value>,
+    pub metadata: common_utils::collections::HashMap<String, serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
@@ -2133,7 +2133,7 @@ pub struct RoutingEvaluateRequest {
     /// refer to `routing_configs.keys` in:
     /// https://github.com/juspay/decision-engine/blob/main/config/development.toml
     #[schema(value_type = Object)]
-    pub parameters: std::collections::HashMap<String, Option<ValueType>>,
+    pub parameters: common_utils::collections::HashMap<String, Option<ValueType>>,
 
     /// Fallback connectors used if routing rule evaluation fails.
     ///

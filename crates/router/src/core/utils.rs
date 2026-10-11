@@ -1,7 +1,7 @@
 pub mod refunds_transformers;
 pub mod refunds_validator;
 
-use std::{collections::HashSet, marker::PhantomData, str::FromStr};
+use std::{marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
@@ -10,9 +10,8 @@ use api_models::{
     enums::{Connector, DisputeStage, DisputeStatus},
 };
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
-#[cfg(feature = "payouts")]
-use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{
+    collections::HashSet,
     errors::CustomResult,
     ext_traits::{AsyncExt, Encode},
     types::{
@@ -20,6 +19,8 @@ use common_utils::{
         ConnectorTransactionIdTrait, MinorUnit,
     },
 };
+#[cfg(feature = "payouts")]
+use common_utils::{crypto::Encryptable, pii::Email};
 use diesel_models::refund as diesel_refund;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]

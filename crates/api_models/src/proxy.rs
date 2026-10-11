@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use common_utils::request::Method;
+use common_utils::{collections::HashMap, request::Method};
 use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

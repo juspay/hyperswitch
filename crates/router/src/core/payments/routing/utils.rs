@@ -1,8 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-    sync::LazyLock,
-};
+use std::{str::FromStr, sync::LazyLock};
 
 use api_models::{
     open_router as or_types,
@@ -14,7 +10,12 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_enums::TransactionType;
-use common_utils::{ext_traits::BytesExt, id_type, types::MinorUnit};
+use common_utils::{
+    collections::{HashMap, HashSet},
+    ext_traits::BytesExt,
+    id_type,
+    types::MinorUnit,
+};
 use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{

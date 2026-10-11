@@ -10,7 +10,9 @@ pub mod settings;
 mod stream;
 mod types;
 mod utils;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
+
+use common_utils::collections::HashMap;
 mod secrets_transformers;
 
 use actix_web::dev::Server;
@@ -42,12 +44,13 @@ pub async fn start_drainer(
         "Failed while getting allowed signals".to_string(),
     ))?;
     let handle = signal.handle();
-    let task_handle =
-        tokio::spawn(common_utils::signals::signal_handler(signal, tx.clone()).in_current_span());
+    let task_handle = router_env::spawn(
+        common_utils::signals::signal_handler(signal, tx.clone()).in_current_span(),
+    );
 
     let handler_clone = drainer_handler.clone();
 
-    tokio::task::spawn(async move { handler_clone.shutdown_listener(rx).await });
+    router_env::spawn(async move { handler_clone.shutdown_listener(rx).await }.in_current_span());
 
     drainer_handler.spawn_error_handlers(tx)?;
     drainer_handler.spawn().await?;

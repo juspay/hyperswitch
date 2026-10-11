@@ -1081,9 +1081,8 @@ pub fn make_mca_graph(
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashMap, HashSet};
-
     use api_models::enums as api_enums;
+    use common_utils::collections::{HashMap, HashSet};
     use euclid::{
         dirval,
         dssa::graph::{AnalysisContext, CgraphExt},

@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use common_utils::collections::HashMap;
 use hyperswitch_domain_models::disputes;
 
 use super::MockDb;

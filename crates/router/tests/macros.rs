@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod flat_struct_test {
-    use std::collections::HashMap;
-
+    use common_utils::collections::HashMap;
     use router_derive::FlatStruct;
     use serde::Serialize;
 

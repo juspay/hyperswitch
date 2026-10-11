@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use common_enums::{enums, AttemptStatus};
-use common_utils::{request::Method, types::MinorUnit};
+use common_utils::{collections::HashMap, request::Method, types::MinorUnit};
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},

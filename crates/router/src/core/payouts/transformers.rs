@@ -1,7 +1,7 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use api_models::enums as api_enums;
-use common_utils::link_utils::EnabledPaymentMethod;
+use common_utils::{collections::HashMap, link_utils::EnabledPaymentMethod};
 
 #[cfg(all(feature = "v1", feature = "olap"))]
 use crate::types::transformers::ForeignInto;

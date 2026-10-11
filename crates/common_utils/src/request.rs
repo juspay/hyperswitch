@@ -32,7 +32,7 @@ impl Default for XmlConfig {
     }
 }
 
-pub type Headers = std::collections::HashSet<(String, Maskable<String>)>;
+pub type Headers = crate::collections::HashSet<(String, Maskable<String>)>;
 
 #[derive(
     Clone,
@@ -127,7 +127,7 @@ impl Request {
         Self {
             method,
             url: String::from(url),
-            headers: std::collections::HashSet::new(),
+            headers: crate::collections::HashSet::new(),
             certificate: None,
             certificate_key: None,
             body: None,
@@ -174,7 +174,7 @@ impl RequestBuilder {
         Self {
             method: Method::Get,
             url: String::with_capacity(1024),
-            headers: std::collections::HashSet::new(),
+            headers: crate::collections::HashSet::new(),
             certificate: None,
             certificate_key: None,
             body: None,

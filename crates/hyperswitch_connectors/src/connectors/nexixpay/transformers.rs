@@ -1,10 +1,9 @@
-use std::collections::HashMap;
-
 use cards::CardNumber;
 use common_enums::{
     AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3, Currency, RefundStatus,
 };
 use common_utils::{
+    collections::HashMap,
     errors::CustomResult,
     ext_traits::ValueExt,
     request::Method,

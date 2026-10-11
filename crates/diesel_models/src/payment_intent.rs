@@ -261,11 +261,19 @@ pub struct PaymentLinkConfigRequestForPayments {
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
     /// SDK configuration rules
-    pub sdk_ui_rules:
-        Option<std::collections::HashMap<String, std::collections::HashMap<String, String>>>,
+    pub sdk_ui_rules: Option<
+        common_utils::collections::HashMap<
+            String,
+            common_utils::collections::HashMap<String, String>,
+        >,
+    >,
     /// Payment link configuration rules
-    pub payment_link_ui_rules:
-        Option<std::collections::HashMap<String, std::collections::HashMap<String, String>>>,
+    pub payment_link_ui_rules: Option<
+        common_utils::collections::HashMap<
+            String,
+            common_utils::collections::HashMap<String, String>,
+        >,
+    >,
     /// Flag to enable the button only when the payment form is ready for submission
     pub enable_button_only_on_form_ready: Option<bool>,
     /// Optional header for the SDK's payment form

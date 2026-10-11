@@ -95,7 +95,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
                 .deref();
             let application_source = state.conf.application_source;
 
-            tokio::spawn(
+            router_env::spawn(
                 async move {
                     schedule_next_dispute_list_task(
                         &*m_db,

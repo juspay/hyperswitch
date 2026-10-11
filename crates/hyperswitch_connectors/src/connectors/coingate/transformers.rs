@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-
 use common_enums::{enums, Currency};
-use common_utils::{ext_traits::OptionExt, pii, request::Method, types::StringMajorUnit};
+use common_utils::{
+    collections::HashMap, ext_traits::OptionExt, pii, request::Method, types::StringMajorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,

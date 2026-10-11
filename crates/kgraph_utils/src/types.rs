@@ -1,6 +1,5 @@
-use std::collections::{HashMap, HashSet};
-
 use api_models::enums as api_enums;
+use common_utils::collections::{HashMap, HashSet};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone, Default)]

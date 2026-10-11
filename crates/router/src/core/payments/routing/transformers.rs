@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use api_models::{self, routing as routing_types};
 use common_types::payments as common_payments_types;
+use common_utils::collections::HashMap;
 use diesel_models::enums as storage_enums;
 use euclid::{enums as dsl_enums, frontend::ast as dsl_ast};
 use kgraph_utils::types;

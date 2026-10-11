@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use api_models::{enums as api_enums, routing};
 use common_utils::id_type;
 
@@ -26,12 +24,15 @@ pub struct RoutingData {
     pub algorithm_requested: Option<id_type::RoutingId>,
 }
 
+/// Keyed by the facade's map so its order replays; it is serialized into a bind.
+pub type PreRoutingResults =
+    common_utils::collections::HashMap<api_enums::PaymentMethodType, PreRoutingConnectorChoice>;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 #[serde(from = "PaymentRoutingInfoSerde", into = "PaymentRoutingInfoSerde")]
 pub struct PaymentRoutingInfo {
     pub algorithm: Option<routing::StraightThroughAlgorithm>,
-    pub pre_routing_results:
-        Option<HashMap<api_enums::PaymentMethodType, PreRoutingConnectorChoice>>,
+    pub pre_routing_results: Option<PreRoutingResults>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -44,8 +45,7 @@ pub enum PreRoutingConnectorChoice {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentRoutingInfoInner {
     pub algorithm: Option<routing::StraightThroughAlgorithm>,
-    pub pre_routing_results:
-        Option<HashMap<api_enums::PaymentMethodType, PreRoutingConnectorChoice>>,
+    pub pre_routing_results: Option<PreRoutingResults>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

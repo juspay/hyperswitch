@@ -100,7 +100,7 @@ impl SubscriberClient {
         // PubSubMessage broadcast channel, so callers can use `message_rx()`.
         let fred_rx = client.message_rx();
         let sender = broadcast_sender.clone();
-        tokio::spawn(
+        router_env::spawn(
             async move {
                 Self::forward_messages(fred_rx, sender).await;
             }

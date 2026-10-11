@@ -1395,7 +1395,7 @@ where
         item: ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item.response.redirect.map(|data| {
-            let mut form_fields = std::collections::HashMap::<_, _>::from_iter(
+            let mut form_fields = common_utils::collections::HashMap::<_, _>::from_iter(
                 data.parameters
                     .iter()
                     .map(|parameter| (parameter.name.clone(), parameter.value.clone())),

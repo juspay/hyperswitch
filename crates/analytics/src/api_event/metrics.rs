@@ -14,9 +14,8 @@ use crate::{
 mod api_count;
 pub mod latency;
 mod status_code_count;
-use std::collections::HashSet;
-
 use api_count::ApiCount;
+use common_utils::collections::HashSet;
 use latency::MaxLatency;
 use status_code_count::StatusCodeCount;
 

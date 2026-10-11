@@ -1,8 +1,8 @@
 //! Interactions with the HashiCorp Vault
 
-use std::{collections::HashMap, future::Future, pin::Pin};
+use std::{future::Future, pin::Pin};
 
-use common_utils::{ext_traits::ConfigExt, fp_utils::when};
+use common_utils::{collections::HashMap, ext_traits::ConfigExt, fp_utils::when};
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
 use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};

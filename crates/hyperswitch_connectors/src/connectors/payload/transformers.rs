@@ -1,10 +1,9 @@
-use std::collections::HashMap;
-
 use api_models::{
     merchant_connector_webhook_management::ScopeIdentifier, webhooks::IncomingWebhookEvent,
 };
 use common_enums::{self as common_enums, enums};
 use common_utils::{
+    collections::HashMap,
     ext_traits::ValueExt,
     types::{FloatMajorUnitForConnector, MinorUnit, StringMajorUnit},
 };

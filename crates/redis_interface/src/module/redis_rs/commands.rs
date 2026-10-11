@@ -1380,7 +1380,7 @@ impl super::RedisConnectionWithContext {
                     .ids
                     .into_iter()
                     .map(|entry_response| {
-                        let fields_by_redis_value: std::collections::HashMap<
+                        let fields_by_redis_value: common_utils::collections::HashMap<
                             String,
                             crate::RedisValue,
                         > = entry_response
@@ -1458,7 +1458,7 @@ impl super::RedisConnectionWithContext {
                     .ids
                     .into_iter()
                     .map(|entry_response| {
-                        let fields_by_redis_value: std::collections::HashMap<
+                        let fields_by_redis_value: common_utils::collections::HashMap<
                             String,
                             crate::RedisValue,
                         > = entry_response

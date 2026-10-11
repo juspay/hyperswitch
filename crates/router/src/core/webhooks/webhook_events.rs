@@ -1,6 +1,4 @@
-use std::collections::HashSet;
-
-use common_utils::{self, errors::CustomResult, fp_utils};
+use common_utils::{self, collections::HashSet, errors::CustomResult, fp_utils};
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
@@ -497,7 +495,7 @@ async fn finalize_event_types(
     // Example 1: event_types = ["payment_succeeded", "refund_*"], is_disjoint is used to extend "refund_*" and ignore "payment_*".
     // Example 2: event_types = ["payment_succeeded", "refund_*"], is_disjoint is only used to extend "refund_*".
     event_classes.into_iter().for_each(|class| {
-        let valid_event_types = class.event_types();
+        let valid_event_types: HashSet<_> = class.event_types().into_iter().collect();
         if event_types.is_disjoint(&valid_event_types) {
             event_types.extend(valid_event_types);
         }

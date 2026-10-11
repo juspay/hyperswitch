@@ -138,7 +138,7 @@ fn build_payment_method_wise_feature_details(
                 config.country.clone().map(|set| {
                     set.into_iter()
                         .map(common_enums::CountryAlpha2::from_alpha2_to_alpha3)
-                        .collect::<std::collections::HashSet<_>>()
+                        .collect::<common_utils::collections::HashSet<_>>()
                 })
             });
 

@@ -1,10 +1,7 @@
 pub use analytics::*;
 
 pub mod routes {
-    use std::{
-        collections::{HashMap, HashSet},
-        sync::Arc,
-    };
+    use std::sync::Arc;
 
     use actix_web::{web, Responder, Scope};
     use analytics::{
@@ -33,7 +30,11 @@ pub mod routes {
         GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use common_enums::EntityType;
-    use common_utils::{pii::Email, types::TimeRange};
+    use common_utils::{
+        collections::{HashMap, HashSet},
+        pii::Email,
+        types::TimeRange,
+    };
     use error_stack::{report, ResultExt};
     use futures::{stream::FuturesUnordered, StreamExt};
     use hyperswitch_masking::ExposeInterface;

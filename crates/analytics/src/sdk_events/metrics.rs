@@ -1,11 +1,10 @@
-use std::collections::HashSet;
-
 use api_models::analytics::{
     sdk_events::{
         SdkEventDimensions, SdkEventFilters, SdkEventMetrics, SdkEventMetricsBucketIdentifier,
     },
     Granularity, TimeRange,
 };
+use common_utils::collections::HashSet;
 use time::PrimitiveDateTime;
 
 use crate::{

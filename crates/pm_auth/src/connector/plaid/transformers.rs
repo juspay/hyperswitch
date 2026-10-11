@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use common_enums::{PaymentMethod, PaymentMethodType};
-use common_utils::{id_type, types as util_types};
+use common_utils::{collections::HashMap, id_type, types as util_types};
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
