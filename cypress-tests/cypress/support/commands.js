@@ -4983,6 +4983,7 @@ Cypress.Commands.add(
     expectedIntentStatus,
     connectedMerchantId,
     unconfirmedPayment = false,
+    allKeysRequired = false,
   }) => {
     const { Configs: configs = {}, Response: resData = {} } = data || {};
 
@@ -4998,9 +4999,14 @@ Cypress.Commands.add(
       headers["x-connected-merchant-id"] = connectedMerchantId;
     }
 
+    // force_sync alone is served from the DB once the attempt is already in a
+    // terminal state, so it won't re-query the connector. all_keys_required=true
+    // forces a genuine connector round-trip regardless of terminal status.
     const queryParams = unconfirmedPayment
       ? "expand_attempts=true"
-      : "force_sync=true&expand_attempts=true";
+      : `force_sync=true&expand_attempts=true${
+          allKeysRequired ? "&all_keys_required=true" : ""
+        }`;
 
     cy.request({
       method: "GET",
@@ -5086,6 +5092,15 @@ Cypress.Commands.add(
               response.body.status,
               "payment status should match stored intent_status"
             ).to.equal(expectedIntentStatus);
+          }
+
+          if (allKeysRequired) {
+            // Proves a real connector round-trip happened (not a cached DB
+            // read) — the field is only populated from a fresh connector call.
+            expect(
+              response.body.whole_connector_response,
+              "whole_connector_response"
+            ).to.be.a("string").and.to.not.be.empty;
           }
 
           if (resData?.body && "applied_offer" in resData.body) {
