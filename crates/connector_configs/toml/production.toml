@@ -4321,6 +4321,10 @@ payment_method_type = "eps"
   payment_method_type = "paysera"
 [[shift4.wallet]]
   payment_method_type = "skrill"
+[[shift4.wallet]]
+  payment_method_type = "apple_pay"
+[[shift4.wallet]]
+  payment_method_type = "google_pay"
 [[shift4.pay_later]]
   payment_method_type = "klarna"
 [[shift4.voucher]]
@@ -4331,6 +4335,84 @@ payment_method_type = "eps"
 api_key = "API Key"
 [shift4.connector_webhook_details]
 merchant_secret = "Source verification key"
+
+[[shift4.metadata.apple_pay]]
+name = "certificate"
+label = "Merchant certificate (Base64 encoded)"
+placeholder = "Enter the merchant certificate (Base64 encoded)"
+required = true
+type = "Text"
+[[shift4.metadata.apple_pay]]
+name = "certificate_keys"
+label = "Merchant private key (Base64 encoded)"
+placeholder = "Enter the merchant private key (Base64 encoded)"
+required = true
+type = "Text"
+[[shift4.metadata.apple_pay]]
+name = "merchant_identifier"
+label = "Apple merchant identifier"
+placeholder = "Enter the Apple merchant identifier"
+required = true
+type = "Text"
+[[shift4.metadata.apple_pay]]
+name = "display_name"
+label = "Display name"
+placeholder = "Enter the display name"
+required = true
+type = "Text"
+[[shift4.metadata.apple_pay]]
+name = "initiative"
+label = "Initiative"
+placeholder = "Select the initiative"
+required = true
+type = "Select"
+options = ["web", "ios"]
+[[shift4.metadata.apple_pay]]
+name = "initiative_context"
+label = "Domain name"
+placeholder = "Enter the domain name"
+required = true
+type = "Text"
+[[shift4.metadata.apple_pay]]
+name = "merchant_business_country"
+label = "Merchant business country"
+placeholder = "Select the merchant business country"
+required = true
+type = "Select"
+options = []
+[[shift4.metadata.apple_pay]]
+name = "payment_processing_details_at"
+label = "Payment processing location"
+placeholder = "Select the payment processing location"
+required = true
+type = "Radio"
+options = ["Connector"]
+
+[[shift4.metadata.google_pay]]
+name = "merchant_name"
+label = "Google Pay merchant name"
+placeholder = "Enter the Google Pay merchant name"
+required = true
+type = "Text"
+[[shift4.metadata.google_pay]]
+name = "merchant_id"
+label = "Google Pay merchant ID"
+placeholder = "Enter the Google Pay merchant ID"
+required = true
+type = "Text"
+[[shift4.metadata.google_pay]]
+name = "gateway_merchant_id"
+label = "Gateway merchant ID"
+placeholder = "Enter the gateway merchant ID"
+required = true
+type = "Text"
+[[shift4.metadata.google_pay]]
+name = "allowed_auth_methods"
+label = "Allowed authentication methods"
+placeholder = "Select the allowed authentication methods"
+required = true
+type = "MultiSelect"
+options = ["CRYPTOGRAM_3DS"]
 
 [stripe]
 [[stripe.credit]]
