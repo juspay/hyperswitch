@@ -165,8 +165,19 @@ describe("FRM - Fraud Risk Management Tests", () => {
       });
     });
 
-    afterEach("Delete FRM connector", () => {
+    afterEach("Delete FRM connector and restore profile FRM routing", () => {
       cy.deleteFrmConnector(globalState);
+      // The business profile endpoint's update is a diesel AsChangeset over
+      // Option<T> fields with no `treat_none_as_null`, so sending `null` here
+      // would be silently skipped rather than clearing the override set above
+      // — it must be reset to an explicit, known-good value instead. Reset to
+      // signifyd (the merchant account's value) so later specs in this phase,
+      // which share this same merchant/profile via globalState, don't inherit
+      // a profile-level override pointing at a connector with no MCA.
+      cy.setProfileFrmRoutingAlgorithm(
+        { type: "single", data: "signifyd" },
+        globalState
+      );
     });
   });
 });
