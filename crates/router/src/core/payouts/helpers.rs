@@ -146,12 +146,12 @@ pub async fn make_payout_method_data(
                     )?;
                     Ok(pm)
                 } else {
-                    let resp = cards::get_card_from_locker(
+                    let resp = Box::pin(cards::get_card_from_locker(
                         state,
                         customer_id,
                         merchant_id,
                         payout_token.as_ref(),
-                    )
+                    ))
                     .await
                     .attach_printable("Payout method [card] could not be fetched from HS locker")?
                     .get_card();
@@ -352,7 +352,7 @@ pub async fn fetch_payout_method_data(
         let merchant_id = payout_data.payout_attempt.merchant_id.clone();
         let payout_type = payout_data.payouts.payout_type;
 
-        let payout_method_data = make_payout_method_data(
+        let payout_method_data = Box::pin(make_payout_method_data(
             state,
             payout_method_data_clone.as_ref(),
             payout_token.as_deref(),
@@ -362,7 +362,7 @@ pub async fn fetch_payout_method_data(
             platform.get_processor().get_key_store(),
             Some(payout_data),
             platform.get_processor().get_account().storage_scheme,
-        )
+        ))
         .await?
         .get_required_value("payout_method_data")?;
 
