@@ -1055,6 +1055,7 @@ export const connectorDetails = {
             adyen: null,
             peachpayments: null,
             santander: null,
+            paypal: null,
             worldpayxml: null,
             checkout: {
               purpose_of_payment: "wallet top-up",
