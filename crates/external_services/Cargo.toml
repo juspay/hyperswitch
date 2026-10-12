@@ -9,7 +9,7 @@ license.workspace = true
 
 [features]
 aws_kms = ["dep:cloud_services", "cloud_services/aws_kms"]
-email = ["dep:aws-config"]
+email = ["dep:cloud_services", "cloud_services/ses", "cloud_services/smtp"]
 aws_s3 = ["dep:cloud_services", "cloud_services/s3"]
 oci_object_storage = ["dep:cloud_services", "cloud_services/oci_object_storage"]
 gcp_kms = ["dep:cloud_services", "cloud_services/gcp_kms"]
@@ -53,13 +53,6 @@ dynamic_routing = [
 
 [dependencies]
 async-trait = "0.1.88"
-aws-config = { version = "1.5.10", optional = true, features = [
-    "behavior-version-latest",
-] }
-aws-sdk-sesv2 = "1.57.0"
-aws-sdk-sts = "1.51.0"
-aws-smithy-runtime = "1.8.3"
-aws-smithy-runtime-api = { version = "1.7", features = ["client"] }
 aws-smithy-types = "1.3.1"
 base64 = "0.22.1"
 dyn-clone = "1.0.19"
@@ -67,8 +60,6 @@ deja = { git = "https://github.com/juspay/deja", rev = "ade8fd16c1d8a4d23ca8fa33
 error-stack = "0.4.1"
 hex = "0.4.3"
 hyper = "0.14.32"
-hyper-proxy = "0.9.1"
-lettre = "0.11.16"
 once_cell = "1.21.3"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"

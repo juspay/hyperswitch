@@ -10,11 +10,14 @@
 //! | `aws_kms`            | [`kms::aws`]     | AWS KMS                                           |
 //! | `gcp_kms`            | [`kms::gcp`]     | GCP Cloud KMS                                     |
 //! | `oci_kms`            | [`kms::oci`]     | OCI Vault KMS                                     |
+//! | `ses`                | [`email::ses`]   | AWS SES, as an STS-assumed role                   |
+//! | `smtp`               | [`email::smtp`]  | Any SMTP server (OCI Email Delivery, SendGrid, …) |
 //!
 //! Errors are plain [`std::error::Error`] types so callers can wrap them in whatever error
 //! handling they use.
 
 #![warn(missing_docs, missing_debug_implementations)]
 
+pub mod email;
 pub mod kms;
 pub mod storage;

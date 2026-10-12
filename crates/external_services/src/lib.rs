@@ -31,7 +31,7 @@ pub mod utils;
 /// Builds a report from a shared [`cloud_services`] client error, attaching the error's cause as
 /// text: `error-stack` prints only a context's own message, so the cause would otherwise be
 /// missing from logged reports.
-#[cfg(any(feature = "aws_kms", feature = "gcp_kms"))]
+#[cfg(any(feature = "aws_kms", feature = "gcp_kms", feature = "email"))]
 fn report_with_cause<E>(error: E) -> error_stack::Report<E>
 where
     E: std::error::Error + Send + Sync + 'static,

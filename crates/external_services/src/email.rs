@@ -1,6 +1,8 @@
-//! Interactions with the AWS SES SDK
+//! Sending email through AWS SES or an SMTP server.
+//!
+//! The clients themselves are the shared [`cloud_services::email`] ones; this module adds
+//! Hyperswitch's templating ([`EmailData`]), settings and error reporting.
 
-use aws_sdk_sesv2::types::Body;
 use common_utils::{errors::CustomResult, pii};
 use serde::Deserialize;
 
@@ -118,7 +120,7 @@ pub trait EmailData {
     async fn get_email_data(&self, base_url: &str) -> CustomResult<EmailContents, EmailError>;
 }
 
-dyn_clone::clone_trait_object!(EmailClient<RichText = Body>);
+dyn_clone::clone_trait_object!(EmailClient<RichText = String>);
 
 /// List of available email clients to choose from
 #[derive(Debug, Clone, Default, Deserialize)]
