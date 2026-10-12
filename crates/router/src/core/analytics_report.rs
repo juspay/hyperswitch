@@ -414,55 +414,29 @@ async fn send_emails(
     {
         let config = &state.conf.report_download_config.process_tracker;
         let (start, end) = tracking_data.time_range();
-        let (start, end) = (
-            reports::format_timestamp(start),
-            reports::format_timestamp(end),
-        );
         let title = tracking_data.report.definition().title;
-        let name = format!("{} {title}", config.email_env_label);
-        let covers = title.to_lowercase();
-        let expiry = match expiry_days {
-            1 => "1 day".to_owned(),
-            days => format!("{days} days"),
+        let email = services::email::types::AnalyticsReportEmail {
+            recipients: email_recipients(&tracking_data.request, &config.email_bcc),
+            report_name: format!("{} {title}", config.email_env_label),
+            covers: title.to_lowercase(),
+            start: reports::format_timestamp(start),
+            end: reports::format_timestamp(end),
+            download_url: download_url.to_owned(),
+            expiry: match expiry_days {
+                1 => "1 day".to_owned(),
+                days => format!("{days} days"),
+            },
         };
-        let escape = |value: &str| {
-            value
-                .replace('&', "&amp;")
-                .replace('<', "&lt;")
-                .replace('>', "&gt;")
-                .replace('"', "&quot;")
-        };
-        let (link, link_name) = (escape(download_url), escape(&name));
-        let email = external_services::email::EmailContents {
-            recipient: tracking_data.request.email.clone(),
-            subject: format!("Your {name} Report: {start} - {end}"),
-            body: external_services::email::IntermediateString::new(format!(
-                "<p>Please find the {covers} report for the period of {start} to {end}.<br>\n\
-                 This file provides a comprehensive overview of {covers} processed via Hyperswitch during this time frame.\n\
-                 <br><br>Access your report here: <a href=\"{link}\">Download {link_name} Report</a>.\n\
-                 <br>(The link expires in {expiry})\n\
-                 <br>If you have any questions or require further assistance, please don't hesitate to reach out to us at <a href=\"mailto:hyperswitch@juspay.in\">hyperswitch@juspay.in</a>.\n\
-                 <br><br>Best regards,<br>\n\
-                 Hyperswitch Team</p>"
-            )),
-        };
-
-        for recipient in email_recipients(&tracking_data.request, &config.email_bcc) {
-            state
-                .email_client
-                .compose_and_send_email(
-                    crate::utils::user::get_base_url(state),
-                    Box::new(external_services::email::EmailContents {
-                        recipient,
-                        ..email.clone()
-                    }),
-                    state.conf.proxy.https_url.as_ref(),
-                )
-                .await
-                .change_context(AnalyticsError::UnknownError)
-                .attach_printable("Failed to send the analytics report email")?;
-        }
-        Ok(())
+        state
+            .email_client
+            .compose_and_send_email(
+                crate::utils::user::get_base_url(state),
+                Box::new(email),
+                state.conf.proxy.https_url.as_ref(),
+            )
+            .await
+            .change_context(AnalyticsError::UnknownError)
+            .attach_printable("Failed to send the analytics report email")
     }
 
     #[cfg(not(feature = "email"))]
@@ -474,19 +448,26 @@ async fn send_emails(
     }
 }
 
-/// The requester, the other requested addresses, then the BCC list, each once.
+/// One email to the requester and the other requested addresses, blind-copying the BCC list;
+/// each address once, ignoring case.
 #[cfg(any(feature = "email", test))]
-fn email_recipients(request: &GenerateReportRequest, bcc: &[Email]) -> Vec<Email> {
-    let mut recipients: Vec<Email> = Vec::new();
-    for email in std::iter::once(&request.email)
-        .chain(request.request.emails.iter().flatten())
-        .chain(bcc)
-    {
-        if !recipients
-            .iter()
-            .any(|seen| seen.peek().eq_ignore_ascii_case(email.peek()))
-        {
-            recipients.push(email.clone());
+fn email_recipients(
+    request: &GenerateReportRequest,
+    bcc: &[Email],
+) -> external_services::email::EmailRecipients {
+    let mut recipients = external_services::email::EmailRecipients::default();
+    let seen = |list: &[Email], email: &Email| {
+        list.iter()
+            .any(|existing| existing.peek().eq_ignore_ascii_case(email.peek()))
+    };
+    for email in std::iter::once(&request.email).chain(request.request.emails.iter().flatten()) {
+        if !seen(&recipients.to, email) {
+            recipients.to.push(email.clone());
+        }
+    }
+    for email in bcc {
+        if !seen(&recipients.to, email) && !seen(&recipients.bcc, email) {
+            recipients.bcc.push(email.clone());
         }
     }
     recipients
@@ -629,14 +610,16 @@ mod tests {
             profile_auth(),
             Some(vec![email("Owner@example.com"), email("ops@example.com")]),
         );
-        let recipients = email_recipients(&data.request, &[email("audit@example.com")]);
-        let recipients = recipients
-            .iter()
-            .map(|e| e.peek().as_str())
-            .collect::<Vec<_>>();
-        assert_eq!(
-            recipients,
-            ["owner@example.com", "ops@example.com", "audit@example.com"]
+        let recipients = email_recipients(
+            &data.request,
+            &[email("audit@example.com"), email("OPS@example.com")],
         );
+        let addresses =
+            |list: &[Email]| list.iter().map(|e| e.peek().to_owned()).collect::<Vec<_>>();
+        assert_eq!(
+            addresses(&recipients.to),
+            ["owner@example.com", "ops@example.com"]
+        );
+        assert_eq!(addresses(&recipients.bcc), ["audit@example.com"]);
     }
 }

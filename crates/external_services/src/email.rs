@@ -84,7 +84,7 @@ where
 }
 
 /// This is a struct used to create Intermediate String for rich text ( html )
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct IntermediateString(String);
 
 impl IntermediateString {
@@ -100,7 +100,7 @@ impl IntermediateString {
 }
 
 /// Temporary output for the email subject
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct EmailContents {
     /// The subject of email
     pub subject: String,
@@ -157,14 +157,6 @@ impl EmailRecipients {
 pub trait EmailData {
     /// Get the email contents
     async fn get_email_data(&self, base_url: &str) -> CustomResult<EmailContents, EmailError>;
-}
-
-/// Contents already composed are sent as they are.
-#[async_trait::async_trait]
-impl EmailData for EmailContents {
-    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
-        Ok(self.clone())
-    }
 }
 
 dyn_clone::clone_trait_object!(EmailClient<RichText = String>);
