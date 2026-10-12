@@ -866,6 +866,21 @@ where
     let previous_intent = payment_data.get_payment_intent().clone();
     payment_data.set_previous_db_records(previous_attempt, previous_intent);
 
+    // A webhook continuation reaches connector selection before the payment-intent update is
+    // persisted. Preserve the live source on the in-memory payment data so MCA lookup does not
+    // apply the current enabled status to a connector selected for the original payment.
+    if matches!(
+        header_payload.payment_confirm_source,
+        Some(
+            common_enums::PaymentSource::Webhook
+                | common_enums::PaymentSource::ExternalAuthenticator
+        )
+    ) {
+        let mut payment_intent = payment_data.get_payment_intent().clone();
+        payment_intent.payment_confirm_source = header_payload.payment_confirm_source;
+        payment_data.set_payment_intent(payment_intent);
+    }
+
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
 
     operation
@@ -5501,9 +5516,10 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     .map(|profile_id| profile_id.get_string_repr().to_owned())
                     .unwrap_or_default(),
             })?;
-        // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
-
-        let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
+        // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector.
+        // This completes an authentication that was already initiated (via webhook or browser
+        // redirect), so the 3ds MCA is derived regardless of its enabled/disabled status.
+        let authentication_merchant_connector_account = helpers::get_merchant_connector_account_for_webhook(
             state,
             platform.get_processor(),
             None,
@@ -9308,15 +9324,35 @@ where
     #[cfg(feature = "v2")]
     let profile_id = payment_data.get_payment_intent().profile_id.clone();
 
-    let merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        processor,
-        payment_data.get_creds_identifier(),
-        &profile_id,
-        connector_name,
-        merchant_connector_id,
-    )
-    .await?;
+    let is_webhook_continuation = matches!(
+        payment_data.get_payment_intent().payment_confirm_source,
+        Some(
+            common_enums::PaymentSource::Webhook
+                | common_enums::PaymentSource::ExternalAuthenticator
+        )
+    );
+
+    let merchant_connector_account = if is_webhook_continuation {
+        helpers::get_merchant_connector_account_for_webhook(
+            state,
+            processor,
+            payment_data.get_creds_identifier(),
+            &profile_id,
+            connector_name,
+            merchant_connector_id,
+        )
+        .await?
+    } else {
+        helpers::get_merchant_connector_account(
+            state,
+            processor,
+            payment_data.get_creds_identifier(),
+            &profile_id,
+            connector_name,
+            merchant_connector_id,
+        )
+        .await?
+    };
 
     Ok(merchant_connector_account)
 }

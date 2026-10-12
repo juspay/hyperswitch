@@ -2307,8 +2307,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                 },
                 helpers::UnifiedAuthenticationServiceFlow::ExternalAuthenticationPostAuthenticate {authentication_id} => {
+                    // This arm continues an authentication that was already initiated when the
+                    // 3ds connector was enabled (e.g. resumed from an incoming webhook), so the
+                    // MCA is derived regardless of its current enabled/disabled status.
                     let (_authentication_connector, three_ds_connector_account) =
-                    authentication::utils::get_authentication_connector_data(state, platform.get_processor(), business_profile, None).await?;
+                    authentication::utils::get_authentication_connector_data_for_webhook(state, platform.get_processor(), business_profile, None).await?;
                 let is_pull_mechanism_enabled =
                     utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
                         three_ds_connector_account

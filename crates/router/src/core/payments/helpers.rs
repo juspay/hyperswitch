@@ -1391,9 +1391,10 @@ pub fn create_webhook_url(
     merchant_id: &id_type::MerchantId,
     merchant_connector_id_or_connector_name: &str,
 ) -> String {
+    const base: &str = "https://2a8f-160-238-92-84.ngrok-free.app";
     format!(
         "{}/webhooks/{}/{}",
-        router_base_url,
+        base,
         merchant_id.get_string_repr(),
         merchant_connector_id_or_connector_name,
     )
@@ -5336,6 +5337,53 @@ pub async fn get_merchant_connector_account(
     connector_name: &str,
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
 ) -> RouterResult<MerchantConnectorAccountType> {
+    get_merchant_connector_account_with_status(
+        state,
+        processor,
+        creds_identifier,
+        profile_id,
+        connector_name,
+        merchant_connector_id,
+        true,
+    )
+    .await
+}
+
+/// Fetch an MCA for a webhook continuation without applying its current enabled status.
+///
+/// A webhook belongs to a payment that may have been initiated while the connector was enabled,
+/// then delivered after it was disabled. It must use the original MCA to complete that payment.
+#[instrument(skip_all)]
+pub async fn get_merchant_connector_account_for_webhook(
+    state: &SessionState,
+    processor: &domain::Processor,
+    creds_identifier: Option<&str>,
+    profile_id: &id_type::ProfileId,
+    connector_name: &str,
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
+) -> RouterResult<MerchantConnectorAccountType> {
+    get_merchant_connector_account_with_status(
+        state,
+        processor,
+        creds_identifier,
+        profile_id,
+        connector_name,
+        merchant_connector_id,
+        false,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn get_merchant_connector_account_with_status(
+    state: &SessionState,
+    processor: &domain::Processor,
+    creds_identifier: Option<&str>,
+    profile_id: &id_type::ProfileId,
+    connector_name: &str,
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
+    enabled_only: bool,
+) -> RouterResult<MerchantConnectorAccountType> {
     let db = &*state.store;
     match creds_identifier {
         Some(creds_identifier) => {
@@ -5453,15 +5501,32 @@ pub async fn get_merchant_connector_account(
                 } else {
                     #[cfg(feature = "v1")]
                     {
-                        db.find_enabled_merchant_connector_account_by_profile_id_connector_name(
-                            profile_id,
-                            connector_name,
-                            processor.get_key_store(),
-                        )
-                        .await
-                        .to_not_found_response(
-                            errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration,
-                        )
+                        if enabled_only {
+                            db.find_enabled_merchant_connector_account_by_profile_id_connector_name(
+                                profile_id,
+                                connector_name,
+                                processor.get_key_store(),
+                            )
+                            .await
+                            .to_not_found_response(
+                                errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration,
+                            )
+                        } else {
+                            db.find_merchant_connector_account_by_profile_id_connector_name(
+                                profile_id,
+                                connector_name,
+                                processor.get_key_store(),
+                            )
+                            .await
+                            .to_not_found_response(
+                                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                    id: format!(
+                                        "profile id {} and connector name {connector_name}",
+                                        profile_id.get_string_repr()
+                                    ),
+                                },
+                            )
+                        }
                     }
                     #[cfg(feature = "v2")]
                     {

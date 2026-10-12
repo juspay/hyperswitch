@@ -133,7 +133,7 @@ pub async fn perform_post_authentication(
 > {
     let key_state = &state.into();
     let (authentication_connector, three_ds_connector_account) =
-        utils::get_authentication_connector_data(state, processor, &business_profile, None).await?;
+        utils::get_authentication_connector_data_for_webhook(state, processor, &business_profile, None).await?;
     let is_pull_mechanism_enabled =
         check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
             three_ds_connector_account
@@ -1078,7 +1078,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
         )?;
 
     let (authentication_connector, auth_merchant_connector_account) =
-        utils::get_authentication_connector_data(state, processor, business_profile, None).await?;
+        utils::get_authentication_connector_data_for_webhook(state, processor, business_profile, None).await?;
     let auth_connector_enum = authentication_connector
         .to_string()
         .parse::<common_enums::connector_enums::Connector>()
@@ -1276,11 +1276,13 @@ async fn call_ucs_authenticate_proxy(
         .clone()
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("connector missing on attempt for external vault 3DS authenticate")?;
-    let psp_merchant_connector_account = payments_core::helpers::get_merchant_connector_account(
+    // This auth leg resumes an in-flight payment (reachable from incoming webhooks), so the
+    // PSP MCA is derived regardless of its enabled/disabled status.
+    let psp_merchant_connector_account = payments_core::helpers::get_merchant_connector_account_for_webhook(
         state,
         processor,
         None,
-        profile_id,
+        business_profile.get_id(),
         psp_connector_name.as_str(),
         payment_attempt.merchant_connector_id.as_ref(),
     )
@@ -1357,8 +1359,10 @@ async fn call_ucs_authenticate_proxy(
         None,
     );
 
+    // Post-authentication continuation: derive the 3ds MCA regardless of its enabled/disabled
+    // status, since the authentication was initiated while the connector was enabled.
     let (authentication_connector, auth_merchant_connector_account) =
-        utils::get_authentication_connector_data(state, processor, business_profile, None).await?;
+        utils::get_authentication_connector_data_for_webhook(state, processor, business_profile, None).await?;
     let auth_connector_enum = authentication_connector
         .to_string()
         .parse::<common_enums::connector_enums::Connector>()
