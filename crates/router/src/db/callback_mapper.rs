@@ -1,11 +1,10 @@
 use error_stack::report;
 use hyperswitch_domain_models::callback_mapper as domain;
 use router_env::{instrument, tracing};
-use storage_impl::{DataModelExt, MockDb};
+use storage_impl::{DataModelExt, DatabaseStore, MockDb};
 
 use super::Store;
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -30,7 +29,7 @@ impl CallbackMapperInterface for Store {
         &self,
         call_back_mapper: domain::CallbackMapper,
     ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         call_back_mapper
             .to_storage_model()
             .insert(&conn)
@@ -44,7 +43,7 @@ impl CallbackMapperInterface for Store {
         &self,
         id: &str,
     ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::CallbackMapper::find_by_id(&conn, id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))

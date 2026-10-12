@@ -1,11 +1,13 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
-use storage_impl::redis::cache::{self, CacheKind};
+use storage_impl::{
+    redis::cache::{self, CacheKind},
+    DatabaseStore,
+};
 
 use super::{MockDb, Store};
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -56,7 +58,7 @@ impl ApiKeyInterface for Store {
         &self,
         api_key: storage::ApiKeyNew,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         api_key
             .insert(&conn)
             .await
@@ -70,7 +72,7 @@ impl ApiKeyInterface for Store {
         key_id: common_utils::id_type::ApiKeyId,
         api_key: storage::ApiKeyUpdate,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let _merchant_id = merchant_id.clone();
         let _key_id = key_id.clone();
         let update_call = || async {
@@ -118,7 +120,7 @@ impl ApiKeyInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         key_id: &common_utils::id_type::ApiKeyId,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let delete_call = || async {
             storage::ApiKey::revoke_by_merchant_id_key_id(&conn, merchant_id, key_id)
                 .await
@@ -161,7 +163,7 @@ impl ApiKeyInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         key_id: &common_utils::id_type::ApiKeyId,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::ApiKey::find_optional_by_merchant_id_key_id(&conn, merchant_id, key_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -174,7 +176,7 @@ impl ApiKeyInterface for Store {
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
         let _hashed_api_key = hashed_api_key.clone();
         let find_call = || async {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             storage::ApiKey::find_optional_by_hashed_api_key(&conn, hashed_api_key)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
@@ -204,7 +206,7 @@ impl ApiKeyInterface for Store {
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> CustomResult<Vec<storage::ApiKey>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::ApiKey::find_by_merchant_id(&conn, merchant_id, limit, offset)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))

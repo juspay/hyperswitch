@@ -1,9 +1,9 @@
 use diesel_models::unified_translations as storage;
 use error_stack::report;
+use storage_impl::DatabaseStore;
 
 use super::MockDb;
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     services::Store,
 };
@@ -44,7 +44,7 @@ impl UnifiedTranslationsInterface for Store {
         &self,
         translation: storage::UnifiedTranslationsNew,
     ) -> CustomResult<storage::UnifiedTranslations, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         translation
             .insert(&conn)
             .await
@@ -58,7 +58,7 @@ impl UnifiedTranslationsInterface for Store {
         locale: String,
         data: storage::UnifiedTranslationsUpdate,
     ) -> CustomResult<storage::UnifiedTranslations, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         storage::UnifiedTranslations::update_by_unified_code_unified_message_locale(
             &conn,
             unified_code,
@@ -76,7 +76,7 @@ impl UnifiedTranslationsInterface for Store {
         unified_message: String,
         locale: String,
     ) -> CustomResult<String, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let translations =
             storage::UnifiedTranslations::find_by_unified_code_unified_message_locale(
                 &conn,
@@ -95,7 +95,7 @@ impl UnifiedTranslationsInterface for Store {
         unified_message: String,
         locale: String,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         storage::UnifiedTranslations::delete_by_unified_code_unified_message_locale(
             &conn,
             unified_code,

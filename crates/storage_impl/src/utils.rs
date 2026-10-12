@@ -2,12 +2,12 @@
 use bb8::PooledConnection;
 #[cfg(feature = "deja")]
 use diesel_models::DejaPgConnection;
-use error_stack::ResultExt;
 
+#[cfg(feature = "deja")]
+use crate::DatabaseStore;
 use crate::{
-    database::store::{DatabaseConnectionWithContext, LeaseTarget},
     errors::{RedisErrorExt, StorageError},
-    metrics, DatabaseStore, RequestContext,
+    metrics,
 };
 
 // Deja replay (R1): the per-correlation DB routing hook, at the ACTUAL storage
@@ -127,165 +127,6 @@ fn deja_replay_route_warn_no_correlation() {
             );
         }
     }
-}
-
-pub async fn pg_connection_read<'a, T: DatabaseStore + RequestContext>(
-    store: &'a T,
-) -> error_stack::Result<DatabaseConnectionWithContext<'a>, StorageError> {
-    // If only OLAP is enabled get replica pool.
-    #[cfg(all(feature = "olap", not(feature = "oltp")))]
-    let (pool, target) = (store.get_replica_pool(), LeaseTarget::PRIMARY_REPLICA_READ);
-
-    // If either one of these are true we need to get master pool.
-    //  1. Only OLTP is enabled.
-    //  2. Both OLAP and OLTP is enabled.
-    //  3. Both OLAP and OLTP is disabled.
-    #[cfg(any(
-        all(not(feature = "olap"), feature = "oltp"),
-        all(feature = "olap", feature = "oltp"),
-        all(not(feature = "olap"), not(feature = "oltp"))
-    ))]
-    let (pool, target) = (store.get_master_pool(), LeaseTarget::PRIMARY_MASTER_READ);
-
-    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let (mut connection, lease_time) = pool
-        .lease(target)
-        .await
-        .change_context(StorageError::DatabaseConnectionError)?;
-
-    #[cfg(feature = "deja")]
-    deja_route_replay_schema(&mut connection, store).await;
-
-    Ok(DatabaseConnectionWithContext::new(
-        connection,
-        store.request_id().map(str::to_owned),
-        pool.event_emitter.clone(),
-        target,
-        lease_time,
-    ))
-}
-
-/// Always leases from the replica pool, irrespective of the `olap`/`oltp` features.
-///
-/// `pg_connection_read` falls back to the master pool whenever `oltp` is enabled
-/// (including the default build, where both `olap` and `oltp` are on), so analytics
-/// style queries that must never touch master should use this instead. For stores
-/// without a configured replica (`Store`), `get_replica_pool` returns the master
-/// pool, so this stays correct in single-pool deployments.
-pub async fn pg_connection_read_replica<'a, T: DatabaseStore + RequestContext>(
-    store: &'a T,
-) -> error_stack::Result<DatabaseConnectionWithContext<'a>, StorageError> {
-    let pool = store.get_replica_pool();
-    let target = LeaseTarget::PRIMARY_REPLICA_READ;
-
-    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let (mut connection, lease_time) = pool
-        .lease(target)
-        .await
-        .change_context(StorageError::DatabaseConnectionError)?;
-
-    #[cfg(feature = "deja")]
-    deja_route_replay_schema(&mut connection, store).await;
-
-    Ok(DatabaseConnectionWithContext::new(
-        connection,
-        store.request_id().map(str::to_owned),
-        pool.event_emitter.clone(),
-        target,
-        lease_time,
-    ))
-}
-
-pub async fn pg_connection_write<'a, T: DatabaseStore + RequestContext>(
-    store: &'a T,
-) -> error_stack::Result<DatabaseConnectionWithContext<'a>, StorageError> {
-    // Since all writes should happen to master DB only choose master DB.
-    let pool = store.get_master_pool();
-    let target = LeaseTarget::PRIMARY_MASTER_WRITE;
-
-    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let (mut connection, lease_time) = pool
-        .lease(target)
-        .await
-        .change_context(StorageError::DatabaseConnectionError)?;
-
-    #[cfg(feature = "deja")]
-    deja_route_replay_schema(&mut connection, store).await;
-
-    Ok(DatabaseConnectionWithContext::new(
-        connection,
-        store.request_id().map(str::to_owned),
-        pool.event_emitter.clone(),
-        target,
-        lease_time,
-    ))
-}
-
-pub async fn pg_accounts_connection_read<'a, T: DatabaseStore + RequestContext>(
-    store: &'a T,
-) -> error_stack::Result<DatabaseConnectionWithContext<'a>, StorageError> {
-    // If only OLAP is enabled get replica pool.
-    #[cfg(all(feature = "olap", not(feature = "oltp")))]
-    let (pool, target) = (
-        store.get_accounts_replica_pool(),
-        LeaseTarget::ACCOUNTS_REPLICA_READ,
-    );
-
-    // If either one of these are true we need to get master pool.
-    //  1. Only OLTP is enabled.
-    //  2. Both OLAP and OLTP is enabled.
-    //  3. Both OLAP and OLTP is disabled.
-    #[cfg(any(
-        all(not(feature = "olap"), feature = "oltp"),
-        all(feature = "olap", feature = "oltp"),
-        all(not(feature = "olap"), not(feature = "oltp"))
-    ))]
-    let (pool, target) = (
-        store.get_accounts_master_pool(),
-        LeaseTarget::ACCOUNTS_MASTER_READ,
-    );
-
-    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let (mut connection, lease_time) = pool
-        .lease(target)
-        .await
-        .change_context(StorageError::DatabaseConnectionError)?;
-
-    #[cfg(feature = "deja")]
-    deja_route_replay_schema(&mut connection, store).await;
-
-    Ok(DatabaseConnectionWithContext::new(
-        connection,
-        store.request_id().map(str::to_owned),
-        pool.event_emitter.clone(),
-        target,
-        lease_time,
-    ))
-}
-
-pub async fn pg_accounts_connection_write<'a, T: DatabaseStore + RequestContext>(
-    store: &'a T,
-) -> error_stack::Result<DatabaseConnectionWithContext<'a>, StorageError> {
-    // Since all writes should happen to master DB only choose master DB.
-    let pool = store.get_accounts_master_pool();
-    let target = LeaseTarget::ACCOUNTS_MASTER_WRITE;
-
-    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let (mut connection, lease_time) = pool
-        .lease(target)
-        .await
-        .change_context(StorageError::DatabaseConnectionError)?;
-
-    #[cfg(feature = "deja")]
-    deja_route_replay_schema(&mut connection, store).await;
-
-    Ok(DatabaseConnectionWithContext::new(
-        connection,
-        store.request_id().map(str::to_owned),
-        pool.event_emitter.clone(),
-        target,
-        lease_time,
-    ))
 }
 
 pub async fn try_redis_get_else_try_database_get<F, RFut, DFut, T>(

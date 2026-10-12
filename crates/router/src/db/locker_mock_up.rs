@@ -1,9 +1,9 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
+use storage_impl::DatabaseStore;
 
 use super::{MockDb, Store};
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -33,7 +33,7 @@ impl LockerMockUpInterface for Store {
         &self,
         card_id: &str,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::LockerMockUp::find_by_card_id(&conn, card_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -44,7 +44,7 @@ impl LockerMockUpInterface for Store {
         &self,
         new: storage::LockerMockUpNew,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         new.insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -55,7 +55,7 @@ impl LockerMockUpInterface for Store {
         &self,
         card_id: &str,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         storage::LockerMockUp::delete_by_card_id(&conn, card_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))

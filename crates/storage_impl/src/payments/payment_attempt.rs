@@ -46,10 +46,7 @@ use crate::{
     kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-    utils::{
-        pg_connection_read, pg_connection_read_replica, pg_connection_write,
-        try_redis_get_else_try_database_get,
-    },
+    utils::try_redis_get_else_try_database_get,
     DataModelExt, DatabaseStore, RouterStore,
 };
 
@@ -64,7 +61,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let diesel_payment_attempt = payment_attempt
             .construct_new()
             .await
@@ -100,7 +97,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         payment_attempt: PaymentAttempt,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         Box::pin(
             payment_attempt
                 .construct_new()
@@ -132,7 +129,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let key_manager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
@@ -169,7 +166,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         payment_attempt: PaymentAttemptUpdate,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
 
         Box::pin(
             Conversion::convert(this)
@@ -204,7 +201,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let key_manager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
@@ -240,7 +237,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let key_manager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
@@ -274,7 +271,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         payment_id: &common_utils::id_type::GlobalPaymentId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         DieselPaymentAttempt::find_last_successful_or_partially_captured_attempt_by_payment_id(
             &conn, payment_id,
         )
@@ -302,7 +299,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let key_manager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
@@ -338,7 +335,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         connector_txn_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         DieselPaymentAttempt::find_by_profile_id_connector_transaction_id(
             &conn,
             profile_id,
@@ -369,7 +366,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let key_manager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
@@ -406,7 +403,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentListFilters, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let intents = try_join_all(pi.iter().map(|pi| async {
             hyperswitch_domain_models::behaviour::Conversion::convert(pi.clone())
                 .await
@@ -452,7 +449,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentAttempt>, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let key_manager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
@@ -489,7 +486,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let key_manager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
@@ -525,7 +522,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         attempt_id: &common_utils::id_type::GlobalAttemptId,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
 
         DieselPaymentAttempt::find_by_id(&conn, attempt_id)
             .await
@@ -553,7 +550,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError> {
         use common_utils::ext_traits::AsyncExt;
 
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         DieselPaymentAttempt::find_by_payment_id(&conn, payment_id)
             .await
             .map_err(|er| {
@@ -595,7 +592,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         card_discovery: Option<Vec<common_enums::CardDiscovery>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = pg_connection_read_replica(self).await?;
+        let conn = self.pg_connection_read_replica().await?;
         let connector_strings = connector.as_ref().map(|connector| {
             connector
                 .iter()
@@ -634,7 +631,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         card_network: Option<Vec<common_enums::CardNetwork>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = pg_connection_read_replica(self).await?;
+        let conn = self.pg_connection_read_replica().await?;
 
         DieselPaymentAttempt::get_total_count_of_attempts(
             &conn,
@@ -815,7 +812,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 self.insert_reverse_lookup(reverse_lookup, storage_scheme)
                     .await?;
 
-                let mut query_gen_conn = pg_connection_write(self).await?;
+                let mut query_gen_conn = self.pg_connection_write().await?;
                 let drainer_query = payment_attempt_new
                     .generate_drainer_insert_query(&mut query_gen_conn)
                     .await
@@ -923,7 +920,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .await?;
                 }
 
-                let mut query_gen_conn = pg_connection_write(self).await?;
+                let mut query_gen_conn = self.pg_connection_write().await?;
                 let drainer_query = diesel_payment_attempt_new
                     .generate_drainer_insert_query(&mut query_gen_conn)
                     .await
@@ -1070,7 +1067,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     (_, _) => {}
                 }
 
-                let mut query_gen_conn = pg_connection_write(self).await?;
+                let mut query_gen_conn = self.pg_connection_write().await?;
                 let drainer_query = payment_attempt_update_diesel
                     .generate_drainer_update_query(
                         &mut query_gen_conn,
@@ -1124,7 +1121,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             let payment_attempt = payment_attempt.clone();
             let payment_attempt_internal = payment_attempt_internal.clone();
             async move {
-                let conn = pg_connection_write(self)
+                let conn = self
+                    .pg_connection_write()
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
                 payment_attempt
@@ -1136,7 +1134,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         let drainer_query_fut = {
             let payment_attempt_id = payment_attempt.id.clone();
             async move {
-                let mut conn = pg_connection_write(self)
+                let mut conn = self
+                    .pg_connection_write()
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
                 payment_attempt_internal
@@ -1390,7 +1389,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         connector_transaction_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         Box::pin(self.find_resource_by_id(
             merchant_key_store,
             storage_scheme,
@@ -1658,7 +1657,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         attempt_id: &common_utils::id_type::GlobalAttemptId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         Box::pin(self.find_resource_by_id(
             merchant_key_store,
             storage_scheme,
@@ -1676,7 +1675,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         Box::pin(self.filter_resources(
             merchant_key_store,
             storage_scheme,

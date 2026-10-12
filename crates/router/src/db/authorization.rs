@@ -1,10 +1,10 @@
 use diesel_models::authorization::AuthorizationUpdateInternal;
 use error_stack::report;
 use router_env::{instrument, tracing};
+use storage_impl::DatabaseStore;
 
 use super::{MockDb, Store};
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -37,7 +37,7 @@ impl AuthorizationInterface for Store {
         &self,
         authorization: storage::AuthorizationNew,
     ) -> CustomResult<storage::Authorization, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         authorization
             .insert(&conn)
             .await
@@ -50,7 +50,7 @@ impl AuthorizationInterface for Store {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         // Stagger release fallback: first try processor_merchant_id, if empty fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
         let authorizations = storage::Authorization::find_by_processor_merchant_id_payment_id(
@@ -81,7 +81,7 @@ impl AuthorizationInterface for Store {
         authorization_id: String,
         authorization: storage::AuthorizationUpdate,
     ) -> CustomResult<storage::Authorization, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
         let result = storage::Authorization::update_by_processor_merchant_id_authorization_id(

@@ -36,8 +36,6 @@ use redis_interface::HsetnxReply;
 use router_env::logger;
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "olap")]
-use crate::connection;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use crate::store::schema::{
     address::all_columns as addr_all_columns, customers::all_columns as cust_all_columns,
@@ -48,8 +46,7 @@ use crate::{
     errors::{RedisErrorExt, StorageError},
     kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-    utils::{self, pg_connection_read, pg_connection_read_replica, pg_connection_write},
-    DataModelExt, DatabaseStore,
+    utils, DataModelExt, DatabaseStore,
 };
 
 #[async_trait::async_trait]
@@ -111,7 +108,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     billing_descriptor: new.billing_descriptor.clone(),
                 };
 
-                let mut query_gen_conn = pg_connection_write(self).await?;
+                let mut query_gen_conn = self.pg_connection_write().await?;
                 let drainer_query = new
                     .to_storage_model()
                     .generate_drainer_insert_query(&mut query_gen_conn)
@@ -184,7 +181,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     .encode_to_string_of_json()
                     .change_context(StorageError::SerializationFailed)?;
 
-                let mut query_gen_conn = pg_connection_write(self).await?;
+                let mut query_gen_conn = self.pg_connection_write().await?;
                 let drainer_query = diesel_payout_update
                     .clone()
                     .generate_drainer_update_query(
@@ -219,7 +216,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         let database_call = || async {
-            let conn = pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             DieselPayouts::find_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
                 .await
                 .map_err(|er| {
@@ -267,7 +264,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Option<Payouts>, StorageError> {
         let database_call = || async {
-            let conn = pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             DieselPayouts::find_optional_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
                 .await
                 .map_err(|er| {
@@ -415,7 +412,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         new: PayoutsNew,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         new.to_storage_model()
             .insert(&conn)
             .await
@@ -434,7 +431,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         _payout_attempt: &PayoutAttempt,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         this.clone()
             .to_storage_model()
             .update(&conn, payout.to_storage_model())
@@ -453,7 +450,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         payout_id: &common_utils::id_type::PayoutId,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         DieselPayouts::find_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
             .await
             .map(Payouts::from_storage_model)
@@ -470,7 +467,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         payout_id: &common_utils::id_type::PayoutId,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Option<Payouts>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         DieselPayouts::find_optional_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
             .await
             .map(|x| x.map(Payouts::from_storage_model))
@@ -488,7 +485,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
 
         //[#350]: Replace this with Boxable Expression and pass it into generic filter
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
@@ -592,7 +589,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         )>,
         StorageError,
     > {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let conn = conn.raw_connection();
         let mut query = diesel_models::list::into_boxed_list(
             DieselPayouts::table()
@@ -780,7 +777,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         status: Option<Vec<storage_enums::PayoutStatus>>,
         payout_type: Option<Vec<storage_enums::PayoutType>>,
     ) -> error_stack::Result<i64, StorageError> {
-        let conn = pg_connection_read_replica(self).await?;
+        let conn = self.pg_connection_read_replica().await?;
         let connector_strings = connector.as_ref().map(|connectors| {
             connectors
                 .iter()
@@ -811,7 +808,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         constraints: &PayoutFetchConstraints,
     ) -> error_stack::Result<Vec<common_utils::id_type::PayoutId>, StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let mut query = diesel_models::list::into_boxed_list(
             DieselPayouts::table()
                 .inner_join(
@@ -905,7 +902,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::PayoutStatus, i64)>, StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
 
         let mut query = diesel_models::list::into_boxed_list(
             <DieselPayouts as HasTable>::table()

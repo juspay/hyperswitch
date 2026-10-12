@@ -4,10 +4,7 @@ use hyperswitch_domain_models::cards_info::CardsInfoInterface;
 use router_env::{instrument, tracing};
 
 use crate::{
-    errors::StorageError,
-    kv_router_store::KVRouterStore,
-    redis::kv_store::KvStorePartition,
-    utils::{pg_connection_read, pg_connection_write},
+    errors::StorageError, kv_router_store::KVRouterStore, redis::kv_store::KvStorePartition,
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
 
@@ -18,14 +15,14 @@ impl<T: DatabaseStore> CardsInfoInterface for RouterStore<T> {
     type Error = StorageError;
     #[instrument(skip_all)]
     async fn get_card_info(&self, card_iin: &str) -> CustomResult<Option<CardInfo>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         CardInfo::find_by_iin(&conn, card_iin)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
     #[instrument(skip_all)]
     async fn add_card_info(&self, data: CardInfo) -> CustomResult<CardInfo, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         data.insert(&conn)
             .await
             .map_err(|error| report!(StorageError::from(error)))
@@ -36,7 +33,7 @@ impl<T: DatabaseStore> CardsInfoInterface for RouterStore<T> {
         card_iin: String,
         data: UpdateCardInfo,
     ) -> CustomResult<CardInfo, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         CardInfo::update(&conn, card_iin, data)
             .await
             .map_err(|error| report!(StorageError::from(error)))
@@ -48,14 +45,14 @@ impl<T: DatabaseStore> CardsInfoInterface for KVRouterStore<T> {
     type Error = StorageError;
     #[instrument(skip_all)]
     async fn get_card_info(&self, card_iin: &str) -> CustomResult<Option<CardInfo>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         CardInfo::find_by_iin(&conn, card_iin)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
     #[instrument(skip_all)]
     async fn add_card_info(&self, data: CardInfo) -> CustomResult<CardInfo, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         data.insert(&conn)
             .await
             .map_err(|error| report!(StorageError::from(error)))
@@ -66,7 +63,7 @@ impl<T: DatabaseStore> CardsInfoInterface for KVRouterStore<T> {
         card_iin: String,
         data: UpdateCardInfo,
     ) -> CustomResult<CardInfo, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         CardInfo::update(&conn, card_iin, data)
             .await
             .map_err(|error| report!(StorageError::from(error)))

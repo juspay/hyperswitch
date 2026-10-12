@@ -1,10 +1,9 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
-use storage_impl::MockDb;
+use storage_impl::{DatabaseStore, MockDb};
 
 use super::Store;
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     db::kafka_store::KafkaStore,
     types::storage,
@@ -38,7 +37,7 @@ impl DynamicRoutingStatsInterface for Store {
         &self,
         dynamic_routing_stat: storage::DynamicRoutingStatsNew,
     ) -> CustomResult<storage::DynamicRoutingStats, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         dynamic_routing_stat
             .insert(&conn)
             .await
@@ -50,7 +49,7 @@ impl DynamicRoutingStatsInterface for Store {
         attempt_id: String,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Option<storage::DynamicRoutingStats>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         storage::DynamicRoutingStats::find_optional_by_attempt_id_merchant_id(
             &conn,
             attempt_id,
@@ -66,7 +65,7 @@ impl DynamicRoutingStatsInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         data: storage::DynamicRoutingStatsUpdate,
     ) -> CustomResult<storage::DynamicRoutingStats, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         storage::DynamicRoutingStats::update(&conn, attempt_id, merchant_id, data)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))

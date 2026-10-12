@@ -2,10 +2,10 @@ use diesel_models::{enums::TotpStatus, user as storage};
 use error_stack::report;
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
+use storage_impl::DatabaseStore;
 
 use super::{domain, MockDb};
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     services::Store,
 };
@@ -75,7 +75,7 @@ impl UserInterface for Store {
         &self,
         user_data: storage::UserNew,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         user_data
             .insert(&conn)
             .await
@@ -87,7 +87,7 @@ impl UserInterface for Store {
         &self,
         user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::User::find_active_by_user_email(&conn, user_email.get_inner())
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -98,7 +98,7 @@ impl UserInterface for Store {
         &self,
         user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::User::find_by_user_email(&conn, user_email.get_inner())
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -109,7 +109,7 @@ impl UserInterface for Store {
         &self,
         user_id: &str,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::User::find_active_by_user_id(&conn, user_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -120,7 +120,7 @@ impl UserInterface for Store {
         &self,
         user_id: &str,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::User::find_by_user_id(&conn, user_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -132,7 +132,7 @@ impl UserInterface for Store {
         user_id: &str,
         user_update: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
 
         storage::User::update_active_by_user_id(&conn, user_id, user_update)
             .await
@@ -145,7 +145,7 @@ impl UserInterface for Store {
         user_email: &domain::UserEmail,
         user_update: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
 
         storage::User::update_active_by_user_email(&conn, user_email.get_inner(), user_update)
             .await
@@ -156,7 +156,7 @@ impl UserInterface for Store {
         &self,
         user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::User::find_active_users_by_user_ids(&conn, user_ids)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -166,7 +166,7 @@ impl UserInterface for Store {
         &self,
         user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::User::list_users_by_user_ids(&conn, user_ids)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -178,7 +178,7 @@ impl UserInterface for Store {
         user_id: &str,
         user_update: storage::ReactivateUserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
 
         storage::User::reactivate_by_user_id(&conn, user_id, user_update)
             .await

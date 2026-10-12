@@ -1,10 +1,9 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
-use storage_impl::MockDb;
+use storage_impl::{DatabaseStore, MockDb};
 
 use super::Store;
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     db::kafka_store::KafkaStore,
     types::storage,
@@ -133,7 +132,7 @@ impl BatchBlocklistJobInterface for Store {
         &self,
         new: storage::BatchBlocklistJobNew,
     ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         new.insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -145,7 +144,7 @@ impl BatchBlocklistJobInterface for Store {
         id: &str,
         merchant_id: &str,
     ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::BatchBlocklistJob::find_by_id_merchant_id(&conn, id, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -160,7 +159,7 @@ impl BatchBlocklistJobInterface for Store {
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::BatchBlocklistJob>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         match (profile_id, job_type) {
             (Some(profile_id), Some(job_type)) => {
                 storage::BatchBlocklistJob::list_by_merchant_id_profile_id_job_type(
@@ -208,7 +207,7 @@ impl BatchBlocklistJobInterface for Store {
         merchant_id: &str,
         update: storage::BatchBlocklistJobUpdate,
     ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         storage::BatchBlocklistJob::update_by_id_merchant_id(&conn, id, merchant_id, update)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -222,7 +221,7 @@ impl BatchBlocklistJobInterface for Store {
         profile_id: &common_utils::id_type::ProfileId,
         update: storage::BlocklistProfileCloneTargetUpdate,
     ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let mut job = storage::BatchBlocklistJob::find_by_id_merchant_id(&conn, id, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
@@ -257,7 +256,7 @@ impl BatchBlocklistJobInterface for Store {
         profile_id: Option<&common_utils::id_type::ProfileId>,
         job_type: Option<common_enums::BatchBlocklistJobType>,
     ) -> CustomResult<usize, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         match (profile_id, job_type) {
             (Some(profile_id), Some(job_type)) => {
                 storage::BatchBlocklistJob::count_by_merchant_id_profile_id_job_type(

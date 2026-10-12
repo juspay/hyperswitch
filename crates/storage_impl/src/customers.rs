@@ -17,7 +17,6 @@ use crate::{
     kv_router_store,
     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
     store::enums::MerchantStorageScheme,
-    utils::{pg_connection_read, pg_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
 #[cfg(feature = "v2")]
@@ -67,7 +66,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let maybe_result = Box::pin(self.find_optional_resource_by_id(
             key_store,
             storage_scheme,
@@ -102,7 +101,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         Box::pin(self.find_optional_resource_by_id(
             key_store,
             storage_scheme,
@@ -130,7 +129,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let maybe_result = Box::pin(self.find_optional_resource_by_id(
             key_store,
             storage_scheme,
@@ -210,7 +209,8 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             let merchant_id = merchant_id.clone();
             let customer_update = customer_update.clone();
             async move {
-                let conn = pg_connection_write(self)
+                let conn = self
+                    .pg_connection_write()
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
                 diesel_models::Customer::update_by_customer_id_merchant_id(
@@ -226,7 +226,8 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             let customer_id = customer_id.clone();
             let merchant_id = merchant_id.clone();
             async move {
-                let mut conn = pg_connection_write(self)
+                let mut conn = self
+                    .pg_connection_write()
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
                 customer_update_internal
@@ -257,7 +258,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let result: domain::Customer = Box::pin(self.find_resource_by_id(
             key_store,
             storage_scheme,
@@ -291,7 +292,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let result: domain::Customer = Box::pin(self.find_resource_by_id(
             key_store,
             storage_scheme,
@@ -377,7 +378,8 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let create_resource_fut = {
             let new_customer = new_customer.clone();
             async move {
-                let conn = pg_connection_write(self)
+                let conn = self
+                    .pg_connection_write()
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
                 new_customer.insert(&conn).await
@@ -386,7 +388,8 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let drainer_query_fut = {
             let new_customer = new_customer.clone();
             async move {
-                let mut conn = pg_connection_write(self)
+                let mut conn = self
+                    .pg_connection_write()
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
                 new_customer.generate_drainer_insert_query(&mut conn).await
@@ -439,7 +442,8 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let create_resource_fut = {
             let new_customer = new_customer.clone();
             async move {
-                let conn = pg_connection_write(self)
+                let conn = self
+                    .pg_connection_write()
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
                 new_customer.insert(&conn).await
@@ -448,7 +452,8 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let drainer_query_fut = {
             let new_customer = new_customer.clone();
             async move {
-                let mut conn = pg_connection_write(self)
+                let mut conn = self
+                    .pg_connection_write()
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
                 new_customer.generate_drainer_insert_query(&mut conn).await
@@ -491,7 +496,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let result: domain::Customer = Box::pin(self.find_resource_by_id(
             key_store,
             storage_scheme,
@@ -521,7 +526,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let result: domain::Customer = Box::pin(self.find_resource_by_id(
             key_store,
             storage_scheme,
@@ -554,7 +559,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let database_call = || async {
             Ok::<_, error_stack::Report<StorageError>>(
                 diesel_models::Customer::find_by_global_id(&conn, id)
@@ -623,7 +628,8 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             let id = id.clone();
             let customer_update_internal = customer_update_internal.clone();
             async move {
-                let conn = pg_connection_write(self)
+                let conn = self
+                    .pg_connection_write()
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
                 customers::Customer::update_by_id(&conn, id, customer_update_internal).await
@@ -638,7 +644,8 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             let id = id.clone();
             let customer_update_internal = customer_update_internal.clone();
             async move {
-                let mut conn = pg_connection_write(self)
+                let mut conn = self
+                    .pg_connection_write()
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
                 customer_update_internal
@@ -673,7 +680,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let maybe_customer: Option<domain::Customer> = self
             .find_optional_resource_new(
                 key_store,
@@ -705,7 +712,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         self.find_optional_resource_new(
             key_store,
             diesel_models::Customer::find_optional_by_customer_id_merchant_id(
@@ -726,7 +733,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let maybe_customer: Option<domain::Customer> = self
             .find_optional_resource_new(
                 key_store,
@@ -756,7 +763,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         customers::Customer::find_by_merchant_id_customer_id_for_global_id_migration(
             &conn,
             merchant_id,
@@ -777,7 +784,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         merchant_id: &id_type::MerchantId,
         new_id: id_type::GlobalCustomerId,
     ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         customers::Customer::update_global_id_for_migration(&conn, merchant_id, customer_id, new_id)
             .await
             .map_err(|error| {
@@ -797,7 +804,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         Box::pin(self.call_database_new(
             key_store,
             diesel_models::Customer::update_by_customer_id_merchant_id(
@@ -819,7 +826,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let customer: domain::Customer = self
             .call_database_new(
                 key_store,
@@ -845,7 +852,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let customer: domain::Customer = self
             .call_database_new(
                 key_store,
@@ -869,7 +876,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         constraints: domain::CustomerListConstraints,
     ) -> CustomResult<Vec<domain::Customer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let customer_list_constraints =
             diesel_models::query::customers::CustomerListConstraints::from(constraints);
         self.find_resources_new(
@@ -890,7 +897,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         constraints: domain::CustomerListConstraints,
     ) -> CustomResult<(Vec<domain::Customer>, usize), StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let customer_list_constraints =
             diesel_models::query::customers::CustomerListConstraints::from(constraints);
         let customers_constraints = diesel_models::query::customers::CustomerListConstraints {
@@ -930,7 +937,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let customer_new = customer_data
             .construct_new()
             .await
@@ -945,7 +952,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<bool, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         diesel_models::Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
             .await
             .map_err(|error| {
@@ -964,7 +971,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         Box::pin(self.call_database_new(
             key_store,
             diesel_models::Customer::update_by_id(
@@ -984,7 +991,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let customer: domain::Customer = self
             .call_database_new(
                 key_store,
@@ -1006,7 +1013,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let customer: domain::Customer = self
             .call_database_new(
                 key_store,
@@ -1027,7 +1034,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         merchant_id: &id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let customer = customers::Customer::find_by_global_id(&conn, id)
             .await
             .map(domain::CustomerWithoutEncrypted::foreign_from)

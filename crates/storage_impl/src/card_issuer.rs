@@ -10,7 +10,6 @@ use crate::{
     errors::StorageError,
     kv_router_store::KVRouterStore,
     redis::cache::{self, CacheKind},
-    utils::{pg_connection_read, pg_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
 
@@ -26,7 +25,7 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
         new: NewCardIssuer,
     ) -> CustomResult<CardIssuer, StorageError> {
         let insert_call = || async {
-            let conn = pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             new.insert(&conn)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
@@ -46,7 +45,7 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
         update: UpdateCardIssuer,
     ) -> CustomResult<CardIssuer, StorageError> {
         let update_call = || async {
-            let conn = pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             CardIssuer::update(&conn, id, update)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
@@ -65,7 +64,7 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
         id: id_type::CardIssuerId,
     ) -> CustomResult<bool, StorageError> {
         let delete_call = || async {
-            let conn = pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             CardIssuer::delete_by_id(&conn, id)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
@@ -84,7 +83,7 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
         limit: i64,
     ) -> CustomResult<Vec<CardIssuerListItem>, StorageError> {
         let fetch_func = || async {
-            let conn = pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             CardIssuer::list_all(&conn, limit)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
@@ -103,7 +102,7 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
         &self,
         ids: Vec<id_type::CardIssuerId>,
     ) -> CustomResult<Vec<CardIssuer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         CardIssuer::find_by_ids(&conn, ids)
             .await
             .map_err(|error| report!(StorageError::from(error)))

@@ -2,10 +2,9 @@ use common_utils::id_type;
 use diesel_models::{enums, user::dashboard_metadata as storage};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
-use storage_impl::MockDb;
+use storage_impl::{DatabaseStore, MockDb};
 
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     services::Store,
 };
@@ -77,7 +76,7 @@ impl DashboardMetadataInterface for Store {
         &self,
         metadata: storage::DashboardMetadataNew,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         metadata
             .insert(&conn)
             .await
@@ -94,7 +93,7 @@ impl DashboardMetadataInterface for Store {
         data_key: enums::DashboardMetadata,
         dashboard_metadata_update: storage::DashboardMetadataUpdate,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         storage::DashboardMetadata::update(
             &conn,
             user_id,
@@ -116,7 +115,7 @@ impl DashboardMetadataInterface for Store {
         org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
         storage::DashboardMetadata::find_user_scoped_dashboard_metadata(
             &conn,
             user_id.to_owned(),
@@ -135,7 +134,7 @@ impl DashboardMetadataInterface for Store {
         org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
         storage::DashboardMetadata::find_merchant_scoped_dashboard_metadata(
             &conn,
             merchant_id.to_owned(),
@@ -155,7 +154,7 @@ impl DashboardMetadataInterface for Store {
         profile_id: Option<String>,
         data_key: enums::DashboardMetadata,
     ) -> CustomResult<Option<storage::DashboardMetadata>, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
         storage::DashboardMetadata::find_dashboard_metadata_by_user_merchant_org_profile_key(
             &conn,
             user_id.to_owned(),
@@ -174,7 +173,7 @@ impl DashboardMetadataInterface for Store {
         user_id: &str,
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         storage::DashboardMetadata::delete_all_user_scoped_dashboard_metadata_by_merchant_id(
             &conn,
             user_id.to_owned(),
@@ -191,7 +190,7 @@ impl DashboardMetadataInterface for Store {
         merchant_id: &id_type::MerchantId,
         data_key: enums::DashboardMetadata,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         storage::DashboardMetadata::delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
             &conn,
             user_id.to_owned(),
@@ -207,7 +206,7 @@ impl DashboardMetadataInterface for Store {
         &self,
         user_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         storage::DashboardMetadata::delete_all_by_user_id(&conn, user_id.to_owned())
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))

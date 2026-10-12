@@ -80,10 +80,10 @@ mod storage_impl {
     use error_stack::report;
     use hyperswitch_domain_models::disputes;
     use router_env::{instrument, tracing};
+    use storage_impl::DatabaseStore;
 
     use super::DisputeInterface;
     use crate::{
-        connection,
         core::errors::{self, CustomResult},
         services::Store,
         types::storage::{self as storage_types, enums},
@@ -97,7 +97,7 @@ mod storage_impl {
             dispute: storage_types::DisputeNew,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             dispute
                 .insert(&conn)
                 .await
@@ -112,7 +112,7 @@ mod storage_impl {
             connector_dispute_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Option<storage_types::Dispute>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             let result =
                 storage_types::Dispute::find_optional_by_processor_merchant_id_payment_id_connector_dispute_id(
                     &conn,
@@ -145,7 +145,7 @@ mod storage_impl {
             dispute_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             let result = storage_types::Dispute::find_by_processor_merchant_id_dispute_id(
                 &conn,
                 processor_merchant_id,
@@ -181,7 +181,7 @@ mod storage_impl {
             payment_id: &common_utils::id_type::PaymentId,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             storage_types::Dispute::find_by_processor_merchant_id_payment_id(
                 &conn,
                 processor_merchant_id,
@@ -198,7 +198,7 @@ mod storage_impl {
             dispute_constraints: &disputes::DisputeListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             storage_types::Dispute::filter_by_constraints(
                 &conn,
                 processor_merchant_id,
@@ -215,7 +215,7 @@ mod storage_impl {
             platform_merchant_id: &common_utils::id_type::MerchantId,
             dispute_constraints: &disputes::DisputeListConstraints,
         ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             storage_types::Dispute::filter_by_constraints_for_platform(
                 &conn,
                 platform_merchant_id,
@@ -232,7 +232,7 @@ mod storage_impl {
             platform_merchant_id: &common_utils::id_type::MerchantId,
             dispute_constraints: &disputes::DisputeListConstraints,
         ) -> CustomResult<i64, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             storage_types::Dispute::get_disputes_count_for_platform(
                 &conn,
                 platform_merchant_id,
@@ -249,7 +249,7 @@ mod storage_impl {
             dispute: storage_types::DisputeUpdate,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             this.update(&conn, dispute)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
@@ -263,7 +263,7 @@ mod storage_impl {
             time_range: &common_utils::types::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             storage_types::Dispute::get_dispute_status_with_count(
                 &conn,
                 processor_merchant_id,
@@ -285,12 +285,11 @@ mod storage_impl {
     use router_env::{instrument, tracing};
     use storage_impl::{
         redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-        utils as storage_impl_utils, KvSupportedEntity,
+        utils as storage_impl_utils, DatabaseStore, KvSupportedEntity,
     };
 
     use super::DisputeInterface;
     use crate::{
-        connection,
         core::errors::{self, utils::RedisErrorExt, CustomResult},
         db::reverse_lookup::ReverseLookupInterface,
         services::Store,
@@ -314,7 +313,7 @@ mod storage_impl {
             .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_write(self).await?;
+                    let conn = self.pg_connection_write().await?;
                     dispute
                         .insert(&conn)
                         .await
@@ -390,7 +389,7 @@ mod storage_impl {
 
                     futures::future::try_join_all(rev_look).await?;
 
-                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let mut query_gen_conn = self.pg_connection_write().await?;
                     let drainer_query = dispute
                         .generate_drainer_insert_query(&mut query_gen_conn)
                         .await
@@ -431,7 +430,7 @@ mod storage_impl {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Option<storage_types::Dispute>, errors::StorageError> {
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let conn = self.pg_connection_read().await?;
                 let result =
                     storage_types::Dispute::find_optional_by_processor_merchant_id_payment_id_connector_dispute_id(
                         &conn,
@@ -505,7 +504,7 @@ mod storage_impl {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let conn = self.pg_connection_read().await?;
                 let result = storage_types::Dispute::find_by_processor_merchant_id_dispute_id(
                     &conn,
                     processor_merchant_id,
@@ -580,7 +579,7 @@ mod storage_impl {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let conn = self.pg_connection_read().await?;
                 storage_types::Dispute::find_by_processor_merchant_id_payment_id(
                     &conn,
                     processor_merchant_id,
@@ -628,7 +627,7 @@ mod storage_impl {
             dispute_constraints: &disputes::DisputeListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             storage_types::Dispute::filter_by_constraints(
                 &conn,
                 processor_merchant_id,
@@ -645,7 +644,7 @@ mod storage_impl {
             platform_merchant_id: &common_utils::id_type::MerchantId,
             dispute_constraints: &disputes::DisputeListConstraints,
         ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             storage_types::Dispute::filter_by_constraints_for_platform(
                 &conn,
                 platform_merchant_id,
@@ -662,7 +661,7 @@ mod storage_impl {
             platform_merchant_id: &common_utils::id_type::MerchantId,
             dispute_constraints: &disputes::DisputeListConstraints,
         ) -> CustomResult<i64, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             storage_types::Dispute::get_disputes_count_for_platform(
                 &conn,
                 platform_merchant_id,
@@ -690,7 +689,7 @@ mod storage_impl {
             .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_write(self).await?;
+                    let conn = self.pg_connection_write().await?;
                     let result = this.clone().update(&conn, dispute).await;
 
                     match result {
@@ -723,7 +722,7 @@ mod storage_impl {
                         .encode_to_string_of_json()
                         .change_context(errors::StorageError::SerializationFailed)?;
 
-                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let mut query_gen_conn = self.pg_connection_write().await?;
                     let drainer_query =
                         diesel_models::dispute::DisputeUpdateInternal::from(dispute)
                             .generate_drainer_update_query(
@@ -760,7 +759,7 @@ mod storage_impl {
             time_range: &common_utils::types::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             storage_types::Dispute::get_dispute_status_with_count(
                 &conn,
                 processor_merchant_id,

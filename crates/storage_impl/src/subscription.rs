@@ -12,8 +12,7 @@ pub use hyperswitch_domain_models::{
 use router_env::{instrument, tracing};
 
 use crate::{
-    connection, errors::StorageError, kv_router_store::KVRouterStore, DatabaseStore, MockDb,
-    RouterStore,
+    errors::StorageError, kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore,
 };
 
 #[async_trait::async_trait]
@@ -30,7 +29,7 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
             .construct_new()
             .await
             .change_context(StorageError::DecryptionError)?;
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         Box::pin(self.call_database(key_store, sub_new.insert(&conn))).await
     }
     #[instrument(skip_all)]
@@ -40,7 +39,7 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         subscription_id: String,
     ) -> CustomResult<DomainSubscription, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         self.call_database(
             key_store,
             Subscription::find_by_merchant_id_subscription_id(&conn, merchant_id, subscription_id),
@@ -60,7 +59,7 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
             .construct_new()
             .await
             .change_context(StorageError::DecryptionError)?;
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         self.call_database(
             key_store,
             Subscription::update_subscription_entry(&conn, merchant_id, subscription_id, sub_new),
@@ -77,7 +76,7 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> CustomResult<Vec<DomainSubscription>, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         self.find_resources(
             key_store,
             Subscription::list_by_merchant_id_profile_id(

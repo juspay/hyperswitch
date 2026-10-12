@@ -1,10 +1,9 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
-use storage_impl::MockDb;
+use storage_impl::{DatabaseStore, MockDb};
 
 use super::Store;
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     db::kafka_store::KafkaStore,
     types::storage,
@@ -31,7 +30,7 @@ impl BlocklistFingerprintInterface for Store {
         &self,
         pm_fingerprint_new: storage::BlocklistFingerprintNew,
     ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         pm_fingerprint_new
             .insert(&conn)
             .await
@@ -44,7 +43,7 @@ impl BlocklistFingerprintInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         storage::BlocklistFingerprint::find_by_merchant_id_fingerprint_id(
             &conn,
             merchant_id,

@@ -1,10 +1,10 @@
 use diesel_models::fraud_check::{self as storage, FraudCheck, FraudCheckUpdate};
 use error_stack::report;
 use router_env::{instrument, tracing};
+use storage_impl::DatabaseStore;
 
 use super::MockDb;
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     services::Store,
 };
@@ -35,7 +35,7 @@ impl FraudCheckInterface for Store {
         &self,
         new: storage::FraudCheckNew,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         new.insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -47,7 +47,7 @@ impl FraudCheckInterface for Store {
         this: FraudCheck,
         fraud_check: FraudCheckUpdate,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         this.update_with_frm_id(&conn, fraud_check)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -58,7 +58,7 @@ impl FraudCheckInterface for Store {
         &self,
         frm_id: String,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         FraudCheck::get_with_frm_id(&conn, frm_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))

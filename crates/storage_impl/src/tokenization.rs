@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
 
 use super::MockDb;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use crate::{connection, errors};
+use crate::errors;
 use crate::{kv_router_store::KVRouterStore, DatabaseStore, RouterStore};
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
@@ -50,7 +50,7 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
 
         tokenization
             .construct_new()
@@ -75,7 +75,7 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
 
         let tokenization = tokenization_diesel::Tokenization::find_by_id(&conn, token)
             .await
@@ -101,7 +101,7 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
 
         let tokenization_record = Conversion::convert(tokenization_record)
             .await

@@ -12,9 +12,7 @@ use router_env::{instrument, tracing};
 use crate::redis::cache;
 use crate::{
     behaviour::{Conversion, ForeignFrom, ReverseConversion},
-    kv_router_store,
-    utils::{pg_accounts_connection_read, pg_accounts_connection_write},
-    CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
+    kv_router_store, CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
 
 /// Cache keys and invalidation for the merchant connector account list caches.
@@ -85,7 +83,7 @@ async fn list_all_by_merchant_id<T: DatabaseStore>(
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, StorageError> {
     let find_call = || async {
-        let conn = pg_accounts_connection_read(store).await?;
+        let conn = store.pg_accounts_connection_read().await?;
         storage::MerchantConnectorAccount::list_by_merchant_id(&conn, merchant_id)
             .await
             .map_err(|error| report!(StorageError::from(error)))
@@ -119,7 +117,7 @@ async fn list_all_by_merchant_id_profile_id<T: DatabaseStore>(
     profile_id: &common_utils::id_type::ProfileId,
 ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, StorageError> {
     let find_call = || async {
-        let conn = pg_accounts_connection_read(store).await?;
+        let conn = store.pg_accounts_connection_read().await?;
         storage::MerchantConnectorAccount::list_by_merchant_id_profile_id(
             &conn,
             merchant_id,
@@ -427,7 +425,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         let find_call = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let conn = self.pg_accounts_connection_read().await?;
             storage::MerchantConnectorAccount::find_by_merchant_id_connector(
                 &conn,
                 merchant_id,
@@ -483,7 +481,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         let find_call = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let conn = self.pg_accounts_connection_read().await?;
             storage::MerchantConnectorAccount::find_by_profile_id_connector_name(
                 &conn,
                 profile_id,
@@ -556,7 +554,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         let find_call = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let conn = self.pg_accounts_connection_read().await?;
             storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
                 &conn,
                 merchant_id,
@@ -612,7 +610,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         let find_call = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let conn = self.pg_accounts_connection_read().await?;
             storage::MerchantConnectorAccount::find_by_id(&conn, id)
                 .await
                 .map_err(|error| report!(Self::Error::from(error)))
@@ -662,7 +660,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         let _profile_id = t.profile_id.clone();
 
         let insert_call = || async {
-            let conn = pg_accounts_connection_write(self).await?;
+            let conn = self.pg_accounts_connection_write().await?;
             t.construct_new()
                 .await
                 .change_context(Self::Error::EncryptionError)?
@@ -830,7 +828,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             storage::MerchantConnectorAccountUpdateInternal,
         )>,
     ) -> CustomResult<(), Self::Error> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
 
         async fn update_call(
             connection: &diesel_models::DatabaseConnectionWithContext<'_>,
@@ -957,7 +955,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         let _merchant_connector_id = this.merchant_connector_id.clone();
 
         let update_call = || async {
-            let conn = pg_accounts_connection_write(self).await?;
+            let conn = self.pg_accounts_connection_write().await?;
             Box::pin(
                 Conversion::convert(this)
                     .await
@@ -1042,7 +1040,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         let _merchant_connector_id = this.get_id().clone();
 
         let update_call = || async {
-            let conn = pg_accounts_connection_write(self).await?;
+            let conn = self.pg_accounts_connection_write().await?;
             Box::pin(
                 Conversion::convert(this)
                     .await
@@ -1114,7 +1112,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, Self::Error> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         let delete_call = || async {
             storage::MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
                 &conn,
@@ -1195,7 +1193,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         &self,
         id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, Self::Error> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         let delete_call = || async {
             storage::MerchantConnectorAccount::delete_by_id(&conn, id)
                 .await

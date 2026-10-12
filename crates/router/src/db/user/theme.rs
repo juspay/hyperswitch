@@ -1,10 +1,10 @@
 use common_utils::types::user::ThemeLineage;
 use diesel_models::user::theme::{self as storage, ThemeUpdate};
 use error_stack::report;
+use storage_impl::DatabaseStore;
 
 use super::MockDb;
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     services::Store,
 };
@@ -54,7 +54,7 @@ impl ThemeInterface for Store {
         &self,
         theme: storage::ThemeNew,
     ) -> CustomResult<storage::Theme, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         theme
             .insert(&conn)
             .await
@@ -65,7 +65,7 @@ impl ThemeInterface for Store {
         &self,
         theme_id: String,
     ) -> CustomResult<storage::Theme, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Theme::find_by_theme_id(&conn, theme_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -75,7 +75,7 @@ impl ThemeInterface for Store {
         &self,
         lineage: ThemeLineage,
     ) -> CustomResult<storage::Theme, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Theme::find_most_specific_theme_in_lineage(&conn, lineage)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -85,7 +85,7 @@ impl ThemeInterface for Store {
         &self,
         lineage: ThemeLineage,
     ) -> CustomResult<storage::Theme, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Theme::find_by_lineage(&conn, lineage)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -96,7 +96,7 @@ impl ThemeInterface for Store {
         theme_id: String,
         theme_update: ThemeUpdate,
     ) -> CustomResult<storage::Theme, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         storage::Theme::update_by_theme_id(&conn, theme_id, theme_update)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -106,7 +106,7 @@ impl ThemeInterface for Store {
         &self,
         theme_id: String,
     ) -> CustomResult<storage::Theme, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         storage::Theme::delete_by_theme_id(&conn, theme_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -115,7 +115,7 @@ impl ThemeInterface for Store {
         &self,
         lineage: ThemeLineage,
     ) -> CustomResult<Vec<storage::Theme>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Theme::find_all_by_lineage_hierarchy(&conn, lineage)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))

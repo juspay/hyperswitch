@@ -38,12 +38,11 @@ mod storage {
     use storage_impl::{
         redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
         utils::find_all_combined_kv_database,
-        KvSupportedEntity,
+        DatabaseStore, KvSupportedEntity,
     };
 
     use super::CaptureInterface;
     use crate::{
-        connection,
         core::errors::{self, utils::RedisErrorExt, CustomResult},
         services::Store,
         types::storage::{capture::*, enums},
@@ -65,7 +64,7 @@ mod storage {
             .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_write(self).await?;
+                    let conn = self.pg_connection_write().await?;
                     capture
                         .insert(&conn)
                         .await
@@ -100,7 +99,7 @@ mod storage {
                     let key_str = key.to_string();
                     let field = created_capture.get_hash_field_key();
 
-                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let mut query_gen_conn = self.pg_connection_write().await?;
                     let drainer_query = capture
                         .generate_drainer_insert_query(&mut query_gen_conn)
                         .await
@@ -145,7 +144,7 @@ mod storage {
             .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_write(self).await?;
+                    let conn = self.pg_connection_write().await?;
                     this.update_with_capture_id(&conn, capture)
                         .await
                         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -159,7 +158,7 @@ mod storage {
                     let redis_value = serde_json::to_string(&updated_capture)
                         .change_context(errors::StorageError::SerializationFailed)?;
 
-                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let mut query_gen_conn = self.pg_connection_write().await?;
                     let drainer_query = capture
                         .generate_drainer_update_query(&mut query_gen_conn, capture_id)
                         .await
@@ -190,7 +189,7 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<Capture>, errors::StorageError> {
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let conn = self.pg_connection_read().await?;
                 Capture::find_all_by_merchant_id_payment_id_authorized_attempt_id(
                     merchant_id,
                     payment_id,
@@ -245,10 +244,10 @@ mod storage {
 mod storage {
     use error_stack::report;
     use router_env::{instrument, tracing};
+    use storage_impl::DatabaseStore;
 
     use super::CaptureInterface;
     use crate::{
-        connection,
         core::errors::{self, CustomResult},
         services::Store,
         types::storage::{capture::*, enums},
@@ -263,7 +262,7 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Capture, errors::StorageError> {
             let db_call = || async {
-                let conn = connection::pg_connection_write(self).await?;
+                let conn = self.pg_connection_write().await?;
                 capture
                     .insert(&conn)
                     .await
@@ -280,7 +279,7 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Capture, errors::StorageError> {
             let db_call = || async {
-                let conn = connection::pg_connection_write(self).await?;
+                let conn = self.pg_connection_write().await?;
                 this.update_with_capture_id(&conn, capture)
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
@@ -297,7 +296,7 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<Capture>, errors::StorageError> {
             let db_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let conn = self.pg_connection_read().await?;
                 Capture::find_all_by_merchant_id_payment_id_authorized_attempt_id(
                     merchant_id,
                     payment_id,
