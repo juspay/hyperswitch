@@ -677,9 +677,9 @@ pub struct TedBankTransfer {
 pub enum Wallet {
     ApplePayDecrypt(ApplePayDecrypt),
     GooglePayDecrypt(GooglePayDecrypt),
+    Mifinity(Mifinity),
     Paypal(Paypal),
     Venmo(Venmo),
-    Mifinity(Mifinity),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]

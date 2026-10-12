@@ -7,7 +7,7 @@ use utoipa::ToSchema;
 
 use crate::new_type::{
     MaskedBankAccount, MaskedBic, MaskedEmail, MaskedIban, MaskedPhoneNumber, MaskedPspToken,
-    MaskedRoutingNumber, MaskedSortCode,
+    MaskedRoutingNumber, MaskedSortCode, MaskedValue,
 };
 
 /// Masked payout method details for storing in db
@@ -343,12 +343,12 @@ pub enum WalletAdditionalData {
     ApplePayDecrypt(Box<ApplePayDecryptAdditionalData>),
     /// Additional data for Google pay decrypt wallet payout method
     GooglePayDecrypt(Box<GooglePayDecryptAdditionalData>),
+    /// Additional data for MiFinity wallet payout method
+    Mifinity(Box<MifinityAdditionalData>),
     /// Additional data for paypal wallet payout method
     Paypal(Box<PaypalAdditionalData>),
     /// Additional data for venmo wallet payout method
     Venmo(Box<VenmoAdditionalData>),
-    /// Additional data for MiFinity wallet payout method
-    Mifinity(Box<MifinityAdditionalData>),
 }
 
 /// Masked payout method details for a MiFinity wallet payout.
@@ -359,7 +359,7 @@ pub enum WalletAdditionalData {
 pub struct MifinityAdditionalData {
     /// Recipient email address or MiFinity account number.
     #[schema(value_type = String, example = "john.doe@example.com")]
-    pub destination_account: MaskedBankAccount,
+    pub destination_account: MaskedValue,
 }
 
 /// Masked payout method details for paypal wallet payout method
