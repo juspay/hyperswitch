@@ -36122,6 +36122,17 @@
           {
             "type": "object",
             "required": [
+              "mifinity"
+            ],
+            "properties": {
+              "mifinity": {
+                "$ref": "#/components/schemas/Mifinity"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "paypal"
             ],
             "properties": {
@@ -36140,17 +36151,6 @@
                 "$ref": "#/components/schemas/Venmo"
               }
             }
-          },
-          {
-            "type": "object",
-            "required": [
-              "mifinity"
-            ],
-            "properties": {
-              "mifinity": {
-                "$ref": "#/components/schemas/Mifinity"
-              }
-            }
           }
         ]
       },
@@ -36163,13 +36163,13 @@
             "$ref": "#/components/schemas/GooglePayDecryptAdditionalData"
           },
           {
+            "$ref": "#/components/schemas/MifinityAdditionalData"
+          },
+          {
             "$ref": "#/components/schemas/PaypalAdditionalData"
           },
           {
             "$ref": "#/components/schemas/VenmoAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/MifinityAdditionalData"
           }
         ],
         "description": "Masked payout method details for wallet payout method"
