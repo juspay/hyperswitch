@@ -2,14 +2,14 @@
 //!
 //! A report runs in two stages so a failed delivery never regenerates the file: the CSV is built
 //! and uploaded, then the download link is sent by webhook (when the request names a `return_url`)
-//! or by email. The webhook body and its `X-Webhook-Signature-512` header are byte-compatible with
-//! what `weekly_payment_report_generator_step_2` sent.
+//! or by email. The webhook keeps the payload shape and `X-Webhook-Signature-512` header that
+//! `weekly_payment_report_generator_step_2` sent.
 
 use analytics::{
     enums::AuthInfo,
     errors::AnalyticsError,
     lambda_utils::invoke_lambda,
-    reports::{self, payments::PaymentReportCursor, python_compat, ReportScope},
+    reports::{self, payments::PaymentReportCursor, ReportScope},
     ReportBackend,
 };
 use api_models::analytics::{GenerateReportRequest, ReportRequest};
@@ -114,13 +114,18 @@ impl AnalyticsReportTrackingData {
             .unwrap_or(self.request.time_range.start_time)
     }
 
-    /// The file name the Lambda gave the report, offered again as the download's name.
+    /// The report's file name, also offered as the download's name. The range is written without
+    /// separators so the name stays valid on every file system.
     fn file_name(&self) -> String {
         let label = self.report_type.file_label();
+        let compact = |value| {
+            date_time::format_date(value, date_time::DateFormat::YYYYMMDDHHmmss)
+                .unwrap_or_else(|_| value.to_string())
+        };
         format!(
             "{label}_report_{}_{}.csv",
-            python_compat::datetime_str(self.start_time(), 'T'),
-            python_compat::datetime_str(self.end_time(), 'T'),
+            compact(self.start_time()),
+            compact(self.end_time()),
         )
     }
 
@@ -399,7 +404,7 @@ enum ReportWebhookData<'a> {
     },
 }
 
-/// The webhook body exactly as the Lambda's `json.dumps(payload)` produced it.
+/// The webhook body, in the Lambda's payload shape.
 fn webhook_body(
     tracking_data: &AnalyticsReportTrackingData,
     data: ReportWebhookData<'_>,
@@ -409,7 +414,7 @@ fn webhook_body(
         ReportWebhookData::Completed { .. } => "report_generation.completed",
         ReportWebhookData::Failed { .. } => "report_generation.failed",
     };
-    python_compat::json_dumps(&ReportWebhook {
+    serde_json::to_vec(&ReportWebhook {
         org_id,
         merchant_id,
         profile_id,
@@ -449,8 +454,8 @@ pub(crate) async fn deliver_report(
                 tracking_data,
                 ReportWebhookData::Completed {
                     report_type: tracking_data.report_type.webhook_label(),
-                    start_date_utc: python_compat::datetime_str(tracking_data.start_time(), 'T'),
-                    end_date_utc: python_compat::datetime_str(tracking_data.end_time(), 'T'),
+                    start_date_utc: reports::format_timestamp(tracking_data.start_time()),
+                    end_date_utc: reports::format_timestamp(tracking_data.end_time()),
                     download_url: download_url.as_str(),
                     expires_in_hours: expiry_hours,
                 },
@@ -521,7 +526,7 @@ async fn send_webhook(
     }
 }
 
-/// Lowercase hex HMAC-SHA512 of the body, as Python's `hmac.new(...).hexdigest()`.
+/// Lowercase hex HMAC-SHA512 of the body, as the Lambda signed it.
 fn webhook_signature(hash_key: &str, body: &[u8]) -> CustomResult<String, AnalyticsError> {
     HmacSha512
         .sign_message(hash_key.as_bytes(), body)
@@ -565,8 +570,8 @@ async fn send_emails(
     download_url: &str,
 ) -> CustomResult<(), AnalyticsError> {
     let config = &state.conf.report_download_config.process_tracker;
-    let start = python_compat::datetime_str(tracking_data.start_time(), 'T');
-    let end = python_compat::datetime_str(tracking_data.end_time(), 'T');
+    let start = reports::format_timestamp(tracking_data.start_time());
+    let end = reports::format_timestamp(tracking_data.end_time());
     let report_name = format!(
         "{} {}",
         config.email_env_label,
@@ -574,7 +579,7 @@ async fn send_emails(
     );
     let email = ReportEmail {
         recipient: tracking_data.email.clone(),
-        subject: format!("Your {report_name} Report: {start} UTC - {end} UTC."),
+        subject: format!("Your {report_name} Report: {start} - {end}"),
         body: report_email_body(
             &report_name,
             tracking_data.report_type.email_description(),
@@ -677,7 +682,7 @@ fn report_email_body(
     let report_name = escape_html(report_name);
     let download_url = escape_html(download_url);
     format!(
-        "<p>Please find the {description} report for the period of {start} UTC to {end} UTC.<br>\n\
+        "<p>Please find the {description} report for the period of {start} to {end}.<br>\n\
          This file provides a comprehensive overview of {description} processed via Hyperswitch during this time frame.\n\
          <br><br>Access your report here: <a href=\"{download_url}\">Download {report_name} Report</a>.\n\
          <br>(The link expires in {expiry})\n\
@@ -788,40 +793,40 @@ mod tests {
         assert_eq!(
             file_key("analytics_reports", &data),
             "analytics_reports/org_1/merchant_1/pro_1/v1_payments/report_abc/\
-             v1_payments_report_2026-10-01T00:00:00_2026-10-07T23:59:59.999000.csv"
+             v1_payments_report_20261001000000_20261007235959.csv"
         );
     }
 
     #[test]
-    fn webhook_body_matches_lambda() {
+    fn webhook_body_keeps_lambda_shape() {
         let data = tracking_data(profile_auth(), None);
         let body = webhook_body(
             &data,
             ReportWebhookData::Completed {
                 report_type: "payment_report",
-                start_date_utc: "2026-10-01T00:00:00".to_owned(),
-                end_date_utc: "2026-10-07T23:59:59.999000".to_owned(),
+                start_date_utc: reports::format_timestamp(data.start_time()),
+                end_date_utc: reports::format_timestamp(data.end_time()),
                 download_url: "https://bucket.example/key?X-Amz-Signature=ab",
                 expires_in_hours: 168,
             },
         )
         .unwrap();
 
-        // CPython 3.11: json.dumps of build_webhook_payload(...) from
-        // weekly_payment_report_generator_step_2 with the same arguments.
+        // Field order and names follow build_webhook_payload in
+        // weekly_payment_report_generator_step_2.
         assert_eq!(
             String::from_utf8(body.clone()).unwrap(),
-            r#"{"org_id": "org_1", "merchant_id": "merchant_1", "profile_id": "pro_1", "data": {"report_type": "payment_report", "start_date_utc": "2026-10-01T00:00:00", "end_date_utc": "2026-10-07T23:59:59.999000", "download_url": "https://bucket.example/key?X-Amz-Signature=ab", "expires_in_hours": 168}, "event": "report_generation.completed"}"#
+            r#"{"org_id":"org_1","merchant_id":"merchant_1","profile_id":"pro_1","data":{"report_type":"payment_report","start_date_utc":"2026-10-01T00:00:00.000Z","end_date_utc":"2026-10-07T23:59:59.999Z","download_url":"https://bucket.example/key?X-Amz-Signature=ab","expires_in_hours":168},"event":"report_generation.completed"}"#
         );
-        // hmac.new(b"whsec_test_key", body, hashlib.sha512).hexdigest()
+        // Python: hmac.new(b"whsec_test_key", body, hashlib.sha512).hexdigest()
         assert_eq!(
             webhook_signature("whsec_test_key", &body).unwrap(),
-            "90a8c6bacee183f66d8bf34d43693891808a875124127fb546adbecadb6abe2cc6b7da79bed91d635da45cd68d5e9187688ce9219ec3c0ee44165eeb9ef99602"
+            "76f475de13962c74f934f8dc2e21a88b2ae3d5f3ba825e523a15089c90dd5251ae895f87aa4d1c8bffc60004fdfbc546cd9666c4946640876d44a20fc8577ed1"
         );
     }
 
     #[test]
-    fn failed_webhook_body_matches_lambda() {
+    fn failed_webhook_body_keeps_lambda_shape() {
         let auth = AuthInfo::OrgLevel {
             org_id: id_type::OrganizationId::try_from(std::borrow::Cow::from("org_1")).unwrap(),
         };
@@ -836,7 +841,7 @@ mod tests {
 
         assert_eq!(
             String::from_utf8(body).unwrap(),
-            r#"{"org_id": "org_1", "merchant_id": null, "data": {"code": "internal_server_error", "message": "We could not generate the report due to a internal server error. Please request the report again."}, "event": "report_generation.failed"}"#
+            r#"{"org_id":"org_1","merchant_id":null,"data":{"code":"internal_server_error","message":"We could not generate the report due to a internal server error. Please request the report again."},"event":"report_generation.failed"}"#
         );
     }
 
