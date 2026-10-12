@@ -2890,6 +2890,87 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "paymentMethodListVisibilityTest",
+  (paymentMethod, resData, globalState) => {
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${globalState.get("clientSecret")}`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.status === 200) {
+          expect(response.body).to.have.property("currency");
+          const configPaymentMethods = resData["payment_methods"] || [];
+          const responsePaymentMethods = response.body["payment_methods"] || [];
+
+          const configEntry = configPaymentMethods.find(
+            (pm) => pm["payment_method"] === paymentMethod
+          );
+          const responseEntry = responsePaymentMethods.find(
+            (pm) => pm["payment_method"] === paymentMethod
+          );
+
+          if (configEntry) {
+            expect(
+              responseEntry,
+              `expected "${paymentMethod}" to be listed in the payment method list`
+            ).to.not.be.undefined;
+            configEntry["payment_method_types"].forEach((configPmType) => {
+              const responsePmType = responseEntry["payment_method_types"].find(
+                (pmType) =>
+                  pmType["payment_method_type"] ===
+                  configPmType["payment_method_type"]
+              );
+              expect(
+                responsePmType,
+                `expected "${configPmType["payment_method_type"]}" to be listed for "${paymentMethod}"`
+              ).to.not.be.undefined;
+              configPmType["card_networks"].forEach((configCardNetwork) => {
+                const responseCardNetwork = responsePmType[
+                  "card_networks"
+                ].find(
+                  (cardNetwork) =>
+                    cardNetwork["card_network"] ===
+                    configCardNetwork["card_network"]
+                );
+                expect(
+                  responseCardNetwork,
+                  `expected "${configCardNetwork["card_network"]}" to be listed for "${paymentMethod}"`
+                ).to.not.be.undefined;
+                expect(
+                  [
+                    ...new Set(responseCardNetwork["eligible_connectors"]),
+                  ].sort()
+                ).to.deep.equal(
+                  [...new Set(configCardNetwork["eligible_connectors"])].sort()
+                );
+              });
+            });
+          } else {
+            expect(
+              responseEntry,
+              `expected "${paymentMethod}" to be absent from the payment method list`
+            ).to.be.undefined;
+          }
+        } else {
+          throw new Error(
+            `List payment methods failed with status code "${response.status}" and error message "${response.body.error.message}"`
+          );
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
   "sessionTokenCall",
   (sessionTokenBody, data, globalState) => {
     const { Request: reqData = {}, Response: resData } = data || {};
