@@ -12120,7 +12120,7 @@ where
             backend_input,
             fallback,
             preferred_connector,
-            &ids,
+            ids.as_ref().ok(),
         )
         .await
         .inspect_err(|err| {
@@ -12142,34 +12142,48 @@ where
         routing_outcome.unwrap_or(fallback_outcome);
 
     let final_connectors = if requires_eligibility {
-        if active_mca_ids.is_none() {
-            active_mca_ids = Some(
-                routing::get_active_merchant_connector_accounts(
+        let ids_result = match active_mca_ids {
+            Some(result) => result,
+            None => routing::get_active_merchant_connector_accounts(
+                &state,
+                processor.get_key_store(),
+                business_profile.get_id(),
+            )
+            .await
+            .map(|accounts| accounts.get_ids()),
+        };
+        let eligibility_result = match ids_result {
+            Ok(ids) => {
+                routing::perform_eligibility_analysis_with_fallback(
                     &state,
                     processor.get_key_store(),
-                    business_profile.get_id(),
+                    connectors.clone(),
+                    &txn,
+                    eligible_connectors.clone(),
+                    business_profile,
+                    Some(&ids),
                 )
                 .await
-                .map(|accounts| accounts.get_ids()),
-            );
-        }
-        routing::perform_eligibility_analysis_with_fallback(
-            &state,
-            processor.get_key_store(),
-            connectors.clone(),
-            &txn,
-            eligible_connectors.clone(),
-            business_profile,
-            active_mca_ids.as_ref(),
-        )
-        .await
-        .inspect_err(|err| {
-            logger::error!(
-                error = ?err,
-                "euclid: eligibility analysis failed, using fallback connectors"
-            );
-        })
-        .unwrap_or_else(|_| fallback_config.clone())
+            }
+            Err(error) => {
+                logger::error!(error=?error, "euclid_routing: failed to fetch active merchant connector accounts; degrading to fallback config");
+                routing::get_eligibility_fallback_config(
+                    &state,
+                    &txn,
+                    eligible_connectors.clone(),
+                    business_profile,
+                )
+                .await
+            }
+        };
+        eligibility_result
+            .inspect_err(|err| {
+                logger::error!(
+                    error = ?err,
+                    "euclid: eligibility analysis failed, using fallback connectors"
+                );
+            })
+            .unwrap_or_else(|_| fallback_config.clone())
     } else {
         connectors
     };
@@ -13131,7 +13145,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     preferred_connector: Option<String>,
-    active_mca_ids: &routing::RoutingResult<HashSet<id_type::MerchantConnectorAccountId>>,
+    active_mca_ids: Option<&HashSet<id_type::MerchantConnectorAccountId>>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
     let (static_connectors, static_approach) = routing::perform_static_routing_locally(
         state,
@@ -13142,20 +13156,24 @@ pub async fn static_dynamic_routing_v1_for_payments(
     )
     .await?;
 
-    let (connectors, routing_approach) = routing::perform_hybrid_routing_if_enabled(
-        state,
-        key_store,
-        business_profile,
-        dimensions,
-        &payment_dsl_input,
-        &backend_input,
-        &fallback_config,
-        &static_connectors,
-        static_approach,
-        preferred_connector,
-        active_mca_ids,
-    )
-    .await;
+    let (connectors, routing_approach) = if let Some(active_mca_ids) = active_mca_ids {
+        routing::perform_hybrid_routing_if_enabled(
+            state,
+            key_store,
+            business_profile,
+            dimensions,
+            &payment_dsl_input,
+            &backend_input,
+            &fallback_config,
+            &static_connectors,
+            static_approach,
+            preferred_connector,
+            active_mca_ids,
+        )
+        .await
+    } else {
+        (static_connectors, static_approach)
+    };
 
     Ok(routing::RoutingConnectorOutcomeWithApproachAndEligibility {
         connectors,
