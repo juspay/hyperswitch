@@ -210,6 +210,41 @@ export const connectorDetails = {
         },
       },
     },
+    // Neither card_holder_name nor a billing first/last name is available,
+    // so the connector has no name to send and must reject the request.
+    CardHolderNameMissingEverywhere: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        amount: 6000,
+        payment_method_data: {
+          card: noCardHolderNameCardDetails,
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Missing required param: card_holder_name",
+            code: "IR_04",
+          },
+        },
+      },
+    },
     Capture: {
       Request: {
         amount_to_capture: 6000,

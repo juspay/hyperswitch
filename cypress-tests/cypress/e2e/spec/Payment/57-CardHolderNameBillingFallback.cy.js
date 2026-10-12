@@ -41,6 +41,8 @@ describe("Card - Fall back to billing name when cardholder name is absent", () =
   context(
     "Card-NoThreeDS payment without card_holder_name falls back to billing name",
     () => {
+      let shouldContinue = true;
+
       it("create-confirm-payment-without-card-holder-name", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -54,15 +56,40 @@ describe("Card - Fall back to billing name when cardholder name is absent", () =
           globalState
         );
 
-        utils.should_continue_further(data);
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
       });
 
       it("retrieve-payment-call-test", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["CardHolderNameFallbackToBilling"];
 
         cy.retrievePaymentCallTest({ globalState, data });
+      });
+    }
+  );
+
+  context(
+    "Card-NoThreeDS payment without card_holder_name and without billing name is rejected",
+    () => {
+      it("create-confirm-payment-without-any-name", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["CardHolderNameMissingEverywhere"];
+
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
       });
     }
   );
