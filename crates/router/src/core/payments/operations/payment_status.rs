@@ -24,6 +24,7 @@ use crate::{
     types::{
         api, domain,
         storage::{self, enums},
+        transformers::ForeignFrom,
     },
     utils::OptionExt,
 };
@@ -410,17 +411,23 @@ async fn get_tracker_for_sync<
             format!("Error while retrieving dispute list for, merchant_id: {:?}, payment_id: {payment_id:?}", platform.get_processor().get_account().get_id())
         })?;
 
-    let frm_response = if cfg!(feature = "frm") {
-        db.find_fraud_check_by_payment_id(payment_id.to_owned(), platform.get_processor().get_account().get_id().clone())
+    #[cfg(feature = "frm")]
+    let frm_response = match payment_attempt.active_frm_id.clone() {
+        Some(frm_id) => db
+            .find_fraud_check_by_frm_id(frm_id)
             .await
-            .change_context(errors::ApiErrorResponse::PaymentNotFound)
+            .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)
             .attach_printable_lazy(|| {
                 format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id:?}", platform.get_processor().get_account().get_id())
             })
-            .ok()
-    } else {
-        None
+            .inspect_err(|error| {
+                logger::error!(?error, "Failed to fetch fraud check record")
+            })
+            .ok(),
+        None => None,
     };
+    #[cfg(not(feature = "frm"))]
+    let frm_response = None;
 
     let contains_encoded_data = payment_attempt.encoded_data.is_some();
 
@@ -516,18 +523,37 @@ async fn get_tracker_for_sync<
         .await
         .transpose()?;
 
+    let mandate_id = payment_attempt
+        .mandate_id
+        .clone()
+        .map(|id| mandates::MandateIds {
+            mandate_id: Some(id),
+            mandate_reference_id: None,
+        })
+        .or_else(|| {
+            // Some CIT setup flows only have the connector mandate reference at this point.
+            // Preserve it so status responses can still carry mandate details before an
+            // internal mandate_id is available.
+            payment_attempt
+                .connector_mandate_detail
+                .clone()
+                .map(|connector_mandate_detail| mandates::MandateIds {
+                    mandate_id: None,
+                    mandate_reference_id: Some(mandates::MandateReferenceId::ConnectorMandateId(
+                        mandates::ConnectorMandateReferenceId::foreign_from(
+                            connector_mandate_detail,
+                        ),
+                    )),
+                })
+        });
+
     let payment_data = PaymentData {
         flow: PhantomData,
+        previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
         payment_intent,
         currency,
         amount,
-        mandate_id: payment_attempt
-            .mandate_id
-            .clone()
-            .map(|id| mandates::MandateIds {
-                mandate_id: Some(id),
-                mandate_reference_id: None,
-            }),
+        mandate_id,
         mandate_connector: None,
         setup_mandate: None,
         customer_acceptance: None,
@@ -610,7 +636,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRetrieveRequest, Pa
         let request_merchant_id = request.merchant_id.as_ref();
         helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "merchant_id".to_string(),
+                field_name: "merchant_id".into(),
                 expected_format: "merchant_id from merchant account".to_string(),
             })?;
 
@@ -683,25 +709,6 @@ pub async fn get_payment_intent_payment_attempt(
                         key_store,
                     )
                     .await?;
-                pi = db
-                    .find_payment_intent_by_payment_id_processor_merchant_id(
-                        &pa.payment_id,
-                        processor_merchant_id,
-                        key_store,
-                        storage_scheme,
-                    )
-                    .await?;
-            }
-            api_models::payments::PaymentIdType::PreprocessingId(ref id) => {
-                pa = db
-                    .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-                        id,
-                        processor_merchant_id,
-                        storage_scheme,
-                        key_store,
-                    )
-                    .await?;
-
                 pi = db
                     .find_payment_intent_by_payment_id_processor_merchant_id(
                         &pa.payment_id,

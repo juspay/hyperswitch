@@ -17,9 +17,12 @@ use hyperswitch_masking::ExposeInterface;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
 #[cfg(feature = "v1")]
 use router_env::logger;
-use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
+use storage_impl::redis::cache::CacheKey;
 
-use crate::{configs::settings, core::configs::dimension_state, routes::SessionState};
+use crate::{
+    configs::settings, core::configs::dimension_state, routes::SessionState,
+    types::payment_methods as pm_types,
+};
 #[cfg(feature = "v2")]
 use crate::{
     db::{
@@ -61,7 +64,10 @@ pub async fn get_merchant_pm_filter_graph(
     state: &SessionState,
     key: &str,
 ) -> Option<Arc<hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>>> {
-    PM_FILTERS_CGRAPH_CACHE
+    state
+        .store
+        .caches()
+        .pm_filters_cgraph
         .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>>>(CacheKey {
             key: key.to_string(),
             prefix: state.tenant.redis_key_prefix.clone(),
@@ -75,7 +81,10 @@ pub async fn refresh_pm_filters_cache(
     graph: cgraph::ConstraintGraph<dir::DirValue>,
 ) -> Arc<hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>> {
     let pm_filter_graph = Arc::new(graph);
-    PM_FILTERS_CGRAPH_CACHE
+    state
+        .store
+        .caches()
+        .pm_filters_cgraph
         .push(
             CacheKey {
                 key: key.to_string(),
@@ -822,6 +831,21 @@ pub async fn get_should_call_pm_modular_service(
 ) -> bool {
     dimensions
         .get_should_call_pm_modular_service(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
+/// Resolves when the payment method is written to durable storage.
+pub async fn get_payment_method_integration_type(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+) -> pm_types::PaymentMethodIntegrationType {
+    dimensions
+        .get_payment_method_integration_type(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             customer_id,

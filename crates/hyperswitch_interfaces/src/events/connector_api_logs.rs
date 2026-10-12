@@ -4,7 +4,6 @@ use common_utils::request::Method;
 use router_env::RequestId;
 use serde::Serialize;
 use serde_json::json;
-use time::OffsetDateTime;
 
 /// struct ConnectorEvent
 #[derive(Debug, Serialize)]
@@ -69,7 +68,7 @@ impl ConnectorEvent {
             url,
             method: method.to_string(),
             merchant_id,
-            created_at: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
+            created_at: common_utils::date_time::now_unix_timestamp_millis(),
             request_id: request_id
                 .map(|i| i.to_string())
                 .unwrap_or("NO_REQUEST_ID".to_string()),

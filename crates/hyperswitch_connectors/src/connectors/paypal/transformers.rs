@@ -10,9 +10,9 @@ use api_models::{
 };
 use base64::Engine;
 use common_enums::enums as storage_enums;
-#[cfg(feature = "payouts")]
-use common_utils::pii::Email;
-use common_utils::{consts, errors::CustomResult, request::Method, types::StringMajorUnit};
+use common_utils::{
+    consts, errors::CustomResult, pii::Email, request::Method, types::StringMajorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
@@ -20,8 +20,9 @@ use hyperswitch_domain_models::{
         PayLaterData, PaymentMethodData, VoucherData, WalletData,
     },
     router_data::{
-        AccessToken, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
-        ExtendedAuthorizationResponseData, FeatureData, RouterData,
+        AccessToken, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
+        ConnectorResponseData, ErrorResponse, ExtendedAuthorizationResponseData, FeatureData,
+        RouterData,
     },
     router_flow_types::{
         payments::{Authorize, PostSessionTokens},
@@ -210,7 +211,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsPostSessionTokensRouterData>> for OrderR
                     currency_code: item.router_data.request.currency,
                     value: item.order_amount.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "order_amount",
+                            field_name: "order_amount".into(),
                         },
                     )?,
                 },
@@ -238,7 +239,7 @@ impl TryFrom<&PaypalRouterData<&SdkSessionUpdateRouterData>> for OrderRequestAmo
                     currency_code: item.router_data.request.currency,
                     value: item.order_amount.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "order_amount",
+                            field_name: "order_amount".into(),
                         },
                     )?,
                 },
@@ -246,7 +247,7 @@ impl TryFrom<&PaypalRouterData<&SdkSessionUpdateRouterData>> for OrderRequestAmo
                     currency_code: item.router_data.request.currency,
                     value: item.order_tax_amount.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "order_tax_amount",
+                            field_name: "order_tax_amount".into(),
                         },
                     )?,
                 }),
@@ -326,7 +327,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsPostSessionTokensRouterData>> for ItemDe
                 currency_code: item.router_data.request.currency,
                 value: item.order_amount.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_amount",
+                        field_name: "order_amount".into(),
                     },
                 )?,
             },
@@ -348,7 +349,7 @@ impl TryFrom<&PaypalRouterData<&SdkSessionUpdateRouterData>> for ItemDetails {
                 currency_code: item.router_data.request.currency,
                 value: item.order_amount.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_amount",
+                        field_name: "order_amount".into(),
                     },
                 )?,
             },
@@ -356,7 +357,7 @@ impl TryFrom<&PaypalRouterData<&SdkSessionUpdateRouterData>> for ItemDetails {
                 currency_code: item.router_data.request.currency,
                 value: item.order_tax_amount.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_tax_amount",
+                        field_name: "order_tax_amount".into(),
                     },
                 )?,
             }),
@@ -1200,6 +1201,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -1218,6 +1220,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
+                | WalletData::WeroRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
@@ -1269,7 +1272,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
 
                 let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_mandate_id",
+                        field_name: "connector_mandate_id".into(),
                     },
                 )?;
 
@@ -1334,6 +1337,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::AmazonPay
                     | enums::PaymentMethodType::Paysera
                     | enums::PaymentMethodType::Skrill
+                    | enums::PaymentMethodType::Neteller
                     | enums::PaymentMethodType::ApplePay
                     | enums::PaymentMethodType::Atome
                     | enums::PaymentMethodType::Bacs
@@ -1420,6 +1424,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::UpiCollect
                     | enums::PaymentMethodType::UpiIntent
                     | enums::PaymentMethodType::Vipps
+                    | enums::PaymentMethodType::Wero
                     | enums::PaymentMethodType::VietQr
                     | enums::PaymentMethodType::Venmo
                     | enums::PaymentMethodType::Walley
@@ -1443,11 +1448,10 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::UpiQr
                     | enums::PaymentMethodType::Payjustnow
                     | enums::PaymentMethodType::OpenBanking
-                    | enums::PaymentMethodType::NetworkToken => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            utils::get_unimplemented_payment_method_error_message("paypal"),
-                        ))
-                    }
+                    | enums::PaymentMethodType::NetworkToken
+                    | enums::PaymentMethodType::Ted => Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("paypal"),
+                    )),
                 };
 
                 Ok(Self {
@@ -2168,28 +2172,6 @@ pub struct PaypalThreeDsResponse {
     links: Vec<PaypalLinks>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum PaypalPreProcessingResponse {
-    PaypalLiabilityResponse(PaypalLiabilityResponse),
-    PaypalNonLiabilityResponse(PaypalNonLiabilityResponse),
-}
-
-impl TryFrom<PaypalPreProcessingResponse> for PaymentsResponseData {
-    type Error = ErrorResponse;
-
-    fn try_from(response: PaypalPreProcessingResponse) -> Result<Self, Self::Error> {
-        match response {
-            PaypalPreProcessingResponse::PaypalNonLiabilityResponse(_) => {
-                Ok(auth_success_response())
-            }
-            PaypalPreProcessingResponse::PaypalLiabilityResponse(liability_response) => {
-                validate_liability_response(liability_response).map_err(|e| *e)
-            }
-        }
-    }
-}
-
 fn auth_success_response() -> PaymentsResponseData {
     PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::NoResponseId,
@@ -2578,6 +2560,11 @@ where
         let status = payment_collection_item.status.clone();
         let status = get_payment_attempt_status(status, item.data.status);
 
+        let connector_response = get_connector_response_with_payer_details(
+            item.data.payment_method_type,
+            item.response.payer.as_ref(),
+        );
+
         if is_payment_failure(status) {
             let error_code = payment_collection_item
                 .processor_response
@@ -2663,6 +2650,7 @@ where
                 charges: None,
                 payment_account_reference: None,
             }),
+            connector_response,
             sender_payment_instrument_id: item
                 .response
                 .payer
@@ -2767,6 +2755,10 @@ impl<F, T>
             order_id: None,
         });
         let purchase_units = item.response.purchase_units.first();
+        let connector_response = get_connector_response_with_payer_details(
+            item.data.payment_method_type,
+            item.response.payer.as_ref(),
+        );
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -2787,6 +2779,7 @@ impl<F, T>
                 charges: None,
                 payment_account_reference: None,
             }),
+            connector_response,
             sender_payment_instrument_id: item
                 .response
                 .payer
@@ -2831,6 +2824,10 @@ impl
             order_id: None,
         });
         let purchase_units = item.response.purchase_units.first();
+        let connector_response = get_connector_response_with_payer_details(
+            item.data.payment_method_type,
+            item.response.payer.as_ref(),
+        );
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -2851,6 +2848,7 @@ impl
                 charges: None,
                 payment_account_reference: None,
             }),
+            connector_response,
             ..item.data
         })
     }
@@ -2992,7 +2990,7 @@ fn paypal_threeds_link(
         redirect_url.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
     let complete_auth_url =
         complete_auth_url.ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "complete_authorize_url",
+            field_name: "complete_authorize_url".into(),
         })?;
     let mut form_fields = std::collections::HashMap::from_iter(
         redirect_url
@@ -3046,6 +3044,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsSyncResponse, T, Payments
                 charges: None,
                 payment_account_reference: None,
             }),
+            connector_response: get_connector_response_with_payer_details(
+                item.data.payment_method_type,
+                item.response.payer.as_ref(),
+            ),
             sender_payment_instrument_id: item
                 .response
                 .payer
@@ -3163,7 +3165,7 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalPayoutI
                                 PaypalPayoutDataType::OtherType(paypal_id),
                             ),
                             _ => Err(errors::ConnectorError::MissingRequiredField {
-                                field_name: "receiver_data",
+                                field_name: "receiver_data".into(),
                             })?,
                         };
 
@@ -3176,7 +3178,7 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalPayoutI
                 WalletPayout::Venmo(data) => {
                     let receiver = PaypalPayoutDataType::OtherType(data.telephone_number.ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "telephone_number",
+                            field_name: "telephone_number".into(),
                         },
                     )?);
                     PaypalPayoutMethodData {
@@ -3187,16 +3189,16 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalPayoutI
                 }
                 WalletPayout::ApplePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
                     message: "ApplePayDecrypt PayoutMethodType is not supported".to_string(),
-                    connector: "Paypal",
+                    connector: "Paypal".into(),
                 })?,
                 WalletPayout::GooglePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
                     message: "GooglePayDecrypt PayoutMethodType is not supported".to_string(),
-                    connector: "Paypal",
+                    connector: "Paypal".into(),
                 })?,
             },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "PayoutMethodType is not supported".to_string(),
-                connector: "Paypal",
+                connector: "Paypal".into(),
             })?,
         };
 
@@ -3404,6 +3406,34 @@ pub struct PaypalCaptureResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Payer {
     payer_id: Option<Secret<String>>,
+    email_address: Option<Email>,
+}
+
+impl Payer {
+    fn get_wallet_additional_data(&self) -> Option<AdditionalPaymentMethodConnectorResponse> {
+        match (self.email_address.clone(), self.payer_id.clone()) {
+            (None, None) => None,
+            (email, payer_id) => {
+                Some(AdditionalPaymentMethodConnectorResponse::Paypal { email, payer_id })
+            }
+        }
+    }
+}
+
+/// Builds the connector response with the payer details received from paypal.
+/// This should only be populated for paypal wallet payments (PaypalRedirect and PaypalSdk
+/// flows, both of which use `PaymentMethodType::Paypal`), and not for payments processed
+/// via paypal as a card processor.
+fn get_connector_response_with_payer_details(
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+    payer: Option<&Payer>,
+) -> Option<ConnectorResponseData> {
+    match payment_method_type {
+        Some(common_enums::PaymentMethodType::Paypal) => payer
+            .and_then(|payer| payer.get_wallet_additional_data())
+            .map(ConnectorResponseData::with_additional_payment_method_data),
+        _ => None,
+    }
 }
 
 fn get_payment_attempt_status(
@@ -3501,6 +3531,10 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                 charges: None,
                 payment_account_reference: None,
             }),
+            connector_response: get_connector_response_with_payer_details(
+                item.data.payment_method_type,
+                item.response.payer.as_ref(),
+            ),
             amount_captured: Some(amount_captured),
             ..item.data
         })
@@ -4289,8 +4323,12 @@ fn get_headers(
     let header_value = header
         .get(key)
         .map(|value| value.to_str())
-        .ok_or(errors::ConnectorError::MissingRequiredField { field_name: key })?
-        .change_context(errors::ConnectorError::InvalidDataFormat { field_name: key })?
+        .ok_or(errors::ConnectorError::MissingRequiredField {
+            field_name: key.into(),
+        })?
+        .change_context(errors::ConnectorError::InvalidDataFormat {
+            field_name: key.into(),
+        })?
         .to_owned();
     Ok(header_value)
 }

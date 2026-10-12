@@ -119,7 +119,7 @@ impl TryFrom<&ConnectorAuthType> for CashtocodeAuthType {
                             .to_owned()
                             .parse_value::<CashtocodeAuth>("CashtocodeAuth")
                             .change_context(errors::ConnectorError::InvalidDataFormat {
-                                field_name: "auth_key_map",
+                                field_name: "auth_key_map".into(),
                             })?;
 
                         Ok((currency.to_owned(), cashtocode_auth))

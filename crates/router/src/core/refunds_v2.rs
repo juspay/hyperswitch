@@ -12,6 +12,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{Connector as ConnectorTrait, ConnectorIntegration},
     connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
+    errors::not_supported_message,
     integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject},
 };
 use router_env::{instrument, tracing};
@@ -79,7 +80,7 @@ pub async fn refund_create_core(
 
     utils::when(amount <= common_utils_types::MinorUnit::new(0), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "amount".to_string(),
+            field_name: "amount".into(),
             expected_format: "positive integer".to_string()
         })
         .attach_printable("amount less than or equal to zero"))
@@ -603,9 +604,7 @@ impl ForeignFrom<(&errors::ConnectorError, enums::MerchantStorageScheme)>
             errors::ConnectorError::NotSupported { message, connector } => {
                 Some(diesel_refund::RefundUpdate::ErrorUpdate {
                     refund_status: Some(enums::RefundStatus::Failure),
-                    refund_error_message: Some(format!(
-                        "{message} is not supported by {connector}"
-                    )),
+                    refund_error_message: Some(not_supported_message(message, connector)),
                     refund_error_code: Some("NOT_SUPPORTED".to_string()),
                     updated_by: storage_scheme.to_string(),
                     connector_refund_id: None,
@@ -632,7 +631,11 @@ where
         .map(|resp_data| resp_data.connector_refund_id.clone())
         .ok();
 
-    request.check_integrity(request, connector_refund_id.to_owned())
+    request.check_integrity(
+        request,
+        connector_refund_id.to_owned(),
+        common_types::primitive_wrappers::AcceptAmountMismatchBool::default(),
+    )
 }
 
 // ********************************************** REFUND UPDATE **********************************************
@@ -769,7 +772,7 @@ pub async fn refund_retrieve_core(
                 Some(details) => details,
                 None => {
                     return Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "merchant_connector_details"
+                        field_name: "merchant_connector_details".into()
                     }));
                 }
             };
@@ -1166,7 +1169,7 @@ pub async fn validate_and_create_refund(
 
     utils::when(predicate.unwrap_or(false), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "merchant_id".to_string(),
+            field_name: "merchant_id".into(),
             expected_format: "merchant_id from merchant account".to_string()
         })
         .attach_printable("invalid merchant_id in request"))
@@ -1193,7 +1196,7 @@ pub async fn validate_and_create_refund(
         state.conf.refund.max_age,
     )
     .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-        field_name: "created_at".to_string(),
+        field_name: "created_at".into(),
         expected_format: format!(
             "created_at not older than {} days",
             state.conf.refund.max_age,
@@ -1335,7 +1338,7 @@ impl ForeignTryFrom<diesel_refund::Refund> for api::RefundResponse {
         let connector = Connector::from_str(&connector_name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector",
+                field_name: "connector".into(),
             })
             .attach_printable_lazy(|| {
                 format!("unable to parse connector name {connector_name:?}")
@@ -1416,7 +1419,7 @@ pub async fn schedule_refund_execution(
                                             None => {
                                                 return Err(report!(
                                             errors::ApiErrorResponse::MissingRequiredField {
-                                                field_name: "merchant_connector_details"
+                                                field_name: "merchant_connector_details".into()
                                             }
                                         ));
                                             }

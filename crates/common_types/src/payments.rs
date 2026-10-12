@@ -205,7 +205,7 @@ impl MerchantCountryCode {
             .parse::<u32>()
             .map_err(Report::from)
             .change_context(errors::ValidationError::IncorrectValueProvided {
-                field_name: "merchant_country_code",
+                field_name: "merchant_country_code".into(),
             })
             .attach_printable_lazy(|| {
                 format!("Country code {country_code} is negative or too large")
@@ -213,7 +213,7 @@ impl MerchantCountryCode {
 
         common_enums::Country::from_numeric(code)
             .map_err(|_| errors::ValidationError::IncorrectValueProvided {
-                field_name: "merchant_country_code",
+                field_name: "merchant_country_code".into(),
             })
             .attach_printable_lazy(|| format!("Invalid country code {code}"))
     }
@@ -655,6 +655,11 @@ pub struct GpayEcryptedTokenizationData {
     /// Token generated for the wallet
     #[smithy(value_type = "String")]
     pub token: String,
+    /// The authentication method used by Google Pay (PAN_ONLY or CRYPTOGRAM_3DS)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<GooglePayAuthMethod>)]
+    #[smithy(value_type = "Option<GooglePayAuthMethod>")]
+    pub auth_method: Option<common_enums::GooglePayAuthMethod>,
 }
 
 #[derive(
@@ -731,8 +736,53 @@ impl GpayTokenizationData {
             .token_type
             .clone())
     }
+
+    /// Get the Google Pay auth method (PAN_ONLY or CRYPTOGRAM_3DS)
+    pub fn get_encrypted_auth_method(&self) -> Option<common_enums::GooglePayAuthMethod> {
+        match self {
+            Self::Encrypted(encrypted) => encrypted.auth_method,
+            Self::Decrypted(_) => None,
+        }
+    }
 }
 impl GPayPredecryptData {
+    /// Bin of the decrypted PAN, when it is a tokenized DPAN (`auth_method` is `CRYPTOGRAM_3DS`)
+    pub fn get_device_pan_bin(&self) -> Option<String> {
+        match self.auth_method {
+            Some(enums::GooglePayAuthMethod::Cryptogram) => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            None if self.cryptogram.is_some() => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            Some(enums::GooglePayAuthMethod::PanOnly) | None => None,
+        }
+    }
+
+    /// Bin of the decrypted PAN, when it is the underlying card's real PAN (`auth_method` is
+    /// `PAN_ONLY`)
+    pub fn get_card_bin(&self) -> Option<String> {
+        match self.auth_method {
+            Some(enums::GooglePayAuthMethod::PanOnly) => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            None if self.cryptogram.is_none() => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            Some(enums::GooglePayAuthMethod::Cryptogram) | None => None,
+        }
+    }
+
+    /// The decrypted PAN's card expiry month
+    pub fn get_card_exp_month(&self) -> Secret<String> {
+        self.card_exp_month.clone()
+    }
+
+    /// The decrypted PAN's card expiry year
+    pub fn get_card_exp_year(&self) -> Secret<String> {
+        self.card_exp_year.clone()
+    }
+
     /// Get the four-digit expiration year from the Google Pay pre-decrypt data
     pub fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, errors::ValidationError> {
         let mut year = self.card_exp_year.peek().clone();
@@ -827,6 +877,27 @@ pub struct ApplePayPredecryptData {
     #[schema(value_type = ApplePayCryptogramData)]
     #[smithy(value_type = "ApplePayCryptogramData")]
     pub payment_data: ApplePayCryptogramData,
+    /// Identifier of the device that generated the token.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub device_manufacturer_identifier: Option<Secret<String>>,
+}
+
+impl ApplePayPredecryptData {
+    /// The decrypted PAN's card expiry month
+    pub fn get_application_expiration_month(&self) -> Secret<String> {
+        self.application_expiration_month.clone()
+    }
+
+    /// The decrypted PAN's card expiry year
+    pub fn get_application_expiration_year(&self) -> Secret<String> {
+        self.application_expiration_year.clone()
+    }
+
+    /// Bin of the decrypted PAN
+    pub fn get_device_pan_bin(&self) -> String {
+        self.application_primary_account_number.get_card_isin()
+    }
 }
 
 #[derive(
@@ -958,7 +1029,7 @@ impl ApplePayPredecryptData {
 }
 
 /// type of action that needs to taken after consuming recovery payload
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RecoveryAction {
     /// Stops the process tracker and update the payment intent.
@@ -973,6 +1044,52 @@ pub enum RecoveryAction {
     NoAction,
     /// Invalid event has been received.
     InvalidAction,
+}
+
+/// Action to be taken on the transaction reported through the revenue recovery API
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryPaymentsAction {
+    /// Records the external transaction against payment intent and schedules a retry.
+    ScheduleFailedPayment,
+    /// Records the external payment and stops the internal process tracker.
+    SuccessPaymentExternal,
+}
+
+impl From<RecoveryPaymentsAction> for RecoveryAction {
+    fn from(action: RecoveryPaymentsAction) -> Self {
+        match action {
+            RecoveryPaymentsAction::ScheduleFailedPayment => Self::ScheduleFailedPayment,
+            RecoveryPaymentsAction::SuccessPaymentExternal => Self::SuccessPaymentExternal,
+        }
+    }
+}
+
+/// Status of the transaction reported.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryTransactionStatus {
+    /// The transaction was charged in full.
+    Charged,
+    /// The transaction failed.
+    Failure,
+    /// The transaction was charged for a part of the amount.
+    PartialCharged,
+    /// The transaction was charged for a part of the amount and the remaining amount can still be captured.
+    PartialChargedAndChargeable,
+}
+
+impl From<RecoveryTransactionStatus> for common_enums::AttemptStatus {
+    fn from(status: RecoveryTransactionStatus) -> Self {
+        match status {
+            RecoveryTransactionStatus::Charged => Self::Charged,
+            RecoveryTransactionStatus::Failure => Self::Failure,
+            RecoveryTransactionStatus::PartialCharged => Self::PartialCharged,
+            RecoveryTransactionStatus::PartialChargedAndChargeable => {
+                Self::PartialChargedAndChargeable
+            }
+        }
+    }
 }
 
 /// Billing Descriptor information to be sent to the payment gateway
@@ -1126,7 +1243,7 @@ impl PaymentIntentStateMetadata {
 
     /// Check if post capture void is issued for the payment intent
     pub fn is_post_capture_void_issued(&self) -> bool {
-        self.post_capture_void.is_some()
+        self.is_post_capture_void_pending() || self.is_post_capture_void_successful()
     }
 
     /// Check if post capture void is applied for the payment intent
@@ -1333,6 +1450,11 @@ pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
     #[schema(value_type = Option<CardNetwork>)]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<enums::CardNetwork>,
+
+    /// Identifier of the device that generated the token
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub device_manufacturer_identifier: Option<Secret<String>>,
 }
 
 /// Billing frequency for a card installment plan
@@ -1652,8 +1774,25 @@ pub struct ExternalSurchargeDetails {
     pub external_surcharge_id: String,
     /// Surcharge amount in minor units
     pub external_surcharge_amount: MinorUnit,
+    /// Surcharge percentage returned by the connector (e.g. InterPayments), if provided.
+    /// Stored as a `Decimal` so the enclosing attempt model can keep deriving `Eq`.
+    #[schema(value_type = Option<f64>)]
+    pub surcharge_percentage: Option<Decimal>,
     /// Whether /v1/ch/sale has been successfully called
     pub sale_notified: bool,
+}
+
+impl ExternalSurchargeDetails {
+    /// Convert an `f64` surcharge percentage (as produced by the surcharge connector) into the
+    /// `Decimal` representation stored on the attempt. Returns `None` for `None`/non-finite input.
+    pub fn decimal_percentage_from_f64(value: Option<f64>) -> Option<Decimal> {
+        value.and_then(Decimal::from_f64)
+    }
+
+    /// The surcharge percentage as an `f64` for API responses, if present.
+    pub fn surcharge_percentage_as_f64(&self) -> Option<f64> {
+        self.surcharge_percentage.and_then(|value| value.to_f64())
+    }
 }
 
 impl_to_sql_from_sql_json!(ExternalSurchargeDetails);
@@ -1712,3 +1851,15 @@ pub struct AppliedOfferDetailsV1 {
 }
 
 impl_to_sql_from_sql_json!(AppliedOfferDetails);
+
+/// Values the router applied to a payment attempt in place of what was requested (stored as JSONB)
+#[derive(
+    Clone, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize, diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct AppliedOverrides {
+    /// Capture method actually sent to the connector for this attempt
+    pub capture_method_applied: Option<enums::CaptureMethod>,
+}
+
+impl_to_sql_from_sql_json!(AppliedOverrides);

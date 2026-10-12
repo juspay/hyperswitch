@@ -63,7 +63,7 @@ impl ValidateStatusForOperation for PaymentIntentConfirm {
             | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
-                    field_name: "status".to_string(),
+                    field_name: "status".into(),
                     current_value: intent_status.to_string(),
                     states: ["requires_payment_method".to_string()].join(", "),
                 })
@@ -242,7 +242,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 ),
                 || {
                     Err(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "payment_method_data",
+                        field_name: "payment_method_data".into(),
                     })
                     .attach_printable(
                         "payment_method_data should be card_token when a token is passed",
@@ -425,7 +425,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
     for PaymentIntentConfirm
 {
-    #[instrument(name = "hs.router.payment_confirm.customer", skip_all)]
     async fn get_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -454,24 +453,27 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         provider: &domain::Provider,
         customer: Option<domain::Customer>,
         updated_customer: Option<storage::CustomerUpdate>,
-    ) -> RouterResult<()> {
-        if let Some((customer, updated_customer)) = customer.zip(updated_customer) {
-            let customer_id = customer.get_id().clone();
+    ) -> RouterResult<Option<domain::Customer>> {
+        match (customer, updated_customer) {
+            (Some(customer), Some(updated_customer)) => {
+                let customer_id = customer.get_id().clone();
 
-            let _updated_customer = state
-                .store
-                .update_customer_by_global_id(
-                    &customer_id,
-                    customer,
-                    updated_customer,
-                    provider.get_key_store(),
-                    provider.get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update customer during `update_customer`")?;
+                state
+                    .store
+                    .update_customer_by_global_id(
+                        &customer_id,
+                        customer,
+                        updated_customer,
+                        provider.get_key_store(),
+                        provider.get_account().storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to update customer during `update_customer`")
+                    .map(Some)
+            }
+            (customer, _) => Ok(customer),
         }
-        Ok(())
     }
 
     async fn run_decision_manager<'a>(
@@ -516,7 +518,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(name = "hs.router.payment_confirm.routing", skip_all)]
     async fn perform_routing<'a>(
         &'a self,
         platform: &domain::Platform,
@@ -547,7 +548,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(name = "hs.router.payment_confirm.payment_method", skip_all)]
     async fn create_or_fetch_payment_method<'a>(
         &'a self,
         state: &SessionState,
@@ -584,7 +584,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                             .card_cvc
                             .clone()
                             .ok_or(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "card_cvc",
+                                field_name: "card_cvc".into(),
                             })
                             .or(payment_methods::vault::retrieve_cvc_from_payment_token(
                                 state,
@@ -621,7 +621,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             }
 
             (Some(_payment_token), _, _) => Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             })
             .attach_printable("payment_method_data should be card_token when a token is passed")?,
 
@@ -630,7 +630,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     Some(customer_id) => customer_id.clone(),
                     None => {
                         return Err(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "customer_id",
+                            field_name: "customer_id".into(),
                         })
                         .attach_printable("customer_id not provided");
                     }
@@ -656,6 +656,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     req,
                     platform,
                     business_profile,
+                    None,
                 )
                 .boxed()
                 .await?;
@@ -677,7 +678,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(name = "hs.router.payment_confirm.connector", skip_all)]
     async fn get_connector_from_request<'a>(
         &'a self,
         state: &SessionState,

@@ -560,10 +560,64 @@ describe("Config Tests", () => {
       );
     });
 
+    it("Create Business Profile with invalid dispute_statuses_enabled — expect error", () => {
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        profile_name: "neg_dispute_status_test",
+        webhook_details: {
+          webhook_version: "1.0.2",
+          dispute_statuses_enabled: ["invalid_dispute"],
+        },
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookNegDisputeProfile",
+        400
+      );
+    });
+
+    it("Create Business Profile with unsupported mandate_statuses_enabled — expect error", () => {
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        profile_name: "neg_mandate_status_test",
+        webhook_details: {
+          webhook_version: "1.0.2",
+          mandate_statuses_enabled: ["inactive"],
+        },
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookNegMandateProfile",
+        422
+      );
+    });
+
+    it("Create Business Profile with unsupported invoice_statuses_enabled — expect error", () => {
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        profile_name: "neg_invoice_status_test",
+        webhook_details: {
+          webhook_version: "1.0.2",
+          invoice_statuses_enabled: ["payment_failed"],
+        },
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookNegInvoiceProfile",
+        422
+      );
+    });
+
     after("cleanup negative-case profiles", () => {
       cy.deleteBusinessProfileTest(globalState, "webhookNegativeProfile");
       cy.deleteBusinessProfileTest(globalState, "webhookNegPaymentProfile");
       cy.deleteBusinessProfileTest(globalState, "webhookNegPayoutProfile");
+      cy.deleteBusinessProfileTest(globalState, "webhookNegDisputeProfile");
+      cy.deleteBusinessProfileTest(globalState, "webhookNegMandateProfile");
+      cy.deleteBusinessProfileTest(globalState, "webhookNegInvoiceProfile");
     });
   });
 });

@@ -1,5 +1,7 @@
 //! Errors interface
 
+use std::borrow::Cow;
+
 use common_enums::ApiClientError;
 use common_utils::errors::ErrorSwitch;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
@@ -33,9 +35,9 @@ pub enum ConnectorError {
     #[error("Failed to handle connector response")]
     ResponseHandlingFailed,
     #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
+    MissingRequiredField { field_name: Cow<'static, str> },
     #[error("Missing required fields: {field_names:?}")]
-    MissingRequiredFields { field_names: Vec<&'static str> },
+    MissingRequiredFields { field_names: Vec<Cow<'static, str>> },
     #[error("Failed to obtain authentication type")]
     FailedToObtainAuthType,
     #[error("Failed to obtain certificate")]
@@ -48,10 +50,12 @@ pub enum ConnectorError {
     FailedToObtainCertificateKey,
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
-    #[error("{message} is not supported by {connector}")]
+    #[error("{}", not_supported_message(.message, .connector))]
     NotSupported {
         message: String,
-        connector: &'static str,
+        /// Owned, so a connector known only at runtime can be named. Errors surfaced through
+        /// UCS carry the connector that refused as a value on the call, not as a literal.
+        connector: Cow<'static, str>,
     },
     #[error("{flow} flow not supported by {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
@@ -92,7 +96,7 @@ pub enum ConnectorError {
     #[error("Date Formatting Failed")]
     DateFormattingFailed,
     #[error("Invalid Data format")]
-    InvalidDataFormat { field_name: &'static str },
+    InvalidDataFormat { field_name: Cow<'static, str> },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
     #[error("Failed to parse {wallet_name} wallet token")]
@@ -102,7 +106,7 @@ pub enum ConnectorError {
     #[error("File Validation failed")]
     FileValidationFailed { reason: String },
     #[error("Missing 3DS redirection payload: {field_name}")]
-    MissingConnectorRedirectionPayload { field_name: &'static str },
+    MissingConnectorRedirectionPayload { field_name: Cow<'static, str> },
     #[error("Failed at connector's end with code '{code}'")]
     FailedAtConnector { message: String, code: String },
     #[error("Payment Method Type not found")]
@@ -169,7 +173,7 @@ impl ErrorSwitch<ApiErrorResponse> for ConnectorError {
 
 // http client errors
 #[allow(missing_docs, missing_debug_implementations)]
-#[derive(Debug, Clone, thiserror::Error, PartialEq)]
+#[derive(Debug, Clone, thiserror::Error, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum HttpClientError {
     #[error("Header map construction failed")]
     HeaderMapConstructionFailed,
@@ -234,5 +238,18 @@ impl ErrorSwitch<ApiClientError> for HttpClientError {
             Self::GatewayTimeoutReceived => ApiClientError::GatewayTimeoutReceived,
             Self::UnexpectedServerResponse => ApiClientError::UnexpectedServerResponse,
         }
+    }
+}
+
+/// Renders a not-supported message, naming the connector that refused.
+///
+/// Some sources send a message that already names the connector, for example UCS sends
+/// "Selected payment method is not supported by <connector>". For those the message is
+/// returned unchanged, so the connector is named once instead of twice.
+pub fn not_supported_message(message: &str, connector: &str) -> String {
+    if message.contains(connector) {
+        message.to_owned()
+    } else {
+        format!("{message} is not supported by {connector}")
     }
 }

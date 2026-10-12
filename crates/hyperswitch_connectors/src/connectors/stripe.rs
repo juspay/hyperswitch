@@ -1892,6 +1892,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stripe 
             req.request.currency,
         )?;
         let request_body = match req.request.split_refunds.as_ref() {
+            // `ChargeRefundRequest` falls back to `payment_intent` when the charge id is unknown;
+            // the `Stripe-Account` header added in `get_headers` is what routes either shape to
+            // the connected account, which is what makes the refund resolvable at all.
             Some(SplitRefundsRequest::StripeSplitRefund(_)) => RequestContent::FormUrlEncoded(
                 Box::new(stripe::ChargeRefundRequest::try_from(req)?),
             ),
@@ -2869,11 +2872,7 @@ impl IncomingWebhook for Stripe {
                 ))
             }
             stripe::WebhookEventObjectType::Source => {
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PreprocessingId(
-                        details.event_data.event_object.id,
-                    ),
-                ))
+                Err(ConnectorError::WebhookReferenceIdNotFound)?
             }
             stripe::WebhookEventObjectType::Refund => {
                 match details
@@ -3027,7 +3026,7 @@ impl IncomingWebhook for Stripe {
             .change_context(ConnectorError::WebhookBodyDecodingFailed)?;
         let amt = details.event_data.event_object.amount.ok_or_else(|| {
             ConnectorError::MissingRequiredField {
-                field_name: "amount",
+                field_name: "amount".into(),
             }
         })?;
 
@@ -3055,6 +3054,11 @@ impl IncomingWebhook for Stripe {
                 .to_string(),
             created_at: Some(details.event_data.event_object.created),
             updated_at: None,
+            additional_details: details
+                .event_data
+                .event_object
+                .network_details
+                .and_then(Into::into),
         })
     }
 }

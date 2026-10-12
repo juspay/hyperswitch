@@ -25,7 +25,7 @@ fn get_payment_id_from_headers_or_payload(
             .change_context(errors::ApiErrorResponse::Unauthorized)?;
         sdk_auth.payment_id.ok_or_else(|| {
             error_stack::report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_id",
+                field_name: "payment_id".into(),
             })
         })
     } else {
@@ -35,14 +35,14 @@ fn get_payment_id_from_headers_or_payload(
             .map(|cs| cs.peek())
             .ok_or_else(|| {
                 error_stack::report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "client_secret",
+                    field_name: "client_secret".into(),
                 })
             })?;
 
         let payment_id_str = payments::helpers::get_payment_id_from_client_secret(client_secret)?;
         common_utils::id_type::PaymentId::wrap(payment_id_str).change_context(
             errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_id",
+                field_name: "payment_id".into(),
             },
         )
     }

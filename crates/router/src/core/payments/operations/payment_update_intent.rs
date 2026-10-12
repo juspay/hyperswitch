@@ -69,7 +69,7 @@ impl ValidateStatusForOperation for PaymentUpdateIntent {
             | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
-                    field_name: "status".to_string(),
+                    field_name: "status".into(),
                     current_value: intent_status.to_string(),
                     states: ["requires_payment_method".to_string()].join(", "),
                 })
@@ -247,12 +247,11 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             None => payment_intent.amount_details,
         };
 
-        let active_attempt_id = set_active_attempt_id
-            .map(|active_attempt_req| match active_attempt_req {
-                UpdateActiveAttempt::Set(global_attempt_id) => Some(global_attempt_id),
-                UpdateActiveAttempt::Unset => None,
-            })
-            .unwrap_or(payment_intent.active_attempt_id);
+        let active_attempt_id = match set_active_attempt_id {
+            Some(UpdateActiveAttempt::Set(global_attempt_id)) => Some(global_attempt_id),
+            Some(UpdateActiveAttempt::Unset) => None,
+            Some(UpdateActiveAttempt::NoAction) | None => payment_intent.active_attempt_id,
+        };
 
         let payment_intent = hyperswitch_domain_models::payments::PaymentIntent {
             amount_details: updated_amount_details,

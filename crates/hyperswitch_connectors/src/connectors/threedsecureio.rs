@@ -264,12 +264,12 @@ impl
             req.request
                 .currency
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
             req.request
                 .amount
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "amount",
+                    field_name: "amount".into(),
                 })?,
             req,
         ))?;

@@ -9,25 +9,25 @@ use common_utils::generate_id;
 use common_utils::id_type;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::payment_methods::PaymentMethodUpdate as DomainPaymentMethodUpdate;
 use hyperswitch_masking::Secret;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "v2")]
-use crate::routes::app::SessionState;
-#[cfg(feature = "v2")]
-use crate::types::storage;
 use crate::{
     consts,
     types::{api, domain},
 };
+#[cfg(feature = "v2")]
+use crate::{routes::app::SessionState, types::storage};
 
 pub trait VaultingInterface {
     fn get_vaulting_request_url() -> &'static str;
 
     fn get_vaulting_flow_name() -> &'static str;
+
+    fn supports_plain_response() -> bool {
+        false
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -148,6 +148,11 @@ impl VaultingInterface for GetVaultFingerprint {
 
     fn get_vaulting_flow_name() -> &'static str {
         consts::V2_VAULT_GET_FINGERPRINT_FLOW_TYPE
+    }
+
+    // The response is only a fingerprint id.
+    fn supports_plain_response() -> bool {
+        true
     }
 }
 
@@ -572,42 +577,25 @@ impl From<WriteMode> for VaultQueryParam {
     }
 }
 
+/// Determines when a payment method is written to durable storage relative to the payment.
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display, strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PaymentMethodIntegrationType {
+    /// Vault the card at session confirm, before the payment is attempted.
+    VaultThenPay,
+    /// Vault the card only once the payment has been acknowledged.
+    PayThenVault,
+}
+
 #[cfg(feature = "v2")]
 pub struct PaymentMethodUpdateHandler<'a> {
     pub platform: &'a hyperswitch_domain_models::platform::Platform,
     pub profile: &'a hyperswitch_domain_models::business_profile::Profile,
     pub request: hyperswitch_domain_models::payment_methods::PaymentMethodUpdate,
     pub payment_method: hyperswitch_domain_models::payment_methods::PaymentMethod,
-    pub state: &'a crate::routes::app::SessionState,
-    /// Where `payment_method` was resolved from. Persistent unless the update
-    /// request routed through volatile storage.
-    pub source: common_enums::StorageType,
-}
-
-/// What an update request should do, derived from the storage intent on the
-/// request against where the payment method was actually found. This is the
-/// storage decision table in one place.
-#[cfg(feature = "v2")]
-pub enum UpdateAction {
-    /// The regular update pipeline (cvc / vaulting / db update / response).
-    Standard,
-    /// A volatile record with customer acceptance and persistent intent, and
-    /// no database row yet: vault the card and insert the row.
-    Promote,
-    /// Respond without side effects, reporting this storage class.
-    Acknowledge(common_enums::StorageType),
-}
-
-/// Owned inputs for an asynchronous storage promotion ([`UpdateAction::Promote`]).
-/// Deliberately a struct copying only what the task needs, not a closure over
-/// the update handler's scope. Behavior lives with the rest of the update
-/// pipeline in `core::payment_methods` (`PromotionJob::run`).
-#[cfg(feature = "v2")]
-pub struct PromotionJob {
-    pub state: SessionState,
-    pub platform: domain::Platform,
-    pub profile: domain::Profile,
-    pub request: DomainPaymentMethodUpdate,
-    pub payment_method: domain::PaymentMethod,
-    pub payment_method_data: domain::PaymentMethodVaultingData,
+    pub insert_promoted_record: bool,
+    pub state: &'a SessionState,
 }

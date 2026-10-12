@@ -12,3 +12,5 @@ runner/exports/
 runner/state/
 runner/runner/
 !runner/lib/results.js
+/artifacts/
+/loadtest.config.json

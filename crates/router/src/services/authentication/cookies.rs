@@ -78,7 +78,9 @@ fn create_cookie<'c>(
 #[cfg(feature = "olap")]
 fn get_expiry_and_max_age_from_seconds(seconds: i64) -> (OffsetDateTime, Duration) {
     let max_age = Duration::seconds(seconds);
-    let expiry = OffsetDateTime::now_utc().saturating_add(max_age);
+    let expiry = common_utils::date_time::now()
+        .assume_utc()
+        .saturating_add(max_age);
     (expiry, max_age)
 }
 

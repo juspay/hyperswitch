@@ -345,10 +345,10 @@ pub struct PaymentMethodUpdate {
     pub connector_token_details: Option<payment_methods::ConnectorTokenDetails>,
     pub network_transaction_id: Option<Secret<String>>,
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+    pub customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub source_payment_method_data: Option<crate::vault::PaymentMethodVaultingData>,
     pub status: Option<common_enums::PaymentMethodStatus>,
-    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[cfg(feature = "v2")]
@@ -359,16 +359,27 @@ impl From<payment_methods::PaymentMethodUpdate> for PaymentMethodUpdate {
             connector_token_details: value.connector_token_details,
             network_transaction_id: value.network_transaction_id,
             acknowledgement_status: value.acknowledgement_status,
+            customer_acceptance: value.customer_acceptance,
             network_tokenization: None,
             source_payment_method_data: None,
             status: value.acknowledgement_status.map(|ack| ack.into()),
-            storage_type: value.storage_type,
         }
     }
 }
 
 #[cfg(feature = "v2")]
 impl PaymentMethodUpdate {
+    /// A payment acknowledgement can save a volatile card only with payment-confirm consent
+    /// and a customer to attach it to. Acceptance on the volatile record is not consulted.
+    pub fn can_promote_volatile_payment_method(
+        &self,
+        customer_id: Option<&id_type::GlobalCustomerId>,
+    ) -> bool {
+        self.status == Some(common_enums::PaymentMethodStatus::Active)
+            && self.customer_acceptance.is_some()
+            && customer_id.is_some()
+    }
+
     pub fn fetch_card_cvc_update(&self) -> Option<Secret<String>> {
         match &self.payment_method_data {
             Some(payment_methods::PaymentMethodUpdateData::Card(card_update)) => {
@@ -447,10 +458,10 @@ impl
             connector_token_details: None,
             network_transaction_id: None,
             acknowledgement_status: None,
+            customer_acceptance: None,
             network_tokenization: req.network_tokenization.clone(),
             source_payment_method_data: Some(source_payment_method_data),
             status: None,
-            storage_type: None,
         }
     }
 }
@@ -928,7 +939,7 @@ impl
             }
             (Some(storage_enums::VaultType::External), None) => {
                 Err(ValidationError::MissingRequiredField {
-                    field_name: "external vault mca id".to_string(),
+                    field_name: "external vault mca id".into(),
                 }
                 .into())
             }

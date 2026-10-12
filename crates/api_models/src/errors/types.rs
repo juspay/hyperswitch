@@ -34,7 +34,7 @@ impl ApiError {
     }
 }
 
-#[derive(Debug, serde::Serialize, ToSchema, PolymorphicSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, ToSchema, PolymorphicSchema)]
 #[generate_schemas(GenericErrorResponseOpenApi)]
 pub struct ErrorResponse {
     #[serde(rename = "type")]
@@ -70,7 +70,7 @@ impl From<&ApiErrorResponse> for ErrorResponse {
     }
 }
 
-#[derive(Debug, serde::Serialize, Default, Clone)]
+#[derive(Debug, serde::Serialize, Default, Clone, PartialEq)]
 pub struct Extra {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_id: Option<common_utils::id_type::PaymentId>,
@@ -94,6 +94,7 @@ pub enum ApiErrorResponse {
     ForbiddenPrivateResource(ApiError),
     Conflict(ApiError),
     Gone(ApiError),
+    TooManyRequests(ApiError),
     Unprocessable(ApiError),
     InternalServerError(ApiError),
     NotImplemented(ApiError),
@@ -124,6 +125,7 @@ impl ApiErrorResponse {
             | Self::ForbiddenPrivateResource(i)
             | Self::Conflict(i)
             | Self::Gone(i)
+            | Self::TooManyRequests(i)
             | Self::Unprocessable(i)
             | Self::InternalServerError(i)
             | Self::NotImplemented(i)
@@ -142,6 +144,7 @@ impl ApiErrorResponse {
             | Self::ForbiddenPrivateResource(i)
             | Self::Conflict(i)
             | Self::Gone(i)
+            | Self::TooManyRequests(i)
             | Self::Unprocessable(i)
             | Self::InternalServerError(i)
             | Self::NotImplemented(i)
@@ -160,12 +163,14 @@ impl ApiErrorResponse {
             | Self::ForbiddenPrivateResource(_)
             | Self::Conflict(_)
             | Self::Gone(_)
+            | Self::TooManyRequests(_)
             | Self::Unprocessable(_)
             | Self::NotImplemented(_)
             | Self::MethodNotAllowed(_)
             | Self::NotFound(_)
             | Self::BadRequest(_) => "invalid_request",
             Self::InternalServerError(_) => "api",
+            Self::DomainError(err) if err.sub_code == "IE" => "integrity_check_failed",
             Self::DomainError(_) => "blocked",
             Self::ConnectorError(_, _) => "connector",
         }

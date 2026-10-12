@@ -1,7 +1,8 @@
 use api_models::payments::{
     AccountType, BeneficiaryDetails, BoletoPaymentTypeConstraints, CalculationType, DiscountTier,
     DiscountType, FeatureMetadata, PollConfig, ProtestType, QrCodeInformation, SantanderData,
-    SantanderMandatePeriodicity, SantanderPaymentDiscountRules, VoucherNextStepData,
+    SantanderJourneyName, SantanderMandatePeriodicity, SantanderPaymentDiscountRules,
+    VoucherNextStepData,
 };
 use common_enums::{enums, AttemptStatus, BoletoDocumentKind, ExpiryType, PixKey};
 use common_utils::{
@@ -73,6 +74,8 @@ use crate::{
             SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
             SantanderPixAutomaticRecResponse, SantanderPixAutomaticSolicitationResponse,
             SantanderPixAutomaticoCobrStatus, SantanderPixAutomaticoCobrSyncResponse,
+            SantanderPixAutomaticoCobrWebhookEntry, SantanderPixAutomaticoCobrWebhookStatus,
+            SantanderPixAutomaticoRecWebhookBody, SantanderPixAutomaticoRecWebhookEntry,
             SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
             SantanderPixQRCodeSyncResponse, SantanderPixWebhookRegisterResponse,
             SantanderRefundResponse, SantanderRefundStatus, SantanderSetupMandateResponse,
@@ -152,7 +155,7 @@ impl
             .feature_metadata
             .as_ref()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "feature_metadata",
+                field_name: "feature_metadata".into(),
             })?
             .get_pix_automatico_push_expiry_time()
             .change_context(errors::ConnectorError::ParsingFailed)
@@ -165,8 +168,7 @@ impl
             .status
             .map(AttemptStatus::from)
             .unwrap_or(AttemptStatus::Pending);
-        let resource_id =
-            ResponseId::ConnectorTransactionId(item.data.connector_request_reference_id.clone());
+        let resource_id = ResponseId::ConnectorTransactionId(item.response.id_rec.clone().expose());
         let connector_response_reference_id = Some(item.response.id_solic_rec.clone().expose());
         let mandate_reference = Some(MandateReference {
             connector_mandate_id: Some(item.response.id_rec.clone().expose()),
@@ -224,9 +226,9 @@ impl
             .as_ref()
             .map(|qr_data| qr_data.jornada.clone())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "response.dadosQR.jornada",
+                field_name: "response.dadosQR.jornada".into(),
             })?;
-        let expiry_type = journey.and_then(Option::<ExpiryType>::from);
+        let expiry_type = journey.clone().and_then(Option::<ExpiryType>::from);
         let connector_metadata = match item
             .response
             .dados_qr
@@ -236,14 +238,33 @@ impl
             Some(pix_copia_e_cola) => convert_pix_data_to_value(pix_copia_e_cola, expiry_type)?,
             None => None,
         };
+        let connector_mandate_request_reference_id = item
+            .response
+            .ativacao
+            .as_ref()
+            .and_then(|activation| activation.dados_jornada.as_ref())
+            .and_then(|journey| journey.txid.clone());
         let mandate_reference = Box::new(Some(MandateReference {
             connector_mandate_id: Some(item.response.id_rec.clone().expose()),
             payment_method_id: None,
             mandate_metadata: None,
-            connector_mandate_request_reference_id: None,
+            connector_mandate_request_reference_id: connector_mandate_request_reference_id.clone(),
         }));
-        let resource_id =
-            ResponseId::ConnectorTransactionId(item.data.connector_request_reference_id.clone());
+        let connector_transaction_id = match journey.as_ref() {
+            Some(SantanderJourneyType::Jornada3 | SantanderJourneyType::Jornada4) => Some(
+                connector_mandate_request_reference_id
+                    .unwrap_or_else(|| item.data.connector_request_reference_id.clone()),
+            ),
+            Some(SantanderJourneyType::Jornada2) | None => {
+                Some(item.response.id_rec.clone().expose())
+            }
+            Some(SantanderJourneyType::Jornada1 | SantanderJourneyType::AguardandoDefinicao) => {
+                None
+            }
+        };
+        let resource_id = connector_transaction_id
+            .map(ResponseId::ConnectorTransactionId)
+            .unwrap_or(ResponseId::NoResponseId);
 
         Ok(Self {
             status,
@@ -428,7 +449,7 @@ impl TryFrom<(&RefreshTokenRouterData, &SantanderMetadataObject)> for SantanderA
             }
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: item.0.payment_method.to_string(),
-                connector: "Santander",
+                connector: "Santander".into(),
             })),
         }?;
 
@@ -587,7 +608,7 @@ impl
                 .and_then(|fm| fm.boleto_additional_details.as_ref())
                 .and_then(|details| details.due_date)
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "feature_metadata.boleto_additional_details.due_date",
+                    field_name: "feature_metadata.boleto_additional_details.due_date".into(),
                 })?,
         );
 
@@ -646,7 +667,7 @@ impl
             .customer_document_details
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer.document_details",
+                field_name: "customer.document_details".into(),
             })?;
 
         let (document_type, document_number) = match customer_document_details.document_type {
@@ -709,7 +730,7 @@ impl
             environment: Some(Environment::Producao),
             nsu_code,
             nsu_date: Some(
-                time::OffsetDateTime::now_utc()
+                common_utils::date_time::now()
                     .date()
                     .format(&time::macros::format_description!("[year]-[month]-[day]"))
                     .change_context(errors::ConnectorError::DateFormattingFailed)?,
@@ -719,7 +740,7 @@ impl
             client_number: order_id.clone(),
             due_date: Some(format_as_date_only(due_date)?),
             issue_date: Some(
-                time::OffsetDateTime::now_utc()
+                common_utils::date_time::now()
                     .date()
                     .format(&time::macros::format_description!("[year]-[month]-[day]"))
                     .change_context(errors::ConnectorError::DateFormattingFailed)?,
@@ -792,7 +813,7 @@ impl
             .customer_document_details
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer.document_details",
+                field_name: "customer.document_details".into(),
             })?;
         let (cpf, cnpj) = match customer_document_details.document_type {
             common_types::customers::DocumentKind::Cpf => {
@@ -974,7 +995,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                 _ => None,
             })
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "feature_metadata.pix_automatico_additional_details.mit",
+                field_name: "feature_metadata.pix_automatico_additional_details.mit".into(),
             })?;
 
         let santander_mca_metadata =
@@ -999,7 +1020,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
 
                         let final_account = account.or(push_metadata.account_number).ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "account_number",
+                                field_name: "account_number".into(),
                             },
                         )?;
 
@@ -1007,7 +1028,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                             .map(SantanderAccountType::from)
                             .or_else(|| push_metadata.account_type.map(SantanderAccountType::from))
                             .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "account_type",
+                                field_name: "account_type".into(),
                             })?;
 
                         (final_branch, final_account, final_account_type)
@@ -1022,7 +1043,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
 
                         let final_account = account.or(qr_metadata.account_number).ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "account_number",
+                                field_name: "account_number".into(),
                             },
                         )?;
 
@@ -1030,7 +1051,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                             .map(SantanderAccountType::from)
                             .or_else(|| qr_metadata.account_type.map(SantanderAccountType::from))
                             .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "account_type",
+                                field_name: "account_type".into(),
                             })?;
 
                         (final_branch, final_account, final_account_type)
@@ -1041,7 +1062,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                                 "Payment method type {:?} is not supported for mandates",
                                 value.router_data.request.payment_method_type
                             ),
-                            connector: "Santander",
+                            connector: "Santander".into(),
                         }
                         .into());
                     }
@@ -1060,14 +1081,14 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                             push_metadata.branch_code,
                             push_metadata.account_number.ok_or(
                                 errors::ConnectorError::MissingRequiredField {
-                                    field_name: "account_number",
+                                    field_name: "account_number".into(),
                                 },
                             )?,
                             push_metadata
                                 .account_type
                                 .map(SantanderAccountType::from)
                                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "account_type",
+                                    field_name: "account_type".into(),
                                 })?,
                         )
                     }
@@ -1081,14 +1102,14 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                             qr_metadata.branch_code,
                             qr_metadata.account_number.ok_or(
                                 errors::ConnectorError::MissingRequiredField {
-                                    field_name: "account_number",
+                                    field_name: "account_number".into(),
                                 },
                             )?,
                             qr_metadata
                                 .account_type
                                 .map(SantanderAccountType::from)
                                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "account_type",
+                                    field_name: "account_type".into(),
                                 })?,
                         )
                     }
@@ -1098,7 +1119,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                                 "Payment method type {:?} is not supported for mandates",
                                 value.router_data.request.payment_method_type
                             ),
-                            connector: "Santander",
+                            connector: "Santander".into(),
                         }
                         .into());
                     }
@@ -1117,7 +1138,8 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
         // Use mandate_execution_date from MIT data if provided, otherwise default to current date + 1 day
         let due_date = match mit_data.mandate_execution_date {
             Some(exec_date) => format_as_date_only(Some(exec_date))?,
-            None => time::OffsetDateTime::now_utc()
+            None => common_utils::date_time::now()
+                .assume_utc()
                 .checked_add(time::Duration::days(1))
                 .ok_or(errors::ConnectorError::DateFormattingFailed)?
                 .date()
@@ -1241,6 +1263,31 @@ fn cobr_sync_status_to_attempt_status(
     }
 }
 
+fn cobr_webhook_status_to_attempt_status(
+    entry: &SantanderPixAutomaticoCobrWebhookEntry,
+) -> AttemptStatus {
+    match entry.status {
+        SantanderPixAutomaticoCobrWebhookStatus::Criada
+        | SantanderPixAutomaticoCobrWebhookStatus::Ativa => AttemptStatus::Pending,
+        SantanderPixAutomaticoCobrWebhookStatus::Concluida => {
+            let has_end_to_end_id = entry
+                .pix
+                .as_ref()
+                .and_then(|pix_list| pix_list.first())
+                .is_some_and(|pix| !pix.end_to_end_id.clone().expose().is_empty());
+            if has_end_to_end_id {
+                AttemptStatus::Charged
+            } else {
+                AttemptStatus::Failure
+            }
+        }
+        SantanderPixAutomaticoCobrWebhookStatus::Expirada
+        | SantanderPixAutomaticoCobrWebhookStatus::Rejeitada
+        | SantanderPixAutomaticoCobrWebhookStatus::Cancelada
+        | SantanderPixAutomaticoCobrWebhookStatus::Unknown => AttemptStatus::Failure,
+    }
+}
+
 impl From<SantanderBoletoStatus> for AttemptStatus {
     fn from(item: SantanderBoletoStatus) -> Self {
         match item {
@@ -1259,7 +1306,7 @@ impl From<RecurrenceStatus> for AttemptStatus {
             RecurrenceStatus::Aprovada => Self::Charged,
             RecurrenceStatus::Rejeitada => Self::Failure,
             RecurrenceStatus::Expirada => Self::Failure,
-            RecurrenceStatus::Cancelada => Self::Voided,
+            RecurrenceStatus::Cancelada => Self::Failure,
             RecurrenceStatus::Recebida | RecurrenceStatus::Aceita | RecurrenceStatus::Enviada => {
                 Self::Pending
             }
@@ -1354,6 +1401,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                             .map(|pix| {
                                 let data = SantanderData {
                                     end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                                    journey_name: None,
                                     paid_at: (attempt_status == AttemptStatus::Charged)
                                         .then_some(pix.horario),
                                 };
@@ -1398,7 +1446,147 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                     }
                 }
             }
+            SantanderPaymentsSyncResponse::PixQrWebhook(pix_data) => {
+                let has_end_to_end_id = pix_data
+                    .pix
+                    .first()
+                    .map(|pix| !pix.end_to_end_id.clone().expose().is_empty())
+                    .unwrap_or(false);
+                let attempt_status = if has_end_to_end_id {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Failure
+                };
+                let connector_metadata = pix_data
+                    .pix
+                    .first()
+                    .map(|pix| {
+                        let data = SantanderData {
+                            end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                            journey_name: None,
+                            paid_at: (attempt_status == AttemptStatus::Charged)
+                                .then_some(pix.horario),
+                        };
+                        serde_json::to_value(data)
+                            .change_context(errors::ConnectorError::ParsingFailed)
+                    })
+                    .transpose()?;
+
+                let txid = pix_data
+                    .pix
+                    .first()
+                    .map(|pix| pix.txid.clone().expose())
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "txid".into(),
+                    })?;
+
+                let response = match item.data.response.clone() {
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        redirection_data,
+                        mandate_reference,
+                        network_txn_id,
+                        connector_response_reference_id,
+                        incremental_authorization_allowed,
+                        authentication_data,
+                        charges,
+                        ..
+                    }) => Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(txid),
+                        redirection_data,
+                        mandate_reference,
+                        connector_metadata,
+                        network_txn_id,
+                        network_txn_link_id: None,
+                        connector_response_reference_id,
+                        incremental_authorization_allowed,
+                        authentication_data,
+                        charges,
+                        payment_account_reference: None,
+                    }),
+                    other => other,
+                };
+
+                Ok(Self {
+                    status: attempt_status,
+                    response,
+                    ..item.data
+                })
+            }
+            SantanderPaymentsSyncResponse::PixAutomaticoCobrWebhook(cobr_data) => {
+                let entry = cobr_data.cobsr.first().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "cobsr".into(),
+                    },
+                )?;
+
+                let attempt_status = cobr_webhook_status_to_attempt_status(entry);
+                let connector_metadata = entry
+                    .pix
+                    .as_ref()
+                    .and_then(|pix_list| pix_list.first())
+                    .map(|pix| {
+                        let data = SantanderData {
+                            end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                            journey_name: None,
+                            paid_at: (attempt_status == AttemptStatus::Charged)
+                                .then_some(pix.horario),
+                        };
+                        serde_json::to_value(data)
+                            .change_context(errors::ConnectorError::ParsingFailed)
+                    })
+                    .transpose()?;
+
+                Ok(Self {
+                    status: attempt_status,
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(entry.txid.clone()),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata,
+                        network_txn_id: None,
+                        network_txn_link_id: None,
+                        connector_response_reference_id: Some(entry.id_rec.clone().expose()),
+                        incremental_authorization_allowed: None,
+                        authentication_data: None,
+                        charges: None,
+                        payment_account_reference: None,
+                    }),
+                    ..item.data
+                })
+            }
             // Journey 1/2
+            SantanderPaymentsSyncResponse::PixAutomaticoRecWebhook(rec_data) => {
+                let entry =
+                    rec_data
+                        .recs
+                        .first()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "recs".into(),
+                        })?;
+
+                let status = AttemptStatus::from(entry.status.clone());
+                let connector_metadata =
+                    get_pix_automatico_rec_webhook_connector_metadata(&rec_data)?;
+
+                let mut response = item.data.response.clone();
+                if let Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ref mut rid,
+                    connector_response_reference_id: ref mut conn_response_ref_id,
+                    connector_metadata: ref mut cm,
+                    ..
+                }) = response
+                {
+                    *rid = ResponseId::ConnectorTransactionId(entry.id_rec.clone());
+                    *conn_response_ref_id = Some(entry.id_rec.clone());
+                    *cm = connector_metadata;
+                }
+
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            }
             SantanderPaymentsSyncResponse::PixAutomaticoConsultAndActivateJourney(res) => {
                 let status = AttemptStatus::from(res.status.clone());
                 let connector_metadata = if matches!(res.status, RecurrenceStatus::Aprovada) {
@@ -1408,6 +1596,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                         .map(|update| {
                             let data = SantanderData {
                                 end_to_end_id: None,
+                                journey_name: res
+                                    .ativacao
+                                    .as_ref()
+                                    .and_then(|activation| activation.tipo_jornada.as_ref())
+                                    .map(SantanderJourneyName::from),
                                 paid_at: Some(update.data),
                             };
                             serde_json::to_value(data)
@@ -1447,6 +1640,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                         let paid_at = data.payment.date;
                         let data = SantanderData {
                             end_to_end_id: None,
+                            journey_name: None,
                             paid_at,
                         };
                         serde_json::to_value(data)
@@ -1477,6 +1671,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                     .map(|pix| {
                         let data = SantanderData {
                             end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                            journey_name: None,
                             paid_at: (attempt_status == AttemptStatus::Charged)
                                 .then_some(pix.horario),
                         };
@@ -1766,7 +1961,7 @@ impl TryFrom<&PaymentsPreAuthorizeCancelRouterData> for SantanderPaymentsCancelR
                     "Pre-authorization Cancel for Payment method {}",
                     item.payment_method
                 ),
-                connector: "Santander",
+                connector: "Santander".into(),
             }
             .into()),
         }
@@ -2002,7 +2197,7 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
                         Err(errors::ConnectorError::NotSupported {
                             message: "Only CPF and CNPJ documents are supported for Santander"
                                 .to_string(),
-                            connector: "Santander",
+                            connector: "Santander".into(),
                         })
                     }
                 }?;
@@ -2323,7 +2518,7 @@ pub fn format_as_date_only(
     date_time: Option<time::PrimitiveDateTime>,
 ) -> Result<String, errors::ConnectorError> {
     let dt = date_time.ok_or(errors::ConnectorError::MissingRequiredField {
-        field_name: "due_date",
+        field_name: "due_date".into(),
     })?;
 
     let format = time::macros::format_description!("[year]-[month]-[day]");
@@ -2526,7 +2721,7 @@ impl
             .as_ref()
             .and_then(|metadata| metadata.pix_automatico_additional_details.as_ref())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "feature_metadata.pix_automatico_additional_details",
+                field_name: "feature_metadata.pix_automatico_additional_details".into(),
             })?;
 
         let (retry_policy, mandate_details) = match pix_automatico_meta {
@@ -2539,14 +2734,15 @@ impl
             api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
                 return Err(errors::ConnectorError::MissingRequiredField {
                     field_name:
-                        "feature_metadata.pix_automatico_additional_details (expected CIT flow)",
+                        "feature_metadata.pix_automatico_additional_details (expected CIT flow)"
+                            .into(),
                 })?;
             }
         };
 
         let contrato = item.request.merchant_order_reference_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "merchant_order_reference_id",
+                field_name: "merchant_order_reference_id".into(),
             },
         )?;
 
@@ -2563,7 +2759,8 @@ impl
             .or(request_customer_name.clone())
             .ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name:
-                    "billing.address.first_name or billing.address.last_name or customer.name",
+                    "billing.address.first_name or billing.address.last_name or customer.name"
+                        .into(),
             })?;
 
         let (cpf, cnpj) = item
@@ -2582,14 +2779,14 @@ impl
                 }
             })
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer.document_details",
+                field_name: "customer.document_details".into(),
             })?;
 
         let objeto =
             item.description
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "description",
+                    field_name: "description".into(),
                 })?;
 
         if objeto.len() > 35 {
@@ -2607,14 +2804,14 @@ impl
             .as_ref()
             .and_then(|token| token.parse::<i64>().ok());
 
-        let current_date = time::OffsetDateTime::now_utc().date();
+        let current_date = common_utils::date_time::now().date();
 
         let data_inicial = match mandate_details.as_ref().and_then(|md| md.start_date) {
             Some(start_date) => {
                 // Validate that start_date is not before current date
                 if start_date.date() < current_date {
                     return Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "mandate_details.start_date",
+                        field_name: "mandate_details.start_date".into(),
                     }
                     .into());
                 }
@@ -2632,7 +2829,7 @@ impl
                 // Validate that end_date is not before current date
                 if end_date.date() < current_date {
                     return Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "mandate_details.end_date",
+                        field_name: "mandate_details.end_date".into(),
                     });
                 }
                 format_as_date_only(Some(end_date))
@@ -2658,7 +2855,7 @@ impl
             (None, None) => None,
             (Some(_), Some(_)) => {
                 return Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "mandate_details.fixed_recurring_amount & mandate_details.min_recurring_amount cannot be present at the same time",
+                    field_name: "mandate_details.fixed_recurring_amount & mandate_details.min_recurring_amount cannot be present at the same time".into(),
                 }
                 .into());
             }
@@ -2799,14 +2996,15 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
             .feature_metadata
             .as_ref()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "feature_metadata",
+                field_name: "feature_metadata".into(),
             })?
             .get_pix_automatico_push_expiry_time()
             .change_context(errors::ConnectorError::ParsingFailed)
             .attach_printable("Failed to get pix_automatico_push expiry time")?;
 
         let expiry_seconds = i64::from(expiry_time_seconds);
-        let offset_datetime = time::OffsetDateTime::now_utc()
+        let offset_datetime = common_utils::date_time::now()
+            .assume_utc()
             .checked_add(time::Duration::seconds(expiry_seconds))
             .ok_or(errors::ConnectorError::ParsingFailed)?;
 
@@ -2827,13 +3025,13 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
                 } => (account_number, branch_code, bank_identifier),
                 _ => {
                     return Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_data.bank_transfer.pix_automatico_push",
+                        field_name: "payment_method_data.bank_transfer.pix_automatico_push".into(),
                     })?
                 }
             },
             _ => {
                 return Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_data.bank_transfer.pix_automatico_push",
+                    field_name: "payment_method_data.bank_transfer.pix_automatico_push".into(),
                 })?
             }
         };
@@ -2841,7 +3039,7 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
         // Extract customer document details
         let customer_document_details = item.customer_document_details.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "customer.document_details",
+                field_name: "customer.document_details".into(),
             },
         )?;
 
@@ -2872,7 +3070,7 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
                     .1
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_data.bank_transfer.branch_code",
+                        field_name: "payment_method_data.bank_transfer.branch_code".into(),
                     })?
                     .expose()
                     .into(),
@@ -2880,7 +3078,7 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
                     .0
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_data.bank_transfer.account_number",
+                        field_name: "payment_method_data.bank_transfer.account_number".into(),
                     })?
                     .expose()
                     .into(),
@@ -2890,7 +3088,7 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
                     .2
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_data.bank_transfer.bank_identifier",
+                        field_name: "payment_method_data.bank_transfer.bank_identifier".into(),
                     })?
                     .expose()
                     .into(),
@@ -2902,7 +3100,9 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
 fn get_wait_screen_metadata(
     expiry_in_secs: u64,
 ) -> CustomResult<Option<Value>, errors::ConnectorError> {
-    let current_time = time::OffsetDateTime::now_utc().unix_timestamp_nanos();
+    let current_time = common_utils::date_time::now()
+        .assume_utc()
+        .unix_timestamp_nanos();
     let expiry_duration_nanos = i128::from(expiry_in_secs) * 1_000_000_000;
     // confirm this value from sdk team
     let delay_in_secs: u16 = 5;
@@ -3243,7 +3443,7 @@ impl
                 identifier: item.data.request.scope.clone(),
                 connector_webhook_id: Some(santander_composite_webhook_id(
                     item.data.payment_method_type,
-                    &uuid::Uuid::new_v4().to_string(),
+                    &common_utils::generate_uuid_v4().to_string(),
                 )),
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,
@@ -3253,4 +3453,72 @@ impl
             ..item.data
         })
     }
+}
+
+pub fn is_dummy_webhook(id_rec: &str) -> bool {
+    id_rec.to_uppercase().contains("TESTE")
+}
+
+fn get_pix_automatico_rec_webhook_connector_metadata(
+    rec_data: &SantanderPixAutomaticoRecWebhookBody,
+) -> Result<Option<Value>, Error> {
+    let connector_metadata = rec_data
+        .recs
+        .first()
+        .filter(|entry| {
+            matches!(entry.status, RecurrenceStatus::Aprovada)
+                && matches!(
+                    get_pix_automatico_journey_type(entry),
+                    Some(SantanderJourneyType::Jornada1 | SantanderJourneyType::Jornada2)
+                )
+        })
+        .and_then(|entry| {
+            entry
+                .atualizacao
+                .as_ref()
+                .and_then(|updates| {
+                    updates
+                        .iter()
+                        .find(|update| matches!(update.status, Some(RecurrenceStatus::Aprovada)))
+                })
+                .map(|update| (entry, update))
+        })
+        .map(|(entry, update)| {
+            let data = SantanderData {
+                end_to_end_id: None,
+                journey_name: get_pix_automatico_journey_name(entry),
+                paid_at: Some(update.data),
+            };
+            serde_json::to_value(data).change_context(errors::ConnectorError::ParsingFailed)
+        })
+        .transpose()?;
+
+    Ok(connector_metadata)
+}
+
+fn get_pix_automatico_journey_name(
+    entry: &SantanderPixAutomaticoRecWebhookEntry,
+) -> Option<SantanderJourneyName> {
+    get_pix_automatico_journey_type(entry).map(SantanderJourneyName::from)
+}
+
+impl From<&SantanderJourneyType> for SantanderJourneyName {
+    fn from(journey_type: &SantanderJourneyType) -> Self {
+        match journey_type {
+            SantanderJourneyType::Jornada1 => Self::Journey1,
+            SantanderJourneyType::Jornada2 => Self::Journey2,
+            SantanderJourneyType::Jornada3 => Self::Journey3,
+            SantanderJourneyType::Jornada4 => Self::Journey4,
+            SantanderJourneyType::AguardandoDefinicao => Self::AwaitingDefinition,
+        }
+    }
+}
+
+pub fn get_pix_automatico_journey_type(
+    entry: &SantanderPixAutomaticoRecWebhookEntry,
+) -> Option<&SantanderJourneyType> {
+    entry
+        .ativacao
+        .as_ref()
+        .and_then(|activation| activation.tipo_jornada.as_ref())
 }

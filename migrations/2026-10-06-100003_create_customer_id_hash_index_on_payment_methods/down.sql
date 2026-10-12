@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS customer_id_index;

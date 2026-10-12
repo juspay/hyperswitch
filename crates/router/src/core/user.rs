@@ -34,7 +34,10 @@ use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 use super::{admin, errors::ApiErrorResponse};
 use crate::{
     consts,
-    core::encryption::send_request_to_key_service_for_user,
+    core::{
+        configs::dimension_state::Dimensions, encryption::send_request_to_key_service_for_user,
+        offer_engine,
+    },
     db::{
         domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
         user_role::ListUserRolesByUserIdPayload,
@@ -196,6 +199,17 @@ pub async fn get_active_user_details(
         EntityType::Profile,
     )
     .await?;
+
+    let offer_engine_credential_source = offer_engine::resolve_offer_engine_credential_source(
+        &state,
+        &Dimensions::new()
+            .with_processor_merchant_id(user_from_token.merchant_id.clone().into())
+            .with_organization_id(user_from_token.org_id.clone())
+            .with_profile_id(user_from_token.profile_id.clone()),
+    )
+    .await
+    .foreign_into();
+
     Ok(ApplicationResponse::Json(
         user_api::GetUserDetailsResponse {
             merchant_id: user_from_token.merchant_id,
@@ -211,6 +225,7 @@ pub async fn get_active_user_details(
             entity_type: role_info.get_entity_type(),
             theme_id: theme.map(|theme| theme.theme_id),
             version,
+            offer_engine_credential_source,
         },
     ))
 }
@@ -397,7 +412,9 @@ pub async fn connect_account(
 
         logger::info!(?magic_link_result);
 
-        if state.tenant.tenant_id.get_string_repr() == common_utils::consts::DEFAULT_TENANT {
+        if state.tenant.tenant_id.get_string_repr() == common_utils::consts::DEFAULT_TENANT
+            && !matches!(env::which(), env::Env::Production)
+        {
             let welcome_to_community_email = email_types::WelcomeToCommunity {
                 recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             };
@@ -2753,7 +2770,7 @@ pub async fn create_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let id = uuid::Uuid::new_v4().to_string();
+    let id = common_utils::generate_uuid_v4().to_string();
 
     let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
         &state,
@@ -2790,7 +2807,12 @@ pub async fn create_user_authentication_method(
                 .ok_or(UserErrors::InvalidAuthMethodOperationWithMessage(
                     "Email domain not found".to_string(),
                 ))?;
-        (uuid::Uuid::new_v4().to_string(), email_domain)
+        // deja: the second generate_uuid_v4 in this function, and it must stay
+        // second. The function has no #[instrument], so the two calls are told
+        // apart by occurrence within an inherited span path. Swap them and the
+        // unconditional call's index starts depending on whether auth_methods
+        // is empty — a fork-numbering collision. Keep it after.
+        (common_utils::generate_uuid_v4().to_string(), email_domain)
     };
 
     for db_auth_method in auth_methods {
@@ -3015,7 +3037,8 @@ pub async fn get_sso_auth_url(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Unable to parse OpenIdConnectPublicConfig")?;
 
-    let oidc_state = Secret::new(nanoid::nanoid!());
+    // nanoid's own default length, kept explicit now the call goes through the seam.
+    let oidc_state = Secret::new(common_utils::generate_nanoid_with_default_alphabet(21));
     utils::user::set_sso_id_in_redis(&state, oidc_state.clone(), request.id).await?;
 
     let redirect_url =

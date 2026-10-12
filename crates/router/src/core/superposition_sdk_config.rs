@@ -10,7 +10,7 @@ use error_stack::ResultExt;
 use serde_json::Map;
 
 use crate::{
-    consts::superposition::DYNAMIC_FIELDS,
+    consts::superposition::{CHECKOUT_SDK, DYNAMIC_FIELDS},
     core::{
         configs::dimension_state::Dimensions,
         errors::{self, RouterResponse, StorageErrorExt},
@@ -139,7 +139,7 @@ pub async fn get_profile_superposition_sdk_config(
     let profile_id_typed =
         common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from(profile_id.clone()))
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "profile_id",
+                field_name: "profile_id".into(),
             })?;
 
     let business_profile = db
@@ -304,7 +304,7 @@ pub async fn get_profile_superposition_sdk_config(
     let raw_configs = state
         .superposition_service
         .get_cached_config(
-            Some(vec![DYNAMIC_FIELDS.to_string()]),
+            Some(vec![DYNAMIC_FIELDS.to_string(), CHECKOUT_SDK.to_string()]),
             Some(dimension_filter.clone()),
         )
         .await
@@ -403,7 +403,7 @@ pub async fn get_superposition_sdk_config(
     let raw_configs = state
         .superposition_service
         .get_cached_config(
-            Some(vec![DYNAMIC_FIELDS.to_string()]),
+            Some(vec![DYNAMIC_FIELDS.to_string(), CHECKOUT_SDK.to_string()]),
             Some(dimension_filter.clone()),
         )
         .await

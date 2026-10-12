@@ -1,0 +1,16 @@
+services:
+  console:
+    build:
+      context: ../..
+      dockerfile: loadtest/console/Dockerfile
+    restart: unless-stopped
+    init: false
+    env_file: .env
+    ports:
+      - "${CONSOLE_BIND_ADDRESS:-127.0.0.1}:4174:4174"
+    volumes:
+      - "${CONSOLE_DATA_PATH:-./.data}:/data"
+    stop_grace_period: 75s
+    ulimits:
+      nofile: { soft: 65536, hard: 65536 }
+    shm_size: 64m

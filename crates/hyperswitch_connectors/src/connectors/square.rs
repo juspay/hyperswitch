@@ -559,7 +559,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         if req.request.amount_to_capture != req.request.payment_amount {
             Err(errors::ConnectorError::NotSupported {
                 message: "Partial Capture".to_string(),
-                connector: "Square",
+                connector: "Square".into(),
             })?
         }
         Ok(Some(

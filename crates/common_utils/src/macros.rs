@@ -80,7 +80,7 @@ macro_rules! fallback_reverse_lookup_not_found {
                     _=> return Err(err)
                 }
             }
-        };
+        }
     };
 }
 
@@ -240,7 +240,7 @@ mod id_type {
 
                     let merchant_ref_id = $crate::id_type::LengthId::from(value).change_context(
                         $crate::errors::ValidationError::IncorrectValueProvided {
-                            field_name: $field_name,
+                            field_name: $field_name.into(),
                         },
                     )?;
 
@@ -440,7 +440,7 @@ macro_rules! type_name {
         std::any::type_name::<$type>()
             .rsplit("::")
             .nth(1)
-            .unwrap_or_default();
+            .unwrap_or_default()
     };
 }
 

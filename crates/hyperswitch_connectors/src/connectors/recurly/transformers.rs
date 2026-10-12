@@ -212,6 +212,9 @@ impl
                         card_isin: Some(item.response.payment_method.first_six),
                         card_issuer: None,
                         card_type: None,
+                        card_subtype: None,
+                        card_segment_type: None,
+                        funding_source: None,
                         card_issuing_country: None,
                         card_issuing_country_code: None,
                         bank_code: None,
@@ -302,7 +305,7 @@ impl TryFrom<enums::AttemptStatus> for RecurlyRecordStatus {
             | enums::AttemptStatus::Expired
             | enums::AttemptStatus::CaptureReview => Err(errors::ConnectorError::NotSupported {
                 message: "Record back flow is only supported for terminal status".to_string(),
-                connector: "recurly",
+                connector: "recurly".into(),
             }
             .into()),
         }
@@ -341,6 +344,8 @@ impl
         Ok(Self {
             response: Ok(recovery_response_types::InvoiceRecordBackResponse {
                 merchant_reference_id,
+                // Recurly's record-back does not return a usable transaction id.
+                connector_transaction_id: None,
             }),
             ..item.data
         })

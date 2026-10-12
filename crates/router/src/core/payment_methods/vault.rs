@@ -98,6 +98,7 @@ impl Vaultable for domain::Card {
             card_last_four: None,
             card_token: None,
             card_holder_name: self.card_holder_name.clone(),
+            card_network: self.card_network.clone(),
         };
 
         value1
@@ -146,11 +147,14 @@ impl Vaultable for domain::Card {
             card_exp_year: value1.exp_year.into(),
             card_cvc: value2.card_security_code.unwrap_or_default().into(),
             card_issuer: None,
-            card_network: None,
+            card_network: value1.card_network,
             bank_code: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
             card_type: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             nick_name: value1.nickname.map(hyperswitch_masking::Secret::new),
             card_holder_name: value1.card_holder_name,
             co_badged_card_data: None,
@@ -863,6 +867,20 @@ impl Vaultable for api::BankPayout {
                 cellphone: bank_details.cellphone.clone(),
                 shap_id: bank_details.shap_id.clone(),
             },
+            Self::Ted(bank_details) => TokenizedBankSensitiveValues {
+                bank_account_number: Some(bank_details.bank_account_number.clone()),
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: None,
+                tax_id: bank_details.tax_id.clone(),
+                bank_number: None,
+                emv: None,
+                account_holder_name: bank_details.account_holder_name.clone(),
+                cellphone: None,
+                shap_id: None,
+            },
         };
 
         bank_sensitive_data
@@ -964,6 +982,17 @@ impl Vaultable for api::BankPayout {
                 bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::PayshapProxy),
             },
+            Self::Ted(bank_details) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: bank_details.bank_name.as_ref().map(|b| b.to_string()),
+                bank_country_code: None,
+                bank_city: None,
+                bank_branch: bank_details.bank_branch.clone(),
+                ispb: bank_details.ispb.clone(),
+                bank_code: bank_details.bank_code.clone(),
+                bank_account_type: bank_details.bank_account_type,
+                payout_method_type: Some(PaymentMethodType::Ted),
+            },
         };
 
         bank_insensitive_data
@@ -1059,6 +1088,22 @@ impl Vaultable for api::BankPayout {
                     bank_code: bank_insensitive_data.bank_code,
                     bank_account_type: bank_insensitive_data.bank_account_type,
                     account_holder_name: bank_sensitive_data.account_holder_name,
+                })
+            }
+            (Some(ban), None, None, None, None, None, tax_id, _, Some(PaymentMethodType::Ted)) => {
+                Self::Ted(payouts::TedBankTransfer {
+                    bank_account_number: ban,
+                    bank_branch: bank_insensitive_data.bank_branch,
+                    bank_name: bank_insensitive_data
+                        .bank_name
+                        .map(|bank_name| BankNames::from_str(&bank_name))
+                        .transpose()
+                        .change_context(errors::VaultError::ResponseDeserializationFailed)?,
+                    bank_code: bank_insensitive_data.bank_code,
+                    bank_account_type: bank_insensitive_data.bank_account_type,
+                    tax_id,
+                    account_holder_name: bank_sensitive_data.account_holder_name,
+                    ispb: bank_insensitive_data.ispb,
                 })
             }
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
@@ -1220,6 +1265,20 @@ impl Vaultable for api::BankTransferPayout {
                 cellphone: bank_details.cellphone.clone(),
                 shap_id: bank_details.shap_id.clone(),
             },
+            Self::Ted(bank_details) => TokenizedBankSensitiveValues {
+                bank_account_number: Some(bank_details.bank_account_number.clone()),
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: None,
+                tax_id: bank_details.tax_id.clone(),
+                bank_number: None,
+                emv: None,
+                account_holder_name: bank_details.account_holder_name.clone(),
+                cellphone: None,
+                shap_id: None,
+            },
         };
 
         bank_sensitive_data
@@ -1346,6 +1405,17 @@ impl Vaultable for api::BankTransferPayout {
                 bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::PayshapProxy),
             },
+            Self::Ted(bank_details) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: bank_details.bank_name.as_ref().map(|b| b.to_string()),
+                bank_country_code: None,
+                bank_city: None,
+                bank_branch: bank_details.bank_branch.clone(),
+                ispb: bank_details.ispb.clone(),
+                bank_code: bank_details.bank_code.clone(),
+                bank_account_type: bank_details.bank_account_type,
+                payout_method_type: Some(PaymentMethodType::Ted),
+            },
         };
 
         bank_insensitive_data
@@ -1372,12 +1442,12 @@ impl Vaultable for api::BankTransferPayout {
             Some(PaymentMethodType::Ach) => Self::Ach(payouts::AchBankTransfer {
                 bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_account_number",
+                        field_name: "bank_account_number".into(),
                     },
                 )?,
                 bank_routing_number: bank_sensitive_data.bank_routing_number.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_routing_number",
+                        field_name: "bank_routing_number".into(),
                     },
                 )?,
                 bank_name: bank_insensitive_data.bank_name,
@@ -1388,12 +1458,12 @@ impl Vaultable for api::BankTransferPayout {
             Some(PaymentMethodType::Bacs) => Self::Bacs(payouts::BacsBankTransfer {
                 bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_account_number",
+                        field_name: "bank_account_number".into(),
                     },
                 )?,
                 bank_sort_code: bank_sensitive_data.bank_sort_code.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_sort_code",
+                        field_name: "bank_sort_code".into(),
                     },
                 )?,
                 bank_name: bank_insensitive_data.bank_name,
@@ -1407,14 +1477,16 @@ impl Vaultable for api::BankTransferPayout {
                 bank_number: bank_sensitive_data.bank_number,
                 bank_country_code: bank_insensitive_data.bank_country_code.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_country_code",
+                        field_name: "bank_country_code".into(),
                     },
                 )?,
             }),
             Some(PaymentMethodType::Sepa) => Self::Sepa(payouts::SepaBankTransfer {
                 iban: bank_sensitive_data
                     .iban
-                    .ok_or(errors::VaultError::MissingRequiredField { field_name: "iban" })?,
+                    .ok_or(errors::VaultError::MissingRequiredField {
+                        field_name: "iban".into(),
+                    })?,
                 bic: bank_sensitive_data.bic,
                 bank_name: bank_insensitive_data.bank_name,
                 bank_country_code: bank_insensitive_data.bank_country_code,
@@ -1424,7 +1496,7 @@ impl Vaultable for api::BankTransferPayout {
             Some(PaymentMethodType::Pix) => Self::Pix(payouts::PixAccountBankTransfer {
                 bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_account_number",
+                        field_name: "bank_account_number".into(),
                     },
                 )?,
                 bank_branch: bank_insensitive_data.bank_branch,
@@ -1438,29 +1510,33 @@ impl Vaultable for api::BankTransferPayout {
             Some(PaymentMethodType::PixKey) => Self::PixKey(payouts::PixKeyBankTransfer {
                 pix_key: bank_sensitive_data.pix_key.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "pix_key",
+                        field_name: "pix_key".into(),
                     },
                 )?,
             }),
             Some(PaymentMethodType::PixEmv) => Self::PixEmv(payouts::PixEmvBankTransfer {
                 emv: bank_sensitive_data
                     .emv
-                    .ok_or(errors::VaultError::MissingRequiredField { field_name: "emv" })?,
+                    .ok_or(errors::VaultError::MissingRequiredField {
+                        field_name: "emv".into(),
+                    })?,
             }),
             Some(PaymentMethodType::OpenBanking) => Self::OpenBanking(payouts::OpenBanking {
                 iban: bank_sensitive_data
                     .iban
-                    .ok_or(errors::VaultError::MissingRequiredField { field_name: "iban" })?,
+                    .ok_or(errors::VaultError::MissingRequiredField {
+                        field_name: "iban".into(),
+                    })?,
                 account_holder_name: bank_sensitive_data.account_holder_name.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "account_holder_name",
+                        field_name: "account_holder_name".into(),
                     },
                 )?,
             }),
             Some(PaymentMethodType::Payshap) => Self::Payshap(payouts::PayshapBankTransfer {
                 bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_account_number",
+                        field_name: "bank_account_number".into(),
                     },
                 )?,
                 account_holder_name: bank_sensitive_data.account_holder_name,
@@ -1476,6 +1552,24 @@ impl Vaultable for api::BankTransferPayout {
                     shap_id: bank_sensitive_data.shap_id,
                 })
             }
+            Some(PaymentMethodType::Ted) => Self::Ted(payouts::TedBankTransfer {
+                bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
+                    errors::VaultError::MissingRequiredField {
+                        field_name: "bank_account_number".into(),
+                    },
+                )?,
+                bank_branch: bank_insensitive_data.bank_branch,
+                bank_name: bank_insensitive_data
+                    .bank_name
+                    .map(|bank_name| BankNames::from_str(&bank_name))
+                    .transpose()
+                    .change_context(errors::VaultError::ResponseDeserializationFailed)?,
+                bank_code: bank_insensitive_data.bank_code,
+                bank_account_type: bank_insensitive_data.bank_account_type,
+                tax_id: bank_sensitive_data.tax_id,
+                account_holder_name: bank_sensitive_data.account_holder_name,
+                ispb: bank_insensitive_data.ispb,
+            }),
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };
 
@@ -2187,7 +2281,7 @@ fn vault_operation_latency_metric(
     }
 }
 
-#[instrument(name = "hs.vault.request", skip_all)]
+#[instrument(skip_all)]
 pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     state: &routes::SessionState,
     payload: Vec<u8>,
@@ -2231,21 +2325,50 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
             .add(1, router_env::metric_attributes!(("operation", flow_name)));
     });
 
-    let jwe_body: services::JweBody = response
-        .get_response_inner("JweBody")
+    let response = response
+        .get_response()
         .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to get JweBody from vault response")?;
+        .attach_printable("Failed to get response from vault")?;
 
-    let decrypted_payload = pm_transforms::get_decrypted_vault_response_payload(
-        jwekey,
-        jwe_body,
-        locker.decryption_scheme.clone(),
-    )
-    .await
-    .change_context(errors::VaultError::ResponseDecryptionFailed)
-    .attach_printable("Error getting decrypted vault response payload")?;
+    #[cfg(feature = "v2")]
+    let is_plain_response = V::supports_plain_response() && is_plain_vault_response(&response);
+    #[cfg(not(feature = "v2"))]
+    let is_plain_response = false;
 
-    Ok(decrypted_payload)
+    if is_plain_response {
+        String::from_utf8(response.response.to_vec())
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Plain vault response is not valid UTF-8")
+    } else {
+        let jwe_body: services::JweBody = response
+            .response
+            .parse_struct("JweBody")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to get JweBody from vault response")?;
+
+        let decrypted_payload = pm_transforms::get_decrypted_vault_response_payload(
+            jwekey,
+            jwe_body,
+            locker.decryption_scheme.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::ResponseDecryptionFailed)
+        .attach_printable("Error getting decrypted vault response payload")?;
+
+        Ok(decrypted_payload)
+    }
+}
+
+/// The vault marks a response it returned unencrypted (at the caller's request) with the same
+/// header the caller sent; anything without it is a JWE envelope.
+#[cfg(feature = "v2")]
+fn is_plain_vault_response(response: &types::Response) -> bool {
+    response
+        .headers
+        .as_ref()
+        .and_then(|headers| headers.get(consts::V2_VAULT_FP_RESPONSE_ENCODING_HEADER))
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value == consts::V2_VAULT_FP_RESPONSE_ENCODING_PLAIN)
 }
 
 pub async fn create_entity_in_locker(
@@ -2270,7 +2393,6 @@ pub async fn create_entity_in_locker(
 }
 
 #[cfg(feature = "v2")]
-#[instrument(name = "hs.vault.fingerprint", skip_all)]
 pub async fn get_fingerprint_id_for_payment_method(
     state: &routes::SessionState,
     payment_method_data: &domain::PaymentMethodVaultingData,
@@ -2282,7 +2404,6 @@ pub async fn get_fingerprint_id_for_payment_method(
 }
 
 #[cfg(feature = "v2")]
-#[instrument(name = "hs.vault.auxiliary_fingerprint", skip_all)]
 pub async fn get_auxiliary_fingerprint_id_for_payment_method(
     state: &routes::SessionState,
     payment_method_data: &domain::PaymentMethodVaultingData,
@@ -2312,10 +2433,18 @@ async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequestNew")?;
 
-    let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, None)
-        .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Call to vault failed")?;
+    let additional_headers = state.conf.locker.plain_fingerprint_response.then(|| {
+        HashMap::from([(
+            consts::V2_VAULT_FP_RESPONSE_ENCODING_HEADER.to_string(),
+            consts::V2_VAULT_FP_RESPONSE_ENCODING_PLAIN.to_string(),
+        )])
+    });
+
+    let resp =
+        call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, additional_headers)
+            .await
+            .change_context(errors::VaultError::VaultAPIError)
+            .attach_printable("Call to vault failed")?;
 
     let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
         .parse_struct("VaultFingerprintResponse")
@@ -2641,7 +2770,7 @@ pub async fn store_cvc_in_redis(
 }
 
 #[cfg(feature = "v2")]
-#[instrument(name = "hs.vault.store_cvc", skip_all)]
+#[instrument(skip_all)]
 /// Stores a client-supplied CVC under its generated short-lived token and returns its expiry.
 pub async fn insert_cvc_using_payment_token(
     state: &routes::SessionState,
@@ -2660,7 +2789,7 @@ pub async fn insert_cvc_using_payment_token(
     Ok(card_token_cvc_storage)
 }
 
-#[instrument(name = "hs.vault.retrieve_cvc", skip_all)]
+#[instrument(skip_all)]
 pub async fn retrieve_cvc_from_payment_token(
     state: &routes::SessionState,
     payment_method_id: &String,
@@ -2846,7 +2975,7 @@ pub async fn retrieve_volatile_payment_method_from_redis(
         .locker_id
         .clone()
         .ok_or(errors::VaultError::MissingRequiredField {
-            field_name: "locker_id",
+            field_name: "locker_id".into(),
         })
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
@@ -2926,7 +3055,7 @@ pub async fn retrieve_payment_method_from_vault(
                 .locker_id
                 .clone()
                 .ok_or(errors::VaultError::MissingRequiredField {
-                    field_name: "locker_id",
+                    field_name: "locker_id".into(),
                 })
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing locker_id for VaultRetrieveRequest")?;

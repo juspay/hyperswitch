@@ -1,6 +1,7 @@
 pub mod payout_attempt;
 #[allow(clippy::module_inception)]
 pub mod payouts;
+pub mod proxy;
 
 use common_enums as storage_enums;
 use common_utils::{

@@ -1,10 +1,10 @@
 pub mod apple_pay_certificates_migration;
-pub mod chat;
 pub mod connector_onboarding;
 pub mod customer;
 pub mod dispute;
 pub mod external_service_auth;
 pub mod gsm;
+pub mod offer_engine;
 pub mod payment;
 #[cfg(feature = "payouts")]
 pub mod payouts;
@@ -34,6 +34,12 @@ use crate::{
     cards_info::*,
     disputes::*,
     files::*,
+    hierarchical_resources::{
+        GenerateHierarchicalResourceRequest, GenerateHierarchicalResourceResponse,
+        HierarchicalResourceSummary, LinkHierarchicalResourceRequest,
+        LinkHierarchicalResourceResponse, ListHierarchicalResourcesRequest,
+        ListHierarchicalResourcesResponse, UploadCertificateRequest, UploadCertificateResponse,
+    },
     mandates::*,
     merchant_connector_webhook_management::*,
     organization::{
@@ -149,7 +155,16 @@ impl_api_event_type!(
         OrganizationUpdateRequest,
         OrganizationId,
         CustomerListRequest,
-        RoutingEventsRequest
+        RoutingEventsRequest,
+        GenerateHierarchicalResourceRequest,
+        GenerateHierarchicalResourceResponse,
+        UploadCertificateRequest,
+        UploadCertificateResponse,
+        HierarchicalResourceSummary,
+        ListHierarchicalResourcesRequest,
+        ListHierarchicalResourcesResponse,
+        LinkHierarchicalResourceRequest,
+        LinkHierarchicalResourceResponse
     )
 );
 

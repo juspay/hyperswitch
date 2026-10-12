@@ -245,7 +245,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
                 })
             })
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "browser_info.language",
+                field_name: "browser_info.language".into(),
             })?;
 
         let cust_tag = item
@@ -262,7 +262,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
                 }
             })
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "customer_id".into(),
             })?;
 
         Ok(Self {

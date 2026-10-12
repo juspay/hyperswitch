@@ -268,11 +268,16 @@ pub async fn handle_metadata_update(
             })
         }
         true => {
-            let mut card = cards::get_card_from_locker(state, customer_id, merchant_id, &locker_id)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch token information from the locker")?
-                .get_card();
+            let mut card = Box::pin(cards::get_card_from_locker(
+                state,
+                customer_id,
+                merchant_id,
+                &locker_id,
+            ))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch token information from the locker")?
+            .get_card();
 
             card.card_exp_year = metadata.expiry_year.clone();
             card.card_exp_month = metadata.expiry_month.clone();
@@ -283,7 +288,7 @@ pub async fn handle_metadata_update(
                 .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "card network",
+                    field_name: "card network".into(),
                 })
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Invalid Card Network stored in vault")?;

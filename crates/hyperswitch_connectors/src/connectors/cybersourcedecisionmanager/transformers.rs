@@ -452,7 +452,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = item.router_data.request.currency.ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             },
         )?;
         Ok(Self {
@@ -510,6 +510,11 @@ fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<
         | common_enums::CardNetwork::Nyce
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
-        | common_enums::CardNetwork::Dinacard => None,
+        | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::AirPlus
+        | common_enums::CardNetwork::Aurore
+        | common_enums::CardNetwork::EftposAustralia
+        | common_enums::CardNetwork::GeCapital
+        | common_enums::CardNetwork::Uatp => None,
     }
 }

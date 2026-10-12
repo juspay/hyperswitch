@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: loadtest-worker}
+spec:
+  replicas: 4
+  selector: {matchLabels: {app: loadtest-worker}}
+  template:
+    metadata: {labels: {app: loadtest-worker}}
+    spec:
+      containers:
+        - name: worker
+          image: hyperswitch-loadtest-worker:latest
+          env:
+            - {name: LOADTEST_CONTROL_PLANE_URL, value: "http://loadtest-control-plane:4174"}
+            - {name: LOADTEST_WORKER_ENROLLMENT_TOKEN, valueFrom: {secretKeyRef: {name: loadtest-worker-enrollment, key: token}}}
+            - {name: LOADTEST_WORKER_TPS, value: "250"}
+            - {name: LOADTEST_WORKER_VUS, value: "2500"}
+          resources:
+            requests: {cpu: "2", memory: 2Gi}
+            limits: {cpu: "4", memory: 4Gi}
+          volumeMounts: [{name: scratch, mountPath: /data}]
+      volumes: [{name: scratch, emptyDir: {sizeLimit: 20Gi}}]

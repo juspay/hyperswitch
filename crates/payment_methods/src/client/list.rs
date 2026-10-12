@@ -80,20 +80,40 @@ impl ListCustomerPaymentMethods {
         }
 
         if let Some(countries) = &qp.accepted_countries {
-            if let Ok(serialized) = serde_json::to_string(countries) {
-                params.push(("accepted_countries", serialized));
+            match serde_json::to_string(countries) {
+                Ok(serialized) => params.push(("accepted_countries", serialized)),
+                // A dropped filter widens the list the PM service returns, so it must not
+                // disappear silently.
+                Err(err) => {
+                    router_env::logger::warn!(
+                        ?err,
+                        "failed to serialize accepted_countries filter; listing without it"
+                    );
+                }
             }
         }
 
         if let Some(currencies) = &qp.accepted_currencies {
-            if let Ok(serialized) = serde_json::to_string(currencies) {
-                params.push(("accepted_currencies", serialized));
+            match serde_json::to_string(currencies) {
+                Ok(serialized) => params.push(("accepted_currencies", serialized)),
+                Err(err) => {
+                    router_env::logger::warn!(
+                        ?err,
+                        "failed to serialize accepted_currencies filter; listing without it"
+                    );
+                }
             }
         }
 
         if let Some(networks) = &qp.card_networks {
-            if let Ok(serialized) = serde_json::to_string(networks) {
-                params.push(("card_networks", serialized));
+            match serde_json::to_string(networks) {
+                Ok(serialized) => params.push(("card_networks", serialized)),
+                Err(err) => {
+                    router_env::logger::warn!(
+                        ?err,
+                        "failed to serialize card_networks filter; listing without it"
+                    );
+                }
             }
         }
 

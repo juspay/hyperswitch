@@ -150,6 +150,7 @@ mock_locker = true
 locker_enabled = true
 ttl_for_storage_in_secs = 220752000
 create_entity_on_merchant_create = false
+use_batched_fingerprint = false
 
 [forex_api]
 api_key = ""
@@ -1193,6 +1194,7 @@ payjustnow = { country = "ZA", currency = "ZAR" }
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", google_pay_pre_decrypt_flow = "connector_tokenization" ,payment_method_type = { list = "google_pay", type = "disable_only" }}
 checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization", google_pay_pre_decrypt_flow = "network_tokenization"  }
+datatrans = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "enable_only", list = "google_pay" } }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 mollie = { long_lived_token = false, payment_method = "card" }
 square = { long_lived_token = false, payment_method = "card" }
@@ -1260,6 +1262,9 @@ billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly"
+
+[billing_connectors_dispute_record_back]
+billing_connectors_which_requires_dispute_record_back_call = "chargebee"
 
 [zero_mandates.supported_payment_methods]
 bank_debit.ach = { connector_list = "gocardless,adyen,payload" }
@@ -1644,10 +1649,6 @@ wallet = "apple_pay, google_pay, paze, samsung_pay, paypal"
 cluster = "CLUSTER"
 version = "HOSTNAME"
 
-[chat]
-enabled = false
-hyperswitch_ai_host = "http://0.0.0.0:8000"
-encryption_key = ""
 
 [sage]
 enabled = false           # Master switch for sage sessions
@@ -1668,7 +1669,7 @@ internal_api_key = "test_internal_api_key"
 payments_base_url = "http://localhost:8080"
 
 [superposition]
-endpoint = "http://localhost:8081" # Superposition service endpoint
+endpoint = "http://localhost:8082" # Superposition service endpoint
 token = "sp_5d72598782fdd5d984f273eb5a452c33a952e07a4e0dd6de8c4ea37a621918d5" # Superposition token
 org_id = "localorg" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition
@@ -1700,6 +1701,6 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 "30" = { description = "Retry after 10 days", recommended_action = "retry_after_10_days" }
 
 [micro_services]
-payment_methods_base_url = "http://localhost:8082"
+payment_methods_base_url = "http://localhost:8081"
 payment_methods_prefix = "v2"
 use_legacy_locker = false

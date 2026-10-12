@@ -192,7 +192,7 @@ pub fn validate_stripe_charge_refund(
             stripe_split_refund
         }
         _ => Err(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "stripe_split_refund",
+            field_name: "stripe_split_refund".into(),
         })?,
     };
 
@@ -225,7 +225,7 @@ pub fn validate_adyen_charge_refund(
 ) -> RouterResult<()> {
     if adyen_split_refund_request.store != adyen_split_payment_response.store {
         return Err(report!(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "split_payments.adyen_split_payment.store",
+            field_name: "split_payments.adyen_split_payment.store".into(),
         }));
     };
 
@@ -282,7 +282,7 @@ pub fn validate_xendit_charge_refund(
                 != Some(xendit_split_refund_request.for_user_id.clone())
             {
                 return Err(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "xendit_split_refund.for_user_id does not match xendit_split_payment.for_user_id",
+                    field_name: "xendit_split_refund.for_user_id does not match xendit_split_payment.for_user_id".into(),
                 }.into());
             }
             Ok(Some(xendit_split_refund_request.for_user_id.clone()))
@@ -292,7 +292,7 @@ pub fn validate_xendit_charge_refund(
         ) => {
             if payment_sub_merchant_data.for_user_id != xendit_split_refund_request.for_user_id {
                 return Err(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "xendit_split_refund.for_user_id does not match xendit_split_payment.for_user_id",
+                    field_name: "xendit_split_refund.for_user_id does not match xendit_split_payment.for_user_id".into(),
                 }.into());
             }
             Ok(Some(xendit_split_refund_request.for_user_id.clone()))

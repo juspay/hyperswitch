@@ -190,7 +190,7 @@ impl TryFrom<BankNames> for BankCode {
             BankNames::OcbcBank => Ok(Self::OCBCMYKL),
             bank => Err(errors::ConnectorError::NotSupported {
                 message: format!("Invalid BankName for FPX Refund: {bank:?}"),
-                connector: "Fiuu",
+                connector: "Fiuu".into(),
             })?,
         }
     }
@@ -569,6 +569,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                     | WalletData::AmazonPayRedirect(_)
                     | WalletData::Paysera(_)
                     | WalletData::Skrill(_)
+                    | WalletData::Neteller(_)
                     | WalletData::BluecodeRedirect {}
                     | WalletData::MomoRedirect(_)
                     | WalletData::KakaoPayRedirect(_)
@@ -588,6 +589,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                     | WalletData::SamsungPay(_)
                     | WalletData::TwintRedirect {}
                     | WalletData::VippsRedirect {}
+                    | WalletData::WeroRedirect {}
                     | WalletData::TouchNGoRedirect(_)
                     | WalletData::WeChatPayRedirect(_)
                     | WalletData::WeChatPayQr(_)
@@ -729,7 +731,7 @@ impl TryFrom<&GooglePayWalletData> for FiuuPaymentMethodData {
                 .tokenization_data
                 .get_encrypted_google_pay_token()
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "gpay wallet_token",
+                    field_name: "gpay wallet_token".into(),
                 })?
                 .clone()
                 .into(),
@@ -737,7 +739,7 @@ impl TryFrom<&GooglePayWalletData> for FiuuPaymentMethodData {
                 .tokenization_data
                 .get_encrypted_token_type()
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "gpay wallet token type",
+                    field_name: "gpay wallet token type".into(),
                 })?
                 .clone()
                 .into(),
@@ -757,7 +759,7 @@ impl TryFrom<Box<ApplePayPredecryptData>> for FiuuPaymentMethodData {
             txn_channel: TxnChannel::Creditan,
             cc_month: decrypt_data.get_expiry_month().change_context(
                 errors::ConnectorError::InvalidDataFormat {
-                    field_name: "expiration_month",
+                    field_name: "expiration_month".into(),
                 },
             )?,
             cc_year: decrypt_data.get_four_digit_expiry_year(),

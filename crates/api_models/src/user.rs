@@ -5,7 +5,7 @@ use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
 use hyperswitch_masking::Secret;
 use utoipa::ToSchema;
 
-use crate::user_role::UserStatus;
+use crate::{offer_engine, user_role::UserStatus};
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
@@ -203,6 +203,7 @@ pub struct GetUserDetailsResponse {
     pub entity_type: EntityType,
     pub theme_id: Option<String>,
     pub version: common_enums::ApiVersion,
+    pub offer_engine_credential_source: offer_engine::OfferEngineCredentialSource,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

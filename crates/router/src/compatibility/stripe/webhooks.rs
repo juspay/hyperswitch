@@ -282,6 +282,7 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::ActionRequired => "action.required",
         api_models::enums::EventType::RefundSucceeded => "refund.succeeded",
         api_models::enums::EventType::RefundFailed => "refund.failed",
+        api_models::enums::EventType::RefundReview => "refund.manual_review",
         api_models::enums::EventType::DisputeOpened => "dispute.failed",
         api_models::enums::EventType::DisputeExpired => "dispute.expired",
         api_models::enums::EventType::DisputeAccepted => "dispute.accepted",

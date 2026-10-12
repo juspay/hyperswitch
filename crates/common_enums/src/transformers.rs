@@ -4,9 +4,13 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "payouts")]
 use crate::enums::PayoutStatus;
-use crate::enums::{
-    AttemptStatus, Country, CountryAlpha2, CountryAlpha3, DisputeStatus, EventType, IntentStatus,
-    MandateStatus, PaymentMethod, PaymentMethodType, RefundStatus, SubscriptionStatus,
+use crate::{
+    enums::{
+        AttemptStatus, Country, CountryAlpha2, CountryAlpha3, DisputeStatus, EventType,
+        IntentStatus, MandateStatus, PaymentMethod, PaymentMethodType, RefundStatus,
+        SubscriptionStatus,
+    },
+    InvoiceStatus,
 };
 
 impl Display for NumericCountryCodeParseError {
@@ -1804,6 +1808,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::AmazonPay => Self::Wallet,
             PaymentMethodType::Paysera => Self::Wallet,
             PaymentMethodType::Skrill => Self::Wallet,
+            PaymentMethodType::Neteller => Self::Wallet,
             PaymentMethodType::ApplePay => Self::Wallet,
             PaymentMethodType::Bacs => Self::BankDebit,
             PaymentMethodType::BancontactCard => Self::BankRedirect,
@@ -1871,6 +1876,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::PixAutomaticoQr => Self::BankTransfer,
             PaymentMethodType::Payshap => Self::BankTransfer,
             PaymentMethodType::PayshapProxy => Self::BankTransfer,
+            PaymentMethodType::Ted => Self::BankTransfer,
             PaymentMethodType::Pse => Self::BankTransfer,
             PaymentMethodType::LocalBankTransfer => Self::BankTransfer,
             PaymentMethodType::PayBright => Self::PayLater,
@@ -1916,6 +1922,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::OpenBankingPIS => Self::OpenBanking,
             PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
             PaymentMethodType::RevolutPay => Self::Wallet,
+            PaymentMethodType::Wero => Self::Wallet,
             PaymentMethodType::IndonesianBankTransfer => Self::BankTransfer,
             PaymentMethodType::OpenBanking => Self::BankRedirect,
             PaymentMethodType::NetworkToken => Self::NetworkToken,
@@ -2177,9 +2184,8 @@ impl From<RefundStatus> for Option<EventType> {
         match value {
             RefundStatus::Success => Some(EventType::RefundSucceeded),
             RefundStatus::Failure => Some(EventType::RefundFailed),
-            RefundStatus::ManualReview
-            | RefundStatus::Pending
-            | RefundStatus::TransactionFailure => None,
+            RefundStatus::ManualReview => Some(EventType::RefundReview),
+            RefundStatus::Pending | RefundStatus::TransactionFailure => None,
         }
     }
 }
@@ -2222,6 +2228,12 @@ impl From<DisputeStatus> for EventType {
     }
 }
 
+impl From<DisputeStatus> for Option<EventType> {
+    fn from(value: DisputeStatus) -> Self {
+        Some(EventType::from(value))
+    }
+}
+
 impl From<MandateStatus> for Option<EventType> {
     fn from(value: MandateStatus) -> Self {
         match value {
@@ -2237,6 +2249,22 @@ impl From<SubscriptionStatus> for Option<EventType> {
         match value {
             SubscriptionStatus::Active => Some(EventType::InvoicePaid),
             _ => None,
+        }
+    }
+}
+
+impl From<InvoiceStatus> for Option<EventType> {
+    fn from(value: InvoiceStatus) -> Self {
+        match value {
+            InvoiceStatus::InvoicePaid => Some(EventType::InvoicePaid),
+            InvoiceStatus::InvoiceCreated
+            | InvoiceStatus::PaymentPending
+            | InvoiceStatus::PaymentPendingTimeout
+            | InvoiceStatus::PaymentSucceeded
+            | InvoiceStatus::PaymentFailed
+            | InvoiceStatus::PaymentCanceled
+            | InvoiceStatus::ManualReview
+            | InvoiceStatus::Voided => None,
         }
     }
 }
