@@ -180,6 +180,15 @@ describe("Offer Engine", () => {
   // second payment confirmed via payment_token (not raw PAN) with an offer
   // applied.
   context("Offer applies correctly on a saved-card confirm", () => {
+    // Use a different card from the plain-card context above so the saved-card
+    // flow is evaluated on its own card (BIN / card_alias), not 4111...1111.
+    const SAVED_CARD_NUMBER = "4242424242424242";
+    const withSavedCard = (data) => {
+      const cloned = Cypress._.cloneDeep(data);
+      cloned.Request.payment_method_data.card.card_number = SAVED_CARD_NUMBER;
+      return cloned;
+    };
+
     it("create customer", () => {
       cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
@@ -187,9 +196,11 @@ describe("Offer Engine", () => {
     it("save a card via a plain create+confirm payment", () => {
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
-        getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-          "SaveCardUseNo3DSAutoCapture"
-        ],
+        withSavedCard(
+          getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+            "SaveCardUseNo3DSAutoCapture"
+          ]
+        ),
         "no_three_ds",
         "automatic",
         globalState
@@ -217,8 +228,10 @@ describe("Offer Engine", () => {
       globalState.set("offerQuoteId", undefined);
       cy.paymentsOfferEligibilityCheck(
         fixtures.eligibilityCheckBody,
-        getConnectorDetails(globalState.get("connectorId")).offer_engine
-          .OfferEligibilityCheck,
+        withSavedCard(
+          getConnectorDetails(globalState.get("connectorId")).offer_engine
+            .OfferEligibilityCheck
+        ),
         globalState
       );
     });
