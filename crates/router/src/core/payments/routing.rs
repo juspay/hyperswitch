@@ -2378,7 +2378,9 @@ pub async fn refresh_cgraph_cache(
     profile_id: &common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
-    // Fetch fresh MCA records when rebuilding the shared graph on a cache miss.
+    // Fetch the MCA list from the DB here (only reached on a cache miss) rather than
+    // reusing a caller-supplied snapshot, so the cached graph is always built from
+    // live data and cannot be poisoned by a stale pre-eviction snapshot.
     let mut merchant_connector_accounts = state
         .store
         .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
@@ -2641,7 +2643,7 @@ fn update_eligible_connectors_for_installments(
         .or(installment_supported_connectors)
 }
 
-fn borrow_active_mca_ids(
+fn get_active_mca_ids_from_result(
     result: &RoutingResult<HashSet<MerchantConnectorAccountId>>,
 ) -> RoutingResult<&HashSet<MerchantConnectorAccountId>> {
     result.as_ref().map_err(|error| {
@@ -2660,7 +2662,7 @@ pub async fn filter_fallback_based_on_eligibility(
     business_profile: &domain::Profile,
     active_mca_ids: &RoutingResult<HashSet<MerchantConnectorAccountId>>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let active_mca_ids = borrow_active_mca_ids(active_mca_ids)?;
+    let active_mca_ids = get_active_mca_ids_from_result(active_mca_ids)?;
     perform_eligibility_analysis(
         state,
         key_store,
@@ -2790,13 +2792,13 @@ pub async fn perform_eligibility_analysis_with_fallback(
 
     let fetched_ids;
     let active_mca_result = match fetched_mca_ids {
-        Some(result) => borrow_active_mca_ids(result),
+        Some(result) => get_active_mca_ids_from_result(result),
         None => {
             fetched_ids =
                 get_active_merchant_connector_accounts(state, key_store, business_profile.get_id())
                     .await
                     .map(|accounts| accounts.get_ids());
-            borrow_active_mca_ids(&fetched_ids)
+            get_active_mca_ids_from_result(&fetched_ids)
         }
     };
 
