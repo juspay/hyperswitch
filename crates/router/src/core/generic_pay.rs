@@ -234,8 +234,7 @@ async fn resolve_profile_id(
     auth: &AuthenticationData,
     parameters: Option<&Parameters>,
 ) -> Result<Option<common_utils::id_type::ProfileId>, Failure> {
-    let Some(requested) =
-        extract_id::<common_utils::id_type::ProfileId>(parameters, "profile_id")?
+    let Some(requested) = extract_id::<common_utils::id_type::ProfileId>(parameters, "profile_id")?
     else {
         return Ok(None);
     };

@@ -118,8 +118,7 @@ fn invalid_request(message: impl Into<String>) -> Failure {
 }
 
 fn extract_card(request: &TwilioGenericPayRequest) -> Result<TwilioCardDetails, Failure> {
-    let missing =
-        |field: &str| invalid_request(format!("{field} is required for a card charge"));
+    let missing = |field: &str| invalid_request(format!("{field} is required for a card charge"));
 
     Ok(TwilioCardDetails {
         card_number: request

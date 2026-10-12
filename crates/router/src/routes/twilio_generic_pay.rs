@@ -3,11 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{
-        api_locking,
-        generic_pay::GenericPayAdapter,
-        twilio_generic_pay::TwilioGenericPay,
-    },
+    core::{api_locking, generic_pay::GenericPayAdapter, twilio_generic_pay::TwilioGenericPay},
     services::{api, authentication as auth},
 };
 
