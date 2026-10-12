@@ -42,11 +42,8 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    mandates,
-    mandates::{ConnectorMandateReferenceId, MandateIds},
-    payments::payment_intent::CustomerData,
-    router_request_types,
-    sdk_auth::SdkAuthorization,
+    mandates, mandates::ConnectorMandateReferenceId, payments::payment_intent::CustomerData,
+    router_request_types, sdk_auth::SdkAuthorization,
 };
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
@@ -436,7 +433,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .and_then(|noon| noon.order_category.clone())
     });
 
-    let is_off_session = get_off_session(payment_data.mandate_data.as_ref(), None, None);
+    // v2 derives off_session purely from mandate presence (unchanged semantics).
+    let is_off_session = payment_data.mandate_data.as_ref().map(|_| true);
 
     // Account funded transaction details are merchant supplied and are always read
     // from the payment intent, never from the confirm request.
@@ -5379,11 +5377,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             complete_authorize_url,
             setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
             mandate_id: payment_data.mandate_id.clone(),
-            off_session: get_off_session(
-                payment_data.mandate_id.as_ref(),
-                None,
-                payment_data.token_data.as_ref(),
-            ),
+            // v2 derives off_session purely from mandate presence (unchanged semantics).
+            off_session: payment_data.mandate_id.is_some().then_some(true),
             customer_acceptance: None,
             setup_mandate_details: None,
             browser_info,
@@ -5435,22 +5430,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             recipient_details,
             business_country: None,
         })
-    }
-}
-
-fn get_off_session(
-    mandate_id: Option<&MandateIds>,
-    off_session_flag: Option<bool>,
-    token_data: Option<&storage::PaymentTokenData>,
-) -> Option<bool> {
-    match token_data {
-        #[cfg(feature = "v1")]
-        Some(storage::PaymentTokenData::WalletToken(_)) => off_session_flag,
-        _ => match (mandate_id, off_session_flag) {
-            (_, Some(false)) => Some(false),
-            (Some(_), _) | (_, Some(true)) => Some(true),
-            (None, None) => None,
-        },
     }
 }
 
@@ -5620,11 +5599,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             })
             .transpose()?
             .map(pii::SecretSerdeValue::new);
-        let is_off_session = get_off_session(
-            payment_data.mandate_id.as_ref(),
-            payment_data.payment_intent.off_session,
-            payment_data.token_data.as_ref(),
-        );
+        // The request's `off_session` is passed to the connector verbatim; mandate
+        // flows are validation-gated to carry `Some(true)` (see validate_recurring_mandate).
+        let is_off_session = payment_data.payment_intent.off_session;
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
 
@@ -7279,11 +7256,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             .transpose()?
             .map(pii::SecretSerdeValue::new);
 
-        let is_off_session = get_off_session(
-            payment_data.mandate_id.as_ref(),
-            payment_data.payment_intent.off_session,
-            payment_data.token_data.as_ref(),
-        );
+        // The request's `off_session` is passed to the connector verbatim; mandate
+        // flows are validation-gated to carry `Some(true)` (see validate_recurring_mandate).
+        let is_off_session = payment_data.payment_intent.off_session;
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
 
@@ -7497,11 +7472,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
         let merchant_config_currency =
             braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
 
-        let is_off_session = get_off_session(
-            payment_data.mandate_id.as_ref(),
-            payment_data.payment_intent.off_session,
-            payment_data.token_data.as_ref(),
-        );
+        // The request's `off_session` is passed to the connector verbatim; mandate
+        // flows are validation-gated to carry `Some(true)` (see validate_recurring_mandate).
+        let is_off_session = payment_data.payment_intent.off_session;
 
         let router_return_url = Some(helpers::create_redirect_url(
             &additional_data.router_base_url.to_string(),
