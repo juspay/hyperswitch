@@ -4283,17 +4283,26 @@ where
                             .or_else(|| tax.default.map(|a| a.order_tax_amount))
                     })
             });
-        let connector_mandate_id = payment_data.get_mandate_id().and_then(|mandate| {
-            mandate
-                .mandate_reference_id
-                .as_ref()
-                .and_then(|mandate_ref| match mandate_ref {
-                    mandates::MandateReferenceId::ConnectorMandateId(
-                        connector_mandate_reference_id,
-                    ) => connector_mandate_reference_id.get_connector_mandate_id(),
-                    _ => None,
-                })
-        });
+        let connector_mandate_id = payment_data
+            .get_mandate_id()
+            .and_then(|mandate| {
+                mandate
+                    .mandate_reference_id
+                    .as_ref()
+                    .and_then(|mandate_ref| match mandate_ref {
+                        mandates::MandateReferenceId::ConnectorMandateId(
+                            connector_mandate_reference_id,
+                        ) => connector_mandate_reference_id.get_connector_mandate_id(),
+                        _ => None,
+                    })
+            })
+            .or_else(|| {
+                // Retrieve may skip the connector call after success - use the saved reference
+                payment_attempt
+                    .connector_mandate_detail
+                    .as_ref()
+                    .and_then(|reference| reference.get_connector_mandate_id())
+            });
 
         let connector_transaction_id = payment_attempt
             .get_connector_payment_id()

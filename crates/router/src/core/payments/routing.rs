@@ -1620,7 +1620,8 @@ impl HybridRoutingStage {
 
                 OpenRouterDecideGatewayRequest::construct_sr_request(
                     input.payment_dsl_input.payment_attempt,
-                    input.static_connectors.to_vec(),
+                    // Use the same eligibility-filtered fallbacks as the static request.
+                    input.fallback_config.to_vec(),
                     Some(or_types::RankingAlgorithm::SrBasedRouting),
                     preferred_connector,
                 )
@@ -1728,6 +1729,7 @@ fn profile_has_active_routing_algorithm(business_profile: &domain::Profile) -> b
 #[cfg(feature = "v1")]
 pub async fn perform_hybrid_routing_if_enabled(
     state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
     business_profile: &domain::Profile,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     payment_dsl_input: &routing::PaymentsDslInput<'_>,
@@ -1751,17 +1753,6 @@ pub async fn perform_hybrid_routing_if_enabled(
         _ => None,
     };
 
-    let input = HybridRoutingInput {
-        state,
-        business_profile,
-        payment_dsl_input,
-        backend_input,
-        fallback_config,
-        static_connectors,
-        static_approach: static_approach.clone(),
-        preferred_connector,
-    };
-
     // Flag-aware like every other consumer: with static_routing_enabled off the profile is
     // Hyperswitch-routed, so this stage must not run.
     let is_decision_engine_cutover_enabled =
@@ -1772,16 +1763,37 @@ pub async fn perform_hybrid_routing_if_enabled(
     // algorithm is the normal state and must not skip evaluation; for every other profile
     // there is nothing to evaluate against, so the DE call is skipped.
     if is_decision_engine_cutover_enabled {
-        let hybrid_stage_outcome = stage
-            .route(input)
+        // Filter fallbacks by payment eligibility before sending them to Decision Engine.
+        let hybrid_stage_outcome = async {
+            let eligible_fallback = filter_fallback_based_on_eligibility(
+                state,
+                key_store,
+                fallback_config,
+                &routing::TransactionData::Payment(payment_dsl_input.clone()),
+                business_profile,
+            )
             .await
             .inspect_err(|error| {
-                logger::error!(
-                    error=?error,
-                    "euclid: hybrid routing failed"
-                );
-            })
-            .unwrap_or_else(|_| RoutingConnectorOutcomeWithApproach::empty());
+                logger::error!(error=?error, "euclid: fallback eligibility failed before hybrid routing");
+            })?;
+            let input = HybridRoutingInput {
+                state,
+                business_profile,
+                payment_dsl_input,
+                backend_input,
+                fallback_config: &eligible_fallback,
+                static_connectors,
+                static_approach: static_approach.clone(),
+                preferred_connector,
+            };
+
+            stage.route(input).await
+        }
+        .await
+        .inspect_err(|error| {
+            logger::error!(error=?error, "euclid: hybrid routing failed");
+        })
+        .unwrap_or_else(|_| RoutingConnectorOutcomeWithApproach::empty());
 
         let selected_source = if hybrid_stage_outcome.connectors.is_empty() {
             "hyperswitch_static"
@@ -2266,7 +2278,9 @@ pub fn perform_dynamic_routing_volume_split(
     deja::id(
         component = "router::routing",
         operation = "volume_split_index",
-        codec = ResultOkCodec,
+        on_miss = { use common_utils::synth_shape::Synthesize as _; Ok(__deja_miss.index(weights.len()).unwrap_or(0)) },
+        // Typed codec so a recorded `RoutingError` replays as the same error.
+        codec = deja::codec::ResultCodec::<usize, errors::RoutingError>,
     )
 )]
 fn sample_volume_split_index(weights: &[u8]) -> RoutingResult<usize> {
@@ -2622,6 +2636,32 @@ fn update_eligible_connectors_for_installments(
             )
         })
         .or(installment_supported_connectors)
+}
+
+/// Filters active fallbacks by payment eligibility while preserving their configured order.
+#[cfg(feature = "v1")]
+pub async fn filter_fallback_based_on_eligibility(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    fallback_config: &[routing_types::RoutableConnectorChoice],
+    transaction_data: &routing::TransactionData<'_>,
+    business_profile: &domain::Profile,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    let active_mca_ids =
+        get_active_merchant_connector_accounts(state, key_store, business_profile.get_id())
+            .await?
+            .get_ids();
+
+    perform_eligibility_analysis(
+        state,
+        key_store,
+        fallback_config.to_vec(),
+        transaction_data,
+        None,
+        &active_mca_ids,
+        business_profile,
+    )
+    .await
 }
 
 pub async fn perform_eligibility_analysis(
@@ -4562,5 +4602,117 @@ pub async fn get_active_mca_ids_for_session(
             );
             std::collections::HashSet::new()
         }
+    }
+}
+
+#[cfg(all(test, feature = "deja"))]
+mod deja_tests {
+    use super::{errors, oss_errors};
+
+    type Seam = deja::codec::ResultCodec<usize, errors::RoutingError>;
+
+    fn capture(
+        value: &oss_errors::CustomResult<usize, errors::RoutingError>,
+    ) -> (serde_json::Value, bool) {
+        <Seam as deja::codec::ReplayCodec>::capture(value)
+    }
+
+    fn reconstruct(
+        recorded: serde_json::Value,
+    ) -> Option<oss_errors::CustomResult<usize, errors::RoutingError>> {
+        <Seam as deja::codec::ReplayCodec>::reconstruct(recorded)
+    }
+
+    /// Pins the `Ok` envelope existing recordings hold, including `type_name`.
+    #[test]
+    fn the_ok_envelope_records_a_bare_index() {
+        let (recorded, is_error) = capture(&Ok(3));
+        assert!(!is_error, "an Ok must not be captured as an error");
+        assert_eq!(
+            recorded.get("result").and_then(serde_json::Value::as_str),
+            Some("Ok")
+        );
+        assert_eq!(recorded.get("value"), Some(&serde_json::json!(3)));
+        assert_eq!(
+            recorded
+                .get("type_name")
+                .and_then(serde_json::Value::as_str),
+            Some("usize"),
+            "the Ok envelope's type_name must stay `usize`: {recorded}"
+        );
+    }
+
+    /// A captured `Err` records its variant as `kind` and reconstructs as it.
+    #[test]
+    fn a_captured_error_round_trips_as_its_variant() {
+        let (recorded, is_error) = capture(&Err(errors::RoutingError::VolumeSplitFailed.into()));
+        assert!(is_error, "an Err must be captured as an error");
+        assert_eq!(
+            recorded.get("kind").and_then(serde_json::Value::as_str),
+            Some("VolumeSplitFailed"),
+            "the recorded kind must name the variant: {recorded}"
+        );
+        let Some(Err(report)) = reconstruct(recorded) else {
+            panic!("a captured error must reconstruct as an error");
+        };
+        assert!(matches!(
+            report.current_context(),
+            errors::RoutingError::VolumeSplitFailed
+        ));
+    }
+
+    /// A recorded error rebuilds as its variant; a sentinel or unknown `kind` refuses.
+    #[test]
+    fn a_recorded_error_rebuilds_its_variant() {
+        let rebuilt = reconstruct(serde_json::json!({
+            "version": 1,
+            "result": "Err",
+            "kind": "VolumeSplitFailed",
+            "message": "Volume split failed",
+        }))
+        .expect("a typed error must reconstruct");
+        let Err(report) = &rebuilt else {
+            panic!("a recorded error must rebuild as an error");
+        };
+        assert!(
+            matches!(
+                report.current_context(),
+                errors::RoutingError::VolumeSplitFailed
+            ),
+            "the rebuilt error must carry the recorded variant"
+        );
+
+        assert!(
+            reconstruct(serde_json::json!({"deja_err": "VolumeSplitFailed"})).is_none(),
+            "the Ok-only sentinel names no variant and must refuse"
+        );
+        assert!(
+            reconstruct(serde_json::json!({
+                "version": 1,
+                "result": "Err",
+                "kind": "NotAVariant",
+                "message": "",
+            }))
+            .is_none(),
+            "a kind naming no variant must refuse rather than fabricate one"
+        );
+    }
+
+    /// The seam's attribute selects the typed codec; read from source, since the
+    /// macro expansion is not observable at run time.
+    #[test]
+    fn the_seam_selects_the_typed_result_codec() {
+        let source = include_str!("routing.rs");
+        let (_, after_operation) = source
+            .split_once("operation = \"volume_split_index\",")
+            .expect("the seam must declare its operation");
+        let (declaration, _) = after_operation
+            .split_once(")]")
+            .expect("the seam's attribute must be closed");
+        assert!(
+            declaration.contains("codec = deja::codec::ResultCodec::<usize, errors::RoutingError>"),
+            "the volume-split seam must select the typed result codec, or a \
+             recorded failure replays as an unreconstructable sentinel: {declaration}"
+        );
     }
 }

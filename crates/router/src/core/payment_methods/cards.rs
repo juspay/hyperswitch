@@ -1117,7 +1117,7 @@ impl PaymentMethodsController for PmCards<'_> {
     ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
         metrics::DELETE_FROM_LOCKER.add(1, &[]);
 
-        common_utils::metrics::utils::record_operation_time(
+        Box::pin(common_utils::metrics::utils::record_operation_time(
             async move {
                 delete_card_from_vault(self.state, customer_id, merchant_id, card_reference)
                     .await
@@ -1133,7 +1133,7 @@ impl PaymentMethodsController for PmCards<'_> {
             },
             &metrics::CARD_DELETE_TIME,
             &[],
-        )
+        ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while deleting card from locker")
@@ -1202,7 +1202,7 @@ impl PaymentMethodsController for PmCards<'_> {
             logger::debug!(
                 "Getting card details from locker as it is not found in payment methods table"
             );
-            Some(get_card_details_from_locker(self.state, pm).await?)
+            Some(Box::pin(get_card_details_from_locker(self.state, pm)).await?)
         })
     }
 
@@ -1228,7 +1228,7 @@ impl PaymentMethodsController for PmCards<'_> {
             logger::debug!(
                 "Getting card details from locker as it is not found in payment methods table"
             );
-            get_card_details_from_locker(self.state, pm).await?
+            Box::pin(get_card_details_from_locker(self.state, pm)).await?
         })
     }
 
@@ -1466,7 +1466,7 @@ impl PaymentMethodsController for PmCards<'_> {
         &self,
         pm: &domain::PaymentMethod,
     ) -> errors::RouterResult<api::CardDetailFromLocker> {
-        get_card_details_from_locker(self.state, pm).await
+        Box::pin(get_card_details_from_locker(self.state, pm)).await
     }
 
     #[cfg(feature = "v1")]
@@ -1615,12 +1615,12 @@ impl PaymentMethodsController for PmCards<'_> {
         let (card, locker_metadata) =
             if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
                 let (card_detail, locker_metadata) = if self.state.conf.locker.locker_enabled {
-                    let locker_card_response = get_card_from_locker(
+                    let locker_card_response = Box::pin(get_card_from_locker(
                         self.state,
                         &pm.customer_id.clone().get_required_value("customer_id")?,
                         &pm.merchant_id,
                         pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
-                    )
+                    ))
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Error getting card from card vault")?;
@@ -2798,12 +2798,12 @@ pub async fn update_customer_payment_method(
 
         let response = if is_card_updation_required {
             // Fetch the existing card data from locker for getting card number
-            let locker_card_response = get_card_from_locker(
+            let locker_card_response = Box::pin(get_card_from_locker(
                 &state,
                 &customer_id,
                 &pm.merchant_id,
                 pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
-            )
+            ))
             .await
             .attach_printable("Error getting card from locker")?;
 
@@ -3399,31 +3399,35 @@ pub async fn get_card_from_locker(
 ) -> errors::RouterResult<LockerCardResponse> {
     metrics::GET_FROM_LOCKER.add(1, &[]);
 
-    let get_card_from_rs_locker_resp = common_utils::metrics::utils::record_operation_time(
-        async {
-            get_card_from_vault(state, customer_id, merchant_id, card_reference)
-                .await
-                .map_err(|err| match err.current_context() {
-                    errors::VaultError::FetchCardFailed => {
-                        err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                            message: "Card not found in vault".to_string(),
-                        })
-                    }
-                    _ => err
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error getting card from card vault"),
-                })
-                .inspect_err(|_| {
-                    metrics::CARD_LOCKER_FAILURES.add(
-                        1,
-                        router_env::metric_attributes!(("locker", "rust"), ("operation", "get")),
-                    );
-                })
-        },
-        &metrics::CARD_GET_TIME,
-        router_env::metric_attributes!(("locker", "rust")),
-    )
-    .await?;
+    let get_card_from_rs_locker_resp =
+        Box::pin(common_utils::metrics::utils::record_operation_time(
+            async {
+                get_card_from_vault(state, customer_id, merchant_id, card_reference)
+                    .await
+                    .map_err(|err| match err.current_context() {
+                        errors::VaultError::FetchCardFailed => {
+                            err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                                message: "Card not found in vault".to_string(),
+                            })
+                        }
+                        _ => err
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Error getting card from card vault"),
+                    })
+                    .inspect_err(|_| {
+                        metrics::CARD_LOCKER_FAILURES.add(
+                            1,
+                            router_env::metric_attributes!(
+                                ("locker", "rust"),
+                                ("operation", "get")
+                            ),
+                        );
+                    })
+            },
+            &metrics::CARD_GET_TIME,
+            router_env::metric_attributes!(("locker", "rust")),
+        ))
+        .await?;
 
     logger::debug!("card retrieved from rust locker");
     Ok(get_card_from_rs_locker_resp)
@@ -5697,7 +5701,7 @@ pub async fn call_surcharge_decision_management(
     #[cfg(feature = "v2")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
-    let (surcharge_results, merchant_sucharge_configs) =
+    let (surcharge_results, merchant_sucharge_configs) = Box::pin(
         perform_surcharge_decision_management_for_payment_method_list(
             &state,
             algorithm_ref,
@@ -5705,10 +5709,11 @@ pub async fn call_surcharge_decision_management(
             &payment_intent,
             billing_address.as_ref().map(Into::into),
             response_payment_method_types,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error performing surcharge decision operation")?;
+        ),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("error performing surcharge decision operation")?;
     if !surcharge_results.is_empty_result() {
         surcharge_results
             .persist_individual_surcharge_details_in_redis(&state, business_profile)
@@ -5759,13 +5764,13 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
     // TODO: Move to business profile surcharge column
-    let surcharge_results = perform_surcharge_decision_management_for_saved_cards(
+    let surcharge_results = Box::pin(perform_surcharge_decision_management_for_saved_cards(
         state,
         algorithm_ref,
         payment_attempt,
         &payment_intent,
         &mut customer_payment_method_response.customer_payment_methods,
-    )
+    ))
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("error performing surcharge decision operation")?;
@@ -6652,14 +6657,14 @@ async fn perform_surcharge_ops(
         .zip(business_profile)
         .map(|((pa, pi), bp)| (pa, pi, bp))
     {
-        call_surcharge_decision_management_for_saved_card(
+        Box::pin(call_surcharge_decision_management_for_saved_card(
             state,
             platform,
             &business_profile,
             payment_attempt,
             payment_intent.clone(),
             response,
-        )
+        ))
         .await?;
     }
 
@@ -6833,12 +6838,12 @@ pub async fn get_card_details_from_locker(
     state: &routes::SessionState,
     pm: &domain::PaymentMethod,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
-    let card = get_card_from_locker(
+    let card = Box::pin(get_card_from_locker(
         state,
         &pm.customer_id.clone().get_required_value("customer_id")?,
         &pm.merchant_id,
         pm.locker_id.as_ref().unwrap_or(pm.get_id()),
-    )
+    ))
     .await
     .attach_printable("Error getting card from card vault")?
     .get_card();
@@ -6855,7 +6860,7 @@ pub async fn get_lookup_key_from_locker(
     pm: &domain::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
-    let card_detail = get_card_details_from_locker(state, pm).await?;
+    let card_detail = Box::pin(get_card_details_from_locker(state, pm)).await?;
     let card = card_detail.clone();
 
     let resp = TempLockerCardSupport::create_payment_method_data_in_temp_locker(
@@ -7709,12 +7714,12 @@ pub async fn execute_payment_method_tokenization(
             })?;
 
     // Fetch card from locker
-    let card_details = get_card_from_locker(
+    let card_details = Box::pin(get_card_from_locker(
         executor.state,
         customer_id,
         executor.merchant_account.get_id(),
         &locker_id,
-    )
+    ))
     .await?
     .get_card();
 

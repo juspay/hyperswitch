@@ -145,6 +145,17 @@ impl From<&WebhookResourceData> for WebhookContext {
     }
 }
 
+/// Connector-provided mandate updates extracted from an incoming webhook.
+#[derive(Clone, Debug)]
+pub struct IncomingWebhookMandateDetailsUpdate {
+    /// Connector mandate status to persist, when the webhook carries a mandate state signal.
+    pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
+    /// Original authorized amount to persist when the webhook confirms the activation payment.
+    pub original_payment_authorized_amount: Option<common_utils::types::MinorUnit>,
+    /// Currency for the original authorized amount.
+    pub original_payment_authorized_currency: Option<common_enums::Currency>,
+}
+
 /// Trait defining incoming webhook
 #[async_trait::async_trait]
 pub trait IncomingWebhook: ConnectorCommon + Sync {
@@ -382,6 +393,16 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Option<hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId>,
         errors::ConnectorError,
     > {
+        Ok(None)
+    }
+
+    /// Connector-specific mandate updates derived from a webhook. Use this when
+    /// the webhook tells us whether the mandate should become active/inactive,
+    /// or provides the payment amount that activated the mandate.
+    fn get_webhook_mandate_details_update(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Option<IncomingWebhookMandateDetailsUpdate>, errors::ConnectorError> {
         Ok(None)
     }
 

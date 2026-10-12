@@ -650,5 +650,170 @@ export const connectorDetails = {
         },
       },
     },
+    ConnectorIntentMetadata: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        connector_metadata: {
+          worldpayxml: {
+            funding_transaction_type: "funds_transfer_me_to_me",
+            payment_purpose: "family_support",
+          },
+        },
+      },
+      // Non-AFT payment: funding_transaction_type and payment_purpose are optional at
+      // the API level, but hyperswitch validates the connector_metadata schema (unknown
+      // fields are rejected with IR_06) and echoes connector_metadata back on the
+      // payment response. The payment itself proceeds as a standard card payment and
+      // succeeds.
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          connector_metadata: {
+            apple_pay: null,
+            airwallex: null,
+            noon: null,
+            braintree: null,
+            adyen: null,
+            peachpayments: null,
+            santander: null,
+            worldpayxml: {
+              funding_transaction_type: "funds_transfer_me_to_me",
+              payment_purpose: "family_support",
+            },
+            checkout: null,
+            stripe: null,
+          },
+        },
+      },
+    },
+    ConnectorIntentMetadataMissing: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        connector_metadata: null,
+      },
+      // Without the AFT flag, connector_metadata is optional: hyperswitch accepts
+      // the payment and returns success even when it is absent.
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    ConnectorIntentMetadataMissingFundingTransactionType: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        connector_metadata: {
+          worldpayxml: {
+            payment_purpose: "family_support",
+          },
+        },
+      },
+      // funding_transaction_type is only required for AFT payments: without the AFT
+      // flag, partial connector_metadata is accepted and the payment succeeds.
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    ConnectorIntentMetadataMissingPaymentPurpose: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        connector_metadata: {
+          worldpayxml: {
+            funding_transaction_type: "funds_transfer_me_to_me",
+          },
+        },
+      },
+      // payment_purpose is only required for AFT payments: without the AFT flag,
+      // partial connector_metadata is accepted and the payment succeeds.
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    ConnectorIntentMetadataUnknownField: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        connector_metadata: {
+          worldpayxml: {
+            funding_transaction_type: "funds_transfer_me_to_me",
+            payment_purpose: "family_support",
+            unknown_field: "x",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            message:
+              "Json deserialize error: unknown field `unknown_field`, expected `funding_transaction_type` or `payment_purpose`",
+            code: "IR_06",
+          },
+        },
+      },
+    },
   },
 };

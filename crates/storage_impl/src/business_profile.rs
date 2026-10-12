@@ -216,10 +216,10 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            Box::pin(cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory_redis(
                 self,
                 &profile_cache_key(profile_id),
-                fetch_func,
+                fetch_func(),
                 CacheId::Accounts,
             ))
             .await?
@@ -264,10 +264,10 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            Box::pin(cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory_redis(
                 self,
                 &profile_cache_key(profile_id),
-                fetch_func,
+                fetch_func(),
                 CacheId::Accounts,
             ))
             .await?
@@ -352,10 +352,10 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<domain::Profile>, StorageError> {
         let conn = pg_accounts_connection_read(self).await?;
-        self.find_resources_new(
+        Box::pin(self.find_resources_new(
             merchant_key_store,
             diesel::Profile::list_profile_by_merchant_id(&conn, merchant_id),
-        )
+        ))
         .await
     }
 }

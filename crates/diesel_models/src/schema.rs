@@ -1549,6 +1549,7 @@ diesel::table! {
         connector_request_reference_id -> Nullable<Varchar>,
         #[max_length = 64]
         active_frm_id -> Nullable<Varchar>,
+        execution_kind -> Nullable<Text>,
     }
 }
 
