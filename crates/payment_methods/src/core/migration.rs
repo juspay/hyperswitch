@@ -43,13 +43,13 @@ pub async fn migrate_payment_methods(
 
         let res = match req {
             Ok(migrate_request) => {
-                let res = migrate_payment_method(
+                let res = Box::pin(migrate_payment_method(
                     state,
                     migrate_request,
                     merchant_id,
                     platform,
                     controller,
-                )
+                ))
                 .await;
                 match res {
                     Ok(api::ApplicationResponse::Json(response)) => Ok(response),
