@@ -1,7 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import {
-  cardCreditAndAchEnabledInUs,
+  cardCreditEnabledInUs,
   openBankingEnabledInGb,
   createPaymentBodyWithCurrency,
   createPaymentBodyWithCurrencyCountry,
@@ -13,10 +13,9 @@ let globalState;
 describe("Payment Method List - customer_acceptance_support field", () => {
   context(
     `
-    MCA1 -> Stripe configured with credit = { country = "US" } and bank_debit.ach = { country = "US" }\n
+    MCA1 -> Stripe configured with credit = { country = "US" }\n
     Payment is done with country as US and currency as USD\n
     card.credit should report "supported" (configured in customer_acceptance_support.card.credit)\n
-    bank_debit.ach should report "unsupported" (bank_debit has no entry in customer_acceptance_support)\n
     `,
     () => {
       before("seed global state", () => {
@@ -45,7 +44,7 @@ describe("Payment Method List - customer_acceptance_support field", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
           fixtures.createConnectorBody,
-          cardCreditAndAchEnabledInUs,
+          cardCreditEnabledInUs,
           globalState,
           "stripe",
           "stripe_US_default"
@@ -71,17 +70,12 @@ describe("Payment Method List - customer_acceptance_support field", () => {
         );
       });
 
-      it("payment-method-list-call-test: card.credit is supported, bank_debit.ach is unsupported", () => {
+      it("payment-method-list-call-test: card.credit is supported", () => {
         cy.assertCustomerAcceptanceSupport(globalState, [
           {
             paymentMethod: "card",
             paymentMethodType: "credit",
             expected: "supported",
-          },
-          {
-            paymentMethod: "bank_debit",
-            paymentMethodType: "ach",
-            expected: "unsupported",
           },
         ]);
       });

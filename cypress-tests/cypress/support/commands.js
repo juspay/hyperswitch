@@ -9003,36 +9003,6 @@ Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
   });
 });
 
-// Retrieves the payment (reusing the same GET /payments/{id} shape as
-// retrievePaymentCallTest) and asserts payment_account_reference is present
-// only for card networks that are expected to carry one.
-Cypress.Commands.add("assertPaymentAccountReference", (globalState) => {
-  const paymentId = globalState.get("paymentID");
-
-  return cy
-    .request({
-      method: "GET",
-      url: `${globalState.get("baseUrl")}/payments/${paymentId}?force_sync=true&expand_attempts=true`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
-      failOnStatusCode: false,
-    })
-    .then((response) => {
-      expect(response.status).to.equal(200);
-
-      const cardNetwork = response.body.payment_method_data?.card?.card_network;
-
-      if (cardNetwork === "Visa" || cardNetwork === "Mastercard") {
-        expect(response.body.payment_account_reference).to.be.a("string").and
-          .not.be.empty;
-      } else if (cardNetwork === "AmericanExpress") {
-        expect(response.body.payment_account_reference).to.be.null;
-      }
-    });
-});
-
 // Fetches the payment method list and asserts every payment_method_type
 // carries a valid `customer_acceptance_support` value, additionally checking
 // the expected value for each `{ paymentMethod, paymentMethodType, expected }`

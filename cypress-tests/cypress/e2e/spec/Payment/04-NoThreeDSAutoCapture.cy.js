@@ -75,11 +75,21 @@ describe("Card - NoThreeDS payment flow test", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        // With UCS, the PAR must be populated for the Visa test card.
+        const retrieveData = globalState.get("ucsEnabled")
+          ? {
+              ...confirmData,
+              Response: {
+                ...confirmData.Response,
+                body: {
+                  ...confirmData.Response.body,
+                  payment_account_reference: "dynamic_par",
+                },
+              },
+            }
+          : confirmData;
 
-        if (globalState.get("ucsEnabled")) {
-          cy.assertPaymentAccountReference(globalState);
-        }
+        cy.retrievePaymentCallTest({ globalState, data: retrieveData });
       });
     });
   });

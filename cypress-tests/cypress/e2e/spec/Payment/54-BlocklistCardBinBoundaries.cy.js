@@ -156,34 +156,7 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
     it("should deny payment for a card matching the blocked 8 digit generic_card_bin", () => {
       cy.paymentsEligibilityCheck(
         fixtures.eligibilityCheckBody,
-        {
-          Request: {
-            payment_method_type: "card",
-            payment_method_data: {
-              card: {
-                card_number: "4000000000000002",
-                card_exp_month: "01",
-                card_exp_year: "2050",
-                card_holder_name: "John Smith",
-                card_cvc: "349",
-                card_network: "Visa",
-              },
-            },
-          },
-          Response: {
-            status: 200,
-            body: {
-              sdk_next_action: {
-                next_action: {
-                  deny: {
-                    message:
-                      "We're unable to accept this card, please try another card or a different payment method",
-                  },
-                },
-              },
-            },
-          },
-        },
+        connectorDetails.eligibility_api.BlockedGenericCardBinDenied,
         globalState
       );
     });
