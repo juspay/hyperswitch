@@ -31,6 +31,7 @@ struct ExportScope<'a> {
     upload_id: &'a str,
     merchant_id: &'a id_type::MerchantId,
     profile_id: &'a id_type::ProfileId,
+    transaction_type: common_enums::BlocklistTransactionType,
     snapshot_at: time::PrimitiveDateTime,
 }
 
@@ -50,7 +51,7 @@ async fn drain_scope(
                     .store
                     .list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id(
                         scope.merchant_id,
-                        common_enums::BlocklistTransactionType::Payment,
+                        scope.transaction_type,
                         scope.profile_id,
                         cursor.clone(),
                         scope.snapshot_at,
@@ -62,7 +63,7 @@ async fn drain_scope(
                         .store
                         .list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id(
                             scope.merchant_id,
-                            common_enums::BlocklistTransactionType::Payment,
+                            scope.transaction_type,
                             scope.profile_id,
                             cursor.clone(),
                             scope.snapshot_at,
@@ -164,6 +165,7 @@ async fn run_export_job(
         upload_id: &upload_id,
         merchant_id,
         profile_id: &tracking_data.profile_id,
+        transaction_type: tracking_data.transaction_type,
         snapshot_at: tracking_data.snapshot_at,
     };
 

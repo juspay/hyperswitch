@@ -258,6 +258,7 @@ pub async fn list_batch_blocklist_jobs() {}
     post,
     path = "/blocklist/export",
     params (
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow to export: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "The business profile whose \
          blocklist is exported. Resolution follows the same rules as blocking a single entry."),
          (
