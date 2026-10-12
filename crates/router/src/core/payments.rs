@@ -7429,8 +7429,6 @@ where
             execution_mode,
         };
 
-        println!("Gateway context: {:?}", gateway_context);
-
         let call_connector_service_response = call_connector_service(
             &updated_state,
             req_state,
@@ -7668,14 +7666,20 @@ where
     };
 
     let (connector_request, should_continue_further) = if should_continue_further {
-        // Check if the actual flow specific request can be built with available data
-        router_data
-            .build_flow_specific_connector_request(
-                &updated_state,
-                &connector,
-                call_connector_action.clone(),
-            )
-            .await?
+        // The Hyperswitch connector request is needed only for the direct gateway. On the UCS path
+        // the request is built by UCS, and building it here fails for connectors that do not
+        // support the proxy's payment method data natively.
+        if gateway_context.execution_path.is_direct_gateway() {
+            router_data
+                .build_flow_specific_connector_request(
+                    &updated_state,
+                    &connector,
+                    call_connector_action.clone(),
+                )
+                .await?
+        } else {
+            (None, should_continue_further)
+        }
     } else {
         (None, false)
     };
@@ -7840,8 +7844,6 @@ where
         rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
     };
-
-    println!("Gateway context 1: {:?}", gateway_context);
 
     let add_access_token_result = router_data
         .add_access_token(
