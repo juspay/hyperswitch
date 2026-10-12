@@ -9419,6 +9419,158 @@ impl
 }
 
 #[cfg(feature = "payouts")]
+fn parse_payout_bank_holder_type(
+    value: &str,
+    field_name: &'static str,
+) -> Result<common_enums::BankHolderType, error_stack::Report<UnifiedConnectorServiceError>> {
+    match value {
+        "individual" | "personal" => Ok(common_enums::BankHolderType::Personal),
+        "company" | "business" => Ok(common_enums::BankHolderType::Business),
+        _ => Err(
+            error_stack::Report::new(UnifiedConnectorServiceError::InvalidDataFormat {
+                field_name: field_name.into(),
+            })
+            .attach_printable(format!(
+                "Invalid value for {field_name}: {value:?}. Expected one of: personal, business"
+            )),
+        ),
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::PayoutVendorAccountDetails>
+    for payments_grpc::PayoutVendorAccountDetails
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        vendor_account_details: &api_models::payouts::PayoutVendorAccountDetails,
+    ) -> Result<Self, Self::Error> {
+        let individual_details = &vendor_account_details.individual_details;
+
+        let vendor_details = match &vendor_account_details.vendor_details {
+            Some(vendor_details) => {
+                let account_type = match vendor_details.account_type.as_str() {
+                    "custom" => payments_grpc::payout_enums::PayoutAccountType::Custom,
+                    "express" => payments_grpc::payout_enums::PayoutAccountType::Express,
+                    "standard" => payments_grpc::payout_enums::PayoutAccountType::Standard,
+                    _ => {
+                        return Err(error_stack::Report::new(
+                            UnifiedConnectorServiceError::InvalidDataFormat {
+                                field_name: "vendor_details.account_type".into(),
+                            },
+                        )
+                        .attach_printable(format!(
+                            "Invalid value for vendor_details.account_type: {:?}. Expected one of: custom, express, standard",
+                            vendor_details.account_type
+                        )))
+                    }
+                };
+
+                let vendor_type = parse_payout_bank_holder_type(
+                    &vendor_details.business_type,
+                    "vendor_details.business_type",
+                )?;
+
+                Some(payments_grpc::VendorDetails {
+                    account_type: Some(i32::from(account_type)),
+                    vendor_category_code: vendor_details
+                        .business_profile_mcc
+                        .map(|mcc| mcc.to_string()),
+                    vendor_url: vendor_details.business_profile_url.clone().map(Secret::new),
+                    vendor_name: vendor_details
+                        .business_profile_name
+                        .clone()
+                        .map(|name| Secret::new(name.expose())),
+                    statement_descriptor: None,
+                    owners_provided: vendor_details.company_owners_provided,
+                    vendor_type: Some(i32::from(payments_grpc::BankHolderType::foreign_try_from(
+                        vendor_type,
+                    )?)),
+                    card_payments_enabled: vendor_details.capabilities_card_payments,
+                    transfers_enabled: vendor_details.capabilities_transfers,
+                })
+            }
+            None => None,
+        };
+
+        let date_of_birth = match (
+            individual_details.individual_dob_year.as_ref(),
+            individual_details.individual_dob_month.as_ref(),
+            individual_details.individual_dob_day.as_ref(),
+        ) {
+            (Some(year), Some(month), Some(day)) => {
+                let year = year
+                    .peek()
+                    .parse::<u32>()
+                    .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
+                        field_name: "individual_details.individual_dob_year".into(),
+                    })?;
+                let month = month
+                    .peek()
+                    .parse::<u32>()
+                    .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
+                        field_name: "individual_details.individual_dob_month".into(),
+                    })?;
+                let day = day
+                    .peek()
+                    .parse::<u32>()
+                    .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
+                        field_name: "individual_details.individual_dob_day".into(),
+                    })?;
+                Some(Secret::new(format!("{year:04}-{month:02}-{day:02}")))
+            }
+            (None, None, None) => None,
+            _ => {
+                return Err(error_stack::Report::new(
+                    UnifiedConnectorServiceError::InvalidDataFormat {
+                        field_name: "individual_details.individual_dob".into(),
+                    },
+                )
+                .attach_printable(
+                    "individual_details.individual_dob must be provided as a complete year, month and day",
+                ))
+            }
+        };
+
+        Ok(Self {
+            vendor_details,
+            individual_details: Some(payments_grpc::IndividualDetails {
+                first_name: None,
+                last_name: None,
+                phone: None,
+                ssn_last_4: individual_details
+                    .individual_ssn_last_4
+                    .clone()
+                    .map(|ssn| Secret::new(ssn.expose())),
+                id_number: individual_details
+                    .individual_id_number
+                    .clone()
+                    .map(|id| Secret::new(id.expose())),
+                date_of_birth,
+                tos_acceptance_ip: individual_details
+                    .tos_acceptance_ip
+                    .clone()
+                    .map(|ip| Secret::new(ip.expose())),
+                external_account_account_holder_type: individual_details
+                    .external_account_account_holder_type
+                    .as_deref()
+                    .map(|holder_type| {
+                        let bank_holder_type = parse_payout_bank_holder_type(
+                            holder_type,
+                            "individual_details.external_account_account_holder_type",
+                        )?;
+                        payments_grpc::BankHolderType::foreign_try_from(bank_holder_type)
+                            .map(i32::from)
+                    })
+                    .transpose()?,
+                tos_acceptance_date: individual_details.tos_acceptance_date,
+            }),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
 impl
     transformers::ForeignTryFrom<
         &RouterData<
@@ -9472,7 +9624,12 @@ impl
                 ),
             ),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
-            vendor_account_details: None,
+            vendor_account_details: router_data
+                .request
+                .vendor_details
+                .as_ref()
+                .map(payments_grpc::PayoutVendorAccountDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }

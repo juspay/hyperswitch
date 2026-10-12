@@ -1179,7 +1179,7 @@ pub struct PayoutActionRequest {
 
 #[derive(Default, Debug, ToSchema, Clone, Serialize, Deserialize)]
 pub struct PayoutVendorAccountDetails {
-    pub vendor_details: PayoutVendorDetails,
+    pub vendor_details: Option<PayoutVendorDetails>,
     pub individual_details: PayoutIndividualDetails,
 }
 
