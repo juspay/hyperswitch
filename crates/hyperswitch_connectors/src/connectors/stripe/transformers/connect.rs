@@ -327,10 +327,12 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientCreateRequest {
         let customer_email = customer_details.get_customer_email()?;
         let address = item.get_billing_address()?.clone();
         let payout_vendor_details = request.get_vendor_details()?;
-        let (vendor_details, individual_details) = (
-            payout_vendor_details.vendor_details,
-            payout_vendor_details.individual_details,
-        );
+        let vendor_details = payout_vendor_details.vendor_details.ok_or_else(|| {
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "vendor_details".into(),
+            }
+        })?;
+        let individual_details = payout_vendor_details.individual_details;
         Ok(Self {
             account_type: vendor_details.account_type,
             country: address.country,
@@ -499,6 +501,13 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
             api_models::payouts::PayoutMethodData::Passthrough(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Payouts via Passthrough are not supported".to_string(),
+                    connector: "stripe".into(),
+                }
+                .into())
+            }
+            api_models::payouts::PayoutMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Payouts via GiftCard are not supported".to_string(),
                     connector: "stripe".into(),
                 }
                 .into())

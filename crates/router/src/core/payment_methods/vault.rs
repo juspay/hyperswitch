@@ -1592,6 +1592,7 @@ pub enum VaultPayoutMethod {
     Wallet(String),
     BankRedirect(String),
     Passthrough(String),
+    GiftCard(String),
 }
 
 #[cfg(feature = "payouts")]
@@ -1612,6 +1613,9 @@ impl Vaultable for api::PayoutMethodData {
             }
             Self::Passthrough(passthrough) => {
                 VaultPayoutMethod::Passthrough(passthrough.get_value1(customer_id)?)
+            }
+            Self::GiftCard(gift_card) => {
+                VaultPayoutMethod::GiftCard(gift_card.get_value1(customer_id)?)
             }
         };
 
@@ -1637,6 +1641,9 @@ impl Vaultable for api::PayoutMethodData {
             }
             Self::Passthrough(passthrough) => {
                 VaultPayoutMethod::Passthrough(passthrough.get_value2(customer_id)?)
+            }
+            Self::GiftCard(gift_card) => {
+                VaultPayoutMethod::GiftCard(gift_card.get_value2(customer_id)?)
             }
         };
 
@@ -1692,6 +1699,10 @@ impl Vaultable for api::PayoutMethodData {
                 let (passthrough, supp_data) =
                     api::PassthroughPayout::from_values(mvalue1, mvalue2)?;
                 Ok((Self::Passthrough(passthrough), supp_data))
+            }
+            (VaultPayoutMethod::GiftCard(mvalue1), VaultPayoutMethod::GiftCard(mvalue2)) => {
+                let (gift_card, supp_data) = api::GiftCardPayout::from_values(mvalue1, mvalue2)?;
+                Ok((Self::GiftCard(gift_card), supp_data))
             }
             _ => Err(errors::VaultError::PayoutMethodNotSupported)
                 .attach_printable("Payout method not supported"),
@@ -1869,6 +1880,95 @@ pub struct TokenizedPassthroughSensitiveValues {
 pub struct TokenizedPassthroughInsensitiveValues {
     pub customer_id: Option<id_type::CustomerId>,
     pub token_type: PaymentMethodType,
+}
+
+#[cfg(feature = "payouts")]
+impl Vaultable for api::GiftCardPayout {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = match self {
+            Self::PaySafeCard(paysafe_card) => TokenizedGiftCardSensitiveValues::PaySafeCard {
+                paysafecard_id: paysafe_card.paysafecard_id.clone(),
+            },
+        };
+
+        value1
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode gift card data - TokenizedGiftCardSensitiveValues")
+    }
+
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = match self {
+            Self::PaySafeCard(_) => TokenizedGiftCardInsensitiveValues::PaySafeCard { customer_id },
+        };
+
+        value2
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode gift card data value2")
+    }
+
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: TokenizedGiftCardSensitiveValues = value1
+            .parse_struct("TokenizedGiftCardSensitiveValues")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into gift card data value1")?;
+
+        let value2: TokenizedGiftCardInsensitiveValues = value2
+            .parse_struct("TokenizedGiftCardInsensitiveValues")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into gift card data value2")?;
+
+        // The catch-all arm is currently unreachable since `PaySafeCard` is the only
+        // variant; it keeps deserialization failures handled when new gift cards are added.
+        #[expect(
+            unreachable_patterns,
+            reason = "catch-all arm for future gift card variants"
+        )]
+        let (gift_card, customer_id) = match (value1, value2) {
+            (
+                TokenizedGiftCardSensitiveValues::PaySafeCard { paysafecard_id },
+                TokenizedGiftCardInsensitiveValues::PaySafeCard { customer_id },
+            ) => (
+                Self::PaySafeCard(api::PaysafeCardPayout { paysafecard_id }),
+                customer_id,
+            ),
+            _ => Err(errors::VaultError::ResponseDeserializationFailed)
+                .attach_printable("Mismatched or unsupported gift card tokenized values")?,
+        };
+
+        let supp_data = SupplementaryVaultData {
+            customer_id,
+            payment_method_id: None,
+        };
+
+        Ok((gift_card, supp_data))
+    }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenizedGiftCardSensitiveValues {
+    PaySafeCard {
+        paysafecard_id: Option<hyperswitch_masking::Secret<String>>,
+    },
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenizedGiftCardInsensitiveValues {
+    PaySafeCard {
+        customer_id: Option<id_type::CustomerId>,
+    },
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

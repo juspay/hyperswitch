@@ -4,7 +4,7 @@ pub mod refunds_validator;
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "payouts")]
-use api_models::payouts::PayoutVendorAccountDetails;
+use api_models::payouts::{PayoutIndividualDetails, PayoutVendorAccountDetails};
 use api_models::{
     customers::CustomerDocumentDetails,
     enums::{Connector, DisputeStage, DisputeStatus},
@@ -263,14 +263,34 @@ pub(super) async fn construct_payout_router_data_common<F>(
         match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
             |err| report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err),
         )? {
+            // Stripe requires both `vendor_details` (account_type/business_type) and, when the
+            // recipient is a natural person, `individual_details`; keep the strict full-struct
+            // parse so a partial payload is rejected here.
             api_models::enums::PayoutConnectors::Stripe => {
                 payout_data.payouts.metadata.to_owned().and_then(|meta| {
-                    let val = meta
-                        .peek()
+                    meta.peek()
                         .to_owned()
                         .parse_value("PayoutVendorAccountDetails")
-                        .ok();
-                    val
+                        .ok()
+                })
+            }
+            // Paysafe only needs `individual_details` (name/DOB) for a recipient, so accept a
+            // payload that omits `vendor_details`: try the full struct first, then fall back to
+            // just `individual_details`.
+            api_models::enums::PayoutConnectors::Paysafe => {
+                payout_data.payouts.metadata.to_owned().and_then(|meta| {
+                    let val = meta.peek().to_owned();
+                    val.clone()
+                        .parse_value::<PayoutVendorAccountDetails>("PayoutVendorAccountDetails")
+                        .ok()
+                        .or_else(|| {
+                            val.parse_value::<PayoutIndividualDetails>("PayoutIndividualDetails")
+                                .ok()
+                                .map(|individual_details| PayoutVendorAccountDetails {
+                                    vendor_details: None,
+                                    individual_details,
+                                })
+                        })
                 })
             }
             _ => None,
