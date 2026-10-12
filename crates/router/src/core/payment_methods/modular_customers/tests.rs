@@ -5,6 +5,11 @@ use std::{
 
 use super::*;
 
+// Preserve JSON indexing's missing-field-as-null behavior using checked access.
+fn json_at(value: &serde_json::Value, pointer: &str) -> serde_json::Value {
+    value.pointer(pointer).cloned().unwrap_or_default()
+}
+
 fn merchant(id: &str) -> id_type::MerchantId {
     id_type::MerchantId::wrap(id.to_string()).expect("test merchant")
 }
@@ -262,7 +267,7 @@ async fn changed_customer_identity_is_rejected_before_card_creation() {
     .await;
     let rows = serde_json::to_value(rows).expect("results");
     assert_eq!(
-        rows[0]["migration_error"],
+        json_at(&rows, "/0/migration_error"),
         "migration_customer_reference_ambiguous"
     );
     assert_eq!(cards.creates.load(Ordering::SeqCst), 0);
@@ -359,13 +364,17 @@ async fn synthetic_wire_contract_exports_real_rust_results_for_the_tool() {
     let (mid, records, mcas) = form
         .validate_and_get_payment_method_records()
         .expect("real form/CSV validation");
-    assert_eq!(mcas.expect("MCAs")[0].get_string_repr(), "mca_one");
-    let request = customer_request(&records[0]).expect("customer");
+    assert_eq!(
+        mcas.expect("MCAs").first().expect("MCA").get_string_repr(),
+        "mca_one"
+    );
+    let record = records.first().expect("source record");
+    let request = customer_request(record).expect("customer");
     let input = PreparedInput {
-        line_number: records[0].line_number,
+        line_number: record.line_number,
         profile_id: profile("pro_one"),
         customer: request.clone(),
-        card: MigrationCardInput::try_from(&records[0]),
+        card: MigrationCardInput::try_from(record),
     };
     let customer: CustomerResponse = serde_json::from_value(serde_json::json!({
         "id": "0a_cus_01926c58bc6e77c09e809964e72af8c8", "merchant_reference_id": request.merchant_reference_id,
@@ -427,13 +436,17 @@ async fn synthetic_wire_contract_exports_real_rust_results_for_the_tool() {
     )
     .await;
     let success = serde_json::to_value(success).expect("success");
-    assert_eq!(success[0]["merchant_reference_id"], "45630_qa_contract");
-    assert_eq!(success[0]["line_number"], 1);
-    assert_eq!(success[0]["migration_status"], "Success");
-    assert!(
-        serde_json::to_value(&payload).expect("payload")["payment_method_data"]["card"]["card_cvc"]
-            .is_null()
+    assert_eq!(
+        json_at(&success, "/0/merchant_reference_id"),
+        "45630_qa_contract"
     );
+    assert_eq!(json_at(&success, "/0/line_number"), 1);
+    assert_eq!(json_at(&success, "/0/migration_status"), "Success");
+    assert!(json_at(
+        &serde_json::to_value(&payload).expect("payload"),
+        "/payment_method_data/card/card_cvc"
+    )
+    .is_null());
     if let Ok(directory) = std::env::var("DERIVCO_CONTRACT_DIR") {
         let directory = std::path::Path::new(&directory);
         std::fs::create_dir_all(directory).expect("contract directory");
@@ -560,7 +573,11 @@ fn row_mca_and_fallback_rules_are_explicit() {
     let fallback =
         vec![id_type::MerchantConnectorAccountId::wrap("mca_fallback".into()).expect("MCA")];
     assert_eq!(
-        connector_ids(&row, Some(&fallback)).expect("row MCA")[0].get_string_repr(),
+        connector_ids(&row, Some(&fallback))
+            .expect("row MCA")
+            .first()
+            .expect("row MCA entry")
+            .get_string_repr(),
         "mca_one"
     );
     row.merchant_connector_ids = None;
@@ -578,7 +595,7 @@ fn row_mca_and_fallback_rules_are_explicit() {
         Err(CustomerError::InvalidProfile)
     );
     row.merchant_connector_ids = Some("mca_one".into());
-    row.merchant_connector_id = Some(fallback[0].clone());
+    row.merchant_connector_id = Some(fallback.first().expect("fallback MCA").clone());
     assert_eq!(
         connector_ids(&row, None),
         Err(CustomerError::InvalidProfile)
@@ -669,7 +686,7 @@ async fn transport_retry_opt_out_preserves_legacy_policy_and_sends_mutations_onc
                     let mut chunk = [0; 4096];
                     let size = stream.read(&mut chunk).expect("request");
                     assert!(size > 0);
-                    bytes.extend_from_slice(&chunk[..size]);
+                    bytes.extend_from_slice(chunk.get(..size).expect("read length within buffer"));
                     if let Some(end) = bytes.windows(4).position(|slice| slice == b"\r\n\r\n") {
                         if bytes.len() >= end + 6 {
                             break;
@@ -720,8 +737,8 @@ async fn transport_retry_opt_out_preserves_legacy_policy_and_sends_mutations_onc
 #[test]
 fn capability_advertises_customer_and_permanent_card_migration() {
     let value = serde_json::to_value(capabilities()).expect("capabilities");
-    assert_eq!(value["modular_customer_creation"], true);
-    assert_eq!(value["modular_card_storage"], true);
+    assert_eq!(json_at(&value, "/modular_customer_creation"), true);
+    assert_eq!(json_at(&value, "/modular_card_storage"), true);
 }
 
 #[tokio::test]
@@ -885,18 +902,24 @@ async fn batch_deduplicates_customers_and_cards_preserving_profiles_and_source_l
     .await;
     assert_eq!(backend.creates.load(Ordering::SeqCst), 1);
     let rows = serde_json::to_value(results).expect("results");
-    assert_eq!(rows[0]["customer_id"], rows[1]["customer_id"]);
-    assert_eq!(rows[0]["customer_created"], true);
-    assert_eq!(rows[1]["customer_created"], false);
-    assert_eq!(rows[1]["profile_id"], "pro_two");
-    assert_eq!(rows[0]["merchant_reference_id"], "45630_user_one");
-    assert_eq!(rows[0]["customer_migration_status"], "Success");
-    assert_eq!(rows[0]["migration_status"], "Success");
-    assert_eq!(rows[0]["card_migrated"], true);
-    assert_eq!(rows[0]["payment_method_id"], rows[1]["payment_method_id"]);
-    assert_eq!(rows[1]["line_number"], 2);
-    assert_eq!(rows[0]["customer_creation_flow"], "modular");
-    assert_eq!(rows[0]["errors"], serde_json::json!([]));
+    assert_eq!(
+        json_at(&rows, "/0/customer_id"),
+        json_at(&rows, "/1/customer_id")
+    );
+    assert_eq!(json_at(&rows, "/0/customer_created"), true);
+    assert_eq!(json_at(&rows, "/1/customer_created"), false);
+    assert_eq!(json_at(&rows, "/1/profile_id"), "pro_two");
+    assert_eq!(json_at(&rows, "/0/merchant_reference_id"), "45630_user_one");
+    assert_eq!(json_at(&rows, "/0/customer_migration_status"), "Success");
+    assert_eq!(json_at(&rows, "/0/migration_status"), "Success");
+    assert_eq!(json_at(&rows, "/0/card_migrated"), true);
+    assert_eq!(
+        json_at(&rows, "/0/payment_method_id"),
+        json_at(&rows, "/1/payment_method_id")
+    );
+    assert_eq!(json_at(&rows, "/1/line_number"), 2);
+    assert_eq!(json_at(&rows, "/0/customer_creation_flow"), "modular");
+    assert_eq!(json_at(&rows, "/0/errors"), serde_json::json!([]));
     assert_eq!(card_backend.creates.load(Ordering::SeqCst), 1);
 }
 
@@ -925,11 +948,14 @@ async fn customer_created_card_failed_retry_reuses_generated_customer() {
     )
     .await;
     let first = serde_json::to_value(first).expect("response");
-    assert_eq!(first[0]["customer_created"], true);
-    assert_eq!(first[0]["card_migrated"], false);
-    assert_eq!(first[0]["customer_id"], response().id.get_string_repr());
-    assert_eq!(first[0]["errors"][0]["stage"], "card");
-    assert_eq!(first[0]["errors"][0]["retryable"], true);
+    assert_eq!(json_at(&first, "/0/customer_created"), true);
+    assert_eq!(json_at(&first, "/0/card_migrated"), false);
+    assert_eq!(
+        json_at(&first, "/0/customer_id"),
+        response().id.get_string_repr()
+    );
+    assert_eq!(json_at(&first, "/0/errors/0/stage"), "card");
+    assert_eq!(json_at(&first, "/0/errors/0/retryable"), true);
     let retry = resolve_batch(
         &backend,
         &card_backend,
@@ -941,9 +967,12 @@ async fn customer_created_card_failed_retry_reuses_generated_customer() {
     )
     .await;
     let retry = serde_json::to_value(retry).expect("response");
-    assert_eq!(retry[0]["card_migrated"], true);
-    assert_eq!(retry[0]["customer_created"], false);
-    assert_eq!(retry[0]["customer_id"], first[0]["customer_id"]);
+    assert_eq!(json_at(&retry, "/0/card_migrated"), true);
+    assert_eq!(json_at(&retry, "/0/customer_created"), false);
+    assert_eq!(
+        json_at(&retry, "/0/customer_id"),
+        json_at(&first, "/0/customer_id")
+    );
     assert_eq!(backend.creates.load(Ordering::SeqCst), 1);
     assert_eq!(card_backend.creates.load(Ordering::SeqCst), 1);
 }
@@ -969,12 +998,12 @@ async fn customer_created_card_post_rejected_retry_does_not_recreate_customer() 
     )
     .await;
     let first = serde_json::to_value(first).expect("response");
-    assert_eq!(first[0]["customer_created"], true);
+    assert_eq!(json_at(&first, "/0/customer_created"), true);
     assert_eq!(
-        first[0]["errors"][0]["code"],
+        json_at(&first, "/0/errors/0/code"),
         "migration_card_auth_rejected"
     );
-    assert_eq!(first[0]["errors"][0]["outcome_uncertain"], false);
+    assert_eq!(json_at(&first, "/0/errors/0/outcome_uncertain"), false);
     card_backend
         .set_create_result(Ok(cards::tests::stored()))
         .await;
@@ -989,8 +1018,11 @@ async fn customer_created_card_post_rejected_retry_does_not_recreate_customer() 
     )
     .await;
     let retry = serde_json::to_value(retry).expect("response");
-    assert_eq!(retry[0]["migration_status"], "Success");
-    assert_eq!(retry[0]["customer_id"], first[0]["customer_id"]);
+    assert_eq!(json_at(&retry, "/0/migration_status"), "Success");
+    assert_eq!(
+        json_at(&retry, "/0/customer_id"),
+        json_at(&first, "/0/customer_id")
+    );
     assert_eq!(backend.creates.load(Ordering::SeqCst), 1);
     assert_eq!(card_backend.creates.load(Ordering::SeqCst), 2);
 }
@@ -1015,9 +1047,9 @@ async fn unsupported_card_fields_return_structured_errors_without_customer_creat
     )
     .await;
     let row = serde_json::to_value(result).expect("response");
-    assert_eq!(row[0]["customer_id"], serde_json::Value::Null);
+    assert_eq!(json_at(&row, "/0/customer_id"), serde_json::Value::Null);
     assert_eq!(
-        row[0]["errors"][0]["fields"],
+        json_at(&row, "/0/errors/0/fields"),
         serde_json::json!(["original_transaction_id"])
     );
     assert_eq!(backend.creates.load(Ordering::SeqCst), 0);
@@ -1056,9 +1088,9 @@ async fn unavailable_subtype_is_retryable_before_any_creation() {
     )
     .await;
     let result = serde_json::to_value(result).expect("response");
-    assert_eq!(result[0]["customer_id"], serde_json::Value::Null);
-    assert_eq!(result[0]["errors"][0]["retryable"], true);
-    assert_eq!(result[0]["errors"][0]["outcome_uncertain"], false);
+    assert_eq!(json_at(&result, "/0/customer_id"), serde_json::Value::Null);
+    assert_eq!(json_at(&result, "/0/errors/0/retryable"), true);
+    assert_eq!(json_at(&result, "/0/errors/0/outcome_uncertain"), false);
     assert_eq!(backend.creates.load(Ordering::SeqCst), 0);
     assert_eq!(card_backend.creates.load(Ordering::SeqCst), 0);
 }

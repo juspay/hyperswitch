@@ -1,5 +1,10 @@
 use super::*;
 
+// Preserve JSON indexing's missing-field-as-null behavior using checked access.
+fn json_at(value: &serde_json::Value, pointer: &str) -> serde_json::Value {
+    value.pointer(pointer).cloned().unwrap_or_default()
+}
+
 #[test]
 fn only_migration_create_disables_incomplete_response_retry() {
     use hyperswitch_interfaces::micro_service::ClientOperation;
@@ -22,7 +27,11 @@ fn migration_listing_includes_new_cards_without_a_pagination_limit() {
         vec![("include_new", "true".to_owned())],
     );
     assert_eq!(
-        ListMigrationCustomerPaymentMethods.path(&request)[0],
+        ListMigrationCustomerPaymentMethods
+            .path(&request)
+            .first()
+            .cloned()
+            .expect("prefix path"),
         ("prefix", "v1".to_owned())
     );
 }
@@ -52,45 +61,58 @@ fn migration_card_payload_uses_global_customer_and_never_fabricates_cvc() {
     fn assert_fixture(expected: &serde_json::Value, actual: &serde_json::Value) {
         if let serde_json::Value::Object(fields) = expected {
             for (key, value) in fields {
-                assert_fixture(value, &actual[key]);
+                let actual_field = actual.get(key).cloned().unwrap_or_default();
+                assert_fixture(value, &actual_field);
             }
         } else {
             assert_eq!(expected, actual);
         }
     }
     assert_fixture(&fixture, &payload);
-    assert_eq!(payload["customer_id"], customer.get_string_repr());
-    assert_eq!(payload["storage_type"], "persistent");
-    assert_eq!(payload["payment_method_type"], "card");
-    assert_eq!(payload["payment_method_subtype"], "credit");
     assert_eq!(
-        payload["payment_method_data"]["card"]["card_cvc"],
+        json_at(&payload, "/customer_id"),
+        customer.get_string_repr()
+    );
+    assert_eq!(json_at(&payload, "/storage_type"), "persistent");
+    assert_eq!(json_at(&payload, "/payment_method_type"), "card");
+    assert_eq!(json_at(&payload, "/payment_method_subtype"), "credit");
+    assert_eq!(
+        json_at(&payload, "/payment_method_data/card/card_cvc"),
         serde_json::Value::Null
     );
     assert_eq!(
-        payload["payment_method_data"]["card"]["card_number"],
+        json_at(&payload, "/payment_method_data/card/card_number"),
         "4242424242424242"
     );
     assert_eq!(
-        payload["payment_method_data"]["card"]["card_exp_month"],
+        json_at(&payload, "/payment_method_data/card/card_exp_month"),
         "07"
     );
     assert_eq!(
-        payload["payment_method_data"]["card"]["card_exp_year"],
+        json_at(&payload, "/payment_method_data/card/card_exp_year"),
         "2035"
     );
     assert_eq!(
-        payload["payment_method_data"]["card"]["card_holder_name"],
+        json_at(&payload, "/payment_method_data/card/card_holder_name"),
         "Cardholder Name"
     );
     assert_eq!(
-        payload["payment_method_data"]["card"]["nick_name"],
+        json_at(&payload, "/payment_method_data/card/nick_name"),
         "Original Nickname"
     );
-    assert_eq!(payload["billing"]["address"]["first_name"], "Billing First");
-    assert_eq!(payload["billing"]["address"]["line3"], "Address line three");
-    assert_eq!(payload["billing"]["address"]["country"], "CA");
-    assert_eq!(payload["network_tokenization"], serde_json::Value::Null);
+    assert_eq!(
+        json_at(&payload, "/billing/address/first_name"),
+        "Billing First"
+    );
+    assert_eq!(
+        json_at(&payload, "/billing/address/line3"),
+        "Address line three"
+    );
+    assert_eq!(json_at(&payload, "/billing/address/country"), "CA");
+    assert_eq!(
+        json_at(&payload, "/network_tokenization"),
+        serde_json::Value::Null
+    );
 }
 
 #[test]
@@ -115,7 +137,7 @@ fn unsupported_fields_are_explicitly_rejected() {
         ("card_number_masked", serde_json::json!("4242XXXX4242")),
     ] {
         let mut value_with_field = fixture.clone();
-        value_with_field[field] = value;
+        *value_with_field.get_mut(field).expect("fixture field") = value;
         let row: PaymentMethodRecord = serde_json::from_value(value_with_field).expect("record");
         let error = MigrationCardInput::try_from(&row).expect_err("unsupported");
         assert_eq!(error.code, "migration_card_input_unsupported");
