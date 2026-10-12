@@ -14142,6 +14142,7 @@ fn get_eligible_manual_update_statuses(
 pub async fn payments_manual_status_update_eligible_statuses(
     state: SessionState,
     platform: domain::Platform,
+    profile_id_from_auth_layer: Option<id_type::ProfileId>,
     payment_id: id_type::PaymentId,
 ) -> RouterResponse<api_models::payments::PaymentsManualStatusUpdateEligibleStatusesResponse> {
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -14174,6 +14175,8 @@ pub async fn payments_manual_status_update_eligible_statuses(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
+
+    core_utils::validate_profile_id_from_auth_layer(profile_id_from_auth_layer, &payment_intent)?;
 
     if payment_intent.status != enums::IntentStatus::Conflicted {
         return Err(errors::ApiErrorResponse::InvalidRequestData {
@@ -14214,6 +14217,7 @@ pub async fn payments_manual_status_update_eligible_statuses(
 pub async fn payments_manual_status_update(
     state: SessionState,
     platform: domain::Platform,
+    profile_id_from_auth_layer: Option<id_type::ProfileId>,
     payment_id: id_type::PaymentId,
     req: api_models::payments::PaymentsManualStatusUpdateRequest,
 ) -> RouterResponse<api_models::payments::PaymentsManualStatusUpdateResponse> {
@@ -14249,6 +14253,8 @@ pub async fn payments_manual_status_update(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
+
+    core_utils::validate_profile_id_from_auth_layer(profile_id_from_auth_layer, &payment_intent)?;
 
     if !matches!(
         payment_intent.status,
