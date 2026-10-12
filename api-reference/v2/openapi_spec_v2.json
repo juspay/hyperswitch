@@ -20960,6 +20960,11 @@
               }
             ],
             "nullable": true
+          },
+          "device_manufacturer_identifier": {
+            "type": "string",
+            "description": "Identifier of the device that generated the token",
+            "nullable": true
           }
         }
       },
@@ -32195,6 +32200,7 @@
         "description": "The retry implementations available within the `Smart` arm of revenue recovery.",
         "enum": [
           "adaptive_retry",
+          "hybrid_adaptive_retry",
           "systematic_k_max_at_softmax",
           "systematic_k_max_at_score"
         ]
