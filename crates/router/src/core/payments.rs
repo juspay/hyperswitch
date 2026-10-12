@@ -5519,22 +5519,23 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector.
         // This completes an authentication that was already initiated (via webhook or browser
         // redirect), so the 3ds MCA is derived regardless of its enabled/disabled status.
-        let authentication_merchant_connector_account = helpers::get_merchant_connector_account_for_webhook(
-            state,
-            platform.get_processor(),
-            None,
-            &payment_intent
-                .profile_id
-                .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing profile_id in payment_intent")?,
-            &payment_attempt
-                .authentication_connector
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing authentication connector in payment_intent")?,
-            None,
-        )
-        .await?;
+        let authentication_merchant_connector_account =
+            helpers::get_merchant_connector_account_for_webhook(
+                state,
+                platform.get_processor(),
+                None,
+                &payment_intent
+                    .profile_id
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing profile_id in payment_intent")?,
+                &payment_attempt
+                    .authentication_connector
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing authentication connector in payment_intent")?,
+                None,
+            )
+            .await?;
         let is_pull_mechanism_enabled =
             utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
                 authentication_merchant_connector_account
