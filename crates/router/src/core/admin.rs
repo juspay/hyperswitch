@@ -1632,6 +1632,13 @@ struct ConnectorTypeAndConnectorName<'a> {
     connector_name: &'a api_enums::Connector,
 }
 
+fn is_default_fallback_connector_type(connector_type: &api_enums::ConnectorType) -> bool {
+    matches!(
+        connector_type,
+        api_enums::ConnectorType::PaymentProcessor | api_enums::ConnectorType::PayoutProcessor
+    )
+}
+
 impl ConnectorTypeAndConnectorName<'_> {
     fn get_routable_connector(&self) -> RouterResult<Option<api_enums::RoutableConnectors>> {
         let mut routable_connector =
@@ -1704,7 +1711,7 @@ impl ConnectorTypeAndConnectorName<'_> {
                 })?;
             routable_connector = Some(routable_connector_option);
         };
-        Ok(routable_connector)
+        Ok(routable_connector.filter(|_| is_default_fallback_connector_type(self.connector_type)))
     }
 }
 #[cfg(feature = "v1")]
@@ -3145,7 +3152,7 @@ pub async fn update_connector(
         merchant_config
             .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
             .await?;
-    } else {
+    } else if is_default_fallback_connector_type(&mca.connector_type) {
         merchant_config
             .retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists()
             .await?;
@@ -5119,5 +5126,62 @@ impl From<&types::MerchantAccountData> for pm_auth_types::RecipientCreateRequest
             account_data,
             address: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod default_fallback_connector_tests {
+    use super::*;
+
+    #[test]
+    fn fallback_accepts_only_payment_and_payout_processors() {
+        use api_enums::ConnectorType::*;
+
+        for connector_type in [PaymentProcessor, PayoutProcessor] {
+            assert!(is_default_fallback_connector_type(&connector_type));
+        }
+        for connector_type in [
+            PaymentVas,
+            FinOperations,
+            FizOperations,
+            Networks,
+            BankingEntities,
+            NonBankingFinance,
+            PaymentMethodAuth,
+            AuthenticationProcessor,
+            TaxProcessor,
+            SurchargeProcessor,
+            BillingProcessor,
+            VaultProcessor,
+        ] {
+            assert!(!is_default_fallback_connector_type(&connector_type));
+        }
+    }
+
+    #[test]
+    fn fraud_connectors_are_excluded_from_default_fallback() {
+        for connector_name in [
+            api_enums::Connector::Riskified,
+            api_enums::Connector::Signifyd,
+            api_enums::Connector::Nsure,
+        ] {
+            let connector = ConnectorTypeAndConnectorName {
+                connector_type: &api_enums::ConnectorType::PaymentVas,
+                connector_name: &connector_name,
+            };
+            assert!(connector.get_routable_connector().unwrap().is_none());
+        }
+    }
+
+    #[test]
+    fn payment_processors_remain_in_default_fallback() {
+        let connector = ConnectorTypeAndConnectorName {
+            connector_type: &api_enums::ConnectorType::PaymentProcessor,
+            connector_name: &api_enums::Connector::Stripe,
+        };
+        assert_eq!(
+            connector.get_routable_connector().unwrap(),
+            Some(api_enums::RoutableConnectors::Stripe)
+        );
     }
 }
