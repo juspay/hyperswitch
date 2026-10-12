@@ -2,8 +2,9 @@ use common_utils::errors;
 use error_stack::ResultExt;
 
 use crate::{
-    database::store::DatabaseConnectionWithContext, errors::StorageError, DatabaseStore,
-    RequestContext,
+    database::store::{DatabaseConnectionWithContext, LeaseTarget},
+    errors::StorageError,
+    DatabaseStore, RequestContext,
 };
 
 pub async fn pg_connection_read<'a, T: DatabaseStore + RequestContext>(
@@ -11,7 +12,7 @@ pub async fn pg_connection_read<'a, T: DatabaseStore + RequestContext>(
 ) -> errors::CustomResult<DatabaseConnectionWithContext<'a>, StorageError> {
     // If only OLAP is enabled get replica pool.
     #[cfg(all(feature = "olap", not(feature = "oltp")))]
-    let pool = store.get_replica_pool();
+    let (pool, target) = (store.get_replica_pool(), LeaseTarget::PRIMARY_REPLICA_READ);
 
     // If either one of these are true we need to get master pool.
     //  1. Only OLTP is enabled.
@@ -22,12 +23,11 @@ pub async fn pg_connection_read<'a, T: DatabaseStore + RequestContext>(
         all(feature = "olap", feature = "oltp"),
         all(not(feature = "olap"), not(feature = "oltp"))
     ))]
-    let pool = store.get_master_pool();
+    let (pool, target) = (store.get_master_pool(), LeaseTarget::PRIMARY_MASTER_READ);
 
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let mut connection = pool
-        .pg_pool
-        .get()
+    let (mut connection, lease_time) = pool
+        .lease(target)
         .await
         .change_context(StorageError::DatabaseConnectionError)?;
 
@@ -38,6 +38,8 @@ pub async fn pg_connection_read<'a, T: DatabaseStore + RequestContext>(
         connection,
         store.request_id().map(str::to_owned),
         pool.event_emitter.clone(),
+        target,
+        lease_time,
     ))
 }
 
@@ -46,11 +48,11 @@ pub async fn pg_connection_write<'a, T: DatabaseStore + RequestContext>(
 ) -> errors::CustomResult<DatabaseConnectionWithContext<'a>, StorageError> {
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
+    let target = LeaseTarget::PRIMARY_MASTER_WRITE;
 
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
-    let mut connection = pool
-        .pg_pool
-        .get()
+    let (mut connection, lease_time) = pool
+        .lease(target)
         .await
         .change_context(StorageError::DatabaseConnectionError)?;
 
@@ -61,5 +63,7 @@ pub async fn pg_connection_write<'a, T: DatabaseStore + RequestContext>(
         connection,
         store.request_id().map(str::to_owned),
         pool.event_emitter.clone(),
+        target,
+        lease_time,
     ))
 }

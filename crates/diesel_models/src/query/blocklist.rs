@@ -65,8 +65,7 @@ impl BlocklistNew {
             .do_nothing();
 
         generics::db_metrics::track_database_call::<<Blocklist as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             generics::db_metrics::DatabaseOperation::Insert,
             query.execute_async(conn.raw_connection()),
         )
@@ -325,8 +324,7 @@ impl Blocklist {
             .select((fingerprint_length(), count_star()));
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             generics::db_metrics::DatabaseOperation::Count,
             query.get_results_async(conn.raw_connection()),
         )

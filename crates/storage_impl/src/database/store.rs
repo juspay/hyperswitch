@@ -7,8 +7,8 @@ use common_utils::{
     types::{keymanager, TenantConfig},
     DbConnectionParams,
 };
-pub use diesel_models::DatabaseConnectionWithContext;
-use diesel_models::{DejaPgConnection, RawPgConnection};
+use diesel_models::{connection_lease, DejaPgConnection, RawPgConnection};
+pub use diesel_models::{connection_lease::LeaseTarget, DatabaseConnectionWithContext};
 use error_stack::ResultExt;
 
 use crate::{
@@ -18,9 +18,19 @@ use crate::{
 
 pub type RawPgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
 
+/// A connection leased from a [`PgPool`], before a request context is attached to it.
+pub type RawPgPooledConn<'pool> =
+    bb8::PooledConnection<'pool, async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
+
+/// What leasing a connection from a [`PgPool`] can fail with.
+pub type LeaseError = bb8::RunError<ConnectionError>;
+
 #[derive(Debug, Clone)]
 pub struct PgPool {
-    pub pg_pool: RawPgPool,
+    /// Private so that every lease goes through [`PgPool::lease`], which is what records
+    /// `DATABASE_CONNECTION_LEASE_TIME_MS`. A caller holding the raw pool could lease
+    /// without being measured.
+    pg_pool: RawPgPool,
     pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
 }
 
@@ -34,6 +44,37 @@ impl PgPool {
 
     pub fn new_without_event_emitter(pool: RawPgPool) -> Self {
         Self::new(pool, Arc::new(NoOpEventEmitter))
+    }
+
+    /// Leases a connection, returning it alongside how long the lease took.
+    ///
+    /// The only way to get a connection out of a `PgPool`, so that no lease escapes
+    /// measurement. The duration goes on to [`DatabaseConnectionWithContext`], which hands
+    /// it to the first query run on the connection — that is where the table name becomes
+    /// known. See [`diesel_models::connection_lease`] for how a lease ends up attributed.
+    ///
+    /// A failed lease is recorded here rather than passed on, since there is no connection
+    /// to carry it. `TimedOut` (the pool had no slot in time) is kept distinct from `Error`
+    /// (no connection could be established): the former is the saturation signal.
+    pub async fn lease(
+        &self,
+        target: LeaseTarget,
+    ) -> Result<(RawPgPooledConn<'_>, std::time::Duration), LeaseError> {
+        let start = std::time::Instant::now();
+        let lease = self.pg_pool.get().await;
+        let elapsed = start.elapsed();
+
+        match lease {
+            Ok(connection) => Ok((connection, elapsed)),
+            Err(error) => {
+                let outcome = match &error {
+                    bb8::RunError::TimedOut => connection_lease::Outcome::TimedOut,
+                    bb8::RunError::User(_) => connection_lease::Outcome::Error,
+                };
+                connection_lease::record(target, outcome, "none", elapsed);
+                Err(error)
+            }
+        }
     }
 }
 

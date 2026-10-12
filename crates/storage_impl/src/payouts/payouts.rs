@@ -559,8 +559,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<DieselPayouts as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            &conn,
             db_metrics::DatabaseOperation::Filter,
             query.get_results_async::<DieselPayouts>(conn.raw_connection()),
         )
@@ -870,8 +869,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<DieselPayouts as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            &conn,
             db_metrics::DatabaseOperation::Filter,
             query.get_results_async::<String>(conn.raw_connection()),
         )
@@ -930,8 +928,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<DieselPayouts as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            &conn,
             db_metrics::DatabaseOperation::Filter,
             query.get_results_async::<(common_enums::PayoutStatus, i64)>(conn.raw_connection()),
         )

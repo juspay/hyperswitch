@@ -110,8 +110,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
             query.get_results_async(conn.raw_connection()),
         )
@@ -178,8 +177,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
             query.get_results_async(conn.raw_connection()),
         )
@@ -209,8 +207,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
             query.get_results_async(conn.raw_connection()),
         )
@@ -257,8 +254,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
             query.get_results_async(conn.raw_connection()),
         )
@@ -316,8 +312,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
             query.get_results_async(conn.raw_connection()),
         )
@@ -356,8 +351,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
             query.get_results_async(conn.raw_connection()),
         )
@@ -389,8 +383,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
             query.get_results_async(conn.raw_connection()),
         )
@@ -457,8 +450,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
             query.get_results_async(conn.raw_connection()),
         )
@@ -669,8 +661,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Count,
             query.get_result_async::<i64>(conn.raw_connection()),
         )
@@ -711,8 +702,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Count,
             query.get_result_async::<i64>(conn.raw_connection()),
         )
@@ -765,8 +755,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Count,
             query.get_result_async::<i64>(conn.raw_connection()),
         )

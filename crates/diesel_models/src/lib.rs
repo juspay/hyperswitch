@@ -7,6 +7,7 @@ pub mod capture;
 pub mod card_issuer;
 pub mod cards_info;
 pub mod configs;
+pub mod connection_lease;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_retry_stats;
 
@@ -68,7 +69,13 @@ pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
 
-use std::sync::Arc;
+use std::{
+    sync::{
+        atomic::{self, AtomicU64},
+        Arc,
+    },
+    time::Duration,
+};
 
 use common_utils::external_service::ExternalServiceEventEmitter;
 use diesel_impl::{DieselArray, OptionalDieselArray};
@@ -101,6 +108,18 @@ pub struct DatabaseConnectionWithContext<'pool> {
     connection: bb8::PooledConnection<'pool, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     request_id: Option<String>,
     event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+    /// Which pool this lease came from, for `DATABASE_CONNECTION_LEASE_TIME_MS`.
+    lease_target: connection_lease::LeaseTarget,
+    /// How long leasing this connection took, in nanoseconds, until something records it.
+    ///
+    /// Taken exactly once — by the first tracked query, or by [`Drop`] if no query ran —
+    /// so that a lease serving several queries is counted once rather than once per query.
+    /// Zero means already taken, which a real lease never is: `new` floors the stored
+    /// value at one nanosecond.
+    ///
+    /// An atomic rather than a `Cell` because queries hold `&DatabaseConnectionWithContext`
+    /// across awaits inside `Send` futures, which requires this type to stay `Sync`.
+    lease_time_nanos: AtomicU64,
 }
 
 impl<'pool> DatabaseConnectionWithContext<'pool> {
@@ -111,11 +130,21 @@ impl<'pool> DatabaseConnectionWithContext<'pool> {
         >,
         request_id: Option<String>,
         event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+        lease_target: connection_lease::LeaseTarget,
+        lease_time: Duration,
     ) -> Self {
         Self {
             connection,
             request_id,
             event_emitter,
+            lease_target,
+            // Floored at one nanosecond so that zero stays available as the "already
+            // recorded" marker.
+            lease_time_nanos: AtomicU64::new(
+                u64::try_from(lease_time.as_nanos())
+                    .unwrap_or(u64::MAX)
+                    .max(1),
+            ),
         }
     }
 
@@ -129,6 +158,34 @@ impl<'pool> DatabaseConnectionWithContext<'pool> {
 
     pub fn event_emitter(&self) -> &dyn ExternalServiceEventEmitter {
         self.event_emitter.as_ref()
+    }
+
+    pub fn lease_target(&self) -> connection_lease::LeaseTarget {
+        self.lease_target
+    }
+
+    /// Takes how long this connection's lease took, leaving nothing for a later caller.
+    ///
+    /// Returns `None` once something has already recorded it, which is what keeps a lease
+    /// serving several queries from being counted once per query.
+    pub fn take_lease_time(&self) -> Option<Duration> {
+        let nanos = self.lease_time_nanos.swap(0, atomic::Ordering::Relaxed);
+        (nanos != 0).then(|| Duration::from_nanos(nanos))
+    }
+}
+
+impl Drop for DatabaseConnectionWithContext<'_> {
+    /// Records a lease that no tracked query claimed, so that a connection leased purely
+    /// to serialize a query — the KV drainer path does exactly this — still shows up.
+    fn drop(&mut self) {
+        if let Some(elapsed) = self.take_lease_time() {
+            connection_lease::record(
+                self.lease_target,
+                connection_lease::Outcome::Acquired,
+                "unattributed",
+                elapsed,
+            );
+        }
     }
 }
 
@@ -324,6 +381,31 @@ pub(crate) mod metrics {
 
     counter_metric!(DATABASE_CALLS_COUNT, GLOBAL_METER);
     histogram_metric_f64!(DATABASE_CALL_TIME, GLOBAL_METER);
+
+    // Time spent queued for a pool slot, which `DATABASE_CALL_TIME` above cannot see: its
+    // timer starts once a connection is already leased. See `crate::connection_lease`.
+    //
+    // Unit is MILLISECONDS, unlike `DATABASE_CALL_TIME`, which is in seconds — comparing
+    // the two needs a factor of 1000. Hence the `_MS` suffix: a duration metric whose unit
+    // is not evident from its name is how a dashboard ends up off by three orders of
+    // magnitude.
+    histogram_metric_f64!(
+        DATABASE_CONNECTION_LEASE_TIME_MS,
+        GLOBAL_METER,
+        boundaries: lease_time_buckets(),
+    );
+
+    /// Boundaries for [`DATABASE_CONNECTION_LEASE_TIME_MS`], in milliseconds: 0.01 to
+    /// roughly 25_000, four intervals per doubling.
+    ///
+    /// The low end resolves an uncontended `bb8` lease, which is tens of microseconds; the
+    /// high end covers a lease that waits out `connection_timeout` (10s by default)
+    /// without clipping it into the overflow bucket.
+    fn lease_time_buckets() -> Vec<f64> {
+        (0..86)
+            .map(|index| 0.01 * 2_f64.powf(f64::from(index) / 4.0))
+            .collect()
+    }
 }
 
 #[cfg(feature = "tokenization_v2")]
