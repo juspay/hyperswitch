@@ -63,9 +63,10 @@ pub struct TwilioGenericPayRequest {
     #[schema(example = "Toll violation payment")]
     pub description: Option<String>,
 
-    /// Values supplied by the IVR through `<Parameter>` tags on the `<Pay>` verb.
+    /// Values supplied by the IVR through `<Parameter>` tags on the `<Pay>` verb. The merchant
+    /// decides what goes in here, so the values are masked.
     #[schema(value_type = Option<Object>)]
-    pub parameters: Option<HashMap<String, String>>,
+    pub parameters: Option<HashMap<String, Secret<String>>>,
 }
 
 /// Body Twilio expects back from the Generic Pay Connector endpoint.
@@ -76,8 +77,8 @@ pub struct TwilioGenericPayRequest {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct TwilioGenericPayResponse {
     /// Reference for a successful charge. This is the Hyperswitch `payment_id`.
-    #[schema(example = "pay_mbabizu24mvu3mela5njyhpit4")]
-    pub charge_id: Option<String>,
+    #[schema(value_type = Option<String>, example = "pay_mbabizu24mvu3mela5njyhpit4")]
+    pub charge_id: Option<common_utils::id_type::PaymentId>,
 
     /// Set when the payment did not succeed. `null` on success.
     #[schema(example = "UE_9000")]
@@ -89,7 +90,7 @@ pub struct TwilioGenericPayResponse {
 }
 
 impl TwilioGenericPayResponse {
-    pub fn success(charge_id: String) -> Self {
+    pub fn success(charge_id: common_utils::id_type::PaymentId) -> Self {
         Self {
             charge_id: Some(charge_id),
             error_code: None,

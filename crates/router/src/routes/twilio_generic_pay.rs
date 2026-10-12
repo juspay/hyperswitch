@@ -3,7 +3,11 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{api_locking, twilio_generic_pay as twilio_generic_pay_core},
+    core::{
+        api_locking,
+        generic_pay::GenericPayAdapter,
+        twilio_generic_pay::TwilioGenericPay,
+    },
     services::{api, authentication as auth},
 };
 
@@ -22,7 +26,7 @@ pub async fn twilio_generic_pay_charge(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, req_state| {
-            twilio_generic_pay_core::twilio_generic_pay_charge(state, req_state, auth, payload)
+            TwilioGenericPay::charge(state, req_state, auth, payload)
         },
         &auth::TwilioPayAuth,
         // No lock — the payments lock keys on `payment_id`, which is inside the body. Retry safety

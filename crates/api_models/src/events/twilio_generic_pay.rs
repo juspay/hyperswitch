@@ -10,13 +10,7 @@ impl ApiEventMetric for TwilioGenericPayResponse {
         // `charge_id` is the Hyperswitch `payment_id`, so a successful charge is reported as an
         // ordinary payment event. A decline has no payment to point at.
         self.charge_id
-            .as_ref()
-            .and_then(|charge_id| {
-                common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Owned(
-                    charge_id.clone(),
-                ))
-                .ok()
-            })
+            .clone()
             .map(|payment_id| common_utils::events::ApiEventsType::Payment { payment_id })
     }
 }

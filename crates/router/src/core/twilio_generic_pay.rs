@@ -2,27 +2,14 @@ use api_models::twilio_generic_pay::{
     TwilioGenericPayRequest, TwilioGenericPayResponse, TwilioPayMethod,
 };
 use common_utils::types::{AmountConvertor, StringMajorUnitForConnector};
-use hyperswitch_domain_models::payments::HeaderPayload;
-use router_env::{instrument, logger, tracing};
 
-use crate::{
-    core::{
-        errors::{self, RouterResponse},
-        payments, utils as core_utils,
-    },
-    routes::{app::ReqState, SessionState},
-    services::{self, authentication::AuthenticationData, ApplicationResponse},
-    types::api,
-};
+use crate::core::generic_pay::{self, Context, Failure, GenericPayAdapter, Parameters};
 
+/// What Twilio can ask for that this endpoint does not do; the rest are shared, in
+/// [`generic_pay::error_codes`].
 mod error_codes {
     pub const TOKENIZE_UNSUPPORTED: &str = "TOKENIZE_UNSUPPORTED";
     pub const BANK_ACCOUNT_UNSUPPORTED: &str = "BANK_ACCOUNT_UNSUPPORTED";
-    pub const INVALID_REQUEST: &str = "INVALID_REQUEST";
-    pub const PROFILE_NOT_FOUND: &str = "PROFILE_NOT_FOUND";
-    pub const PAYMENT_NOT_COMPLETED: &str = "PAYMENT_NOT_COMPLETED";
-    pub const PROCESSING_ERROR: &str = "PROCESSING_ERROR";
-    pub const DUPLICATE_TRANSACTION: &str = "DUPLICATE_TRANSACTION";
 }
 
 struct TwilioCardDetails {
@@ -32,324 +19,107 @@ struct TwilioCardDetails {
     card_cvc: hyperswitch_masking::Secret<String>,
 }
 
-#[derive(Debug)]
-struct ChargeFailure {
-    code: &'static str,
-    message: String,
-}
+/// Twilio's Generic Pay Connector. Everything but the request and response shapes is shared with
+/// the other providers, in [`generic_pay`].
+pub struct TwilioGenericPay;
 
-impl ChargeFailure {
-    fn new(code: &'static str, message: impl Into<String>) -> Self {
-        Self {
-            code,
-            message: message.into(),
-        }
-    }
-}
+#[async_trait::async_trait]
+impl GenericPayAdapter for TwilioGenericPay {
+    type Request = TwilioGenericPayRequest;
+    type Response = TwilioGenericPayResponse;
 
-#[instrument(skip_all)]
-pub async fn twilio_generic_pay_charge(
-    state: SessionState,
-    req_state: ReqState,
-    auth: AuthenticationData,
-    request: TwilioGenericPayRequest,
-) -> RouterResponse<TwilioGenericPayResponse> {
-    let transaction_id = request.transaction_id.clone();
-
-    // The endpoint is merchant level, so the profile comes from the IVR's `<Parameter>` values.
-    // When it is absent the payment flow falls back to the merchant's default profile.
-    let profile_id = match resolve_profile_id(&state, &auth, &request).await {
-        Ok(profile_id) => profile_id,
-        Err(failure) => {
-            logger::warn!(
-                transaction_id = %transaction_id,
-                error_code = failure.code,
-                "Twilio generic pay request failed: {}",
-                failure.message
-            );
-            return Ok(ApplicationResponse::Json(
-                TwilioGenericPayResponse::failure(failure.code.to_string(), failure.message),
-            ));
-        }
-    };
-
-    let payments_request = match build_payments_request(&request, profile_id.clone()) {
-        Ok(payments_request) => payments_request,
-        Err(failure) => {
-            logger::warn!(
-                transaction_id = %transaction_id,
-                error_code = failure.code,
-                "Twilio generic pay request failed: {}",
-                failure.message
-            );
-            return Ok(ApplicationResponse::Json(
-                TwilioGenericPayResponse::failure(failure.code.to_string(), failure.message),
-            ));
-        }
-    };
-
-    let payments_response = Box::pin(payments::payments_core::<
-        api::Authorize,
-        api::PaymentsResponse,
-        _,
-        _,
-        _,
-        payments::PaymentData<api::Authorize>,
-    >(
-        state.clone(),
-        req_state,
-        auth.platform,
-        profile_id,
-        payments::PaymentCreate,
-        payments_request,
-        services::api::AuthFlow::Merchant,
-        payments::CallConnectorAction::Trigger,
-        None,
-        None,
-        HeaderPayload::with_source(common_enums::PaymentSource::MerchantServer),
-        None,
-    ))
-    .await;
-
-    let payment = match payments_response {
-        Ok(ApplicationResponse::Json(payment))
-        | Ok(ApplicationResponse::JsonWithHeaders((payment, _))) => payment,
-        Ok(other) => {
-            logger::error!(
-                transaction_id = %transaction_id,
-                "Unexpected response variant from payments core: {other:?}"
-            );
-            return Ok(ApplicationResponse::Json(
-                TwilioGenericPayResponse::failure(
-                    error_codes::PROCESSING_ERROR.to_string(),
-                    "Payment could not be processed".to_string(),
-                ),
-            ));
-        }
-        // Deliberately answered with a 200 rather than propagated, so the IVR receives a
-        // readable `error_code` instead of an opaque 5xx. This does not affect Twilio's retries
-        // either way, since those fire only when we fail to respond inside ten seconds, and an
-        // error response delivered promptly is still a response.
-        Err(error) => {
-            // A duplicate is a retry of a charge we already hold. The insert collided, so the
-            // card was not authorized again, and the first payment may well have succeeded. Kept
-            // apart from the generic decline so it reads as neither a failure nor an incident.
-            let (code, message) = match error.current_context() {
-                errors::ApiErrorResponse::DuplicatePayment { .. } => {
-                    logger::info!(
-                        transaction_id = %transaction_id,
-                        "Twilio retried a charge that already exists; not authorizing it again"
-                    );
-                    (
-                        error_codes::DUPLICATE_TRANSACTION,
-                        "A payment already exists for this payment_id",
-                    )
-                }
-                // A failure we cannot classify is reported as a decline and investigated from
-                // the logs.
-                _ => {
-                    logger::error!(
-                        transaction_id = %transaction_id,
-                        "Payments core returned an error for a Twilio generic pay charge: {error:?}"
-                    );
-                    (
-                        error_codes::PROCESSING_ERROR,
-                        "Payment could not be processed",
-                    )
-                }
-            };
-
-            return Ok(ApplicationResponse::Json(
-                TwilioGenericPayResponse::failure(code.to_string(), message.to_string()),
-            ));
-        }
-    };
-
-    Ok(ApplicationResponse::Json(build_twilio_response(&payment)))
-}
-
-async fn resolve_profile_id(
-    state: &SessionState,
-    auth: &AuthenticationData,
-    request: &TwilioGenericPayRequest,
-) -> Result<Option<common_utils::id_type::ProfileId>, ChargeFailure> {
-    let Some(requested) = extract_profile_id(request)? else {
-        return Ok(None);
-    };
-
-    // Merchant-scoped lookup, so another merchant's profile is "not found" rather than usable.
-    core_utils::validate_and_get_business_profile(
-        state.store.as_ref(),
-        auth.platform.get_processor(),
-        Some(&requested),
-    )
-    .await
-    .map_err(|error| {
-        logger::warn!("Twilio generic pay profile validation failed: {error:?}");
-        ChargeFailure::new(
-            error_codes::PROFILE_NOT_FOUND,
-            format!(
-                "profile_id {} is not available for this merchant",
-                requested.get_string_repr()
-            ),
-        )
-    })
-    .map(|profile| profile.map(|profile| profile.get_id().clone()))
-}
-
-/// Reads `parameters.profile_id`, when the IVR sent one.
-fn extract_profile_id(
-    request: &TwilioGenericPayRequest,
-) -> Result<Option<common_utils::id_type::ProfileId>, ChargeFailure> {
-    let Some(profile_id) = request
-        .parameters
-        .as_ref()
-        .and_then(|parameters| parameters.get("profile_id"))
-    else {
-        return Ok(None);
-    };
-
-    common_utils::id_type::ProfileId::try_from(std::borrow::Cow::Owned(profile_id.clone()))
-        .map(Some)
-        .map_err(|error| {
-            ChargeFailure::new(
-                error_codes::INVALID_REQUEST,
-                format!("parameters.profile_id is not a valid profile id: {error}"),
-            )
-        })
-}
-
-/// Reads `parameters.payment_id`, when the IVR sent one. This is what makes a Twilio retry
-/// idempotent, since the retry then collides on `(payment_id, merchant_id)` rather than charging
-/// again. An unusable value is rejected, not ignored — losing idempotency silently is worse.
-fn extract_payment_id(
-    request: &TwilioGenericPayRequest,
-) -> Result<Option<common_utils::id_type::PaymentId>, ChargeFailure> {
-    let Some(payment_id) = request
-        .parameters
-        .as_ref()
-        .and_then(|parameters| parameters.get("payment_id"))
-    else {
-        return Ok(None);
-    };
-
-    common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Owned(payment_id.clone()))
-        .map(Some)
-        .map_err(|error| {
-            ChargeFailure::new(
-                error_codes::INVALID_REQUEST,
-                format!("parameters.payment_id is not a valid payment id: {error}"),
-            )
-        })
-}
-
-/// Validates the Twilio request and maps it onto a create-and-confirm payment.
-fn build_payments_request(
-    request: &TwilioGenericPayRequest,
-    profile_id: Option<common_utils::id_type::ProfileId>,
-) -> Result<api_models::payments::PaymentsRequest, ChargeFailure> {
-    if request.method != TwilioPayMethod::Charge {
-        return Err(ChargeFailure::new(
-            error_codes::TOKENIZE_UNSUPPORTED,
-            "Tokenization is not supported on this endpoint",
-        ));
+    fn transaction_reference(request: &Self::Request) -> String {
+        request.transaction_id.clone()
     }
 
-    if request.bankaccountnumber.is_some() || request.routingnumber.is_some() {
-        return Err(ChargeFailure::new(
-            error_codes::BANK_ACCOUNT_UNSUPPORTED,
-            "Bank account payments are not supported on this endpoint",
-        ));
+    fn parameters(request: &Self::Request) -> Option<&Parameters> {
+        request.parameters.as_ref()
     }
 
-    let card = extract_card(request)?;
+    /// Maps the `<Pay>` verb's fields onto a card payment.
+    fn build_payments_request(
+        request: &Self::Request,
+        context: Context,
+    ) -> Result<api_models::payments::PaymentsRequest, Failure> {
+        if request.method != TwilioPayMethod::Charge {
+            return Err(Failure::new(
+                error_codes::TOKENIZE_UNSUPPORTED,
+                "Tokenization is not supported on this endpoint",
+            ));
+        }
 
-    let currency = request.currency_code.ok_or_else(|| {
-        ChargeFailure::new(error_codes::INVALID_REQUEST, "currency_code is required")
-    })?;
+        if request.bankaccountnumber.is_some() || request.routingnumber.is_some() {
+            return Err(Failure::new(
+                error_codes::BANK_ACCOUNT_UNSUPPORTED,
+                "Bank account payments are not supported on this endpoint",
+            ));
+        }
 
-    let amount = request
-        .amount
-        .clone()
-        .ok_or_else(|| ChargeFailure::new(error_codes::INVALID_REQUEST, "amount is required"))?;
+        let card = extract_card(request)?;
 
-    let amount = StringMajorUnitForConnector
-        .convert_back(amount, currency)
-        .map_err(|error| {
-            ChargeFailure::new(
-                error_codes::INVALID_REQUEST,
-                format!("amount could not be parsed: {error}"),
-            )
-        })?;
+        let currency = request
+            .currency_code
+            .ok_or_else(|| invalid_request("currency_code is required"))?;
 
-    let billing = request
-        .postal_code
-        .clone()
-        .map(|zip| api_models::payments::Address {
-            address: Some(api_models::payments::AddressDetails {
-                zip: Some(zip),
-                ..Default::default()
-            }),
-            ..Default::default()
-        });
+        let amount = request
+            .amount
+            .clone()
+            .ok_or_else(|| invalid_request("amount is required"))?;
 
-    let mut payments_request = api_models::payments::PaymentsRequest {
-        amount: Some(amount.into()),
-        currency: Some(currency),
-        confirm: Some(true),
-        capture_method: Some(common_enums::CaptureMethod::Automatic),
-        authentication_type: Some(common_enums::AuthenticationType::NoThreeDs),
-        // Connectors translate this into their MOTO / telephone-order indicator.
-        payment_channel: Some(common_enums::PaymentChannel::TelephoneOrder),
-        payment_method: Some(common_enums::PaymentMethod::Card),
-        payment_method_data: Some(api_models::payments::PaymentMethodDataRequest {
-            payment_method_data: Some(api_models::payments::PaymentMethodData::Card(
-                api_models::payments::Card {
-                    card_number: card.card_number,
-                    card_exp_month: card.card_exp_month,
-                    card_exp_year: card.card_exp_year,
-                    card_cvc: card.card_cvc,
+        let amount = StringMajorUnitForConnector
+            .convert_back(amount, currency)
+            .map_err(|error| invalid_request(format!("amount could not be parsed: {error}")))?;
+
+        let billing = request
+            .postal_code
+            .clone()
+            .map(|zip| api_models::payments::Address {
+                address: Some(api_models::payments::AddressDetails {
+                    zip: Some(zip),
                     ..Default::default()
-                },
-            )),
-            billing: billing.clone(),
-        }),
-        billing,
-        description: request.description.clone(),
-        merchant_order_reference_id: Some(request.transaction_id.clone()),
-        payment_id: extract_payment_id(request)?
-            .map(api_models::payments::PaymentIdType::PaymentIntentId),
-        customer_id: extract_customer_id(request),
-        metadata: build_metadata(request),
-        profile_id,
-        // `connector` is left unset so the merchant's configured routing decides.
-        ..Default::default()
-    };
+                }),
+                ..Default::default()
+            });
 
-    payments_request
-        .validate()
-        .map_err(|message| ChargeFailure::new(error_codes::INVALID_REQUEST, message))?;
+        Ok(api_models::payments::PaymentsRequest {
+            amount: Some(amount.into()),
+            currency: Some(currency),
+            payment_method: Some(common_enums::PaymentMethod::Card),
+            payment_method_data: Some(api_models::payments::PaymentMethodDataRequest {
+                payment_method_data: Some(api_models::payments::PaymentMethodData::Card(
+                    api_models::payments::Card {
+                        card_number: card.card_number,
+                        card_exp_month: card.card_exp_month,
+                        card_exp_year: card.card_exp_year,
+                        card_cvc: card.card_cvc,
+                        ..Default::default()
+                    },
+                )),
+                billing: billing.clone(),
+            }),
+            billing,
+            description: request.description.clone(),
+            merchant_order_reference_id: Some(request.transaction_id.clone()),
+            ..context.payments_request()
+        })
+    }
 
-    // Keeps `payment_id` when the IVR supplied one, and generates one otherwise.
-    crate::routes::payments::get_or_generate_payment_id(&mut payments_request).map_err(
-        |error| {
-            ChargeFailure::new(
-                error_codes::INVALID_REQUEST,
-                format!("payment_id could not be resolved: {error}"),
-            )
-        },
-    )?;
+    fn success_response(payment: &api_models::payments::PaymentsResponse) -> Self::Response {
+        TwilioGenericPayResponse::success(payment.payment_id.clone())
+    }
 
-    Ok(payments_request)
+    fn failure_response(failure: Failure) -> Self::Response {
+        TwilioGenericPayResponse::failure(failure.code, failure.message)
+    }
 }
 
-fn extract_card(request: &TwilioGenericPayRequest) -> Result<TwilioCardDetails, ChargeFailure> {
-    let missing = |field: &'static str| {
-        ChargeFailure::new(
-            error_codes::INVALID_REQUEST,
-            format!("{field} is required for a card charge"),
-        )
-    };
+fn invalid_request(message: impl Into<String>) -> Failure {
+    Failure::new(generic_pay::error_codes::INVALID_REQUEST, message)
+}
+
+fn extract_card(request: &TwilioGenericPayRequest) -> Result<TwilioCardDetails, Failure> {
+    let missing =
+        |field: &str| invalid_request(format!("{field} is required for a card charge"));
 
     Ok(TwilioCardDetails {
         card_number: request
@@ -366,63 +136,4 @@ fn extract_card(request: &TwilioGenericPayRequest) -> Result<TwilioCardDetails, 
             .ok_or_else(|| missing("expiry_year"))?,
         card_cvc: request.cvv.clone().ok_or_else(|| missing("cvv"))?,
     })
-}
-
-fn extract_customer_id(
-    request: &TwilioGenericPayRequest,
-) -> Option<common_utils::id_type::CustomerId> {
-    request
-        .parameters
-        .as_ref()?
-        .get("customer_id")
-        .and_then(|customer_id| {
-            common_utils::id_type::CustomerId::try_from(std::borrow::Cow::Owned(
-                customer_id.clone(),
-            ))
-            .inspect_err(|error| {
-                logger::warn!("Ignoring unusable customer_id from Twilio parameters: {error:?}")
-            })
-            .ok()
-        })
-}
-
-/// Carries the IVR's `<Parameter>` values through to the payment, for reconciliation.
-fn build_metadata(request: &TwilioGenericPayRequest) -> Option<serde_json::Value> {
-    let parameters = request.parameters.as_ref()?;
-    if parameters.is_empty() {
-        return None;
-    }
-    serde_json::to_value(parameters)
-        .inspect_err(|error| {
-            logger::warn!("Could not serialize Twilio parameters into metadata: {error:?}")
-        })
-        .ok()
-}
-
-/// Maps a finished payment onto the response Twilio expects.
-fn build_twilio_response(
-    payment: &api_models::payments::PaymentsResponse,
-) -> TwilioGenericPayResponse {
-    match payment.status {
-        common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::PartiallyCaptured => {
-            TwilioGenericPayResponse::success(payment.payment_id.get_string_repr().to_owned())
-        }
-        // Everything else is reported as a failure. A phone call cannot wait out a `Processing`
-        // or satisfy a `RequiresCustomerAction`, so neither is a result we can read to the caller.
-        _ => {
-            let code = payment
-                .unified_code
-                .clone()
-                .or_else(|| payment.error_code.clone())
-                .unwrap_or_else(|| error_codes::PAYMENT_NOT_COMPLETED.to_string());
-
-            let message = payment
-                .unified_message
-                .clone()
-                .or_else(|| payment.error_message.clone())
-                .unwrap_or_else(|| format!("Payment was not completed: {}", payment.status));
-
-            TwilioGenericPayResponse::failure(code, message)
-        }
-    }
 }
