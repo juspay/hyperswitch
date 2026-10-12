@@ -181,11 +181,12 @@ describe("Offer Engine", () => {
   // applied.
   context("Offer applies correctly on a saved-card confirm", () => {
     // Use a different card from the plain-card context above so the saved-card
-    // flow is evaluated on its own card (BIN / card_alias), not 4111...1111.
-    const SAVED_CARD_NUMBER = "4242424242424242";
+    // flow is evaluated on its own card (BIN / card_alias).
     const withSavedCard = (data) => {
       const cloned = Cypress._.cloneDeep(data);
-      cloned.Request.payment_method_data.card.card_number = SAVED_CARD_NUMBER;
+      cloned.Request.payment_method_data.card.card_number = getConnectorDetails(
+        globalState.get("connectorId")
+      ).offer_engine.SavedCardDetails.card_number;
       return cloned;
     };
 
