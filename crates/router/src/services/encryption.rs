@@ -32,6 +32,29 @@ pub enum EncryptionAlgorithm {
     A256GCM,
 }
 
+/// deja: josekit generates the CEK and AEAD IV inside `jwe::serialize_compact`
+/// with no hook for the IV, so the whole JWE is the reproducible unit —
+/// recording it keeps every downstream request body byte-identical on replay.
+/// Instrumented here, the one function all call sites share. `public_key` is
+/// deliberately not part of the identity (deployment config would reintroduce
+/// lookup misses on environments whose keys differ from the recorder's).
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "router::services::encryption",
+        operation = "encrypt_jwe",
+        codec = ResultOkCodec,
+        // The payload is a digest, never the bytes: the JWS arriving here
+        // carries the cleartext card object base64-encoded, which must not
+        // reach the tape. The digest is all the lookup needs.
+        args = serde_json::json!({
+            "algorithm": algorithm.as_ref(),
+            "key_id": key_id,
+            "payload_blake3": blake3::hash(payload).to_hex().as_str(),
+            "payload_len": payload.len(),
+        }),
+    )
+)]
 pub async fn encrypt_jwe(
     payload: &[u8],
     public_key: impl AsRef<[u8]>,

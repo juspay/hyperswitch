@@ -75,8 +75,42 @@ runner-start:
 runner-status:
     just runner status
 
+modular-cit-off-session action *args:
+    CONFIG=runner/config.local.modular_cit_off_session.yaml K6_BIN=runner/bin/k6-docker.sh just runner {{action}} {{args}}
+
+modular-cit-off-session-prepare:
+    just modular-cit-off-session discard-fixtures
+    just modular-cit-off-session preflight
+    ./deploy/bin/unlock-vault.sh
+    just modular-cit-off-session fixtures
+    CONTAINER_RUNTIME=docker CONFIG=deploy/config.docker-hub.yaml just deploy restart dummy-connector
+
+modular-cit-off-session-start:
+    just modular-cit-off-session start
+
+modular-cit-off-session-status:
+    just modular-cit-off-session status
+
 runner-test:
     node --test runner/test/*.test.js
+
+cpu-plan:
+    node cpu/bin/cpu.js plan
+
+cpu-show:
+    node cpu/bin/cpu.js show
+
+cpu-apply:
+    ./deploy/generated/cpu/apply.sh
+
+cpu-verify:
+    ./deploy/generated/cpu/verify.sh
+
+cpu-rollback:
+    ./deploy/generated/cpu/rollback.sh
+
+cpu-test:
+    node --test cpu/test/*.test.js
 
 smoke merchant_path="non_modular" scenario="cit_off_session":
     CONFIG=runner/config.smoke.yaml just runner smoke {{merchant_path}} {{scenario}}

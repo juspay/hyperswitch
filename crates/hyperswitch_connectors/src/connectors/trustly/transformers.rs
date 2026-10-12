@@ -159,6 +159,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustlyPaymentsResponse, T, PaymentsRes
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -568,6 +569,8 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                 | BankTransfer::Pix(_)
                 | BankTransfer::PixKey(_)
                 | BankTransfer::PixEmv(_)
+                | BankTransfer::Payshap(_)
+                | BankTransfer::PayshapProxy(_)
                 | BankTransfer::OpenBanking(_) => Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("Trustly"),
                 ))?,
@@ -629,6 +632,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, RegisterAccountResponse>> for Payou
                         error_code: None,
                         error_message: None,
                         payout_connector_metadata,
+                        connector_eligibility_reference_id: None,
                     }),
                     ..item.data
                 })
@@ -752,6 +756,8 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
                 | BankTransfer::Pix(_)
                 | BankTransfer::PixKey(_)
                 | BankTransfer::PixEmv(_)
+                | BankTransfer::Payshap(_)
+                | BankTransfer::PayshapProxy(_)
                 | BankTransfer::OpenBanking(_) => Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("Trustly"),
                 ))?,
@@ -822,6 +828,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, AccountPayoutResponse>> for Payouts
                         error_code: None,
                         error_message: None,
                         payout_connector_metadata: None,
+                        connector_eligibility_reference_id: None,
                     }),
                     ..item.data
                 })
@@ -984,6 +991,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TrustlyPayoutSyncResponse>> for Pay
                             error_code: None,
                             error_message: None,
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     })
@@ -997,6 +1005,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TrustlyPayoutSyncResponse>> for Pay
                             error_code: None,
                             error_message: None,
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     })
@@ -1021,6 +1030,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TrustlyPayoutSyncResponse>> for Pay
                         error_code: webhook_body.params.data.errorcode,
                         error_message: webhook_body.params.data.errormessage,
                         payout_connector_metadata: None,
+                        connector_eligibility_reference_id: None,
                     }),
                     ..item.data
                 })

@@ -238,13 +238,37 @@ impl ApiEventMetric for PaymentMethodSessionResponse {
     }
 }
 #[cfg(feature = "tokenization_v2")]
-impl ApiEventMetric for tokenization::GenericTokenizationRequest {}
+impl ApiEventMetric for tokenization::GenericTokenizationRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Customer {
+            customer_id: Some(self.customer_id.clone()),
+        })
+    }
+}
 
 #[cfg(feature = "tokenization_v2")]
-impl ApiEventMetric for tokenization::GenericTokenizationResponse {}
+impl ApiEventMetric for tokenization::GenericTokenizationResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Token {
+            token_id: Some(self.id.clone()),
+        })
+    }
+}
 
 #[cfg(feature = "tokenization_v2")]
-impl ApiEventMetric for tokenization::DeleteTokenDataResponse {}
+impl ApiEventMetric for tokenization::DeleteTokenDataResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Token {
+            token_id: Some(self.id.clone()),
+        })
+    }
+}
 
 #[cfg(feature = "tokenization_v2")]
-impl ApiEventMetric for tokenization::DeleteTokenDataRequest {}
+impl ApiEventMetric for tokenization::DeleteTokenDataRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethodSession {
+            payment_method_session_id: self.session_id.clone(),
+        })
+    }
+}

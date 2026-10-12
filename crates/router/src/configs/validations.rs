@@ -411,6 +411,19 @@ impl super::settings::JuspayAccountUpdaterConfig {
             })?;
         }
 
+        when(self.supported_card_networks.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "account_updater.juspay.supported_card_networks must list at least one card network"
+                    .into(),
+            ))
+        })?;
+
+        when(self.refresh_timeout_in_secs == 0, || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "account_updater.juspay.refresh_timeout_in_secs must be greater than zero".into(),
+            ))
+        })?;
+
         Ok(())
     }
 }

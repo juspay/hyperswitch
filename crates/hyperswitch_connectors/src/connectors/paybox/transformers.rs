@@ -670,6 +670,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsRespo
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 amount_captured: None,
                 ..item.data
@@ -736,6 +737,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     }),
@@ -772,6 +774,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -822,6 +825,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponse
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -1027,6 +1031,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),

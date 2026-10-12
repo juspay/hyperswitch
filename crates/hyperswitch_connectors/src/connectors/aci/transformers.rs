@@ -1469,6 +1469,7 @@ where
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
 
@@ -1608,6 +1609,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
         Ok(Self {
@@ -1673,6 +1675,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciVoidResponse, T, PaymentsResponseDat
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
         Ok(Self {
@@ -1851,6 +1854,7 @@ impl
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
 

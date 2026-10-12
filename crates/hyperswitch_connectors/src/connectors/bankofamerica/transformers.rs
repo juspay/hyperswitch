@@ -445,6 +445,7 @@ impl<F, T>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                     },
                     connector_response,
@@ -1672,6 +1673,7 @@ fn get_payment_response(
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -1933,6 +1935,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BankOfAmericaTransactionResponse>>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         connector_response,
                         ..item.data
@@ -1952,6 +1955,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BankOfAmericaTransactionResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),

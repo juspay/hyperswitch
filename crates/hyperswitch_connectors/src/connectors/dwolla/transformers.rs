@@ -341,6 +341,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DwollaPSyncResponse, T, PaymentsRespons
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     status: AttemptStatus::from(status),
                     ..item.data
@@ -361,6 +362,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DwollaPSyncResponse, T, PaymentsRespons
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     status: AttemptStatus::from(map_topic_to_status(
                         webhook_response.topic.as_str(),

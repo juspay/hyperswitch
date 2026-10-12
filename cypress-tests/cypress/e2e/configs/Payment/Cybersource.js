@@ -793,6 +793,14 @@ export const connectorDetails = {
       },
       ...commonConnectorDetails.card_pm.MITAutoCapture,
     }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
+      ...commonConnectorDetails.card_pm.MITAutoCaptureWithCustomerAcceptance,
+    }),
     MITManualCapture: {
       Configs: {
         CONNECTOR_CREDENTIAL: {

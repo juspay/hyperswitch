@@ -195,6 +195,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             request_external_three_ds_authentication,
             set_active_attempt_id,
             enable_partial_authorization,
+            is_account_funded_transaction,
+            recipient_details,
         } = request.clone();
 
         let batch_encrypted_data = domain_types::crypto_operation(
@@ -206,6 +208,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                         shipping_address: shipping.map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode shipping address")?.map(hyperswitch_masking::Secret::new),
                         billing_address: billing.map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode billing address")?.map(hyperswitch_masking::Secret::new),
                         customer_details: None,
+                        recipient_details: recipient_details.map(|recipient| recipient.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode recipient details")?.map(hyperswitch_masking::Secret::new),
                     },
                 ),
             ),
@@ -304,6 +307,12 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             enable_partial_authorization: enable_partial_authorization
                 .unwrap_or(payment_intent.enable_partial_authorization),
             setup_future_usage: setup_future_usage.unwrap_or(payment_intent.setup_future_usage),
+            is_account_funded_transaction: is_account_funded_transaction
+                .or(payment_intent.is_account_funded_transaction),
+            recipient_details: decrypted_payment_intent
+                .recipient_details
+                .clone()
+                .or(payment_intent.recipient_details.clone()),
             ..payment_intent
         };
 

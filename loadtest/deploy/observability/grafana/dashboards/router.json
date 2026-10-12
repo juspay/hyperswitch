@@ -558,7 +558,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "100 * sum by (service) (label_replace(rate(podman_container_cpu_seconds_total[1m]) * on (id) group_left(name) podman_container_info{name=~\"hs-router(-8080)?\"}, \"service\", \"router\", \"name\", \".*\") or label_replace(rate(podman_container_cpu_seconds_total[1m]) * on (id) group_left(name) podman_container_info{name=~\"hs-(modular-pm|router-v2-8081)\"}, \"service\", \"modular-pm\", \"name\", \".*\") or label_replace(rate(podman_container_cpu_seconds_total[1m]) * on (id) group_left(name) podman_container_info{name=~\"hs-(vault|card-vault)\"}, \"service\", \"vault\", \"name\", \".*\") or label_replace(rate(podman_container_cpu_seconds_total[1m]) * on (id) group_left(name) podman_container_info{name=~\"hs-(encryption|encryption-service)\"}, \"service\", \"encryption\", \"name\", \".*\"))",
+          "expr": "100 * sum by (service) (label_replace(rate(container_cpu_usage_seconds_total{name=~\"/?hs-router(-8080)?\"}[1m]), \"service\", \"router\", \"name\", \".*\") or label_replace(rate(container_cpu_usage_seconds_total{name=~\"/?hs-(modular-pm|router-v2-8081)\"}[1m]), \"service\", \"modular-pm\", \"name\", \".*\") or label_replace(rate(container_cpu_usage_seconds_total{name=~\"/?hs-(vault|card-vault)\"}[1m]), \"service\", \"vault\", \"name\", \".*\") or label_replace(rate(container_cpu_usage_seconds_total{name=~\"/?hs-(encryption|encryption-service)\"}[1m]), \"service\", \"encryption\", \"name\", \".*\"))",
           "legendFormat": "{{service}}",
           "range": true,
           "refId": "A"

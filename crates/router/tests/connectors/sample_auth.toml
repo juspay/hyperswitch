@@ -349,7 +349,7 @@ api_secret = "Secret key"
 
 [authipay]
 api_key = "MyApiKey"
-api_secret = "MySecretKey"
+key1 = "MySecretKey"
 
 [checkbook]
 api_key="Client ID"

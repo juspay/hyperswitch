@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { loadYaml, resolveMaybe } = require("../../lib/config");
+const { loadCpuAllocation } = require("../../lib/cpu");
 const { buildPlan } = require("./scenarios");
 
 const ROOT = path.resolve(__dirname, "../..");
@@ -187,8 +188,10 @@ function loadConfig() {
     throw new Error("deployment_config is required when environment.mode=local");
   }
   const deployment = deploymentPath ? loadYaml(deploymentPath) : {};
+  const cpuAllocation = deploymentPath ? loadCpuAllocation(deployment, path.dirname(deploymentPath)) : null;
   const config = resolveRunnerConfiguration(sourceConfig, deployment);
-  return { config, deployment, deploymentPath, configPath, configDir };
+  config.cpu_allocation = cpuAllocation;
+  return { config, deployment, deploymentPath, configPath, configDir, cpuAllocation };
 }
 
 module.exports = {

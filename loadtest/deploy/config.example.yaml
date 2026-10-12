@@ -6,6 +6,12 @@ logs:
   # Host directory used for persisted application/container logs.
   root: logs
 
+# Optional. Generate this file with `just cpu-plan`. When absent, service-level
+# cpuset values below remain unchanged.
+cpu_pinning:
+  enabled: false
+  allocation_file: generated/cpu/allocation.json
+
 prepare:
   # Generated keys, merged TOMLs, and migration helper files are written here.
   output_dir: generated

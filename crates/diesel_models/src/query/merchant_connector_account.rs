@@ -11,11 +11,14 @@ use crate::{
         MerchantConnectorAccount, MerchantConnectorAccountNew,
         MerchantConnectorAccountUpdateInternal,
     },
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl MerchantConnectorAccountNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<MerchantConnectorAccount> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<MerchantConnectorAccount> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -24,7 +27,7 @@ impl MerchantConnectorAccountNew {
 impl MerchantConnectorAccount {
     pub async fn update(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_connector_account: MerchantConnectorAccountUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
@@ -43,7 +46,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn delete_by_merchant_id_merchant_connector_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> StorageResult<bool> {
@@ -57,7 +60,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn find_by_merchant_id_connector(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_label: &str,
     ) -> StorageResult<Self> {
@@ -71,7 +74,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn find_by_profile_id_connector_name(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         profile_id: &common_utils::id_type::ProfileId,
         connector_name: &str,
     ) -> StorageResult<Self> {
@@ -85,7 +88,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn find_by_merchant_id_connector_name(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_name: &str,
     ) -> StorageResult<Vec<Self>> {
@@ -107,7 +110,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn find_by_merchant_id_merchant_connector_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> StorageResult<Self> {
@@ -121,7 +124,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn find_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
     ) -> StorageResult<Vec<Self>> {
@@ -154,7 +157,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn list_enabled_by_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         profile_id: &common_utils::id_type::ProfileId,
         connector_type: common_enums::ConnectorType,
     ) -> StorageResult<Vec<Self>> {
@@ -172,7 +175,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Vec<Self>> {
@@ -194,7 +197,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Vec<Self>> {
@@ -221,7 +224,7 @@ impl MerchantConnectorAccount {
 impl MerchantConnectorAccount {
     pub async fn update(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_connector_account: MerchantConnectorAccountUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
@@ -240,7 +243,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn delete_by_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(conn, dsl::id.eq(id.to_owned()))
@@ -248,7 +251,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn find_by_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -259,7 +262,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn find_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
     ) -> StorageResult<Vec<Self>> {
@@ -292,7 +295,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn list_by_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
@@ -306,7 +309,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Vec<Self>> {
@@ -328,7 +331,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Vec<Self>> {
@@ -351,7 +354,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn list_enabled_by_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         profile_id: &common_utils::id_type::ProfileId,
         connector_type: common_enums::ConnectorType,
     ) -> StorageResult<Vec<Self>> {

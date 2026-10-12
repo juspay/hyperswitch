@@ -130,6 +130,8 @@ pub struct PaymentsAuthorizeData {
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
     pub ucs_authentication_data: Option<UcsAuthenticationData>,
+    /// Indicates whether a 3DS challenge must be forced for the transaction
+    pub force_3ds_challenge: Option<bool>,
     pub request_extended_authorization:
         Option<common_types::primitive_wrappers::RequestExtendedAuthorizationBool>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
@@ -166,6 +168,12 @@ pub struct PaymentsAuthorizeData {
     pub installment_details: Option<common_types::payments::InstallmentData>,
     // Contains the connector specific metadata coming from payments request
     pub connector_intent_metadata: Option<ConnectorMetadata>,
+    /// Indicates whether this payment is an account funded transaction.
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
+    /// The merchant's business country for this payment. Connectors use it for requirements that
+    /// apply only to merchants in particular countries.
+    pub business_country: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -936,6 +944,9 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             // This is hard coded to None to avoid back and forth authentication_data conversion between UcsAuthenticationData and AuthenticationData.
             // This is handled within authentication_step function in authorize_flow.rs
             authentication_data: None,
+            sdk_information: None,
+            device_channel: None,
+            webhook_url: data.webhook_url,
         })
     }
 }
@@ -953,6 +964,9 @@ pub struct PaymentsAuthenticateData {
     pub minor_amount: Option<MinorUnit>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub authentication_data: Option<UcsAuthenticationData>,
+    pub sdk_information: Option<api_models::payments::SdkInformation>,
+    pub device_channel: Option<api_models::payments::DeviceChannel>,
+    pub webhook_url: Option<String>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -971,6 +985,9 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             redirect_response: data.redirect_response,
             capture_method: data.capture_method,
             authentication_data: data.authentication_data,
+            sdk_information: None,
+            device_channel: None,
+            webhook_url: None,
         })
     }
 }
@@ -1117,6 +1134,10 @@ pub struct CompleteAuthorizeData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub router_return_url: Option<String>,
     pub merchant_order_reference_id: Option<String>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
+    pub business_country: Option<common_enums::CountryAlpha2>,
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1437,6 +1458,10 @@ pub struct UcsAuthenticationData {
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub transaction_id: Option<String>,
     pub ucaf_collection_indicator: Option<String>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1489,6 +1514,13 @@ pub struct RefundsData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
+    /// The `connector_request_reference_id` that was sent to the connector for the *original
+    /// payment* this refund targets.
+    ///
+    /// `RouterData::connector_request_reference_id` identifies the refund itself, and
+    /// `connector_transaction_id` holds the connector-generated identifier, so neither can be used
+    /// by connectors that bind a refund to the merchant-side reference of the original payment.
+    pub payment_connector_request_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
@@ -1756,6 +1788,7 @@ pub struct PayoutsData {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1767,6 +1800,7 @@ pub struct CustomerDetails {
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String, hyperswitch_masking::WithType>>,
     pub document_details: Option<api_models::customers::CustomerDocumentDetails>,
+    pub date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl CustomerDetails {
@@ -1777,6 +1811,7 @@ impl CustomerDetails {
             || self.phone_country_code.is_some()
             || self.tax_registration_id.is_some()
             || self.document_details.is_some()
+            || self.date_of_birth.is_some()
         {
             Some(payments::payment_intent::CustomerData {
                 name: self.name.clone(),
@@ -1785,6 +1820,7 @@ impl CustomerDetails {
                 phone_country_code: self.phone_country_code.clone(),
                 tax_registration_id: self.tax_registration_id.clone(),
                 customer_document_details: self.document_details.clone(),
+                date_of_birth: self.date_of_birth.clone(),
             })
         } else {
             None
@@ -1951,6 +1987,11 @@ pub struct SetupMandateRequestData {
     pub connector_intent_metadata: Option<ConnectorMetadata>,
     pub merchant_order_reference_id: Option<String>,
     pub mit_category: Option<common_enums::MitCategory>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
+    /// The merchant's business country for this payment. Connectors use it for requirements that
+    /// apply only to merchants in particular countries.
+    pub business_country: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone)]

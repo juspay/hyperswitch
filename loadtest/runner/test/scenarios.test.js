@@ -13,6 +13,7 @@ const { latencySummary, percentile, phaseLatencySummary } = require("../lib/resu
 const {
   buildPaymentConfirmBody,
   loadPhases,
+  modularRoutingConfig,
   remainingFixtureWaitSeconds,
   run,
   selectReadyFixtures,
@@ -96,6 +97,13 @@ test("saved-card fixtures list PM methods while workload measures only payment c
   const workloadSource = fs.readFileSync(require.resolve("../k6/workload.js"), "utf8");
   assert.match(fixtureSource, /payment-method-sessions\/\$\{pmSessionId\}\/list-payment-methods/);
   assert.match(workloadSource, /body\.payment_method_data = \{ card_token: \{ card_cvc: input\.card\.card_cvc \} \}/);
+});
+
+test("managed modular routing uses Router's canonical Superposition key", () => {
+  const config = modularRoutingConfig("org_123", true);
+  assert.equal(config.defaultConfig.key, "system.should_call_pm_modular_service");
+  assert.deepEqual(config.context.override, { "system.should_call_pm_modular_service": true });
+  assert.deepEqual(config.context.context, { organization_id: "org_123" });
 });
 
 test("load phases ramp once and own their request count", () => {
@@ -294,6 +302,13 @@ test("k6 request headers merge independent target headers with authentication", 
     "x-profile-id": "profile-id",
     "content-type": "application/json",
   });
+});
+
+test("measured PM and Router confirms share a sampled W3C trace context", () => {
+  const source = fs.readFileSync(require.resolve("../k6/workload.js"), "utf8");
+  assert.match(source, /const iterationTraceHeaders = traceHeaders\(\)/);
+  assert.equal((source.match(/\.\.\.iterationTraceHeaders/g) || []).length, 2);
+  assert.match(source, /traceparent: `00-\$\{traceId\}-\$\{parentSpanId\}-01`/);
 });
 
 test("existing merchant mode avoids administrative requests", async () => {

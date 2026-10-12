@@ -60,6 +60,8 @@ pub struct PayloadPaymentRequestData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub processing_method_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
     /// This text provides context about the purchase, service, or payment purpose and may be displayed to customers on receipts and in transaction histories
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -107,6 +109,8 @@ pub struct PayloadMandateRequestData {
     pub status: Option<responses::PayloadPaymentStatus>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub processing_method_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

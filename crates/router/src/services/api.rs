@@ -365,6 +365,7 @@ where
         state.infra_components.as_ref(),
     );
 
+    let auth_user_id = auth_type.get_user_id();
     let api_event = ApiEvent::new(
         tenant_id,
         Some(merchant_id.clone()),
@@ -376,6 +377,7 @@ where
         serialized_response,
         overhead_latency,
         auth_type,
+        auth_user_id,
         error,
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,

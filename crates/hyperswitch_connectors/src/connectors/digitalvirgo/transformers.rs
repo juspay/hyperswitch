@@ -170,6 +170,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DigitalvirgoPaymentsResponse, T, Paymen
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -228,6 +229,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DigitalvirgoPaymentSyncResponse, T, Pay
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

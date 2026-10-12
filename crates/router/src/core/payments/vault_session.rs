@@ -91,8 +91,14 @@ where
         } else {
             common_enums::StorageType::Volatile
         };
-        let external_vault_details =
-            fetch_external_vault_details(state, platform, profile, customer, storage_type).await?;
+        let external_vault_details = Box::pin(fetch_external_vault_details(
+            state,
+            platform,
+            profile,
+            customer,
+            storage_type,
+        ))
+        .await?;
         let vault_details = external_vault_details.map(|evd| api::VaultDetails {
             internal_vault: None,
             external_vault_details: Some(evd),
@@ -109,6 +115,7 @@ async fn call_internal_pm_session_create_for_vault(
     state: &SessionState,
     profile: &domain::Profile,
     customer_id: Option<&id_type::CustomerId>,
+    storage_type: common_enums::StorageType,
 ) -> RouterResult<Option<api::VaultDetails>> {
     use common_utils::request::Headers;
     use payment_methods::client::{
@@ -143,14 +150,6 @@ async fn call_internal_pm_session_create_for_vault(
         &headers,
         &state.conf.trace_header.header_name,
     );
-
-    // Guest flow (no customer) uses volatile storage; a known customer uses persistent. This is
-    // forwarded to the modular PM service, which in turn drives the external vault session create.
-    let storage_type = if customer_id.is_some() {
-        common_enums::StorageType::Persistent
-    } else {
-        common_enums::StorageType::Volatile
-    };
 
     let request = CreatePaymentMethodSessionV1Request {
         customer_id: customer_id.cloned(),
@@ -220,19 +219,27 @@ where
             helpers::resolve_provider_profile(state, platform, profile).await?;
         let customer_id = customer.as_ref().map(|c| c.get_id());
 
+        // Payments uses the PM session only as a provisional card holder. Durable storage is
+        // decided after authorization and promoted through the PM update call.
+        let storage_type = common_enums::StorageType::Volatile;
+
         // Use the resolved external vault profile (the platform merchant's profile in platform
         // flows) so the PM service operates under the merchant that actually holds the external
         // vault configuration. For standard merchants this is the payment profile itself.
-        let vault_details =
-            call_internal_pm_session_create_for_vault(state, &external_vault_profile, customer_id)
-                .await
-                .unwrap_or_else(|err| {
-                    router_env::logger::warn!(
-                        ?err,
-                        "Failed to fetch vault details via internal PM session service"
-                    );
-                    None
-                });
+        let vault_details = call_internal_pm_session_create_for_vault(
+            state,
+            &external_vault_profile,
+            customer_id,
+            storage_type,
+        )
+        .await
+        .unwrap_or_else(|err| {
+            router_env::logger::warn!(
+                ?err,
+                "Failed to fetch vault details via internal PM session service"
+            );
+            None
+        });
 
         payment_data.set_vault_session_details(vault_details);
     }

@@ -214,10 +214,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         if req.request.capture_method.unwrap_or_default() == CaptureMethod::Automatic {
             return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
         }
-        Ok(format!(
-            "{}/transactions/authorization",
-            self.base_url(connectors)
-        ))
+        Ok(format!("{}/transactions", self.base_url(connectors)))
     }
 
     fn get_request_body(

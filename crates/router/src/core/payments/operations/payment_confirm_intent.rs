@@ -2,6 +2,7 @@ use api_models::{enums::FrmSuggestion, payments::PaymentsConfirmIntentRequest};
 use async_trait::async_trait;
 use common_utils::{ext_traits::Encode, fp_utils::when, id_type, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
+use futures::FutureExt;
 use hyperswitch_domain_models::{mandates, payments::PaymentConfirmData};
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeOptionInterface, PeekInterface};
@@ -424,6 +425,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
     for PaymentIntentConfirm
 {
+    #[instrument(name = "hs.router.payment_confirm.customer", skip_all)]
     async fn get_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -514,6 +516,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     }
 
     #[cfg(feature = "v2")]
+    #[instrument(name = "hs.router.payment_confirm.routing", skip_all)]
     async fn perform_routing<'a>(
         &'a self,
         platform: &domain::Platform,
@@ -544,6 +547,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     }
 
     #[cfg(feature = "v2")]
+    #[instrument(name = "hs.router.payment_confirm.payment_method", skip_all)]
     async fn create_or_fetch_payment_method<'a>(
         &'a self,
         state: &SessionState,
@@ -561,18 +565,18 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 Some(domain::payment_method_data::PaymentMethodData::CardToken(card_token)),
                 None,
             ) => {
-                let (payment_method, vault_data) = Box::pin(
+                let (payment_method, vault_data) =
                     payment_methods::vault::retrieve_payment_method_from_vault_using_payment_token(
                         state,
                         platform,
                         business_profile,
                         payment_token,
                         &payment_data.payment_attempt.payment_method_type,
-                    ),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to retrieve payment method from vault")?;
+                    )
+                    .boxed()
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve payment method from vault")?;
 
                 let (card_cvc, card_holder_name) = {
                     (
@@ -582,14 +586,14 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                             .ok_or(errors::ApiErrorResponse::InvalidDataValue {
                                 field_name: "card_cvc",
                             })
-                            .or(
-                                payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
-                                    state,
-                                    &payment_method.get_id().get_string_repr().to_string(),
-                                    platform.get_processor().get_key_store(),
-                                )
-                                .await,
+                            .or(payment_methods::vault::retrieve_cvc_from_payment_token(
+                                state,
+                                &payment_method.get_id().get_string_repr().to_string(),
+                                platform.get_processor().get_key_store(),
+                                payment_methods::vault::CvcReadMode::ReadAndDelete,
                             )
+                            .boxed()
+                            .await)
                             .attach_printable("card_cvc not provided")?,
                         card_token.card_holder_name.clone(),
                     )
@@ -646,15 +650,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     storage_type: common_enums::StorageType::Persistent, //since customer acceptance is present, we always store it persistently
                 };
 
-                let (_pm_response, payment_method) =
-                    Box::pin(payment_methods::create_payment_method_core(
-                        state,
-                        &state.get_req_state(),
-                        req,
-                        platform,
-                        business_profile,
-                    ))
-                    .await?;
+                let (_pm_response, payment_method) = payment_methods::create_payment_method_core(
+                    state,
+                    &state.get_req_state(),
+                    req,
+                    platform,
+                    business_profile,
+                )
+                .boxed()
+                .await?;
 
                 // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
                 (Some(payment_method), None)
@@ -673,6 +677,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     }
 
     #[cfg(feature = "v2")]
+    #[instrument(name = "hs.router.payment_confirm.connector", skip_all)]
     async fn get_connector_from_request<'a>(
         &'a self,
         state: &SessionState,

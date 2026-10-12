@@ -45,7 +45,7 @@ macro_rules! dirval {
     }};
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DirKey {
     pub kind: DirKeyKind,
     pub value: Option<String>,
@@ -64,6 +64,7 @@ impl DirKey {
     PartialEq,
     Eq,
     serde::Serialize,
+    serde::Deserialize,
     strum::Display,
     strum::EnumIter,
     strum::VariantNames,
@@ -255,7 +256,9 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "billing_country")]
     BillingCountry,
-    #[serde(skip_deserializing, rename = "connector")]
+    // No `skip_deserializing`: a recorded constraint graph substituted on
+    // replay is read back, and an unreadable variant fails the whole graph.
+    #[serde(rename = "connector")]
     Connector,
     #[strum(
         serialize = "business_label",
@@ -617,7 +620,15 @@ impl DirKeyKind {
 }
 
 #[derive(
-    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::VariantNames,
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::VariantNames,
 )]
 #[serde(tag = "key", content = "value")]
 pub enum DirValue {
@@ -673,7 +684,9 @@ pub enum DirValue {
     BusinessCountry(enums::Country),
     #[serde(rename = "billing_country")]
     BillingCountry(enums::Country),
-    #[serde(skip_deserializing, rename = "connector")]
+    // No `skip_deserializing`: a recorded constraint graph substituted on
+    // replay is read back, and an unreadable variant fails the whole graph.
+    #[serde(rename = "connector")]
     Connector(Box<ast::ConnectorChoice>),
     #[serde(rename = "business_label")]
     BusinessLabel(types::StrValue),
@@ -1111,5 +1124,73 @@ mod test {
 
         let out = ast::lowering::lower_program::<DummyOutput>(program);
         assert!(out.is_err())
+    }
+}
+#[cfg(test)]
+mod serde_round_trip {
+    use strum::IntoEnumIterator;
+
+    use super::{ast, DirKey, DirKeyKind, DirValue};
+    use crate::enums as euclid_enums;
+
+    /// Every key kind must survive a serde round trip.
+    ///
+    /// A variant that serializes under a tag it refuses to deserialize is
+    /// invisible to the compiler and silent in every test that only ever
+    /// writes. `DirKeyKind::Connector` and `DirValue::Connector` carried
+    /// `skip_deserializing` for years, harmlessly, because nothing read these
+    /// back — until a recorded constraint graph was substituted on replay,
+    /// where reconstruction of the WHOLE graph failed on the one unreadable
+    /// variant and took the request down with it. Enumerating the variants
+    /// keeps the asymmetry from returning silently for any of them.
+    #[test]
+    fn every_key_kind_round_trips() {
+        for kind in DirKeyKind::iter() {
+            let wire = serde_json::to_value(&kind)
+                .unwrap_or_else(|e| panic!("{kind:?} does not serialize: {e}"));
+            let back: DirKeyKind = serde_json::from_value(wire.clone()).unwrap_or_else(|e| {
+                panic!("{kind:?} serializes as {wire} but does not read back: {e}")
+            });
+            assert_eq!(back, kind, "{kind:?} changed identity across a round trip");
+        }
+    }
+
+    /// The same for a full key, which is what a graph's key nodes carry.
+    #[test]
+    fn every_key_round_trips_inside_a_key() {
+        for kind in DirKeyKind::iter() {
+            let key = DirKey::new(kind.clone(), None);
+            let wire = serde_json::to_value(&key).expect("serializes");
+            let back: DirKey = serde_json::from_value(wire.clone()).unwrap_or_else(|e| {
+                panic!("DirKey({kind:?}) serializes as {wire} but does not read back: {e}")
+            });
+            assert_eq!(back, key);
+        }
+    }
+
+    /// `DirValue::Connector` specifically, because it is the variant that was
+    /// unreadable and the enumerating tests above cannot reach it.
+    ///
+    /// `DirValue`'s variants carry data, so it derives `VariantNames` rather
+    /// than `EnumIter` and cannot be iterated into values. The one variant the
+    /// fix was about therefore needs naming outright, or it is the only part
+    /// of the change with no test over it.
+    #[test]
+    fn the_connector_value_round_trips() {
+        let value = DirValue::Connector(Box::new(ast::ConnectorChoice {
+            connector: euclid_enums::RoutableConnectors::Adyen,
+        }));
+
+        let wire = serde_json::to_value(&value).expect("serializes");
+        assert_eq!(
+            wire.get("key").and_then(|k| k.as_str()),
+            Some("connector"),
+            "the tag must stay `connector`; a recorded graph names it that way, got {wire}"
+        );
+
+        let back: DirValue = serde_json::from_value(wire.clone()).unwrap_or_else(|e| {
+            panic!("DirValue::Connector serializes as {wire} but does not read back: {e}")
+        });
+        assert_eq!(back, value);
     }
 }

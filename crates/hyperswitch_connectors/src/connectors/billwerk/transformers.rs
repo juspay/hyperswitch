@@ -304,6 +304,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsRe
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.state),

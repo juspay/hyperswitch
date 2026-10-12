@@ -472,6 +472,7 @@ pub(crate) fn get_setup_mandate_router_data<Request>(
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         }),
         ..item.data
     })
@@ -646,6 +647,7 @@ pub(crate) fn get_finix_response<F, T>(
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         },
         connector_response: connector_response_data,

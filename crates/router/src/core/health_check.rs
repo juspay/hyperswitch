@@ -92,7 +92,7 @@ impl HealthCheckInterface for app::SessionState {
             let mut url = locker.host.to_owned();
             url.push_str(consts::LOCKER_HEALTH_CALL_PATH);
             let request = services::Request::new(services::Method::Get, &url);
-            services::call_connector_api(self, request, "health_check_for_locker")
+            services::call_connector_api(self, request, "health_check_for_locker", None)
                 .await
                 .change_context(errors::HealthCheckLockerError::FailedToCallLocker)?
                 .map_err(|_| {
@@ -162,7 +162,7 @@ impl HealthCheckInterface for app::SessionState {
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckOutGoing> {
         let request = services::Request::new(services::Method::Get, consts::OUTGOING_CALL_URL);
-        services::call_connector_api(self, request, "outgoing_health_check")
+        services::call_connector_api(self, request, "outgoing_health_check", None)
             .await
             .map_err(|err| errors::HealthCheckOutGoing::OutGoingFailed {
                 message: err.to_string(),
@@ -201,11 +201,16 @@ impl HealthCheckInterface for app::SessionState {
         if self.conf.open_router.dynamic_routing_enabled {
             let url = format!("{}/{}", self.conf.open_router.url, "health");
             let request = services::Request::new(services::Method::Get, &url);
-            let _ = services::call_connector_api(self, request, "health_check_for_decision_engine")
-                .await
-                .change_context(
-                    errors::HealthCheckDecisionEngineError::FailedToCallDecisionEngineService,
-                )?;
+            let _ = services::call_connector_api(
+                self,
+                request,
+                "health_check_for_decision_engine",
+                None,
+            )
+            .await
+            .change_context(
+                errors::HealthCheckDecisionEngineError::FailedToCallDecisionEngineService,
+            )?;
 
             logger::debug!("Decision engine health check successful");
             Ok(HealthState::Running)

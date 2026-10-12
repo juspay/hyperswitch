@@ -1035,6 +1035,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<Shift4ThreeDsResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1078,6 +1079,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<Shift4ThreeDsResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1118,6 +1120,7 @@ impl<T, F> TryFrom<ResponseRouterData<F, Shift4NonThreeDsResponse, T, PaymentsRe
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

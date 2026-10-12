@@ -397,6 +397,24 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     MITManualCapture: {
       Request: {},
       Response: {
@@ -642,6 +660,22 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: threeDsValidationData,
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails, //There is no failing card for WellsFargo
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

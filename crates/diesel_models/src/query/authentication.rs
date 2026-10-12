@@ -1,34 +1,40 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use error_stack::ResultExt;
 
 use super::generics;
 use crate::{
     authentication::{Authentication, AuthenticationNew, AuthenticationUpdateInternal},
     errors, kv,
     schema::authentication::dsl,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl AuthenticationNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Authentication> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<Authentication> {
         Box::pin(generics::generic_insert(conn, self)).await
     }
 
     pub async fn generate_drainer_insert_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for authentication")
     }
 }
 
 impl Authentication {
     pub async fn update_by_processor_merchant_id_authentication_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
         authentication_update: AuthenticationUpdateInternal,
     ) -> StorageResult<Self> {
-        match generics::generic_update_with_unique_predicate_get_result::<
+        match Box::pin(generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,
@@ -39,7 +45,7 @@ impl Authentication {
                 .eq(processor_merchant_id.to_owned())
                 .and(dsl::authentication_id.eq(authentication_id.to_owned())),
             authentication_update,
-        )
+        ))
         .await
         {
             Err(error) => match error.current_context() {
@@ -62,12 +68,12 @@ impl Authentication {
     }
 
     pub async fn update_by_merchant_id_authentication_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
         authentication_update: AuthenticationUpdateInternal,
     ) -> StorageResult<Self> {
-        match generics::generic_update_with_unique_predicate_get_result::<
+        match Box::pin(generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,
@@ -78,7 +84,7 @@ impl Authentication {
                 .eq(merchant_id.to_owned())
                 .and(dsl::authentication_id.eq(authentication_id.to_owned())),
             authentication_update,
-        )
+        ))
         .await
         {
             Err(error) => match error.current_context() {
@@ -101,7 +107,7 @@ impl Authentication {
     }
 
     pub async fn find_by_processor_merchant_id_authentication_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> StorageResult<Self> {
@@ -115,7 +121,7 @@ impl Authentication {
     }
 
     pub async fn find_by_merchant_id_authentication_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> StorageResult<Self> {
@@ -129,7 +135,7 @@ impl Authentication {
     }
 
     pub async fn find_authentication_by_processor_merchant_id_connector_authentication_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_authentication_id: &str,
     ) -> StorageResult<Self> {
@@ -143,7 +149,7 @@ impl Authentication {
     }
 
     pub async fn find_authentication_by_merchant_id_connector_authentication_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_authentication_id: &str,
     ) -> StorageResult<Self> {
@@ -160,7 +166,7 @@ impl Authentication {
 impl AuthenticationUpdateInternal {
     pub async fn generate_drainer_update_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
         processor_merchant_id: common_utils::id_type::MerchantId,
         authentication_id: common_utils::id_type::AuthenticationId,
     ) -> StorageResult<kv::SerializableQuery> {
@@ -176,5 +182,6 @@ impl AuthenticationUpdateInternal {
             self,
         )
         .await
+        .attach_printable("Failed to generate update query for authentication")
     }
 }

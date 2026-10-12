@@ -147,6 +147,7 @@ pub struct ApiLogsResult {
     pub payment_method_type: Option<String>,
     pub customer_id: Option<String>,
     pub user_id: Option<String>,
+    pub auth_user_id: Option<String>,
     pub connector: Option<String>,
     pub request_id: Option<String>,
     pub flow_type: String,

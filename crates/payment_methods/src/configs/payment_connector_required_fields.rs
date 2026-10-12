@@ -1852,6 +1852,27 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             fields(vec![], card_basic(), vec![]),
         ),
         (
+            Connector::Ilixium,
+            fields(
+                vec![],
+                vec![
+                    RequiredField::CardNumber,
+                    RequiredField::CardExpMonth,
+                    RequiredField::CardExpYear,
+                    RequiredField::CardCvc,
+                    RequiredField::Email,
+                    RequiredField::BillingAddressCountries(vec!["ALL"]),
+                    // Ilixium requires `customer.firstName` and `customer.surname` on every
+                    // authorisation. On a 3DS payment the billing address is the *only* source:
+                    // that leg runs as PreAuthenticate, and `PaymentsPreAuthenticateData` carries
+                    // no `customer_name` for the connector to fall back on.
+                    RequiredField::BillingFirstName("first_name", FieldType::UserFullName),
+                    RequiredField::BillingLastName("last_name", FieldType::UserFullName),
+                ],
+                vec![],
+            ),
+        ),
+        (
             Connector::Givepayments,
             RequiredFieldFinal {
                 mandate: HashMap::new(),
@@ -1865,6 +1886,32 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 ]),
                 common: HashMap::new(),
             },
+        ),
+        (
+            Connector::Citigate,
+            fields(
+                vec![],
+                vec![],
+                [
+                    card_basic(),
+                    // `billing_address()` is exactly Citigate's address set: StreetLine1, City,
+                    // PostalCode, Country and StateProvince. StateProvince is flagged `Y` in the
+                    // API Card field table and is additionally called out as mandatory for
+                    // `Country = "US"`, which the connector enforces at request-build time.
+                    billing_address(),
+                    vec![
+                        // Read from the top-level `email`, falling back to the billing address.
+                        RequiredField::Email,
+                        // Citigate sends `Firstname`/`Surname` as fields distinct from
+                        // `CardholderName`, so the cardholder name cannot stand in for them.
+                        RequiredField::BillingFirstName("first_name", FieldType::UserFullName),
+                        RequiredField::BillingLastName("last_name", FieldType::UserFullName),
+                        // `Telephone` is `R` in the field table but mandatory for `Country = "US"`.
+                        RequiredField::BillingPhone,
+                    ],
+                ]
+                .concat(),
+            ),
         ),
     ])
 }

@@ -59,6 +59,7 @@ pub async fn get_store(
     test_transaction: bool,
     key_manager_state: keymanager::KeyManagerState,
 ) -> StorageResult<Store> {
+    let database_event_emitter = Arc::clone(&key_manager_state.event_emitter);
     // Reads are served off a single replica pool regardless of tenant/accounts/global role.
     #[cfg(feature = "olap")]
     let replica_config = config.replica_database.clone().into_inner();
@@ -89,6 +90,7 @@ pub async fn get_store(
             &config.redis,
             master_enc_key,
             Some(key_manager_state.clone()),
+            Arc::clone(&database_event_emitter),
         )
         .await?
     } else {
@@ -99,6 +101,7 @@ pub async fn get_store(
             cache_store,
             storage_impl::redis::cache::IMC_INVALIDATION_CHANNEL,
             Some(key_manager_state.clone()),
+            database_event_emitter,
         )
         .await?
     };

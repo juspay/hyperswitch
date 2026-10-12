@@ -577,6 +577,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                                     incremental_authorization_allowed: None,
                                     authentication_data: None,
                                     charges: None,
+                                    payment_account_reference: None,
                                 }),
                                 connector_response: connector_response_data,
                                 ..item.data
@@ -700,6 +701,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -778,6 +780,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),

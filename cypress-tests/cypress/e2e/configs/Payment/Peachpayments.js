@@ -566,6 +566,32 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCaptureWithCustomerAcceptance: {
+      config: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            code: "IR_19",
+            message: "Payment method type not supported",
+            reason: "automatic is not supported by peachpayments",
+            type: "invalid_request",
+          },
+        },
+      },
+    },
     MITWithLimitedCardData: {
       Request: {},
       Response: {

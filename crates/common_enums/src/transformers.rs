@@ -1869,6 +1869,8 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::PixEmv | PaymentMethodType::PixQr => Self::BankTransfer,
             PaymentMethodType::PixAutomaticoPush => Self::BankTransfer,
             PaymentMethodType::PixAutomaticoQr => Self::BankTransfer,
+            PaymentMethodType::Payshap => Self::BankTransfer,
+            PaymentMethodType::PayshapProxy => Self::BankTransfer,
             PaymentMethodType::Pse => Self::BankTransfer,
             PaymentMethodType::LocalBankTransfer => Self::BankTransfer,
             PaymentMethodType::PayBright => Self::PayLater,
@@ -2192,6 +2194,9 @@ impl From<PayoutStatus> for Option<EventType> {
             PayoutStatus::Initiated => Some(EventType::PayoutInitiated),
             PayoutStatus::Expired => Some(EventType::PayoutExpired),
             PayoutStatus::Reversed => Some(EventType::PayoutReversed),
+            // Terminal refusal (e.g. VoP no-match) Contrast with `Ineligible` below,
+            // which is non-terminal and intentionally emits no webhook.
+            PayoutStatus::NotPermitted => Some(EventType::PayoutNotPermitted),
             PayoutStatus::Ineligible
             | PayoutStatus::Pending
             | PayoutStatus::RequiresCreation

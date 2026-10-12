@@ -5,13 +5,30 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const { loadYaml, resolveMaybe } = require("../../lib/config");
+const { applyServiceCpusets, loadCpuAllocation } = require("../../lib/cpu");
 const { run, runShell } = require("./process");
 
 const LOADTEST_ROOT = path.resolve(__dirname, "../..");
-const CONFIG_PATH = path.resolve(LOADTEST_ROOT, process.env.CONFIG || "deploy/config.yaml");
+function resolveConfigPath(rawPath) {
+  if (!rawPath) return path.resolve(LOADTEST_ROOT, "deploy/config.yaml");
+  if (path.isAbsolute(rawPath)) return rawPath;
+
+  const candidates = [
+    path.resolve(process.cwd(), rawPath),
+    path.resolve(LOADTEST_ROOT, rawPath),
+  ];
+  if (rawPath.startsWith("loadtest/")) {
+    candidates.push(path.resolve(LOADTEST_ROOT, rawPath.replace(/^loadtest\//, "")));
+  }
+
+  return candidates.find((candidate) => fs.existsSync(candidate)) || candidates[0];
+}
+
+const CONFIG_PATH = resolveConfigPath(process.env.CONFIG || "deploy/config.yaml");
 const EXAMPLE_CONFIG_PATH = path.resolve(LOADTEST_ROOT, "deploy/config.example.yaml");
 const DRY_RUN = process.env.DRY_RUN === "1" || process.env.DRY_RUN === "true";
 const FORCE = process.env.FORCE === "1" || process.env.FORCE === "true";
+const CONTAINER_RUNTIME = process.env.CONTAINER_RUNTIME || process.env.CONTAINER_TOOL || "podman";
 
 function loadConfig() {
   const configPath = fs.existsSync(CONFIG_PATH) ? CONFIG_PATH : EXAMPLE_CONFIG_PATH;
@@ -19,9 +36,12 @@ function loadConfig() {
   if (configPath === EXAMPLE_CONFIG_PATH && !process.env.CONFIG) console.log("Using deploy/config.example.yaml because deploy/config.yaml does not exist.");
   const config = loadYaml(configPath);
   for (const [name, service] of Object.entries(config.application_services || {})) {
-    service.container = `hs-${name}`;
+    if (!service.container) service.container = `hs-${name}`;
   }
-  return { config, configDir: path.dirname(configPath), configPath };
+  const configDir = path.dirname(configPath);
+  const cpuAllocation = loadCpuAllocation(config, configDir);
+  applyServiceCpusets(config, cpuAllocation);
+  return { config, configDir, configPath, cpuAllocation };
 }
 
 function entries(section) {
@@ -173,6 +193,8 @@ function templateVariables(state) {
     VAULT_BASE_URL: requiredConfig(apps.vault?.base_url, "application_services.vault.base_url"),
     ENCRYPTION_BASE_URL: requiredConfig(apps.encryption?.base_url, "application_services.encryption.base_url"),
     SUPERPOSITION_BASE_URL: requiredConfig(apps.superposition?.base_url, "application_services.superposition.base_url"),
+    SUPERPOSITION_ORG_ID: requiredConfig(apps.superposition?.org_id, "application_services.superposition.org_id"),
+    SUPERPOSITION_WORKSPACE_ID: requiredConfig(apps.superposition?.workspace_id, "application_services.superposition.workspace_id"),
     GENERATED_ROOT: root,
     HYPERSWITCH_REPO_PATH: hyperswitchRepoPath,
     VAULT_PRIVATE_KEY_PATH: path.join(root, "keys/vault_private_key.pem"),
@@ -192,9 +214,9 @@ function render(contents, variables) {
 }
 
 function serviceRunArgs(state, name, service) {
+  const usePodman = CONTAINER_RUNTIME === "podman";
   const args = [
     "run",
-    "--replace",
     "--detach",
     "--name",
     service.container,
@@ -203,6 +225,7 @@ function serviceRunArgs(state, name, service) {
     "--label",
     `io.hyperswitch.loadtest.service=${name}`,
   ];
+  if (usePodman) args.splice(1, 0, "--replace");
   args.push("--network", service.network || "host");
   if (service.cpuset !== null && service.cpuset !== undefined && service.cpuset !== "") args.push("--cpuset-cpus", String(service.cpuset));
   if (service.user !== null && service.user !== undefined && service.user !== "") args.push("--user", String(service.user));
@@ -240,7 +263,10 @@ function reposCommand(state) {
 }
 
 function imageExists(image) {
-  return run("podman", ["image", "exists", image], { capture: true, allowFailure: true }).status === 0;
+  if (CONTAINER_RUNTIME === "podman") {
+    return run("podman", ["image", "exists", image], { capture: true, allowFailure: true }).status === 0;
+  }
+  return run("docker", ["image", "inspect", image], { capture: true, allowFailure: true }).status === 0;
 }
 
 function build(state) {
@@ -249,7 +275,7 @@ function build(state) {
     const source = service.source;
     if (source.mode === "cloud") {
       console.log(`${name}: pulling ${service.image}`);
-      run("podman", ["pull", service.image]);
+      run(CONTAINER_RUNTIME, ["pull", service.image]);
       continue;
     }
     const buildConfig = service.build || {};
@@ -263,16 +289,18 @@ function build(state) {
       continue;
     }
     if (!buildConfig.dockerfile) throw new Error(`${name}: local source requires build.command or build.dockerfile`);
-    run("podman", [
+    const buildCommand = [
       "build",
-      "--format",
-      "docker",
       "-t",
       service.image,
       "-f",
       resolveMaybe(state.configDir, buildConfig.dockerfile),
       resolveMaybe(state.configDir, buildConfig.context || source.path),
-    ]);
+    ];
+    if (CONTAINER_RUNTIME === "podman") {
+      buildCommand.splice(1, 0, "--format", "docker");
+    }
+    run(CONTAINER_RUNTIME, buildCommand);
   }
 }
 
@@ -283,6 +311,7 @@ function generateKeys(state) {
   const privateKeyPath = path.join(root, "keys/vault_private_key.pem");
   const publicKeyPath = path.join(root, "keys/vault_public_key.pem");
   const masterKeyPath = path.join(root, "keys/tenant_master_key.hex");
+  const vaultMasterKeyPath = path.join(root, "keys/vault_master_key.hex");
   if (FORCE || !fs.existsSync(privateKeyPath) || !fs.existsSync(publicKeyPath)) {
     const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: Number(keyConfig.rsa_bits || 2048) });
     writeFileOnce(privateKeyPath, privateKey.export({ type: "pkcs8", format: "pem" }), true);
@@ -293,6 +322,11 @@ function generateKeys(state) {
   }
   if (FORCE || !fs.existsSync(masterKeyPath)) writeFileOnce(masterKeyPath, `${crypto.randomBytes(32).toString("hex")}\n`, true);
   else console.log(`secret exists: ${masterKeyPath}`);
+  if (!fs.existsSync(vaultMasterKeyPath)) {
+    throw new Error(
+      `Missing vault custodian-encrypted master key: ${vaultMasterKeyPath}. Generate it with the card-vault utils master-key command.`,
+    );
+  }
 }
 
 function prepareConfigs(state) {
@@ -334,6 +368,7 @@ function generatedSecretTokens(state) {
     ...templateVariables(state),
     VAULT_PRIVATE_KEY: readGeneratedSecret(state, "keys/vault_private_key.pem"),
     VAULT_PUBLIC_KEY: readGeneratedSecret(state, "keys/vault_public_key.pem"),
+    VAULT_MASTER_KEY: readGeneratedSecret(state, "keys/vault_master_key.hex"),
     TENANT_MASTER_KEY: readGeneratedSecret(state, "keys/tenant_master_key.hex"),
   };
 }
@@ -349,15 +384,21 @@ function prepareBuiltinServiceConfigs(state) {
   const tokens = generatedSecretTokens(state);
   if (apps.vault?.enabled !== false) {
     const template = fs.readFileSync(overridePath(state, "vault", "overrides/vault.toml"), "utf8");
-    writeGeneratedFile(path.join(root, "configs/vault.toml"), render(template, tokens), true);
+    const output = path.join(root, "configs/vault.toml");
+    writeGeneratedFile(output, render(template, tokens), true);
+    fs.chmodSync(output, 0o644);
   }
   if (apps.encryption?.enabled !== false) {
     const encryptionConfig = render(
       fs.readFileSync(overridePath(state, "encryption", "overrides/encryption.toml"), "utf8"),
       tokens,
     );
-    writeGeneratedFile(path.join(root, "configs/encryption/development.toml"), encryptionConfig, true);
-    writeGeneratedFile(path.join(root, "configs/encryption/Dev.toml"), encryptionConfig, true);
+    const development = path.join(root, "configs/encryption/development.toml");
+    const dev = path.join(root, "configs/encryption/Dev.toml");
+    writeGeneratedFile(development, encryptionConfig, true);
+    writeGeneratedFile(dev, encryptionConfig, true);
+    fs.chmodSync(development, 0o644);
+    fs.chmodSync(dev, 0o644);
   }
 }
 
@@ -429,6 +470,23 @@ function setTomlSectionString(contents, section, key, value) {
   return `${contents.slice(0, insertAt)}\n${key} = "${value}"${contents.slice(insertAt)}`;
 }
 
+function setTomlSectionArray(contents, section, key, value) {
+  const header = `[${section}]`;
+  const sectionStart = contents.indexOf(header);
+  if (sectionStart < 0) throw new Error(`Missing ${section} section in router config`);
+  const nextSection = contents.indexOf("\n[", sectionStart + header.length);
+  const sectionEnd = nextSection < 0 ? contents.length : nextSection;
+  const sectionContents = contents.slice(sectionStart, sectionEnd);
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(^|\\n)(${escapedKey}\\s*=\\s*)\\[[^\\n]*\\]`);
+  if (pattern.test(sectionContents)) {
+    const updatedSection = sectionContents.replace(pattern, `$1$2${value}`);
+    return `${contents.slice(0, sectionStart)}${updatedSection}${contents.slice(sectionEnd)}`;
+  }
+  const insertAt = sectionStart + header.length;
+  return `${contents.slice(0, insertAt)}\n${key} = ${value}${contents.slice(insertAt)}`;
+}
+
 function prepareRouterVaultKeys(state) {
   const tokens = generatedSecretTokens(state);
   const applyOverride = (file, overrideName, fallback) => {
@@ -463,6 +521,13 @@ function prepareRouterVaultKeys(state) {
     if (!match) throw new Error(`Missing ${section}.${key} in ${overrideName} override`);
     return match[1];
     };
+    const arrayValueFor = (section, key) => {
+    const escapedSection = section.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const match = override.match(new RegExp(`\\[${escapedSection}\\][\\s\\S]*?\\n${escapedKey}\\s*=\\s*(\\[[^\\n]*\\])`));
+    if (!match) throw new Error(`Missing ${section}.${key} in ${overrideName} override`);
+    return match[1];
+    };
     let contents = fs.readFileSync(file, "utf8");
     contents = replaceMultilineTomlValue(contents, "vault_encryption_key", valueFor("vault_encryption_key"));
     contents = replaceMultilineTomlValue(contents, "rust_locker_encryption_key", valueFor("rust_locker_encryption_key"));
@@ -471,6 +536,14 @@ function prepareRouterVaultKeys(state) {
     contents = replaceTomlSectionString(contents, "log.console", "log_format", stringValueFor("log.console", "log_format"));
     contents = replaceTomlSectionBoolean(contents, "log.telemetry", "traces_enabled", booleanValueFor("log.telemetry", "traces_enabled"));
     contents = replaceTomlSectionBoolean(contents, "log.telemetry", "metrics_enabled", booleanValueFor("log.telemetry", "metrics_enabled"));
+    contents = setTomlSectionNumber(contents, "log.telemetry", "sampling_rate", numberValueFor("log.telemetry", "sampling_rate"));
+    contents = setTomlSectionArray(contents, "log.telemetry", "route_to_trace", arrayValueFor("log.telemetry", "route_to_trace"));
+    contents = setTomlSectionString(
+      contents,
+      "log.telemetry",
+      "otel_exporter_otlp_endpoint",
+      stringValueFor("log.telemetry", "otel_exporter_otlp_endpoint"),
+    );
     contents = replaceTomlSectionNumber(contents, "dummy_connector", "payment_duration", numberValueFor("dummy_connector", "payment_duration"));
     contents = replaceTomlSectionNumber(contents, "dummy_connector", "payment_tolerance", numberValueFor("dummy_connector", "payment_tolerance"));
     contents = setTomlSectionString(contents, "server", "host", stringValueFor("server", "host"));
@@ -497,6 +570,7 @@ function prepareRouterVaultKeys(state) {
       tokens.MODULAR_PM_BASE_URL,
     );
     if (overrideName === "router") {
+      contents = setTomlSectionNumber(contents, "server", "port", numberValueFor("server", "port"));
       contents = replaceTomlSectionBoolean(contents, "locker", "mock_locker", booleanValueFor("locker", "mock_locker"));
       contents = replaceTomlSectionBoolean(
         contents,
@@ -510,6 +584,18 @@ function prepareRouterVaultKeys(state) {
         "endpoint",
         stringValueFor("superposition", "endpoint"),
       );
+      contents = setTomlSectionString(
+        contents,
+        "superposition",
+        "org_id",
+        stringValueFor("superposition", "org_id"),
+      );
+      contents = setTomlSectionString(
+        contents,
+        "superposition",
+        "workspace_id",
+        stringValueFor("superposition", "workspace_id"),
+      );
       contents = setTomlSectionNumber(
         contents,
         "superposition",
@@ -519,8 +605,39 @@ function prepareRouterVaultKeys(state) {
     }
     if (overrideName === "modular-pm") {
       contents = setTomlSectionNumber(contents, "server", "port", numberValueFor("server", "port"));
+      contents = setTomlSectionString(
+        contents,
+        "connectors",
+        "ilixium.base_url",
+        stringValueFor("connectors", "ilixium.base_url"),
+      );
+      contents = setTomlSectionString(
+        contents,
+        "superposition",
+        "endpoint",
+        stringValueFor("superposition", "endpoint"),
+      );
+      contents = setTomlSectionString(
+        contents,
+        "superposition",
+        "org_id",
+        stringValueFor("superposition", "org_id"),
+      );
+      contents = setTomlSectionString(
+        contents,
+        "superposition",
+        "workspace_id",
+        stringValueFor("superposition", "workspace_id"),
+      );
+      contents = setTomlSectionNumber(
+        contents,
+        "superposition",
+        "polling_interval",
+        numberValueFor("superposition", "polling_interval"),
+      );
     }
     writeGeneratedFile(file, contents, true);
+    fs.chmodSync(file, 0o644);
   };
   applyOverride(path.join(generatedRoot(state), "configs/router.toml"), "router", "overrides/router.toml");
   applyOverride(path.join(generatedRoot(state), "configs/modular-pm.toml"), "modular-pm", "overrides/modular-pm.toml");
@@ -540,22 +657,28 @@ function prepare(state) {
 
 function compose(state, args) {
   const obs = state.config.observability || {};
-  const parts = commandParts(obs.compose_command || "podman compose");
+  const parts = commandParts(obs.compose_command || `${CONTAINER_RUNTIME} compose`);
   const composeFile = resolveMaybe(state.configDir, obs.compose_file || "../docker-compose.yaml");
   const prometheusUrl = new URL(obs.prometheus_url || "http://127.0.0.1:9090");
   const lokiUrl = new URL(obs.loki_url || "http://127.0.0.1:3100");
+  const jaegerUrl = new URL(obs.jaeger_url || "http://127.0.0.1:16686");
+  const jaegerOtlpEndpoint = new URL(obs.jaeger_otlp_endpoint || "http://127.0.0.1:24317");
   run(parts[0], [...parts.slice(1), "-f", composeFile, "-p", obs.project_name || "hyperswitch-loadtest", ...args], {
     env: {
       PROMETHEUS_URL: prometheusUrl.origin,
       PROMETHEUS_PORT: prometheusUrl.port || "9090",
       LOKI_URL: lokiUrl.origin,
+      JAEGER_UI_PORT: jaegerUrl.port || "16686",
+      JAEGER_OTLP_PORT: jaegerOtlpEndpoint.port || "24317",
       HOST_UID: String(process.getuid?.() ?? 1000),
       HOST_GID: String(process.getgid?.() ?? 1000),
+      HOST_CPUSET: state.cpuAllocation?.host_logical_cpus || "",
     },
   });
 }
 
-function ensurePodmanSocket() {
+function ensureRuntimeSocket() {
+  if (CONTAINER_RUNTIME !== "podman") return;
   const runtimeDir = process.env.XDG_RUNTIME_DIR || `/run/user/${process.getuid()}`;
   const socketPath = path.join(runtimeDir, "podman/podman.sock");
   fs.mkdirSync(path.dirname(socketPath), { recursive: true });
@@ -594,20 +717,20 @@ function upState(state) {
   ensureDir(resolveMaybe(state.configDir, logRoot(state.config)));
   for (const [name, service] of stateServices(state.config)) {
     console.log(`Starting state ${name} as ${service.container} on CPU ${service.cpuset || "unconfigured"}`);
-    run("podman", serviceRunArgs(state, name, service));
+    run(CONTAINER_RUNTIME, serviceRunArgs(state, name, service));
   }
 }
 
 function upApps(state) {
   for (const [name, service] of applicationServices(state.config)) {
     console.log(`Starting app ${name} as ${service.container} on CPU ${service.cpuset || "unconfigured"}`);
-    run("podman", serviceRunArgs(state, name, service));
+    run(CONTAINER_RUNTIME, serviceRunArgs(state, name, service));
   }
 }
 
 function upObservability(state) {
   if ((state.config.observability || {}).enabled !== false) {
-    ensurePodmanSocket();
+    ensureRuntimeSocket();
     compose(state, ["up", "-d", "--force-recreate"]);
   }
 }
@@ -629,15 +752,28 @@ function waitUntil(name, probe, attempts = 60) {
   throw new Error(`${name}: did not become ready within ${attempts} seconds`);
 }
 
+function containerPort(service, fallback) {
+  if (!service || !service.ports) return String(fallback);
+  for (const port of arrayValue(service.ports)) {
+    const portSpec = String(port);
+    if (!portSpec.includes(":")) return portSpec;
+    const parts = portSpec.split(":");
+    const internal = parts[1];
+    if (internal) return internal.split("/")[0];
+  }
+  return String(fallback);
+}
+
 function waitForState(state) {
   const postgres = state.config.state_services?.postgres;
   if (postgres?.enabled !== false) {
-    waitUntil("postgres", () => run("podman", [
+    const postgresPort = containerPort(postgres, "5432");
+    waitUntil("postgres", () => run(CONTAINER_RUNTIME, [
       "exec",
       postgres.container,
       "pg_isready",
       "-p",
-      String(postgres.port || "5432"),
+      postgresPort,
       "-U",
       postgres.env?.POSTGRES_USER || "postgres",
       "-d",
@@ -647,12 +783,13 @@ function waitForState(state) {
 
   const redis = state.config.state_services?.redis;
   if (redis?.enabled !== false) {
-    waitUntil("redis", () => run("podman", [
+    const redisPort = containerPort(redis, "6379");
+    waitUntil("redis", () => run(CONTAINER_RUNTIME, [
       "exec",
       redis.container,
       "redis-cli",
       "-p",
-      String(redis.port || "6379"),
+      redisPort,
       "ping",
     ], { capture: true, allowFailure: true }).status === 0);
   }
@@ -673,21 +810,23 @@ function waitForHttpServices(state) {
   if (obs.loki_url) waitUntil("loki", () => urlIsReady(`${obs.loki_url.replace(/\/$/, "")}/ready`));
   if (obs.prometheus_url) waitUntil("prometheus", () => urlIsReady(`${obs.prometheus_url.replace(/\/$/, "")}/-/ready`));
   if (obs.grafana_url) waitUntil("grafana", () => urlIsReady(`${obs.grafana_url.replace(/\/$/, "")}/api/health`));
+  if (obs.jaeger_url) waitUntil("jaeger", () => urlIsReady(`${obs.jaeger_url.replace(/\/$/, "")}/`));
 }
 
 function initState(state) {
   const postgres = state.config.state_services?.postgres;
   if (postgres?.enabled !== false) {
+    const postgresPort = containerPort(postgres, "5432");
     const sqlPath = path.join(generatedRoot(state), "state/init.sql");
     if (!fs.existsSync(sqlPath)) throw new Error(`Missing generated state SQL: ${sqlPath}. Run deploy-prepare first.`);
     const sql = fs.readFileSync(sqlPath, "utf8");
-    run("podman", [
+    run(CONTAINER_RUNTIME, [
       "exec",
       "-i",
       postgres.container,
       "psql",
       "-p",
-      String(postgres.port || "5432"),
+      postgresPort,
       "-U",
       postgres.env?.POSTGRES_USER || "postgres",
       "-d",
@@ -713,20 +852,26 @@ function initState(state) {
 
 function down(state) {
   if ((state.config.observability || {}).enabled !== false) compose(state, ["down"]);
-  for (const [, service] of applicationServices(state.config).reverse()) run("podman", ["stop", service.container], { allowFailure: true });
-  for (const [, service] of stateServices(state.config).reverse()) run("podman", ["stop", service.container], { allowFailure: true });
+  for (const [, service] of applicationServices(state.config).reverse()) run(CONTAINER_RUNTIME, ["stop", service.container], { allowFailure: true });
+  for (const [, service] of stateServices(state.config).reverse()) run(CONTAINER_RUNTIME, ["stop", service.container], { allowFailure: true });
+}
+
+function rm(state) {
+  const names = process.argv.slice(3).filter(Boolean);
+  const selected = names.length ? selectedServices(state, names) : managedServices(state.config);
+  for (const [, service] of selected.slice().reverse()) run(CONTAINER_RUNTIME, ["rm", "-f", service.container], { allowFailure: true });
 }
 
 function resetState(state) {
   for (const [, service] of stateServices(state.config).reverse()) {
-    run("podman", ["rm", "-f", service.container], { allowFailure: true });
+    run(CONTAINER_RUNTIME, ["rm", "-f", service.container], { allowFailure: true });
   }
   for (const [name, service] of stateServices(state.config)) {
     for (const mount of service.volumes || []) {
       const source = String(mount).split(":", 1)[0];
       if (!source || source.startsWith("/") || source.startsWith(".")) continue;
       console.log(`Removing ${name} state volume ${source}`);
-      run("podman", ["volume", "rm", "-f", source], { allowFailure: true });
+      run(CONTAINER_RUNTIME, ["volume", "rm", "-f", source], { allowFailure: true });
     }
   }
 }
@@ -734,22 +879,23 @@ function resetState(state) {
 function restart(state) {
   const names = process.argv.slice(3).filter(Boolean);
   const selected = selectedServices(state, names);
-  for (const [, service] of selected.slice().reverse()) run("podman", ["stop", service.container], { allowFailure: true });
+  const replaceArgs = CONTAINER_RUNTIME === "docker" ? ["rm", "-f"] : ["stop"];
+  for (const [, service] of selected.slice().reverse()) run(CONTAINER_RUNTIME, [...replaceArgs, service.container], { allowFailure: true });
   for (const [name, service] of selected) {
     const type = stateServices(state.config).some(([serviceName]) => serviceName === name) ? "state" : "app";
     console.log(`Starting ${type} ${name} as ${service.container} on CPU ${service.cpuset || "unconfigured"}`);
-    run("podman", serviceRunArgs(state, name, service));
+    run(CONTAINER_RUNTIME, serviceRunArgs(state, name, service));
   }
   waitForHttpServices(state);
 }
 
 function containerLine(service) {
-  const ps = run("podman", ["ps", "-a", "--filter", `name=^${service.container}$`, "--format", "{{.Names}}\t{{.Status}}\t{{.Image}}"], { capture: true, allowFailure: true });
+  const ps = run(CONTAINER_RUNTIME, ["ps", "-a", "--filter", `name=^${service.container}$`, "--format", "{{.Names}}\t{{.Status}}\t{{.Image}}"], { capture: true, allowFailure: true });
   return ps.stdout.trim() || "not created";
 }
 
 function containerAffinity(service) {
-  const pid = run("podman", ["inspect", "--format", "{{.State.Pid}}", service.container], { capture: true, allowFailure: true }).stdout.trim();
+  const pid = run(CONTAINER_RUNTIME, ["inspect", "--format", "{{.State.Pid}}", service.container], { capture: true, allowFailure: true }).stdout.trim();
   if (!pid || pid === "0") return "n/a";
   return run("taskset", ["-pc", pid], { capture: true, allowFailure: true }).stdout.trim() || "unknown";
 }
@@ -782,11 +928,12 @@ function smoke(state) {
     if (obs.loki_url) checkUrl("loki", `${obs.loki_url.replace(/\/$/, "")}/ready`);
     if (obs.prometheus_url) checkUrl("prometheus", `${obs.prometheus_url.replace(/\/$/, "")}/-/ready`);
     if (obs.grafana_url) checkUrl("grafana", `${obs.grafana_url.replace(/\/$/, "")}/api/health`);
+    if (obs.jaeger_url) checkUrl("jaeger", `${obs.jaeger_url.replace(/\/$/, "")}/`);
   }
 }
 
 function preflight(state) {
-  run("podman", ["--version"], { capture: true });
+  run(CONTAINER_RUNTIME, ["--version"], { capture: true });
   templateVariables(state);
   const cpus = run("nproc", [], { capture: true }).stdout.trim();
   console.log(`Config: ${state.configPath}`);
@@ -816,7 +963,7 @@ function logs(state) {
   const args = ["logs", "--tail", process.env.TAIL || "200"];
   if (process.env.FOLLOW === "1" || process.env.FOLLOW === "true") args.push("-f");
   args.push(service.container);
-  run("podman", args);
+  run(CONTAINER_RUNTIME, args);
 }
 
 function observabilityLogs(state) {
@@ -834,6 +981,7 @@ function restartObservability(state) {
     loki: obs.loki_url ? `${obs.loki_url.replace(/\/$/, "")}/ready` : null,
     prometheus: obs.prometheus_url ? `${obs.prometheus_url.replace(/\/$/, "")}/-/ready` : null,
     grafana: obs.grafana_url ? `${obs.grafana_url.replace(/\/$/, "")}/api/health` : null,
+    jaeger: obs.jaeger_url ? `${obs.jaeger_url.replace(/\/$/, "")}/` : null,
   };
   if (healthUrls[service]) waitUntil(service, () => urlIsReady(healthUrls[service]));
 }
@@ -883,6 +1031,7 @@ function main() {
   if (command === "up-observability") return upObservability(state);
   if (command === "up") return up(state);
   if (command === "down") return down(state);
+  if (command === "rm") return rm(state);
   if (command === "reset-state") return resetState(state);
   if (command === "restart") return restart(state);
   if (command === "ready") return ready(state);

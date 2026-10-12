@@ -263,6 +263,7 @@ fn get_payments_response(connector_response: TsysResponse) -> PaymentsResponseDa
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     }
 }
 
@@ -290,6 +291,7 @@ fn get_payments_sync_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     }
 }
 

@@ -794,6 +794,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -820,6 +821,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -853,6 +855,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
 
@@ -1015,6 +1018,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -1041,6 +1045,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -1084,6 +1089,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
 
@@ -1158,6 +1164,7 @@ impl<F>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -1231,6 +1238,7 @@ impl<F>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -2129,6 +2137,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -2336,6 +2345,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsRes
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -2466,6 +2476,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResp
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {

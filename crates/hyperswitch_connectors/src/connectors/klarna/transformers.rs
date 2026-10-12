@@ -396,6 +396,7 @@ impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     status: get_fraud_status(
                         response.fraud_status.clone(),
@@ -419,6 +420,7 @@ impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 status: get_checkout_status(
                     response.status.clone(),
@@ -583,6 +585,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsRespons
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -599,6 +602,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsRespons
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -666,6 +670,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<KlarnaCaptureResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             status,
             ..item.data

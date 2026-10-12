@@ -35,7 +35,7 @@
     ),
     tag = "Event",
     operation_id = "List all Events associated with a Merchant Account or Profile",
-    security(("admin_api_key" = []))
+    security(("jwt_key" = []))
 )]
 pub fn list_initial_webhook_delivery_attempts() {}
 
@@ -88,7 +88,7 @@ pub fn list_initial_webhook_delivery_attempts_with_jwtauth() {}
     ),
     tag = "Event",
     operation_id = "List all delivery attempts for an Event",
-    security(("admin_api_key" = []))
+    security(("jwt_key" = []))
 )]
 pub fn list_webhook_delivery_attempts() {}
 
@@ -112,6 +112,6 @@ pub fn list_webhook_delivery_attempts() {}
     ),
     tag = "Event",
     operation_id = "Manually retry the delivery of an Event",
-    security(("admin_api_key" = []))
+    security(("jwt_key" = []))
 )]
 pub fn retry_webhook_delivery_attempt() {}

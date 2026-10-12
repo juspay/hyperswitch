@@ -539,6 +539,99 @@ pub struct MerchantAccount {
     pub gateway_success_rate_based_decider_input: Option<String>,
 }
 
+/// How much of the account tree a handed-over Decision Engine session may move within. Mirrors
+/// the Hyperswitch role that opened it, so the session is never broader than its origin.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GrantLevel {
+    Profile,
+    Merchant,
+    Org,
+}
+
+/// Request for a one-time Decision Engine SSO handoff code. Carries the profile to land on plus
+/// the user's grant and permissions, both omitted for an API key — which falls back to one profile.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MerchantTokenRequest {
+    /// The profile the session lands on. A Decision Engine routing scope *is* a Hyperswitch
+    /// profile, which is why this field is named for a merchant but carries a profile id.
+    pub merchant_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grant_level: Option<GrantLevel>,
+    /// The org or merchant id `grant_level` names. Unused for a profile grant, whose node is
+    /// `merchant_id`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grant_id: Option<String>,
+    /// What the user may do, as Decision Engine spells it (`routing:read`, `routing:write`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub permissions: Option<Vec<String>>,
+    /// Display only, so the dashboard can name the user rather than show a profile id.
+    /// Authorization comes from the grant and permissions, never from this.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+}
+
+/// Account hierarchy pushed to the Decision Engine. A DE scope is a Hyperswitch profile; the
+/// levels above are ancestry, used to group profiles, resolve merchant-level config, and scope
+/// API keys. Hyperswitch is the only side that knows the tree. Upserted, so safe to resend.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HierarchySyncRequest {
+    pub orgs: Vec<HierarchyOrg>,
+    /// Detecting merchant-id-keyed scopes makes DE read every merchant account, so it is off for
+    /// per-profile calls and on for the bulk backfill.
+    pub report_stranded: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HierarchyOrg {
+    pub org_id: String,
+    pub org_name: Option<String>,
+    pub merchants: Vec<HierarchyMerchant>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HierarchyMerchant {
+    /// The HS merchant account id — ancestry, never a DE routing scope.
+    pub merchant_id: String,
+    pub merchant_name: Option<String>,
+    pub profiles: Vec<HierarchyProfile>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HierarchyProfile {
+    /// The HS profile id — this *is* the DE routing scope.
+    pub profile_id: String,
+    pub profile_name: Option<String>,
+}
+
+impl HierarchySyncRequest {
+    /// Tree carrying exactly one profile, for provisioning a single scope.
+    pub fn single_profile(
+        org_id: String,
+        org_name: Option<String>,
+        merchant_id: String,
+        merchant_name: Option<String>,
+        profile_id: String,
+        profile_name: Option<String>,
+    ) -> Self {
+        Self {
+            orgs: vec![HierarchyOrg {
+                org_id,
+                org_name,
+                merchants: vec![HierarchyMerchant {
+                    merchant_id,
+                    merchant_name,
+                    profiles: vec![HierarchyProfile {
+                        profile_id,
+                        profile_name,
+                    }],
+                }],
+            }],
+            report_stranded: false,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FetchRoutingConfig {
     pub merchant_id: String,

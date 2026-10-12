@@ -191,6 +191,10 @@ pub fn convert_expiry(expiry: time::PrimitiveDateTime) -> u64 {
     }
 }
 
+/// Fire the decision-service call as detached background work; the task is
+/// deliberately not awaited. Under `deja`, `spawn_fork` keeps the request's
+/// correlation and sampling decision alive in the detached child, which a bare
+/// `tokio::spawn` would lose.
 pub fn spawn_tracked_job<E, F>(future: F, request_type: &'static str)
 where
     E: std::fmt::Debug,
@@ -198,7 +202,8 @@ where
 {
     metrics::API_KEY_REQUEST_INITIATED
         .add(1, router_env::metric_attributes!(("type", request_type)));
-    tokio::spawn(async move {
+
+    let tracked = async move {
         match future.await {
             Ok(_) => {
                 metrics::API_KEY_REQUEST_COMPLETED
@@ -208,5 +213,11 @@ where
                 router_env::error!("Error in tracked job: {:?}", e);
             }
         }
-    });
+    };
+
+    #[cfg(feature = "deja")]
+    deja::spawn_fork(tracked);
+
+    #[cfg(not(feature = "deja"))]
+    let _task_handle = tokio::spawn(tracked);
 }

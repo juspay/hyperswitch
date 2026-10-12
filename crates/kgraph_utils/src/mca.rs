@@ -75,6 +75,8 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::PixAutomaticoQr => {
             Ok(dirval!(BankTransferType = PixAutomaticoQr))
         }
+        api_enums::PaymentMethodType::Payshap => Ok(dirval!(BankTransferType = Payshap)),
+        api_enums::PaymentMethodType::PayshapProxy => Ok(dirval!(BankTransferType = PayshapProxy)),
         api_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
         api_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),
         api_enums::PaymentMethodType::OnlineBankingCzechRepublic => {

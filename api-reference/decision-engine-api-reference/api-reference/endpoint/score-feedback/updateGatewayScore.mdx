@@ -28,7 +28,7 @@ export AUTH_HEADER="Authorization: Bearer <jwt_token>"
 
 - Method and path: `POST /update-gateway-score`
 - Parameters: none.
-- Body: JSON body should include merchant/payment identity, selected gateway, status, and latency/outcome details expected by the score updater.
+- Body: JSON body with `merchantId`, `paymentId`, `gateway` and `status`, plus optional `gatewayReferenceId`, `enforceDynamicRoutingFailure`, `txnLatency`, `errorInfo` and `isSmartRetry`.
 
 ## Example
 
@@ -42,24 +42,35 @@ curl --location "$BASE_URL/update-gateway-score" \
   "merchantId": "merchant_demo",
   "paymentId": "pay_sr_001",
   "gateway": "stripe",
-  "status": "success",
-  "amount": 1000,
-  "currency": "USD",
-  "paymentMethodType": "CARD",
-  "paymentMethod": "CREDIT",
-  "authType": "THREE_DS",
-  "latency": 120
+  "status": "CHARGED",
+  "gatewayReferenceId": "stripe_ref_001",
+  "enforceDynamicRoutingFailure": false,
+  "txnLatency": { "gatewayLatency": 120.5 }
 }'
 ```
+
+`status` must be a transaction status value - `CHARGED`, `AUTHORIZATION_FAILED`,
+`AUTHENTICATION_FAILED`, `JUSPAY_DECLINED`, `FAILURE`, and so on. Lowercase values such as
+`success` are rejected with a 400.
+
+Payment attributes (amount, currency, payment method, auth type) are **not** part of this
+payload - the engine already has them from the `/decide-gateway` call for this `paymentId`.
+Any unrecognised field is silently ignored, so a misspelled key fails quietly rather than
+erroring. Note in particular that latency goes in `txnLatency.gatewayLatency`, not `latency`.
 
 ## Response
 
 ```json
 {
-  "status": "success",
-  "message": "gateway score updated"
+  "message": "Gateway score updated successfully",
+  "merchant_id": "merchant_demo",
+  "gateway": "stripe",
+  "payment_id": "pay_sr_001"
 }
 ```
+
+When `errorInfo` is supplied in the request and matches a gateway status map rule, the response
+also carries a `gsm_info` object describing the lookup result.
 
 ## Notes
 

@@ -1,3 +1,4 @@
+#[cfg(feature = "v2")]
 pub mod account_updater;
 pub mod admin;
 pub mod api_keys;

@@ -352,6 +352,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     ..item.data
                 })
@@ -457,6 +458,7 @@ impl<F> TryFrom<ResponseRouterData<F, ZslWebhookResponse, PaymentsSyncData, Paym
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })

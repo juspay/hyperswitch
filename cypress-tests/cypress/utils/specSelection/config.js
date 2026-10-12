@@ -43,7 +43,9 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   checkbook: ["bank_transfer"],
   coingate: ["crypto"],
   cryptopay: ["crypto"],
+  datatrans: ["card"],
   facilitapay: ["bank_transfer"],
+  fiservcommercehub: ["card"],
   gigadat: ["bank_redirect"],
   globepay: ["wallet"],
   iatapay: ["bank_redirect", "real_time_payment", "upi"],
@@ -58,6 +60,7 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   plaid: ["open_banking"],
   prophetpay: ["card_redirect"],
   volt: ["bank_redirect"],
+  tsys_transit: ["card"],
 });
 
 /**
@@ -169,6 +172,7 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "54-RefundType.cy.js": ["card"],
   "55-DynamicFields.cy.js": ["card"],
   "56-VaultTokenizationDisable.cy.js": ["card"],
+  "54-ConnectorAgnosticMandates.cy.js": ["card"],
 });
 
 /**

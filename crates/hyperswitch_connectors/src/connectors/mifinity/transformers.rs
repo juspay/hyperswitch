@@ -283,6 +283,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPaymentsResponse, T, PaymentsRe
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     ..item.data
                 })
@@ -300,6 +301,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPaymentsResponse, T, PaymentsRe
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -370,6 +372,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPsyncResponse, T, PaymentsRespo
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
                                 charges: None,
+                                payment_account_reference: None,
                             }),
                             ..item.data
                         })
@@ -387,6 +390,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPsyncResponse, T, PaymentsRespo
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     }),
@@ -405,6 +409,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPsyncResponse, T, PaymentsRespo
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),

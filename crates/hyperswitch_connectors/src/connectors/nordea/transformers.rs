@@ -530,6 +530,7 @@ fn convert_nordea_payment_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
 
     let status = common_enums::AttemptStatus::from(payment_response.payment_status.clone());
@@ -664,6 +665,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 });
 
                 let status = common_enums::AttemptStatus::from(payment.payment_status.clone());
@@ -684,6 +686,7 @@ impl
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     });
                     (response, common_enums::AttemptStatus::AuthenticationPending)
                 } else {

@@ -485,6 +485,7 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraResponse, PaymentsAuthorizeData, Pa
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -514,6 +515,7 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraResponse, PaymentsAuthorizeData, Pa
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     ..item.data
                 })
@@ -559,6 +561,7 @@ impl<F>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -600,6 +603,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BamboraPaymentsResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -630,6 +634,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BamboraPaymentsResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -660,6 +665,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<BamboraPaymentsResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

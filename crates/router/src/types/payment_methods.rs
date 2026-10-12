@@ -9,10 +9,14 @@ use common_utils::generate_id;
 use common_utils::id_type;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payment_methods::PaymentMethodUpdate as DomainPaymentMethodUpdate;
 use hyperswitch_masking::Secret;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "v2")]
+use crate::routes::app::SessionState;
 #[cfg(feature = "v2")]
 use crate::types::storage;
 use crate::{
@@ -575,4 +579,35 @@ pub struct PaymentMethodUpdateHandler<'a> {
     pub request: hyperswitch_domain_models::payment_methods::PaymentMethodUpdate,
     pub payment_method: hyperswitch_domain_models::payment_methods::PaymentMethod,
     pub state: &'a crate::routes::app::SessionState,
+    /// Where `payment_method` was resolved from. Persistent unless the update
+    /// request routed through volatile storage.
+    pub source: common_enums::StorageType,
+}
+
+/// What an update request should do, derived from the storage intent on the
+/// request against where the payment method was actually found. This is the
+/// storage decision table in one place.
+#[cfg(feature = "v2")]
+pub enum UpdateAction {
+    /// The regular update pipeline (cvc / vaulting / db update / response).
+    Standard,
+    /// A volatile record with customer acceptance and persistent intent, and
+    /// no database row yet: vault the card and insert the row.
+    Promote,
+    /// Respond without side effects, reporting this storage class.
+    Acknowledge(common_enums::StorageType),
+}
+
+/// Owned inputs for an asynchronous storage promotion ([`UpdateAction::Promote`]).
+/// Deliberately a struct copying only what the task needs, not a closure over
+/// the update handler's scope. Behavior lives with the rest of the update
+/// pipeline in `core::payment_methods` (`PromotionJob::run`).
+#[cfg(feature = "v2")]
+pub struct PromotionJob {
+    pub state: SessionState,
+    pub platform: domain::Platform,
+    pub profile: domain::Profile,
+    pub request: DomainPaymentMethodUpdate,
+    pub payment_method: domain::PaymentMethod,
+    pub payment_method_data: domain::PaymentMethodVaultingData,
 }

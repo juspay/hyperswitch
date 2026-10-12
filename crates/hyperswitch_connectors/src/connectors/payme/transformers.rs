@@ -273,6 +273,7 @@ impl TryFrom<&PaymePaySaleResponse> for PaymentsResponseData {
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         })
     }
 }
@@ -347,6 +348,7 @@ impl From<&SaleQuery> for PaymentsResponseData {
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         }
     }
 }
@@ -640,6 +642,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     }),
@@ -769,6 +772,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     }),
@@ -1383,6 +1387,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymeVoidResponse>> for PaymentsCa
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
         Ok(Self {

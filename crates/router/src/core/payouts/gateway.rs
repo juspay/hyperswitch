@@ -1,6 +1,7 @@
 pub mod cancel_gateway;
 pub mod context;
 pub mod create_gateway;
+pub mod eligibility_gateway;
 pub mod fulfill_gateway;
 pub mod quote_gateway;
 pub mod recipient_account_gateway;

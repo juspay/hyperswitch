@@ -244,6 +244,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TruelayerPaymentsResponse, T, PaymentsR
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -485,6 +486,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TruelayerPayoutResponse>> for Payou
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -577,6 +579,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TruelayerPayoutSyncType>> for Payou
                             error_code: None,
                             error_message: None,
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     })
@@ -621,6 +624,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TruelayerPayoutSyncType>> for Payou
                             error_code: None,
                             error_message: None,
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     })

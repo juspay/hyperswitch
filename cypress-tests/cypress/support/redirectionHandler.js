@@ -1646,45 +1646,24 @@ function bankRedirectRedirection(
 
     verifyUrl = true;
   } else if (connectorId === "airwallex" && paymentMethodType === "ideal") {
-    const airwallexIdealOrigin1 = "https://ext.pay.ideal.nl";
-    const airwallexIdealOrigin2 = "https://handler.ext.idealtesttool.nl";
+    // The sandbox flow no longer goes through a separate
+    // handler.ext.idealtesttool.nl confirmation page — confirming with "Pay"
+    // selected on the Airwallex sandbox page redirects straight back to the
+    // merchant return URL, so verifyReturnUrl (called by the caller via
+    // verifyUrl) is what actually confirms success here.
+    cy.log("Executing on Airwallex iDEAL sandbox page");
+    cy.wait(CONSTANTS.TIMEOUT / 10); // 2 seconds
+    // The "Action" field is a react-select combobox (confirmed via its
+    // input id="react-select-*-input"), not a native <select> — there's no
+    // real <select> element for cy.select() to act on. Click its input to
+    // open the rendered options menu, then click the "Pay" option's text
+    // directly, since react-select renders options as plain elements in a
+    // portal/menu rather than native <option> tags.
+    cy.get('input[id^="react-select"]').first().click({ force: true });
+    cy.contains("Pay").should("be.visible").click();
+    cy.contains("button", "Confirm").should("be.enabled").click();
 
-    cy.origin(
-      airwallexIdealOrigin1,
-      { args: { constants: CONSTANTS } },
-      ({ constants }) => {
-        cy.log("Executing on Airwallex iDEAL Origin 1");
-        cy.wait(constants.TIMEOUT / 10); // 2 seconds
-        cy.get("button[data-testid=payment-action-button]").click();
-        cy.wait(constants.TIMEOUT / 10); // 2 seconds
-        cy.get("button[id=bank-item-TESTNL2A]").click();
-      }
-    );
-
-    cy.log(`Waiting for redirection to ${airwallexIdealOrigin2}`);
-    cy.location("origin", { timeout: CONSTANTS.TIMEOUT }).should(
-      "eq",
-      airwallexIdealOrigin2
-    );
-
-    cy.origin(
-      airwallexIdealOrigin2,
-      { args: { constants: CONSTANTS } },
-      ({ constants }) => {
-        cy.log("Executing on Airwallex iDEAL Origin 2");
-
-        cy.get(".btn.btn-primary.btn-lg")
-          .contains("Success")
-          .should("be.visible")
-          .click();
-
-        cy.url({ timeout: constants.WAIT_TIME }).should(
-          "include",
-          "/loading/SUCCESS"
-        );
-      }
-    );
-    verifyUrl = false;
+    verifyUrl = true;
   } else if (connectorId === "trustpay" && paymentMethodType === "ideal") {
     // TrustPay iDEAL: aapi.finby.eu JS auto-redirects to pay.ideal.nl with no user interaction.
     // Cypress does not support nested cy.origin, so we handle origins sequentially.
@@ -2069,11 +2048,33 @@ function bankRedirectRedirection(
               cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
               verifyUrl = false;
             } else if (paymentMethodType === "skrill") {
+              // Same pacheckoutdemo.sandbox.airwallex.com sandbox page as the
+              // iDEAL/Trustly flows: an "Action" field (a react-select
+              // combobox, not a native <select>) plus a "Confirm" button —
+              // the old direct button#approve no longer exists.
               cy.log("Handling Airwallex Skrill wallet redirect");
-              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
-              cy.get("button#approve", { timeout: constants.TIMEOUT })
-                .should("be.visible")
-                .click();
+              cy.wait(constants.TIMEOUT / 10); // 2 seconds
+              cy.get('input[id^="react-select"]', {
+                timeout: constants.TIMEOUT,
+              })
+                .first()
+                .click({ force: true });
+              cy.contains("Pay").should("be.visible").click();
+              cy.contains("button", "Confirm").should("be.enabled").click();
+              verifyUrl = true;
+            } else if (paymentMethodType === "trustly") {
+              // Same pacheckoutdemo.sandbox.airwallex.com sandbox page as the
+              // iDEAL flow: an "Action" field (a react-select combobox, not a
+              // native <select>) plus a "Confirm" button.
+              cy.log("Handling Airwallex Trustly redirect");
+              cy.wait(constants.TIMEOUT / 10); // 2 seconds
+              cy.get('input[id^="react-select"]', {
+                timeout: constants.TIMEOUT,
+              })
+                .first()
+                .click({ force: true });
+              cy.contains("Pay").should("be.visible").click();
+              cy.contains("button", "Confirm").should("be.enabled").click();
               verifyUrl = true;
             } else {
               throw new Error(

@@ -1102,8 +1102,8 @@ pub async fn refund_list(
     req: refunds::RefundListRequest,
 ) -> errors::RouterResponse<refunds::RefundListResponse> {
     let db = state.store;
-    let limit = refunds_validator::validate_refund_list(req.limit)?;
-    let offset = req.offset.unwrap_or_default();
+    let limit = req.limit;
+    let offset = req.offset;
 
     let refund_list = db
         .filter_refund_by_constraints(

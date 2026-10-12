@@ -47,6 +47,8 @@ use scheduler::{
 };
 use serde::Serialize;
 use storage_impl::redis::kv_store::RedisConnInterface;
+#[cfg(feature = "v2")]
+use storage_impl::revenue_recovery_retry_stats;
 use time::PrimitiveDateTime;
 
 use super::{
@@ -2969,6 +2971,15 @@ impl ProcessTrackerInterface for KafkaStore {
             .finish_process_with_business_status(this, business_status)
             .await
     }
+    async fn finish_process_with_update(
+        &self,
+        this: storage::ProcessTracker,
+        update: storage::ProcessTrackerUpdate,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store
+            .finish_process_with_update(this, update)
+            .await
+    }
     async fn find_processes_by_time_status(
         &self,
         time_lower_limit: PrimitiveDateTime,
@@ -3161,8 +3172,8 @@ impl RefundInterface for KafkaStore {
         processor_merchant_id: &id_type::MerchantId,
         refund_details: &refunds::RefundListConstraints,
         storage_scheme: MerchantStorageScheme,
-        limit: i64,
-        offset: i64,
+        limit: diesel_models::list::PageSize,
+        offset: diesel_models::list::PageOffset,
     ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
         self.diesel_store
             .filter_refund_by_constraints(
@@ -3181,8 +3192,8 @@ impl RefundInterface for KafkaStore {
         merchant_id: &id_type::MerchantId,
         refund_details: refunds::RefundListConstraints,
         storage_scheme: MerchantStorageScheme,
-        limit: i64,
-        offset: i64,
+        limit: diesel_models::list::PageSize,
+        offset: diesel_models::list::PageOffset,
     ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
         self.diesel_store
             .filter_refund_by_constraints(
@@ -3500,6 +3511,33 @@ impl RoutingAlgorithmInterface for KafkaStore {
             )
             .await
     }
+
+    async fn list_routing_scope_page(
+        &self,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<(id_type::ProfileId, id_type::MerchantId)>, errors::StorageError> {
+        self.diesel_store
+            .list_routing_scope_page(limit, offset)
+            .await
+    }
+
+    async fn find_rule_ids_for_profiles(
+        &self,
+        profile_ids: &[id_type::ProfileId],
+    ) -> CustomResult<
+        Vec<(
+            id_type::ProfileId,
+            id_type::MerchantId,
+            id_type::RoutingId,
+            enums::RoutingAlgorithmKind,
+        )>,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .find_rule_ids_for_profiles(profile_ids)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -3613,6 +3651,17 @@ impl UnifiedTranslationsInterface for KafkaStore {
 impl StorageInterface for KafkaStore {
     fn get_scheduler_db(&self) -> Box<dyn SchedulerInterface> {
         Box::new(self.clone())
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_revenue_recovery_retry_stats_store(
+        &self,
+    ) -> Box<
+        dyn revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface<
+            Error = errors::StorageError,
+        >,
+    > {
+        self.diesel_store.get_revenue_recovery_retry_stats_store()
     }
 
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {

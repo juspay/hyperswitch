@@ -124,7 +124,7 @@ fn get_signature(
             };
 
             let mut option_map = Map::new();
-            option_map.insert("alg".to_string(), json!(format!("ES256")));
+            option_map.insert("alg".to_string(), json!("ES256"));
             option_map.insert("aud".to_string(), json!(format!("{} {}", method, path)));
             option_map.insert("exp".to_string(), json!(expires_in));
             option_map.insert("kid".to_string(), json!(auth.kid));
