@@ -13131,9 +13131,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     preferred_connector: Option<String>,
-    active_mca_ids: &routing::RoutingResult<
-        HashSet<id_type::MerchantConnectorAccountId>,
-    >,
+    active_mca_ids: &routing::RoutingResult<HashSet<id_type::MerchantConnectorAccountId>>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
     let (static_connectors, static_approach) = routing::perform_static_routing_locally(
         state,
