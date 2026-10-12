@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS request_events (
   observed_at INTEGER NOT NULL, method TEXT NOT NULL, url TEXT NOT NULL,
   customer_id TEXT, merchant_reference_id TEXT, payment_id TEXT, amount INTEGER,
   status TEXT, api_status_code INTEGER NOT NULL, request_id TEXT,
-  latency_ms REAL NOT NULL, message TEXT, error_body TEXT, entity_type TEXT
+  latency_ms REAL NOT NULL, message TEXT, error_body TEXT, entity_type TEXT, server_latency_ms REAL
 );
 CREATE TABLE IF NOT EXISTS customers (
   run_id TEXT NOT NULL, customer_id TEXT NOT NULL, merchant_id TEXT,
@@ -26,3 +26,7 @@ CREATE TABLE IF NOT EXISTS payments (
   request_id TEXT, message TEXT, observed_at INTEGER NOT NULL, response_event_id INTEGER NOT NULL,
   PRIMARY KEY (run_id, payment_id)
 );
+
+CREATE INDEX IF NOT EXISTS requests_payment ON request_events(payment_id,merchant_id,event_id);
+CREATE INDEX IF NOT EXISTS requests_operation ON request_events(operation,event_id);
+CREATE INDEX IF NOT EXISTS requests_http ON request_events(api_status_code,event_id);

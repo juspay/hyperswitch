@@ -4,7 +4,7 @@ import {controlDb,publicSettings,validateSettings,readJsonSync,configPath} from 
 import {HttpError} from './errors.mjs';
 import {loadShape} from '../src/load-shape.mjs';
 import {snapshotFaultPlan} from './fault-plan.mjs';
-import {faultTargets} from './faults.mjs';
+import {faultTargets,localFaultTargets,saveLocalFaultTargets} from './faults.mjs';
 const fields=['mode','merchantCount','totalRps','durationSeconds','loadShape','startRps','stagesJson','acceptance','preAllocatedVusMultiplier','maxVusMultiplier','scenarios'];
 export function profileDraft(settings=publicSettings()) {
   return Object.fromEntries(fields.map(k=>[k,k==='merchantCount'?(settings.mode==='tenancy'?1500:1):settings[k]]));
@@ -22,15 +22,15 @@ export function saveProfile(input,id=null) {
   const shape=loadShape(config.load);
   const body={...profileDraft(merged),totalRps:shape.peak,durationSeconds:shape.duration,merchantCount:count,load:config.load,scenarios:config.scenarios,acceptance:config.acceptance};
   id ||=randomUUID();const version=(existing?.version || 0)+1;
-  db.exec('BEGIN IMMEDIATE');
+  db.exec('SAVEPOINT profile_save');
   try {
     // Recheck inside the transaction so two web processes cannot overwrite each other.
     const latest=db.prepare('SELECT version FROM profiles WHERE id=?').get(id);
     if(latest&&latest.version!==input.version)throw new HttpError(409,'Scenario changed; reload before saving');
     db.prepare('INSERT INTO profile_versions VALUES(?,?,?)').run(id,version,JSON.stringify({...body,name}));
     db.prepare('INSERT INTO profiles VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,version=excluded.version,updated_at=excluded.updated_at').run(id,name,version,Date.now());
-    db.exec('COMMIT');
-  }catch(e){db.exec('ROLLBACK');throw e;}
+    db.exec('RELEASE profile_save');
+  }catch(e){db.exec('ROLLBACK TO profile_save; RELEASE profile_save');throw e;}
   return getProfile(id,version);
 }
 export function getProfile(id,version=null) {
@@ -40,14 +40,42 @@ export function getProfile(id,version=null) {
   if(!saved)throw new HttpError(404,'Scenario version not found');
   return {id,version:version ?? row.version,updatedAt:row.updated_at,...JSON.parse(saved.body)};
 }
-export function listProfiles() {
+export function saveScenario({profile,targets,expectedTargets}) {
+  const db=controlDb();db.exec('BEGIN IMMEDIATE');
+  try {
+    if(targets!==undefined){
+      if(JSON.stringify(localFaultTargets())!==expectedTargets)throw new HttpError(409,'Shared fault targets changed in another editor. Reopen this scenario before saving.');
+      saveLocalFaultTargets(targets);
+    }
+    const saved=saveProfile(profile,profile.id||null),savedTargets=localFaultTargets();
+    db.exec('COMMIT');return {profile:saved,targets:savedTargets};
+  }catch(error){db.exec('ROLLBACK');throw error;}
+}
+export function archiveProfile(id,archived){
+  getProfile(id);const db=controlDb();
+  if(archived)db.prepare('INSERT OR REPLACE INTO archived_profiles VALUES(?,?)').run(id,Date.now());
+  else db.prepare('DELETE FROM archived_profiles WHERE profile_id=?').run(id);
+  return {id,archived};
+}
+export function deleteProfile(id){
+  getProfile(id);const db=controlDb();db.exec('SAVEPOINT profile_delete');
+  try{
+    db.prepare('DELETE FROM archived_profiles WHERE profile_id=?').run(id);
+    db.prepare('DELETE FROM profile_versions WHERE profile_id=?').run(id);
+    db.prepare('DELETE FROM profiles WHERE id=?').run(id);
+    db.exec('RELEASE profile_delete');return {id,deleted:true};
+  }catch(error){db.exec('ROLLBACK TO profile_delete; RELEASE profile_delete');throw error;}
+}
+export function listProfiles({includeArchived=false}={}) {
   const db=controlDb();
-  if(!db.prepare('SELECT id FROM profiles LIMIT 1').get())saveProfile({...profileDraft(),name:'Default scenario'});
-  return db.prepare('SELECT id FROM profiles ORDER BY updated_at DESC').all().map(r=>getProfile(r.id));
+  return db.prepare('SELECT p.id,a.archived_at FROM profiles p LEFT JOIN archived_profiles a ON a.profile_id=p.id ORDER BY p.updated_at DESC').all().filter(r=>includeArchived||!r.archived_at).map(r=>({...getProfile(r.id),archived:Boolean(r.archived_at)}));
 }
 function canonical(value){if(Array.isArray(value))return value.map(canonical);if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).sort().map(k=>[k,canonical(value[k])]));return value;}
 export function fixtureSignature(config,mode,count) {
-  return createHash('sha256').update(JSON.stringify(canonical({fixtures:config.fixtures,services:config.services,mode,count}))).digest('hex');
+  const sp=config.fixtures?.superposition || {};
+  const identity={router:config.fixtures?.router || config.services?.router,connector:config.fixtures?.connector,
+    superposition:{organization_id:sp.organization_id,workspace_id:sp.workspace_id,defaults:sp.defaults,context:sp.context},mode,count};
+  return createHash('sha256').update(JSON.stringify(canonical(identity))).digest('hex');
 }
 export function getFixtureSet(id) {
   const row=controlDb().prepare('SELECT * FROM fixture_sets WHERE id=?').get(id);if(!row)throw new HttpError(404,'Fixture set not found');return row;
@@ -65,7 +93,17 @@ export function listFixtureSets() {
       db.prepare('INSERT INTO fixture_sets VALUES(?,?,?,?,?,?,NULL,?)').run(randomUUID(),mode,count,fixtureSignature(imported,mode,count),directory,'ready',Date.parse(manifest.ready_at)||Date.now());
     }
   }
-  return db.prepare('SELECT * FROM fixture_sets ORDER BY created_at DESC').all().map(({path:_path,signature,...row})=>({...row,compatible:signature===fixtureSignature(config,row.mode,row.merchant_count)}));
+  return db.prepare('SELECT * FROM fixture_sets ORDER BY created_at DESC').all().map(({path:directory,signature,...row})=>{
+    const compatible=signature===fixtureSignature(config,row.mode,row.merchant_count);
+    const job=row.job_id?db.prepare('SELECT config_path FROM jobs WHERE id=?').get(row.job_id):null;
+    const original=job?.config_path?readJsonSync(job.config_path):null;
+    const provision=readJsonSync(path.join(directory,'provision.json'),original?.fixtures);
+    const before=provision||{},after=config.fixtures||{},changes=[];
+    const checks=[['Router',before.router,after.router||config.services?.router],['Connector',before.connector,after.connector],['Superposition organization',before.superposition?.organization_id,after.superposition?.organization_id],['Superposition workspace',before.superposition?.workspace_id,after.superposition?.workspace_id],['Superposition defaults',before.superposition?.defaults,after.superposition?.defaults],['Superposition context',before.superposition?.context,after.superposition?.context]];
+    if(!compatible)for(const [label,a,b] of checks)if(JSON.stringify(canonical(a))!==JSON.stringify(canonical(b)))changes.push(label);
+    if(!compatible&&!changes.length)changes.push('Saved provisioning configuration');
+    return {...row,compatible,changes,destination:before.router||original?.services?.router||'Earlier configuration',label:`${row.mode==='single'?'Single':'Tenancy'} · ${row.merchant_count} merchants`,repairable:compatible&&['failed','interrupted'].includes(row.status)};
+  });
 }
 export function validateFixtureSet(id,profile,config) {
   const set=getFixtureSet(id),manifest=readJsonSync(path.join(set.path,'manifest.json'));

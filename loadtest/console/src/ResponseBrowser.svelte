@@ -1,0 +1,17 @@
+<script>
+import {onMount} from 'svelte';
+import {api} from './api.js';
+import {setQuery} from './navigation.mjs';
+export let runId;export let payment='';export let merchant='';export let event='';export let initial={};
+let history=null,error='',busy=false,search=initial.search||'',operation=initial.operation||'',status=initial.status||'',stack=[0],request=0;
+$: options={search,operation,status,payment,merchant,event};
+$: exportUrl=`/api/runs/${encodeURIComponent(runId)}/export?${new URLSearchParams(options)}`;
+async function load(after=0){busy=true;error='';const token=++request;try{const result=await api.requests(runId,{...options,after});if(token===request)history=result;}catch(e){if(token===request)error=e.message;}finally{if(token===request)busy=false;}}
+function filter(){stack=[0];load();if(!payment&&!event)setQuery({search,operation,status});}
+onMount(()=>{load();return()=>request++;});
+</script>
+<div class="response-filters"><form onsubmit={e=>{e.preventDefault();filter();}}><input aria-label="Search responses" placeholder="Payment, merchant or message" bind:value={search}/><input aria-label="Operation" placeholder="Operation" bind:value={operation}/><select aria-label="HTTP status" bind:value={status} onchange={filter}><option value="">All HTTP outcomes</option><option value="transport">Transport failures</option><option value="errors">All errors</option><option value="200">200</option><option value="400">400</option><option value="404">404</option><option value="500">500</option></select><button class="secondary" disabled={busy}>Search</button></form><a class="quiet" href={exportUrl} download>Export filtered CSV</a></div>
+{#if error}<p class="invalid" role="alert">{error}<button class="quiet" onclick={()=>load(stack.at(-1))}>Retry</button></p>{/if}
+{#if busy}<p role="status">Loading responses…</p>{/if}
+{#if history}<div class="table-wrap"><table><thead><tr><th>Time</th><th>Operation / Payment</th><th>HTTP</th><th>Latency</th><th>Response</th></tr></thead><tbody>{#each history.rows as row}<tr><td>{new Date(row.observed_at).toLocaleTimeString()}</td><td>{row.operation}<small>{row.payment_id||'No payment ID'}</small></td><td>{row.api_status_code||'Transport failure'}</td><td>{Math.round(row.latency_ms)} ms</td><td><details><summary>{row.message||row.status||'Details'}</summary><pre>{row.error_body||row.status||'No response body'}</pre></details></td></tr>{:else}<tr><td colspan="5">No responses match these filters.</td></tr>{/each}</tbody></table></div><div class="pagination"><button class="secondary" disabled={busy||stack.length===1} onclick={()=>{stack=stack.slice(0,-1);load(stack.at(-1));}}>Previous</button><span>Page {stack.length}</span><button class="secondary" disabled={busy||!history.next} onclick={()=>{stack=[...stack,history.next];load(history.next);}}>Next</button></div>{/if}
+<style>.response-filters,.response-filters form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.response-filters{margin:16px 0}.response-filters form{flex:1}.response-filters input,.response-filters select{width:170px;margin:0;flex:1;min-width:120px;font-size:12px}.response-filters a,.pagination{font-size:12px}.pagination{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:12px}small{display:block;font-size:11px;color:#667085;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto}td{font-size:12px;max-width:300px}</style>

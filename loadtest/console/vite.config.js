@@ -3,5 +3,5 @@ import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig(({mode}) => {
   for(const [key,value] of Object.entries(loadEnv(mode,process.cwd(),''))) process.env[key] ??= value;
-  return {plugins:[sveltekit()],server:{host:'127.0.0.1'},build:{target:'es2022'}};
+  return {plugins:[sveltekit()],server:{host:'127.0.0.1',watch:{ignored:['**/.data/**']}},build:{target:'es2022'}};
 });

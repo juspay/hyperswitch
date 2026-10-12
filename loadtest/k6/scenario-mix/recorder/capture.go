@@ -3,6 +3,8 @@ package recorder
 import (
 	"fmt"
 	"math"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -63,6 +65,8 @@ func complete(id uint64, response *k6http.Response, transportError string) (Capt
 		r.LatencyMS = response.Timings.Duration
 		for key, value := range response.Headers {
 			switch strings.ToLower(key) {
+			case "x-hs-latency":
+				r.ServerLatencyMS = parseServerLatency(value)
 			case "x-request-id", "request-id", "request_id":
 				r.RequestID = strPointer(value)
 			}
@@ -140,4 +144,18 @@ func complete(id uint64, response *k6http.Response, transportError string) (Capt
 		return Captured{}, err
 	}
 	return Captured{r.CustomerID, r.PaymentID, r.EntityType, r.Role, r.RequestID}, nil
+}
+
+var latencyMilliseconds = regexp.MustCompile(`^[0-9]+(\.[0-9]+)?$`)
+
+func parseServerLatency(header string) *float64 {
+	text := strings.TrimSpace(header)
+	if !latencyMilliseconds.MatchString(text) {
+		return nil
+	}
+	value, err := strconv.ParseFloat(text, 64)
+	if err != nil || math.IsInf(value, 0) {
+		return nil
+	}
+	return &value
 }

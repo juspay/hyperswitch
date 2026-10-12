@@ -2,6 +2,7 @@ package recorder
 
 import (
 	"encoding/json"
+	"math"
 	"os"
 	"sort"
 	"strings"
@@ -13,31 +14,39 @@ import (
 
 // Live telemetry contains counters and one bounded latency window, never responses.
 type flowProgress struct {
-	Successes     uint64   `json:"successes"`
-	Failures      uint64   `json:"failures"`
-	TPS           float64  `json:"tps"`
-	P90           *float64 `json:"p90_ms"`
-	P99           *float64 `json:"p99_ms"`
-	windowSuccess uint64
-	latencies     []float64
+	ServerP99       *float64  `json:"server_p99_ms"`
+	ServerSamples   []float64 `json:"server_samples_ms,omitempty"`
+	serverLatencies []float64
+	Successes       uint64   `json:"successes"`
+	Failures        uint64   `json:"failures"`
+	TPS             float64  `json:"tps"`
+	P90             *float64 `json:"p90_ms"`
+	P99             *float64 `json:"p99_ms"`
+	windowSuccess   uint64
+	latencies       []float64
 }
 type liveProgress struct {
-	P99           *float64                 `json:"p99_ms"`
-	Elapsed       float64                  `json:"elapsed_seconds"`
-	Iterations    uint64                   `json:"iterations"`
-	Dropped       uint64                   `json:"dropped"`
-	HTTPAttempts  uint64                   `json:"http_attempts"`
-	HTTPErrors    uint64                   `json:"http_errors"`
-	SuccessfulTPS float64                  `json:"successful_tps"`
-	Recorder      Stats                    `json:"recorder"`
-	Flows         map[string]*flowProgress `json:"flows"`
-	Control       *controlSnapshot         `json:"control,omitempty"`
+	ServerP99           *float64                 `json:"server_p99_ms"`
+	ServerSamples       []float64                `json:"server_samples_ms,omitempty"`
+	P99                 *float64                 `json:"p99_ms"`
+	Elapsed             float64                  `json:"elapsed_seconds"`
+	Iterations          uint64                   `json:"iterations"`
+	Dropped             uint64                   `json:"dropped"`
+	HTTPAttempts        uint64                   `json:"http_attempts"`
+	HTTPErrors          uint64                   `json:"http_errors"`
+	ConfirmHTTPAttempts uint64                   `json:"confirm_http_attempts"`
+	ConfirmHTTPErrors   uint64                   `json:"confirm_http_errors"`
+	SuccessfulTPS       float64                  `json:"successful_tps"`
+	Recorder            Stats                    `json:"recorder"`
+	Flows               map[string]*flowProgress `json:"flows"`
+	Control             *controlSnapshot         `json:"control,omitempty"`
 }
 type progressCollector struct {
 	mu                sync.Mutex
 	started, previous time.Time
 	state             liveProgress
 	latencies         []float64
+	serverLatencies   []float64
 }
 
 func newProgressCollector(metadata map[string]interface{}) *progressCollector {
@@ -61,6 +70,10 @@ func (p *progressCollector) add(containers []metrics.SampleContainer) {
 		for _, sample := range container.GetSamples() {
 			name := sample.Metric.Name
 			switch name {
+			case "payment_confirm_server_latency_ms":
+				if sample.Value >= 0 && !math.IsNaN(sample.Value) && !math.IsInf(sample.Value, 0) && len(p.serverLatencies) < 8192 {
+					p.serverLatencies = append(p.serverLatencies, sample.Value)
+				}
 			case "payment_confirm_latency_ms":
 				if len(p.latencies) < 8192 {
 					p.latencies = append(p.latencies, sample.Value)
@@ -71,9 +84,19 @@ func (p *progressCollector) add(containers []metrics.SampleContainer) {
 				p.state.Dropped += uint64(sample.Value)
 			case "http_reqs":
 				p.state.HTTPAttempts += uint64(sample.Value)
+				if sample.Tags != nil {
+					if operation, ok := sample.Tags.Get("operation"); ok && operation == "payment_confirm" {
+						p.state.ConfirmHTTPAttempts += uint64(sample.Value)
+					}
+				}
 			case "http_req_failed":
 				if sample.Value > 0 {
 					p.state.HTTPErrors++
+					if sample.Tags != nil {
+						if operation, ok := sample.Tags.Get("operation"); ok && operation == "payment_confirm" {
+							p.state.ConfirmHTTPErrors++
+						}
+					}
 				}
 			default:
 				if strings.HasPrefix(name, "scenario_success_") {
@@ -85,6 +108,11 @@ func (p *progressCollector) add(containers []metrics.SampleContainer) {
 				if strings.HasPrefix(name, "scenario_failure_") {
 					if f := p.state.Flows[strings.TrimPrefix(name, "scenario_failure_")]; f != nil {
 						f.Failures += uint64(sample.Value)
+					}
+				}
+				if strings.HasPrefix(name, "payment_confirm_server_ms_") {
+					if f := p.state.Flows[strings.TrimPrefix(name, "payment_confirm_server_ms_")]; f != nil && sample.Value >= 0 && !math.IsNaN(sample.Value) && !math.IsInf(sample.Value, 0) && len(f.serverLatencies) < 8192 {
+						f.serverLatencies = append(f.serverLatencies, sample.Value)
 					}
 				}
 				if strings.HasPrefix(name, "payment_confirm_ms_") {
@@ -105,6 +133,9 @@ func (p *progressCollector) bytes(stats Stats) []byte {
 	p.state.Elapsed = now.Sub(p.started).Seconds()
 	p.state.Recorder = stats
 	p.state.SuccessfulTPS = 0
+	p.state.ServerP99 = serverPercentile(p.serverLatencies)
+	p.state.ServerSamples = p.serverLatencies
+	p.serverLatencies = p.serverLatencies[:0]
 	p.state.P99 = nil
 	if len(p.latencies) > 0 {
 		sort.Float64s(p.latencies)
@@ -116,6 +147,9 @@ func (p *progressCollector) bytes(stats Stats) []byte {
 		f.TPS = float64(f.windowSuccess) / seconds
 		f.windowSuccess = 0
 		p.state.SuccessfulTPS += f.TPS
+		f.ServerP99 = serverPercentile(f.serverLatencies)
+		f.ServerSamples = f.serverLatencies
+		f.serverLatencies = f.serverLatencies[:0]
 		f.P90 = nil
 		f.P99 = nil
 		if len(f.latencies) > 0 {
@@ -155,4 +189,13 @@ func (o *sqliteOutput) writeProgress() {
 	if err := os.Rename(o.progressFile+".tmp", o.progressFile); err != nil {
 		o.writer.fail(err)
 	}
+}
+
+func serverPercentile(values []float64) *float64 {
+	if len(values) == 0 {
+		return nil
+	}
+	sort.Float64s(values)
+	value := values[int(float64(len(values)-1)*.99)]
+	return &value
 }

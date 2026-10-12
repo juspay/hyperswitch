@@ -15,10 +15,11 @@ test('PostgreSQL reconciliation batches, persists outcomes and rejects incomplet
     const config=JSON.parse(await readFile('../loadtest.config.example.json','utf8'));config.output=path.join(temporary,'artifacts');
     process.env.LOADTEST_CONFIG_FILE=path.join(temporary,'seed.json');await writeFile(process.env.LOADTEST_CONFIG_FILE,JSON.stringify(config));
     const state=await import('../server/state.mjs');state.initializeConfig();
+    const {databaseConnectionOptions}=await import('../server/database-options.mjs');
     const {queryWorker}=await import('../server/workers.mjs');
     const database={host:process.env.PGHOST,port:Number(process.env.PGPORT || 5432),database:process.env.PGDATABASE,
-      user:process.env.PGUSER,password:process.env.PGPASSWORD,ssl:process.env.PGSSLMODE==='require'};
-    const pool=new pg.Pool({...database,max:1});
+      user:process.env.PGUSER,password:process.env.PGPASSWORD,ssl:['require','verify-ca','verify-full'].includes(process.env.PGSSLMODE),caPath:process.env.PGSSLROOTCERT || ''};
+    const pool=new pg.Pool({...databaseConnectionOptions(database),max:1});
     let rows;
     try {
       const client=await pool.connect();
@@ -40,7 +41,7 @@ test('PostgreSQL reconciliation batches, persists outcomes and rejects incomplet
     failure.run(3,'absent-merchant','absent-payment','payment_confirm');failure.run(4,'absent-merchant',null,'payment_create');failure.run(5,'absent-merchant',null,'customer_create');
     const progress=[];
     const result=await queryWorker('reconcile',{id:'single:recon-test',database},p=>progress.push(p.compared));
-    assert.deepEqual(progress,[0,1000,1004]);assert.equal(result.expected,1004);assert.equal(result.timeline.length,3);assert.deepEqual(result.timeline.map(p=>p.compared),[0,1000,1004]);assert.equal(result.timeline.at(-1).match,1);assert.equal(result.timeline.at(-1).missing,1002);assert.ok(result.timeline.every((p,i,all)=>!i||p.t>=all[i-1].t));assert.equal(result.match,1);assert.equal(result.mismatch,1);assert.equal(result.missing,1002);
+    const batches=[0,...Array.from({length:10},(_,i)=>(i+1)*100),1004];assert.deepEqual(progress,batches);assert.equal(result.expected,1004);assert.deepEqual(result.timeline.map(p=>p.compared),batches);assert.equal(result.timeline.at(-1).match,1);assert.equal(result.timeline.at(-1).missing,1002);assert.ok(result.timeline.every((p,i,all)=>!i||p.t>=all[i-1].t));assert.equal(result.match,1);assert.equal(result.mismatch,1);assert.equal(result.missing,1002);assert.equal(result.creationUnknown,1);assert.equal(result.confirmationFailed,2);assert.equal(result.accounted,1005);
     assert.deepEqual({attempts:result.transport.attempts,checked:result.transport.checkedPayments,found:result.transport.found,missing:result.transport.missing,unresolved:result.transport.unresolved},{attempts:5,checked:3,found:2,missing:1,unresolved:2});
     assert.match(result.discrepancies.find(r=>r.paymentId===rows[1].payment_id).reason,/Transport failure/);
     assert.ok(result.comparedAt);assert.ok(result.truncated);assert.equal(result.discrepancies.length,200);

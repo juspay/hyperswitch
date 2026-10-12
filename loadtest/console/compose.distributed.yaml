@@ -1,0 +1,20 @@
+services:
+  console:
+    environment:
+      LOADTEST_WORKER_ENROLLMENT_TOKEN: ${LOADTEST_WORKER_ENROLLMENT_TOKEN:?set a worker enrollment token}
+  worker:
+    build:
+      context: ../..
+      dockerfile: loadtest/worker/Dockerfile
+    restart: unless-stopped
+    environment:
+      LOADTEST_CONTROL_PLANE_URL: http://console:4174
+      LOADTEST_WORKER_ENROLLMENT_TOKEN: ${LOADTEST_WORKER_ENROLLMENT_TOKEN:?set a worker enrollment token}
+      LOADTEST_WORKER_TPS: ${LOADTEST_WORKER_TPS:-250}
+      LOADTEST_WORKER_VUS: ${LOADTEST_WORKER_VUS:-2500}
+    depends_on:
+      - console
+    volumes:
+      - /data
+    ulimits:
+      nofile: { soft: 65536, hard: 65536 }

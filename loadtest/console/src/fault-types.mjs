@@ -14,14 +14,21 @@ export function configureFaultTarget(target,environment){
  const type=faultType(target),spec=faultTypes.find(t=>t.type===type);
  const cloudVault=environment==='cloud'&&type==='card-vault';
  const adapter=environment==='local'?spec.adapter:environment==='cloud'?(type==='postgres'?'gcp-alloydb':type==='redis'?'gcp-redis':'kubernetes'):'docker';
- return {...target,environment,adapter,port:target.port??spec.port,repository:target.repository??'',binary:target.binary??'process-compose',controllerPort:target.controllerPort??8090,process:target.process??(type==='redis'?'r1':'p1'),project:target.project||'hyperswitch-dev',region:target.region||'asia-south1',cluster:target.cluster||'dev-hyperswitch-alloydb',instance:target.instance||(type==='postgres'?'dev-hyperswitch-alloydb-primary':''),context:target.context??'',namespace:target.namespace||(cloudVault?'hyperswitch':''),deployment:target.deployment||(cloudVault?'hyperswitch-card-vault-hyperswitch-card-vault':''),container:target.container??''};
+ return {...target,environment,adapter,actions:adapter.startsWith('gcp-')?['failover']:['outage'],port:target.port??spec.port,repository:target.repository??'',binary:target.binary??'process-compose',controllerPort:target.controllerPort??8090,process:target.process??(type==='redis'?'r1':'p1'),project:target.project||'hyperswitch-dev',region:target.region||'asia-south1',cluster:target.cluster||'dev-hyperswitch-alloydb',instance:target.instance||(type==='postgres'?'dev-hyperswitch-alloydb-primary':''),context:target.context??'',namespace:target.namespace||(cloudVault?'hyperswitch':''),deployment:target.deployment||(cloudVault?'hyperswitch-card-vault-hyperswitch-card-vault':''),recoveryReplicas:target.recoveryReplicas??(cloudVault?8:undefined),container:target.container??''};
 }
 
 export function faultCommandPreview(target){
  if(target.adapter==='gcp-alloydb')return `gcloud alloydb instances failover ${target.instance} --cluster=${target.cluster} --region=${target.region} --project=${target.project} --quiet`;
  if(target.adapter==='kubernetes'){
   const prefix=`kubectl${target.context?` --context=${target.context}`:''} -n ${target.namespace}`;
-  return `Outage: ${prefix} scale deploy ${target.deployment} --replicas=0\nRestart: ${prefix} rollout restart deploy ${target.deployment}`;
+  return `Interruption: ${prefix} scale deploy ${target.deployment} --replicas=0\nRecovery: ${prefix} scale deploy ${target.deployment} --replicas=${target.recoveryReplicas ?? 'original'}`;
  }
  return '';
+}
+
+export function switchFaultEnvironment(target,environment){
+ const {presets={},...current}=target;
+ const saved={...presets,[faultEnvironment(target)]:current};
+ const next=configureFaultTarget({...saved[environment],id:target.id,label:target.label,serviceType:faultType(target)},environment);
+ return {...next,actions:next.adapter.startsWith('gcp-')?['failover']:['outage'],presets:saved};
 }

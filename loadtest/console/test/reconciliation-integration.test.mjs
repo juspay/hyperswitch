@@ -1,0 +1,32 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {mkdtemp,readFile,writeFile,mkdir,rm} from 'node:fs/promises';import path from 'node:path';import os from 'node:os';import {DatabaseSync} from 'node:sqlite';import pg from 'pg';
+const temporary=await mkdtemp(path.join(os.tmpdir(),'recon-integration-'));
+process.env.LOADTEST_DATA_DIR=temporary;process.env.LOADTEST_CONSOLE_ROOT=path.resolve('.');process.env.LOADTEST_ROOT=path.resolve('..');
+const config=JSON.parse(await readFile('../loadtest.config.example.json','utf8'));config.output=path.join(temporary,'artifacts');
+process.env.LOADTEST_CONFIG_FILE=path.join(temporary,'seed.json');await writeFile(process.env.LOADTEST_CONFIG_FILE,JSON.stringify(config));
+const state=await import('../server/state.mjs');state.initializeConfig();
+const {reconcileRun,requestHistory}=await import('../server/queries.mjs');const {paymentBars,paymentPage}=await import('../server/reconciliation-index.mjs');const {csvStream,csvCell}=await import('../server/csv-stream.mjs');
+const directory=path.join(config.output,'single/runs/integration');await mkdir(directory,{recursive:true});await writeFile(path.join(directory,'config.json'),JSON.stringify(config));
+const db=new DatabaseSync(path.join(directory,'results.sqlite'));db.exec(await readFile('../k6/scenario-mix/recorder/schema.sql','utf8'));
+db.exec("INSERT INTO runs(run_id,started_at,ended_at,recording_state,enqueued,persisted) VALUES('run',1000,5000,'complete',2402,2402)");
+const event=db.prepare("INSERT INTO request_events(run_id,attempt_id,flow_id,merchant_id,operation,role,observed_at,method,url,payment_id,status,api_status_code,latency_ms,message) VALUES('run',?,'guest','merchant','payment_confirm','measured',?,'POST','http://mock',?,'succeeded',?,30,?)"),payment=db.prepare("INSERT INTO payments(run_id,payment_id,merchant_id,status,role,api_status_code,observed_at,response_event_id) VALUES('run',?,'merchant','succeeded','measured',200,?,?)");
+for(let i=1;i<=1201;i++){event.run(i,1000+i,'p'+i,i===2?0:200,i===2?'request timeout':null);payment.run('p'+i,2000+i,i);}event.run(1202,1300,null,0,'request timeout');
+db.exec("UPDATE request_events SET operation='payment_create' WHERE attempt_id=1202");
+event.run(1203,1301,null,503,'application unavailable');
+db.exec("UPDATE request_events SET operation='payment_create' WHERE attempt_id=1203");
+event.run(1204,2400,'p4',504,'confirmation timed out');
+test('comparison persists exact bar outcomes, transport evidence, filters and streaming exports',async()=>{
+ const Original=pg.Pool,queries=[];pg.Pool=class{async connect(){return{async query(sql,args){queries.push(sql);if(!args)return {rows:[]};return {rows:args[1].filter(id=>id!=='p3').map((id)=>({merchant_id:'merchant',payment_id:id,status:id==='p2'?'failed':'succeeded'}))};},release(){}};}async end(){}};
+ let result;try{result=await reconcileRun({id:'single:integration',database:{host:'mock',port:5432,user:'reader'} });}finally{pg.Pool=Original;}
+ assert.equal(result.total,1201);assert.equal(result.match,1199);assert.equal(result.missing,1);assert.equal(result.mismatch,1);assert.equal(result.transport.unresolved,1);assert.equal(result.transport.found,1);
+ assert.ok(queries.includes('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY'));assert.match(result.discrepancies.find(p=>p.paymentId==='p2').reason,/Transport failure/);
+ assert.equal(result.creationUnknown,2);assert.equal(result.confirmationFailed,2);assert.equal(result.accounted,1203);
+ const chart=paymentBars({id:'single:integration'});assert.deepEqual(chart.totals,{match:1199,missing:1,mismatch:1,pending:0,creation_unknown:2});
+ const unknown=paymentPage({id:'single:integration',filter:'creation_unknown'});assert.equal(unknown.rows.length,2);assert.equal(unknown.rows[1].api_status_code,503);assert.ok(unknown.rows.every(r=>r.event_id&&r.payment_id===''));
+ const failedConfirm=paymentPage({id:'single:integration',filter:'confirmation_failed'});assert.equal(failedConfirm.rows.length,2);assert.equal(failedConfirm.rows.find(r=>r.payment_id==='p4').outcome,'match');
+ const page=paymentPage({id:'single:integration',filter:'discrepancies'});assert.equal(page.rows.length,4);assert.equal(page.rows[0].elapsed_ms,2);
+ assert.equal(requestHistory({id:'single:integration',status:'transport'}).rows.length,2);assert.equal(requestHistory({id:'single:integration',payment:'p2',merchant:'merchant'}).rows[0].message,'request timeout');assert.equal(requestHistory({id:'single:integration',search:'p%'}).rows.length,0);
+ const csv=await new Response(csvStream('payment-page',{id:'single:integration',filter:'all'},['payment_id','outcome'])).text();assert.equal(csv.trim().split('\r\n').length,1204);assert.match(csv,/"p2","mismatch"/);assert.match(csv,/"p3","missing"/);assert.match(csv,/"","creation_unknown"/);
+ assert.equal(csvCell('=formula'),`"'=formula"`);assert.equal(csvCell('a,"b"'),`"a,""b"""`);
+});
+test.after(async()=>{db.close();await rm(temporary,{recursive:true,force:true});});

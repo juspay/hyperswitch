@@ -25,11 +25,5 @@
 </article>
 
 <style>
-  article{position:relative;overflow:hidden;isolation:isolate;background:#fff;border:1px solid #e1e5eb;border-radius:12px;padding:20px 22px 64px;min-height:174px}
-  span,em{position:relative;display:block;color:#667085;font-size:13px;font-style:normal;line-height:1.5}
-  span{font-weight:500}
-  strong{position:relative;display:block;font-size:34px;line-height:1.2;margin:10px 0 6px;color:var(--trend-color);font-weight:650;letter-spacing:-1px;font-variant-numeric:tabular-nums}
-  small{font-size:15px;font-weight:500;margin-left:4px;letter-spacing:0;color:#667085}
-  svg{position:absolute;z-index:-1;inset:auto 0 0;width:100%;height:46px;overflow:hidden}
-  polygon{fill:var(--trend-color);opacity:.07}polyline{fill:none;stroke:var(--trend-color);stroke-width:1.5;vector-effect:non-scaling-stroke}
+article{position:relative;overflow:hidden;isolation:isolate;background:var(--surface);padding:18px 20px 40px;min-height:134px;border-right:1px solid var(--border)}article:last-child{border-right:0}span,em{position:relative;display:block;color:var(--muted);font-size:11px;font-style:normal;line-height:1.5}span{font-weight:500}strong{position:relative;display:block;font-size:29px;line-height:1.15;margin:8px 0 5px;color:var(--ink);font-weight:550;letter-spacing:-.8px;font-variant-numeric:tabular-nums}small{font-size:12px;font-weight:400;margin-left:5px;letter-spacing:0;color:var(--muted)}svg{position:absolute;z-index:-1;inset:auto 0 0;width:100%;height:26px;overflow:hidden}polygon{fill:var(--trend-color);opacity:.04}polyline{fill:none;stroke:var(--trend-color);opacity:.55;stroke-width:1.2;vector-effect:non-scaling-stroke}@media(max-width:900px){article:nth-child(2){border-right:0}article:nth-child(-n+2){border-bottom:1px solid var(--border)}}@media(max-width:480px){article{padding:16px 14px 36px}strong{font-size:26px}}
 </style>

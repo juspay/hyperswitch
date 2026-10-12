@@ -9,13 +9,21 @@ function validate(config) {
   }
   if (!Number.isSafeInteger(config.concurrency ?? 20) || (config.concurrency ?? 20) < 1) throw new Error("superposition.concurrency must be a positive integer");
   if (!Number.isFinite(config.refresh_interval_seconds) || config.refresh_interval_seconds < 0) throw new Error("superposition.refresh_interval_seconds must specify the deployed service polling interval");
+  if (!Number.isFinite(config.poll_interval_seconds ?? 5) || (config.poll_interval_seconds ?? 5) < 0.25 || (config.poll_interval_seconds ?? 5) > 60) throw new Error("superposition.poll_interval_seconds must be between 0.25 and 60 seconds");
+  if (!['authorization','x-superposition-access'].includes(config.access_header ?? 'authorization')) throw new Error("superposition.access_header must be authorization or x-superposition-access");
+}
+
+function authenticationHeaders(config) {
+  return (config.access_header ?? 'authorization') === 'x-superposition-access'
+    ? { 'x-superposition-access': config.token }
+    : { Authorization: `Bearer ${config.token}` };
 }
 
 export async function configureSuperposition(config, recorder, merchants, organizationId, onProgress = async () => {}) {
   if (!config) return null;
   validate(config);
   await onProgress({status:"applying"});
-  const headers = { "content-type": "application/json", Authorization: `Bearer ${config.token}`,
+  const headers = { "content-type": "application/json", ...authenticationHeaders(config),
     "x-org-id": config.organization_id, "x-workspace": config.workspace_id };
   const base = config.endpoint.replace(/\/$/, "");
   async function call(method, route, body, merchantId = null) {
@@ -72,7 +80,7 @@ export async function configureSuperposition(config, recorder, merchants, organi
     const bar = progress("Service refresh", seconds);
     try {
       while (Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve,Math.min(1000,deadline-Date.now())));
+        await new Promise((resolve) => setTimeout(resolve,Math.min((config.poll_interval_seconds ?? 5)*1000,deadline-Date.now())));
         const remaining = Math.max(0,Math.ceil((deadline-Date.now())/1000));
         bar.update(seconds-remaining, `${remaining}s remaining`);
         await onProgress({status:"waiting",remainingSeconds:remaining,totalSeconds:seconds});
@@ -83,5 +91,5 @@ export async function configureSuperposition(config, recorder, merchants, organi
   await verify("Verify refreshed flags");
   await onProgress({status:"complete",remainingSeconds:0});
   return { organization_id: config.organization_id, workspace_id: config.workspace_id,
-    defaults: config.defaults, version, refresh_interval_seconds: config.refresh_interval_seconds };
+    defaults: config.defaults, version, refresh_interval_seconds: config.refresh_interval_seconds,poll_interval_seconds:config.poll_interval_seconds ?? 5 };
 }

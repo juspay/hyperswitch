@@ -21,6 +21,7 @@
  * the application's maximum sustainable RPS.
  */
 import http from "k6/http";
+import {serverLatency,latencyHeaders} from "./server-latency.mjs";
 import { sleep } from "k6";
 import { Counter, Trend } from "k6/metrics";
 import exec from "k6/execution";
@@ -544,6 +545,7 @@ export const options = {
 // ---------------------------------------------------------------------------
 
 const globalPaymentConfirm = new Trend("payment_confirm_latency_ms", true);
+const globalServerConfirm = new Trend("payment_confirm_server_latency_ms", true);
 
 function stepNames(plan) {
   const steps = [];
@@ -568,6 +570,7 @@ for (const plan of enabledPlans) {
   for (const step of stepNames(plan)) {
     plan.trends[step] = new Trend(`${step}_ms_${plan.name}`, true);
   }
+  plan.serverConfirmTrend = new Trend(`payment_confirm_server_ms_${plan.name}`, true);
   plan.trends.total_flow = new Trend(`total_flow_ms_${plan.name}`, true);
   plan.successCounter = new Counter(`scenario_success_${plan.name}`);
   plan.failureCounter = new Counter(`scenario_failure_${plan.name}`);
@@ -628,7 +631,7 @@ function get(url, headers, operation) { return request("GET",url,null,headers,op
 
 function apiKeyHeaders(merchant) {
   return {
-    ...(targetHeaders.router || {}),
+    ...latencyHeaders(targetHeaders.router),
     "api-key": merchant.api_key,
     "content-type": "application/json",
   };
@@ -669,7 +672,7 @@ function sdkAuthorizationHeader(merchant, payment) {
 
 function sdkAuthHeaders(merchant, payment) {
   return {
-    ...(targetHeaders.router || {}),
+    ...latencyHeaders(targetHeaders.router),
     Authorization: sdkAuthorizationHeader(merchant, payment),
     "content-type": "application/json",
   };
@@ -1126,6 +1129,7 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
   }
   plan.trends.payment_confirm.add(confirmResponse.timings.duration);
   globalPaymentConfirm.add(confirmResponse.timings.duration);
+  const serverMs=serverLatency(confirmResponse.headers);
   if (phaseInfo) phaseInfo.confirmTrend.add(confirmResponse.timings.duration);
   const status = json(confirmResponse).status || "failed";
   const succeeded = confirmResponse.status >= 200
@@ -1135,6 +1139,7 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
     failIteration(merchant, plan, startedAt, `payment_confirm_${statusCode(confirmResponse)}_${status}`, phaseInfo, confirmResponse);
     return;
   }
+  if(serverMs!==null){globalServerConfirm.add(serverMs);plan.serverConfirmTrend.add(serverMs);}
   plan.successCounter.add(1);
   if (phaseInfo) phaseInfo.successCounter.add(1);
   // Payment-id-level success record for post-hoc reconciliation against

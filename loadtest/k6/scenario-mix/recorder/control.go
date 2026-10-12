@@ -31,14 +31,18 @@ type controlFlow struct {
 	Weight   float64
 	Requests chan admission
 	Credit   float64
+	Started  uint64
 }
 type controlSnapshot struct {
-	State    string  `json:"state"`
-	Active   float64 `json:"active_seconds"`
-	Wall     float64 `json:"wall_seconds"`
-	InFlight uint64  `json:"in_flight"`
-	Dropped  uint64  `json:"dropped"`
-	Offered  float64 `json:"offered_tps"`
+	State      string            `json:"state"`
+	FaultGate  bool              `json:"fault_gate"`
+	Active     float64           `json:"active_seconds"`
+	Wall       float64           `json:"wall_seconds"`
+	InFlight   uint64            `json:"in_flight"`
+	Dropped    uint64            `json:"dropped"`
+	Offered    float64           `json:"offered_tps"`
+	Started    uint64            `json:"started_flows"`
+	FlowStarts map[string]uint64 `json:"flow_starts"`
 }
 type loadControl struct {
 	mu                sync.Mutex
@@ -47,6 +51,10 @@ type loadControl struct {
 	state             string
 	started, last     time.Time
 	active            float64
+	faultGate         bool
+	faultCycle        bool
+	gateAt            float64
+	gateRate          float64
 	inFlight, dropped uint64
 	stop              chan struct{}
 	done              chan struct{}
@@ -109,13 +117,14 @@ func newLoadControl(metadata map[string]interface{}, file, token string, onDone 
 		}
 		if r.Method == "POST" {
 			var body struct {
-				Action string `json:"action"`
+				Action             string   `json:"action"`
+				UntilActiveSeconds *float64 `json:"until_active_seconds"`
 			}
 			if json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024)).Decode(&body) != nil {
 				http.Error(w, "invalid action", 400)
 				return
 			}
-			if err := c.action(body.Action); err != nil {
+			if err := c.action(body.Action, body.UntilActiveSeconds); err != nil {
 				http.Error(w, err.Error(), 409)
 				return
 			}
@@ -189,14 +198,64 @@ func (c *loadControl) snapshot() controlSnapshot {
 	if c.state != "running" {
 		rate = 0
 	}
-	return controlSnapshot{c.state, c.active, wall, c.inFlight, c.dropped, rate}
+	starts, total := make(map[string]uint64, len(c.flows)), uint64(0)
+	for name, flow := range c.flows {
+		starts[name] = flow.Started
+		total += flow.Started
+	}
+	return controlSnapshot{State: c.state, FaultGate: c.faultGate, Active: c.active, Wall: wall, InFlight: c.inFlight, Dropped: c.dropped, Offered: rate, Started: total, FlowStarts: starts}
 }
-func (c *loadControl) action(action string) error {
+func (c *loadControl) action(action string, until ...*float64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	var gateAt *float64
+	if len(until) > 0 {
+		gateAt = until[0]
+	}
 	switch action {
-	case "pause":
+	case "gate":
 		if c.state != "running" {
+			return errors.New("only a running load can enter a fault gate")
+		}
+		if !c.faultGate {
+			c.gateRate = c.rate()
+			c.faultGate = true
+			c.faultCycle = true
+			c.gateAt = 0
+			c.last = time.Now()
+		}
+	case "release":
+		if c.state != "running" {
+			return errors.New("only a running load can be released from a fault gate")
+		}
+		if c.faultGate {
+			if gateAt != nil {
+				if *gateAt <= c.active || *gateAt > c.load.Duration {
+					return errors.New("release boundary must be after the active clock and within the load duration")
+				}
+				c.gateAt = *gateAt
+			} else {
+				c.gateAt = 0
+			}
+			c.faultGate = false
+			c.last = time.Now()
+		}
+	case "recover":
+		if c.state != "running" {
+			return errors.New("only a running load can finish a fault cycle")
+		}
+		if gateAt != nil {
+			if math.IsNaN(*gateAt) || math.IsInf(*gateAt, 0) || *gateAt < c.active || *gateAt > c.load.Duration {
+				return errors.New("recovery boundary must be at or after the active clock and within the load duration")
+			}
+			c.active = *gateAt
+		}
+		c.faultGate = false
+		c.faultCycle = false
+		c.gateAt = 0
+		c.last = time.Now()
+	case "pause":
+		if c.state != "running" || c.faultGate {
 			return errors.New("only running loads can pause")
 		}
 		c.state = "pausing"
@@ -261,13 +320,26 @@ func (c *loadControl) step(now time.Time) bool {
 		if delta < 0 {
 			return false
 		}
-		remaining := c.load.Duration - c.active
-		if delta > remaining {
-			delta = remaining
-		}
 		c.last = now
-		offered := c.offeredBetween(c.active, c.active+delta)
-		c.active += delta
+		offered := c.gateRate * delta
+		if !c.faultGate {
+			remaining := c.load.Duration - c.active
+			if c.gateAt > c.active && c.gateAt-c.active < remaining {
+				remaining = c.gateAt - c.active
+			}
+			if delta > remaining {
+				delta = remaining
+			}
+			offered = c.offeredBetween(c.active, c.active+delta)
+			c.active += delta
+			if c.gateAt > 0 && c.active >= c.gateAt-1e-9 {
+				c.active = c.gateAt
+				c.gateRate = c.rate()
+				c.gateAt = 0
+				c.faultGate = true
+				c.faultCycle = true
+			}
+		}
 		for _, f := range c.flows {
 			f.Credit += offered * f.Weight / 100
 			slots := int(math.Floor(f.Credit + 1e-9))
@@ -284,6 +356,7 @@ func (c *loadControl) step(now time.Time) bool {
 							continue
 						}
 						c.inFlight++
+						f.Started++
 						req.ready <- true
 						delivered = true
 					default:
@@ -293,7 +366,7 @@ func (c *loadControl) step(now time.Time) bool {
 				}
 			}
 		}
-		if c.active >= c.load.Duration {
+		if !c.faultGate && !c.faultCycle && c.active >= c.load.Duration {
 			c.state = "draining"
 		}
 	}

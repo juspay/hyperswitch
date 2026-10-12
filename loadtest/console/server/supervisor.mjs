@@ -10,10 +10,23 @@ import path from 'node:path';
 import {dataRoot,consoleRoot,redact} from './state.mjs';
 import {HttpError} from './errors.mjs';
 const descriptor=path.join(dataRoot,'worker-service.json'),lock=path.join(dataRoot,'worker-service.lock');
+const protocolVersion=2;
 const alive=pid=>{try{process.kill(pid,0);return true;}catch{return false;}};
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 let starting;
 async function readService(){try{return JSON.parse(await readFile(descriptor,'utf8'));}catch{return null;}}
+async function serviceRequest(service,operation,args={},timeout=15000){
+  const response=await fetch(`${service.url}/rpc`,{method:'POST',headers:{authorization:`Bearer ${service.token}`,'content-type':'application/json'},body:JSON.stringify({operation,args}),signal:AbortSignal.timeout(timeout)});
+  const result=await response.json();if(!response.ok)throw new HttpError(response.status,result.error);return result;
+}
+async function replaceOutdatedService(service,actual){
+  let active=null;try{active=await serviceRequest(service,'active',{},2000);}catch(error){if(error.status!==404)throw error;}
+  if(active)throw new HttpError(409,`Worker service protocol ${actual||'legacy'} is outdated. Stop the active ${active.command} job, then restart the console.`);
+  try{process.kill(service.pid,'SIGTERM');}catch(error){if(error.code!=='ESRCH')throw error;}
+  for(let i=0;i<100&&alive(service.pid);i++)await wait(100);
+  if(alive(service.pid))throw new HttpError(503,'Outdated worker service did not stop; run npm run worker -- stop and retry');
+  await rm(descriptor,{force:true});
+}
 export async function initializeSupervisor() {
   if(starting)return starting;
   starting=(async()=>{
@@ -22,7 +35,10 @@ export async function initializeSupervisor() {
     for(let i=0;i<150;i++){
       const service=await readService();
       if(service&&alive(service.pid)){
-        try{const response=await fetch(`${service.url}/health`,{headers:{authorization:`Bearer ${service.token}`},signal:AbortSignal.timeout(500)});if(response.ok)return service;}catch{}
+        try{
+          const response=await fetch(`${service.url}/health`,{headers:{authorization:`Bearer ${service.token}`},signal:AbortSignal.timeout(500)});
+          if(response.ok){const health=await response.json();if(health.protocol===protocolVersion)return service;await replaceOutdatedService(service,health.protocol);}
+        }catch(error){if(error instanceof HttpError)throw error;}
       }
       if(!launched){
         const log=openSync(path.join(dataRoot,'worker.log'),'a',0o600);
@@ -36,8 +52,7 @@ export async function initializeSupervisor() {
 }
 export async function workerCommand(operation,args={}) {
   const service=await initializeSupervisor();
-  const response=await fetch(`${service.url}/rpc`,{method:'POST',headers:{authorization:`Bearer ${service.token}`,'content-type':'application/json'},body:JSON.stringify({operation,args}),signal:AbortSignal.timeout(15000)});
-  const result=await response.json();if(!response.ok)throw new HttpError(response.status,result.error);return result;
+  return serviceRequest(service,operation,args);
 }
 export function jobEvents(id,request){
   let timer,busy=false,closed=false;
@@ -61,19 +76,21 @@ async function serve(){
     await rm(lock,{recursive:true,force:true});return serve();
   }
   await writeFile(path.join(lock,'owner.json'),JSON.stringify({pid:process.pid}),{mode:0o600});
-  const jobs=await import('./jobs.mjs'),faults=await import('./faults.mjs');jobs.initializeJobs();
+  const jobs=await import('./jobs.mjs'),faults=await import('./faults.mjs'),registry=await import('./worker-registry.mjs');jobs.initializeJobs();registry.registerLocalWorker();
+  const localHeartbeat=setInterval(()=>registry.registerLocalWorker(),5000);localHeartbeat.unref();
   const token=randomUUID();let shuttingDown=false;
   const server=createServer(async(req,res)=>{
     const provided=Buffer.from(req.headers.authorization || ''),expected=Buffer.from(`Bearer ${token}`);
     if(provided.length!==expected.length||!timingSafeEqual(provided,expected)){res.writeHead(401);res.end();return;}
     res.setHeader('content-type','application/json');
     try{
-      if(req.url==='/health'&&req.method==='GET'){res.end('{"ready":true}');return;}
+      if(req.url==='/health'&&req.method==='GET'){res.end(JSON.stringify({ready:true,protocol:protocolVersion}));return;}
       if(req.url!=='/rpc'||req.method!=='POST')throw new HttpError(404,'Not found');
       if(shuttingDown)throw new HttpError(503,'Worker is shutting down');
       let text='';for await(const chunk of req){text+=chunk;if(text.length>1024*1024)throw new HttpError(413,'Request too large');}
       const {operation,args:a={}}=JSON.parse(text);let result;
       switch(operation){
+        case 'save-scenario':result=(await import('./profiles.mjs')).saveScenario(a);break;
         case 'active':result=jobs.activeJob(a.kind);break;
         case 'job':result=jobs.getJob(a.id);break;
         case 'latest-reconciliation':result=jobs.latestReconciliation(a.path);break;
@@ -94,8 +111,8 @@ async function serve(){
     }catch(e){res.statusCode=e.status || 400;res.end(JSON.stringify({error:redact(e.message)}));}
   });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',()=>resolve(undefined)));
-  await writeFile(descriptor,JSON.stringify({pid:process.pid,url:`http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */(server.address()).port}`,token}),{mode:0o600});
-  const stop=async()=>{if(shuttingDown)return;shuttingDown=true;await jobs.shutdownJobs();server.close();await rm(descriptor,{force:true});await rm(lock,{recursive:true,force:true});process.exit(0);};
+  await writeFile(descriptor,JSON.stringify({pid:process.pid,url:`http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */(server.address()).port}`,token,protocol:protocolVersion}),{mode:0o600});
+  const stop=async()=>{if(shuttingDown)return;shuttingDown=true;clearInterval(localHeartbeat);await jobs.shutdownJobs();server.close();await rm(descriptor,{force:true});await rm(lock,{recursive:true,force:true});process.exit(0);};
   process.once('SIGTERM',stop);process.once('SIGINT',stop);
 }
 if(process.argv[1]===fileURLToPath(import.meta.url)&&process.argv[2]==='serve')serve().catch(async e=>{await writeFile(path.join(dataRoot,'worker-error.log'),redact(e.stack)+'\n',{mode:0o600}).catch(()=>{});process.exitCode=1;});

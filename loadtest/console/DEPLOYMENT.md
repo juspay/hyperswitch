@@ -42,6 +42,17 @@ New jobs wait until surviving workers have stopped after a restart.
 Cancellation and shutdown allow 60 seconds for k6 to stop and drain. The container
 grace period is 75 seconds. Forced termination leaves incomplete recording.
 
+## Database TLS
+
+Set `PGSSLROOTCERT` to an absolute mounted PEM path when PostgreSQL uses a private
+certificate authority, then launch with `npm run start:tls`. Leave the variable
+empty for a certificate issued by a system-trusted CA. The TLS launcher refuses
+to replace a worker that owns an active job or fault recovery. Container
+deployments can instead save the same CA path in Settings → Database; mount the
+certificate read-only and choose **Verified certificate**. For managed databases
+that require encryption but do not expose a verifiable server CA, choose
+**Required · encrypted**.
+
 ## Grafana
 
 The console automatically detects root-hosted Grafana and rewrites its frontend
@@ -127,3 +138,41 @@ recorder; a worker crash marks unfinished runs incomplete on recovery.
 Configure an existing PostgreSQL account with SELECT permission on
 `payment_intent`, then use Settings → Database → Test connection. No role is
 created automatically. Saved connection settings override environment defaults.
+
+## Distributed workers
+
+The console is the control plane. It owns scenarios, synchronized run state,
+fault execution and result merging. Remote workers connect outbound over HTTPS,
+receive a worker-specific fixture/config bundle, run one TPS shard, and stream
+health and progress back. Workers never receive gcloud or kubectl credentials.
+
+Set a long random `LOADTEST_WORKER_ENROLLMENT_TOKEN` on the control plane and
+each new worker. Enrollment exchanges it for a unique credential stored with
+mode `0600` in the worker data directory. Remove the enrollment token from a
+worker after its identity has been created. Put the control plane behind TLS in
+production and restrict the worker API to the private network.
+
+For a local multi-container verification:
+
+```bash
+docker compose -f compose.yaml -f compose.distributed.yaml up --build --scale worker=4
+```
+
+Each worker defaults to 250 TPS and 2,500 VUs. Settings shows heartbeats and
+advertised capacity. Performance enables **Distributed · auto** when at least
+one remote worker is healthy. The scheduler refuses a run unless combined TPS
+and VU capacity satisfy the scenario, then schedules all workers against a
+common future start time. Infrastructure faults remain single control-plane
+events while load continues on every shard.
+
+In cloud deployments use one persistent control-plane data volume, an Auto
+Scaling Group or Kubernetes Deployment for worker containers, and object
+storage for long-term artifact retention. Workers need outbound access to the
+control plane and the tested Hyperswitch endpoints; they need no inbound ports.
+
+Build `Dockerfile.cloud` on top of the published console image for the
+control-plane Deployment. It installs the `gcloud` and `kubectl` binaries used
+by the Cloud fault presets. Authenticate it with workload identity and narrowly
+scoped AlloyDB IAM and Kubernetes RBAC; do not mount either credential into load
+workers. The ordinary console image remains suitable when infrastructure faults
+are disabled.

@@ -18,9 +18,11 @@
     "superposition": {
       "endpoint": "http://127.0.0.1:8082",
       "token": "${SUPERPOSITION_TOKEN}",
+      "access_header": "x-superposition-access",
       "organization_id": "localorg",
       "workspace_id": "dev",
       "refresh_interval_seconds": 300,
+      "poll_interval_seconds": 5,
       "defaults": {
         "system.should_call_pm_modular_service": true,
         "system.payment_method_integration_type": "pay_then_vault",

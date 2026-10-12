@@ -47,10 +47,21 @@ test('SSR, authentication, Grafana proxy, jobs, SSE, cancellation and restart',a
     const response=await fetch(origin+'/login',{method:'POST',redirect:'manual',headers:{origin,accept:'text/html'},body:new URLSearchParams({username:'admin',password:'console test password'})});
     assert.equal(response.status,303);cookie=response.headers.get('set-cookie').split(';')[0];assert.match(response.headers.get('set-cookie'),/HttpOnly/);
     assert.equal((await request('/')).status,303);
-    const page=await request('/scenarios');assert.equal(page.status,200);assert.match(await page.text(),/Saved scenarios/);
-    const initialProfile=(await (await request('/api/profiles')).json())[0];
+    const page=await request('/scenarios');assert.equal(page.status,200);assert.match(await page.text(),/Build traffic patterns and resilience tests/);
+    let initialProfile=(await (await request('/api/profiles')).json())[0];
+    if(!initialProfile){
+      const draft=await (await request('/api/settings')).json();
+      initialProfile=await (await request('/api/profiles','POST',{...draft,name:'Initial HTTP scenario',merchantCount:1})).json();
+    }
     const editor=await request(`/scenarios?view=edit&profile=${initialProfile.id}`);assert.equal(editor.status,200);assert.match(await editor.text(),/100% allocated/);
     assert.match(await (await request(`/scenarios?view=edit&profile=${initialProfile.id}`)).text(),/Fault targets/);
+    const sharedTargets=await (await request('/api/faults/targets')).json();
+    const savedScenarioResponse=await request('/api/scenarios/save','POST',{profile:{...initialProfile,name:'Atomic HTTP scenario'},targets:sharedTargets,expectedTargets:JSON.stringify(sharedTargets)});
+    assert.equal(savedScenarioResponse.status,200,await savedScenarioResponse.clone().text());
+    const savedScenario=await savedScenarioResponse.json();assert.equal(savedScenario.profile.version,initialProfile.version+1);
+    const allocationResponse=await request(`/api/workers/plan?profile=${initialProfile.id}`);
+    // With no remote workers registered, planning explains the capacity blocker.
+    assert.equal(allocationResponse.status,400);assert.match((await allocationResponse.json()).error,/worker|capacity/i);
     const settings=await (await request('/api/settings')).json();assert.equal(settings.adminApiKey,'');assert.doesNotMatch(JSON.stringify(settings),/mock-private-admin|mock-sp-token|secret-grafana-test/);
     assert.equal((await request('/api/settings','PUT',settings,true,{origin:'https://other.example'})).status,403);
     const localTargets=[{id:'vault',label:'Vault test',adapter:'local-vault',port:3001,repository:temporary}];
@@ -72,9 +83,16 @@ test('SSR, authentication, Grafana proxy, jobs, SSE, cancellation and restart',a
     let profile=await (await request('/api/profiles')).json();profile=profile[0];
     async function saveLoad(){profile=await (await request(`/api/profiles/${profile.id}`,'PUT',{...profile,...settings,name:'HTTP test profile',merchantCount:1})).json();assert.ok(profile.id,JSON.stringify(profile));}
     async function startLoad(){return (await request('/api/runs','POST',{mode:'single',profileId:profile.id,version:profile.version})).json();}
+    settings.preAllocatedVusMultiplier=4;settings.maxVusMultiplier=12;
+    assert.equal((await request('/api/settings','PUT',settings)).status,200);
     assert.equal((await request('/api/settings/database/test','POST',{host:'127.0.0.1',port:1,database:'test',user:'missing',password:''})).status,400);
+    const serviceCheck=await (await request('/api/settings/services/test','POST',{kind:'router',endpoint:origin})).json();assert.equal(serviceCheck.ok,true,JSON.stringify(serviceCheck));
+    const superpositionCheckResponse=await request('/api/settings/services/test','POST',{kind:'superposition',endpoint:settings.superposition.endpoint,superposition:settings.superposition});
+    assert.equal(superpositionCheckResponse.status,200,await superpositionCheckResponse.clone().text());
+    const superpositionCheck=await superpositionCheckResponse.json();assert.equal(superpositionCheck.ok,true);assert.match(superpositionCheck.message,/Authenticated/);
     for(const route of ['/fixtures','/performance','/results'])assert.equal((await request(route)).status,200);
     const resultsPage=await (await request('/results')).text();assert.doesNotMatch(resultsPage,/Run \/ scenario|run-library/);assert.match(resultsPage,/No runs yet|run-select/);
+    assert.equal((await request('/results?run=single%3Amissing')).status,200);
     const panels=[{title:'One',url:'/grafana/d-solo/k6/test?panelId=1'},{title:'Two',url:'/grafana/d-solo/k6/test?panelId=2'}];
     assert.equal((await request('/api/grafana/panels','PUT',panels)).status,200);
     assert.equal((await (await request('/api/grafana/panels')).json()).length,2);
@@ -88,6 +106,16 @@ test('SSR, authentication, Grafana proxy, jobs, SSE, cancellation and restart',a
     const fixtures=await (await request('/api/fixtures','POST',{mode:'single'})).json();
     assert.equal((await request('/api/runs','POST',{mode:'single'})).status,409);
     const completedFixtures=await completed(fixtures.id);assert.equal(completedFixtures.status,'complete');assert.equal(completedFixtures.progress.setup.stage,'ready');assert.equal(completedFixtures.progress.setup.superposition.status,'complete');
+    const runsBeforeSmoke=(await (await request('/api/runs')).json()).length;
+    const smokeResponse=await request('/api/smoke','POST',{mode:'single',profileId:profile.id,version:profile.version,fixtureSetId:completedFixtures.fixtureSetId,rps:1,durationSeconds:1});
+    assert.equal(smokeResponse.status,202);const smoke=await smokeResponse.json();assert.equal(smoke.command,'smoke');assert.equal(smoke.runId,undefined);
+    assert.equal((await request('/api/runs','POST',{mode:'single'})).status,409);
+    const completedSmoke=await completed(smoke.id);assert.equal(completedSmoke.status,'complete',completedSmoke.error);assert.match(completedSmoke.output,/recording disabled/);
+    assert.equal(completedSmoke.profile.totalRps,1);assert.equal(completedSmoke.profile.durationSeconds,1);
+    assert.ok(completedSmoke.progress.elapsed_seconds>0,JSON.stringify(completedSmoke.progress));
+    assert.ok(completedSmoke.progress.trend?.t>0,JSON.stringify(completedSmoke.progress));
+    await assert.rejects(readFile(path.join(temporary,'jobs',smoke.id,'smoke','results.sqlite'),'utf8'),error=>error.code==='ENOENT');
+    assert.equal((await (await request('/api/runs')).json()).length,runsBeforeSmoke);
     const job=await startLoad();
     const firstEvents=await request(`/api/jobs/${job.id}/events`),reader=firstEvents.body.getReader();
     assert.match(new TextDecoder().decode((await reader.read()).value),/event: progress/);await reader.cancel();
@@ -112,6 +140,7 @@ test('SSR, authentication, Grafana proxy, jobs, SSE, cancellation and restart',a
     assert.match(immutable.runId,/-single-10tps-/);
     const snapshot=JSON.parse(await readFile(path.join(temporary,'jobs',job.id,'config.json'),'utf8'));
     assert.equal(snapshot.mode,'single');assert.equal(snapshot.load.total_rps,10);
+    assert.equal(snapshot.load.pre_allocated_vus_multiplier,4);assert.equal(snapshot.load.max_vus_multiplier,12);
     settings.totalRps=10;settings.durationSeconds=6;assert.equal((await request('/api/settings','PUT',settings)).status,200);await saveLoad();
     const end=await completed(job.id);assert.equal(end.status,'complete',end.output);
     const run=await (await request(`/api/runs/${encodeURIComponent(end.runId)}`)).json();
@@ -134,14 +163,21 @@ test('SSR, authentication, Grafana proxy, jobs, SSE, cancellation and restart',a
     assert.equal(scheduledEnd.events.filter(e=>e.kind==='fault_restored').length,1);
     assert.equal(scheduledEnd.profile.timeline.at(-1).end,6);
     const plannedRun=await (await request(`/api/runs/${encodeURIComponent(scheduled.runId)}`)).json();assert.equal(plannedRun.timeline[0].fault.action,'outage');assert.equal(plannedRun.timeline.at(-1).end,6);assert.doesNotMatch(JSON.stringify(plannedRun.timeline),/secret|repository|controllerPort/);
-    const plannedPage=await (await request(`/performance?run=${encodeURIComponent(scheduled.runId)}`)).text();assert.match(plannedPage,/recovery begins \(planned\)/);assert.match(plannedPage,/over the full 6 second test/);
+    const plannedPage=await (await request(`/performance?run=${encodeURIComponent(scheduled.runId)}`)).text();assert.match(plannedPage,/recovery planned/);assert.match(plannedPage,/over the full 6 second test/);
     const faultSnapshot=JSON.parse(await readFile(path.join(temporary,'jobs',scheduled.id,'config.json'),'utf8'));
     assert.equal(faultSnapshot.faultPlan[0].target.id,'demo');assert.equal(faultSnapshot.faultPlan[0].at,0);
+    settings.stagesJson=JSON.stringify([{target_rps:10,duration_seconds:20,fault:{targetId:'demo',action:'outage'}},{target_rps:10,duration_seconds:3}]);await saveLoad();
+    const cancelFault=await startLoad();
+    for(let i=0;i<100;i++){if((await (await request('/api/faults')).json()).active?.occurred)break;await wait(100);}
+    assert.equal((await (await request('/api/faults')).json()).active?.occurred,true);
+    assert.equal((await request(`/api/jobs/${cancelFault.id}/cancel`,'POST')).status,200);
+    const cancelledFault=await completed(cancelFault.id);assert.equal(cancelledFault.status,'cancelled');
+    const restored=await (await request('/api/faults')).json();assert.equal(restored.active,null);assert.equal(restored.blocked,false);assert.ok(cancelledFault.events.some(e=>e.kind==='fault_restored'));
     settings.loadShape='flat';assert.equal((await request('/api/settings','PUT',settings)).status,200);await saveLoad();
     target.state.errorCustomers=true;settings.durationSeconds=3;assert.equal((await request('/api/settings','PUT',settings)).status,200);await saveLoad();
     const failing=await startLoad();
     const failed=await completed(failing.id);assert.equal(failed.status,'failed');assert.equal(failed.exitCode,99);
-    const failedRun=await (await request(`/api/runs/${encodeURIComponent(failing.runId)}`)).json();assert.ok(failedRun.complete);assert.equal(failedRun.acceptance.verdict,'fail');
+    const failedRun=await (await request(`/api/runs/${encodeURIComponent(failing.runId)}`)).json();assert.equal(failedRun.complete,true);assert.equal(failedRun.recordingState,'complete');assert.equal(failedRun.loadState,'failed');assert.equal(failedRun.acceptance.verdict,'fail');
     target.state.errorCustomers=false;settings.durationSeconds=6;assert.equal((await request('/api/settings','PUT',settings)).status,200);await saveLoad();
     // Restart preserves sessions and completed jobs.
     server.kill('SIGTERM');await once(server,'exit');launch();await ready();

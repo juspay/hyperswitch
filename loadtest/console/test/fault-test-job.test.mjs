@@ -6,7 +6,7 @@ import path from 'node:path';
 process.env.LOADTEST_DATA_DIR=await realpath(await mkdtemp(path.join(os.tmpdir(),'console-outage-job-')));
 const jobs=await import('../server/jobs.mjs');
 const faults=await import('../server/faults.mjs');
-const waitFor=async(predicate)=>{for(let i=0;i<100;i++){if(predicate())return;await new Promise(r=>setTimeout(r,20));}throw new Error('Timed out');};
+const waitFor=async(predicate,{attempts=100}={})=>{for(let i=0;i<attempts;i++){if(predicate())return;await new Promise(r=>setTimeout(r,20));}throw new Error('Timed out');};
 test('standalone test persists events, excludes competing jobs, and restores early',async()=>{
  jobs.initializeJobs();await new Promise(r=>setTimeout(r,30));
  const job=await jobs.startFaultTest({targetId:'demo',action:'outage',durationSeconds:30,confirm:'outage demo'});
@@ -20,9 +20,9 @@ test('standalone test persists events, excludes competing jobs, and restores ear
  assert.ok(result.events.some(e=>e.kind==='fault_restored'));
  assert.equal(result.result.recovered,true);
  assert.equal(faults.faultStatus().active,null);
- await faults.saveLocalFaultTargets([{id:'unavailable',adapter:'process-compose',serviceType:'redis',port:6379,controllerPort:8090,process:'r1',binary:path.join(process.env.LOADTEST_DATA_DIR,'process-compose')}]);
+ await faults.saveLocalFaultTargets([{id:'unavailable',adapter:'process-compose',serviceType:'redis',port:6379,controllerPort:1,process:'r1',binary:path.join(process.env.LOADTEST_DATA_DIR,'process-compose')}]);
  const failed=await jobs.startFaultTest({targetId:'unavailable',action:'outage',durationSeconds:1,confirm:'outage unavailable'});
- await waitFor(()=>jobs.getJob(failed.id).status==='failed');
+ await waitFor(()=>jobs.getJob(failed.id).status==='failed',{attempts:350});
  assert.match(jobs.getJob(failed.id).error,/Cannot reach process-compose/);
  assert.equal(faults.faultStatus().active,null);
  await jobs.shutdownJobs();

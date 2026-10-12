@@ -41,6 +41,13 @@ test('Superposition changes only default values and skips unchanged defaults',as
   await configureSuperposition(cfg,recorder,[{merchant_id:'m',profile_id:'p'}],'o');assert.equal(state.patches,1);
  } finally {recorder.close();server.close();}
 });
+
+test('Superposition supports its access header authentication mode',async()=>{
+ const requests=[];const server=(await import('node:http')).createServer((req,res)=>{requests.push(req.headers);res.writeHead(200,{'content-type':'application/json','x-config-version':'v1'});res.end(req.url==='/config/resolve'?'{"flag":true}':'{"value":true}');});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const recorder=new FixtureRecorder(path.join(await temporary(),'fixtures.sqlite'));
+ try{await configureSuperposition({endpoint:`http://127.0.0.1:${server.address().port}`,token:'access-token',access_header:'x-superposition-access',organization_id:'org',workspace_id:'dev',refresh_interval_seconds:0,defaults:{flag:true}},recorder,[{merchant_id:'m',profile_id:'p'}],'org');assert.ok(requests.every(headers=>headers['x-superposition-access']==='access-token'&&!headers.authorization));}
+ finally{recorder.close();server.close();}
+});
 test('partial connector failure resumes using checkpointed API keys and invalidates readiness',async() => {
  const {server,state,url}=await mockServer();const dir=await temporary();
  try {
@@ -71,10 +78,12 @@ test('recorded k6 load covers all scenario paths and drains every response', {sk
   const result=await load(configPath,output,path.join(dir,'run'),process.env.K6_SQLITE_BINARY);assert.equal(result.exitCode,0);
   const summary=JSON.parse(await readFile(path.join(dir,'run','summary.json'),'utf8'));
   assert.ok(summary.metrics.http_reqs.values.count>100);
+  assert.equal(summary.metrics.payment_confirm_server_latency_ms.values['p(99)'],12);assert.ok(state.latencyOptIns>0);
   const db=new DatabaseSync(result.database,{readOnly:true});
   const events=db.prepare('SELECT COUNT(*) n FROM request_events').get().n;
   assert.equal(events,state.requests-before);assert.ok(events>100);
   assert.equal(db.prepare('SELECT MIN(api_status_code) n FROM request_events').get().n,200);
+  assert.equal(db.prepare("SELECT MIN(server_latency_ms) n FROM request_events WHERE operation='payment_confirm'").get().n,12);
   assert.ok(db.prepare('SELECT AVG(latency_ms) n FROM request_events').get().n>0);
   const operations=db.prepare('SELECT DISTINCT operation FROM request_events').all().map(r=>r.operation);
   for(const operation of ['customer_create','pm_session_create','pm_session_confirm','payment_create','payment_confirm','baseline_create','baseline_confirm','payment_method_list','payment_method_list_poll','baseline_poll','session','eligibility']) assert.ok(operations.includes(operation),operation);
@@ -127,9 +136,29 @@ test('native capture preserves non-2xx bodies and tolerates malformed entity JSO
 test('Superposition refresh countdown precedes final readiness verification',async()=>{
  const {server,url}=await mockServer(),dir=await temporary();
  try{
-  const file=await configuration(dir,url),cfg=JSON.parse(await readFile(file,'utf8'));cfg.superposition.refresh_interval_seconds=1;await writeFile(file,JSON.stringify(cfg));
+  const file=await configuration(dir,url),cfg=JSON.parse(await readFile(file,'utf8'));cfg.superposition.refresh_interval_seconds=1;cfg.superposition.poll_interval_seconds=.25;await writeFile(file,JSON.stringify(cfg));
   const updates=[];await fixtures(file,path.join(dir,'fixtures'),{onProgress:value=>updates.push(structuredClone(value))});
-  const waiting=updates.filter(s=>s.superposition.status==='waiting');assert.equal(waiting[0].superposition.remainingSeconds,1);assert.equal(waiting.at(-1).superposition.remainingSeconds,0);
+  const waiting=updates.filter(s=>s.superposition.status==='waiting');assert.equal(waiting[0].superposition.remainingSeconds,1);assert.equal(waiting.at(-1).superposition.remainingSeconds,0);assert.ok(waiting.length>=4);
   assert.ok(updates.findIndex(s=>s.superposition.status==='verifying')>updates.findIndex(s=>s.superposition.status==='waiting'));assert.equal(updates.at(-1).stage,'ready');
  }finally{server.close();}
+});
+
+test('controlled smoke counts starts before delayed responses and preserves failed checks', {skip:!process.env.K6_SQLITE_BINARY},async()=>{
+ const {server,state,url}=await mockServer(),dir=await temporary(),oldControl=process.env.SQLITE_RECORDER_CONTROL_FILE,oldProgress=process.env.SQLITE_RECORDER_PROGRESS_FILE,oldToken=process.env.SQLITE_RECORDER_CONTROL_TOKEN;
+ try{
+  const fixturePath=path.join(dir,'fixtures');await fixtures(await configuration(dir,url),fixturePath);
+  const config={services:{router:url},load:{total_rps:2,duration_seconds:3},payment:{amount:100,currency:'USD',card:{card_number:'4242424242424242'}},scenarios:[{name:'guest',scenario:'guest',merchant_path:'non_modular',weight:100}]},file=path.join(dir,'load.json');await writeFile(file,JSON.stringify(config));
+  const output=path.join(dir,'delayed');process.env.SQLITE_RECORDER_CONTROL_FILE=path.join(output,'control.json');process.env.SQLITE_RECORDER_PROGRESS_FILE=path.join(output,'progress.json');state.delayPayments=4000;process.env.SQLITE_RECORDER_CONTROL_TOKEN='delayed-test-token';
+  const pending=load(file,fixturePath,output,process.env.K6_SQLITE_BINARY,{recording:false,telemetry:true});let observed=false;
+  for(let attempt=0;attempt<80;attempt++){
+   const p=JSON.parse(await readFile(process.env.SQLITE_RECORDER_PROGRESS_FILE,'utf8').catch(()=>'{}'));
+   if(p.control?.started_flows>=2){assert.equal(p.flows.guest.successes,0);assert.equal(p.control.flow_starts.guest,p.control.started_flows);assert.equal(p.control.in_flight,p.control.started_flows);observed=true;break;}
+   await new Promise(resolve=>setTimeout(resolve,50));
+  }
+  const result=await pending;assert.ok(observed,'admissions must be visible while HTTP is blocked');assert.equal(result.exitCode,0);
+  const final=JSON.parse(await readFile(process.env.SQLITE_RECORDER_PROGRESS_FILE,'utf8'));assert.equal(final.control.state,'completed');assert.equal(final.control.started_flows,6);assert.equal(final.flows.guest.successes,6);assert.equal(final.control.in_flight,0);
+  await assert.rejects(readFile(path.join(output,'results.sqlite')),error=>error.code==='ENOENT');
+  state.delayPayments=0;config.thresholds={http_req_failed:['rate<0']};await writeFile(file,JSON.stringify(config));const failedOutput=path.join(dir,'failed');process.env.SQLITE_RECORDER_CONTROL_FILE=path.join(failedOutput,'control.json');process.env.SQLITE_RECORDER_PROGRESS_FILE=path.join(failedOutput,'progress.json');
+  assert.equal((await load(file,fixturePath,failedOutput,process.env.K6_SQLITE_BINARY,{recording:false,telemetry:true})).exitCode,99);
+ }finally{server.close();if(oldControl==null)delete process.env.SQLITE_RECORDER_CONTROL_FILE;else process.env.SQLITE_RECORDER_CONTROL_FILE=oldControl;if(oldProgress==null)delete process.env.SQLITE_RECORDER_PROGRESS_FILE;else process.env.SQLITE_RECORDER_PROGRESS_FILE=oldProgress;if(oldToken==null)delete process.env.SQLITE_RECORDER_CONTROL_TOKEN;else process.env.SQLITE_RECORDER_CONTROL_TOKEN=oldToken;}
 });

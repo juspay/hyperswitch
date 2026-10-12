@@ -29,25 +29,26 @@ var errQueueFull = errors.New("SQLite recording queue exhausted; run is incomple
 
 // Record contains only response projections, never request headers or card data.
 type Record struct {
-	AttemptID           uint64  `json:"attempt_id" js:"attempt_id"`
-	FlowID              string  `json:"flow_id" js:"flow_id"`
-	MerchantID          *string `json:"merchant_id" js:"merchant_id"`
-	Operation           string  `json:"operation" js:"operation"`
-	Role                string  `json:"role" js:"role"`
-	ObservedAt          int64   `json:"observed_at" js:"observed_at"`
-	Method              string  `json:"method" js:"method"`
-	URL                 string  `json:"url" js:"url"`
-	CustomerID          *string `json:"customer_id" js:"customer_id"`
-	MerchantReferenceID *string `json:"merchant_reference_id" js:"merchant_reference_id"`
-	PaymentID           *string `json:"payment_id" js:"payment_id"`
-	Amount              *int64  `json:"amount" js:"amount"`
-	Status              *string `json:"status" js:"status"`
-	APIStatusCode       int     `json:"api_status_code" js:"api_status_code"`
-	RequestID           *string `json:"request_id" js:"request_id"`
-	LatencyMS           float64 `json:"latency_ms" js:"latency_ms"`
-	Message             *string `json:"message" js:"message"`
-	ErrorBody           *string `json:"error_body" js:"error_body"`
-	EntityType          *string `json:"entity_type" js:"entity_type"`
+	AttemptID           uint64   `json:"attempt_id" js:"attempt_id"`
+	FlowID              string   `json:"flow_id" js:"flow_id"`
+	MerchantID          *string  `json:"merchant_id" js:"merchant_id"`
+	Operation           string   `json:"operation" js:"operation"`
+	Role                string   `json:"role" js:"role"`
+	ObservedAt          int64    `json:"observed_at" js:"observed_at"`
+	Method              string   `json:"method" js:"method"`
+	URL                 string   `json:"url" js:"url"`
+	CustomerID          *string  `json:"customer_id" js:"customer_id"`
+	MerchantReferenceID *string  `json:"merchant_reference_id" js:"merchant_reference_id"`
+	PaymentID           *string  `json:"payment_id" js:"payment_id"`
+	Amount              *int64   `json:"amount" js:"amount"`
+	Status              *string  `json:"status" js:"status"`
+	APIStatusCode       int      `json:"api_status_code" js:"api_status_code"`
+	RequestID           *string  `json:"request_id" js:"request_id"`
+	ServerLatencyMS     *float64 `json:"server_latency_ms" js:"server_latency_ms"`
+	LatencyMS           float64  `json:"latency_ms" js:"latency_ms"`
+	Message             *string  `json:"message" js:"message"`
+	ErrorBody           *string  `json:"error_body" js:"error_body"`
+	EntityType          *string  `json:"entity_type" js:"entity_type"`
 	size                int64
 }
 
@@ -252,7 +253,7 @@ func (w *Writer) commit(batch []*Record) error {
 	defer payment.Close()
 	var bytes int64
 	for _, r := range batch {
-		result, err := insert.Exec(w.runID, r.AttemptID, r.FlowID, r.MerchantID, r.Operation, r.Role, r.ObservedAt, r.Method, r.URL, r.CustomerID, r.MerchantReferenceID, r.PaymentID, r.Amount, r.Status, r.APIStatusCode, r.RequestID, r.LatencyMS, r.Message, r.ErrorBody, r.EntityType)
+		result, err := insert.Exec(w.runID, r.AttemptID, r.FlowID, r.MerchantID, r.Operation, r.Role, r.ObservedAt, r.Method, r.URL, r.CustomerID, r.MerchantReferenceID, r.PaymentID, r.Amount, r.Status, r.APIStatusCode, r.RequestID, r.LatencyMS, r.Message, r.ErrorBody, r.EntityType, r.ServerLatencyMS)
 		if err != nil {
 			return err
 		}

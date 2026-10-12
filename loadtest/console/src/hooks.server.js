@@ -8,6 +8,9 @@ export async function handle({ event, resolve }) {
   initializeConfig();
   const path=event.url.pathname;
   if(path==='/health')return resolve(event);
+  // Worker agents authenticate with their own bearer credentials and connect
+  // outbound, so they do not have a browser session or Origin header.
+  if(path.startsWith('/api/worker/v1/'))return resolve(event);
   if(!['GET','HEAD','OPTIONS'].includes(event.request.method) && !sameOrigin(event.request,event.url)) return json({error:'Invalid request origin'},{status:403});
   const isAuthenticated=authenticated(event.cookies.get(sessionCookie));
   if(path==='/login') {if(isAuthenticated && event.request.method==='GET')redirect(303,'/');return resolve(event);}

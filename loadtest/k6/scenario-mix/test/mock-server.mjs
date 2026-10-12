@@ -2,13 +2,14 @@ import { createServer } from "node:http";
 import { once } from "node:events";
 
 export async function mockServer({baselinePolls=1,listPolls=1} = {}) {
- const state = {accounts:new Map(),connectors:new Map(),keys:0,patches:0,default:true,conflict:false,failConnector:false,requests:0,polls:new Map(),errorCustomers:false,malformedCustomers:false};
+ const state = {accounts:new Map(),connectors:new Map(),keys:0,patches:0,default:true,conflict:false,failConnector:false,requests:0,polls:new Map(),errorCustomers:false,malformedCustomers:false,latencyOptIns:0};
  const server = createServer(async(req,res) => {
   state.requests++;
+  if(req.headers['x-hs-latency']==='true')state.latencyOptIns++;
   let text=''; for await (const chunk of req) text+=chunk;
   const body = text ? JSON.parse(text) : {};
   const url = new URL(req.url,'http://localhost');
-  const send = (status,data) => {res.writeHead(status,{'content-type':'application/json','x-request-id':`r-${state.requests}`,'x-config-version':'v1'});res.end(JSON.stringify(data));};
+  const send = (status,data) => {res.writeHead(status,{'content-type':'application/json','x-request-id':`r-${state.requests}`,'x-config-version':'v1',...(req.headers['x-hs-latency']==='true'?{'x-hs-latency':'12'}:{})});res.end(JSON.stringify(data));};
   if(url.pathname==='/organization') return send(200,{organization_id:'org-1'});
   if(url.pathname==='/accounts' && req.method==='POST') {
    if(state.accounts.has(body.merchant_id)) return send(409,{error:{message:'exists'}});
@@ -38,7 +39,7 @@ export async function mockServer({baselinePolls=1,listPolls=1} = {}) {
   }
   if(url.pathname==='/v2/payment-method-sessions') return send(200,{id:`pms-${state.requests}`,client_secret:'secret-test'});
   if(url.pathname.startsWith('/v2/payment-method-sessions/')) return send(200,{associated_payment_methods:[{payment_method_token:'token-test'}]});
-  if(url.pathname==='/payments' && req.method==='POST') return send(200,{payment_id:`pay-${state.requests}`,customer_id:body.customer_id,amount:body.amount,status:body.confirm?'succeeded':'requires_payment_method',client_secret:'secret-test'});
+  if(url.pathname==='/payments' && req.method==='POST') {const id=`pay-${state.requests}`;if(state.delayPayments)await new Promise(resolve=>setTimeout(resolve,state.delayPayments));return send(200,{payment_id:id,customer_id:body.customer_id,amount:body.amount,status:body.confirm?'succeeded':'requires_payment_method',client_secret:'secret-test'});}
   if(url.pathname.endsWith('/confirm')) return send(200,{payment_id:url.pathname.split('/')[2],status:'succeeded'});
   if(url.pathname.endsWith('/client')) {
    const n=state.polls.get(url.pathname)||0;state.polls.set(url.pathname,n+1);

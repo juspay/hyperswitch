@@ -4,13 +4,18 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 4174",
+    "dev": "node --env-file-if-exists=.env ./node_modules/vite/bin/vite.js --host 127.0.0.1 --port 4174",
+    "dev:tls": "node --env-file-if-exists=.env scripts/database-tls.mjs dev",
     "build": "vite build",
+    "build:recorder": "../k6/scenario-mix/recorder/build.sh",
     "start": "node --env-file-if-exists=.env start.mjs",
+    "start:tls": "node --env-file-if-exists=.env scripts/database-tls.mjs start",
     "check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
     "test": "node --test test/*.test.mjs",
     "password": "node scripts/password.mjs",
-    "worker": "node --env-file-if-exists=.env scripts/worker.mjs"
+    "worker": "node --env-file-if-exists=.env scripts/worker.mjs",
+    "worker:agent": "node --env-file-if-exists=.env ../worker/agent.mjs",
+    "test:scale": "CONSOLE_SCALE_PAYMENTS=10000000 node --test test/payment-index.test.mjs"
   },
   "dependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.2.1",

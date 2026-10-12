@@ -48,6 +48,9 @@ Additional resolution dimensions belong in `superposition.context`.
 `organization_id` in this block is the **Superposition tenant**, distinct from the
 organization created in Router. Readiness is a setup snapshot; configure fixtures
 again if external flags/credentials change before a run.
+Set `access_header` to `x-superposition-access` for deployments protected by the
+Superposition access header. Omit it, or use `authorization`, for bearer-token
+authentication.
 
 Provisioning config strings of the form `${ENV_NAME}` are resolved from the
 environment. Manifests/checkpoints contain merchant credentials and are created

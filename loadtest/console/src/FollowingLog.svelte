@@ -19,5 +19,5 @@
 <style>
   .output-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;color:#667085;font-size:12px}
   .output-toolbar button{min-height:28px;font-size:12px}
-  pre{width:100%;max-width:none!important;margin:0;min-height:180px;max-height:none!important;overflow-x:auto;white-space:pre!important;line-height:1.55}
+  pre{width:100%;max-width:none!important;margin:0;background:#182235!important;color:#dce6f3!important;border-radius:8px;padding:16px!important;min-height:180px;max-height:none!important;overflow-x:auto;white-space:pre!important;line-height:1.55}
 </style>

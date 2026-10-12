@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdir, readFile, writeFile, rename, access } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rename, access, unlink } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -54,7 +54,7 @@ export async function fixtures(configPath,output,{onProgress=async()=>{}}={}) {
   } finally { setFixtureRecorder(null); }
 }
 
-export async function load(configPath,fixturePath,output,binary = path.join(root,"bin/k6-sqlite"),{ recording = true, timing = false } = {}) {
+export async function load(configPath,fixturePath,output,binary = path.join(root,"bin/k6-sqlite"),{ recording = true, telemetry = false, timing = false } = {}) {
   const config = JSON.parse(await readFile(configPath,"utf8"));
   fixturePath = path.resolve(fixturePath); output = path.resolve(output); binary = path.resolve(binary);
   const manifest = JSON.parse(await readFile(path.join(fixturePath,"manifest.json"),"utf8"));
@@ -72,7 +72,8 @@ export async function load(configPath,fixturePath,output,binary = path.join(root
   await atomicJson(generatedConfig,config);
   // Preserve the original plain-k6 entrypoint. The recorded variant imports the native extension.
   const source = (await readFile(path.join(root,"scenario-mix.js"),"utf8"))
-    .replace('"./recording-client.js"','"k6/x/sqlite-recorder"');
+    .replace('"./recording-client.js"','"k6/x/sqlite-recorder"')
+    .replace('"./server-latency.mjs"',JSON.stringify(path.join(root,'server-latency.mjs')));
   const script = path.join(output,"scenario-mix.generated.js");
   await writeFile(script,source,{ mode: 0o600 });
   const runId = randomUUID();
@@ -80,7 +81,10 @@ export async function load(configPath,fixturePath,output,binary = path.join(root
     mode: config.mode ?? null, profile:config.profile ?? null,fixture_set:config.fixtureSet ?? null,
     offered_tps:config.load.total_rps ?? Math.max(config.load.start_rps || 0,...(config.load.stages || []).map(s=>s.target_rps)),
     superposition: manifest.superposition, load: config.load, scenarios: config.scenarios };
-  const args = ["run",...(recording ? ["--out","sqlite-recorder"] : []),script];
+  // Smoke tests reuse the recorder output's bounded metrics collector without
+  // calling its response-recording API. Its temporary database is removed
+  // below, leaving only the lightweight progress samples used by the UI.
+  const args = ["run",...((recording || telemetry) ? ["--out","sqlite-recorder"] : []),script];
   const timingArgs = process.platform === 'darwin' ? ['-l','-p',binary,...args]
     : ['-f','real %e\nuser %U\nsys %S\nmax_rss_kb %M',binary,...args];
   const child = spawn(timing ? "/usr/bin/time" : binary,timing ? timingArgs : args,{
@@ -107,15 +111,6 @@ export async function load(configPath,fixturePath,output,binary = path.join(root
     const rss = /(?:^max_rss_kb (\d+)|^\s*(\d+)\s+maximum resident set size)/m.exec(stderr);
     cpu.max_rss_kb = rss ? Number(rss[1] || rss[2]) / (rss[1] ? 1 : 1024) : null;
   }
-  if (!recording) return { run_id: runId, exitCode: code,cpu };
-  const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
-  if (!process.env.LOADTEST_CONSOLE_JOB) console.log(`\nReconcile this run (replace payments.csv with your CSV):\nnode ${quote(path.join(root,"run.mjs"))} reconcile --db ${quote(database)} --csv payments.csv --output ${quote(path.join(output,"reconciliation.csv"))}\n`);
-  try { await access(database); } catch(error) { if(error.code==='ENOENT')throw new Error(`k6 exited ${code} before recording initialized; see Diagnostics`);throw error; }
-  const db = new DatabaseSync(database,{ readOnly: true });
-  try {
-    const run = db.prepare("SELECT * FROM runs WHERE run_id=?").get(runId);
-    if (!run || run.recording_state !== "complete" || run.enqueued !== run.persisted) throw new Error(`Run ${runId} has incomplete recording`);
-  } finally { db.close(); }
   if(process.env.SQLITE_RECORDER_CONTROL_FILE) {
     const control=JSON.parse(await readFile(process.env.SQLITE_RECORDER_CONTROL_FILE,'utf8'));
     if(control.state==='completed') {
@@ -124,6 +119,18 @@ export async function load(configPath,fixturePath,output,binary = path.join(root
       code=failedThreshold?99:0;
     }
   }
+  if (!recording) {
+    if(telemetry)await Promise.all([database,`${database}-wal`,`${database}-shm`].map(file=>unlink(file).catch(error=>{if(error.code!=='ENOENT')throw error;})));
+    return { run_id: runId, exitCode: code,cpu };
+  }
+  const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
+  if (!process.env.LOADTEST_CONSOLE_JOB) console.log(`\nReconcile this run (replace payments.csv with your CSV):\nnode ${quote(path.join(root,"run.mjs"))} reconcile --db ${quote(database)} --csv payments.csv --output ${quote(path.join(output,"reconciliation.csv"))}\n`);
+  try { await access(database); } catch(error) { if(error.code==='ENOENT')throw new Error(`k6 exited ${code} before recording initialized; see Diagnostics`);throw error; }
+  const db = new DatabaseSync(database,{ readOnly: true });
+  try {
+    const run = db.prepare("SELECT * FROM runs WHERE run_id=?").get(runId);
+    if (!run || run.recording_state !== "complete" || run.enqueued !== run.persisted) throw new Error(`Run ${runId} has incomplete recording`);
+  } finally { db.close(); }
   return { run_id: runId, database,exitCode: code,cpu };
 }
 
