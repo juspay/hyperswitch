@@ -147,11 +147,8 @@ async fn enqueue_report(
             "Generating v2 reports on the process tracker"
         )));
     }
-    if !reports::is_supported(&state.pool) {
-        return Err(report!(AnalyticsError::NotImplemented(
-            "Report generation without a Postgres analytics pool"
-        )));
-    }
+    // Rejected here, with a 400, rather than failing in the background.
+    report.columns(request.request.columns.as_ref())?;
 
     let now = date_time::now();
     request.payment_response_hash_key = None;
@@ -209,13 +206,16 @@ pub(crate) async fn generate_report_file(
             .change_context(AnalyticsError::UnknownError)?,
     );
 
-    let (start, end) = tracking_data.time_range();
+    let database = state
+        .report_database
+        .as_ref()
+        .ok_or(AnalyticsError::UnknownError)
+        .attach_printable("No report database: replica_database is not a valid configuration")?;
     let written = reports::write_csv(
-        &state.pool,
-        tracking_data.report.definition(),
-        &tracking_data.request.auth,
-        start,
-        end,
+        database,
+        tracking_data.report,
+        &tracking_data.request,
+        &state.conf.report_download_config.process_tracker,
         &mut upload,
     )
     .await;

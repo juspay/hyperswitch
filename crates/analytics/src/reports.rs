@@ -7,12 +7,14 @@
 
 pub mod payments;
 
-use common_utils::errors::CustomResult;
+use api_models::analytics::{GenerateReportRequest, ReportColumns};
+use common_utils::{errors::CustomResult, DbConnectionParams};
 use error_stack::ResultExt;
 use futures::TryStreamExt;
 use sqlx::{Postgres, QueryBuilder, Row};
+use storage_impl::config::Database;
 
-use crate::{enums::AuthInfo, errors::AnalyticsError, AnalyticsProvider};
+use crate::{enums::AuthInfo, errors::AnalyticsError, ProcessTrackerReportConfig};
 
 /// Where a report's rows come from and the columns written for each.
 #[derive(Debug)]
@@ -46,6 +48,44 @@ impl ReportKind {
         match self {
             Self::V1Payments => &payments::V1_PAYMENTS,
         }
+    }
+
+    /// The columns `requested` selects, in its order and each once; every column when it names
+    /// none. Rejects an empty list and names the report does not define.
+    pub fn columns(
+        self,
+        requested: Option<&ReportColumns>,
+    ) -> CustomResult<Vec<&'static (&'static str, &'static str)>, AnalyticsError> {
+        let definition = self.definition();
+        let names: Vec<&str> = match (self, requested) {
+            (_, None) => return Ok(definition.columns.iter().collect()),
+            (Self::V1Payments, Some(ReportColumns::Payment(columns))) => {
+                columns.iter().map(AsRef::as_ref).collect()
+            }
+        };
+        if names.is_empty() {
+            return Err(error_stack::report!(AnalyticsError::InvalidReportColumns(
+                "at least one column must be requested".to_owned()
+            )));
+        }
+
+        let mut selected = Vec::with_capacity(names.len());
+        for name in names {
+            let column = definition
+                .columns
+                .iter()
+                .find(|(header, _)| *header == name)
+                .ok_or_else(|| {
+                    error_stack::report!(AnalyticsError::InvalidReportColumns(format!(
+                        "`{name}` is not a column of the {} report",
+                        definition.name
+                    )))
+                })?;
+            if !selected.contains(&column) {
+                selected.push(column);
+            }
+        }
+        Ok(selected)
     }
 }
 
@@ -90,20 +130,38 @@ pub fn format_timestamp(value: time::PrimitiveDateTime) -> String {
         .unwrap_or_else(|_| value.to_string())
 }
 
-/// Whether reports can be generated with this provider, so a request fails up front instead of
-/// in the background. Reports read the Postgres pool; ClickHouse-only deployments cannot serve them.
-pub fn is_supported(provider: &AnalyticsProvider) -> bool {
-    report_pool(provider).is_ok()
+/// A tenant's pool on the database reports read: the router's `replica_database`, so point that at
+/// a reader to keep reports off the primary. Built once at startup and connected lazily, so a
+/// deployment that never runs a report opens no connections. Its `max_pool_size` caps how many
+/// reports query at once: further reports wait for a connection.
+#[derive(Clone, Debug)]
+pub struct ReportDatabase {
+    pool: sqlx::PgPool,
 }
 
-fn report_pool(provider: &AnalyticsProvider) -> CustomResult<&sqlx::PgPool, AnalyticsError> {
-    match provider {
-        AnalyticsProvider::Sqlx(client)
-        | AnalyticsProvider::CombinedCkh(client, _)
-        | AnalyticsProvider::CombinedSqlx(client, _) => Ok(client.pool()),
-        AnalyticsProvider::Clickhouse(_) => Err(error_stack::report!(
-            AnalyticsError::NotImplemented("report generation without a Postgres analytics pool")
-        )),
+impl ReportDatabase {
+    pub fn connect_lazy(database: &Database, schema: &str) -> CustomResult<Self, AnalyticsError> {
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(database.max_pool_size.max(1))
+            .min_connections(0)
+            .acquire_timeout(std::time::Duration::from_secs(database.connection_timeout))
+            .idle_timeout(std::time::Duration::from_secs(database.idle_timeout))
+            .max_lifetime(std::time::Duration::from_secs(database.max_lifetime))
+            .connect_lazy(&database.get_database_url(schema))
+            .change_context(AnalyticsError::UnknownError)
+            .attach_printable("Invalid report database configuration")?;
+        Ok(Self { pool })
+    }
+
+    /// Connects and runs `SELECT 1`, so a misconfigured database shows at startup rather than on
+    /// the first report.
+    pub async fn check(&self) -> CustomResult<(), AnalyticsError> {
+        sqlx::query("SELECT 1")
+            .execute(&self.pool)
+            .await
+            .change_context(AnalyticsError::UnknownError)
+            .attach_printable("The report database is unreachable")?;
+        Ok(())
     }
 }
 
@@ -113,55 +171,126 @@ pub trait CsvSink: Send {
     async fn write(&mut self, bytes: &[u8]) -> CustomResult<(), AnalyticsError>;
 }
 
-/// Streams the rows `auth` may see, created within `[start_time, end_time]` (inclusive at both
-/// ends, as the Lambda was), to `sink` as CSV records, header first. Returns the number of rows.
+/// Rows read ahead of the upload; bounds memory when storage is slower than the database.
+const ROW_BUFFER: usize = 1024;
+
+/// Streams the requested columns of the rows `request.auth` may see, created within its time
+/// range (inclusive at both ends, as the Lambda was), to `sink` as CSV records, header first.
+/// Returns the number of rows.
+///
+/// The query runs on the tenant's `database`, in a read-only transaction bounded by
+/// `settings.query_timeout_secs`.
 pub async fn write_csv(
-    provider: &AnalyticsProvider,
-    report: &ReportDefinition,
-    auth: &AuthInfo,
-    start_time: time::PrimitiveDateTime,
-    end_time: time::PrimitiveDateTime,
+    database: &ReportDatabase,
+    report: ReportKind,
+    request: &GenerateReportRequest,
+    settings: &ProcessTrackerReportConfig,
     sink: &mut dyn CsvSink,
 ) -> CustomResult<usize, AnalyticsError> {
-    let table = report.table;
-    let mut query = QueryBuilder::<Postgres>::new("SELECT ");
-    let mut columns = query.separated(", ");
-    for (_, expression) in report.columns {
-        columns.push(*expression);
+    let columns = report.columns(request.request.columns.as_ref())?;
+    sink.write(&csv_record(columns.iter().map(|(header, _)| *header)))
+        .await?;
+
+    // The query runs on its own task, so reading rows overlaps uploading them.
+    let (sender, mut receiver) = tokio::sync::mpsc::channel(ROW_BUFFER);
+    let reader = tokio::spawn(read_rows(
+        database.pool.clone(),
+        report,
+        request.clone(),
+        settings.clone(),
+        sender,
+    ));
+
+    let mut row_count = 0;
+    while let Some(record) = receiver.recv().await {
+        // Returning drops the receiver, which ends the reader at its next row.
+        sink.write(&record).await?;
+        row_count += 1;
     }
-    query.push(format_args!(" FROM {} WHERE TRUE", report.from));
-    push_scope(&mut query, report, auth);
+    reader
+        .await
+        .change_context(AnalyticsError::UnknownError)
+        .attach_printable("The report reader stopped unexpectedly")??;
+    Ok(row_count)
+}
+
+async fn read_rows(
+    pool: sqlx::PgPool,
+    report: ReportKind,
+    request: GenerateReportRequest,
+    settings: ProcessTrackerReportConfig,
+    sender: tokio::sync::mpsc::Sender<Vec<u8>>,
+) -> CustomResult<(), AnalyticsError> {
+    let definition = report.definition();
+    let columns = report.columns(request.request.columns.as_ref())?;
+    let time_range = request.request.time_range;
+    let table = definition.table;
+
+    let mut query = QueryBuilder::<Postgres>::new("SELECT ");
+    let mut select = query.separated(", ");
+    for (_, expression) in &columns {
+        select.push(*expression);
+    }
+    query.push(format_args!(" FROM {} WHERE TRUE", definition.from));
+    push_scope(&mut query, definition, &request.auth);
     query.push(format_args!(" AND {table}.created_at >= "));
-    query.push_bind(start_time);
+    query.push_bind(time_range.start_time);
     query.push(format_args!(" AND {table}.created_at <= "));
-    query.push_bind(end_time);
+    query.push_bind(
+        time_range
+            .end_time
+            .unwrap_or_else(common_utils::date_time::now),
+    );
     query.push(format_args!(" ORDER BY {table}.created_at"));
 
-    sink.write(&csv_record(
-        report.columns.iter().map(|(header, _)| *header),
-    ))
-    .await?;
+    let mut transaction = pool
+        .begin()
+        .await
+        .change_context(AnalyticsError::UnknownError)?;
+    let timeout_ms = settings.query_timeout_secs.saturating_mul(1000);
+    let timeout = format!("SET LOCAL statement_timeout = {timeout_ms}");
+    for setting in ["SET TRANSACTION READ ONLY", timeout.as_str()] {
+        run_statement(&mut transaction, setting)
+            .await
+            .change_context(AnalyticsError::UnknownError)
+            .attach_printable("Failed to prepare the report transaction")?;
+    }
 
-    let mut rows = query.build().fetch(report_pool(provider)?);
-    let mut row_count = 0;
+    let mut rows = stream_rows(&mut transaction, query.build());
     while let Some(row) = rows
         .try_next()
         .await
         .change_context(AnalyticsError::UnknownError)
-        .attach_printable_lazy(|| format!("Failed to read the {} report", report.name))?
+        .attach_printable_lazy(|| format!("Failed to read the {} report", definition.name))?
     {
-        let fields = (0..report.columns.len())
+        let fields = (0..columns.len())
             .map(|index| row.try_get::<Option<String>, _>(index))
             .collect::<Result<Vec<_>, _>>()
             .change_context(AnalyticsError::UnknownError)
             .attach_printable("Failed to decode a report row")?;
-        sink.write(&csv_record(
-            fields.into_iter().map(Option::unwrap_or_default),
-        ))
-        .await?;
-        row_count += 1;
+        let record = csv_record(fields.into_iter().map(Option::unwrap_or_default));
+        if sender.send(record).await.is_err() {
+            // The writer gave up; the transaction rolls back when dropped.
+            return Ok(());
+        }
     }
-    Ok(row_count)
+    Ok(())
+}
+
+// These two pin the connection's lifetime. Inferred inside an async body, it trips the
+// higher-ranked `Executor` check (rust-lang/rust#102211).
+fn run_statement<'a>(
+    connection: &'a mut sqlx::PgConnection,
+    sql: &'a str,
+) -> futures::future::BoxFuture<'a, Result<sqlx::postgres::PgQueryResult, sqlx::Error>> {
+    Box::pin(sqlx::query(sql).execute(connection))
+}
+
+fn stream_rows<'a>(
+    connection: &'a mut sqlx::PgConnection,
+    query: sqlx::query::Query<'a, Postgres, sqlx::postgres::PgArguments>,
+) -> futures::stream::BoxStream<'a, Result<sqlx::postgres::PgRow, sqlx::Error>> {
+    query.fetch(connection)
 }
 
 /// The same scope the analytics query builder applies for `auth`. The Lambda ignored
@@ -261,6 +390,42 @@ mod tests {
             format_timestamp(time::macros::datetime!(2026-10-12 09:10:07.215205)),
             "2026-10-12T09:10:07.215Z"
         );
+    }
+
+    #[test]
+    fn requested_columns_are_selected_in_order() {
+        use api_models::analytics::payments::PaymentReportColumn as Column;
+
+        let headers = |requested: Option<ReportColumns>| {
+            ReportKind::V1Payments
+                .columns(requested.as_ref())
+                .map(|columns| columns.iter().map(|(h, _)| *h).collect::<Vec<_>>())
+        };
+
+        assert_eq!(
+            headers(None).ok().map(|all| all.len()),
+            Some(payments::V1_PAYMENTS.columns.len())
+        );
+        assert_eq!(
+            headers(Some(ReportColumns::Payment(vec![
+                Column::Amount,
+                Column::PaymentId,
+                Column::Amount,
+            ])))
+            .ok(),
+            Some(vec!["amount", "payment_id"])
+        );
+        assert!(headers(Some(ReportColumns::Payment(Vec::new()))).is_err());
+    }
+
+    #[test]
+    fn every_payment_report_column_can_be_requested() {
+        use api_models::analytics::payments::PaymentReportColumn;
+        use strum::IntoEnumIterator;
+
+        let all = PaymentReportColumn::iter().collect::<Vec<_>>();
+        let selected = ReportKind::V1Payments.columns(Some(&ReportColumns::Payment(all.clone())));
+        assert_eq!(selected.map(|columns| columns.len()).ok(), Some(all.len()));
     }
 
     #[test]

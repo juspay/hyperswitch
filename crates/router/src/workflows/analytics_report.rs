@@ -12,7 +12,7 @@ use crate::{
         errors,
     },
     logger::{error, info, warn},
-    routes::SessionState,
+    routes::{metrics, SessionState},
     types::storage::{self, business_status},
 };
 
@@ -25,7 +25,12 @@ async fn run(
     tracking_data: &mut AnalyticsReportTrackingData,
 ) -> errors::CustomResult<(), analytics::errors::AnalyticsError> {
     if !tracking_data.generated {
+        let started = std::time::Instant::now();
         let row_count = analytics_report::generate_report_file(state, tracking_data).await?;
+        metrics::ANALYTICS_REPORT_GENERATION_DURATION.record(
+            started.elapsed().as_secs_f64(),
+            router_env::metric_attributes!(("report", tracking_data.report.definition().name)),
+        );
         tracking_data.generated = true;
         analytics_report::persist_tracking_data(state, process_id, tracking_data).await?;
         info!(job_id = %tracking_data.job_id, row_count, "Analytics report generated");
@@ -49,6 +54,10 @@ impl ProcessTrackerWorkflow<SessionState> for AnalyticsReportWorkflow {
 
         let Err(error) = run(state, &process.id, &mut tracking_data).await else {
             info!(job_id = %tracking_data.job_id, "Analytics report delivered");
+            metrics::ANALYTICS_REPORTS_DELIVERED.add(
+                1,
+                router_env::metric_attributes!(("report", tracking_data.report.definition().name)),
+            );
             scheduler
                 .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
                 .await?;
@@ -64,6 +73,18 @@ impl ProcessTrackerWorkflow<SessionState> for AnalyticsReportWorkflow {
         match pt_utils::get_time_from_delta(delay) {
             Some(schedule_time) => scheduler.retry_process(process, schedule_time).await?,
             None => {
+                let stage = if tracking_data.generated {
+                    "delivery"
+                } else {
+                    "generation"
+                };
+                metrics::ANALYTICS_REPORTS_FAILED.add(
+                    1,
+                    router_env::metric_attributes!(
+                        ("report", tracking_data.report.definition().name),
+                        ("stage", stage),
+                    ),
+                );
                 // A failed delivery means the endpoint is the problem; telling it again that the
                 // report failed would fail the same way.
                 if !tracking_data.generated {
