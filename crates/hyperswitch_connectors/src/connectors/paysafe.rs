@@ -1260,11 +1260,7 @@ impl ConnectorSpecifications for Paysafe {
         }
     }
 
-    fn is_pre_authentication_flow_required(
-        &self,
-        current_flow: api::CurrentFlowInfo,
-        _execution_path: common_enums::ExecutionPath,
-    ) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 request_data,
@@ -1279,11 +1275,7 @@ impl ConnectorSpecifications for Paysafe {
     }
 
     /// Run the Authenticate step on the post-redirect CompleteAuthorize to recover the handle token.
-    fn is_authentication_flow_required(
-        &self,
-        current_flow: api::CurrentFlowInfo,
-        _execution_path: common_enums::ExecutionPath,
-    ) -> bool {
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::CompleteAuthorize {
                 auth_type,

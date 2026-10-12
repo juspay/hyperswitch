@@ -1654,14 +1654,7 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
-            connector_feature_data: router_data
-                .request
-                .connector_feature_data
-                .as_ref()
-                .map(|data| serde_json::to_string(data.peek()))
-                .transpose()
-                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-                .map(Secret::new),
+            connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,

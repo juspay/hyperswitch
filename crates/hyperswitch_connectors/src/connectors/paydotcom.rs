@@ -287,11 +287,7 @@ impl api::ConnectorSpecifications for Paydotcom {
     /// Gateway-driven 3DS runs as PreAuthenticate -> Authenticate -> CompleteAuthorize.
     /// Leg 1 mints the `chrg_`/`hld_` id the challenge will authenticate. Non-3DS and
     /// external-MPI 3DS are single-call Authorize and must not take this path.
-    fn is_pre_authentication_flow_required(
-        &self,
-        current_flow: api::CurrentFlowInfo,
-        _execution_path: common_enums::ExecutionPath,
-    ) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
@@ -319,11 +315,7 @@ impl api::ConnectorSpecifications for Paydotcom {
     ///
     /// The `chrg_`/`hld_` id reaches this leg on `authentication_data`, which
     /// `authentication_step` already carries over from the PreAuthenticate response.
-    fn is_authentication_flow_required(
-        &self,
-        current_flow: api::CurrentFlowInfo,
-        _execution_path: common_enums::ExecutionPath,
-    ) -> bool {
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,

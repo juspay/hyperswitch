@@ -1348,7 +1348,6 @@ async fn call_ucs_authenticate_proxy(
         device_channel: Some(device_channel.clone()),
         webhook_url: None,
         force_3ds_challenge: None,
-        connector_feature_data: None,
         router_return_url: None,
     };
 

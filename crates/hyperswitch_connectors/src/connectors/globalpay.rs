@@ -1244,11 +1244,7 @@ impl ConnectorSpecifications for Globalpay {
     // auto-captured by GlobalPay — no confirmation call needed.
     // We route only Wallet (PayPal) CompleteAuthorize through UCS PostAuthenticate.
 
-    fn is_post_authentication_flow_required(
-        &self,
-        current_flow: api::CurrentFlowInfo,
-        _execution_path: common_enums::ExecutionPath,
-    ) -> bool {
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         matches!(
             current_flow,
             api::CurrentFlowInfo::CompleteAuthorize {

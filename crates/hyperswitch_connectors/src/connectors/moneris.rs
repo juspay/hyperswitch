@@ -918,11 +918,7 @@ impl ConnectorSpecifications for Moneris {
         Some(&MONERIS_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    fn is_pre_authentication_flow_required(
-        &self,
-        current_flow: api::CurrentFlowInfo,
-        _execution_path: common_enums::ExecutionPath,
-    ) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
@@ -936,11 +932,7 @@ impl ConnectorSpecifications for Moneris {
         }
     }
 
-    fn is_post_authentication_flow_required(
-        &self,
-        current_flow: api::CurrentFlowInfo,
-        _execution_path: common_enums::ExecutionPath,
-    ) -> bool {
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         matches!(current_flow, api::CurrentFlowInfo::CompleteAuthorize { .. })
     }
 

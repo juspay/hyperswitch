@@ -367,7 +367,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
             },
-            gateway_context.execution_path,
         ) {
             logger::info!(
                 "Pre-authentication flow is required for connector: {}",

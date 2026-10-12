@@ -592,46 +592,22 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.is_order_create_flow_required(current_flow),
         }
     }
-    fn is_pre_authentication_flow_required(
-        &self,
-        current_flow: CurrentFlowInfo,
-        execution_path: common_enums::ExecutionPath,
-    ) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match self {
-            Self::Old(connector) => {
-                connector.is_pre_authentication_flow_required(current_flow, execution_path)
-            }
-            Self::New(connector) => {
-                connector.is_pre_authentication_flow_required(current_flow, execution_path)
-            }
+            Self::Old(connector) => connector.is_pre_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_pre_authentication_flow_required(current_flow),
         }
     }
-    fn is_authentication_flow_required(
-        &self,
-        current_flow: CurrentFlowInfo,
-        execution_path: common_enums::ExecutionPath,
-    ) -> bool {
+    fn is_authentication_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match self {
-            Self::Old(connector) => {
-                connector.is_authentication_flow_required(current_flow, execution_path)
-            }
-            Self::New(connector) => {
-                connector.is_authentication_flow_required(current_flow, execution_path)
-            }
+            Self::Old(connector) => connector.is_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_authentication_flow_required(current_flow),
         }
     }
-    fn is_post_authentication_flow_required(
-        &self,
-        current_flow: CurrentFlowInfo,
-        execution_path: common_enums::ExecutionPath,
-    ) -> bool {
+    fn is_post_authentication_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match self {
-            Self::Old(connector) => {
-                connector.is_post_authentication_flow_required(current_flow, execution_path)
-            }
-            Self::New(connector) => {
-                connector.is_post_authentication_flow_required(current_flow, execution_path)
-            }
+            Self::Old(connector) => connector.is_post_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_post_authentication_flow_required(current_flow),
         }
     }
     fn is_settlement_split_call_required(&self, current_flow: CurrentFlowInfo) -> bool {
