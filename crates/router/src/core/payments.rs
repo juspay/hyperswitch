@@ -49,8 +49,7 @@ pub use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath,
 use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
-    id_type::{self, MerchantConnectorAccountId},
-    pii,
+    id_type, pii,
     types::{AmountConvertor, MinorUnit, Surcharge},
 };
 use diesel_models::{fraud_check::FraudCheck, refund as diesel_refund};
@@ -13132,7 +13131,9 @@ pub async fn static_dynamic_routing_v1_for_payments(
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     preferred_connector: Option<String>,
-    active_mca_ids: &routing::RoutingResult<HashSet<MerchantConnectorAccountId>>,
+    active_mca_ids: &routing::RoutingResult<
+        HashSet<id_type::MerchantConnectorAccountId>,
+    >,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
     let (static_connectors, static_approach) = routing::perform_static_routing_locally(
         state,

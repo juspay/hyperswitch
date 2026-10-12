@@ -7,13 +7,7 @@ pub mod utils;
 use std::collections::hash_map;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use std::hash::{Hash, Hasher};
-use std::{
-    collections::{HashMap, HashSet},
-    future::Future,
-    pin::Pin,
-    str::FromStr,
-    sync::Arc,
-};
+use std::{collections::HashMap, future::Future, pin::Pin, str::FromStr, sync::Arc};
 
 #[cfg(feature = "v1")]
 use api_models::open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest};
@@ -25,7 +19,7 @@ use api_models::{
     routing::ConnectorSelection,
 };
 use common_types::payments as common_payments_types;
-use common_utils::{ext_traits::AsyncExt, id_type::MerchantConnectorAccountId};
+use common_utils::ext_traits::AsyncExt;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use euclid::{
@@ -144,7 +138,7 @@ pub struct SessionRoutingPmTypeInput<'a> {
 
 pub(super) type RoutingResult<O> = oss_errors::CustomResult<O, errors::RoutingError>;
 
-type SessionRoutingConnectorKey = Option<MerchantConnectorAccountId>;
+type SessionRoutingConnectorKey = Option<common_utils::id_type::MerchantConnectorAccountId>;
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -917,7 +911,8 @@ pub struct SessionRoutingInput<'a> {
     pub merchant_account: &'a domain::MerchantAccount,
     pub transaction_type: &'a api_enums::TransactionType,
     pub chosen: &'a api::SessionConnectorDatas,
-    pub active_mca_ids: &'a HashSet<MerchantConnectorAccountId>,
+    pub active_mca_ids:
+        &'a std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
     pub default_config: &'a Vec<routing_types::RoutableConnectorChoice>,
     pub backend_input: &'a mut backend::BackendInput,
     /// Resolves whether this profile is cut over to the Decision Engine.
@@ -1743,7 +1738,9 @@ pub async fn perform_hybrid_routing_if_enabled(
     static_connectors: &[routing_types::RoutableConnectorChoice],
     static_approach: common_enums::RoutingApproach,
     preferred_connector: Option<String>,
-    active_mca_ids: &RoutingResult<HashSet<MerchantConnectorAccountId>>,
+    active_mca_ids: &RoutingResult<
+        std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    >,
 ) -> (
     Vec<routing_types::RoutableConnectorChoice>,
     common_enums::RoutingApproach,
@@ -2488,7 +2485,7 @@ pub async fn perform_cgraph_filtering(
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     profile_id: &common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
-    active_mca_ids: &HashSet<MerchantConnectorAccountId>,
+    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
     auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let mut backend_input = backend_input;
@@ -2644,8 +2641,10 @@ fn update_eligible_connectors_for_installments(
 }
 
 fn get_active_mca_ids_from_result(
-    result: &RoutingResult<HashSet<MerchantConnectorAccountId>>,
-) -> RoutingResult<&HashSet<MerchantConnectorAccountId>> {
+    result: &RoutingResult<
+        std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    >,
+) -> RoutingResult<&std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>> {
     result.as_ref().map_err(|error| {
         error_stack::report!(errors::RoutingError::MerchantConnectorAccountsFetchFailed)
             .attach_printable(format!("{error:?}"))
@@ -2660,7 +2659,9 @@ pub async fn filter_fallback_based_on_eligibility(
     fallback_config: &[routing_types::RoutableConnectorChoice],
     transaction_data: &routing::TransactionData<'_>,
     business_profile: &domain::Profile,
-    active_mca_ids: &RoutingResult<HashSet<MerchantConnectorAccountId>>,
+    active_mca_ids: &RoutingResult<
+        std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    >,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let active_mca_ids = get_active_mca_ids_from_result(active_mca_ids)?;
     perform_eligibility_analysis(
@@ -2681,7 +2682,7 @@ pub async fn perform_eligibility_analysis(
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
-    active_mca_ids: &HashSet<MerchantConnectorAccountId>,
+    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
     business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let backend_input = match transaction_data {
@@ -2752,7 +2753,7 @@ pub async fn perform_fallback_routing(
     transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     business_profile: &domain::Profile,
-    active_mca_ids: &HashSet<MerchantConnectorAccountId>,
+    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let fallback_config = get_fallback_config(state, transaction_data, business_profile).await?;
     let backend_input = match transaction_data {
@@ -2782,7 +2783,11 @@ pub async fn perform_eligibility_analysis_with_fallback(
     transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
     business_profile: &domain::Profile,
-    fetched_mca_ids: Option<&RoutingResult<HashSet<MerchantConnectorAccountId>>>,
+    fetched_mca_ids: Option<
+        &RoutingResult<
+            std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+        >,
+    >,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     logger::debug!("euclid_routing: performing eligibility");
 
@@ -3246,7 +3251,7 @@ async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
     business_profile: &domain::Profile,
-    active_mca_ids: &HashSet<MerchantConnectorAccountId>,
+    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
     de_routing_effective: bool,
     de_connectors: Vec<api_models::routing::RoutableConnectorChoice>,
 ) -> RoutingResult<(
@@ -3414,7 +3419,7 @@ async fn perform_session_routing_for_pm_type<'a>(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
     business_profile: &domain::Profile,
-    active_mca_ids: &HashSet<MerchantConnectorAccountId>,
+    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
     let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
     let chosen_connectors = get_chosen_connectors(
@@ -4154,14 +4159,14 @@ where
                     })
                     .attach_printable("unable to convert String to RoutableConnectors")?,
                 merchant_connector_id: Some(
-                    MerchantConnectorAccountId::wrap(merchant_connector_id.to_string())
-                        .change_context(errors::RoutingError::GenericConversionError {
-                            from: "String".to_string(),
-                            to: "MerchantConnectorAccountId".to_string(),
-                        })
-                        .attach_printable(
-                            "unable to convert MerchantConnectorAccountId from string",
-                        )?,
+                    common_utils::id_type::MerchantConnectorAccountId::wrap(
+                        merchant_connector_id.to_string(),
+                    )
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "MerchantConnectorAccountId".to_string(),
+                    })
+                    .attach_printable("unable to convert MerchantConnectorAccountId from string")?,
                 ),
             });
         }
@@ -4333,14 +4338,14 @@ pub async fn perform_elimination_routing(
                     })
                     .attach_printable("unable to convert String to RoutableConnectors")?,
                 merchant_connector_id: Some(
-                    MerchantConnectorAccountId::wrap(merchant_connector_id.to_string())
-                        .change_context(errors::RoutingError::GenericConversionError {
-                            from: "String".to_string(),
-                            to: "MerchantConnectorAccountId".to_string(),
-                        })
-                        .attach_printable(
-                            "unable to convert MerchantConnectorAccountId from string",
-                        )?,
+                    common_utils::id_type::MerchantConnectorAccountId::wrap(
+                        merchant_connector_id.to_string(),
+                    )
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "MerchantConnectorAccountId".to_string(),
+                    })
+                    .attach_printable("unable to convert MerchantConnectorAccountId from string")?,
                 ),
             };
 
@@ -4562,14 +4567,14 @@ where
                     })
                     .attach_printable("unable to convert String to RoutableConnectors")?,
                 merchant_connector_id: Some(
-                    MerchantConnectorAccountId::wrap(merchant_connector_id.to_string())
-                        .change_context(errors::RoutingError::GenericConversionError {
-                            from: "String".to_string(),
-                            to: "MerchantConnectorAccountId".to_string(),
-                        })
-                        .attach_printable(
-                            "unable to convert MerchantConnectorAccountId from string",
-                        )?,
+                    common_utils::id_type::MerchantConnectorAccountId::wrap(
+                        merchant_connector_id.to_string(),
+                    )
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "MerchantConnectorAccountId".to_string(),
+                    })
+                    .attach_printable("unable to convert MerchantConnectorAccountId from string")?,
                 ),
             });
         }
@@ -4612,7 +4617,7 @@ pub async fn get_active_mca_ids_for_session(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     profile_id: &common_utils::id_type::ProfileId,
-) -> HashSet<MerchantConnectorAccountId> {
+) -> std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId> {
     match get_active_merchant_connector_accounts(state, key_store, profile_id).await {
         Ok(merchant_connector_accounts) => merchant_connector_accounts.get_ids(),
         Err(err) => {
