@@ -103,6 +103,14 @@ export const successfulNo3DSCardDetails = {
   card_cvc: "999",
 };
 
+// Card the Offer Engine saved-card flow (54-OfferEngine.cy.js) saves and
+// quotes. Kept apart from successfulNo3DSCardDetails, which the plain-card
+// offer flow already uses.
+export const offerEngineSavedCardDetails = {
+  ...successfulNo3DSCardDetails,
+  card_number: "4242424242424242",
+};
+
 const blocklistedCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "01",
@@ -6054,3 +6062,4 @@ connectorDetails.offer_engine.ConfirmWithOfferAppliedSavedCard =
   connectorDetails.offer_engine.ConfirmWithOfferApplied;
 connectorDetails.offer_engine.AppliedOfferOnRetrieveSavedCard =
   connectorDetails.offer_engine.AppliedOfferOnRetrieve;
+connectorDetails.offer_engine.SavedCardDetails = offerEngineSavedCardDetails;
