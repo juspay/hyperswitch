@@ -496,10 +496,39 @@ impl ConnectorCommon for Santander {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: SantanderErrorResponse = res
-            .response
-            .parse_struct("SantanderErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let attempt_status = (400..500)
+            .contains(&res.status_code)
+            .then_some(enums::AttemptStatus::Failure);
+
+        let response: SantanderErrorResponse =
+            match res.response.parse_struct("SantanderErrorResponse") {
+                Ok(response) => response,
+                Err(error_msg) => {
+                    event_builder.map(|event| {
+                        event.set_error(serde_json::json!({
+                            "error": res.response.escape_ascii().to_string(),
+                            "status_code": res.status_code,
+                        }))
+                    });
+                    router_env::logger::error!(deserialization_error =? error_msg);
+                    let response_data = String::from_utf8(res.response.to_vec())
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+                    return Ok(ErrorResponse {
+                        status_code: res.status_code,
+                        code: res.status_code.to_string(),
+                        message: NO_ERROR_MESSAGE.to_string(),
+                        reason: Some(response_data),
+                        attempt_status,
+                        connector_transaction_id: None,
+                        connector_response_reference_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    });
+                }
+            };
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -528,7 +557,7 @@ impl ConnectorCommon for Santander {
                     code: response.status.to_string(),
                     message,
                     reason,
-                    attempt_status: None,
+                    attempt_status,
                     connector_transaction_id: None,
                     connector_response_reference_id: None,
                     network_advice_code: None,
@@ -564,7 +593,7 @@ impl ConnectorCommon for Santander {
                     code,
                     message,
                     reason: Some(description),
-                    attempt_status: None,
+                    attempt_status,
                     connector_transaction_id: None,
                     connector_response_reference_id: None,
                     network_advice_code: None,
@@ -585,7 +614,7 @@ impl ConnectorCommon for Santander {
                         .map(|e| e.message.clone())
                         .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                 ),
-                attempt_status: None,
+                attempt_status,
                 connector_transaction_id: None,
                 connector_response_reference_id: None,
                 network_advice_code: None,
@@ -609,7 +638,7 @@ impl ConnectorCommon for Santander {
                             .to_string(),
                         message,
                         reason: response.detail.clone(),
-                        attempt_status: None,
+                        attempt_status,
                         connector_transaction_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -628,7 +657,7 @@ impl ConnectorCommon for Santander {
                         code: NO_ERROR_CODE.to_string(),
                         message: message.clone(),
                         reason: Some(message),
-                        attempt_status: None,
+                        attempt_status,
                         connector_transaction_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -645,7 +674,7 @@ impl ConnectorCommon for Santander {
                         code: detail.clone(),
                         message: response.fault.fault_string,
                         reason: Some(detail),
-                        attempt_status: None,
+                        attempt_status,
                         connector_transaction_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -662,7 +691,7 @@ impl ConnectorCommon for Santander {
                         code: detail.clone().unwrap_or(NO_ERROR_CODE.to_string()),
                         message: detail.unwrap_or(NO_ERROR_MESSAGE.to_string()),
                         reason: None,
-                        attempt_status: None,
+                        attempt_status,
                         connector_transaction_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -815,6 +844,22 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             http_code: res.status_code,
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1505,13 +1550,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
             SantanderPaymentsSyncResponse::PixQRCode(ref pix_data) => {
                 pix_data.valor.original.clone()
             }
-            SantanderPaymentsSyncResponse::PixQrWebhook(_) => convert_amount(
-                self.amount_converter,
-                data.request.amount,
-                data.request.currency,
-            )?,
             // No amount is sent back in Boleto response
             SantanderPaymentsSyncResponse::Boleto(_)
+            | SantanderPaymentsSyncResponse::PixAutomaticoCobrWebhook(_)
+            | SantanderPaymentsSyncResponse::PixQrWebhook(_)
             | SantanderPaymentsSyncResponse::PixAutomaticoRecWebhook(_)
             | SantanderPaymentsSyncResponse::PixAutomaticoConsultAndActivateJourney(_) => {
                 convert_amount(
@@ -2141,6 +2183,20 @@ impl webhooks::IncomingWebhook for Santander {
                     _ => Err(errors::ConnectorError::WebhookReferenceIdNotFound.into()),
                 }
             }
+            SantanderWebhookBody::RecurringCharge(cobr_data) => {
+                let entry = cobr_data
+                    .cobsr
+                    .first()
+                    .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+                if transformers::is_dummy_webhook(entry.id_rec.peek()) {
+                    return Err(errors::ConnectorError::WebhookReferenceIdNotFound.into());
+                }
+
+                Ok(ObjectReferenceId::PaymentId(
+                    PaymentIdType::ConnectorTransactionId(entry.txid.clone()),
+                ))
+            }
         }
     }
 
@@ -2206,6 +2262,43 @@ impl webhooks::IncomingWebhook for Santander {
                         Ok(IncomingWebhookEvent::MandateRevoked)
                     }
                     _ => Ok(IncomingWebhookEvent::EventNotSupported),
+                }
+            }
+            SantanderWebhookBody::RecurringCharge(cobr_data) => {
+                let entry = cobr_data
+                    .cobsr
+                    .first()
+                    .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+                if transformers::is_dummy_webhook(entry.id_rec.peek()) {
+                    return Ok(IncomingWebhookEvent::EventNotSupported);
+                }
+
+                match entry.status {
+                    responses::SantanderPixAutomaticoCobrWebhookStatus::Concluida => {
+                        if entry
+                            .pix
+                            .as_ref()
+                            .and_then(|pix_list| pix_list.first())
+                            .is_some_and(|pix| !pix.end_to_end_id.peek().is_empty())
+                        {
+                            Ok(IncomingWebhookEvent::PaymentIntentSuccess)
+                        } else {
+                            Ok(IncomingWebhookEvent::PaymentIntentFailure)
+                        }
+                    }
+                    responses::SantanderPixAutomaticoCobrWebhookStatus::Criada
+                    | responses::SantanderPixAutomaticoCobrWebhookStatus::Ativa => {
+                        Ok(IncomingWebhookEvent::PaymentIntentProcessing)
+                    }
+                    responses::SantanderPixAutomaticoCobrWebhookStatus::Rejeitada
+                    | responses::SantanderPixAutomaticoCobrWebhookStatus::Expirada
+                    | responses::SantanderPixAutomaticoCobrWebhookStatus::Cancelada => {
+                        Ok(IncomingWebhookEvent::PaymentIntentFailure)
+                    }
+                    responses::SantanderPixAutomaticoCobrWebhookStatus::Unknown => {
+                        Ok(IncomingWebhookEvent::EventNotSupported)
+                    }
                 }
             }
         }
@@ -2296,6 +2389,7 @@ impl webhooks::IncomingWebhook for Santander {
                     _ => Ok(None),
                 }
             }
+            SantanderWebhookBody::RecurringCharge(_) => Ok(None),
         }
     }
 
@@ -2385,6 +2479,10 @@ impl ConnectorSpecifications for Santander {
             setup_future_usage == Some(common_enums::FutureUsage::OffSession)
                 && matches!(current_flow, Some(CurrentFlowInfo::Authorize { .. }) | None),
         )
+    }
+
+    fn should_allow_mit_when_connector_mandate_status_is_inactive(&self) -> Option<bool> {
+        Some(false)
     }
 
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
