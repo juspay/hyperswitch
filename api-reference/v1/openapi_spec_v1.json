@@ -17171,7 +17171,6 @@
                 "$ref": "#/components/schemas/BlocklistTransactionType"
               }
             ],
-            "description": "Counts only `payment` or `payout` when selected. When omitted, counts both, including legacy NULL entries, which belong to `payment` when filtered.",
             "nullable": true
           }
         }
