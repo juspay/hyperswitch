@@ -1,2 +1,0 @@
-raw_card_number,card_holder_name,card_expiry_month,card_expiry_year,billing_address_line1,billing_address_line2,billing_address_city,billing_address_state,billing_address_country,billing_address_zip,customer_id,payment_method,merchant_connector_ids,name,email
-4242424242424242,QA Cardholder,12,2040,1 QA Street,Unit 1,Austin,TX,US,78701,45630_qa_contract,card,mca_one,QA Contract Customer,qa.contract@example.com
