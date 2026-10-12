@@ -72,7 +72,7 @@ pub struct TwilioGenericPayRequest {
 ///
 /// Twilio reads `error_code` to decide whether the payment succeeded, so a declined payment is a
 /// `200` with `error_code` populated rather than an HTTP error. Every field is serialized even when
-/// `None`: Twilio expects the `charge_id` key to be present and `null` on failure, not omitted.
+/// `None`, because Twilio expects the `charge_id` key present and `null` on failure, not omitted.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct TwilioGenericPayResponse {
     /// Reference for a successful charge. This is the Hyperswitch `payment_id`.

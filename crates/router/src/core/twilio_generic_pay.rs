@@ -6,7 +6,10 @@ use hyperswitch_domain_models::payments::HeaderPayload;
 use router_env::{instrument, logger, tracing};
 
 use crate::{
-    core::{errors::RouterResponse, payments, utils as core_utils},
+    core::{
+        errors::{self, RouterResponse},
+        payments, utils as core_utils,
+    },
     routes::{app::ReqState, SessionState},
     services::{self, authentication::AuthenticationData, ApplicationResponse},
     types::api,
@@ -19,6 +22,7 @@ mod error_codes {
     pub const PROFILE_NOT_FOUND: &str = "PROFILE_NOT_FOUND";
     pub const PAYMENT_NOT_COMPLETED: &str = "PAYMENT_NOT_COMPLETED";
     pub const PROCESSING_ERROR: &str = "PROCESSING_ERROR";
+    pub const DUPLICATE_TRANSACTION: &str = "DUPLICATE_TRANSACTION";
 }
 
 struct TwilioCardDetails {
@@ -123,20 +127,40 @@ pub async fn twilio_generic_pay_charge(
             ));
         }
         // Deliberately answered with a 200 rather than propagated, so the IVR receives a
-        // readable `error_code` instead of an opaque 5xx. A failure we cannot classify is reported
-        // as a decline and investigated from the logs. This does not affect Twilio's retries
-        // either way: those fire only when we fail to respond inside ten seconds, and an error
-        // response delivered promptly is still a response.
+        // readable `error_code` instead of an opaque 5xx. This does not affect Twilio's retries
+        // either way, since those fire only when we fail to respond inside ten seconds, and an
+        // error response delivered promptly is still a response.
         Err(error) => {
-            logger::error!(
-                transaction_id = %transaction_id,
-                "Payments core returned an error for a Twilio generic pay charge: {error:?}"
-            );
+            // A duplicate is a retry of a charge we already hold. The insert collided, so the
+            // card was not authorized again, and the first payment may well have succeeded. Kept
+            // apart from the generic decline so it reads as neither a failure nor an incident.
+            let (code, message) = match error.current_context() {
+                errors::ApiErrorResponse::DuplicatePayment { .. } => {
+                    logger::info!(
+                        transaction_id = %transaction_id,
+                        "Twilio retried a charge that already exists; not authorizing it again"
+                    );
+                    (
+                        error_codes::DUPLICATE_TRANSACTION,
+                        "A payment already exists for this payment_id",
+                    )
+                }
+                // A failure we cannot classify is reported as a decline and investigated from
+                // the logs.
+                _ => {
+                    logger::error!(
+                        transaction_id = %transaction_id,
+                        "Payments core returned an error for a Twilio generic pay charge: {error:?}"
+                    );
+                    (
+                        error_codes::PROCESSING_ERROR,
+                        "Payment could not be processed",
+                    )
+                }
+            };
+
             return Ok(ApplicationResponse::Json(
-                TwilioGenericPayResponse::failure(
-                    error_codes::PROCESSING_ERROR.to_string(),
-                    "Payment could not be processed".to_string(),
-                ),
+                TwilioGenericPayResponse::failure(code.to_string(), message.to_string()),
             ));
         }
     };
@@ -191,6 +215,30 @@ fn extract_profile_id(
             ChargeFailure::new(
                 error_codes::INVALID_REQUEST,
                 format!("parameters.profile_id is not a valid profile id: {error}"),
+            )
+        })
+}
+
+/// Reads `parameters.payment_id`, when the IVR sent one. This is what makes a Twilio retry
+/// idempotent, since the retry then collides on `(payment_id, merchant_id)` rather than charging
+/// again. An unusable value is rejected, not ignored — losing idempotency silently is worse.
+fn extract_payment_id(
+    request: &TwilioGenericPayRequest,
+) -> Result<Option<common_utils::id_type::PaymentId>, ChargeFailure> {
+    let Some(payment_id) = request
+        .parameters
+        .as_ref()
+        .and_then(|parameters| parameters.get("payment_id"))
+    else {
+        return Ok(None);
+    };
+
+    common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Owned(payment_id.clone()))
+        .map(Some)
+        .map_err(|error| {
+            ChargeFailure::new(
+                error_codes::INVALID_REQUEST,
+                format!("parameters.payment_id is not a valid payment id: {error}"),
             )
         })
 }
@@ -269,6 +317,8 @@ fn build_payments_request(
         billing,
         description: request.description.clone(),
         merchant_order_reference_id: Some(request.transaction_id.clone()),
+        payment_id: extract_payment_id(request)?
+            .map(api_models::payments::PaymentIdType::PaymentIntentId),
         customer_id: extract_customer_id(request),
         metadata: build_metadata(request),
         profile_id,
@@ -280,11 +330,12 @@ fn build_payments_request(
         .validate()
         .map_err(|message| ChargeFailure::new(error_codes::INVALID_REQUEST, message))?;
 
+    // Keeps `payment_id` when the IVR supplied one, and generates one otherwise.
     crate::routes::payments::get_or_generate_payment_id(&mut payments_request).map_err(
         |error| {
             ChargeFailure::new(
                 error_codes::INVALID_REQUEST,
-                format!("payment_id could not be generated: {error}"),
+                format!("payment_id could not be resolved: {error}"),
             )
         },
     )?;

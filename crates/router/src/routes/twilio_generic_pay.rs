@@ -25,9 +25,9 @@ pub async fn twilio_generic_pay_charge(
             twilio_generic_pay_core::twilio_generic_pay_charge(state, req_state, auth, payload)
         },
         &auth::TwilioPayAuth,
-        // No lock. The payments lock keys on `payment_id`, and there is no `payment_id` at this
-        // point — the core generates one while mapping the Twilio request. Dedupe on Twilio's
-        // `transaction_id` is out of scope for now; when it lands, that is the key to lock on.
+        // No lock — the payments lock keys on `payment_id`, which is inside the body. Retry safety
+        // comes from the DB instead. With `parameters.payment_id` set, a retry collides on
+        // `(payment_id, merchant_id)`.
         api_locking::LockAction::NotApplicable,
     ))
     .await
