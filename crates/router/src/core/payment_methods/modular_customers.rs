@@ -877,6 +877,8 @@ pub async fn prepare(
     .await)
 }
 
+type CardStorageResult = Result<(cards::StoredCard, bool), cards::CardError>;
+
 async fn resolve_batch<B: CustomerBackend, C: cards::CardBackend>(
     backend: &B,
     card_backend: &C,
@@ -890,8 +892,7 @@ async fn resolve_batch<B: CustomerBackend, C: cards::CardBackend>(
         id_type::CustomerId,
         Result<(CustomerResponse, bool), CustomerError>,
     > = HashMap::new();
-    let mut stored: HashMap<String, (String, Result<(cards::StoredCard, bool), cards::CardError>)> =
-        HashMap::new();
+    let mut stored: HashMap<String, (String, CardStorageResult)> = HashMap::new();
     let mut results = Vec::with_capacity(inputs.len());
     for input in inputs {
         let mut row = ModularMigrationResult::initial(&input);

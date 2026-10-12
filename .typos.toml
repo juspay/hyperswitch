@@ -5,6 +5,8 @@ extend-ignore-identifiers-re = [
 ]
 
 [default.extend-identifiers]
+# Existing route parameter; retain its spelling to preserve the API contract.
+connector_cutomer_id = "connector_cutomer_id"
 # Would have to break the api contract for fixing this. Not worth the fix.
 sepa_guarenteed_debit = "sepa_guarenteed_debit"
 sepa_guarenteed_bank_debit = "sepa_guarenteed_bank_debit"
