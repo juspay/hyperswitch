@@ -80,6 +80,8 @@ pub struct Request {
     pub body: Option<RequestContent>,
     pub ca_certificate: Option<Secret<String>>,
     pub query_params: Option<serde_json::Value>,
+    /// Non-idempotent callers can reconcile an incomplete response instead of resending.
+    pub disable_connection_closed_retry: bool,
 }
 
 impl std::fmt::Debug for RequestContent {
@@ -133,6 +135,7 @@ impl Request {
             body: None,
             ca_certificate: None,
             query_params: None,
+            disable_connection_closed_retry: false,
         }
     }
 
@@ -248,6 +251,7 @@ impl RequestBuilder {
             body: self.body,
             ca_certificate: self.ca_certificate,
             query_params: self.query_params,
+            disable_connection_closed_retry: false,
         }
     }
 }

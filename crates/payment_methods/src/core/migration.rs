@@ -75,6 +75,175 @@ pub struct PaymentMethodsMigrateForm {
     pub merchant_connector_id: Option<text::Text<id_type::MerchantConnectorAccountId>>,
 
     pub merchant_connector_ids: Option<text::Text<String>>,
+
+    pub use_modular_customer_creation: Option<text::Text<bool>>,
+
+    pub customer_api_key: Option<text::Text<hyperswitch_masking::StrongSecret<String>>>,
+}
+
+#[derive(Debug)]
+pub enum CustomerMigrationOptions {
+    Legacy,
+    Modular {
+        api_key: hyperswitch_masking::StrongSecret<String>,
+    },
+}
+
+impl PaymentMethodsMigrateForm {
+    pub fn validate_modular_csv_headers(&self) -> Result<(), errors::ApiErrorResponse> {
+        validate_modular_csv_headers(self.file.data.to_bytes())
+    }
+
+    pub fn take_customer_migration_options(
+        &mut self,
+    ) -> Result<CustomerMigrationOptions, errors::ApiErrorResponse> {
+        if !self
+            .use_modular_customer_creation
+            .as_ref()
+            .is_some_and(|value| **value)
+        {
+            return Ok(CustomerMigrationOptions::Legacy);
+        }
+        let api_key = self
+            .customer_api_key
+            .take()
+            .map(|value| value.0)
+            .filter(|value| !value.peek().trim().is_empty())
+            .ok_or_else(|| errors::ApiErrorResponse::InvalidRequestData {
+                message: "customer_api_key is required for modular customer migration".to_string(),
+            })?;
+        Ok(CustomerMigrationOptions::Modular { api_key })
+    }
+}
+
+fn validate_modular_csv_headers(data: &[u8]) -> Result<(), errors::ApiErrorResponse> {
+    let invalid = || errors::ApiErrorResponse::InvalidRequestData {
+        message: "migration_csv_headers_invalid: unknown or duplicate columns".to_string(),
+    };
+    // Derive the allow-list from the existing record, without modifying legacy CSV parsing.
+    let record: pm_api::PaymentMethodRecord = serde_json::from_value(serde_json::json!({
+        "customer_id": "migration_header_check"
+    }))
+    .map_err(|_| invalid())?;
+    let fields = serde_json::to_value(record).map_err(|_| invalid())?;
+    let fields = fields.as_object().ok_or_else(invalid)?;
+    let mut reader = Reader::from_reader(data);
+    let headers = reader.headers().map_err(|_| invalid())?;
+    let mut seen = std::collections::HashSet::new();
+    if headers
+        .iter()
+        .any(|header| !fields.contains_key(header) || !seen.insert(header))
+    {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
+#[cfg(all(test, feature = "v1"))]
+mod customer_options_tests {
+    use actix_web::{http::header, test, web, App, HttpResponse};
+
+    use super::*;
+
+    #[actix_web::test]
+    async fn unknown_and_duplicate_modular_columns_are_rejected() {
+        assert!(validate_modular_csv_headers(
+            b"customer_id,raw_card_number\ncus_one,4242424242424242\n"
+        )
+        .is_ok());
+        assert!(validate_modular_csv_headers(b"customer_id,card_cvc\ncus_one,123\n").is_err());
+        assert!(
+            validate_modular_csv_headers(b"customer_id,customer_id\ncus_one,cus_one\n").is_err()
+        );
+    }
+
+    async fn inspect(
+        form::MultipartForm(mut form): form::MultipartForm<PaymentMethodsMigrateForm>,
+    ) -> HttpResponse {
+        match form.take_customer_migration_options() {
+            Ok(CustomerMigrationOptions::Legacy) => HttpResponse::Ok().body("legacy"),
+            Ok(options @ CustomerMigrationOptions::Modular { .. }) => {
+                HttpResponse::Ok().body(format!("{options:?}"))
+            }
+            Err(_) => HttpResponse::BadRequest().finish(),
+        }
+    }
+
+    fn multipart(flag: Option<&str>, key: Option<&str>) -> String {
+        let mut body = String::new();
+        for (name, value) in [
+            ("merchant_id", Some("merchant_test")),
+            ("merchant_connector_ids", Some("mca_test")),
+            ("use_modular_customer_creation", flag),
+            ("customer_api_key", key),
+        ] {
+            if let Some(value) = value {
+                body.push_str(&format!("--test-boundary\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n"));
+            }
+        }
+        body.push_str("--test-boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"cards.csv\"\r\nContent-Type: text/csv\r\n\r\ncustomer_id\ncustomer_one\n\r\n--test-boundary--\r\n");
+        body
+    }
+
+    #[actix_web::test]
+    async fn multipart_dispatch_preserves_legacy_and_masks_modular_key() {
+        let app = test::init_service(App::new().route("/", web::post().to(inspect))).await;
+        for (flag, key) in [
+            (None, None),
+            (Some("false"), None),
+            (None, Some("unused_secret")),
+            (Some("false"), Some("unused_secret")),
+        ] {
+            let request = test::TestRequest::post()
+                .uri("/")
+                .insert_header((
+                    header::CONTENT_TYPE,
+                    "multipart/form-data; boundary=test-boundary",
+                ))
+                .set_payload(multipart(flag, key))
+                .to_request();
+            let response = test::call_service(&app, request).await;
+            assert!(response.status().is_success());
+            assert_eq!(test::read_body(response).await, "legacy");
+        }
+        let request = test::TestRequest::post()
+            .uri("/")
+            .insert_header((
+                header::CONTENT_TYPE,
+                "multipart/form-data; boundary=test-boundary",
+            ))
+            .set_payload(multipart(Some("true"), Some("synthetic_customer_secret")))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert!(response.status().is_success());
+        let body = test::read_body(response).await;
+        let text = std::str::from_utf8(&body).expect("UTF8");
+        assert!(text.contains("Modular"));
+        assert!(!text.contains("synthetic_customer_secret"));
+    }
+
+    #[actix_web::test]
+    async fn modular_key_is_required_and_invalid_flag_is_rejected() {
+        let app = test::init_service(App::new().route("/", web::post().to(inspect))).await;
+        for (flag, key) in [
+            ("true", None),
+            ("true", Some("  ")),
+            ("invalid", Some("synthetic_customer_secret")),
+        ] {
+            let request = test::TestRequest::post()
+                .uri("/")
+                .insert_header((
+                    header::CONTENT_TYPE,
+                    "multipart/form-data; boundary=test-boundary",
+                ))
+                .set_payload(multipart(Some(flag), key))
+                .to_request();
+            assert_eq!(
+                test::call_service(&app, request).await.status(),
+                actix_web::http::StatusCode::BAD_REQUEST
+            );
+        }
+    }
 }
 
 pub struct MerchantConnectorValidator;
