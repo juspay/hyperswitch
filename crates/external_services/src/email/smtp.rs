@@ -1,17 +1,17 @@
-use std::time::Duration;
+//! SMTP email client.
+//!
+//! Hyperswitch adapter over the shared [`cloud_services::email::smtp`] client. The configuration
+//! stays here so its credentials remain masked [`Secret`]s.
 
+pub use cloud_services::email::smtp::{SmtpConnection, SmtpError};
+use cloud_services::email::{smtp as shared, EmailMessage};
 use common_utils::{errors::CustomResult, pii};
-use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
-use lettre::{
-    address::AddressError,
-    error,
-    message::{header::ContentType, Mailbox},
-    transport::smtp::{self, authentication::Credentials},
-    Message, SmtpTransport, Transport,
-};
 
-use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString};
+use crate::{
+    email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString},
+    report_with_cause,
+};
 
 /// Client for SMTP server operation
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -23,64 +23,15 @@ pub struct SmtpServer {
 }
 
 impl SmtpServer {
-    /// A helper function to create SMTP server client
-    pub fn create_client(&self) -> Result<SmtpTransport, SmtpError> {
-        let host = self.smtp_config.host.clone();
-        let port = self.smtp_config.port;
-        let timeout = Some(Duration::from_secs(self.smtp_config.timeout));
-        let credentials = self
-            .smtp_config
-            .username
-            .clone()
-            .zip(self.smtp_config.password.clone())
-            .map(|(username, password)| {
-                Credentials::new(username.peek().to_owned(), password.peek().to_owned())
-            });
-        match &self.smtp_config.connection {
-            SmtpConnection::StartTls => match credentials {
-                Some(credentials) => Ok(SmtpTransport::starttls_relay(&host)
-                    .map_err(SmtpError::ConnectionFailure)?
-                    .port(port)
-                    .timeout(timeout)
-                    .credentials(credentials)
-                    .build()),
-                None => Ok(SmtpTransport::starttls_relay(&host)
-                    .map_err(SmtpError::ConnectionFailure)?
-                    .port(port)
-                    .timeout(timeout)
-                    .build()),
-            },
-            SmtpConnection::Plaintext => match credentials {
-                Some(credentials) => Ok(SmtpTransport::builder_dangerous(&host)
-                    .port(port)
-                    .timeout(timeout)
-                    .credentials(credentials)
-                    .build()),
-                None => Ok(SmtpTransport::builder_dangerous(&host)
-                    .port(port)
-                    .timeout(timeout)
-                    .build()),
-            },
-        }
-    }
     /// Constructs a new SMTP client
     pub async fn create(conf: &EmailSettings, smtp_config: SmtpServerConfig) -> Self {
         Self {
             sender: conf.sender_email.clone(),
-            smtp_config: smtp_config.clone(),
+            smtp_config,
         }
     }
-    /// helper function to convert email id into Mailbox
-    fn to_mail_box(email: String) -> EmailResult<Mailbox> {
-        Ok(Mailbox::new(
-            None,
-            email
-                .parse()
-                .map_err(SmtpError::EmailParsingFailed)
-                .change_context(EmailError::EmailSendingFailure)?,
-        ))
-    }
 }
+
 /// Struct that contains the SMTP server specific configs required
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -98,17 +49,6 @@ pub struct SmtpServerConfig {
     /// Connection type of the SMTP server
     #[serde(default)]
     pub connection: SmtpConnection,
-}
-
-/// Enum that contains the connection types of the SMTP server
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SmtpConnection {
-    #[default]
-    /// Plaintext connection which MUST then successfully upgrade to TLS via STARTTLS
-    StartTls,
-    /// Plaintext connection (very insecure)
-    Plaintext,
 }
 
 impl SmtpServerConfig {
@@ -131,6 +71,17 @@ impl SmtpServerConfig {
         )?;
         Ok(())
     }
+
+    fn to_shared(&self) -> shared::SmtpConfig {
+        shared::SmtpConfig {
+            host: self.host.clone(),
+            port: self.port,
+            timeout: self.timeout,
+            username: self.username.as_ref().map(|value| value.peek().to_owned()),
+            password: self.password.as_ref().map(|value| value.peek().to_owned()),
+            connection: self.connection.clone(),
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -150,40 +101,19 @@ impl EmailClient for SmtpServer {
         body: Self::RichText,
         _proxy_url: Option<&String>,
     ) -> EmailResult<()> {
-        // Create a client every time when the email is being sent
-        let email_client =
-            Self::create_client(self).change_context(EmailError::EmailSendingFailure)?;
-
-        let email = Message::builder()
-            .to(Self::to_mail_box(recipient.peek().to_string())?)
-            .from(Self::to_mail_box(self.sender.peek().to_string())?)
-            .subject(subject)
-            .header(ContentType::TEXT_HTML)
-            .body(body)
-            .map_err(SmtpError::MessageBuildingFailed)
-            .change_context(EmailError::EmailSendingFailure)?;
-
-        email_client
-            .send(&email)
-            .map_err(SmtpError::SendingFailure)
-            .change_context(EmailError::EmailSendingFailure)?;
-        Ok(())
+        // A new connection for every email
+        let message = EmailMessage {
+            from: self.sender.peek().to_owned(),
+            to: vec![recipient.peek().to_owned()],
+            cc: Vec::new(),
+            bcc: Vec::new(),
+            subject,
+            html_body: body,
+        };
+        shared::SmtpClient::new(self.smtp_config.to_shared())
+            .send(message)
+            .map_err(|error| {
+                report_with_cause(error).change_context(EmailError::EmailSendingFailure)
+            })
     }
-}
-
-/// Errors that could occur during SES operations.
-#[derive(Debug, thiserror::Error)]
-pub enum SmtpError {
-    /// An error occurred in the SMTP while sending email.
-    #[error("Failed to Send Email {0:?}")]
-    SendingFailure(smtp::Error),
-    /// An error occurred in the SMTP while building the message content.
-    #[error("Failed to create connection {0:?}")]
-    ConnectionFailure(smtp::Error),
-    /// An error occurred in the SMTP while building the message content.
-    #[error("Failed to Build Email content {0:?}")]
-    MessageBuildingFailed(error::Error),
-    /// An error occurred in the SMTP while building the message content.
-    #[error("Failed to parse given email {0:?}")]
-    EmailParsingFailed(AddressError),
 }

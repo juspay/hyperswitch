@@ -14,6 +14,16 @@ s3 = ["dep:aws-config", "dep:aws-sdk-s3", "dep:url"]
 oci_object_storage = ["s3"]
 aws_kms = ["dep:aws-config", "dep:aws-sdk-kms", "dep:base64"]
 gcp_kms = ["dep:google-cloud-kms", "dep:google-cloud-gax", "dep:base64"]
+ses = [
+    "dep:aws-config",
+    "dep:aws-sdk-sesv2",
+    "dep:aws-sdk-sts",
+    "dep:aws-smithy-runtime",
+    "dep:aws-smithy-runtime-api",
+    "dep:hyper",
+    "dep:hyper-proxy",
+]
+smtp = ["dep:lettre"]
 oci_kms = ["dep:oci_kms"]
 
 [dependencies]
@@ -22,9 +32,16 @@ aws-config = { version = "1.5.10", optional = true, features = [
 ] }
 aws-sdk-kms = { version = "1.51.0", optional = true }
 aws-sdk-s3 = { version = "1.65.0", optional = true }
+aws-sdk-sesv2 = { version = "1.57.0", optional = true }
+aws-sdk-sts = { version = "1.51.0", optional = true }
+aws-smithy-runtime = { version = "1.8.3", optional = true }
+aws-smithy-runtime-api = { version = "1.7", optional = true, features = ["client"] }
 base64 = { version = "0.22.1", optional = true }
 google-cloud-gax = { version = "0.19.2", optional = true }
 google-cloud-kms = { version = "0.6.0", optional = true }
+hyper = { version = "0.14.32", optional = true, features = ["client", "tcp", "http1"] }
+hyper-proxy = { version = "0.9.1", optional = true }
+lettre = { version = "0.11.16", optional = true }
 oci_kms = { version = "0.1.0", path = "../oci_kms", optional = true }
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"
