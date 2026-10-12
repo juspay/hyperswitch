@@ -18,7 +18,7 @@ use crate::{
 
 pub type RawPgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
 
-/// A connection leased from a [`PgPool`], before a request context is attached to it.
+/// A connection leased from a [`PgPool`], before a request context attaches.
 pub type RawPgPooledConn<'pool> =
     bb8::PooledConnection<'pool, async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
 
@@ -27,9 +27,8 @@ pub type LeaseError = bb8::RunError<ConnectionError>;
 
 #[derive(Debug, Clone)]
 pub struct PgPool {
-    /// Private so that every lease goes through [`PgPool::lease`], which is what records
-    /// `DATABASE_CONNECTION_LEASE_TIME_MS`. A caller holding the raw pool could lease
-    /// without being measured.
+    /// Private so every lease goes through [`PgPool::lease`] and gets measured for
+    /// `DATABASE_CONNECTION_LEASE_TIME_MS`.
     pg_pool: RawPgPool,
     pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
 }
@@ -48,14 +47,9 @@ impl PgPool {
 
     /// Leases a connection, returning it alongside how long the lease took.
     ///
-    /// The only way to get a connection out of a `PgPool`, so that no lease escapes
-    /// measurement. The duration goes on to [`DatabaseConnectionWithContext`], which hands
-    /// it to the first query run on the connection — that is where the table name becomes
-    /// known. See [`diesel_models::connection_lease`] for how a lease ends up attributed.
-    ///
-    /// A failed lease is recorded here rather than passed on, since there is no connection
-    /// to carry it. `TimedOut` (the pool had no slot in time) is kept distinct from `Error`
-    /// (no connection could be established): the former is the saturation signal.
+    /// The only way to get a connection out of a `PgPool`, so no lease escapes measurement.
+    /// A failed lease is recorded here, since there's no connection to carry it onward;
+    /// `TimedOut` (no slot in time) is kept distinct from `Error` as the saturation signal.
     pub async fn lease(
         &self,
         target: LeaseTarget,

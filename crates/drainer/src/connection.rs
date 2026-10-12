@@ -44,8 +44,8 @@ pub async fn pg_connection<'a>(pool: &'a PgPool) -> DatabaseConnectionWithContex
         .expect("Couldn't retrieve PostgreSQL connection");
 
     // The drainer serves no API request, so its queries carry no request id and emit no external
-    // service call events. The lease time is still recorded: the drainer shares Postgres with the
-    // router, so its own pool waits are worth seeing.
+    // service call events. Lease time is still recorded — the drainer shares Postgres with the
+    // router, so its pool waits matter too.
     DatabaseConnectionWithContext::new(
         connection,
         None,
