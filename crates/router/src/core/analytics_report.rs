@@ -195,59 +195,74 @@ async fn enqueue_report(
     Ok(())
 }
 
-/// Writes the report's CSV to `file_key`, returning the number of rows in it.
+/// Writes the report's CSV to `file_key`, returning the number of rows in it. The replica's rows
+/// arrive a page at a time and each page is uploaded before the next is taken, so memory never
+/// holds more than a few pages.
 pub(crate) async fn generate_report_file(
     state: &SessionState,
     tracking_data: &AnalyticsReportTrackingData,
 ) -> CustomResult<usize, AnalyticsError> {
-    let mut upload = UploadSink(
+    let settings = &state.conf.report_download_config.process_tracker;
+    let query = tracking_data.report.query(&tracking_data.request)?;
+    let header = query.header.clone();
+    let mut upload =
         MultipartUpload::start(state.file_storage_client.as_ref(), &tracking_data.file_key)
             .await
-            .change_context(AnalyticsError::UnknownError)?,
+            .change_context(AnalyticsError::UnknownError)?;
+
+    // One page queued while another is written: the reader waits rather than running ahead.
+    let (sender, receiver) = tokio::sync::mpsc::channel(1);
+    let read = state.store.stream_analytics_report(
+        query,
+        settings.page_size,
+        std::time::Duration::from_secs(settings.query_timeout_secs),
+        sender,
     );
+    let write = async {
+        // Dropped on the way out, which stops the reader if writing fails first.
+        let mut pages = receiver;
+        upload
+            .write(&header)
+            .await
+            .change_context(AnalyticsError::UnknownError)?;
+        let mut row_count = 0;
+        while let Some(page) = pages.recv().await {
+            let mut records = Vec::new();
+            for row in &page {
+                records.extend(reports::csv_record(
+                    row.cells
+                        .iter()
+                        .map(|cell| cell.as_deref().unwrap_or_default()),
+                ));
+            }
+            upload
+                .write(&records)
+                .await
+                .change_context(AnalyticsError::UnknownError)?;
+            row_count += page.len();
+        }
+        Ok::<_, error_stack::Report<AnalyticsError>>(row_count)
+    };
+    let (read, written) = tokio::join!(read, write);
 
-    let database = state
-        .report_database
-        .as_ref()
-        .ok_or(AnalyticsError::UnknownError)
-        .attach_printable("No report database: replica_database is not a valid configuration")?;
-    let written = reports::write_csv(
-        database,
-        tracking_data.report,
-        &tracking_data.request,
-        &state.conf.report_download_config.process_tracker,
-        &mut upload,
-    )
-    .await;
-
+    let written = read
+        .change_context(AnalyticsError::UnknownError)
+        .attach_printable("Failed to read the report from the replica")
+        .and(written);
     match written {
         Ok(row_count) => {
             upload
-                .0
                 .finish()
                 .await
                 .change_context(AnalyticsError::UnknownError)?;
             Ok(row_count)
         }
         Err(error) => {
-            if let Err(abort_error) = upload.0.abort().await {
+            if let Err(abort_error) = upload.abort().await {
                 logger::warn!(?abort_error, "Failed to abort the analytics report upload");
             }
             Err(error)
         }
-    }
-}
-
-/// Feeds the report's CSV into the file's multipart upload.
-struct UploadSink<'a>(MultipartUpload<'a>);
-
-#[async_trait::async_trait]
-impl reports::CsvSink for UploadSink<'_> {
-    async fn write(&mut self, bytes: &[u8]) -> CustomResult<(), AnalyticsError> {
-        self.0
-            .write(bytes)
-            .await
-            .change_context(AnalyticsError::UnknownError)
     }
 }
 
@@ -272,27 +287,18 @@ pub(crate) async fn deliver_report(
         .change_context(AnalyticsError::UnknownError)
         .attach_printable("Failed to sign the analytics report download URL")?;
 
-    let (start, end) = tracking_data.time_range();
-    match tracking_data.request.request.return_url.as_ref() {
-        Some(return_url) => {
-            let data = serde_json::json!({
-                "report_type": tracking_data.report.definition().webhook_type,
-                "start_date_utc": reports::format_timestamp(start),
-                "end_date_utc": reports::format_timestamp(end),
-                "download_url": download_url.as_str(),
-                "expires_in_hours": expiry_days * 24,
-            });
-            send_webhook(
-                state,
-                tracking_data,
-                return_url.get_string_repr(),
-                "report_generation.completed",
-                data,
-            )
-            .await
-        }
-        None => send_emails(state, tracking_data, download_url.as_str(), expiry_days).await,
+    if tracking_data.request.request.return_url.is_none() {
+        return send_emails(state, tracking_data, download_url.as_str(), expiry_days).await;
     }
+    let (start, end) = tracking_data.time_range();
+    let data = serde_json::json!({
+        "report_type": tracking_data.report.definition().webhook_type,
+        "start_date_utc": reports::format_timestamp(start),
+        "end_date_utc": reports::format_timestamp(end),
+        "download_url": download_url.as_str(),
+        "expires_in_hours": expiry_days * 24,
+    });
+    send_webhook(state, tracking_data, "report_generation.completed", data).await
 }
 
 /// Tells the merchant's endpoint the report could not be produced, once retries are exhausted.
@@ -300,23 +306,11 @@ pub(crate) async fn notify_report_failed(
     state: &SessionState,
     tracking_data: &AnalyticsReportTrackingData,
 ) -> CustomResult<(), AnalyticsError> {
-    match tracking_data.request.request.return_url.as_ref() {
-        Some(return_url) => {
-            let data = serde_json::json!({
-                "code": "internal_server_error",
-                "message": "We could not generate the report due to a internal server error. Please request the report again.",
-            });
-            send_webhook(
-                state,
-                tracking_data,
-                return_url.get_string_repr(),
-                "report_generation.failed",
-                data,
-            )
-            .await
-        }
-        None => Ok(()),
-    }
+    let data = serde_json::json!({
+        "code": "internal_server_error",
+        "message": "We could not generate the report due to a internal server error. Please request the report again.",
+    });
+    send_webhook(state, tracking_data, "report_generation.failed", data).await
 }
 
 fn webhook_body(
@@ -337,17 +331,20 @@ fn webhook_body(
     serde_json::Value::Object(payload).to_string().into_bytes()
 }
 
+/// Posts `event` to the request's `return_url`; does nothing when it has none.
 async fn send_webhook(
     state: &SessionState,
     tracking_data: &AnalyticsReportTrackingData,
-    url: &str,
     event: &str,
     data: serde_json::Value,
 ) -> CustomResult<(), AnalyticsError> {
+    let Some(url) = tracking_data.request.request.return_url.as_ref() else {
+        return Ok(());
+    };
     let body = webhook_body(tracking_data, event, data);
     let mut request = services::RequestBuilder::new()
         .method(services::Method::Post)
-        .url(url)
+        .url(url.get_string_repr())
         .header("Content-Type", "application/json")
         .header("User-Agent", "Hyperswitch-Webhook/1.0");
     if let Some(hash_key) = payment_response_hash_key(state, &tracking_data.request).await? {
@@ -436,10 +433,10 @@ async fn send_emails(
                 .replace('"', "&quot;")
         };
         let (link, link_name) = (escape(download_url), escape(&name));
-        let email = ReportEmail {
+        let email = external_services::email::EmailContents {
             recipient: tracking_data.request.email.clone(),
             subject: format!("Your {name} Report: {start} - {end}"),
-            body: format!(
+            body: external_services::email::IntermediateString::new(format!(
                 "<p>Please find the {covers} report for the period of {start} to {end}.<br>\n\
                  This file provides a comprehensive overview of {covers} processed via Hyperswitch during this time frame.\n\
                  <br><br>Access your report here: <a href=\"{link}\">Download {link_name} Report</a>.\n\
@@ -447,7 +444,7 @@ async fn send_emails(
                  <br>If you have any questions or require further assistance, please don't hesitate to reach out to us at <a href=\"mailto:hyperswitch@juspay.in\">hyperswitch@juspay.in</a>.\n\
                  <br><br>Best regards,<br>\n\
                  Hyperswitch Team</p>"
-            ),
+            )),
         };
 
         for recipient in email_recipients(&tracking_data.request, &config.email_bcc) {
@@ -455,7 +452,7 @@ async fn send_emails(
                 .email_client
                 .compose_and_send_email(
                     crate::utils::user::get_base_url(state),
-                    Box::new(ReportEmail {
+                    Box::new(external_services::email::EmailContents {
                         recipient,
                         ..email.clone()
                     }),
@@ -493,30 +490,6 @@ fn email_recipients(request: &GenerateReportRequest, bcc: &[Email]) -> Vec<Email
         }
     }
     recipients
-}
-
-#[cfg(feature = "email")]
-#[derive(Clone)]
-struct ReportEmail {
-    recipient: Email,
-    subject: String,
-    body: String,
-}
-
-#[cfg(feature = "email")]
-#[async_trait::async_trait]
-impl external_services::email::EmailData for ReportEmail {
-    async fn get_email_data(
-        &self,
-        _base_url: &str,
-    ) -> CustomResult<external_services::email::EmailContents, external_services::email::EmailError>
-    {
-        Ok(external_services::email::EmailContents {
-            subject: self.subject.clone(),
-            body: external_services::email::IntermediateString::new(self.body.clone()),
-            recipient: self.recipient.clone(),
-        })
-    }
 }
 
 /// Saves `tracking_data` on the task. The business status stays `Pending` until the task finishes,

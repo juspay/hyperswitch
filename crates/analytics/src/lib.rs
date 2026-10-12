@@ -1173,8 +1173,10 @@ pub struct ProcessTrackerReportConfig {
     /// Lifetime of the download link sent by webhook or email. S3 caps presigned URLs at 7 days,
     /// and at the signing credentials' own lifetime when those are temporary.
     pub download_url_expiry_days: u32,
-    /// Longest a report's query may run, in seconds. Bounds how long one report holds a replica
-    /// connection.
+    /// Rows fetched per page from the report's cursor; with the page being written and the one
+    /// queued, at most three pages are in memory however large the report.
+    pub page_size: usize,
+    /// Longest one page's fetch may run on the replica, in seconds.
     pub query_timeout_secs: u64,
     /// Copied on every report email, each as its own message.
     pub email_bcc: Vec<common_utils::pii::Email>,
@@ -1187,7 +1189,8 @@ impl Default for ProcessTrackerReportConfig {
         Self {
             file_key_prefix: "analytics_reports".to_owned(),
             download_url_expiry_days: 7,
-            query_timeout_secs: 900,
+            page_size: 5_000,
+            query_timeout_secs: 300,
             email_bcc: Vec::new(),
             email_env_label: "Hyperswitch".to_owned(),
         }

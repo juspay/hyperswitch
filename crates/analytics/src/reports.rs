@@ -1,20 +1,19 @@
-//! Reports generated from the analytics Postgres pool, replacing the reporting Lambdas.
+//! Reports replacing the reporting Lambdas.
 //!
 //! A report is a [`ReportDefinition`]: where its rows come from and the SQL rendering each column
-//! as text. [`write_csv`] runs any definition. Postgres renders the values, so the CSV carries
+//! as text. [`ReportKind::query`] builds any definition's query, which the store runs on the read
+//! replica. Postgres renders the values, so the CSV carries
 //! standard ones: JSON as JSON, booleans as `true`/`false`, timestamps as ISO 8601 UTC with
 //! milliseconds (the format API responses use) and amounts as exact decimals.
 
 pub mod payments;
 
-use api_models::analytics::{GenerateReportRequest, ReportColumns};
-use common_utils::{errors::CustomResult, DbConnectionParams};
-use error_stack::ResultExt;
-use futures::TryStreamExt;
-use sqlx::{Postgres, QueryBuilder, Row};
-use storage_impl::config::Database;
+use std::fmt::Write as _;
 
-use crate::{enums::AuthInfo, errors::AnalyticsError, ProcessTrackerReportConfig};
+use api_models::analytics::{GenerateReportRequest, ReportColumns};
+use common_utils::errors::CustomResult;
+
+use crate::{enums::AuthInfo, errors::AnalyticsError};
 
 /// Where a report's rows come from and the columns written for each.
 #[derive(Debug)]
@@ -130,195 +129,90 @@ pub fn format_timestamp(value: time::PrimitiveDateTime) -> String {
         .unwrap_or_else(|_| value.to_string())
 }
 
-/// A tenant's pool on the database reports read: the router's `replica_database`, so point that at
-/// a reader to keep reports off the primary. Built once at startup and connected lazily, so a
-/// deployment that never runs a report opens no connections. Its `max_pool_size` caps how many
-/// reports query at once: further reports wait for a connection.
+/// A value bound to one of a report query's `$n` placeholders.
 #[derive(Clone, Debug)]
-pub struct ReportDatabase {
-    pool: sqlx::PgPool,
+pub enum ReportBind {
+    Text(String),
+    Texts(Vec<String>),
+    Timestamp(time::PrimitiveDateTime),
 }
 
-impl ReportDatabase {
-    pub fn connect_lazy(database: &Database, schema: &str) -> CustomResult<Self, AnalyticsError> {
-        let pool = sqlx::postgres::PgPoolOptions::new()
-            .max_connections(database.max_pool_size.max(1))
-            .min_connections(0)
-            .acquire_timeout(std::time::Duration::from_secs(database.connection_timeout))
-            .idle_timeout(std::time::Duration::from_secs(database.idle_timeout))
-            .max_lifetime(std::time::Duration::from_secs(database.max_lifetime))
-            .connect_lazy(&database.get_database_url(schema))
-            .change_context(AnalyticsError::UnknownError)
-            .attach_printable("Invalid report database configuration")?;
-        Ok(Self { pool })
-    }
+/// A report's query and the CSV header for it. Each row has one column, `cells`: the requested
+/// columns as `text[]`, in header order.
+#[derive(Clone, Debug)]
+pub struct ReportQuery {
+    pub sql: String,
+    pub binds: Vec<ReportBind>,
+    pub header: Vec<u8>,
+}
 
-    /// Connects and runs `SELECT 1`, so a misconfigured database shows at startup rather than on
-    /// the first report.
-    pub async fn check(&self) -> CustomResult<(), AnalyticsError> {
-        sqlx::query("SELECT 1")
-            .execute(&self.pool)
-            .await
-            .change_context(AnalyticsError::UnknownError)
-            .attach_printable("The report database is unreachable")?;
-        Ok(())
+impl ReportQuery {
+    fn bind(&mut self, value: ReportBind) -> String {
+        self.binds.push(value);
+        format!("${}", self.binds.len())
     }
 }
 
-/// Receives a report's CSV as [`write_csv`] produces it.
-#[async_trait::async_trait]
-pub trait CsvSink: Send {
-    async fn write(&mut self, bytes: &[u8]) -> CustomResult<(), AnalyticsError>;
-}
+impl ReportKind {
+    /// The query for the requested columns of the rows `request.auth` may see, created within
+    /// its time range (inclusive at both ends, as the Lambda was), oldest first.
+    pub fn query(
+        self,
+        request: &GenerateReportRequest,
+    ) -> CustomResult<ReportQuery, AnalyticsError> {
+        let definition = self.definition();
+        let columns = self.columns(request.request.columns.as_ref())?;
+        let table = definition.table;
+        let time_range = request.request.time_range;
 
-/// Rows read ahead of the upload; bounds memory when storage is slower than the database.
-const ROW_BUFFER: usize = 1024;
-
-/// Streams the requested columns of the rows `request.auth` may see, created within its time
-/// range (inclusive at both ends, as the Lambda was), to `sink` as CSV records, header first.
-/// Returns the number of rows.
-///
-/// The query runs on the tenant's `database`, in a read-only transaction bounded by
-/// `settings.query_timeout_secs`.
-pub async fn write_csv(
-    database: &ReportDatabase,
-    report: ReportKind,
-    request: &GenerateReportRequest,
-    settings: &ProcessTrackerReportConfig,
-    sink: &mut dyn CsvSink,
-) -> CustomResult<usize, AnalyticsError> {
-    let columns = report.columns(request.request.columns.as_ref())?;
-    sink.write(&csv_record(columns.iter().map(|(header, _)| *header)))
-        .await?;
-
-    // The query runs on its own task, so reading rows overlaps uploading them.
-    let (sender, mut receiver) = tokio::sync::mpsc::channel(ROW_BUFFER);
-    let reader = tokio::spawn(read_rows(
-        database.pool.clone(),
-        report,
-        request.clone(),
-        settings.clone(),
-        sender,
-    ));
-
-    let mut row_count = 0;
-    while let Some(record) = receiver.recv().await {
-        // Returning drops the receiver, which ends the reader at its next row.
-        sink.write(&record).await?;
-        row_count += 1;
+        let cells = columns
+            .iter()
+            .map(|(_, expression)| *expression)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let mut query = ReportQuery {
+            sql: format!(
+                "SELECT ARRAY[{cells}]::text[] AS cells FROM {} WHERE TRUE",
+                definition.from
+            ),
+            binds: Vec::new(),
+            header: csv_record(columns.iter().map(|(header, _)| *header)),
+        };
+        push_scope(&mut query, definition, &request.auth);
+        let start = query.bind(ReportBind::Timestamp(time_range.start_time));
+        let end = query.bind(ReportBind::Timestamp(
+            time_range
+                .end_time
+                .unwrap_or_else(common_utils::date_time::now),
+        ));
+        let _ = write!(
+            query.sql,
+            " AND {table}.created_at >= {start} AND {table}.created_at <= {end} \
+             ORDER BY {table}.created_at"
+        );
+        Ok(query)
     }
-    reader
-        .await
-        .change_context(AnalyticsError::UnknownError)
-        .attach_printable("The report reader stopped unexpectedly")??;
-    Ok(row_count)
-}
-
-async fn read_rows(
-    pool: sqlx::PgPool,
-    report: ReportKind,
-    request: GenerateReportRequest,
-    settings: ProcessTrackerReportConfig,
-    sender: tokio::sync::mpsc::Sender<Vec<u8>>,
-) -> CustomResult<(), AnalyticsError> {
-    let definition = report.definition();
-    let columns = report.columns(request.request.columns.as_ref())?;
-    let time_range = request.request.time_range;
-    let table = definition.table;
-
-    let mut query = QueryBuilder::<Postgres>::new("SELECT ");
-    let mut select = query.separated(", ");
-    for (_, expression) in &columns {
-        select.push(*expression);
-    }
-    query.push(format_args!(" FROM {} WHERE TRUE", definition.from));
-    push_scope(&mut query, definition, &request.auth);
-    query.push(format_args!(" AND {table}.created_at >= "));
-    query.push_bind(time_range.start_time);
-    query.push(format_args!(" AND {table}.created_at <= "));
-    query.push_bind(
-        time_range
-            .end_time
-            .unwrap_or_else(common_utils::date_time::now),
-    );
-    query.push(format_args!(" ORDER BY {table}.created_at"));
-
-    let mut transaction = pool
-        .begin()
-        .await
-        .change_context(AnalyticsError::UnknownError)?;
-    let timeout_ms = settings.query_timeout_secs.saturating_mul(1000);
-    let timeout = format!("SET LOCAL statement_timeout = {timeout_ms}");
-    for setting in ["SET TRANSACTION READ ONLY", timeout.as_str()] {
-        run_statement(&mut transaction, setting)
-            .await
-            .change_context(AnalyticsError::UnknownError)
-            .attach_printable("Failed to prepare the report transaction")?;
-    }
-
-    let mut rows = stream_rows(&mut transaction, query.build());
-    while let Some(row) = rows
-        .try_next()
-        .await
-        .change_context(AnalyticsError::UnknownError)
-        .attach_printable_lazy(|| format!("Failed to read the {} report", definition.name))?
-    {
-        let fields = (0..columns.len())
-            .map(|index| row.try_get::<Option<String>, _>(index))
-            .collect::<Result<Vec<_>, _>>()
-            .change_context(AnalyticsError::UnknownError)
-            .attach_printable("Failed to decode a report row")?;
-        let record = csv_record(fields.into_iter().map(Option::unwrap_or_default));
-        if sender.send(record).await.is_err() {
-            // The writer gave up; the transaction rolls back when dropped.
-            return Ok(());
-        }
-    }
-    Ok(())
-}
-
-// These two pin the connection's lifetime. Inferred inside an async body, it trips the
-// higher-ranked `Executor` check (rust-lang/rust#102211).
-fn run_statement<'a>(
-    connection: &'a mut sqlx::PgConnection,
-    sql: &'a str,
-) -> futures::future::BoxFuture<'a, Result<sqlx::postgres::PgQueryResult, sqlx::Error>> {
-    Box::pin(sqlx::query(sql).execute(connection))
-}
-
-fn stream_rows<'a>(
-    connection: &'a mut sqlx::PgConnection,
-    query: sqlx::query::Query<'a, Postgres, sqlx::postgres::PgArguments>,
-) -> futures::stream::BoxStream<'a, Result<sqlx::postgres::PgRow, sqlx::Error>> {
-    query.fetch(connection)
 }
 
 /// The same scope the analytics query builder applies for `auth`. The Lambda ignored
 /// `processor_merchant_id`, so a connected merchant received its platform's other rows.
-fn push_scope(query: &mut QueryBuilder<'_, Postgres>, report: &ReportDefinition, auth: &AuthInfo) {
-    let table = report.table;
-    let ids = |ids: &[common_utils::id_type::MerchantId]| {
+fn push_scope(query: &mut ReportQuery, report: &ReportDefinition, auth: &AuthInfo) {
+    let strings = |ids: &[common_utils::id_type::MerchantId]| {
         ids.iter()
             .map(|id| id.get_string_repr().to_owned())
             .collect::<Vec<_>>()
     };
-    let (org_id, filters) = match auth {
-        AuthInfo::OrgLevel { org_id } => (org_id, Vec::new()),
+    let (org_id, merchant_ids, processor_merchant_ids, profile_ids) = match auth {
+        AuthInfo::OrgLevel { org_id } => (org_id, None, None, None),
         AuthInfo::MerchantLevel {
             org_id,
             merchant_ids,
             processor_merchant_ids,
         } => (
             org_id,
-            [
-                Some(("merchant_id", ids(merchant_ids))),
-                processor_merchant_ids
-                    .as_deref()
-                    .map(|processor_ids| ("processor_merchant_id", ids(processor_ids))),
-            ]
-            .into_iter()
-            .flatten()
-            .collect(),
+            Some(strings(merchant_ids)),
+            processor_merchant_ids.as_deref().map(strings),
+            None,
         ),
         AuthInfo::ProfileLevel {
             org_id,
@@ -327,38 +221,38 @@ fn push_scope(query: &mut QueryBuilder<'_, Postgres>, report: &ReportDefinition,
             processor_merchant_id,
         } => (
             org_id,
-            [
-                Some(("merchant_id", ids(std::slice::from_ref(merchant_id)))),
-                Some((
-                    "profile_id",
-                    profile_ids
-                        .iter()
-                        .map(|id| id.get_string_repr().to_owned())
-                        .collect(),
-                )),
-                processor_merchant_id
-                    .as_ref()
-                    .map(|id| ("processor_merchant_id", ids(std::slice::from_ref(id)))),
-            ]
-            .into_iter()
-            .flatten()
-            .collect(),
+            Some(strings(std::slice::from_ref(merchant_id))),
+            processor_merchant_id
+                .as_ref()
+                .map(|id| strings(std::slice::from_ref(id))),
+            Some(
+                profile_ids
+                    .iter()
+                    .map(|id| id.get_string_repr().to_owned())
+                    .collect(),
+            ),
         ),
     };
 
+    let table = report.table;
     if report.organization_scoped {
-        query.push(format_args!(" AND {table}.organization_id = "));
-        query.push_bind(org_id.get_string_repr().to_owned());
+        let org_id = query.bind(ReportBind::Text(org_id.get_string_repr().to_owned()));
+        let _ = write!(query.sql, " AND {table}.organization_id = {org_id}");
     }
-    for (column, values) in filters {
-        query.push(format_args!(" AND {table}.{column} = ANY("));
-        query.push_bind(values);
-        query.push(")");
+    for (column, values) in [
+        ("merchant_id", merchant_ids),
+        ("processor_merchant_id", processor_merchant_ids),
+        ("profile_id", profile_ids),
+    ] {
+        if let Some(values) = values {
+            let values = query.bind(ReportBind::Texts(values));
+            let _ = write!(query.sql, " AND {table}.{column} = ANY({values})");
+        }
     }
 }
 
 /// One RFC 4180 record: every field quoted, quotes doubled, CRLF line ending.
-fn csv_record<S: AsRef<str>>(fields: impl IntoIterator<Item = S>) -> Vec<u8> {
+pub fn csv_record<S: AsRef<str>>(fields: impl IntoIterator<Item = S>) -> Vec<u8> {
     let mut out = Vec::new();
     for (index, field) in fields.into_iter().enumerate() {
         if index > 0 {
@@ -426,6 +320,53 @@ mod tests {
         let all = PaymentReportColumn::iter().collect::<Vec<_>>();
         let selected = ReportKind::V1Payments.columns(Some(&ReportColumns::Payment(all.clone())));
         assert_eq!(selected.map(|columns| columns.len()).ok(), Some(all.len()));
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn query_binds_scope_and_range_for_a_profile() {
+        use std::borrow::Cow;
+
+        use api_models::analytics::{payments::PaymentReportColumn as Column, ReportRequest};
+        use common_utils::id_type;
+
+        let request = GenerateReportRequest {
+            request: ReportRequest {
+                time_range: common_utils::types::TimeRange {
+                    start_time: time::macros::datetime!(2026-10-01 00:00:00),
+                    end_time: Some(time::macros::datetime!(2026-10-07 00:00:00)),
+                },
+                emails: None,
+                return_url: None,
+                #[cfg(feature = "v2")]
+                report_type: Default::default(),
+                columns: Some(ReportColumns::Payment(vec![
+                    Column::PaymentId,
+                    Column::Amount,
+                ])),
+            },
+            merchant_id: None,
+            auth: AuthInfo::ProfileLevel {
+                org_id: id_type::OrganizationId::try_from(Cow::from("org_1")).unwrap(),
+                merchant_id: id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap(),
+                profile_ids: vec![id_type::ProfileId::try_from(Cow::from("pro_1")).unwrap()],
+                processor_merchant_id: None,
+            },
+            email: common_utils::pii::Email::try_from("a@example.com".to_owned()).unwrap(),
+            payment_response_hash_key: None,
+        };
+
+        let query = ReportKind::V1Payments.query(&request).unwrap();
+        assert!(query
+            .sql
+            .starts_with("SELECT ARRAY[pi.payment_id, (CASE WHEN"));
+        assert!(query.sql.ends_with(
+            " AND pa.organization_id = $1 AND pa.merchant_id = ANY($2) \
+             AND pa.profile_id = ANY($3) AND pa.created_at >= $4 AND pa.created_at <= $5 \
+             ORDER BY pa.created_at"
+        ));
+        assert_eq!(query.binds.len(), 5);
+        assert_eq!(query.header, b"\"payment_id\",\"amount\"\r\n");
     }
 
     #[test]

@@ -140,9 +140,6 @@ pub struct SessionState {
     pub email_client: Arc<Box<dyn EmailService>>,
     #[cfg(feature = "olap")]
     pub pool: AnalyticsProvider,
-    /// The tenant's pool on `replica_database`, which process tracker reports read.
-    #[cfg(feature = "olap")]
-    pub report_database: Option<analytics::reports::ReportDatabase>,
     pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub request_id: Option<RequestId>,
     pub base_url: String,
@@ -358,8 +355,6 @@ pub struct AppState {
     #[cfg(feature = "olap")]
     pub pools: HashMap<id_type::TenantId, AnalyticsProvider>,
     #[cfg(feature = "olap")]
-    pub report_databases: HashMap<id_type::TenantId, analytics::reports::ReportDatabase>,
-    #[cfg(feature = "olap")]
     pub opensearch_client: Option<Arc<OpenSearchClient>>,
     pub request_id: Option<RequestId>,
     pub file_storage_client: Arc<dyn FileStorageInterface>,
@@ -533,35 +528,6 @@ impl AppState {
                 .tenants
                 .get_pools_map(conf.analytics.get_inner())
                 .await;
-            #[cfg(feature = "olap")]
-            let report_databases = conf
-                .multitenancy
-                .tenants
-                .get_report_databases_map(&conf.replica_database.get_inner().clone().into());
-            // Checked only where process tracker reports are on, so other deployments open no
-            // report connections at startup.
-            #[cfg(feature = "olap")]
-            if !conf
-                .report_download_config
-                .process_tracker_reports
-                .is_empty()
-            {
-                for (tenant, report_database) in &report_databases {
-                    let (tenant, report_database) = (tenant.clone(), report_database.clone());
-                    tokio::spawn(async move {
-                        match report_database.check().await {
-                            Ok(()) => {
-                                router_env::logger::info!(?tenant, "Report database reachable")
-                            }
-                            Err(error) => router_env::logger::error!(
-                                ?error,
-                                ?tenant,
-                                "Report database unreachable"
-                            ),
-                        }
-                    });
-                }
-            }
             let (stores, accounts_store) = conf
                 .multitenancy
                 .tenants
@@ -603,8 +569,6 @@ impl AppState {
                 event_handler,
                 #[cfg(feature = "olap")]
                 pools,
-                #[cfg(feature = "olap")]
-                report_databases,
                 #[cfg(feature = "olap")]
                 opensearch_client,
                 request_id: None,
@@ -746,8 +710,6 @@ impl AppState {
             event_handler,
             #[cfg(feature = "olap")]
             pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
-            #[cfg(feature = "olap")]
-            report_database: self.report_databases.get(tenant).cloned(),
             file_storage_client: self.file_storage_client.clone(),
             request_id: self.request_id.clone(),
             base_url: tenant_conf.base_url.clone(),

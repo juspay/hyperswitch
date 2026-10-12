@@ -547,27 +547,6 @@ impl TenantConfig {
             .collect();
         (stores, accounts_store)
     }
-    /// One pool per tenant on `database`, the replica process tracker reports read. Connected
-    /// lazily, so it costs nothing until a report runs.
-    #[cfg(feature = "olap")]
-    pub fn get_report_databases_map(
-        &self,
-        database: &storage_impl::config::Database,
-    ) -> HashMap<id_type::TenantId, analytics::reports::ReportDatabase> {
-        self.0
-            .iter()
-            .filter_map(|(tenant_name, tenant)| {
-                let schema = common_utils::types::TenantConfig::get_schema(tenant);
-                analytics::reports::ReportDatabase::connect_lazy(database, schema)
-                    .inspect_err(|error| {
-                        router_env::logger::error!(?error, ?tenant_name, "Invalid report database");
-                    })
-                    .ok()
-                    .map(|report_database| (tenant_name.clone(), report_database))
-            })
-            .collect()
-    }
-
     #[cfg(feature = "olap")]
     pub async fn get_pools_map(
         &self,
