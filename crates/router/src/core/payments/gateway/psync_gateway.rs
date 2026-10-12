@@ -6,6 +6,7 @@ use common_utils::{errors::CustomResult, id_type, request::Request, ucs_types};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData, router_data::RouterData, router_flow_types as domain,
+    router_request_types::SyncIntegrityObject,
 };
 use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
@@ -107,6 +108,16 @@ where
                 };
 
                 router_data.response = router_data_response;
+                router_data.request.integrity_object = payment_get_response
+                    .authorized_money
+                    .as_ref()
+                    .map(unified_connector_service::get_minor_amount_and_currency_from_ucs_money)
+                    .transpose()
+                    .change_context(ConnectorError::ResponseHandlingFailed)?
+                    .map(|(amount, currency)| SyncIntegrityObject {
+                        amount: Some(amount),
+                        currency: Some(currency),
+                    });
                 // Only override `amount_captured` when UCS actually reports a captured
                 // amount on sync. Connectors that don't return an amount on psync (e.g.
                 // cybersource TSS) leave this `None` .
@@ -260,6 +271,17 @@ where
                         }
 
                         router_data.response = router_data_response;
+                        router_data.request.integrity_object = payment_get_response
+                            .authorized_money
+                            .as_ref()
+                            .map(
+                                unified_connector_service::get_minor_amount_and_currency_from_ucs_money,
+                            )
+                            .transpose()?
+                            .map(|(amount, currency)| SyncIntegrityObject {
+                                amount: Some(amount),
+                                currency: Some(currency),
+                            });
                         // Only override `amount_captured` when UCS actually reports a
                         // captured amount on sync. Connectors that don't return an amount
                         // on psync (e.g. cybersource TSS) leave this `None`;

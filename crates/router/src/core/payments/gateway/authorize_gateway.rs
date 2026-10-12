@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use common_enums::{CallConnectorAction, Currency, ExecutionPath};
+use common_enums::{CallConnectorAction, ExecutionPath};
 use common_utils::{errors::CustomResult, id_type, request::Request, ucs_types};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -12,7 +12,6 @@ use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
-    unified_connector_service::transformers::UnifiedConnectorServiceError,
 };
 use hyperswitch_masking::ExposeInterface as UcsMaskingExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
@@ -178,6 +177,15 @@ where
                     };
                     router_data.response = router_data_response;
 
+                    router_data.request.integrity_object = recurring_payment_charge_response
+                        .authorized_money
+                        .as_ref()
+                        .map(
+                            unified_connector_service::get_minor_amount_and_currency_from_ucs_money,
+                        )
+                        .transpose()?
+                        .map(|(amount, currency)| AuthoriseIntegrityObject { amount, currency });
+
                     router_data.amount_captured = recurring_payment_charge_response.captured_amount;
                     router_data.minor_amount_captured = recurring_payment_charge_response
                         .captured_amount
@@ -264,22 +272,12 @@ where
 
                     router_data.request.integrity_object = payment_authorize_response
                         .authorized_money
-                        .map(|money| -> Result<_, error_stack::Report<ConnectorError>> {
-                            let grpc_currency = payments_grpc::Currency::try_from(money.currency)
-                                .change_context(ConnectorError::ResponseDeserializationFailed)
-                                .attach_printable("Invalid currency received from UCS response")?;
-                            let currency = Currency::foreign_try_from(grpc_currency)
-                                .change_context(ConnectorError::ResponseDeserializationFailed)?;
-
-                            Ok(AuthoriseIntegrityObject {
-                                amount: MinorUnit::new(money.minor_amount),
-                                currency,
-                            })
-                        })
-                        .transpose()
-                        .change_context(
-                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                        )?;
+                        .as_ref()
+                        .map(
+                            unified_connector_service::get_minor_amount_and_currency_from_ucs_money,
+                        )
+                        .transpose()?
+                        .map(|(amount, currency)| AuthoriseIntegrityObject { amount, currency });
 
                     router_data.amount_captured = payment_authorize_response.captured_amount;
                     router_data.minor_amount_captured = payment_authorize_response
