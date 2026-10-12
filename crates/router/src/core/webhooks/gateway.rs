@@ -928,9 +928,6 @@ fn event_reference_to_object_ref(
                 Some(ObjectReferenceId::PaymentId(
                     api_payments::PaymentIdType::PaymentAttemptId(merchant_txn_id.clone()),
                 ))
-            } else if payment.connector_preprocessing_id.is_some() {
-                // Preprocessing lookups are no longer supported, matching the direct gateway.
-                None
             } else {
                 payment.connector_transaction_id.as_ref().map(|ctx_id| {
                     ObjectReferenceId::PaymentId(
@@ -1055,31 +1052,20 @@ mod tests {
     fn payment_reference(
         connector_transaction_id: Option<&str>,
         merchant_transaction_id: Option<&str>,
-        connector_preprocessing_id: Option<&str>,
     ) -> payments_grpc::EventReference {
         payments_grpc::EventReference {
             resource: Some(payments_grpc::event_reference::Resource::Payment(
                 payments_grpc::PaymentEventReference {
                     connector_transaction_id: connector_transaction_id.map(str::to_string),
                     merchant_transaction_id: merchant_transaction_id.map(str::to_string),
-                    connector_preprocessing_id: connector_preprocessing_id.map(str::to_string),
                 },
             )),
         }
     }
 
     #[test]
-    fn payment_reference_has_no_object_ref_when_only_preprocessing_id_is_present() {
-        let reference = payment_reference(None, None, Some("src_123"));
-
-        let object_ref = event_reference_to_object_ref(&reference).unwrap();
-
-        assert!(object_ref.is_none());
-    }
-
-    #[test]
     fn normal_payment_reference_prefers_merchant_transaction_id() {
-        let reference = payment_reference(Some("pi_123"), Some("order_123"), Some("src_123"));
+        let reference = payment_reference(Some("pi_123"), Some("order_123"));
 
         let object_ref = event_reference_to_object_ref(&reference).unwrap().unwrap();
 
@@ -1093,7 +1079,7 @@ mod tests {
 
     #[test]
     fn payment_reference_uses_connector_transaction_id_when_merchant_id_is_absent() {
-        let reference = payment_reference(Some("pi_123"), None, None);
+        let reference = payment_reference(Some("pi_123"), None);
 
         let object_ref = event_reference_to_object_ref(&reference).unwrap().unwrap();
 
@@ -1107,7 +1093,7 @@ mod tests {
 
     #[test]
     fn payment_reference_has_no_object_ref_when_all_ids_are_absent() {
-        let reference = payment_reference(None, None, None);
+        let reference = payment_reference(None, None);
 
         assert!(event_reference_to_object_ref(&reference).unwrap().is_none());
     }
