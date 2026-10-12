@@ -936,25 +936,44 @@ pub fn get_split_refunds(
                 (_, _) => (None, None),
             };
 
-            if let Some(charge_id) = charge_id_option {
-                let options = refunds_validator::validate_stripe_charge_refund(
-                    charge_type_option,
-                    &split_refund_input.refund_request,
-                )?;
-
-                Ok(Some(
-                    router_request_types::SplitRefundsRequest::StripeSplitRefund(
-                        router_request_types::StripeSplitRefund {
-                            charge_id,
-                            charge_type: stripe_payment.charge_type.clone(),
-                            transfer_account_id: stripe_payment.transfer_account_id.clone(),
-                            options,
-                        },
-                    ),
-                ))
-            } else {
-                Ok(None)
+            // Destination charges are created on the platform account, so a refund issued
+            // against the payment intent already reaches the right account with no split refund
+            // data; only direct charges need it, because only they carry the `Stripe-Account`
+            // header. Keeping the old `None` for destination also keeps the merchant-facing
+            // validation below off a path that used to work without `split_refunds`.
+            if charge_id_option.is_none()
+                && !matches!(
+                    stripe_payment.charge_type,
+                    api_models::enums::PaymentChargeType::Stripe(
+                        api_models::enums::StripeChargeType::Direct
+                    )
+                )
+            {
+                return Ok(None);
             }
+
+            let options = refunds_validator::validate_stripe_charge_refund(
+                charge_type_option,
+                &split_refund_input.refund_request,
+            )?;
+
+            // The charge id is only known once charge data has been persisted on the attempt,
+            // which does not happen for payments that reach a terminal state without a PSync.
+            // The Connect routing information lives on the payment intent and is always
+            // present, so the refund must still be built as a split refund - issued against
+            // the payment intent rather than the charge when the charge id is unknown.
+            // Returning `None` here instead would silently downgrade the refund to the
+            // non-Connect shape and send it to the platform account.
+            Ok(Some(
+                router_request_types::SplitRefundsRequest::StripeSplitRefund(
+                    router_request_types::StripeSplitRefund {
+                        charge_id: charge_id_option,
+                        charge_type: stripe_payment.charge_type.clone(),
+                        transfer_account_id: stripe_payment.transfer_account_id.clone(),
+                        options,
+                    },
+                ),
+            ))
         }
         Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_)) => {
             match &split_refund_input.payment_charges {

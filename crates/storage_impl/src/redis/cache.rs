@@ -722,6 +722,9 @@ impl Cache {
     // bypass it. A recorded `Some(v)` substitutes on replay; a recorded `None`
     // re-triggers the caller's fallback. The serde bound is deliberately
     // unconditional: a type that cannot be captured cannot be cached.
+    //
+    // `on_miss = None`: an unrecorded read reports "not in cache", which is true of
+    // the cold replay cache, so the caller falls back instead of fail-stopping.
     #[cfg_attr(
         feature = "deja",
         deja::boundary(
@@ -732,6 +735,7 @@ impl Cache {
             effect = Imc,
             codec = SerdeCodec,
             args = deja_in_memory_args(self.name, &key),
+            on_miss = None,
         )
     )]
     pub async fn get_val<T>(&self, key: CacheKey) -> Option<T>
@@ -753,6 +757,8 @@ impl Cache {
     }
 
     /// Check if a key exists in cache
+    //
+    // Deja: `on_miss = false` is the same "not in cache" answer as `get_val`.
     #[cfg_attr(
         feature = "deja",
         deja::boundary(
@@ -763,6 +769,7 @@ impl Cache {
             effect = Imc,
             codec = SerdeCodec,
             args = deja_in_memory_args(self.name, &key),
+            on_miss = false,
         )
     )]
     pub async fn exists(&self, key: CacheKey) -> bool {

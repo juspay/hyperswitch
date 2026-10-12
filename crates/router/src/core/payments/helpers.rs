@@ -922,12 +922,12 @@ pub async fn get_token_for_recurring_mandate(
 
     if let Some(enums::PaymentMethod::Card) = payment_method.get_payment_method_type() {
         if state.conf.locker.locker_enabled {
-            let _ = cards::get_lookup_key_from_locker(
+            let _ = Box::pin(cards::get_lookup_key_from_locker(
                 state,
                 &token,
                 &payment_method,
                 platform.get_processor().get_key_store(),
-            )
+            ))
             .await?;
         }
 
@@ -3036,12 +3036,12 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
             Ok(domain::PaymentMethodData::Card(card))
         }
         VaultFetchAction::FetchCardDetailsForNetworkTransactionIdFlowFromLocker => {
-            fetch_card_details_for_network_transaction_flow_from_locker(
+            Box::pin(fetch_card_details_for_network_transaction_flow_from_locker(
                 state,
                 customer_id,
                 &payment_intent.merchant_id,
                 locker_id,
-            )
+            ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to fetch card information from the permanent locker")
@@ -3096,13 +3096,13 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                     .and_then(|vault_data| vault_data.get_network_token_data())
                     .map(Ok)
                     .async_unwrap_or_else(|| async {
-                        fetch_network_token_details_from_locker(
+                        Box::pin(fetch_network_token_details_from_locker(
                             state,
                             customer_id,
                             &payment_intent.merchant_id,
                             network_token_locker_id,
                             nt_data,
-                        )
+                        ))
                         .await
                     })
                     .await?;
@@ -3135,14 +3135,14 @@ pub async fn retrieve_card_with_permanent_token_for_external_authentication(
             message: "no customer id provided for the payment".to_string(),
         })?;
     Ok(domain::PaymentMethodData::Card(
-        fetch_card_details_from_internal_locker(
+        Box::pin(fetch_card_details_from_internal_locker(
             state,
             customer_id,
             &payment_intent.merchant_id,
             locker_id,
             card_token_data,
             None,
-        )
+        ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to fetch card information from the permanent locker")?,
@@ -3176,14 +3176,14 @@ pub async fn fetch_card_details_from_locker(
             .await
         }
         domain::PaymentMethodVaultSourceDetails::InternalVault => {
-            fetch_card_details_from_internal_locker(
+            Box::pin(fetch_card_details_from_internal_locker(
                 state,
                 customer_id,
                 platform.get_provider().get_account().get_id(),
                 locker_id,
                 card_token_data,
                 co_badged_card_data,
-            )
+            ))
             .await
         }
     }
@@ -3275,11 +3275,16 @@ pub async fn fetch_card_details_from_internal_locker(
     co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
 ) -> RouterResult<domain::Card> {
     logger::debug!("Fetching card details from locker");
-    let card = cards::get_card_from_locker(state, customer_id, merchant_id, locker_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to fetch card information from the permanent locker")?
-        .get_card();
+    let card = Box::pin(cards::get_card_from_locker(
+        state,
+        customer_id,
+        merchant_id,
+        locker_id,
+    ))
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed to fetch card information from the permanent locker")?
+    .get_card();
 
     // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
     // from payment_method_data.card_token object
@@ -3408,14 +3413,16 @@ pub async fn fetch_network_token_details_from_locker(
     network_token_locker_id: &str,
     network_transaction_data: mandates::NetworkTokenWithNTIRef,
 ) -> RouterResult<domain::NetworkTokenData> {
-    let mut token_data =
-        cards::get_card_from_locker(state, customer_id, merchant_id, network_token_locker_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "failed to fetch network token information from the permanent locker",
-            )?
-            .get_card();
+    let mut token_data = Box::pin(cards::get_card_from_locker(
+        state,
+        customer_id,
+        merchant_id,
+        network_token_locker_id,
+    ))
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed to fetch network token information from the permanent locker")?
+    .get_card();
     let expiry = network_transaction_data
         .token_exp_month
         .zip(network_transaction_data.token_exp_year);
@@ -3458,12 +3465,16 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
     merchant_id: &id_type::MerchantId,
     locker_id: &str,
 ) -> RouterResult<domain::PaymentMethodData> {
-    let card_details_from_locker =
-        cards::get_card_from_locker(state, customer_id, merchant_id, locker_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to fetch card details from locker")?
-            .get_card();
+    let card_details_from_locker = Box::pin(cards::get_card_from_locker(
+        state,
+        customer_id,
+        merchant_id,
+        locker_id,
+    ))
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed to fetch card details from locker")?
+    .get_card();
 
     let card_network = card_details_from_locker
         .card_brand
@@ -4744,6 +4755,7 @@ pub fn generate_mandate(
                 .get_required_value("customer_acceptance")?;
             new_mandate
                 .set_mandate_id(mandate_id)
+                .set_created_at(Some(common_utils::date_time::now()))
                 .set_customer_id(cus_id.clone())
                 .set_merchant_id(merchant_id)
                 .set_original_payment_id(Some(payment_id))
@@ -4796,6 +4808,61 @@ pub fn generate_mandate(
             ))
         }
         (_, _) => Ok(None),
+    }
+}
+
+#[cfg(test)]
+mod generate_mandate_tests {
+    use std::borrow::Cow;
+
+    use common_types::payments::{AcceptanceType, CustomerAcceptance};
+    use common_utils::{id_type, types::MinorUnit};
+    use hyperswitch_domain_models::mandates::{MandateAmountData, MandateData, MandateDataType};
+
+    use super::generate_mandate;
+
+    /// A new mandate sets its own `created_at` rather than taking the database default.
+    #[test]
+    fn a_new_mandate_carries_its_own_created_at() {
+        let mandate_data = MandateData {
+            update_mandate_id: None,
+            customer_acceptance: Some(CustomerAcceptance {
+                acceptance_type: AcceptanceType::Offline,
+                accepted_at: None,
+                online: None,
+            }),
+            mandate_type: Some(MandateDataType::SingleUse(MandateAmountData {
+                amount: MinorUnit::new(100),
+                currency: common_enums::Currency::USD,
+                start_date: None,
+                end_date: None,
+                metadata: None,
+            })),
+        };
+        let customer_id = Some(id_type::CustomerId::try_from(Cow::Borrowed("cus_1")).unwrap());
+
+        let before = common_utils::date_time::now();
+        let mandate = generate_mandate(
+            id_type::MerchantId::default(),
+            id_type::PaymentId::try_from(Cow::Borrowed("pay_1")).unwrap(),
+            "stripe".to_owned(),
+            Some(mandate_data),
+            &customer_id,
+            "pm_1".to_owned(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap()
+        .expect("a mandate for mandate data and a customer");
+
+        let after = common_utils::date_time::now();
+
+        let created_at = mandate.created_at.expect("created_at is set");
+        assert!(before <= created_at && created_at <= after, "{created_at}");
     }
 }
 
@@ -8386,6 +8453,32 @@ pub async fn get_gsm_record(
     }
 }
 
+/// Looks up the global status map rule for a connector error response, so the attempt update built
+/// from it can carry the rule's standardised and unified codes. `None` when the response is not an
+/// error or no rule matches.
+#[cfg(feature = "v2")]
+pub async fn get_gsm_record_for_error_response<F, Req, Res>(
+    state: &SessionState,
+    router_data: &RouterData<F, Req, Res>,
+    payment_attempt: &PaymentAttempt,
+) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
+    let error = router_data.response.as_ref().err()?;
+    let sub_flow = crate::core::utils::get_flow_name::<F>()
+        .inspect_err(|err| logger::error!(?err, "Failed to get flow name for GSM lookup"))
+        .ok()?;
+    get_gsm_record(
+        state,
+        router_data.connector.clone(),
+        consts::PAYMENT_FLOW_STR,
+        &sub_flow,
+        Some(error.code.clone()),
+        Some(error.message.clone()),
+        error.network_decline_code.clone(),
+        payment_attempt.extract_card_network(),
+    )
+    .await
+}
+
 /// Perform GSM lookup with the given error code and message.
 async fn perform_gsm_lookup(
     state: &SessionState,
@@ -9025,7 +9118,7 @@ pub async fn get_payment_method_details_from_payment_token(
             .await
         }
 
-        storage::PaymentTokenData::Permanent(card_token) => {
+        storage::PaymentTokenData::Permanent(card_token) => Box::pin(
             retrieve_card_with_permanent_token_for_external_authentication(
                 state,
                 &card_token.token,
@@ -9033,12 +9126,12 @@ pub async fn get_payment_method_details_from_payment_token(
                 None,
                 platform.get_provider().get_key_store(),
                 storage_scheme,
-            )
-            .await
-            .map(|card| Some((card, enums::PaymentMethod::Card)))
-        }
+            ),
+        )
+        .await
+        .map(|card| Some((card, enums::PaymentMethod::Card))),
 
-        storage::PaymentTokenData::PermanentCard(card_token) => {
+        storage::PaymentTokenData::PermanentCard(card_token) => Box::pin(
             retrieve_card_with_permanent_token_for_external_authentication(
                 state,
                 &card_token.token,
@@ -9046,10 +9139,10 @@ pub async fn get_payment_method_details_from_payment_token(
                 None,
                 platform.get_provider().get_key_store(),
                 storage_scheme,
-            )
-            .await
-            .map(|card| Some((card, enums::PaymentMethod::Card)))
-        }
+            ),
+        )
+        .await
+        .map(|card| Some((card, enums::PaymentMethod::Card))),
 
         storage::PaymentTokenData::AuthBankDebit(auth_token) => {
             retrieve_payment_method_from_auth_service(

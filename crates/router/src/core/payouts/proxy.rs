@@ -293,13 +293,7 @@ impl ExternalVaultPayout<'_> {
             None => Err(report!(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unified Connector Service is unavailable for proxy payouts")),
             Some(_) => Ok(()),
-        }?;
-        // Client availability does not enable the pending CardProxyPayout contract.
-        Err(report!(errors::ApiErrorResponse::NotImplemented {
-            message: errors::NotImplementedMessage::Reason(
-                "external vault proxy payouts require the UCS CardProxyPayout contract".to_owned(),
-            ),
-        }))
+        }
     }
 
     fn validate_proxy_runtime(&self, payout_data: &PayoutData) -> RouterResult<()> {
@@ -474,7 +468,7 @@ impl ExternalVaultPayout<'_> {
         "External vault connector account is disabled or incompatible with the provider profile",
     )?;
         match VaultConnectors::try_from(external_vault_mca.connector_name.clone()) {
-            Ok(VaultConnectors::HyperswitchVault | VaultConnectors::Vgs) => {
+            Ok(VaultConnectors::HyperswitchVault) => {
                 Ok(PayoutExecutionContext::ExternalVaultProxy {
                     external_vault_mca: helpers::MerchantConnectorAccountType::DbVal(Box::new(
                         external_vault_mca,
