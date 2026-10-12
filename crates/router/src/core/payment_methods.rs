@@ -3328,55 +3328,57 @@ pub async fn create_generic_volatile_payment_method(
         .or(req.payment_method_subtype);
     let payment_method_data = bin_enriched_payment_method_data.data;
 
-    // Fingerprint only for a `PayThenVault` flow with a customer present and customer acceptance:
-    // the acceptance reaches this workflow from session confirm under `PayThenVault` alone.
-    let (payment_method_id, fingerprint_details) = match customer_id
-        .as_ref()
-        .filter(|_| customer_acceptance.is_some())
-    {
-        Some(customer_id) => {
-            let resolution = payment_method_resolver(
-                state,
-                platform,
-                customer_id,
-                &req,
-                payment_method_data.clone(),
-            )
-            .await
-            .attach_printable("Failed to resolve volatile payment method")?;
+    // Resolve existing cards for PayThenVault before returning the payment method id. Consent
+    // is collected during payment confirmation and does not gate fingerprint resolution.
+    let should_resolve_fingerprint = customer_acceptance.is_some()
+        || (customer_id.is_some()
+            && resolve_payment_method_integration_type(state, platform).await
+                == pm_types::PaymentMethodIntegrationType::PayThenVault);
+    let (payment_method_id, fingerprint_details) =
+        match customer_id.as_ref().filter(|_| should_resolve_fingerprint) {
+            Some(customer_id) => {
+                let resolution = payment_method_resolver(
+                    state,
+                    platform,
+                    customer_id,
+                    &req,
+                    payment_method_data.clone(),
+                )
+                .await
+                .attach_printable("Failed to resolve volatile payment method")?;
 
-            match resolution.0 {
-                PaymentMethodResolution::Get(existing_payment_method) => (
-                    existing_payment_method.id.clone(),
-                    Some(FingerprintDetails {
-                        fingerprint_id: existing_payment_method.locker_fingerprint_id.clone(),
-                        auxiliary_fingerprint_id: existing_payment_method
-                            .auxiliary_fingerprint_id
-                            .clone(),
-                    }),
-                ),
-                PaymentMethodResolution::Update {
-                    fingerprint_id,
-                    payment_method_id: existing_payment_method_id,
-                    payment_method: existing_payment_method,
-                    ..
-                } => (
-                    existing_payment_method_id,
-                    Some(FingerprintDetails {
+                match resolution.0 {
+                    PaymentMethodResolution::Get(existing_payment_method) => (
+                        existing_payment_method.id.clone(),
+                        Some(FingerprintDetails {
+                            fingerprint_id: existing_payment_method.locker_fingerprint_id.clone(),
+                            auxiliary_fingerprint_id: existing_payment_method
+                                .auxiliary_fingerprint_id
+                                .clone(),
+                        }),
+                    ),
+                    PaymentMethodResolution::Update {
                         fingerprint_id,
-                        auxiliary_fingerprint_id: existing_payment_method
-                            .auxiliary_fingerprint_id
-                            .clone(),
-                    }),
-                ),
-                PaymentMethodResolution::Create {
-                    fingerprint_details,
-                    ..
-                } => (payment_method_id, fingerprint_details),
+                        payment_method_id: existing_payment_method_id,
+                        payment_method: existing_payment_method,
+                        ..
+                    } => (
+                        existing_payment_method_id,
+                        Some(FingerprintDetails {
+                            fingerprint_id,
+                            auxiliary_fingerprint_id: existing_payment_method
+                                .auxiliary_fingerprint_id
+                                .clone(),
+                        }),
+                    ),
+                    PaymentMethodResolution::Create {
+                        fingerprint_details,
+                        ..
+                    } => (payment_method_id, fingerprint_details),
+                }
             }
-        }
-        None => (payment_method_id, None),
-    };
+            None => (payment_method_id, None),
+        };
 
     let vaulting_result = vault_payment_method_in_volatile_storage(
         state,
@@ -3804,9 +3806,10 @@ pub async fn network_tokenize_and_vault_the_pmd(
             })
         })?;
 
-    let (resp, network_token_req_ref_id) =
-        network_tokenization::make_card_network_tokenization_request(state, card_data, customer_id)
-            .await?;
+    let (resp, network_token_req_ref_id) = Box::pin(
+        network_tokenization::make_card_network_tokenization_request(state, card_data, customer_id),
+    )
+    .await?;
 
     let network_token_vaulting_data = domain::PaymentMethodVaultingData::NetworkToken(resp);
     let vaulting_resp = vault::add_payment_method_to_vault(
@@ -3877,7 +3880,7 @@ pub async fn generate_network_token_for_payment_method(
     // The per-payment-method opt-in was recorded when the task was scheduled and is not persisted
     // on the payment method, so request tokenization with the toggle enabled here. The
     // profile-level flag is still passed through and re-checked by the callee.
-    let network_tokenization_resp = network_tokenize_and_vault_the_pmd(
+    let network_tokenization_resp = Box::pin(network_tokenize_and_vault_the_pmd(
         state,
         &vault_data,
         platform,
@@ -3886,7 +3889,7 @@ pub async fn generate_network_token_for_payment_method(
         }),
         profile.is_network_tokenization_enabled,
         &customer_id,
-    )
+    ))
     .await;
 
     match network_tokenization_resp {
@@ -6881,70 +6884,105 @@ pub async fn update_payment_method_core(
             logger::info!(?error, "No volatile payment method found to promote");
         })
         .ok()
-        // The acceptance the record was written with is what marks it for promotion, and there
-        // has to be a customer to attach the card to. Without either the card was only ever meant
-        // to last for this payment, whichever endpoint asks for the acknowledgement.
-        .filter(|volatile_payment_method| {
-            volatile_payment_method.customer_acceptance.is_some()
-                && volatile_payment_method.customer_id.is_some()
-        })
     } else {
         None
     };
 
-    let is_promotion = volatile_payment_method.is_some();
-
-    let mut handler = match existing_payment_method {
-        Some(payment_method) => {
-            let handler = pm_types::PaymentMethodUpdateHandler {
-                platform,
-                profile,
-                request,
-                payment_method,
-                insert_promoted_record: false,
-                state,
-            };
-            handler.validate()?;
-            handler
+    // Session acceptance (including that on older Redis records) is not authorization
+    // to save. The payment acknowledgement must carry acceptance and a customer.
+    match volatile_payment_method {
+        Some(payment_method)
+            if !request
+                .can_promote_volatile_payment_method(payment_method.customer_id.as_ref()) =>
+        {
+            let response = pm_transforms::generate_payment_method_response(
+                &payment_method,
+                &None,
+                common_enums::StorageType::Volatile,
+                None,
+                payment_method.customer_id.clone(),
+                None,
+                payment_method
+                    .payment_method_billing_address
+                    .clone()
+                    .map(|billing| billing.get_inner().clone().into()),
+                request.acknowledgement_status,
+            )?;
+            Ok((response, payment_method))
         }
-        None => pm_types::PaymentMethodUpdateHandler::generate(
-            state,
-            platform,
-            profile,
-            request,
-            payment_method_id,
-            volatile_payment_method,
-        )
-        .await
-        .attach_printable("Failed to generate PaymentMethodUpdateHandler")?,
-    };
+        volatile_payment_method => {
+            let volatile_payment_method = match volatile_payment_method {
+                Some(mut payment_method) => {
+                    payment_method.customer_acceptance = request
+                        .customer_acceptance
+                        .as_ref()
+                        .map(|acceptance| acceptance.encode_to_value())
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to encode payment confirmation customer acceptance",
+                        )?
+                        .map(Secret::new);
+                    Some(payment_method)
+                }
+                None => None,
+            };
 
-    let (response, payment_method) = Box::pin(execute_payment_method_update_handler(
-        &mut handler,
-        network_tokenization_resp,
-    ))
-    .await?;
+            let is_promotion = volatile_payment_method.is_some();
 
-    // A volatile copy left in redis is read in preference to the row that now holds the card.
-    if is_promotion {
-        let deleted = state
-            .store
-            .get_redis_conn()
-            .map_err(Into::<errors::StorageError>::into)
-            .async_and_then(|redis_connection| async move {
-                redis_connection
-                    .delete_key(&payment_method_id.get_string_repr().into())
-                    .await
+            let mut handler = match existing_payment_method {
+                Some(payment_method) => {
+                    let handler = pm_types::PaymentMethodUpdateHandler {
+                        platform,
+                        profile,
+                        request,
+                        payment_method,
+                        insert_promoted_record: false,
+                        state,
+                    };
+                    handler.validate()?;
+                    handler
+                }
+                None => pm_types::PaymentMethodUpdateHandler::generate(
+                    state,
+                    platform,
+                    profile,
+                    request,
+                    payment_method_id,
+                    volatile_payment_method,
+                )
+                .await
+                .attach_printable("Failed to generate PaymentMethodUpdateHandler")?,
+            };
+
+            let (response, payment_method) = Box::pin(execute_payment_method_update_handler(
+                &mut handler,
+                network_tokenization_resp,
+            ))
+            .await?;
+
+            // A volatile copy left in redis is read in preference to the row that now holds the card.
+            if is_promotion {
+                let deleted = state
+                    .store
+                    .get_redis_conn()
                     .map_err(Into::<errors::StorageError>::into)
-            })
-            .await;
+                    .async_and_then(|redis_connection| async move {
+                        redis_connection
+                            .delete_key(&payment_method_id.get_string_repr().into())
+                            .await
+                            .map_err(Into::<errors::StorageError>::into)
+                    })
+                    .await;
 
-        if let Err(error) = deleted {
-            logger::warn!(?error, "Failed to delete the volatile payment method copy");
+                if let Err(error) = deleted {
+                    logger::warn!(?error, "Failed to delete the volatile payment method copy");
+                }
+            }
+
+            Ok((response, payment_method))
         }
     }
-
-    Ok((response, payment_method))
 }
 
 #[cfg(feature = "v2")]
@@ -7905,23 +7943,12 @@ pub async fn payment_methods_session_confirm(
         common_enums::StorageType::Volatile
     };
 
-    // `PayThenVault` writes the card to volatile storage instead, carrying the acceptance that
-    // marks it for promotion once the payment goes through.
-    let (storage_type, customer_acceptance) =
-        match resolve_payment_method_integration_type(&state, &platform).await {
-            pm_types::PaymentMethodIntegrationType::PayThenVault => {
-                let customer_acceptance = request
-                    .customer_acceptance
-                    .as_ref()
-                    .map(|customer_acceptance| customer_acceptance.encode_to_value())
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to encode payment method customer acceptance")?
-                    .map(Secret::new);
-                (common_enums::StorageType::Volatile, customer_acceptance)
-            }
-            pm_types::PaymentMethodIntegrationType::VaultThenPay => (storage_type, None),
-        };
+    // PayThenVault always creates a volatile record. Only acceptance supplied by payments
+    // confirm, forwarded in the update request, can authorize its later promotion.
+    let storage_type = match resolve_payment_method_integration_type(&state, &platform).await {
+        pm_types::PaymentMethodIntegrationType::PayThenVault => common_enums::StorageType::Volatile,
+        pm_types::PaymentMethodIntegrationType::VaultThenPay => storage_type,
+    };
 
     let create_payment_method_request = get_payment_method_create_request(
         request
@@ -7944,7 +7971,7 @@ pub async fn payment_methods_session_confirm(
         create_payment_method_request.clone(),
         &platform,
         &profile,
-        customer_acceptance,
+        None,
     ))
     .await?;
 
