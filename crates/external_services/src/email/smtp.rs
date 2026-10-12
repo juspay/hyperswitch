@@ -51,6 +51,22 @@ pub struct SmtpServerConfig {
     /// Connection type of the SMTP server
     #[serde(default)]
     pub connection: SmtpConnection,
+    /// SOCKS5 proxy config; absent means connect directly.
+    pub socks5: Option<Socks5Config>,
+}
+
+/// SOCKS5 proxy to tunnel the SMTP connection through (absent means connect directly); username/password auth (RFC 1929) is sent to the proxy in cleartext.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct Socks5Config {
+    /// SOCKS5 proxy hostname or IP.
+    pub host: String,
+    /// SOCKS5 proxy port.
+    pub port: u16,
+    /// SOCKS5 username, if the proxy requires auth.
+    pub username: Option<Secret<String>>,
+    /// SOCKS5 password, if the proxy requires auth.
+    pub password: Option<Secret<String>>,
 }
 
 impl SmtpServerConfig {
@@ -71,7 +87,7 @@ impl SmtpServerConfig {
                 })
             },
         )?;
-        Ok(())
+        self.socks5.as_ref().map_or(Ok(()), Socks5Config::validate)
     }
 
     fn to_shared(&self) -> shared::SmtpConfig {
@@ -82,6 +98,42 @@ impl SmtpServerConfig {
             username: self.username.as_ref().map(|value| value.peek().to_owned()),
             password: self.password.as_ref().map(|value| value.peek().to_owned()),
             connection: self.connection.clone(),
+            socks5: self.socks5.as_ref().map(|socks5| shared::Socks5Config {
+                host: socks5.host.clone(),
+                port: socks5.port,
+                username: socks5
+                    .username
+                    .as_ref()
+                    .map(|value| value.peek().to_owned()),
+                password: socks5
+                    .password
+                    .as_ref()
+                    .map(|value| value.peek().to_owned()),
+            }),
+        }
+    }
+}
+
+impl Socks5Config {
+    fn validate(&self) -> Result<(), &'static str> {
+        use common_utils::{ext_traits::ConfigExt, fp_utils::when};
+        when(self.host.is_default_or_empty(), || {
+            Err("email.smtp.socks5.host must not be empty")
+        })?;
+        when(self.port == 0, || {
+            Err("email.smtp.socks5.port must not be zero")
+        })?;
+        match (self.username.as_ref(), self.password.as_ref()) {
+            (Some(username), Some(password)) => {
+                when(username.peek().is_default_or_empty(), || {
+                    Err("email.smtp.socks5.username must not be empty")
+                })?;
+                when(password.peek().is_default_or_empty(), || {
+                    Err("email.smtp.socks5.password must not be empty")
+                })
+            }
+            (None, None) => Ok(()),
+            _ => Err("email.smtp.socks5 username and password must both be set, or neither"),
         }
     }
 }
@@ -101,6 +153,7 @@ impl EmailClient for SmtpServer {
         recipients: EmailRecipients,
         subject: String,
         body: Self::RichText,
+        // Unused here — SES uses this; SMTP's proxy lives in smtp_config.socks5.
         _proxy_url: Option<&String>,
     ) -> EmailResult<()> {
         // A new connection for every email
@@ -115,6 +168,7 @@ impl EmailClient for SmtpServer {
         };
         shared::SmtpClient::new(self.smtp_config.to_shared())
             .send(message)
+            .await
             .map_err(|error| {
                 report_with_cause(error).change_context(EmailError::EmailSendingFailure)
             })

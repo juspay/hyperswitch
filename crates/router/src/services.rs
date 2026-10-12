@@ -138,14 +138,17 @@ pub async fn get_cache_store(
 // deja: the per-merchant data-encryption key (DEK) is random. It is stored
 // (master-key-encrypted) in merchant_key_store AND used to encrypt the merchant's
 // own columns, so it must replay to the recorded value or the substituted DB rows
-// and the response body diverge. Ok-only: the ring error type is non-serializable.
+// and the response body diverge.
 #[inline]
 #[cfg_attr(
     feature = "deja",
     deja::id(
         component = "router::services",
         operation = "generate_aes256_key",
-        codec = ResultOkCodec,
+        codec = deja::codec::ResultCodec::<[u8; 32], common_utils::errors::CryptoError>,
+        // A synthesized key diverges the ciphertext it encrypts, attributably;
+        // a fail-stop here would blind every later column encryption.
+        on_miss = Ok(deja::synth::bytes::<32>(&__deja_miss)),
     )
 )]
 pub fn generate_aes256_key() -> errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {

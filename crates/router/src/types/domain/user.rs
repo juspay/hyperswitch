@@ -997,7 +997,8 @@ impl NewUser {
 // runs live (collides with the record-phase user, rolling signup back).
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "router::user", operation = "generate_user_id", codec = SerdeCodec,)
+    deja::id(component = "router::user", operation = "generate_user_id", codec = SerdeCodec,
+        on_miss = { use common_utils::synth_shape::Synthesize as _; __deja_miss.uuid().to_string() },)
 )]
 fn generate_user_id() -> String {
     common_utils::generate_uuid_v4().to_string()
@@ -1403,6 +1404,23 @@ impl RecoveryCodes {
             component = "router::user",
             operation = "generate_recovery_codes",
             codec = SerdeCodec,
+            // Codes shaped as the body builds them: two alphanumeric halves joined
+            // by a hyphen. One carved draw keeps the codes distinct.
+            on_miss = {
+                use common_utils::synth_shape::Synthesize as _;
+                __deja_miss
+                    .alphanumeric_words(
+                        consts::user::RECOVERY_CODES_COUNT,
+                        consts::user::RECOVERY_CODE_LENGTH,
+                    )
+                    .into_iter()
+                    .map(|word| {
+                        let (head, tail) =
+                            word.split_at(consts::user::RECOVERY_CODE_LENGTH / 2);
+                        format!("{head}-{tail}")
+                    })
+                    .collect()
+            },
         )
     )]
     fn generate_new_inner() -> Vec<String> {
