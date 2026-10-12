@@ -375,9 +375,10 @@ pub struct BatchBlocklistUploadForm {
         content = String,
         content_type = "multipart/form-data",
         description = "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). \
-            The CSV must have a header row: `type,data,metadata`. \
-            `type`: one of `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. \
+            The CSV header is `type,data,metadata,transaction_type`; older headers without `transaction_type` are accepted. \
+            `type`: one of `generic_card_bin` (6 to 10 digits), `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. \
             `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). \
+            `transaction_type`: optional, `payment` (default) or `payout`; selection may differ per row. \
             Maximum 100,000 data rows.",
     ),
     params (
@@ -543,6 +544,7 @@ pub async fn list_batch_blocklist_jobs(
     post,
     path = "/blocklist/export",
     params (
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow to export: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "The business profile whose \
          blocklist is exported. Resolution follows the same rules as blocking a single entry."),
     ),
@@ -554,8 +556,13 @@ pub async fn list_batch_blocklist_jobs(
     operation_id = "Start a blocklist CSV export",
     security(("api_key" = []), ("jwt_key" = []))
 )]
-pub async fn create_blocklist_export(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn create_blocklist_export(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_payload: web::Query<api_blocklist::BlocklistTransactionQuery>,
+) -> HttpResponse {
     let flow = Flow::CreateBlocklistExport;
+    let transaction_type = query_payload.into_inner().transaction_type;
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -563,7 +570,7 @@ pub async fn create_blocklist_export(state: web::Data<AppState>, req: HttpReques
         (),
         |state, auth: auth::AuthenticationData, _payload, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-            blocklist::create_blocklist_export(state, auth.platform, profile_id)
+            blocklist::create_blocklist_export(state, auth.platform, profile_id, transaction_type)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

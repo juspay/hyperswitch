@@ -20,6 +20,9 @@ pub struct BlocklistExportTrackingData {
     pub merchant_id: id_type::MerchantId,
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub profile_id: id_type::ProfileId,
+    /// Fixes the selected blocklist across retries; old jobs exported payment entries.
+    #[serde(default)]
+    pub transaction_type: common_enums::BlocklistTransactionType,
     /// Bounds the scan, so a run spanning minutes still describes one moment.
     pub snapshot_at: time::PrimitiveDateTime,
     /// Written once the multipart upload starts, so a retry can discard the abandoned parts.
@@ -118,5 +121,47 @@ impl From<BlocklistProfileCloneTargetMetadata>
             processed_rows: target.processed_rows,
             error_message: target.error_message,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common_enums::BlocklistTransactionType;
+    use serde_json::json;
+
+    use super::BlocklistExportTrackingData;
+
+    fn old_export_job() -> serde_json::Value {
+        json!({
+            "job_id": "export_job",
+            "merchant_id": "merchant_test",
+            "processor_merchant_id": null,
+            "profile_id": "pro_source",
+            "snapshot_at": common_utils::date_time::now(),
+            "upload_id": "previous_upload"
+        })
+    }
+
+    #[test]
+    fn old_export_jobs_resume_in_the_payment_blocklist() {
+        let tracking: BlocklistExportTrackingData =
+            serde_json::from_value(old_export_job()).unwrap();
+        assert_eq!(tracking.transaction_type, BlocklistTransactionType::Payment);
+        assert_eq!(tracking.upload_id.as_deref(), Some("previous_upload"));
+    }
+
+    #[test]
+    fn export_retry_payload_preserves_payout_selection() {
+        let mut tracking: BlocklistExportTrackingData =
+            serde_json::from_value(old_export_job()).unwrap();
+        tracking.transaction_type = BlocklistTransactionType::Payout;
+        let retry = BlocklistExportTrackingData {
+            upload_id: Some("retry_upload".to_owned()),
+            ..tracking
+        };
+        let restored: BlocklistExportTrackingData =
+            serde_json::from_value(serde_json::to_value(retry).unwrap()).unwrap();
+        assert_eq!(restored.transaction_type, BlocklistTransactionType::Payout);
+        assert_eq!(restored.upload_id.as_deref(), Some("retry_upload"));
     }
 }
