@@ -322,7 +322,8 @@ pub struct PaymentMethodMigrateResponse {
     //network transaction id migration status
     pub network_transaction_id_migrated: Option<bool>,
 
-    //set when the payment method was already migrated by an earlier request
+    //set when the payment method was already migrated by an earlier request. The other migration
+    //statuses then describe what the existing payment method holds after this request
     pub already_migrated: Option<bool>,
 }
 
