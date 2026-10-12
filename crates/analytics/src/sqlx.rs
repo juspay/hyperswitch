@@ -68,6 +68,10 @@ impl SqlxClient {
             .expect("SQLX Pool Creation failed");
         Self { pool }
     }
+
+    pub(crate) fn pool(&self) -> &Pool<Postgres> {
+        &self.pool
+    }
 }
 
 pub trait DbType {

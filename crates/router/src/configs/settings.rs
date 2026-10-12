@@ -1532,6 +1532,7 @@ impl Settings<SecuredSecret> {
             .with_list_parse_key("redis.cluster_urls")
             .with_list_parse_key("events.kafka.brokers")
             .with_list_parse_key("connectors.supported.wallets")
+            .with_list_parse_key("report_download_config.process_tracker.email_bcc")
             .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id");
 
         #[cfg(feature = "deja")]
