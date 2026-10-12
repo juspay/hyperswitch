@@ -405,3 +405,101 @@ pub fn lower_program<O>(
         metadata: dir_program.metadata,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use common_utils::types::MinorUnit;
+
+    use super::*;
+    use crate::types::NumValue;
+
+    type NumericConstructors = (fn(NumValue) -> dir::DirValue, fn(NumValue) -> EuclidValue);
+
+    fn assert_numeric_lowering(
+        logic: dir::DirComparisonLogic,
+        refinement: Option<NumValueRefinement>,
+        expected_refinement: Option<NumValueRefinement>,
+    ) {
+        let variants: [NumericConstructors; 3] = [
+            (dir::DirValue::PaymentAmount, EuclidValue::PaymentAmount),
+            (dir::DirValue::SurchargeAmount, EuclidValue::SurchargeAmount),
+            (
+                dir::DirValue::AcquirerFraudRate,
+                EuclidValue::AcquirerFraudRate,
+            ),
+        ];
+
+        for (dir_value, vir_value) in variants {
+            for numbers in [&[1000][..], &[1000, 2000][..]] {
+                let comparison = dir::DirComparison {
+                    values: numbers
+                        .iter()
+                        .map(|number| {
+                            dir_value(NumValue {
+                                number: MinorUnit::new(*number),
+                                refinement: refinement.clone(),
+                            })
+                        })
+                        .collect(),
+                    logic: logic.clone(),
+                    metadata: Default::default(),
+                };
+                let lowered = lower_comparison(comparison).expect("comparison should lower");
+                let expected: Vec<_> = numbers
+                    .iter()
+                    .map(|number| {
+                        vir_value(NumValue {
+                            number: MinorUnit::new(*number),
+                            refinement: expected_refinement.clone(),
+                        })
+                    })
+                    .collect();
+
+                assert_eq!(lowered.values, expected);
+                assert_eq!(
+                    matches!(
+                        lowered.logic,
+                        vir::ValuedComparisonLogic::NegativeConjunction
+                    ),
+                    matches!(logic, dir::DirComparisonLogic::NegativeConjunction)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn negative_numeric_inequality_is_negated_once() {
+        assert_numeric_lowering(
+            dir::DirComparisonLogic::NegativeConjunction,
+            Some(NumValueRefinement::NotEqual),
+            None,
+        );
+    }
+
+    #[test]
+    fn positive_numeric_inequality_keeps_its_refinement() {
+        assert_numeric_lowering(
+            dir::DirComparisonLogic::PositiveDisjunction,
+            Some(NumValueRefinement::NotEqual),
+            Some(NumValueRefinement::NotEqual),
+        );
+    }
+
+    #[test]
+    fn other_numeric_refinements_are_preserved() {
+        for refinement in [
+            None,
+            Some(NumValueRefinement::GreaterThan),
+            Some(NumValueRefinement::GreaterThanEqual),
+            Some(NumValueRefinement::LessThan),
+            Some(NumValueRefinement::LessThanEqual),
+        ] {
+            for logic in [
+                dir::DirComparisonLogic::NegativeConjunction,
+                dir::DirComparisonLogic::PositiveDisjunction,
+            ] {
+                assert_numeric_lowering(logic, refinement.clone(), refinement.clone());
+            }
+        }
+    }
+}
