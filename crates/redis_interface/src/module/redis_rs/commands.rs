@@ -1172,16 +1172,39 @@ impl super::RedisConnectionWithContext {
     #[cfg_attr(
         feature = "deja",
         deja::redis(
+            // Substitute: the reply is the collision verdict, and the seeded replay set
+            // starts empty, so re-running SADD would always report "no collision".
             replay = Substitute,
             operation = "sadd",
             codec = deja::codec::ResultCodec::<SaddReply, errors::RedisError>,
             state_write = key.tenant_aware_key(&self.redis_conn),
             args = {
+                // `members` decides the reply, so it is part of the identity. Sorted
+                // because SADD is a set but `args_hash` is order-dependent for arrays.
+                let mut members_captured: Vec<String> =
+                    redis::ToRedisArgs::to_redis_args(&members)
+                        .into_iter()
+                        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+                        .collect();
+                members_captured.sort();
                 serde_json::json!({
                     "key": key.as_str(),
                     "command": "SADD",
+                    "members": members_captured,
                 })
             },
+            // A novel SADD answers "every member was new". This can hide a real
+            // collision, but the miss is already reported as a divergence and a
+            // fail-stop would blind every later call.
+            on_miss = Ok(SaddReply::KeySet(
+                __deja_miss
+                    .args
+                    .get("members")
+                    .and_then(serde_json::Value::as_array)
+                    .map(Vec::len)
+                    .and_then(|count| i64::try_from(count).ok())
+                    .unwrap_or(0),
+            )),
         )
     )]
     #[instrument(level = "DEBUG", skip(self))]
