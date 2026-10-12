@@ -228,6 +228,9 @@ hyperswitch_interfaces::impl_microservice_flow!(
     disable_connection_closed_retry = true
 );
 
+#[cfg(test)]
+mod tests;
+
 /// Reconciliation must include freshly vaulted `New` cards, which have not yet been used.
 /// Ordinary saved-card listings keep their existing default behavior.
 #[derive(Debug)]
