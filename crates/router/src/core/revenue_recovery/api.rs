@@ -428,22 +428,10 @@ pub async fn cancel_revenue_recovery_core(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed to cancel the revenue recovery workflow")?
-    .map_err(|refusal| match refusal {
-        super::CancelInvoiceRefusal::IntentNotFailed(status) => {
-            report!(errors::ApiErrorResponse::PaymentUnexpectedState {
-                current_flow: "revenue_recovery_cancel".to_string(),
-                field_name: "status".to_string(),
-                current_value: status.to_string(),
-                states: common_enums::IntentStatus::Failed.to_string(),
-            })
-        }
-        super::CancelInvoiceRefusal::PaymentSyncPending
-        | super::CancelInvoiceRefusal::RetryInProgress
-        | super::CancelInvoiceRefusal::AlreadyTerminal => {
-            report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: refusal.message(),
-            })
-        }
+    .map_err(|refusal| {
+        report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: refusal.to_string(),
+        })
     })?;
 
     let response = api_payments::RecoveryPaymentsResponse {

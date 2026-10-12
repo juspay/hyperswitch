@@ -1677,10 +1677,7 @@ impl RecoveryAction {
                         status: updated_intent.status,
                     }),
                     Err(refusal) => {
-                        logger::info!(
-                            "Invoice cancel webhook took no recovery action: {}",
-                            refusal.message()
-                        );
+                        logger::info!("Invoice cancel webhook took no recovery action: {refusal}");
                         Ok(webhooks::WebhookResponseTracker::NoEffect)
                     }
                 }
