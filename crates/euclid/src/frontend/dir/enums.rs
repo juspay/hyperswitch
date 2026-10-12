@@ -105,6 +105,7 @@ pub enum WalletType {
     Mifinity,
     Paze,
     RevolutPay,
+    Wero,
 }
 
 #[derive(

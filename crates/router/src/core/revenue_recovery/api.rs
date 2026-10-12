@@ -360,7 +360,7 @@ pub async fn custom_revenue_recovery_core(
 
     router_env::logger::info!("Intent retry count: {:?}", intent_retry_count);
     let recovery_action = recovery_incoming::RecoveryAction {
-        action: request.action.to_owned(),
+        action: request.action.to_owned().into(),
     };
     let mca_retry_threshold = billing_connector_account
         .get_retry_threshold()

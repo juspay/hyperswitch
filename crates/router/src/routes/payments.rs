@@ -2904,7 +2904,13 @@ where
                 //     `payment_token`; its vault tokens are retrieved from the modular PM service.
                 // In both cases the confirm request itself is used to call the proxy core
                 // directly — no conversion to a dedicated proxy request.
-                let should_call_external_vault_proxy = req
+                //   - recurring details carrying a vault alias and a network transaction ID:
+                //     an MIT against a vault-held card, which brings no `payment_method_data`
+                //     of its own.
+                let is_vault_card_mit =
+                    helpers::should_call_external_vault_proxy_for_payments_core(&req);
+
+                let is_proxy_card_payment_method_data = req
                     .payment_method_data
                     .as_ref()
                     .and_then(|pmd| pmd.payment_method_data.as_ref())
@@ -2916,6 +2922,9 @@ where
                         )
                     })
                     .unwrap_or(false);
+
+                let should_call_external_vault_proxy =
+                    is_vault_card_mit || is_proxy_card_payment_method_data;
 
                 if should_call_external_vault_proxy {
                     // A single-call create+confirm (the create endpoint with `confirm = true`)

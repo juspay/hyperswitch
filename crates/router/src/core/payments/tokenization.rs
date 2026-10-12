@@ -1242,11 +1242,13 @@ pub async fn pre_payment_tokenization(
     {
         let optional_card_cvc = Some(card.card_cvc.clone());
         let card_detail = payment_method_data::CardDetail::from(card);
-        match network_tokenization::make_card_network_tokenization_request(
-            state,
-            &card_detail,
-            optional_card_cvc,
-            &customer_id,
+        match Box::pin(
+            network_tokenization::make_card_network_tokenization_request(
+                state,
+                &card_detail,
+                optional_card_cvc,
+                &customer_id,
+            ),
         )
         .await
         {
@@ -1695,11 +1697,13 @@ pub async fn save_network_token_in_locker(
                 // empty one.
                 let optional_card_cvc =
                     (!card_data.card_cvc.peek().is_empty()).then(|| card_data.card_cvc.clone());
-                match network_tokenization::make_card_network_tokenization_request(
-                    state,
-                    &domain::CardDetail::from(card_data),
-                    optional_card_cvc,
-                    &customer_id,
+                match Box::pin(
+                    network_tokenization::make_card_network_tokenization_request(
+                        state,
+                        &domain::CardDetail::from(card_data),
+                        optional_card_cvc,
+                        &customer_id,
+                    ),
                 )
                 .await
                 {
@@ -2480,12 +2484,12 @@ pub async fn generate_network_token_for_payment_method(
         .unwrap_or(&payment_method.payment_method_id);
 
     // Fetch the raw card from the locker
-    let card_from_locker = payment_methods::cards::get_card_from_locker(
+    let card_from_locker = Box::pin(payment_methods::cards::get_card_from_locker(
         state,
         customer_id,
         &tracking_data.merchant_id,
         locker_id,
-    )
+    ))
     .await
     .inspect_err(|err| {
         logger::error!(
@@ -2512,7 +2516,7 @@ pub async fn generate_network_token_for_payment_method(
 
     let payment_method_data = domain::PaymentMethodData::Card(card_data);
 
-    generate_network_token_and_update_payment_method(
+    Box::pin(generate_network_token_and_update_payment_method(
         state,
         platform,
         &payment_method_data,
@@ -2522,6 +2526,6 @@ pub async fn generate_network_token_for_payment_method(
         tracking_data.billing_name.clone(),
         None,
         Some(payment_method),
-    )
+    ))
     .await
 }
