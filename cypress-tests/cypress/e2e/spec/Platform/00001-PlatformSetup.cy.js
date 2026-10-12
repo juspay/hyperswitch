@@ -16,7 +16,7 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
 
   context("Create Platform Organization And Merchant", () => {
     it("signup-platform-user", () => {
-      cy.signupUserWithMerchant("QAPlatformOrg", globalState, "platform");
+      cy.signupPlatformUserNoEmail(globalState);
     });
 
     it("platform-user-signin", () => {

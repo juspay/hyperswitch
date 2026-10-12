@@ -7871,6 +7871,300 @@ Cypress.Commands.add(
     });
   }
 );
+// Signs up a user and bootstraps a platform organization without the
+// email-gated /user/signup_with_merchant_id route (only registered when the
+// router is built with the `email` cargo feature, so it 404s on no-email
+// builds like CI and the default localhost setup). Chain (live-verified on a
+// no-email build; fresh-server safe, no admin key or pre-seeded user needed):
+// 1. POST /user/signup (NoAuth) -> totp token (user + standard org + merchant)
+// 2. GET /user/2fa/terminate?skip_two_factor_auth=true -> user_info JWT
+// 3. POST /user/create_platform -> platform org + platform merchant
+// 4. POST /user/switch/org -> user_info JWT scoped to the platform org
+Cypress.Commands.add("signupPlatformUserNoEmail", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const namePrefix = "QAPlatformOrg";
+  // crypto.randomInt is Node-only; use rejection sampling over getRandomValues
+  // (available in the browser) to avoid modulo bias.
+  const randomBuf = new Uint32Array(1);
+  const maxUnbiased = Math.floor(0xffffffff / 10000) * 10000;
+  let randomWord;
+  do {
+    crypto.getRandomValues(randomBuf);
+    randomWord = randomBuf[0];
+  } while (randomWord >= maxUnbiased);
+  const randomPart = randomWord % 10000;
+  const uniqueSuffix = `${Date.now()}${randomPart}`;
+  const email = `cypress_${namePrefix.toLowerCase()}_${uniqueSuffix}@cypresstest.in`;
+  const password = `Cypress@${uniqueSuffix}`;
+  const organizationName = `qaplatform${Date.now()}`;
+
+  // Step 1: signup via the no-email-only route -> totp token
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/user/signup`,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: {
+      email,
+      password,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status !== 200) {
+        throw new Error(
+          `signup failed with status: "${response.status}" and message: "${JSON.stringify(response.body)}"`
+        );
+      }
+
+      expect(response.body, "totp_token").to.have.property("token").and.to.not
+        .be.empty;
+      const totpToken = response.body.token;
+
+      globalState.set("email", email);
+      globalState.set("password", password);
+      globalState.set("totpToken", totpToken);
+
+      // Step 2: terminate 2FA -> user_info JWT (standard org lineage)
+      cy.request({
+        method: "GET",
+        url: `${baseUrl}/user/2fa/terminate?skip_two_factor_auth=true`,
+        headers: {
+          Authorization: `Bearer ${totpToken}`,
+          "Content-Type": "application/json",
+        },
+        failOnStatusCode: false,
+      }).then((twoFaResponse) => {
+        logRequestId(twoFaResponse.headers["x-request-id"]);
+
+        cy.wrap(twoFaResponse).then(() => {
+          if (twoFaResponse.status !== 200) {
+            throw new Error(
+              `2FA terminate call failed with status: "${twoFaResponse.status}" and message: "${JSON.stringify(twoFaResponse.body)}"`
+            );
+          }
+
+          expect(twoFaResponse.body, "user_info_token").to.have.property(
+            "token"
+          ).and.to.not.be.empty;
+
+          const userInfoToken = twoFaResponse.body.token;
+
+          // create_platform derives merchant ids from the unix timestamp and
+          // collides with the signup merchant (UR_15) when both calls land in
+          // the same wall-clock second; space the calls >1s apart and retry
+          // once if the collision still happens
+          const createPlatformOrg = (attempt) => {
+            cy.request({
+              method: "POST",
+              url: `${baseUrl}/user/create_platform`,
+              headers: {
+                Authorization: `Bearer ${userInfoToken}`,
+                "Content-Type": "application/json",
+              },
+              body: {
+                organization_name: organizationName,
+              },
+              failOnStatusCode: false,
+            }).then((createResponse) => {
+              logRequestId(createResponse.headers["x-request-id"]);
+
+              cy.wrap(createResponse).then(() => {
+                if (
+                  createResponse.status === 500 &&
+                  createResponse.body?.error?.code === "UR_15" &&
+                  attempt === 1
+                ) {
+                  cy.task(
+                    "cli_log",
+                    "create_platform hit a same-second merchant_id collision (UR_15); retrying once"
+                  );
+                  cy.wait(1100);
+                  createPlatformOrg(attempt + 1);
+                  return;
+                }
+
+                if (createResponse.status !== 200) {
+                  throw new Error(
+                    `create_platform failed with status: "${createResponse.status}" and message: "${JSON.stringify(createResponse.body)}"`
+                  );
+                }
+
+                expect(createResponse.body, "platform_org_id").to.have.property(
+                  "org_id"
+                ).and.to.not.be.empty;
+                expect(
+                  createResponse.body,
+                  "platform_merchant_id"
+                ).to.have.property("merchant_id").and.to.not.be.empty;
+                expect(createResponse.body.org_type, "org_type").to.equal(
+                  "platform"
+                );
+                expect(
+                  createResponse.body.merchant_account_type,
+                  "merchant_account_type"
+                ).to.equal("platform");
+
+                const orgId = createResponse.body.org_id;
+                globalState.set("organizationId", orgId);
+                globalState.set("merchantId", createResponse.body.merchant_id);
+
+                // Step 4: switch org -> user_info JWT scoped to the platform
+                // org (also persists the platform lineage, so later
+                // userLogin/terminate2Fa re-logins keep the platform context)
+                cy.request({
+                  method: "POST",
+                  url: `${baseUrl}/user/switch/org`,
+                  headers: {
+                    Authorization: `Bearer ${userInfoToken}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: {
+                    org_id: orgId,
+                  },
+                  failOnStatusCode: false,
+                }).then((switchResponse) => {
+                  logRequestId(switchResponse.headers["x-request-id"]);
+
+                  cy.wrap(switchResponse).then(() => {
+                    if (switchResponse.status !== 200) {
+                      throw new Error(
+                        `switch org call failed with status: "${switchResponse.status}" and message: "${JSON.stringify(switchResponse.body)}"`
+                      );
+                    }
+
+                    expect(
+                      switchResponse.body,
+                      "user_info_token"
+                    ).to.have.property("token").and.to.not.be.empty;
+
+                    globalState.set("userInfoToken", switchResponse.body.token);
+                  });
+                });
+              });
+            });
+          };
+
+          cy.wait(1100);
+          createPlatformOrg(1);
+        });
+      });
+    });
+  });
+});
+// Signs up a user scoped to a standard organization without the email-gated
+// /user/signup_with_merchant_id route (only registered when the router is
+// built with the `email` cargo feature, so it 404s on no-email builds like
+// CI and the default localhost setup). /user/signup creates the user along
+// with a standard organization and merchant, so unlike
+// signupPlatformUserNoEmail no create_platform / switch/org follow-up (and
+// no same-second merchant_id collision wait) is needed. Chain
+// (live-verified on a no-email build; fresh-server safe, no admin key or
+// pre-seeded user needed):
+// 1. POST /user/signup (NoAuth) -> totp token (user + standard org + merchant)
+// 2. GET /user/2fa/terminate?skip_two_factor_auth=true -> user_info JWT
+//    scoped to the standard org/merchant
+Cypress.Commands.add("signupStandardUserNoEmail", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const namePrefix = "QAStandardUser";
+  // crypto.randomInt is Node-only; use rejection sampling over getRandomValues
+  // (available in the browser) to avoid modulo bias.
+  const randomBuf = new Uint32Array(1);
+  const maxUnbiased = Math.floor(0xffffffff / 10000) * 10000;
+  let randomWord;
+  do {
+    crypto.getRandomValues(randomBuf);
+    randomWord = randomBuf[0];
+  } while (randomWord >= maxUnbiased);
+  const randomPart = randomWord % 10000;
+  const uniqueSuffix = `${Date.now()}${randomPart}`;
+  const email = `cypress_${namePrefix.toLowerCase()}_${uniqueSuffix}@cypresstest.in`;
+  const password = `Cypress@${uniqueSuffix}`;
+
+  // Step 1: signup via the no-email-only route -> totp token
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/user/signup`,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: {
+      email,
+      password,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status !== 200) {
+        throw new Error(
+          `signup failed with status: "${response.status}" and message: "${JSON.stringify(response.body)}"`
+        );
+      }
+
+      expect(response.body, "totp_token").to.have.property("token").and.to.not
+        .be.empty;
+      expect(response.body.token_type, "token_type").to.equal("totp");
+      const totpToken = response.body.token;
+
+      globalState.set("email", email);
+      globalState.set("password", password);
+      globalState.set("totpToken", totpToken);
+
+      // Step 2: terminate 2FA -> user_info JWT scoped to the standard
+      // org/merchant created by /user/signup itself
+      cy.request({
+        method: "GET",
+        url: `${baseUrl}/user/2fa/terminate?skip_two_factor_auth=true`,
+        headers: {
+          Authorization: `Bearer ${totpToken}`,
+          "Content-Type": "application/json",
+        },
+        failOnStatusCode: false,
+      }).then((twoFaResponse) => {
+        logRequestId(twoFaResponse.headers["x-request-id"]);
+
+        cy.wrap(twoFaResponse).then(() => {
+          if (twoFaResponse.status !== 200) {
+            throw new Error(
+              `2FA terminate call failed with status: "${twoFaResponse.status}" and message: "${JSON.stringify(twoFaResponse.body)}"`
+            );
+          }
+
+          expect(twoFaResponse.body, "user_info_token").to.have.property(
+            "token"
+          ).and.to.not.be.empty;
+          expect(twoFaResponse.body.token_type, "token_type").to.equal(
+            "user_info"
+          );
+
+          const userInfoToken = twoFaResponse.body.token;
+
+          // The terminate response returns only the JWT; the standard
+          // org/merchant ids it is scoped to live in its claims
+          const base64Url = userInfoToken.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const jwtClaims = JSON.parse(
+            atob(base64 + "=".repeat((4 - (base64.length % 4)) % 4))
+          );
+
+          expect(jwtClaims, "merchant_id").to.have.property("merchant_id").and
+            .to.not.be.empty;
+          expect(jwtClaims, "org_id").to.have.property("org_id").and.to.not.be
+            .empty;
+
+          globalState.set("userInfoToken", userInfoToken);
+          globalState.set("merchantId", jwtClaims.merchant_id);
+          globalState.set("organizationId", jwtClaims.org_id);
+        });
+      });
+    });
+  });
+});
 // Below 3 commands should be called in sequence to login a user
 Cypress.Commands.add("userLogin", (globalState) => {
   const baseUrl = globalState.get("baseUrl");

@@ -207,7 +207,7 @@ describe("Platform Payment List", () => {
     });
 
     it("signup-standard-user", () => {
-      cy.signupUserWithMerchant("QAPlatformListStd", globalState);
+      cy.signupStandardUserNoEmail(globalState);
     });
 
     it("standard-user-signin", () => {
