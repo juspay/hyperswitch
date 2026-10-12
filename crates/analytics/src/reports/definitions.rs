@@ -122,8 +122,8 @@ pub(super) const DISPUTES: ReportDefinition = ReportDefinition {
     table: "dispute",
     organization_scoped: true,
     columns: &[
-        // Dropped by 2025-02-06-111828_drop_int_id_column_accross_database, which left the Lambda's
-        // query failing; kept empty so the columns stay where they were.
+        // Dropped by the 2025-02-06-111828 migration removing the int `id` columns, which left the
+        // Lambda's query failing; kept empty so the columns stay where they were.
         Expr("id", "NULL::text"),
         Text("dispute.dispute_id"),
         Text("dispute.payment_id"),
