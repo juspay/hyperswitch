@@ -107,13 +107,12 @@ pub async fn revenue_recovery_payments_create() {}
 #[cfg(feature = "v2")]
 /// Revenue Recovery - Cancel
 ///
-/// Cancel the revenue recovery workflow of an invoice. Only an invoice whose payment is in the
-/// `failed` state can be cancelled: its scheduled retries are stopped, no further recovery
-/// attempts are made, and the payment moves to the `cancelled` state. The request is refused
-/// with `400` when the payment is not `failed`, when a retry or payment sync for the invoice is
-/// still in progress, or when recovery already reached a terminal status. The invoice is looked
-/// up by its merchant reference id within the business profile given in the `X-Profile-Id`
-/// header.
+/// Cancel the revenue recovery workflow of an invoice that is still in recovery: its scheduled
+/// retries are stopped and no further recovery attempts are made. A `failed` payment moves to
+/// `cancelled`, and a partially captured payment moves to `cancelled_post_capture`. The request
+/// is refused with `400` when the payment is in any other state, when a retry is in progress,
+/// or when recovery already reached a terminal status. The invoice is looked up by its merchant
+/// reference id within the business profile given in the `X-Profile-Id` header.
 #[utoipa::path(
     post,
     path = "/v2/revenue-recovery/{merchant_reference_id}/cancel",
@@ -136,7 +135,7 @@ pub async fn revenue_recovery_payments_create() {}
                 "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
             })
         ),
-        (status = 400, description = "The invoice cannot be cancelled: its payment is not failed, a retry or payment sync is in progress, or recovery already reached a terminal status", body = GenericErrorResponseOpenApi),
+        (status = 400, description = "The invoice cannot be cancelled: its payment is not failed or partially captured, a retry is in progress, or recovery already reached a terminal status", body = GenericErrorResponseOpenApi),
         (status = 404, description = "Invoice not found"),
         (status = 500, description = "Internal server error"),
     ),
