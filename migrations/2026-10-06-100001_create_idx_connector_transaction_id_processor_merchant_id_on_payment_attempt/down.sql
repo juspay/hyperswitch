@@ -1,1 +1,0 @@
-DROP INDEX CONCURRENTLY IF EXISTS idx_connector_transaction_id_processor_merchant_id_payment_atte;

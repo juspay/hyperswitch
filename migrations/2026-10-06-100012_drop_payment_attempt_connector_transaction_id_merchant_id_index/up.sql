@@ -1,1 +1,0 @@
-DROP INDEX CONCURRENTLY IF EXISTS payment_attempt_connector_transaction_id_merchant_id_index;

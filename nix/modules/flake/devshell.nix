@@ -21,9 +21,6 @@
               postgresql # for libpq
               protobuf
             ];
-            shellHook = ''
-              export PQ_LIB_DIR="${pkgs.postgresql}/lib"
-            '';
           };
         dev = pkgs.mkShell {
           name = "hyperswitch-dev-shell";
@@ -40,7 +37,6 @@
             rustc --version
             export OPENSSL_DIR="${pkgs.openssl.dev}"
             export OPENSSL_LIB_DIR="${pkgs.openssl.out}/lib"
-            export PQ_LIB_DIR="${pkgs.postgresql}/lib"
           '';
         };
         qa = pkgs.mkShell {

@@ -1,1 +1,0 @@
-DROP INDEX CONCURRENTLY IF EXISTS payment_methods_id_locker_fingerprint_id_index;

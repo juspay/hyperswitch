@@ -1,1 +1,0 @@
-DROP INDEX CONCURRENTLY IF EXISTS idx_customers_merchant_id_customer_id;

@@ -1,1 +1,0 @@
-DROP INDEX CONCURRENTLY IF EXISTS idx_payment_attempt_attempt_id_merchant_id;
