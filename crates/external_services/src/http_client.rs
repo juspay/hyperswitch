@@ -112,6 +112,7 @@ pub async fn send_request(
     request: Request,
     option_timeout_secs: Option<u64>,
 ) -> CustomResult<reqwest::Response, HttpClientError> {
+    let disable_connection_closed_retry = request.disable_connection_closed_retry;
     logger::info!(method=?request.method, headers=?request.headers, payload=?request.body, ?request);
 
     let url = url::Url::parse(&request.url).change_context(HttpClientError::UrlParsingFailed)?;
@@ -241,7 +242,9 @@ pub async fn send_request(
     // it can’t really retry it automatically on a new connection, since the server may have acted already
     let response = match response {
         Err(error)
-            if error.current_context() == &HttpClientError::ConnectionClosedIncompleteMessage =>
+            if !disable_connection_closed_retry
+                && error.current_context()
+                    == &HttpClientError::ConnectionClosedIncompleteMessage =>
         {
             metrics::AUTO_RETRY_CONNECTION_CLOSED.add(1, metrics_tag);
             match cloned_send_request {
