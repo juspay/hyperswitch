@@ -89,25 +89,33 @@ describe("Offer Engine", () => {
       globalState.set("offerQuoteId", undefined);
       cy.paymentsOfferEligibilityCheck(
         fixtures.eligibilityCheckBody,
-        connectorDetails.offer_engine.OfferEligibilityCheck,
+        getConnectorDetails(globalState.get("connectorId")).offer_engine
+          .OfferEligibilityCheck,
         globalState
       );
     });
 
     it("confirm call applies the selected offer", () => {
+      const offerEngineDetails = getConnectorDetails(
+        globalState.get("connectorId")
+      ).offer_engine;
       cy.confirmCallTest(
         fixtures.confirmBody,
-        connectorDetails.offer_engine.ConfirmWithOfferApplied,
+        offerEngineDetails.ConfirmWithOfferApplied,
         true,
         globalState
       );
     });
 
     it("applied_offer is reflected on payment retrieve", () => {
+      const offerEngineDetails = getConnectorDetails(
+        globalState.get("connectorId")
+      ).offer_engine;
       cy.retrievePaymentCallTest({
         globalState,
-        data: connectorDetails.offer_engine.AppliedOfferOnRetrieve,
-        expectedIntentStatus: "succeeded",
+        data: offerEngineDetails.AppliedOfferOnRetrieve,
+        expectedIntentStatus:
+          offerEngineDetails.AppliedOfferOnRetrieve.Response.body.status,
       });
     });
   });
@@ -124,9 +132,12 @@ describe("Offer Engine", () => {
     });
 
     it("confirm call without offer_details leaves applied_offer null", () => {
+      const offerEngineDetails = getConnectorDetails(
+        globalState.get("connectorId")
+      ).offer_engine;
       cy.confirmCallTest(
         fixtures.confirmBody,
-        connectorDetails.offer_engine.ConfirmWithoutOffer,
+        offerEngineDetails.ConfirmWithoutOffer,
         true,
         globalState
       );
@@ -206,25 +217,38 @@ describe("Offer Engine", () => {
       globalState.set("offerQuoteId", undefined);
       cy.paymentsOfferEligibilityCheck(
         fixtures.eligibilityCheckBody,
-        connectorDetails.offer_engine.OfferEligibilityCheck,
+        getConnectorDetails(globalState.get("connectorId")).offer_engine
+          .OfferEligibilityCheck,
         globalState
       );
     });
 
     it("saved-card confirm call applies the selected offer", () => {
       const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
+      // Routed through getConnectorDetails() merge (unlike the plain-card
+      // flow above, which uses the shared Commons default directly) so
+      // connectors that can't complete a saved-card confirm at all (e.g.
+      // ilixium -- no repeat_payment support) can override just this key.
+      const offerEngineDetails = getConnectorDetails(
+        globalState.get("connectorId")
+      ).offer_engine;
       cy.saveCardConfirmCallTest(
         saveCardBody,
-        connectorDetails.offer_engine.ConfirmWithOfferApplied,
+        offerEngineDetails.ConfirmWithOfferAppliedSavedCard,
         globalState
       );
     });
 
     it("applied_offer is reflected on payment retrieve", () => {
+      const offerEngineDetails = getConnectorDetails(
+        globalState.get("connectorId")
+      ).offer_engine;
+      const savedCardRetrieve =
+        offerEngineDetails.AppliedOfferOnRetrieveSavedCard;
       cy.retrievePaymentCallTest({
         globalState,
-        data: connectorDetails.offer_engine.AppliedOfferOnRetrieve,
-        expectedIntentStatus: "succeeded",
+        data: savedCardRetrieve,
+        expectedIntentStatus: savedCardRetrieve.Response.body.status,
       });
     });
   });
