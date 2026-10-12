@@ -1,7 +1,7 @@
-use common_utils::{errors::CustomResult, pii};
+use common_utils::errors::CustomResult;
 use router_env::logger;
 
-use crate::email::{EmailClient, EmailError, EmailResult, IntermediateString};
+use crate::email::{EmailClient, EmailError, EmailRecipients, EmailResult, IntermediateString};
 
 /// Client when email support is disabled
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -26,7 +26,7 @@ impl EmailClient for NoEmailClient {
 
     async fn send_email(
         &self,
-        _recipient: pii::Email,
+        _recipients: EmailRecipients,
         _subject: String,
         _body: Self::RichText,
         _proxy_url: Option<&String>,
