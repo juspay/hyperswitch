@@ -8,6 +8,8 @@ pub mod cards;
 #[cfg(feature = "v1")]
 pub mod client;
 pub mod migration;
+#[cfg(feature = "v1")]
+pub mod modular_customers;
 pub mod network_tokenization;
 pub mod surcharge_decision_configs;
 #[cfg(feature = "v1")]
