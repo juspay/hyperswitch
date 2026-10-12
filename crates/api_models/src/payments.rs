@@ -88,7 +88,7 @@ use crate::mandates;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     enums as api_enums,
-    mandates::RecurringDetails,
+    mandates::{JpmorganRecurringAgreement, RecurringDetails},
     payment_methods,
     payments::additional_info::{
         BankDebitAdditionalData, BankRedirectDetails, BankTransferAdditionalData,
@@ -10687,7 +10687,7 @@ pub struct JpmorganConnectorMetadata {
     pub original_three_ds: Option<JpmorganOriginalThreeDs>,
     pub trans_status_reason: Option<String>,
     /// Defines the agreement for initialization or supplies the original agreement for MIT.
-    pub recurring_agreement: Option<crate::mandates::JpmorganRecurringAgreement>,
+    pub recurring_agreement: Option<JpmorganRecurringAgreement>,
     /// Identifies the credential type when you import an existing decrypted wallet relationship.
     pub wallet_account_number_type: Option<JpmorganWalletAccountNumberType>,
 }
