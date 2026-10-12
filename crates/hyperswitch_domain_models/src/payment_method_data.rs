@@ -1026,8 +1026,10 @@ impl NetworkTokenDetailsForNetworkTransactionId {
     pub fn get_nti_and_network_token_details_for_mit_flow(
         network_transaction_id_and_network_token_details: NetworkTransactionIdAndNetworkTokenDetails,
     ) -> (mandates::MandateReferenceId, PaymentMethodData) {
+        // A network token replay carries its own mandate reference variant: connectors match on
+        // it to pick the token payment source, and `NetworkMandateId` is the raw-card one.
         let mandate_reference_id =
-            mandates::MandateReferenceId::NetworkMandateId(mandates::NetworkMandateIdRef {
+            mandates::MandateReferenceId::NetworkTokenWithNTI(mandates::NetworkTokenWithNTIRef {
                 network_transaction_id: network_transaction_id_and_network_token_details
                     .network_transaction_id
                     .peek()
@@ -1035,6 +1037,16 @@ impl NetworkTokenDetailsForNetworkTransactionId {
                 transaction_link_id: network_transaction_id_and_network_token_details
                     .transaction_link_id
                     .clone(),
+                token_exp_month: Some(
+                    network_transaction_id_and_network_token_details
+                        .token_exp_month
+                        .clone(),
+                ),
+                token_exp_year: Some(
+                    network_transaction_id_and_network_token_details
+                        .token_exp_year
+                        .clone(),
+                ),
             });
 
         (
@@ -4988,6 +5000,16 @@ impl From<api_mandates::RecurringDetails> for RecurringDetails {
             ) => Self::NetworkTransactionIdAndVaultCardDetails(Box::new(
                 (*network_transaction_id_and_vault_card_details).into(),
             )),
+            // The fallback variant is an orchestration-level input: the core flow decomposes it
+            // into its two arms (`to_network_token_arm` / `to_vault_card_arm`) before calling a
+            // payment core, so only those arm variants ever reach the domain model. Should one
+            // leak through, it resolves to the arm that runs first rather than to nothing, so a
+            // first attempt still carries its mandate reference.
+            api_mandates::RecurringDetails::NetworkTokenWithVaultCardFallback(fallback) => {
+                Self::NetworkTransactionIdAndNetworkTokenDetails(Box::new(
+                    fallback.network_token_arm_details().into(),
+                ))
+            }
             api_mandates::RecurringDetails::CardWithLimitedData(card_with_limited_data) => {
                 Self::CardWithLimitedData(Box::new((*card_with_limited_data).into()))
             }
