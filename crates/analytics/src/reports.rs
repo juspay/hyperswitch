@@ -6,14 +6,14 @@
 //! standard ones: JSON as JSON, booleans as `true`/`false`, timestamps as ISO 8601 UTC with
 //! milliseconds (the format API responses use) and amounts as exact decimals.
 
-pub mod payments;
+mod definitions;
 
 use std::fmt::Write as _;
 
 use api_models::analytics::{GenerateReportRequest, ReportColumns};
 use common_utils::errors::CustomResult;
 
-use crate::{enums::AuthInfo, errors::AnalyticsError};
+use crate::{enums::AuthInfo, errors::AnalyticsError, AnalyticsFlow};
 
 /// Where a report's rows come from and the columns written for each.
 #[derive(Debug)]
@@ -31,41 +31,102 @@ pub struct ReportDefinition {
     table: &'static str,
     /// Whether `table` has an `organization_id` column; `relay` does not.
     organization_scoped: bool,
-    /// Each column's header and the SQL rendering it as text. `NULL` becomes an empty field.
-    columns: &'static [(&'static str, &'static str)],
+    columns: &'static [Column],
+}
+
+/// One CSV column, rendered to text by Postgres. `NULL` becomes an empty field.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Column {
+    /// A column cast to text, headed by its name: `ref.refund_id` heads `refund_id`.
+    Text(&'static str),
+    /// A timestamp column, as ISO 8601 UTC with milliseconds.
+    Time(&'static str),
+    /// Any other expression, with its header.
+    Expr(&'static str, &'static str),
+}
+
+impl Column {
+    fn header(self) -> &'static str {
+        match self {
+            Self::Text(column) | Self::Time(column) => {
+                column.rsplit_once('.').map_or(column, |(_, name)| name)
+            }
+            Self::Expr(header, _) => header,
+        }
+    }
+
+    fn sql(self) -> String {
+        match self {
+            Self::Text(column) => format!("{column}::text"),
+            // TIMESTAMP_FORMAT for `to_char`, so CSV cells match the webhook and email.
+            Self::Time(column) => format!("to_char({column}, 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')"),
+            Self::Expr(_, expression) => expression.to_owned(),
+        }
+    }
 }
 
 /// The reports that can be generated.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, strum::EnumIter,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum ReportKind {
     V1Payments,
+    Refunds,
+    Disputes,
+    Payouts,
+    Relay,
+    Authentications,
 }
 
 impl ReportKind {
     pub fn definition(self) -> &'static ReportDefinition {
         match self {
-            Self::V1Payments => &payments::V1_PAYMENTS,
+            Self::V1Payments => &definitions::V1_PAYMENTS,
+            Self::Refunds => &definitions::REFUNDS,
+            Self::Disputes => &definitions::DISPUTES,
+            Self::Payouts => &definitions::PAYOUTS,
+            Self::Relay => &definitions::RELAY,
+            Self::Authentications => &definitions::AUTHENTICATIONS,
+        }
+    }
+
+    /// The flow the report's API requests are logged under.
+    pub fn flow(self) -> AnalyticsFlow {
+        match self {
+            Self::V1Payments => AnalyticsFlow::GeneratePaymentReport,
+            Self::Refunds => AnalyticsFlow::GenerateRefundReport,
+            Self::Disputes => AnalyticsFlow::GenerateDisputeReport,
+            Self::Payouts => AnalyticsFlow::GeneratePayoutReport,
+            Self::Relay => AnalyticsFlow::GenerateRelayReport,
+            Self::Authentications => AnalyticsFlow::GenerateAuthenticationReport,
         }
     }
 
     /// The columns `requested` selects, in its order and each once; every column when it names
-    /// none. Rejects an empty list and names the report does not define.
-    pub fn columns(
+    /// none. Rejects an empty list, names the report does not define, and choices for a report
+    /// whose columns cannot be chosen.
+    fn columns(
         self,
         requested: Option<&ReportColumns>,
-    ) -> CustomResult<Vec<&'static (&'static str, &'static str)>, AnalyticsError> {
+    ) -> CustomResult<Vec<Column>, AnalyticsError> {
+        let invalid =
+            |reason: String| error_stack::report!(AnalyticsError::InvalidReportColumns(reason));
         let definition = self.definition();
         let names: Vec<&str> = match (self, requested) {
-            (_, None) => return Ok(definition.columns.iter().collect()),
+            (_, None) => return Ok(definition.columns.to_vec()),
             (Self::V1Payments, Some(ReportColumns::Payment(columns))) => {
                 columns.iter().map(AsRef::as_ref).collect()
             }
+            (_, Some(_)) => {
+                return Err(invalid(format!(
+                    "columns cannot be chosen for the {} report",
+                    definition.name
+                )))
+            }
         };
         if names.is_empty() {
-            return Err(error_stack::report!(AnalyticsError::InvalidReportColumns(
-                "at least one column must be requested".to_owned()
-            )));
+            return Err(invalid("at least one column must be requested".to_owned()));
         }
 
         let mut selected = Vec::with_capacity(names.len());
@@ -73,12 +134,13 @@ impl ReportKind {
             let column = definition
                 .columns
                 .iter()
-                .find(|(header, _)| *header == name)
+                .copied()
+                .find(|column| column.header() == name)
                 .ok_or_else(|| {
-                    error_stack::report!(AnalyticsError::InvalidReportColumns(format!(
+                    invalid(format!(
                         "`{name}` is not a column of the {} report",
                         definition.name
-                    )))
+                    ))
                 })?;
             if !selected.contains(&column) {
                 selected.push(column);
@@ -86,24 +148,20 @@ impl ReportKind {
         }
         Ok(selected)
     }
+
+    /// Checks the request's column choice, so a bad one is rejected when the report is requested.
+    pub fn validate_columns(
+        self,
+        request: &GenerateReportRequest,
+    ) -> CustomResult<(), AnalyticsError> {
+        self.columns(request.request.columns.as_ref()).map(|_| ())
+    }
 }
 
 /// The format of every timestamp in a report: ISO 8601 UTC with milliseconds.
 const TIMESTAMP_FORMAT: &[time::format_description::FormatItem<'static>] = time::macros::format_description!(
     "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z"
 );
-
-/// `TIMESTAMP_FORMAT` for Postgres's `to_char`, so CSV cells match the webhook and email.
-macro_rules! sql_timestamp {
-    ($column:literal) => {
-        concat!(
-            "to_char(",
-            $column,
-            ", 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')"
-        )
-    };
-}
-pub(crate) use sql_timestamp;
 
 /// An amount in major units as an exact decimal carrying its currency's places (`65.00`, `4.074`,
 /// `2537`). The exponent table is the Lambdas' own.
@@ -167,7 +225,7 @@ impl ReportKind {
 
         let cells = columns
             .iter()
-            .map(|(_, expression)| *expression)
+            .map(|column| column.sql())
             .collect::<Vec<_>>()
             .join(", ");
         let mut query = ReportQuery {
@@ -176,7 +234,7 @@ impl ReportKind {
                 definition.from
             ),
             binds: Vec::new(),
-            header: csv_record(columns.iter().map(|(header, _)| *header)),
+            header: csv_record(columns.iter().map(|column| column.header())),
         };
         push_scope(&mut query, definition, &request.auth);
         let start = query.bind(ReportBind::Timestamp(time_range.start_time));
@@ -288,23 +346,23 @@ mod tests {
 
     #[test]
     fn requested_columns_are_selected_in_order() {
-        use api_models::analytics::payments::PaymentReportColumn as Column;
+        use api_models::analytics::payments::PaymentReportColumn as PaymentColumn;
 
         let headers = |requested: Option<ReportColumns>| {
             ReportKind::V1Payments
                 .columns(requested.as_ref())
-                .map(|columns| columns.iter().map(|(h, _)| *h).collect::<Vec<_>>())
+                .map(|columns| columns.iter().map(|c| c.header()).collect::<Vec<_>>())
         };
 
         assert_eq!(
             headers(None).ok().map(|all| all.len()),
-            Some(payments::V1_PAYMENTS.columns.len())
+            Some(definitions::V1_PAYMENTS.columns.len())
         );
         assert_eq!(
             headers(Some(ReportColumns::Payment(vec![
-                Column::Amount,
-                Column::PaymentId,
-                Column::Amount,
+                PaymentColumn::Amount,
+                PaymentColumn::PaymentId,
+                PaymentColumn::Amount,
             ])))
             .ok(),
             Some(vec!["amount", "payment_id"])
@@ -327,7 +385,9 @@ mod tests {
     fn query_binds_scope_and_range_for_a_profile() {
         use std::borrow::Cow;
 
-        use api_models::analytics::{payments::PaymentReportColumn as Column, ReportRequest};
+        use api_models::analytics::{
+            payments::PaymentReportColumn as PaymentColumn, ReportRequest,
+        };
         use common_utils::id_type;
 
         let request = GenerateReportRequest {
@@ -341,8 +401,8 @@ mod tests {
                 #[cfg(feature = "v2")]
                 report_type: Default::default(),
                 columns: Some(ReportColumns::Payment(vec![
-                    Column::PaymentId,
-                    Column::Amount,
+                    PaymentColumn::PaymentId,
+                    PaymentColumn::Amount,
                 ])),
             },
             merchant_id: None,
@@ -359,7 +419,7 @@ mod tests {
         let query = ReportKind::V1Payments.query(&request).unwrap();
         assert!(query
             .sql
-            .starts_with("SELECT ARRAY[pi.payment_id, (CASE WHEN"));
+            .starts_with("SELECT ARRAY[pi.payment_id::text, (CASE WHEN"));
         assert!(query.sql.ends_with(
             " AND pa.organization_id = $1 AND pa.merchant_id = ANY($2) \
              AND pa.profile_id = ANY($3) AND pa.created_at >= $4 AND pa.created_at <= $5 \
@@ -367,6 +427,40 @@ mod tests {
         ));
         assert_eq!(query.binds.len(), 5);
         assert_eq!(query.header, b"\"payment_id\",\"amount\"\r\n");
+    }
+
+    #[test]
+    fn every_report_has_unique_headers() {
+        use strum::IntoEnumIterator;
+
+        for report in ReportKind::iter() {
+            let headers = report
+                .definition()
+                .columns
+                .iter()
+                .map(|c| c.header())
+                .collect::<Vec<_>>();
+            let unique = headers.iter().collect::<std::collections::HashSet<_>>();
+            assert_eq!(unique.len(), headers.len(), "{report:?}");
+        }
+        // The Lambdas' column counts.
+        let counts = ReportKind::iter()
+            .map(|report| report.definition().columns.len())
+            .collect::<Vec<_>>();
+        assert_eq!(counts, [35, 23, 16, 33, 13, 35]);
+    }
+
+    #[test]
+    fn columns_are_chosen_only_for_payments() {
+        let choice = ReportColumns::Payment(vec![
+            api_models::analytics::payments::PaymentReportColumn::Amount,
+        ]);
+        assert!(ReportKind::V1Payments.columns(Some(&choice)).is_ok());
+        assert!(ReportKind::Refunds.columns(Some(&choice)).is_err());
+        assert_eq!(
+            ReportKind::Refunds.columns(None).map(|c| c.len()).ok(),
+            Some(definitions::REFUNDS.columns.len())
+        );
     }
 
     #[test]
@@ -384,7 +478,7 @@ mod tests {
             r#""card_holder_name","merchant_order_reference_id","profile_id""#,
             "\r\n"
         );
-        let header = csv_record(payments::V1_PAYMENTS.columns.iter().map(|(h, _)| *h));
+        let header = csv_record(definitions::V1_PAYMENTS.columns.iter().map(|c| c.header()));
         assert_eq!(String::from_utf8_lossy(&header), expected);
     }
 }

@@ -1158,8 +1158,14 @@ impl ReportConfig {
 
     /// The Lambda generating `report` on the Lambda backend.
     pub fn lambda_function(&self, report: reports::ReportKind) -> &str {
+        use reports::ReportKind;
         match report {
-            reports::ReportKind::V1Payments => &self.payment_function,
+            ReportKind::V1Payments => &self.payment_function,
+            ReportKind::Refunds => &self.refund_function,
+            ReportKind::Disputes => &self.dispute_function,
+            ReportKind::Payouts => &self.payout_function,
+            ReportKind::Relay => &self.relay_function,
+            ReportKind::Authentications => &self.authentication_function,
         }
     }
 }

@@ -148,7 +148,7 @@ async fn enqueue_report(
         )));
     }
     // Rejected here, with a 400, rather than failing in the background.
-    report.columns(request.request.columns.as_ref())?;
+    report.validate_columns(&request)?;
 
     let now = date_time::now();
     request.payment_response_hash_key = None;

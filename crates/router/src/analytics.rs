@@ -12,9 +12,9 @@ pub mod routes {
         connector_events::{connector_events_core, ConnectorEventSource},
         enums::AuthInfo,
         errors::AnalyticsError,
-        lambda_utils::invoke_lambda,
         opensearch::OpenSearchError,
         outgoing_webhook_event::outgoing_webhook_events_core,
+        reports::ReportKind,
         routing_events::routing_events_core,
         sdk_events::sdk_events_core,
         AnalyticsFlow,
@@ -44,7 +44,7 @@ pub mod routes {
         consts::opensearch::SEARCH_INDEXES,
         core::{api_locking, errors::user::UserErrors, verification::utils},
         db::user_role::ListUserRolesByUserIdPayload,
-        routes::{metrics, AppState},
+        routes::{metrics, AppState, SessionState},
         services::{
             api,
             authentication::{self as auth, AuthenticationData, UserFromToken},
@@ -1875,1227 +1875,144 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
-    pub async fn generate_merchant_refund_report(
+    /// The report routes' handlers: one per report and level, all served by the three below.
+    macro_rules! report_handlers {
+        ($($(#[$attribute:meta])* $name:ident => $level:ident($report:ident);)*) => {$(
+            $(#[$attribute])*
+            pub async fn $name(
+                state: web::Data<AppState>,
+                req: actix_web::HttpRequest,
+                json_payload: web::Json<ReportRequest>,
+            ) -> impl Responder {
+                $level(state, req, json_payload, ReportKind::$report).await
+            }
+        )*};
+    }
+
+    report_handlers! {
+        generate_merchant_payment_report => merchant_report(V1Payments);
+        generate_org_payment_report => org_report(V1Payments);
+        generate_profile_payment_report => profile_report(V1Payments);
+        #[cfg(feature = "v1")]
+        generate_merchant_refund_report => merchant_report(Refunds);
+        #[cfg(feature = "v1")]
+        generate_org_refund_report => org_report(Refunds);
+        #[cfg(feature = "v1")]
+        generate_profile_refund_report => profile_report(Refunds);
+        #[cfg(feature = "v1")]
+        generate_merchant_dispute_report => merchant_report(Disputes);
+        #[cfg(feature = "v1")]
+        generate_org_dispute_report => org_report(Disputes);
+        #[cfg(feature = "v1")]
+        generate_profile_dispute_report => profile_report(Disputes);
+        #[cfg(feature = "v1")]
+        generate_merchant_payout_report => merchant_report(Payouts);
+        #[cfg(feature = "v1")]
+        generate_org_payout_report => org_report(Payouts);
+        #[cfg(feature = "v1")]
+        generate_profile_payout_report => profile_report(Payouts);
+        #[cfg(feature = "v1")]
+        generate_merchant_relay_report => merchant_report(Relay);
+        #[cfg(feature = "v1")]
+        generate_profile_relay_report => profile_report(Relay);
+        #[cfg(feature = "v1")]
+        generate_merchant_authentication_report => merchant_report(Authentications);
+        #[cfg(feature = "v1")]
+        generate_org_authentication_report => org_report(Authentications);
+        #[cfg(feature = "v1")]
+        generate_profile_authentication_report => profile_report(Authentications);
+    }
+
+    /// Who receives the report: a dashboard user receives it themselves; an API key request names
+    /// its recipients, the first being the primary one.
+    async fn report_recipients(
+        state: &SessionState,
+        user_id: Option<String>,
+        payload: ReportRequest,
+    ) -> Result<(Email, ReportRequest), error_stack::Report<AnalyticsError>> {
+        let (email, emails) = match user_id {
+            Some(user_id) => {
+                let user = state
+                    .global_store
+                    .find_active_user_by_user_id(&user_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+                let email = Email::try_from(
+                    UserEmail::from_pii_email(user.email)
+                        .change_context(AnalyticsError::UnknownError)?
+                        .get_secret()
+                        .expose()
+                        .to_string(),
+                )
+                .change_context(AnalyticsError::MissingEmail)?;
+                (email, payload.emails.clone())
+            }
+            None => {
+                validate_report_request(&payload)?;
+                let mut emails = payload
+                    .emails
+                    .clone()
+                    .filter(|emails| !emails.is_empty())
+                    .ok_or(AnalyticsError::MissingEmail)?;
+                (emails.remove(0), Some(emails))
+            }
+        };
+        Ok((email, ReportRequest { emails, ..payload }))
+    }
+
+    /// The key signing the report webhook; only fetched when the request names a `return_url`.
+    async fn report_hash_key(
+        state: &SessionState,
+        key_store: &crate::types::domain::MerchantKeyStore,
+        auth_info: &AuthInfo,
+        payload: &ReportRequest,
+    ) -> Result<Option<String>, error_stack::Report<AnalyticsError>> {
+        match payload.return_url {
+            Some(_) => {
+                get_payment_response_hash_key(state.store.as_ref(), key_store, auth_info).await
+            }
+            None => Ok(None),
+        }
+    }
+
+    async fn merchant_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<ReportRequest>,
+        report: ReportKind,
     ) -> impl Responder {
-        let flow = AnalyticsFlow::GenerateRefundReport;
+        // Relay reports are not served to a platform acting on itself.
+        let platform = report != ReportKind::Relay;
         Box::pin(api::server_wrap(
-            flow,
+            report.flow(),
             state.clone(),
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-
+                let (email, payload) = report_recipients(&state, user_id, payload).await?;
+                let processor = auth.platform.get_processor();
                 let auth_info = auth.platform.to_merchant_level_auth_info();
-                let hash_key = match &payload.return_url {
-                    Some(_) => {
-                        get_payment_response_hash_key(
-                            state.store.as_ref(),
-                            auth.platform.get_processor().get_key_store(),
-                            &auth_info,
-                        )
-                        .await?
-                    }
-                    None => None,
-                };
-
-                let lambda_req = GenerateReportRequest {
+                let payment_response_hash_key =
+                    report_hash_key(&state, processor.get_key_store(), &auth_info, &payload)
+                        .await?;
+                let request = GenerateReportRequest {
                     request: payload,
-                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
+                    merchant_id: Some(processor.get_account().get_id().clone()),
                     auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: hash_key,
+                    email,
+                    payment_response_hash_key,
                 };
-
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.refund_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
-            },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: true,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::MerchantReportRead,
-                    allow_connected: true,
-                    allow_platform: true,
-                },
-                req.headers(),
-            ),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    #[cfg(feature = "v1")]
-    pub async fn generate_org_refund_report(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<ReportRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GenerateRefundReport;
-        Box::pin(api::server_wrap(
-            flow,
-            state.clone(),
-            &req,
-            json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-
-                let auth_info = auth.platform.to_org_level_auth_info();
-
-                let lambda_req = GenerateReportRequest {
-                    request: payload,
-                    merchant_id: None,
-                    auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: None,
-                };
-
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.refund_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
-            },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationReportRead,
-                allow_connected: true,
-                allow_platform: true,
-            },
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    #[cfg(feature = "v1")]
-    pub async fn generate_profile_refund_report(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<ReportRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GenerateRefundReport;
-        Box::pin(api::server_wrap(
-            flow,
-            state.clone(),
-            &req,
-            json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-
-                let profile_id = auth
-                    .profile
-                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::AccessForbiddenError)?
-                    .get_id()
-                    .clone();
-
-                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
-                let hash_key = match &payload.return_url {
-                    Some(_) => {
-                        get_payment_response_hash_key(
-                            state.store.as_ref(),
-                            auth.platform.get_processor().get_key_store(),
-                            &auth_info,
-                        )
-                        .await?
-                    }
-                    None => None,
-                };
-
-                let lambda_req = GenerateReportRequest {
-                    request: payload,
-                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: hash_key,
-                };
-
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.refund_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
-            },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::ProfileReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-    #[cfg(feature = "v1")]
-    pub async fn generate_merchant_relay_report(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<ReportRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GenerateRelayReport;
-        Box::pin(api::server_wrap(
-            flow,
-            state.clone(),
-            &req,
-            json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-
-                let auth_info = auth.platform.to_merchant_level_auth_info();
-                let hash_key = match &payload.return_url {
-                    Some(_) => {
-                        get_payment_response_hash_key(
-                            state.store.as_ref(),
-                            auth.platform.get_processor().get_key_store(),
-                            &auth_info,
-                        )
-                        .await?
-                    }
-                    None => None,
-                };
-
-                let lambda_req = GenerateReportRequest {
-                    request: payload,
-                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: hash_key,
-                };
-
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-
-                let lambda_result = invoke_lambda(
-                    &state.conf.report_download_config.relay_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await;
-
-                match &lambda_result {
-                    Ok(_) => logger::info!(
-                        merchant_id = ?lambda_req.merchant_id,
-                        "Successfully invoked relay report lambda function"
-                    ),
-                    Err(error) => logger::error!(
-                        merchant_id = ?lambda_req.merchant_id,
-                        ?error,
-                        "Failed to invoke relay report lambda function"
-                    ),
-                }
-
-                lambda_result.map(ApplicationResponse::Json)
-            },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::MerchantReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    #[cfg(feature = "v1")]
-    pub async fn generate_profile_relay_report(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<ReportRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GenerateRelayReport;
-        Box::pin(api::server_wrap(
-            flow,
-            state.clone(),
-            &req,
-            json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-
-                let profile_id = auth
-                    .profile
-                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::AccessForbiddenError)?
-                    .get_id()
-                    .clone();
-
-                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
-                let hash_key = match &payload.return_url {
-                    Some(_) => {
-                        get_payment_response_hash_key(
-                            state.store.as_ref(),
-                            auth.platform.get_processor().get_key_store(),
-                            &auth_info,
-                        )
-                        .await?
-                    }
-                    None => None,
-                };
-
-                let lambda_req = GenerateReportRequest {
-                    request: payload,
-                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: hash_key,
-                };
-
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-
-                let lambda_result = invoke_lambda(
-                    &state.conf.report_download_config.relay_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await;
-
-                match &lambda_result {
-                    Ok(_) => logger::info!(
-                        merchant_id = ?lambda_req.merchant_id,
-                        "Successfully invoked relay report lambda function"
-                    ),
-                    Err(error) => logger::error!(
-                        merchant_id = ?lambda_req.merchant_id,
-                        ?error,
-                        "Failed to invoke relay report lambda function"
-                    ),
-                }
-
-                lambda_result.map(ApplicationResponse::Json)
-            },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::ProfileReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    #[cfg(feature = "v1")]
-    pub async fn generate_merchant_dispute_report(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<ReportRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GenerateDisputeReport;
-        Box::pin(api::server_wrap(
-            flow,
-            state.clone(),
-            &req,
-            json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-
-                let auth_info = auth.platform.to_merchant_level_auth_info();
-                let hash_key = match &payload.return_url {
-                    Some(_) => {
-                        get_payment_response_hash_key(
-                            state.store.as_ref(),
-                            auth.platform.get_processor().get_key_store(),
-                            &auth_info,
-                        )
-                        .await?
-                    }
-                    None => None,
-                };
-
-                let lambda_req = GenerateReportRequest {
-                    request: payload,
-                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: hash_key,
-                };
-
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.dispute_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
-            },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: true,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::MerchantReportRead,
-                    allow_connected: true,
-                    allow_platform: true,
-                },
-                req.headers(),
-            ),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-    #[cfg(feature = "v1")]
-    pub async fn generate_org_dispute_report(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<ReportRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GenerateDisputeReport;
-        Box::pin(api::server_wrap(
-            flow,
-            state.clone(),
-            &req,
-            json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-
-                let auth_info = auth.platform.to_org_level_auth_info();
-
-                let lambda_req = GenerateReportRequest {
-                    request: payload,
-                    merchant_id: None,
-                    auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: None,
-                };
-
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.dispute_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
-            },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationReportRead,
-                allow_connected: true,
-                allow_platform: true,
-            },
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    #[cfg(feature = "v1")]
-    pub async fn generate_profile_dispute_report(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<ReportRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GenerateDisputeReport;
-        Box::pin(api::server_wrap(
-            flow,
-            state.clone(),
-            &req,
-            json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-
-                let profile_id = auth
-                    .profile
-                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::AccessForbiddenError)?
-                    .get_id()
-                    .clone();
-                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
-                let hash_key = match &payload.return_url {
-                    Some(_) => {
-                        get_payment_response_hash_key(
-                            state.store.as_ref(),
-                            auth.platform.get_processor().get_key_store(),
-                            &auth_info,
-                        )
-                        .await?
-                    }
-                    None => None,
-                };
-
-                let lambda_req = GenerateReportRequest {
-                    request: payload,
-                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: hash_key,
-                };
-
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.dispute_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
-            },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::ProfileReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    #[cfg(feature = "v1")]
-    pub async fn generate_merchant_payout_report(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<ReportRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GeneratePayoutReport;
-        Box::pin(api::server_wrap(
-            flow,
-            state.clone(),
-            &req,
-            json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-
-                let auth_info = auth.platform.to_merchant_level_auth_info();
-                let hash_key = match &payload.return_url {
-                    Some(_) => {
-                        get_payment_response_hash_key(
-                            state.store.as_ref(),
-                            auth.platform.get_processor().get_key_store(),
-                            &auth_info,
-                        )
-                        .await?
-                    }
-                    None => None,
-                };
-
-                let lambda_req = GenerateReportRequest {
-                    request: payload,
-                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: hash_key,
-                };
-
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.payout_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
-            },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: true,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::MerchantReportRead,
-                    allow_connected: true,
-                    allow_platform: true,
-                },
-                req.headers(),
-            ),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    #[cfg(feature = "v1")]
-    pub async fn generate_org_payout_report(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<ReportRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GeneratePayoutReport;
-        Box::pin(api::server_wrap(
-            flow,
-            state.clone(),
-            &req,
-            json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-
-                let auth_info = auth.platform.to_org_level_auth_info();
-
-                let lambda_req = GenerateReportRequest {
-                    request: payload,
-                    merchant_id: None,
-                    auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: None,
-                };
-
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.payout_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
-            },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationReportRead,
-                allow_connected: true,
-                allow_platform: true,
-            },
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    #[cfg(feature = "v1")]
-    pub async fn generate_profile_payout_report(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<ReportRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GeneratePayoutReport;
-        Box::pin(api::server_wrap(
-            flow,
-            state.clone(),
-            &req,
-            json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-                let profile_id = auth
-                    .profile
-                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::AccessForbiddenError)?
-                    .get_id()
-                    .clone();
-                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
-                let hash_key = match &payload.return_url {
-                    Some(_) => {
-                        get_payment_response_hash_key(
-                            state.store.as_ref(),
-                            auth.platform.get_processor().get_key_store(),
-                            &auth_info,
-                        )
-                        .await?
-                    }
-                    None => None,
-                };
-
-                let lambda_req = GenerateReportRequest {
-                    request: payload,
-                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: hash_key,
-                };
-
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.payout_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
-            },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::ProfileReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    pub async fn generate_merchant_payment_report(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<ReportRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GeneratePaymentReport;
-        Box::pin(api::server_wrap(
-            flow,
-            state.clone(),
-            &req,
-            json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-
-                let auth_info = auth.platform.to_merchant_level_auth_info();
-                let hash_key = match &payload.return_url {
-                    Some(_) => {
-                        get_payment_response_hash_key(
-                            state.store.as_ref(),
-                            auth.platform.get_processor().get_key_store(),
-                            &auth_info,
-                        )
-                        .await?
-                    }
-                    None => None,
-                };
-
-                let lambda_req = GenerateReportRequest {
-                    request: payload,
-                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: hash_key,
-                };
-
-                crate::core::analytics_report::generate_report(
-                    &state,
-                    analytics::reports::ReportKind::V1Payments,
-                    lambda_req,
-                )
-                .await
+                crate::core::analytics_report::generate_report(&state, report, request).await
             },
             auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
                 &auth::ApiKeyAuth {
                     allow_connected_scope_operation: true,
-                    allow_platform_self_operation: true,
+                    allow_platform_self_operation: platform,
                 },
                 &auth::JWTAuth {
                     permission: Permission::MerchantReportRead,
                     allow_connected: true,
-                    allow_platform: true,
+                    allow_platform: platform,
                 },
                 req.headers(),
             ),
@@ -3104,76 +2021,27 @@ pub mod routes {
         .await
     }
 
-    pub async fn generate_org_payment_report(
+    async fn org_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<ReportRequest>,
+        report: ReportKind,
     ) -> impl Responder {
-        let flow = AnalyticsFlow::GeneratePaymentReport;
         Box::pin(api::server_wrap(
-            flow,
+            report.flow(),
             state.clone(),
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-
-                let auth_info = auth.platform.to_org_level_auth_info();
-
-                let lambda_req = GenerateReportRequest {
+                let (email, payload) = report_recipients(&state, user_id, payload).await?;
+                let request = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth_info,
-                    email: user_email,
+                    auth: auth.platform.to_org_level_auth_info(),
+                    email,
                     payment_response_hash_key: None,
                 };
-
-                crate::core::analytics_report::generate_report(
-                    &state,
-                    analytics::reports::ReportKind::V1Payments,
-                    lambda_req,
-                )
-                .await
+                crate::core::analytics_report::generate_report(&state, report, request).await
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationReportRead,
@@ -3185,399 +2053,44 @@ pub mod routes {
         .await
     }
 
-    pub async fn generate_profile_payment_report(
+    async fn profile_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<ReportRequest>,
+        report: ReportKind,
     ) -> impl Responder {
-        let flow = AnalyticsFlow::GeneratePaymentReport;
         Box::pin(api::server_wrap(
-            flow,
+            report.flow(),
             state.clone(),
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-                let profile_id = {
-                    #[cfg(feature = "v1")]
-                    {
-                        auth.profile
-                            .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                            .change_context(AnalyticsError::AccessForbiddenError)?
-                            .get_id()
-                            .clone()
-                    }
-                    #[cfg(feature = "v2")]
-                    {
-                        auth.profile.get_id().clone()
-                    }
-                };
-
-                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
-                let hash_key = match &payload.return_url {
-                    Some(_) => {
-                        get_payment_response_hash_key(
-                            state.store.as_ref(),
-                            auth.platform.get_processor().get_key_store(),
-                            &auth_info,
-                        )
-                        .await?
-                    }
-                    None => None,
-                };
-
-                let lambda_req = GenerateReportRequest {
-                    request: payload,
-                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: hash_key,
-                };
-
-                crate::core::analytics_report::generate_report(
-                    &state,
-                    analytics::reports::ReportKind::V1Payments,
-                    lambda_req,
-                )
-                .await
-            },
-            auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::ProfileReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    #[cfg(feature = "v1")]
-    pub async fn generate_merchant_authentication_report(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<ReportRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GenerateAuthenticationReport;
-        Box::pin(api::server_wrap(
-            flow,
-            state.clone(),
-            &req,
-            json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-
-                let auth_info = auth.platform.to_merchant_level_auth_info();
-                let hash_key = match &payload.return_url {
-                    Some(_) => {
-                        get_payment_response_hash_key(
-                            state.store.as_ref(),
-                            auth.platform.get_processor().get_key_store(),
-                            &auth_info,
-                        )
-                        .await?
-                    }
-                    None => None,
-                };
-
-                let lambda_req = GenerateReportRequest {
-                    request: payload,
-                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: hash_key,
-                };
-
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.authentication_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
-            },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: true,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::MerchantReportRead,
-                    allow_connected: true,
-                    allow_platform: true,
-                },
-                req.headers(),
-            ),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    #[cfg(feature = "v1")]
-    pub async fn generate_org_authentication_report(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<ReportRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GenerateAuthenticationReport;
-        Box::pin(api::server_wrap(
-            flow,
-            state.clone(),
-            &req,
-            json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
-
-                let auth_info = auth.platform.to_org_level_auth_info();
-
-                let lambda_req = GenerateReportRequest {
-                    request: payload,
-                    merchant_id: None,
-                    auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: None,
-                };
-
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.authentication_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
-            },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationReportRead,
-                allow_connected: true,
-                allow_platform: true,
-            },
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
-
-    #[cfg(feature = "v1")]
-    pub async fn generate_profile_authentication_report(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<ReportRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GenerateAuthenticationReport;
-        Box::pin(api::server_wrap(
-            flow,
-            state.clone(),
-            &req,
-            json_payload.into_inner(),
-            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = match user_id {
-                    Some(user_id) => {
-                        let user = state
-                            .global_store
-                            .find_active_user_by_user_id(&user_id)
-                            .await
-                            .change_context(AnalyticsError::UnknownError)?;
-
-                        let user_email = Email::try_from(
-                            UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::UnknownError)?
-                                .get_secret()
-                                .expose()
-                                .to_string(),
-                        )
-                        .change_context(AnalyticsError::MissingEmail)?;
-
-                        (user_email, payload.emails)
-                    }
-                    None => {
-                        validate_report_request(&payload)?;
-                        let (primary_email, other_emails) = payload
-                            .emails
-                            .and_then(|mut emails| {
-                                if emails.is_empty() {
-                                    None
-                                } else {
-                                    let primary_email = emails.remove(0);
-                                    Some((primary_email, emails))
-                                }
-                            })
-                            .ok_or(AnalyticsError::MissingEmail)?;
-
-                        (primary_email, Some(other_emails))
-                    }
-                };
-
-                let payload = ReportRequest {
-                    emails: optional_emails,
-                    ..payload
-                };
+                let (email, payload) = report_recipients(&state, user_id, payload).await?;
+                #[cfg(feature = "v1")]
                 let profile_id = auth
                     .profile
                     .ok_or(report!(UserErrors::JwtProfileIdMissing))
                     .change_context(AnalyticsError::AccessForbiddenError)?
                     .get_id()
                     .clone();
+                #[cfg(feature = "v2")]
+                let profile_id = auth.profile.get_id().clone();
+
+                let processor = auth.platform.get_processor();
                 let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
-                let hash_key = match &payload.return_url {
-                    Some(_) => {
-                        get_payment_response_hash_key(
-                            state.store.as_ref(),
-                            auth.platform.get_processor().get_key_store(),
-                            &auth_info,
-                        )
-                        .await?
-                    }
-                    None => None,
-                };
-
-                let lambda_req = GenerateReportRequest {
+                let payment_response_hash_key =
+                    report_hash_key(&state, processor.get_key_store(), &auth_info, &payload)
+                        .await?;
+                let request = GenerateReportRequest {
                     request: payload,
-                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
+                    merchant_id: Some(processor.get_account().get_id().clone()),
                     auth: auth_info,
-                    email: user_email,
-                    payment_response_hash_key: hash_key,
+                    email,
+                    payment_response_hash_key,
                 };
-
-                let json_bytes =
-                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-                invoke_lambda(
-                    &state.conf.report_download_config.authentication_function,
-                    &state.conf.report_download_config.region,
-                    &json_bytes,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                crate::core::analytics_report::generate_report(&state, report, request).await
             },
-            auth::auth_type(
+            auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
                 &auth::ApiKeyAuth {
                     allow_connected_scope_operation: true,
                     allow_platform_self_operation: false,
@@ -4665,7 +3178,7 @@ pub mod routes {
             state,
             &req,
             payload,
-            |state: crate::routes::SessionState, auth: AuthenticationData, req, _| async move {
+            |state: SessionState, auth: AuthenticationData, req, _| async move {
                 let profile_id = auth
                     .profile
                     .ok_or(report!(UserErrors::JwtProfileIdMissing))
