@@ -190,10 +190,7 @@ impl SubscriberClient {
         conf: &crate::types::RedisSettings,
         push_sender: tokio::sync::broadcast::Sender<redis::PushInfo>,
     ) -> CustomResult<SubscriberBackend, crate::errors::RedisError> {
-        let connection_info = conf.build_standalone_connection_info()?;
-
-        let redis_client = redis::Client::open(connection_info)
-            .change_context(crate::errors::RedisError::RedisConnectionError)?;
+        let redis_client = conf.build_standalone_client()?;
 
         let config = conf
             .build_connection_manager_config()
@@ -220,7 +217,7 @@ impl SubscriberClient {
         let nodes = conf.normalize_cluster_urls();
 
         let mut cluster_builder = conf
-            .build_cluster_client_builder(nodes)
+            .build_cluster_client_builder(nodes)?
             .push_sender(push_sender);
 
         if conf.max_in_flight_commands > 0 {
@@ -407,7 +404,7 @@ impl RedisConnectionPool {
             true => {
                 let nodes = conf.normalize_cluster_urls();
 
-                let mut pool_builder = conf.build_cluster_client_builder(nodes.clone());
+                let mut pool_builder = conf.build_cluster_client_builder(nodes.clone())?;
 
                 if conf.max_in_flight_commands > 0 {
                     pool_builder =
@@ -435,7 +432,7 @@ impl RedisConnectionPool {
 
                 let pool = RedisConn::Cluster(pool_conn);
 
-                let publisher_builder = conf.build_cluster_client_builder(nodes);
+                let publisher_builder = conf.build_cluster_client_builder(nodes)?;
 
                 let publisher_conn = publisher_builder
                     .build()
@@ -463,16 +460,12 @@ impl RedisConnectionPool {
                 (pool, subscriber, publisher)
             }
             false => {
-                let connection_info = conf.build_standalone_connection_info()?;
-
-                let client = redis::Client::open(connection_info)
-                    .change_context(crate::errors::RedisError::RedisConnectionError)
-                    .attach_printable_lazy(|| {
-                        format!(
-                            "Failed to open Redis client for {}:{}",
-                            conf.host, conf.port
-                        )
-                    })?;
+                let client = conf.build_standalone_client().attach_printable_lazy(|| {
+                    format!(
+                        "Failed to open Redis client for {}:{}",
+                        conf.host, conf.port
+                    )
+                })?;
 
                 let mut pool_config = conf.build_connection_manager_config();
 
@@ -489,16 +482,12 @@ impl RedisConnectionPool {
 
                 let pool = RedisConn::Standalone(conn);
 
-                let base_connection_info = conf.build_standalone_connection_info()?;
-
-                let base_client = redis::Client::open(base_connection_info)
-                    .change_context(crate::errors::RedisError::RedisConnectionError)
-                    .attach_printable_lazy(|| {
-                        format!(
-                            "Failed to open Redis pub/sub client for {}:{}",
-                            conf.host, conf.port
-                        )
-                    })?;
+                let base_client = conf.build_standalone_client().attach_printable_lazy(|| {
+                    format!(
+                        "Failed to open Redis pub/sub client for {}:{}",
+                        conf.host, conf.port
+                    )
+                })?;
 
                 let subscriber = Arc::new(SubscriberClient::new(conf).await?);
 
@@ -622,15 +611,17 @@ impl RedisConnectionPool {
 // ─── RedisSettings helpers (redis-rs backend only) ────────────────────────────
 
 impl crate::types::RedisSettings {
-    /// Normalize cluster URLs by prepending `"redis://"` if the scheme is missing.
+    /// Normalize cluster URLs by prepending the scheme matching the configured
+    /// transport security (`redis://`, or `rediss://` when TLS is enabled) if
+    /// the scheme is missing.
     pub(crate) fn normalize_cluster_urls(&self) -> Vec<String> {
         self.cluster_urls
             .iter()
             .map(|url| {
-                if url.starts_with("redis://") {
+                if url.starts_with("redis://") || url.starts_with("rediss://") {
                     url.clone()
                 } else {
-                    format!("redis://{url}")
+                    format!("{}://{url}", self.redis_url_scheme())
                 }
             })
             .collect()
@@ -651,6 +642,15 @@ impl crate::types::RedisSettings {
         })
     }
 
+    /// The URL scheme matching the configured transport security.
+    fn redis_url_scheme(&self) -> &'static str {
+        if self.tls_enabled {
+            "rediss"
+        } else {
+            "redis"
+        }
+    }
+
     /// Build standalone connection info with RESP3 protocol from host and port.
     pub(crate) fn build_standalone_connection_info(
         &self,
@@ -658,7 +658,7 @@ impl crate::types::RedisSettings {
         use error_stack::ResultExt;
         use redis::IntoConnectionInfo;
 
-        let connection_url = format!("redis://{}:{}", self.host, self.port);
+        let connection_url = format!("{}://{}:{}", self.redis_url_scheme(), self.host, self.port);
         let mut connection_info = connection_url
             .as_str()
             .into_connection_info()
@@ -679,6 +679,31 @@ impl crate::types::RedisSettings {
         connection_info = connection_info.set_redis_settings(redis_settings);
 
         Ok(connection_info)
+    }
+
+    /// Build a standalone [`redis::Client`] from these settings.
+    ///
+    /// When a CA certificate file is configured, the client verifies the
+    /// server certificate against it instead of the platform's trusted roots.
+    pub(crate) fn build_standalone_client(
+        &self,
+    ) -> CustomResult<redis::Client, crate::errors::RedisError> {
+        use error_stack::ResultExt;
+
+        let connection_info = self.build_standalone_connection_info()?;
+
+        match self.read_tls_ca_certificates()? {
+            Some(root_cert) => redis::Client::build_with_tls(
+                connection_info,
+                redis::TlsCertificates {
+                    client_tls: None,
+                    root_cert: Some(root_cert),
+                },
+            )
+            .change_context(crate::errors::RedisError::RedisConnectionError),
+            None => redis::Client::open(connection_info)
+                .change_context(crate::errors::RedisError::RedisConnectionError),
+        }
     }
 
     /// Build the connection manager configuration from these settings.
@@ -706,7 +731,7 @@ impl crate::types::RedisSettings {
     pub(crate) fn build_cluster_client_builder(
         &self,
         nodes: Vec<String>,
-    ) -> redis::cluster::ClusterClientBuilder {
+    ) -> CustomResult<redis::cluster::ClusterClientBuilder, crate::errors::RedisError> {
         let mut builder = redis::cluster::ClusterClient::builder(nodes)
             .retries(self.reconnect_max_attempts)
             .min_retry_wait(u64::from(self.reconnect_delay))
@@ -721,8 +746,17 @@ impl crate::types::RedisSettings {
         if let Some(password) = self.auth_password() {
             builder = builder.password(password);
         }
+        if self.tls_enabled {
+            builder = builder.tls(redis::TlsMode::Secure);
+            if let Some(root_cert) = self.read_tls_ca_certificates()? {
+                builder = builder.certs(redis::TlsCertificates {
+                    client_tls: None,
+                    root_cert: Some(root_cert),
+                });
+            }
+        }
 
-        builder
+        Ok(builder)
     }
 }
 
@@ -745,5 +779,79 @@ impl From<&crate::types::RedisSettings> for RedisConfig {
             unresponsive_check_interval: config.unresponsive_check_interval,
             max_failure_threshold_seconds: config.max_failure_threshold_seconds,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::types::RedisSettings;
+
+    #[test]
+    fn test_standalone_connection_uses_plain_tcp_by_default() {
+        let settings = RedisSettings::default();
+        let connection_info = settings
+            .build_standalone_connection_info()
+            .expect("failed to build connection info");
+        assert!(matches!(
+            connection_info.addr(),
+            redis::ConnectionAddr::Tcp(..)
+        ));
+    }
+
+    #[test]
+    fn test_standalone_connection_uses_tls_when_enabled() {
+        let settings = RedisSettings {
+            tls_enabled: true,
+            ..RedisSettings::default()
+        };
+        let connection_info = settings
+            .build_standalone_connection_info()
+            .expect("failed to build connection info");
+        assert!(matches!(
+            connection_info.addr(),
+            redis::ConnectionAddr::TcpTls {
+                insecure: false,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn test_normalize_cluster_urls_uses_tls_scheme_when_enabled() {
+        let settings = RedisSettings {
+            tls_enabled: true,
+            cluster_urls: vec![
+                "127.0.0.1:7000".to_string(),
+                "rediss://127.0.0.1:7001".to_string(),
+            ],
+            ..RedisSettings::default()
+        };
+        assert_eq!(
+            settings.normalize_cluster_urls(),
+            vec![
+                "rediss://127.0.0.1:7000".to_string(),
+                "rediss://127.0.0.1:7001".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_normalize_cluster_urls_keeps_existing_schemes() {
+        let settings = RedisSettings {
+            cluster_urls: vec![
+                "127.0.0.1:7000".to_string(),
+                "redis://127.0.0.1:7001".to_string(),
+                "rediss://127.0.0.1:7002".to_string(),
+            ],
+            ..RedisSettings::default()
+        };
+        assert_eq!(
+            settings.normalize_cluster_urls(),
+            vec![
+                "redis://127.0.0.1:7000".to_string(),
+                "redis://127.0.0.1:7001".to_string(),
+                "rediss://127.0.0.1:7002".to_string(),
+            ]
+        );
     }
 }

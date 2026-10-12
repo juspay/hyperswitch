@@ -441,7 +441,6 @@ mod storage {
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
             let address = Conversion::convert(this)
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
@@ -459,6 +458,7 @@ mod storage {
             .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_write(self).await?;
                     address
                         .update(&conn, address_update.into())
                         .await

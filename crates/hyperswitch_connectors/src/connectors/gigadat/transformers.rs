@@ -9,7 +9,7 @@ use common_utils::{
     id_type,
     pii::{self, Email, IpAddress},
     request::Method,
-    types::FloatMajorUnit,
+    types::{FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -358,8 +358,30 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatTransactionStatusResponse, T, Pa
                 },
             )
         });
+        let status = enums::AttemptStatus::from(item.response.status);
+        // Record the connector-reported amount against the resulting status so a payment
+        // accepted despite an amount mismatch reflects what was actually captured / authorized.
+        let amount = item
+            .response
+            .amount
+            .zip(item.response.currency)
+            .map(|(amount, currency)| {
+                utils::convert_back_amount_to_minor_units(
+                    &FloatMajorUnitForConnector,
+                    amount,
+                    currency,
+                )
+            })
+            .transpose()?;
+        let amount_captured = utils::get_amount_captured(status, amount);
+        let amount_capturable = utils::get_amount_capturable(status, amount);
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status,
+            amount_captured: amount_captured
+                .map(|amount| amount.get_amount_as_i64())
+                .or(item.data.amount_captured),
+            minor_amount_captured: amount_captured.or(item.data.minor_amount_captured),
+            minor_amount_capturable: amount_capturable.or(item.data.minor_amount_capturable),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),

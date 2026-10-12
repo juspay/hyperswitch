@@ -166,6 +166,7 @@ impl ApiErrorResponse {
             | Self::NotFound(_)
             | Self::BadRequest(_) => "invalid_request",
             Self::InternalServerError(_) => "api",
+            Self::DomainError(err) if err.sub_code == "IE" => "integrity_check_failed",
             Self::DomainError(_) => "blocked",
             Self::ConnectorError(_, _) => "connector",
         }

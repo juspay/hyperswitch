@@ -6846,6 +6846,7 @@ pub enum PaymentMethodDataType {
     SamsungPay,
     TwintRedirect,
     VippsRedirect,
+    WeroRedirect,
     TouchNGoRedirect,
     WeChatPayRedirect,
     WeChatPayQr,
@@ -7002,6 +7003,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::SamsungPay(_) => Self::SamsungPay,
                 payment_method_data::WalletData::TwintRedirect {} => Self::TwintRedirect,
                 payment_method_data::WalletData::VippsRedirect {} => Self::VippsRedirect,
+                payment_method_data::WalletData::WeroRedirect {} => Self::WeroRedirect,
                 payment_method_data::WalletData::TouchNGoRedirect(_) => Self::TouchNGoRedirect,
                 payment_method_data::WalletData::WeChatPayRedirect(_) => Self::WeChatPayRedirect,
                 payment_method_data::WalletData::WeChatPayQr(_) => Self::WeChatPayQr,
@@ -7824,6 +7826,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         payout_id: data.payout_id.clone(),
         connector_response: data.connector_response.clone(),
         integrity_check: Ok(()),
+        accept_amount_mismatch: data.accept_amount_mismatch,
         additional_merchant_data: data.additional_merchant_data.clone(),
         header_payload: data.header_payload.clone(),
         connector_mandate_request_reference_id: data.connector_mandate_request_reference_id.clone(),
@@ -8077,6 +8080,80 @@ pub fn get_authorise_integrity_object<T>(
     })
 }
 
+/// Returns the connector-reported amount as the captured amount when the payment is charged
+/// (fully or partially), `None` otherwise.
+pub fn get_amount_captured(status: AttemptStatus, amount: Option<MinorUnit>) -> Option<MinorUnit> {
+    match status {
+        AttemptStatus::Charged
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable => amount,
+        AttemptStatus::Started
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::Authorized
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::Authorizing
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::CaptureReview
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::Unresolved
+        | AttemptStatus::Pending
+        | AttemptStatus::Failure
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::Expired => None,
+    }
+}
+
+/// Returns the connector-reported amount as the capturable amount when the payment is
+/// authorized (fully or partially), `None` otherwise.
+pub fn get_amount_capturable(
+    status: AttemptStatus,
+    amount: Option<MinorUnit>,
+) -> Option<MinorUnit> {
+    match status {
+        AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized => amount,
+        AttemptStatus::Started
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::Charged
+        | AttemptStatus::Authorizing
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::CaptureReview
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable
+        | AttemptStatus::Unresolved
+        | AttemptStatus::Pending
+        | AttemptStatus::Failure
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::Expired => None,
+    }
+}
+
 pub fn get_sync_integrity_object<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: T,
@@ -8263,6 +8340,42 @@ where
         }),
         _ => Ok(None),
     }
+}
+
+/// Parses an optional connector response value, logging and discarding one that isn't recognised
+/// so an unexpected value doesn't fail the whole response.
+pub fn parse_or_log_unrecognised<T: FromStr>(value: &str) -> Option<T> {
+    value
+        .parse::<T>()
+        .inspect_err(|_| {
+            logger::debug!(
+                value,
+                target_type = std::any::type_name::<T>(),
+                "Unrecognised value received from connector"
+            );
+        })
+        .ok()
+}
+
+/// Converts an ISO 3166 country code from a connector response, alpha-2 or numeric, to alpha-2.
+/// A value outside either table is logged and discarded.
+pub fn parse_country_code(code: &str) -> Option<enums::CountryAlpha2> {
+    code.parse::<enums::CountryAlpha2>()
+        .ok()
+        .or_else(|| {
+            code.parse::<u32>()
+                .ok()
+                .and_then(|numeric| common_enums::Country::from_numeric(numeric).ok())
+                .map(|country| country.to_alpha2())
+        })
+        .or_else(|| {
+            logger::debug!(
+                value = code,
+                target_type = std::any::type_name::<enums::CountryAlpha2>(),
+                "Unrecognised value received from connector"
+            );
+            None
+        })
 }
 
 #[macro_export]

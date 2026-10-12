@@ -641,7 +641,6 @@ where
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             (payment_intent, payment_attempt)
         }
-        api_models::payments::PaymentIdType::PreprocessingId(ref _id) => todo!(),
     };
 
     // We need the address here to send it in the response

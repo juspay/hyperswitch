@@ -8,16 +8,14 @@ use hyperswitch_interfaces::{
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payments::{self, gateway::context as gateway_context},
+        payments,
+        payouts::gateway::context as gateway_context,
     },
     routes::{metrics, SessionState},
     services,
     types::{self, api as api_types, domain, storage::enums},
 };
 
-/// After we get the access token, check if there was an error and if the flow should proceed further
-/// Everything is well, continue with the flow
-/// There was an error, cannot proceed further
 #[cfg(feature = "payouts")]
 pub async fn create_access_token<F: Clone + 'static>(
     state: &SessionState,
@@ -169,7 +167,7 @@ pub async fn refresh_connector_auth(
         payments::CallConnectorAction::Trigger,
         None,
         None,
-        gateway_context.clone(),
+        gateway_context.into(),
     )
     .await;
 

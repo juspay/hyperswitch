@@ -1389,7 +1389,7 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         _connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         // Bypass Source Verification since it is done via MTLS
-        Ok(true)
+        Ok(false)
     }
 
     fn get_webhook_object_reference_id(

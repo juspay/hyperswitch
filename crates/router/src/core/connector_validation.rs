@@ -239,6 +239,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 elavon::transformers::ElavonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::ElavonPg => {
+                elavon_pg::transformers::ElavonPgAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Envoy => {
                 envoy::transformers::EnvoyAuthType::try_from(self.auth_type)?;
                 Ok(())

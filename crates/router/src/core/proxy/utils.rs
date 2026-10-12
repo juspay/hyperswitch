@@ -169,7 +169,7 @@ impl ProxyRequestWrapper {
     }
 
     pub fn get_destination_url(&self) -> &str {
-        self.0.destination_url.as_str()
+        self.0.destination_url.get_string_repr()
     }
 
     pub fn get_method(&self) -> common_utils::request::Method {
