@@ -317,6 +317,9 @@ pub struct ProfileCloneTargetMetadata {
 pub struct CloneBlocklistEntriesRequest {
     #[schema(value_type = Vec<String>)]
     pub target_profile_ids: HashSet<common_utils::id_type::ProfileId>,
+    /// Clones only the selected namespace. Omission clones both payment and payout.
+    #[schema(value_type = Option<BlocklistTransactionType>)]
+    pub transaction_type: Option<common_enums::BlocklistTransactionType>,
 }
 
 impl CloneBlocklistEntriesRequest {
@@ -357,7 +360,8 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        BlocklistCountQuery, BlocklistEntryRequest, BlocklistLookupQuery, ListBlocklistQuery,
+        BlocklistCountQuery, BlocklistEntryRequest, BlocklistLookupQuery,
+        CloneBlocklistEntriesRequest, ListBlocklistQuery,
     };
 
     #[test]
@@ -398,7 +402,10 @@ mod tests {
         assert_eq!(single.transaction_type, BlocklistTransactionType::Payout);
         assert_eq!(list.transaction_type, BlocklistTransactionType::Payout);
         assert_eq!(count.transaction_type, BlocklistTransactionType::Payout);
-        assert_eq!(lookup.transaction_type, Some(BlocklistTransactionType::Payout));
+        assert_eq!(
+            lookup.transaction_type,
+            Some(BlocklistTransactionType::Payout)
+        );
     }
 
     #[test]
@@ -418,6 +425,10 @@ mod tests {
             .is_err());
             assert!(serde_json::from_value::<BlocklistLookupQuery>(
                 json!({"data": "424242", "transaction_type": selection}),
+            )
+            .is_err());
+            assert!(serde_json::from_value::<CloneBlocklistEntriesRequest>(
+                json!({"target_profile_ids": ["pro_target"], "transaction_type": selection}),
             )
             .is_err());
         }

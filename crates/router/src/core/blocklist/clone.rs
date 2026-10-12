@@ -91,7 +91,14 @@ pub async fn clone_blocklist_entries(
     )
     .await?;
 
-    let job_id = enqueue_clone_job(state, platform, &source_profile_id, &targets).await?;
+    let job_id = enqueue_clone_job(
+        state,
+        platform,
+        &source_profile_id,
+        &targets,
+        request.transaction_type,
+    )
+    .await?;
 
     Ok(api_blocklist::CloneBlocklistEntriesResponse {
         source_profile_id,
@@ -109,6 +116,7 @@ async fn enqueue_clone_job(
     platform: &domain::Platform,
     source_profile_id: &id_type::ProfileId,
     targets: &[id_type::ProfileId],
+    transaction_type: Option<common_enums::BlocklistTransactionType>,
 ) -> RouterResult<String> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let job_id = common_utils::generate_id(crate::consts::ID_LENGTH, "blkclone");
@@ -157,7 +165,7 @@ async fn enqueue_clone_job(
         current_target: 0,
         snapshot_at: now,
         draining_legacy_rows: false,
-        transaction_type: common_enums::BlocklistTransactionType::Payment,
+        selected_transaction_type: transaction_type,
         last_fingerprint_id: String::new(),
         processed_rows: 0,
     };

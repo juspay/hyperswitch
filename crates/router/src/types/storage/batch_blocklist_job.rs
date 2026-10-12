@@ -43,9 +43,9 @@ pub struct BlocklistProfileCloneTrackingData {
     pub snapshot_at: time::PrimitiveDateTime,
     /// Each flow drains processor-scoped rows, then legacy rows, before advancing to the next flow.
     pub draining_legacy_rows: bool,
-    /// Older trackers only contain payment rows; retain their strict fingerprint cursor on resume.
+    /// Requested namespace; `None` clones both, including jobs created before this field.
     #[serde(default)]
-    pub transaction_type: common_enums::BlocklistTransactionType,
+    pub selected_transaction_type: Option<common_enums::BlocklistTransactionType>,
     /// Keyset cursor within the current flow and merchant pass. `""` starts at the beginning.
     pub last_fingerprint_id: String,
     /// Source rows fully handled by this target tracker. This advances with the cursor.

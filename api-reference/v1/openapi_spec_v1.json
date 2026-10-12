@@ -17312,10 +17312,10 @@
           },
           "blocked_for": {
             "type": "array",
-            "description": "All blocklist entries that matched `data`, empty when `blocked` is false.",
             "items": {
               "$ref": "#/components/schemas/BlocklistLookupMatch"
-            }
+            },
+            "description": "All blocklist entries that matched `data`, empty when `blocked` is false."
           }
         }
       },
@@ -19663,6 +19663,14 @@
             "items": {
               "type": "string"
             }
+          },
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },

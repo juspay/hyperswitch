@@ -38,7 +38,7 @@ struct ExportScope<'a> {
 async fn drain_scope(
     state: &SessionState,
     scope: &ExportScope<'_>,
-    transaction_type: common_enums::BlocklistTransactionType,
+    transaction_type: Option<common_enums::BlocklistTransactionType>,
     legacy: bool,
     progress: &mut ExportProgress,
 ) -> RouterResult<()> {
@@ -46,35 +46,52 @@ async fn drain_scope(
     let mut cursor = String::new();
 
     loop {
-        let page =
-            match legacy {
-                false => state
-                    .store
-                    .list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id(
-                        scope.merchant_id,
-                        transaction_type,
-                        scope.profile_id,
-                        cursor.clone(),
-                        scope.snapshot_at,
-                        export::EXPORT_PAGE_SIZE,
-                    )
-                    .await,
-                true => {
-                    state
-                        .store
-                        .list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id(
-                            scope.merchant_id,
-                            transaction_type,
-                            scope.profile_id,
-                            cursor.clone(),
-                            scope.snapshot_at,
-                            export::EXPORT_PAGE_SIZE,
-                        )
-                        .await
-                }
-            }
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to read a blocklist page for export")?;
+        let page = match (legacy, transaction_type) {
+            (false, Some(transaction_type)) => state
+                .store
+                .list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id(
+                    scope.merchant_id,
+                    transaction_type,
+                    scope.profile_id,
+                    cursor.clone(),
+                    scope.snapshot_at,
+                    export::EXPORT_PAGE_SIZE,
+                )
+                .await,
+            (false, None) => state
+                .store
+                .list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id_all_types(
+                    scope.merchant_id,
+                    scope.profile_id,
+                    cursor.clone(),
+                    scope.snapshot_at,
+                    export::EXPORT_PAGE_SIZE,
+                )
+                .await,
+            (true, Some(transaction_type)) => state
+                .store
+                .list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id(
+                    scope.merchant_id,
+                    transaction_type,
+                    scope.profile_id,
+                    cursor.clone(),
+                    scope.snapshot_at,
+                    export::EXPORT_PAGE_SIZE,
+                )
+                .await,
+            (true, None) => state
+                .store
+                .list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id_all_types(
+                    scope.merchant_id,
+                    scope.profile_id,
+                    cursor.clone(),
+                    scope.snapshot_at,
+                    export::EXPORT_PAGE_SIZE,
+                )
+                .await,
+        }
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to read a blocklist page for export")?;
 
         let next_cursor = page.last().map(|row| row.fingerprint_id.clone());
 
@@ -201,17 +218,8 @@ async fn collect_and_complete(
         parts: Vec::new(),
     };
 
-    let transaction_types = match scope.transaction_type.as_ref() {
-        Some(transaction_type) => std::slice::from_ref(transaction_type),
-        None => &[
-            common_enums::BlocklistTransactionType::Payment,
-            common_enums::BlocklistTransactionType::Payout,
-        ],
-    };
-    for &transaction_type in transaction_types {
-        drain_scope(state, scope, transaction_type, false, &mut progress).await?;
-        drain_scope(state, scope, transaction_type, true, &mut progress).await?;
-    }
+    drain_scope(state, scope, scope.transaction_type, false, &mut progress).await?;
+    drain_scope(state, scope, scope.transaction_type, true, &mut progress).await?;
 
     // The final part is the only one allowed below the minimum size.
     if !progress.buffer.is_empty() {

@@ -30,11 +30,11 @@ async fn run_clone_job(
     let merchant_id_str = merchant_id_obj.get_string_repr();
 
     loop {
-        let page = match tracking_data.draining_legacy_rows {
-            false => {
+        let page = match (tracking_data.draining_legacy_rows, tracking_data.selected_transaction_type) {
+            (false, Some(transaction_type)) => {
                 db.list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id(
                     merchant_id_obj,
-                    tracking_data.transaction_type,
+                    transaction_type,
                     &tracking_data.source_profile_id,
                     tracking_data.last_fingerprint_id.clone(),
                     tracking_data.snapshot_at,
@@ -42,10 +42,30 @@ async fn run_clone_job(
                 )
                 .await
             }
-            true => {
+            (false, None) => {
+                db.list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id_all_types(
+                    merchant_id_obj,
+                    &tracking_data.source_profile_id,
+                    tracking_data.last_fingerprint_id.clone(),
+                    tracking_data.snapshot_at,
+                    clone::CLONE_PAGE_SIZE,
+                )
+                .await
+            }
+            (true, Some(transaction_type)) => {
                 db.list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id(
                     merchant_id_obj,
-                    tracking_data.transaction_type,
+                    transaction_type,
+                    &tracking_data.source_profile_id,
+                    tracking_data.last_fingerprint_id.clone(),
+                    tracking_data.snapshot_at,
+                    clone::CLONE_PAGE_SIZE,
+                )
+                .await
+            }
+            (true, None) => {
+                db.list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id_all_types(
+                    merchant_id_obj,
                     &tracking_data.source_profile_id,
                     tracking_data.last_fingerprint_id.clone(),
                     tracking_data.snapshot_at,
@@ -58,21 +78,11 @@ async fn run_clone_job(
         .attach_printable_lazy(|| format!("Failed to read a source page for clone job {job_id}"))?;
 
         match page.last().map(|entry| entry.fingerprint_id.clone()) {
-            // Drain both merchant passes for each flow, persisting every pass transition.
+            // Empty page: advance to legacy pass, or finish this target if both passes are done.
             None => {
-                match (
-                    tracking_data.draining_legacy_rows,
-                    tracking_data.transaction_type,
-                ) {
-                    (false, _) => tracking_data.draining_legacy_rows = true,
-                    (true, common_enums::BlocklistTransactionType::Payment) => {
-                        tracking_data.transaction_type =
-                            common_enums::BlocklistTransactionType::Payout;
-                        tracking_data.draining_legacy_rows = false;
-                    }
-                    (true, common_enums::BlocklistTransactionType::Payout) => break,
+                if !move_to_next_scope(tracking_data) {
+                    break;
                 }
-                tracking_data.last_fingerprint_id = String::new();
                 persist_cursor(state, process_id, tracking_data).await?;
             }
             Some(cursor) => {
@@ -131,6 +141,17 @@ async fn run_clone_job(
     }
 
     Ok(tracking_data.processed_rows)
+}
+
+/// Advances the draining pass; each target has two passes (processor rows, then legacy rows).
+fn move_to_next_scope(tracking_data: &mut storage::BlocklistProfileCloneTrackingData) -> bool {
+    if !tracking_data.draining_legacy_rows {
+        tracking_data.draining_legacy_rows = true;
+        tracking_data.last_fingerprint_id = String::new();
+        true
+    } else {
+        false
+    }
 }
 
 /// Rewrites the process's tracking data so a retry picks up where this run left off.
@@ -220,7 +241,6 @@ async fn settle_current_target(
 fn move_to_next_target(tracking_data: &mut storage::BlocklistProfileCloneTrackingData) -> bool {
     tracking_data.current_target = tracking_data.current_target.saturating_add(1);
     tracking_data.draining_legacy_rows = false;
-    tracking_data.transaction_type = common_enums::BlocklistTransactionType::Payment;
     tracking_data.last_fingerprint_id = String::new();
     tracking_data.processed_rows = 0;
     tracking_data.current_target < tracking_data.target_profile_ids.len()
@@ -471,7 +491,7 @@ mod tests {
     use common_enums::BlocklistTransactionType;
     use serde_json::json;
 
-    use super::{move_to_next_target, storage};
+    use super::{move_to_next_scope, move_to_next_target, storage};
 
     fn legacy_tracking() -> storage::BlocklistProfileCloneTrackingData {
         serde_json::from_value(json!({
@@ -490,41 +510,55 @@ mod tests {
     }
 
     #[test]
-    fn legacy_clone_resume_preserves_its_payment_cursor() {
-        let tracking = legacy_tracking();
-        assert_eq!(tracking.transaction_type, BlocklistTransactionType::Payment);
+    fn legacy_clone_resume_drains_legacy_then_stops() {
+        // Old tracker with no selected_transaction_type: resumes mid-legacy pass,
+        // advances once (processor→legacy already done here), then exhausts.
+        let mut tracking = legacy_tracking();
         assert!(tracking.draining_legacy_rows);
         assert_eq!(tracking.last_fingerprint_id, "424242");
         assert_eq!(tracking.processed_rows, 7);
+        // Already draining legacy rows → scope is exhausted.
+        assert!(!move_to_next_scope(&mut tracking));
     }
 
     #[test]
-    fn payout_clone_tracking_round_trips_without_resetting_its_cursor() {
+    fn scope_advances_processor_to_legacy_then_stops() {
         let mut tracking = legacy_tracking();
-        tracking.transaction_type = BlocklistTransactionType::Payout;
-        let serialized = serde_json::to_value(&tracking).unwrap();
-        assert_eq!(
-            serialized
-                .get("transaction_type")
-                .and_then(serde_json::Value::as_str),
-            Some("payout")
-        );
-        let resumed: storage::BlocklistProfileCloneTrackingData =
-            serde_json::from_value(serialized).unwrap();
-        assert_eq!(resumed.transaction_type, BlocklistTransactionType::Payout);
-        assert!(resumed.draining_legacy_rows);
-        assert_eq!(resumed.last_fingerprint_id, "424242");
-        assert_eq!(resumed.processed_rows, 7);
+        tracking.draining_legacy_rows = false;
+        tracking.last_fingerprint_id = String::new();
+        // Processor pass done → advance to legacy.
+        assert!(move_to_next_scope(&mut tracking));
+        assert!(tracking.draining_legacy_rows);
+        assert_eq!(tracking.last_fingerprint_id, "");
+        // Legacy pass done → no more scopes.
+        assert!(!move_to_next_scope(&mut tracking));
     }
 
     #[test]
-    fn next_target_restarts_at_payment_instead_of_skipping_payment_rows() {
-        let mut tracking = legacy_tracking();
-        tracking.transaction_type = BlocklistTransactionType::Payout;
+    fn selected_clone_retry_stops_after_its_legacy_pass() {
+        for selected in [BlocklistTransactionType::Payment, BlocklistTransactionType::Payout] {
+            let mut tracking = legacy_tracking(); // starts draining_legacy_rows = true
+            tracking.selected_transaction_type = Some(selected);
+            // Already in legacy pass → exhausted.
+            assert!(!move_to_next_scope(&mut tracking));
+            // Advance to next target: cursor resets cleanly.
+            assert!(move_to_next_target(&mut tracking));
+            assert_eq!(tracking.current_target, 1);
+            assert!(!tracking.draining_legacy_rows);
+            assert_eq!(tracking.last_fingerprint_id, "");
+            assert_eq!(tracking.processed_rows, 0);
+            // New target starts with processor pass, then legacy, then stops.
+            assert!(move_to_next_scope(&mut tracking));
+            assert!(tracking.draining_legacy_rows);
+            assert!(!move_to_next_scope(&mut tracking));
+        }
+    }
 
+    #[test]
+    fn next_target_resets_cursor_and_advances_index() {
+        let mut tracking = legacy_tracking();
         assert!(move_to_next_target(&mut tracking));
         assert_eq!(tracking.current_target, 1);
-        assert_eq!(tracking.transaction_type, BlocklistTransactionType::Payment);
         assert!(!tracking.draining_legacy_rows);
         assert_eq!(tracking.last_fingerprint_id, "");
         assert_eq!(tracking.processed_rows, 0);

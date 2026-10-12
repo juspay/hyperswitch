@@ -111,6 +111,27 @@ pub trait BlocklistInterface {
         limit: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError>;
 
+    /// Same scan as above but with no `transaction_type` filter; used when cloning all types.
+    async fn list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id_all_types(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        after_fingerprint_id: String,
+        snapshot_at: time::PrimitiveDateTime,
+        limit: i64,
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError>;
+
+    /// Same scan as above but with no `transaction_type` filter; used when cloning all types.
+    async fn list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id_all_types(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        after_fingerprint_id: String,
+        snapshot_at: time::PrimitiveDateTime,
+        limit: i64,
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError>;
+
+
     async fn get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -758,6 +779,51 @@ impl BlocklistInterface for Store {
     }
 
     #[instrument(skip_all)]
+    async fn list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id_all_types(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        after_fingerprint_id: String,
+        snapshot_at: time::PrimitiveDateTime,
+        limit: i64,
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
+        let conn = pg_connection_read_replica(self).await?;
+        storage::Blocklist::list_all_after_fingerprint_by_processor_merchant_id_profile_id(
+            &conn,
+            processor_merchant_id,
+            profile_id,
+            after_fingerprint_id,
+            snapshot_at,
+            limit,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id_all_types(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        after_fingerprint_id: String,
+        snapshot_at: time::PrimitiveDateTime,
+        limit: i64,
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
+        let conn = pg_connection_read_replica(self).await?;
+        storage::Blocklist::list_all_after_fingerprint_by_legacy_merchant_id_profile_id(
+            &conn,
+            merchant_id,
+            profile_id,
+            after_fingerprint_id,
+            snapshot_at,
+            limit,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+
+    #[instrument(skip_all)]
     async fn get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -1038,6 +1104,60 @@ impl BlocklistInterface for MockDb {
         Ok(entries)
     }
 
+    async fn list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id_all_types(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        after_fingerprint_id: String,
+        snapshot_at: time::PrimitiveDateTime,
+        limit: i64,
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
+        let mut entries = self
+            .blocklists
+            .lock()
+            .await
+            .iter()
+            .filter(|entry| {
+                entry.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                    && entry.fingerprint_id > after_fingerprint_id
+                    && entry.created_at <= snapshot_at
+                    && (entry.profile_id.as_ref() == Some(profile_id) || entry.profile_id.is_none())
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        entries.sort_by(|left, right| left.fingerprint_id.cmp(&right.fingerprint_id));
+        entries.truncate(usize::try_from(limit).unwrap_or(usize::MAX));
+        Ok(entries)
+    }
+
+    async fn list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id_all_types(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        after_fingerprint_id: String,
+        snapshot_at: time::PrimitiveDateTime,
+        limit: i64,
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
+        let mut entries = self
+            .blocklists
+            .lock()
+            .await
+            .iter()
+            .filter(|entry| {
+                entry.merchant_id == *merchant_id
+                    && entry.processor_merchant_id.is_none()
+                    && entry.fingerprint_id > after_fingerprint_id
+                    && entry.created_at <= snapshot_at
+                    && (entry.profile_id.as_ref() == Some(profile_id) || entry.profile_id.is_none())
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        entries.sort_by(|left, right| left.fingerprint_id.cmp(&right.fingerprint_id));
+        entries.truncate(usize::try_from(limit).unwrap_or(usize::MAX));
+        Ok(entries)
+    }
+
+
     async fn get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -1309,6 +1429,47 @@ impl BlocklistInterface for KafkaStore {
             )
             .await
     }
+
+    #[instrument(skip_all)]
+    async fn list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id_all_types(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        after_fingerprint_id: String,
+        snapshot_at: time::PrimitiveDateTime,
+        limit: i64,
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
+        self.diesel_store
+            .list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id_all_types(
+                processor_merchant_id,
+                profile_id,
+                after_fingerprint_id,
+                snapshot_at,
+                limit,
+            )
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id_all_types(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        after_fingerprint_id: String,
+        snapshot_at: time::PrimitiveDateTime,
+        limit: i64,
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
+        self.diesel_store
+            .list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id_all_types(
+                merchant_id,
+                profile_id,
+                after_fingerprint_id,
+                snapshot_at,
+                limit,
+            )
+            .await
+    }
+
 
     #[instrument(skip_all)]
     async fn get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
