@@ -1053,7 +1053,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::blocklist::BlocklistCountResponse,
         api_models::blocklist::BlocklistLookupQuery,
         api_models::blocklist::BlocklistLookupResponse,
-        api_models::blocklist::BlocklistLookupMatch,
         api_models::blocklist::BatchBlocklistUploadResponse,
         api_models::blocklist::BatchBlocklistUploadQuery,
         api_models::blocklist::BatchBlocklistJobStatusResponse,

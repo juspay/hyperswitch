@@ -204,7 +204,7 @@ pub async fn list_blocked_payment_methods(
     path = "/blocklist/count",
     params (
         ("data_kind" = BlocklistDataKind, Query, description = "Kind of blocklist entries to count"),
-        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow: payment (default) or payout."),
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Counts only payment or payout when selected. When omitted, counts both, including legacy NULL entries. Legacy NULL entries belong to payment when filtered."),
         ("X-Profile-Id" = Option<String>, Header, description = "Restricts the count to entries \
          belonging to this business profile, plus entries with no profile. If omitted, the \
          merchant's default profile is used; merchants with more than one profile have no default \
@@ -267,7 +267,7 @@ pub async fn get_blocklist_count(
          and will receive an error asking for this header."),
     ),
     responses(
-        (status = 200, description = "All matches within the resolved profile, including merchant-wide entries. blocked_for contains transaction_type and data_kind, without profile IDs.", body = BlocklistLookupResponse),
+        (status = 200, description = "All matches within the resolved profile, including merchant-wide entries. transaction_types contains distinct matching payment/payout namespaces, without data kinds or profile IDs.", body = BlocklistLookupResponse),
         (status = 400, description = "Invalid Data, or no profile could be resolved")
     ),
     tag = "Blocklist",

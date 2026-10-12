@@ -21,7 +21,6 @@ pub struct BlocklistExportTrackingData {
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub profile_id: id_type::ProfileId,
     /// `None` exports both transaction namespaces, including trackers created before this field.
-    #[serde(default)]
     pub transaction_type: Option<common_enums::BlocklistTransactionType>,
     /// Bounds the scan, so a run spanning minutes still describes one moment.
     pub snapshot_at: time::PrimitiveDateTime,

@@ -12,21 +12,18 @@ The lookup remains scoped to the resolved business profile and merchant-wide
 entries with no profile. Entries belonging to other profiles or merchants are
 not returned. `X-Profile-Id` and default-profile resolution work as before.
 
-`blocked` is true when `blocked_for` contains at least one matching entry.
-An unblocked value returns `blocked: false` and `blocked_for: []`. Each match
-contains only `transaction_type` and `data_kind`; profile IDs are not returned.
+`blocked` is true when `transaction_types` contains at least one matching namespace.
+An unblocked value returns `blocked: false` and `transaction_types: []`.
+Each transaction type appears once; data kinds and profile IDs are not returned.
 Legacy NULL transaction namespaces are reported as payment.
 
 ```json
 {
   "data": "blmg_shared",
   "blocked": true,
-  "blocked_for": [
-    { "transaction_type": "payment", "data_kind": "payment_method" },
-    { "transaction_type": "payout", "data_kind": "payment_method" }
-  ]
+  "transaction_types": ["payment", "payout"]
 }
 ```
 
-Fingerprint entries use the existing `payment_method` data-kind value in JSON.
-The response contains every matching row; match ordering is not significant.
+Multiple matching rows in the same transaction namespace do not duplicate its name.
+Transaction-type ordering is not significant.

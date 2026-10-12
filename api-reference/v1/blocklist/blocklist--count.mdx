@@ -1,3 +1,15 @@
 ---
 openapi: get /blocklist/count
 ---
+
+### Transaction scope
+
+The optional `transaction_type` query parameter controls which entries are counted:
+
+- Omit it to count all payment and payout entries, including legacy entries whose transaction type is `NULL`.
+- Set it to `payment` to count payment entries and legacy `NULL` entries.
+- Set it to `payout` to count only payout entries.
+
+Other values are rejected. Omitting this parameter does not change the merchant or business-profile scope: counts remain restricted to the resolved profile plus merchant-wide entries with no profile.
+
+This behavior applies only to the count endpoint. Adding and listing blocklist entries still default to `payment`.
