@@ -2644,8 +2644,8 @@ fn get_active_mca_ids_from_result(
     result: &RoutingResult<
         std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
     >,
-) -> RoutingResult<&std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>> {
-    result.as_ref().map_err(|error| {
+) -> RoutingResult<std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>> {
+    result.as_ref().cloned().map_err(|error| {
         error_stack::report!(errors::RoutingError::MerchantConnectorAccountsFetchFailed)
             .attach_printable(format!("{error:?}"))
     })
@@ -2670,7 +2670,7 @@ pub async fn filter_fallback_based_on_eligibility(
         fallback_config.to_vec(),
         transaction_data,
         None,
-        active_mca_ids,
+        &active_mca_ids,
         business_profile,
     )
     .await
@@ -2795,11 +2795,10 @@ pub async fn perform_eligibility_analysis_with_fallback(
     let eligible_connectors =
         update_eligible_connectors_for_installments(state, transaction_data, eligible_connectors);
 
-    let fetched_ids;
     let active_mca_result = match fetched_mca_ids {
         Some(result) => get_active_mca_ids_from_result(result),
         None => {
-            fetched_ids =
+            let fetched_ids =
                 get_active_merchant_connector_accounts(state, key_store, business_profile.get_id())
                     .await
                     .map(|accounts| accounts.get_ids());
@@ -2839,7 +2838,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
         chosen,
         transaction_data,
         eligible_connectors.as_ref(),
-        active_mca_ids,
+        &active_mca_ids,
         business_profile,
     )
     .await?;
@@ -2849,7 +2848,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
         transaction_data,
         eligible_connectors.as_ref(),
         business_profile,
-        active_mca_ids,
+        &active_mca_ids,
     )
     .await;
 
