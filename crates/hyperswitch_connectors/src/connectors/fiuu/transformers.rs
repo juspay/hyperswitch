@@ -1010,7 +1010,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                         })
                     };
                     Ok(Self {
-                        status,
+                        status: enums::AttemptStatus::Pending,
                         response,
                         ..item.data
                     })
