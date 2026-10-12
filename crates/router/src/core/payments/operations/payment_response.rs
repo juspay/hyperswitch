@@ -510,17 +510,14 @@ where
             .and_then(|payments| payments.0.get(&mca_id))
             .and_then(|record| record.connector_mandate_status);
 
-        let is_active_mandate =
-            existing_connector_mandate_status == Some(common_enums::ConnectorMandateStatus::Active);
-
         let is_off_session = matches!(
             payment_intent.setup_future_usage,
             Some(common_enums::FutureUsage::OffSession)
         );
 
-        // Combine business logic conditions: not active mandate AND
-        // (off_session OR a pending mandate that the connector already issued).
-        if !is_active_mandate && (is_off_session || is_mandate_pending_activation) {
+        // Update connector mandate details whenever off_session or pending activation,
+        // irrespective of current active/inactive status — activates inactive mandates too.
+        if is_off_session || is_mandate_pending_activation {
             let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
                 payment_attempt
                     .connector_mandate_detail
