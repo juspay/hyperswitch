@@ -3487,7 +3487,13 @@ Cypress.Commands.add(
       const offerQuoteId = globalState.get("offerQuoteId");
       expect(offerQuoteId, "offerQuoteId").to.not.be.undefined;
 
-      confirmBody.offer_details.offer_quote_ids = [offerQuoteId];
+      // Replace rather than mutate: offer_details is shared by reference with
+      // the connector config, so mutating it would bake this payment's quote id
+      // into the config and later payments would resend a stale id.
+      confirmBody.offer_details = {
+        ...confirmBody.offer_details,
+        offer_quote_ids: [offerQuoteId],
+      };
     }
 
     if (reqData?.split_payments && supportsSplitPayments(globalState)) {
@@ -4706,7 +4712,13 @@ Cypress.Commands.add(
       const offerQuoteId = globalState.get("offerQuoteId");
       expect(offerQuoteId, "offerQuoteId").to.not.be.undefined;
 
-      saveCardConfirmBody.offer_details.offer_quote_ids = [offerQuoteId];
+      // Replace rather than mutate: offer_details is shared by reference with
+      // the connector config, so mutating it would bake this payment's quote id
+      // into the config and later payments would resend a stale id.
+      saveCardConfirmBody.offer_details = {
+        ...saveCardConfirmBody.offer_details,
+        offer_quote_ids: [offerQuoteId],
+      };
     }
 
     cy.request({
