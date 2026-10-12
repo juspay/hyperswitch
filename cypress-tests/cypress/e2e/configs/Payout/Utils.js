@@ -102,8 +102,11 @@ export const CONNECTOR_LISTS = {
   EXCLUDE: {
     // gotyme_sanlam only supports bank transfer payouts (payshap /
     // payshap_proxy) and has no card payout method, so it is skipped for
-    // the card payout tests in 00003-CardTest.cy.js
-    CARD_TEST: ["gotyme_sanlam", "trustly"],
+    // the card payout tests in 00003-CardTest.cy.js.
+    // trustly only supports open-banking bank transfer payouts and paypal
+    // only supports wallet payouts (see configs/Payout/Paypal.js), so they
+    // have no card payout method either and are skipped for the same reason.
+    CARD_TEST: ["gotyme_sanlam", "trustly", "paypal"],
   },
   INCLUDE: {
     ENTITY_TYPE: ["wise"],
