@@ -116,6 +116,18 @@ where
             }
         }
     }
+    // No `key=value` lines found: the body carries no parsed payment fields, so log it in full
+    // to see what Fiuu actually returned
+    if json.is_empty() {
+        router_env::logger::error!(
+            response_len = data.len(),
+            response_lines = response_str.lines().count(),
+            is_blank = response_str.trim().is_empty(),
+            response_body = %response_str,
+            "No key-value pairs found in Fiuu response for type {}",
+            type_name::<T>()
+        );
+    }
     if !miscellaneous.is_empty() {
         let misc_value = serde_json::to_value(miscellaneous).map_err(|e| {
             router_env::logger::error!("Error serializing miscellaneous data: {:?}", e);

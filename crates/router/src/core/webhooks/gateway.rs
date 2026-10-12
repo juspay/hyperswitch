@@ -928,10 +928,9 @@ fn event_reference_to_object_ref(
                 Some(ObjectReferenceId::PaymentId(
                     api_payments::PaymentIdType::PaymentAttemptId(merchant_txn_id.clone()),
                 ))
-            } else if let Some(preprocessing_id) = payment.connector_preprocessing_id.as_ref() {
-                Some(ObjectReferenceId::PaymentId(
-                    api_payments::PaymentIdType::PreprocessingId(preprocessing_id.clone()),
-                ))
+            } else if payment.connector_preprocessing_id.is_some() {
+                // Preprocessing lookups are no longer supported, matching the direct gateway.
+                None
             } else {
                 payment.connector_transaction_id.as_ref().map(|ctx_id| {
                     ObjectReferenceId::PaymentId(
@@ -954,9 +953,9 @@ fn event_reference_to_object_ref(
             }
         }
         Resource::Dispute(dispute) => dispute
-            .connector_dispute_id
+            .connector_transaction_id
             .as_ref()
-            .or(dispute.connector_transaction_id.as_ref())
+            .or(dispute.connector_dispute_id.as_ref())
             .map(|id| {
                 ObjectReferenceId::PaymentId(api_payments::PaymentIdType::ConnectorTransactionId(
                     id.clone(),
@@ -1070,17 +1069,12 @@ mod tests {
     }
 
     #[test]
-    fn payment_reference_uses_preprocessing_id_when_merchant_id_is_absent() {
+    fn payment_reference_has_no_object_ref_when_only_preprocessing_id_is_present() {
         let reference = payment_reference(None, None, Some("src_123"));
 
-        let object_ref = event_reference_to_object_ref(&reference).unwrap().unwrap();
+        let object_ref = event_reference_to_object_ref(&reference).unwrap();
 
-        match object_ref {
-            ObjectReferenceId::PaymentId(api_models::payments::PaymentIdType::PreprocessingId(
-                id,
-            )) => assert_eq!(id, "src_123"),
-            other => panic!("expected preprocessing id, got {other:?}"),
-        }
+        assert!(object_ref.is_none());
     }
 
     #[test]
@@ -1095,5 +1089,26 @@ mod tests {
             ) => assert_eq!(id, "order_123"),
             other => panic!("expected payment attempt id, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn payment_reference_uses_connector_transaction_id_when_merchant_id_is_absent() {
+        let reference = payment_reference(Some("pi_123"), None, None);
+
+        let object_ref = event_reference_to_object_ref(&reference).unwrap().unwrap();
+
+        match object_ref {
+            ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(id),
+            ) => assert_eq!(id, "pi_123"),
+            other => panic!("expected connector transaction id, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn payment_reference_has_no_object_ref_when_all_ids_are_absent() {
+        let reference = payment_reference(None, None, None);
+
+        assert!(event_reference_to_object_ref(&reference).unwrap().is_none());
     }
 }

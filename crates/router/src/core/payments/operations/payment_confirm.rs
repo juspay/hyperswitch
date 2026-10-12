@@ -872,6 +872,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 RecurringDetails::CardWithLimitedData(_)
                 | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+                | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
                     Some(mandates::MandateIds {
                         mandate_id: None,
@@ -2340,12 +2341,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to call authentication sync flow")?
                     } else {
-                        let resp = crate::core::unified_authentication_service::authentication_sync_core(
+                        let resp = Box::pin(crate::core::unified_authentication_service::authentication_sync_core(
                             state.clone(),
                             platform.clone(),
                             services::api::AuthFlow::Merchant,
                             sync_req,
-                        )
+                        ))
                         .await?
                         .get_json_body()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2423,6 +2424,17 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             business_profile,
         )
         .await
+    }
+
+    #[instrument(skip_all)]
+    async fn populate_payment_fingerprint<'a>(
+        &'a self,
+        state: &SessionState,
+        processor: &domain::Processor,
+        payment_data: &mut PaymentData<F>,
+    ) {
+        blocklist_utils::populate_payment_fingerprint(state, processor.get_account(), payment_data)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -2984,6 +2996,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .applied_offer_details
                             .clone(),
+                        applied_overrides: payment_data.payment_attempt.applied_overrides.clone(),
                         active_frm_id: m_active_frm_id,
                     },
                     storage_scheme,
