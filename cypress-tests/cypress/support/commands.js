@@ -36,6 +36,10 @@ import getConnectorDetails, {
   shouldIncludeConnector,
   stringifyWithBigInt,
 } from "../e2e/configs/Payment/Utils";
+import {
+  connectorDetails as commonConnectorDetails,
+  integrationTypeMismatchMessage,
+} from "../e2e/configs/Payment/Commons";
 import { OFFER_QUOTE_ID_PLACEHOLDER } from "../e2e/configs/Payment/Commons";
 import { injectGotymePayoutBankTransfer } from "../e2e/configs/Payout/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
@@ -1686,7 +1690,8 @@ Cypress.Commands.add(
     connectorName,
     connectorLabel,
     profilePrefix = "profile",
-    mcaPrefix = "merchantConnector"
+    mcaPrefix = "merchantConnector",
+    frmPaymentMethod = "card"
   ) => {
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get(`${profilePrefix}Id`);
@@ -1705,7 +1710,7 @@ Cypress.Commands.add(
           gateway: getOriginalConnectorName(globalState.get("connectorId")),
           payment_methods: [
             {
-              payment_method: "card",
+              payment_method: frmPaymentMethod,
               flow: "pre",
             },
           ],
@@ -2377,6 +2382,35 @@ Cypress.Commands.add("setFrmRoutingAlgorithm", (body, globalState) => {
   });
 });
 
+// Overwrites the FRM connector's account details with an invalid api_key, to
+// force the FRM connector itself to fail (4xx) - used to test
+// fail_open/fail_closed behavior when pre-FRM is unreachable.
+Cypress.Commands.add("breakFrmConnectorCredentials", (globalState) => {
+  const mcaUrl = `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/connectors/${globalState.get("frmConnectorId")}`;
+
+  return cy
+    .request({
+      method: "POST",
+      url: mcaUrl,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      body: {
+        connector_type: "payment_vas",
+        connector_account_details: {
+          auth_type: "HeaderKey",
+          api_key: "invalid_key_to_force_frm_failure",
+        },
+      },
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.status).to.equal(200);
+      return cy.wrap(response);
+    });
+});
+
 Cypress.Commands.add("deleteFrmConnector", (globalState) => {
   const frmMcaId = globalState.get("frmConnectorId");
 
@@ -2987,7 +3021,8 @@ Cypress.Commands.add(
     authentication_type,
     capture_method,
     globalState,
-    connectedMerchantId
+    connectedMerchantId,
+    integrationTypeHeader
   ) => {
     const {
       Configs: configs = {},
@@ -3034,6 +3069,10 @@ Cypress.Commands.add(
 
     if (connectedMerchantId) {
       headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
+    if (integrationTypeHeader !== undefined) {
+      headers["X-Integration-Type"] = integrationTypeHeader;
     }
 
     globalState.set("paymentAmount", body.amount);
@@ -7970,6 +8009,54 @@ Cypress.Commands.add(
   }
 );
 
+// Fetches the current payout and asserts against an `expected` shape:
+// - top-level or one-level-nested (e.g. `frm_message.frm_status`) keys are
+//   compared with `.to.equal`
+// - `expected.greaterThan` / `expected.notEqual` take dotted paths for the
+//   handful of non-deterministic/negative checks (e.g. `frm_message.frm_score`)
+//   that a plain equality can't express.
+// Centralizes the pre-FRM payout assertions used across
+// `Payout/00009-PayoutFrm.cy.js` so scenario-specific expectations live in
+// connector configs (e.g. `GotymeSanlam.js`) instead of the spec file.
+Cypress.Commands.add("verifyPayoutFrmDetails", (globalState, expected = {}) => {
+  const getByPath = (obj, path) =>
+    path.split(".").reduce((value, key) => value?.[key], obj);
+
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    Object.entries(expected).forEach(([key, value]) => {
+      if (key === "greaterThan") {
+        Object.entries(value).forEach(([path, threshold]) => {
+          expect(getByPath(response.body, path)).to.be.greaterThan(threshold);
+        });
+        return;
+      }
+
+      if (key === "notEqual") {
+        Object.entries(value).forEach(([path, notExpected]) => {
+          expect(getByPath(response.body, path)).to.not.equal(notExpected);
+        });
+        return;
+      }
+
+      if (value !== null && typeof value === "object") {
+        Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+          expect(response.body[key]?.[nestedKey]).to.equal(nestedValue);
+        });
+      } else {
+        expect(response.body[key]).to.equal(value);
+      }
+    });
+  });
+});
+
 Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
   const payout_id = globalState.get("payoutID");
   const resBody = data?.Response?.body || {};
@@ -8871,6 +8958,76 @@ Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
   cy.setConfigs(globalState, key, value, "DELETE");
   cy.setConfigs(globalState, key, value, "CREATE");
 });
+
+// Creates a payment intent with an optional X-Integration-Type header and
+// asserts the expected status/body for it, via
+// connectorDetails.card_pm.IntegrationTypeValidation (Payment/Commons.js) —
+// success shape, or the full IR_06 mismatch error (code + message) built
+// from the header/merchantConfig actually in effect for this call.
+Cypress.Commands.add(
+  "integrationTypeChecker",
+  (
+    createPaymentBody,
+    globalState,
+    { expectedStatus, header, merchantConfig } = {}
+  ) => {
+    cy.createPaymentIntentTest(
+      createPaymentBody,
+      commonConnectorDetails.card_pm.IntegrationTypeValidation(
+        expectedStatus,
+        header,
+        merchantConfig
+      ),
+      "no_three_ds",
+      "automatic",
+      globalState,
+      undefined,
+      header
+    );
+  }
+);
+
+Cypress.Commands.add(
+  "paymentUpdate",
+  (
+    paymentId,
+    requestBody,
+    globalState,
+    { headerValue, expectedStatus, merchantConfig } = {}
+  ) => {
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+    if (headerValue !== undefined) {
+      headers["X-Integration-Type"] = headerValue;
+    }
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/payments/${paymentId}`,
+        headers,
+        body: requestBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        expect(response.status).to.equal(expectedStatus);
+        if (expectedStatus === 200) {
+          expect(response.body.amount).to.equal(requestBody.amount);
+        } else {
+          expect(response.body).to.have.property("error");
+          expect(response.body.error.code).to.equal("IR_06");
+          expect(response.body.error.message).to.equal(
+            integrationTypeMismatchMessage(headerValue, merchantConfig)
+          );
+        }
+        return cy.wrap(response);
+      });
+  }
+);
 
 // UCS Configuration Commands
 Cypress.Commands.add("setupUCSConfigs", (globalState) => {
@@ -13218,8 +13375,13 @@ Cypress.Commands.add(
         );
       });
     });
-    // Polling interval is 10 s in CI and 15 s in all other envs
-    cy.wait(15000);
+    // Polling interval is 10 s in CI (ROUTER__SUPERPOSITION__POLLING_INTERVAL)
+    // and 15 s elsewhere. Wait for two full CI poll cycles plus a buffer —
+    // a single 15 s wait only has ~5 s of margin over one CI poll tick, which
+    // isn't enough if the write lands just after a tick or there's network
+    // jitter: the next test can then run against stale config (seen as
+    // flaky failures in 54-IntegrationTypeValidation.cy.js in CI).
+    cy.wait(21000);
   }
 );
 

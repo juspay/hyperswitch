@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.12.0
+
+### Features
+
+- **core:** Collect device manufacturer identifier for DecryptedWalletTokenDetailsForNetworkTransactionId MIT payments ([#14700](https://github.com/juspay/hyperswitch/pull/14700)) ([`bfa6305`](https://github.com/juspay/hyperswitch/commit/bfa63058fe984df3fe0ee001abeeca0c104ce834))
+- **revenue_recovery:** Add the HybridAdaptiveRetry algorithm ([#14697](https://github.com/juspay/hyperswitch/pull/14697)) ([`0b2df96`](https://github.com/juspay/hyperswitch/commit/0b2df96df5282a8b6d8654c8547f5065e446f38b))
+
+### Bug Fixes
+
+- **config:** Align UCS-only connectors across deployment TOMLs ([#14597](https://github.com/juspay/hyperswitch/pull/14597)) ([`2de21b2`](https://github.com/juspay/hyperswitch/commit/2de21b28c5f3ece354183f01b8c42a15e4f3d7a5))
+- **cypress:** Correct ilixium connector test fixtures and add offer_engine override mechanism ([#14707](https://github.com/juspay/hyperswitch/pull/14707)) ([`6b33bc7`](https://github.com/juspay/hyperswitch/commit/6b33bc7bc48bcd824aefc74638862b005e386e9d))
+- **cypress-tests:** Handle Airwallex redirection flakiness across Trustly, Skrill, iDEAL, and MIT flows ([#14638](https://github.com/juspay/hyperswitch/pull/14638)) ([`39c040c`](https://github.com/juspay/hyperswitch/commit/39c040c83015b29dc5a2d9e05d9f6710b4ef6684))
+- **email:** Route SMTP sends through the configured proxy ([#13984](https://github.com/juspay/hyperswitch/pull/13984)) ([`23a744f`](https://github.com/juspay/hyperswitch/commit/23a744fb98f51aee44fb1883ecc99fd5cf76f288))
+- **payments:** Update connector mandate id in payment method irrespective of active/inactive status ([#14684](https://github.com/juspay/hyperswitch/pull/14684)) ([`468ed8d`](https://github.com/juspay/hyperswitch/commit/468ed8d5e9e360df4ca71d2fb58e21de92e79472))
+
+### Refactors
+
+- **deja:** Move the pin to deja main and port the seams onto the miss arm ([#14311](https://github.com/juspay/hyperswitch/pull/14311)) ([`97b1f04`](https://github.com/juspay/hyperswitch/commit/97b1f042c529b8c97458960713e7df504afd94fe))
+- **payment-methods:** Reuse customer acceptance from payment confirm for PtV integration ([#14582](https://github.com/juspay/hyperswitch/pull/14582)) ([`997ed67`](https://github.com/juspay/hyperswitch/commit/997ed67df2493cfa5b16df639613bd6f7858470e))
+
+**Full Changelog:** [`2026.10.09.0...2026.10.12.0`](https://github.com/juspay/hyperswitch/compare/2026.10.09.0...2026.10.12.0)
+
+- - -
+
 ## 2026.10.09.0
 
 ### Features
