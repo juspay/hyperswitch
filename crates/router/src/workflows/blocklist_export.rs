@@ -31,13 +31,14 @@ struct ExportScope<'a> {
     upload_id: &'a str,
     merchant_id: &'a id_type::MerchantId,
     profile_id: &'a id_type::ProfileId,
-    transaction_type: common_enums::BlocklistTransactionType,
     snapshot_at: time::PrimitiveDateTime,
+    transaction_type: Option<common_enums::BlocklistTransactionType>,
 }
 
 async fn drain_scope(
     state: &SessionState,
     scope: &ExportScope<'_>,
+    transaction_type: common_enums::BlocklistTransactionType,
     legacy: bool,
     progress: &mut ExportProgress,
 ) -> RouterResult<()> {
@@ -51,7 +52,7 @@ async fn drain_scope(
                     .store
                     .list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id(
                         scope.merchant_id,
-                        scope.transaction_type,
+                        transaction_type,
                         scope.profile_id,
                         cursor.clone(),
                         scope.snapshot_at,
@@ -63,7 +64,7 @@ async fn drain_scope(
                         .store
                         .list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id(
                             scope.merchant_id,
-                            scope.transaction_type,
+                            transaction_type,
                             scope.profile_id,
                             cursor.clone(),
                             scope.snapshot_at,
@@ -165,8 +166,8 @@ async fn run_export_job(
         upload_id: &upload_id,
         merchant_id,
         profile_id: &tracking_data.profile_id,
-        transaction_type: tracking_data.transaction_type,
         snapshot_at: tracking_data.snapshot_at,
+        transaction_type: tracking_data.transaction_type,
     };
 
     let result = collect_and_complete(state, &scope).await;
@@ -200,8 +201,17 @@ async fn collect_and_complete(
         parts: Vec::new(),
     };
 
-    drain_scope(state, scope, false, &mut progress).await?;
-    drain_scope(state, scope, true, &mut progress).await?;
+    let transaction_types = match scope.transaction_type.as_ref() {
+        Some(transaction_type) => std::slice::from_ref(transaction_type),
+        None => &[
+            common_enums::BlocklistTransactionType::Payment,
+            common_enums::BlocklistTransactionType::Payout,
+        ],
+    };
+    for &transaction_type in transaction_types {
+        drain_scope(state, scope, transaction_type, false, &mut progress).await?;
+        drain_scope(state, scope, transaction_type, true, &mut progress).await?;
+    }
 
     // The final part is the only one allowed below the minimum size.
     if !progress.buffer.is_empty() {

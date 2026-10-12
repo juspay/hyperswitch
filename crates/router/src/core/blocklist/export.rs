@@ -74,7 +74,7 @@ pub async fn initiate_blocklist_export(
     state: &SessionState,
     platform: &domain::Platform,
     profile_id: Option<id_type::ProfileId>,
-    transaction_type: common_enums::BlocklistTransactionType,
+    transaction_type: Option<common_enums::BlocklistTransactionType>,
 ) -> RouterResult<api_blocklist::BlocklistExportResponse> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let profile_id = core_utils::get_profile_from_business_details(

@@ -287,29 +287,30 @@ pub async fn lookup_blocklist_entry(
     .get_id()
     .to_owned();
 
-    let result = state
+    let entries = state
         .store
-        .find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
+        .list_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_id(
             processor_merchant_id,
             query.transaction_type,
             &profile_id,
             query.data.get_string_repr(),
         )
-        .await;
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to look up blocklist entries")?;
 
-    let blocked = match result {
-        Ok(_) => true,
-        Err(error) if error.current_context().is_db_not_found() => false,
-        Err(error) => {
-            return Err(error
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to look up blocklist entry"));
-        }
-    };
+    let blocked_for: Vec<_> = entries
+        .into_iter()
+        .map(|entry| api_blocklist::BlocklistLookupMatch {
+            data_kind: entry.data_kind,
+            transaction_type: entry.transaction_type.unwrap_or_default(),
+        })
+        .collect();
 
     Ok(api_blocklist::BlocklistLookupResponse {
         data: query.data.get_string_repr().to_string(),
-        blocked,
+        blocked: !blocked_for.is_empty(),
+        blocked_for,
     })
 }
 

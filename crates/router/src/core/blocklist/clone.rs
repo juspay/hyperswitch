@@ -233,6 +233,6 @@ pub(crate) fn to_target_entry(
         processor_merchant_id: entry.processor_merchant_id,
         created_by: entry.created_by,
         profile_id: Some(target_profile_id.clone()),
-        transaction_type: entry.transaction_type,
+        transaction_type: entry.transaction_type.unwrap_or_default(),
     }
 }

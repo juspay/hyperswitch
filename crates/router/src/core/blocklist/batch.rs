@@ -74,7 +74,7 @@ impl BlocklistCsvRecord {
             data: entry.fingerprint_id.clone(),
             metadata: Some(metadata_to_csv_field(entry.metadata.as_ref()))
                 .filter(|metadata| !metadata.is_empty()),
-            transaction_type: Some(entry.transaction_type),
+            transaction_type: Some(entry.transaction_type.unwrap_or_default()),
         }
     }
 }
@@ -351,6 +351,7 @@ pub async fn initiate_batch_blocklist_upload(
     profile_id: Option<id_type::ProfileId>,
     csv_bytes: bytes::Bytes,
     file_name: Option<String>,
+    transaction_type: Option<common_enums::BlocklistTransactionType>,
 ) -> RouterResult<api_blocklist::BatchBlocklistUploadResponse> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let profile_id = core_utils::get_profile_from_business_details(
@@ -402,9 +403,13 @@ pub async fn initiate_batch_blocklist_upload(
             let fs = state.file_storage_client.clone();
             async move {
                 let key = key?;
-                let chunk_bytes = records_to_csv_bytes(
-                    chunk_rows.iter().map(BlocklistCsvRecord::from_parsed_row),
-                )?;
+                let chunk_bytes = records_to_csv_bytes(chunk_rows.iter().map(|row| {
+                    let mut record = BlocklistCsvRecord::from_parsed_row(row);
+                    if let Some(transaction_type) = transaction_type {
+                        record.transaction_type = Some(transaction_type);
+                    }
+                    record
+                }))?;
                 fs.upload_file(&key, chunk_bytes)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)

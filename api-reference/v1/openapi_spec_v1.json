@@ -7552,20 +7552,6 @@
         "operationId": "Unblock a Fingerprint",
         "parameters": [
           {
-            "name": "transaction_type",
-            "in": "query",
-            "description": "Blocklist flow: payment (default) or payout.",
-            "required": false,
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/BlocklistTransactionType"
-                }
-              ],
-              "nullable": true
-            }
-          },
-          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "The business profile to unblock this entry from. Only entries belonging to that profile, or entries with no profile, are removed - an entry blocked under a different profile is not affected and the request returns 404. Resolution follows the same rules as blocking.",
@@ -7591,7 +7577,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BlocklistRequest"
+                "$ref": "#/components/schemas/BlocklistEntryRequest"
               }
             }
           },
@@ -7709,20 +7695,6 @@
         "operationId": "Block a Fingerprint",
         "parameters": [
           {
-            "name": "transaction_type",
-            "in": "query",
-            "description": "Blocklist flow: payment (default) or payout.",
-            "required": false,
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/BlocklistTransactionType"
-                }
-              ],
-              "nullable": true
-            }
-          },
-          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "The business profile to block this entry under. Ignored when authenticating with a JWT, which carries its own profile. If omitted, the merchant's default profile is used; merchants with more than one profile have no default and will receive an error asking for this header.",
@@ -7748,7 +7720,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BlocklistRequest"
+                "$ref": "#/components/schemas/BlocklistEntryRequest"
               }
             }
           },
@@ -7928,7 +7900,7 @@
           {
             "name": "transaction_type",
             "in": "query",
-            "description": "Blocklist flow: payment (default) or payout.",
+            "description": "Looks up only payment or payout when selected. When omitted, both are included. Legacy NULL transaction namespaces belong to payment.",
             "required": false,
             "schema": {
               "allOf": [
@@ -7963,7 +7935,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Blocklist lookup result",
+            "description": "All matches within the resolved profile, including merchant-wide entries. blocked_for contains transaction_type and data_kind, without profile IDs.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7994,6 +7966,20 @@
         "operationId": "Upload a batch blocklist CSV",
         "parameters": [
           {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Overrides every CSV row with payment or payout when selected. When omitted, row selections are used; missing or empty row values default to payment.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BlocklistTransactionType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "The business profile every entry in this upload is blocked under. Resolution follows the same rules as blocking a single entry.",
@@ -8016,7 +8002,7 @@
           }
         ],
         "requestBody": {
-          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The part's `filename` is recorded on the job and returned as `file_name`. The CSV header is `type,data,metadata,transaction_type`; older headers without `transaction_type` are accepted. `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). `transaction_type`: optional, `payment` (default) or `payout`; selection may differ per row. Maximum 100,000 data rows.",
+          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The part's `filename` is recorded on the job and returned as `file_name`. The CSV header is `type,data,metadata,transaction_type`; older headers without `transaction_type` are accepted. `type`: one of `generic_card_bin` (6 to 10 digits), `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). `transaction_type`: optional, `payment` (default) or `payout`; selection may differ per row. Invalid CSV transaction-type values are rejected even when a query override is selected. Maximum 100,000 data rows.",
           "content": {
             "multipart/form-data": {
               "schema": {
@@ -8201,7 +8187,7 @@
           {
             "name": "transaction_type",
             "in": "query",
-            "description": "Blocklist flow to export: payment (default) or payout.",
+            "description": "Exports only `payment` or `payout` entries when selected. Both are exported when omitted.",
             "required": false,
             "schema": {
               "allOf": [
@@ -8246,7 +8232,7 @@
             }
           },
           "400": {
-            "description": "No profile could be resolved"
+            "description": "Invalid transaction type, or no profile could be resolved"
           }
         },
         "security": [
@@ -17010,6 +16996,19 @@
           "profile_clone"
         ]
       },
+      "BatchBlocklistUploadQuery": {
+        "type": "object",
+        "properties": {
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "BatchBlocklistUploadResponse": {
         "type": "object",
         "description": "Response returned on a successful `POST /blocklist/batch`.",
@@ -17207,6 +17206,36 @@
           "generic_card_bin"
         ]
       },
+      "BlocklistEntryRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BlocklistRequest"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "transaction_type": {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            }
+          }
+        ],
+        "description": "A tagged single-entry request with an optional transaction namespace."
+      },
+      "BlocklistExportQuery": {
+        "type": "object",
+        "description": "Query parameters for `POST /blocklist/export`.",
+        "properties": {
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "BlocklistExportResponse": {
         "type": "object",
         "description": "Response for `POST /blocklist/export`.",
@@ -17229,6 +17258,22 @@
           }
         }
       },
+      "BlocklistLookupMatch": {
+        "type": "object",
+        "description": "A single blocklist entry that matched the lookup value.",
+        "required": [
+          "data_kind",
+          "transaction_type"
+        ],
+        "properties": {
+          "data_kind": {
+            "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/BlocklistTransactionType"
+          }
+        }
+      },
       "BlocklistLookupQuery": {
         "type": "object",
         "required": [
@@ -17241,7 +17286,12 @@
             "maxLength": 20
           },
           "transaction_type": {
-            "$ref": "#/components/schemas/BlocklistTransactionType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17249,7 +17299,8 @@
         "type": "object",
         "required": [
           "data",
-          "blocked"
+          "blocked",
+          "blocked_for"
         ],
         "properties": {
           "data": {
@@ -17257,7 +17308,14 @@
           },
           "blocked": {
             "type": "boolean",
-            "description": "Whether an entry matching `data` exists in the blocklist, under any data_kind"
+            "description": "Whether any entry matches within the resolved profile and selected transaction namespaces."
+          },
+          "blocked_for": {
+            "type": "array",
+            "description": "All blocklist entries that matched `data`, empty when `blocked` is false.",
+            "items": {
+              "$ref": "#/components/schemas/BlocklistLookupMatch"
+            }
           }
         }
       },

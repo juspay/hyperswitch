@@ -2,8 +2,32 @@
 openapi: post /blocklist/export
 ---
 
-Set the `transaction_type` query parameter to `payment` or `payout`; omission
-exports the payment blocklist. The selected flow is retained if the job retries.
+## Payment and payout exports
+
+This endpoint accepts a bodyless POST request. Omit the optional
+`transaction_type` query parameter to export both payment and payout blocklist
+entries for the resolved business profile. Set it to `payment` or `payout` to
+export only entries from the selected blocklist. Other values are rejected.
+The selected flow is retained if the job retries.
+
+Export both blocklists:
+
+```http
+POST /blocklist/export
+api-key: <your-api-key>
+X-Profile-Id: <your-profile-id>
+```
+
+Export only payout entries:
+
+```http
+POST /blocklist/export?transaction_type=payout
+api-key: <your-api-key>
+X-Profile-Id: <your-profile-id>
+```
+
+Use `POST /blocklist/export?transaction_type=payment` for a payment-only export.
+No JSON request body is required for any of these requests.
 
 The downloaded CSV includes `transaction_type` on every row. Uploading that
 file through `/blocklist/batch` restores entries into the original blocklist.

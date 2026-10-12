@@ -1,3 +1,32 @@
 ---
 openapi: get /blocklist/lookup
 ---
+
+## Matching blocklist entries
+
+Omit `transaction_type` to look up both payment and payout entries. Set it to
+`payment` or `payout` to restrict the lookup to that namespace. Empty or
+unsupported explicit selectors are rejected.
+
+The lookup remains scoped to the resolved business profile and merchant-wide
+entries with no profile. Entries belonging to other profiles or merchants are
+not returned. `X-Profile-Id` and default-profile resolution work as before.
+
+`blocked` is true when `blocked_for` contains at least one matching entry.
+An unblocked value returns `blocked: false` and `blocked_for: []`. Each match
+contains only `transaction_type` and `data_kind`; profile IDs are not returned.
+Legacy NULL transaction namespaces are reported as payment.
+
+```json
+{
+  "data": "blmg_shared",
+  "blocked": true,
+  "blocked_for": [
+    { "transaction_type": "payment", "data_kind": "payment_method" },
+    { "transaction_type": "payout", "data_kind": "payment_method" }
+  ]
+}
+```
+
+Fingerprint entries use the existing `payment_method` data-kind value in JSON.
+The response contains every matching row; match ordering is not significant.

@@ -28,7 +28,7 @@ pub struct Blocklist {
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
-    pub transaction_type: common_enums::BlocklistTransactionType,
+    pub transaction_type: Option<common_enums::BlocklistTransactionType>,
 }
 
 // There is no physical primary key: profile and flow uniqueness is enforced by indexes.

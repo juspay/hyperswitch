@@ -24,6 +24,16 @@ pub trait BlocklistInterface {
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError>;
 
+    /// Returns matching fingerprint rows for the resolved profile and merchant-wide entries.
+    /// An omitted transaction type includes every namespace; legacy NULL rows match payment.
+    async fn list_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: Option<common_enums::BlocklistTransactionType>,
+        profile_id: &common_utils::id_type::ProfileId,
+        fingerprint_id: &str,
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError>;
+
     async fn find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -165,6 +175,47 @@ impl BlocklistInterface for Store {
     }
 
     #[instrument(skip_all)]
+    async fn list_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: Option<common_enums::BlocklistTransactionType>,
+        profile_id: &common_utils::id_type::ProfileId,
+        fingerprint_id: &str,
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        match transaction_type {
+            Some(common_enums::BlocklistTransactionType::Payment) => {
+                storage::Blocklist::list_payment_by_processor_merchant_id_profile_id_fingerprint_id(
+                    &conn,
+                    processor_merchant_id,
+                    profile_id,
+                    fingerprint_id,
+                )
+                .await
+            }
+            Some(common_enums::BlocklistTransactionType::Payout) => {
+                storage::Blocklist::list_payout_by_processor_merchant_id_profile_id_fingerprint_id(
+                    &conn,
+                    processor_merchant_id,
+                    profile_id,
+                    fingerprint_id,
+                )
+                .await
+            }
+            None => {
+                storage::Blocklist::list_all_by_processor_merchant_id_profile_id_fingerprint_id(
+                    &conn,
+                    processor_merchant_id,
+                    profile_id,
+                    fingerprint_id,
+                )
+                .await
+            }
+        }
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
     async fn find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -174,13 +225,24 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
-        let result = storage::Blocklist::find_by_processor_merchant_id_fingerprint_id(
-            &conn,
-            processor_merchant_id,
-            transaction_type,
-            fingerprint_id,
-        )
-        .await;
+        let result = match transaction_type {
+            common_enums::BlocklistTransactionType::Payment => {
+                storage::Blocklist::find_payment_by_processor_merchant_id_fingerprint_id(
+                    &conn,
+                    processor_merchant_id,
+                    fingerprint_id,
+                )
+                .await
+            }
+            common_enums::BlocklistTransactionType::Payout => {
+                storage::Blocklist::find_payout_by_processor_merchant_id_fingerprint_id(
+                    &conn,
+                    processor_merchant_id,
+                    fingerprint_id,
+                )
+                .await
+            }
+        };
 
         match result {
             Ok(blocklist_entry) => Ok(blocklist_entry),
@@ -189,13 +251,24 @@ impl BlocklistInterface for Store {
                     error.current_context(),
                     diesel_models::errors::DatabaseError::NotFound
                 ) {
-                    storage::Blocklist::find_by_merchant_id_fingerprint_id(
-                        &conn,
-                        processor_merchant_id,
-                        transaction_type,
-                        fingerprint_id,
-                    )
-                    .await
+                    match transaction_type {
+                        common_enums::BlocklistTransactionType::Payment => {
+                            storage::Blocklist::find_payment_by_merchant_id_fingerprint_id(
+                                &conn,
+                                processor_merchant_id,
+                                fingerprint_id,
+                            )
+                            .await
+                        }
+                        common_enums::BlocklistTransactionType::Payout => {
+                            storage::Blocklist::find_payout_by_merchant_id_fingerprint_id(
+                                &conn,
+                                processor_merchant_id,
+                                fingerprint_id,
+                            )
+                            .await
+                        }
+                    }
                     .map_err(|error| report!(errors::StorageError::from(error)))
                 } else {
                     Err(report!(errors::StorageError::from(error)))
@@ -213,14 +286,26 @@ impl BlocklistInterface for Store {
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let result = storage::Blocklist::find_by_processor_merchant_id_profile_id_fingerprint_id(
-            &conn,
-            processor_merchant_id,
-            transaction_type,
-            profile_id,
-            fingerprint_id,
-        )
-        .await;
+        let result = match transaction_type {
+            common_enums::BlocklistTransactionType::Payment => {
+                storage::Blocklist::find_payment_by_processor_merchant_id_profile_id_fingerprint_id(
+                    &conn,
+                    processor_merchant_id,
+                    profile_id,
+                    fingerprint_id,
+                )
+                .await
+            }
+            common_enums::BlocklistTransactionType::Payout => {
+                storage::Blocklist::find_payout_by_processor_merchant_id_profile_id_fingerprint_id(
+                    &conn,
+                    processor_merchant_id,
+                    profile_id,
+                    fingerprint_id,
+                )
+                .await
+            }
+        };
 
         match result {
             Ok(blocklist_entry) => Ok(blocklist_entry),
@@ -229,14 +314,24 @@ impl BlocklistInterface for Store {
                     error.current_context(),
                     diesel_models::errors::DatabaseError::NotFound
                 ) {
-                    storage::Blocklist::find_by_merchant_id_profile_id_fingerprint_id(
-                        &conn,
-                        processor_merchant_id,
-                        transaction_type,
-                        profile_id,
-                        fingerprint_id,
-                    )
-                    .await
+                    match transaction_type {
+                                common_enums::BlocklistTransactionType::Payment => {
+                                    storage::Blocklist::find_payment_by_merchant_id_profile_id_fingerprint_id(
+                                        &conn,
+                                        processor_merchant_id,
+                                        profile_id,
+                                        fingerprint_id,
+                                    ).await
+                                }
+                                common_enums::BlocklistTransactionType::Payout => {
+                                    storage::Blocklist::find_payout_by_merchant_id_profile_id_fingerprint_id(
+                                        &conn,
+                                        processor_merchant_id,
+                                        profile_id,
+                                        fingerprint_id,
+                                    ).await
+                                }
+                            }
                     .map_err(|error| report!(errors::StorageError::from(error)))
                 } else {
                     Err(report!(errors::StorageError::from(error)))
@@ -254,14 +349,24 @@ impl BlocklistInterface for Store {
         fingerprint_ids: Vec<String>,
     ) -> CustomResult<Option<storage::Blocklist>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Blocklist::find_by_processor_merchant_id_profile_id_fingerprint_ids(
-            &conn,
-            processor_merchant_id,
-            transaction_type,
-            profile_id,
-            fingerprint_ids,
-        )
-        .await
+        match transaction_type {
+                    common_enums::BlocklistTransactionType::Payment => {
+                        storage::Blocklist::find_payment_by_processor_merchant_id_profile_id_fingerprint_ids(
+                            &conn,
+                            processor_merchant_id,
+                            profile_id,
+                            fingerprint_ids,
+                        ).await
+                    }
+                    common_enums::BlocklistTransactionType::Payout => {
+                        storage::Blocklist::find_payout_by_processor_merchant_id_profile_id_fingerprint_ids(
+                            &conn,
+                            processor_merchant_id,
+                            profile_id,
+                            fingerprint_ids,
+                        ).await
+                    }
+                }
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
@@ -274,14 +379,26 @@ impl BlocklistInterface for Store {
         card_bins: Vec<String>,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Blocklist::find_by_processor_merchant_id_profile_id_card_bins(
-            &conn,
-            processor_merchant_id,
-            transaction_type,
-            profile_id,
-            card_bins,
-        )
-        .await
+        match transaction_type {
+            common_enums::BlocklistTransactionType::Payment => {
+                storage::Blocklist::find_payment_by_processor_merchant_id_profile_id_card_bins(
+                    &conn,
+                    processor_merchant_id,
+                    profile_id,
+                    card_bins,
+                )
+                .await
+            }
+            common_enums::BlocklistTransactionType::Payout => {
+                storage::Blocklist::find_payout_by_processor_merchant_id_profile_id_card_bins(
+                    &conn,
+                    processor_merchant_id,
+                    profile_id,
+                    card_bins,
+                )
+                .await
+            }
+        }
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
@@ -292,12 +409,22 @@ impl BlocklistInterface for Store {
         transaction_type: common_enums::BlocklistTransactionType,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Blocklist::list_by_processor_merchant_id(
-            &conn,
-            processor_merchant_id,
-            transaction_type,
-        )
-        .await
+        match transaction_type {
+            common_enums::BlocklistTransactionType::Payment => {
+                storage::Blocklist::list_payment_by_processor_merchant_id(
+                    &conn,
+                    processor_merchant_id,
+                )
+                .await
+            }
+            common_enums::BlocklistTransactionType::Payout => {
+                storage::Blocklist::list_payout_by_processor_merchant_id(
+                    &conn,
+                    processor_merchant_id,
+                )
+                .await
+            }
+        }
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
@@ -311,15 +438,28 @@ impl BlocklistInterface for Store {
         offset: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Blocklist::list_by_processor_merchant_id_data_kind(
-            &conn,
-            processor_merchant_id,
-            transaction_type,
-            data_kind,
-            limit,
-            offset,
-        )
-        .await
+        match transaction_type {
+            common_enums::BlocklistTransactionType::Payment => {
+                storage::Blocklist::list_payment_by_processor_merchant_id_data_kind(
+                    &conn,
+                    processor_merchant_id,
+                    data_kind,
+                    limit,
+                    offset,
+                )
+                .await
+            }
+            common_enums::BlocklistTransactionType::Payout => {
+                storage::Blocklist::list_payout_by_processor_merchant_id_data_kind(
+                    &conn,
+                    processor_merchant_id,
+                    data_kind,
+                    limit,
+                    offset,
+                )
+                .await
+            }
+        }
         .change_context(errors::StorageError::DatabaseError(report!(
             diesel_models::errors::DatabaseError::Others
         )))
@@ -333,13 +473,24 @@ impl BlocklistInterface for Store {
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Blocklist::get_count_by_processor_merchant_id_data_kind(
-            &conn,
-            processor_merchant_id,
-            transaction_type,
-            data_kind,
-        )
-        .await
+        match transaction_type {
+            common_enums::BlocklistTransactionType::Payment => {
+                storage::Blocklist::get_payment_count_by_processor_merchant_id_data_kind(
+                    &conn,
+                    processor_merchant_id,
+                    data_kind,
+                )
+                .await
+            }
+            common_enums::BlocklistTransactionType::Payout => {
+                storage::Blocklist::get_payout_count_by_processor_merchant_id_data_kind(
+                    &conn,
+                    processor_merchant_id,
+                    data_kind,
+                )
+                .await
+            }
+        }
         .change_context(errors::StorageError::DatabaseError(report!(
             diesel_models::errors::DatabaseError::Others
         )))
@@ -355,13 +506,24 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we delete by merchant_id (which has the same value)
-        let result = storage::Blocklist::delete_by_processor_merchant_id_fingerprint_id(
-            &conn,
-            processor_merchant_id,
-            transaction_type,
-            fingerprint_id,
-        )
-        .await;
+        let result = match transaction_type {
+            common_enums::BlocklistTransactionType::Payment => {
+                storage::Blocklist::delete_payment_by_processor_merchant_id_fingerprint_id(
+                    &conn,
+                    processor_merchant_id,
+                    fingerprint_id,
+                )
+                .await
+            }
+            common_enums::BlocklistTransactionType::Payout => {
+                storage::Blocklist::delete_payout_by_processor_merchant_id_fingerprint_id(
+                    &conn,
+                    processor_merchant_id,
+                    fingerprint_id,
+                )
+                .await
+            }
+        };
 
         match result {
             Ok(blocklist) => Ok(blocklist),
@@ -370,13 +532,24 @@ impl BlocklistInterface for Store {
                     error.current_context(),
                     diesel_models::errors::DatabaseError::NotFound
                 ) {
-                    storage::Blocklist::delete_by_merchant_id_fingerprint_id(
-                        &conn,
-                        processor_merchant_id,
-                        transaction_type,
-                        fingerprint_id,
-                    )
-                    .await
+                    match transaction_type {
+                        common_enums::BlocklistTransactionType::Payment => {
+                            storage::Blocklist::delete_payment_by_merchant_id_fingerprint_id(
+                                &conn,
+                                processor_merchant_id,
+                                fingerprint_id,
+                            )
+                            .await
+                        }
+                        common_enums::BlocklistTransactionType::Payout => {
+                            storage::Blocklist::delete_payout_by_merchant_id_fingerprint_id(
+                                &conn,
+                                processor_merchant_id,
+                                fingerprint_id,
+                            )
+                            .await
+                        }
+                    }
                     .map_err(|error| report!(errors::StorageError::from(error)))
                 } else {
                     Err(report!(errors::StorageError::from(error)))
@@ -394,14 +567,24 @@ impl BlocklistInterface for Store {
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        let result = storage::Blocklist::delete_by_processor_merchant_id_profile_id_fingerprint_id(
-            &conn,
-            processor_merchant_id,
-            transaction_type,
-            profile_id,
-            fingerprint_id,
-        )
-        .await;
+        let result = match transaction_type {
+                    common_enums::BlocklistTransactionType::Payment => {
+                        storage::Blocklist::delete_payment_by_processor_merchant_id_profile_id_fingerprint_id(
+                            &conn,
+                            processor_merchant_id,
+                            profile_id,
+                            fingerprint_id,
+                        ).await
+                    }
+                    common_enums::BlocklistTransactionType::Payout => {
+                        storage::Blocklist::delete_payout_by_processor_merchant_id_profile_id_fingerprint_id(
+                            &conn,
+                            processor_merchant_id,
+                            profile_id,
+                            fingerprint_id,
+                        ).await
+                    }
+                };
 
         match result {
             Ok(blocklist) => Ok(blocklist),
@@ -410,14 +593,24 @@ impl BlocklistInterface for Store {
                     error.current_context(),
                     diesel_models::errors::DatabaseError::NotFound
                 ) {
-                    storage::Blocklist::delete_by_merchant_id_profile_id_fingerprint_id(
-                        &conn,
-                        processor_merchant_id,
-                        transaction_type,
-                        profile_id,
-                        fingerprint_id,
-                    )
-                    .await
+                    match transaction_type {
+                                common_enums::BlocklistTransactionType::Payment => {
+                                    storage::Blocklist::delete_payment_by_merchant_id_profile_id_fingerprint_id(
+                                        &conn,
+                                        processor_merchant_id,
+                                        profile_id,
+                                        fingerprint_id,
+                                    ).await
+                                }
+                                common_enums::BlocklistTransactionType::Payout => {
+                                    storage::Blocklist::delete_payout_by_merchant_id_profile_id_fingerprint_id(
+                                        &conn,
+                                        processor_merchant_id,
+                                        profile_id,
+                                        fingerprint_id,
+                                    ).await
+                                }
+                            }
                     .map_err(|error| report!(errors::StorageError::from(error)))
                 } else {
                     Err(report!(errors::StorageError::from(error)))
@@ -438,29 +631,52 @@ impl BlocklistInterface for Store {
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         match profile_id {
-            Some(profile_id) => {
-                storage::Blocklist::list_by_processor_merchant_id_profile_id_data_kind(
-                    &conn,
-                    processor_merchant_id,
-                    transaction_type,
-                    profile_id,
-                    data_kind,
-                    limit,
-                    offset,
-                )
-                .await
-            }
-            None => {
-                storage::Blocklist::list_by_processor_merchant_id_data_kind(
-                    &conn,
-                    processor_merchant_id,
-                    transaction_type,
-                    data_kind,
-                    limit,
-                    offset,
-                )
-                .await
-            }
+            Some(profile_id) => match transaction_type {
+                common_enums::BlocklistTransactionType::Payment => {
+                    storage::Blocklist::list_payment_by_processor_merchant_id_profile_id_data_kind(
+                        &conn,
+                        processor_merchant_id,
+                        profile_id,
+                        data_kind,
+                        limit,
+                        offset,
+                    )
+                    .await
+                }
+                common_enums::BlocklistTransactionType::Payout => {
+                    storage::Blocklist::list_payout_by_processor_merchant_id_profile_id_data_kind(
+                        &conn,
+                        processor_merchant_id,
+                        profile_id,
+                        data_kind,
+                        limit,
+                        offset,
+                    )
+                    .await
+                }
+            },
+            None => match transaction_type {
+                common_enums::BlocklistTransactionType::Payment => {
+                    storage::Blocklist::list_payment_by_processor_merchant_id_data_kind(
+                        &conn,
+                        processor_merchant_id,
+                        data_kind,
+                        limit,
+                        offset,
+                    )
+                    .await
+                }
+                common_enums::BlocklistTransactionType::Payout => {
+                    storage::Blocklist::list_payout_by_processor_merchant_id_data_kind(
+                        &conn,
+                        processor_merchant_id,
+                        data_kind,
+                        limit,
+                        offset,
+                    )
+                    .await
+                }
+            },
         }
         .change_context(errors::StorageError::DatabaseError(report!(
             diesel_models::errors::DatabaseError::Others
@@ -478,16 +694,28 @@ impl BlocklistInterface for Store {
         limit: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         let conn = pg_connection_read_replica(self).await?;
-        storage::Blocklist::list_after_fingerprint_by_processor_merchant_id_profile_id(
-            &conn,
-            processor_merchant_id,
-            transaction_type,
-            profile_id,
-            after_fingerprint_id,
-            snapshot_at,
-            limit,
-        )
-        .await
+        match transaction_type {
+                    common_enums::BlocklistTransactionType::Payment => {
+                        storage::Blocklist::list_payment_after_fingerprint_by_processor_merchant_id_profile_id(
+                            &conn,
+                            processor_merchant_id,
+                            profile_id,
+                            after_fingerprint_id,
+                            snapshot_at,
+                            limit,
+                        ).await
+                    }
+                    common_enums::BlocklistTransactionType::Payout => {
+                        storage::Blocklist::list_payout_after_fingerprint_by_processor_merchant_id_profile_id(
+                            &conn,
+                            processor_merchant_id,
+                            profile_id,
+                            after_fingerprint_id,
+                            snapshot_at,
+                            limit,
+                        ).await
+                    }
+                }
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
@@ -502,16 +730,30 @@ impl BlocklistInterface for Store {
         limit: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         let conn = pg_connection_read_replica(self).await?;
-        storage::Blocklist::list_after_fingerprint_by_legacy_merchant_id_profile_id(
-            &conn,
-            merchant_id,
-            transaction_type,
-            profile_id,
-            after_fingerprint_id,
-            snapshot_at,
-            limit,
-        )
-        .await
+        match transaction_type {
+            common_enums::BlocklistTransactionType::Payment => {
+                storage::Blocklist::list_payment_after_fingerprint_by_legacy_merchant_id_profile_id(
+                    &conn,
+                    merchant_id,
+                    profile_id,
+                    after_fingerprint_id,
+                    snapshot_at,
+                    limit,
+                )
+                .await
+            }
+            common_enums::BlocklistTransactionType::Payout => {
+                storage::Blocklist::list_payout_after_fingerprint_by_legacy_merchant_id_profile_id(
+                    &conn,
+                    merchant_id,
+                    profile_id,
+                    after_fingerprint_id,
+                    snapshot_at,
+                    limit,
+                )
+                .await
+            }
+        }
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
@@ -526,23 +768,42 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         match profile_id {
             Some(profile_id) => {
-                storage::Blocklist::get_count_by_processor_merchant_id_profile_id_data_kind(
-                    &conn,
-                    processor_merchant_id,
-                    transaction_type,
-                    profile_id,
-                    data_kind,
-                )
-                .await
+                match transaction_type {
+                            common_enums::BlocklistTransactionType::Payment => {
+                                storage::Blocklist::get_payment_count_by_processor_merchant_id_profile_id_data_kind(
+                                    &conn,
+                                    processor_merchant_id,
+                                    profile_id,
+                                    data_kind,
+                                ).await
+                            }
+                            common_enums::BlocklistTransactionType::Payout => {
+                                storage::Blocklist::get_payout_count_by_processor_merchant_id_profile_id_data_kind(
+                                    &conn,
+                                    processor_merchant_id,
+                                    profile_id,
+                                    data_kind,
+                                ).await
+                            }
+                        }
             }
             None => {
-                storage::Blocklist::get_count_by_processor_merchant_id_data_kind(
-                    &conn,
-                    processor_merchant_id,
-                    transaction_type,
-                    data_kind,
-                )
-                .await
+                match transaction_type {
+                            common_enums::BlocklistTransactionType::Payment => {
+                                storage::Blocklist::get_payment_count_by_processor_merchant_id_data_kind(
+                                    &conn,
+                                    processor_merchant_id,
+                                    data_kind,
+                                ).await
+                            }
+                            common_enums::BlocklistTransactionType::Payout => {
+                                storage::Blocklist::get_payout_count_by_processor_merchant_id_data_kind(
+                                    &conn,
+                                    processor_merchant_id,
+                                    data_kind,
+                                ).await
+                            }
+                        }
             }
         }
         .change_context(errors::StorageError::DatabaseError(report!(
@@ -559,14 +820,14 @@ impl BlocklistInterface for Store {
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<Vec<(i32, i64)>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Blocklist::count_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
-            &conn,
-            processor_merchant_id,
-            transaction_type,
-            profile_id,
-            data_kind,
-        )
-        .await
+        match transaction_type {
+                    common_enums::BlocklistTransactionType::Payment => {
+                        storage::Blocklist::count_payment_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(&conn, processor_merchant_id, profile_id, data_kind).await
+                    }
+                    common_enums::BlocklistTransactionType::Payout => {
+                        storage::Blocklist::count_payout_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(&conn, processor_merchant_id, profile_id, data_kind).await
+                    }
+                }
         .change_context(errors::StorageError::DatabaseError(report!(
             diesel_models::errors::DatabaseError::Others
         )))
@@ -592,6 +853,34 @@ impl BlocklistInterface for MockDb {
         _pm_blocklist: storage::BlocklistNew,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn list_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: Option<common_enums::BlocklistTransactionType>,
+        profile_id: &common_utils::id_type::ProfileId,
+        fingerprint_id: &str,
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
+        Ok(self
+            .blocklists
+            .lock()
+            .await
+            .iter()
+            .filter(|entry| {
+                (entry.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                    || (entry.processor_merchant_id.is_none()
+                        && &entry.merchant_id == processor_merchant_id))
+                    && entry.fingerprint_id == fingerprint_id
+                    && (entry.profile_id.as_ref() == Some(profile_id) || entry.profile_id.is_none())
+                    && transaction_type
+                        .map(|transaction_type| {
+                            entry.transaction_type.unwrap_or_default() == transaction_type
+                        })
+                        .unwrap_or(true)
+            })
+            .cloned()
+            .collect())
     }
 
     async fn find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
@@ -708,7 +997,7 @@ impl BlocklistInterface for MockDb {
             .iter()
             .filter(|entry| {
                 entry.processor_merchant_id.as_ref() == Some(processor_merchant_id)
-                    && entry.transaction_type == transaction_type
+                    && entry.transaction_type.unwrap_or_default() == transaction_type
                     && entry.fingerprint_id > after_fingerprint_id
                     && entry.created_at <= snapshot_at
                     && (entry.profile_id.as_ref() == Some(profile_id) || entry.profile_id.is_none())
@@ -737,7 +1026,7 @@ impl BlocklistInterface for MockDb {
             .filter(|entry| {
                 entry.merchant_id == *merchant_id
                     && entry.processor_merchant_id.is_none()
-                    && entry.transaction_type == transaction_type
+                    && entry.transaction_type.unwrap_or_default() == transaction_type
                     && entry.fingerprint_id > after_fingerprint_id
                     && entry.created_at <= snapshot_at
                     && (entry.profile_id.as_ref() == Some(profile_id) || entry.profile_id.is_none())
@@ -782,7 +1071,7 @@ impl BlocklistInterface for MockDb {
                         && b.processor_merchant_id == entry.processor_merchant_id))
                     && b.profile_id == entry.profile_id
                     && b.fingerprint_id == entry.fingerprint_id
-                    && b.transaction_type == entry.transaction_type
+                    && b.transaction_type == Some(entry.transaction_type)
             });
             if !already_exists {
                 blocklists.push(storage::Blocklist {
@@ -794,7 +1083,7 @@ impl BlocklistInterface for MockDb {
                     processor_merchant_id: entry.processor_merchant_id,
                     created_by: entry.created_by,
                     profile_id: entry.profile_id,
-                    transaction_type: entry.transaction_type,
+                    transaction_type: Some(entry.transaction_type),
                 });
                 inserted += 1;
             }
@@ -811,6 +1100,24 @@ impl BlocklistInterface for KafkaStore {
         pm_blocklist: storage::BlocklistNew,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         self.diesel_store.insert_blocklist_entry(pm_blocklist).await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        transaction_type: Option<common_enums::BlocklistTransactionType>,
+        profile_id: &common_utils::id_type::ProfileId,
+        fingerprint_id: &str,
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
+        self.diesel_store
+            .list_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_id(
+                processor_merchant_id,
+                transaction_type,
+                profile_id,
+                fingerprint_id,
+            )
+            .await
     }
 
     #[instrument(skip_all)]

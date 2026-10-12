@@ -1,11 +1,7 @@
--- Existing rows and older writers remain payment-scoped.
+-- Existing rows are payment-scoped
 ALTER TABLE blocklist ADD COLUMN transaction_type TEXT;
 
 UPDATE blocklist SET transaction_type = 'payment' WHERE transaction_type IS NULL;
-
-ALTER TABLE blocklist
-    ALTER COLUMN transaction_type SET DEFAULT 'payment',
-    ALTER COLUMN transaction_type SET NOT NULL;
 
 -- Build replacements before dropping the old indexes; this migration runs transactionally.
 CREATE UNIQUE INDEX blocklist_pm_fingerprint_profile_transaction_type_index

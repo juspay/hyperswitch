@@ -60,20 +60,17 @@ async fn run_clone_job(
         match page.last().map(|entry| entry.fingerprint_id.clone()) {
             // Drain both merchant passes for each flow, persisting every pass transition.
             None => {
-                if !tracking_data.draining_legacy_rows {
-                    tracking_data.draining_legacy_rows = true;
-                } else {
-                    if tracking_data.transaction_type
-                        == common_enums::BlocklistTransactionType::Payment
-                    {
+                match (
+                    tracking_data.draining_legacy_rows,
+                    tracking_data.transaction_type,
+                ) {
+                    (false, _) => tracking_data.draining_legacy_rows = true,
+                    (true, common_enums::BlocklistTransactionType::Payment) => {
                         tracking_data.transaction_type =
                             common_enums::BlocklistTransactionType::Payout;
                         tracking_data.draining_legacy_rows = false;
-                        tracking_data.last_fingerprint_id = String::new();
-                        persist_cursor(state, process_id, tracking_data).await?;
-                        continue;
                     }
-                    break;
+                    (true, common_enums::BlocklistTransactionType::Payout) => break,
                 }
                 tracking_data.last_fingerprint_id = String::new();
                 persist_cursor(state, process_id, tracking_data).await?;
@@ -506,7 +503,12 @@ mod tests {
         let mut tracking = legacy_tracking();
         tracking.transaction_type = BlocklistTransactionType::Payout;
         let serialized = serde_json::to_value(&tracking).unwrap();
-        assert_eq!(serialized["transaction_type"], "payout");
+        assert_eq!(
+            serialized
+                .get("transaction_type")
+                .and_then(serde_json::Value::as_str),
+            Some("payout")
+        );
         let resumed: storage::BlocklistProfileCloneTrackingData =
             serde_json::from_value(serialized).unwrap();
         assert_eq!(resumed.transaction_type, BlocklistTransactionType::Payout);

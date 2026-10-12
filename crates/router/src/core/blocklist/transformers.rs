@@ -19,7 +19,7 @@ impl ForeignFrom<storage::Blocklist> for blocklist::AddToBlocklistResponse {
         Self {
             fingerprint_id: from.fingerprint_id,
             data_kind: from.data_kind,
-            transaction_type: from.transaction_type,
+            transaction_type: from.transaction_type.unwrap_or_default(),
             created_at: from.created_at,
             profile_id: from.profile_id,
         }
