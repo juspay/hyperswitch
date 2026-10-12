@@ -721,8 +721,7 @@ impl
             mit_category: router_data
                 .request
                 .mit_category
-                .map(payments_grpc::MitCategory::foreign_from)
-                .map(|mit_category| mit_category.into()),
+                .map(|mit_category| payments_grpc::MitCategory::foreign_from(mit_category).into()),
             surcharge_amount: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -2505,8 +2504,7 @@ impl
             mit_category: router_data
                 .request
                 .mit_category
-                .map(payments_grpc::MitCategory::foreign_from)
-                .map(|mit_category| mit_category.into()),
+                .map(|mit_category| payments_grpc::MitCategory::foreign_from(mit_category).into()),
             surcharge_amount: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -2938,8 +2936,7 @@ impl
             mit_category: router_data
                 .request
                 .mit_category
-                .map(payments_grpc::MitCategory::foreign_from)
-                .map(|mit_category| mit_category.into()),
+                .map(|mit_category| payments_grpc::MitCategory::foreign_from(mit_category).into()),
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -3515,8 +3512,7 @@ impl
             mit_category: router_data
                 .request
                 .mit_category
-                .map(payments_grpc::MitCategory::foreign_from)
-                .map(|mit_category| mit_category.into()),
+                .map(|mit_category| payments_grpc::MitCategory::foreign_from(mit_category).into()),
             shipping_cost: router_data
                 .request
                 .shipping_cost
