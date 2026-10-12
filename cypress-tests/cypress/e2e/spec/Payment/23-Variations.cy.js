@@ -897,13 +897,21 @@ describe("Corner cases", () => {
   });
 
   context("Duplicate Customer ID", () => {
+    let originalCustomerId;
+
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
+        originalCustomerId = globalState.get("customerId");
       });
     });
 
     after("flush global state", () => {
+      // This context creates its own customers to test duplicate-ID
+      // handling, overwriting globalState.customerId. Restore the original
+      // customer before flushing so later specs don't inherit one scoped
+      // to this test.
+      globalState.set("customerId", originalCustomerId);
       cy.task("setGlobalState", globalState.data);
     });
 

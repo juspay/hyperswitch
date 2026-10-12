@@ -14,6 +14,20 @@ jobs:
   wasm-ci:
     name: Check wasm build
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      # actions/cache keys are immutable; needed for `gh cache delete`.
+      actions: write
+
+    env:
+      # sccache on local disk via actions/cache, not SCCACHE_GHA_ENABLED —
+      # see check-msrv in CI-push.yml for why.
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      SCCACHE_CACHE_SIZE: "2G"
+      SCCACHE_IDLE_TIMEOUT: "0"
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -22,6 +36,18 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
+
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+          checksum: true
+
+      - name: Restore sccache cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: sccache-local-wasm-${{ runner.os }}-${{ runner.arch }}
 
       - name: Install wasm-pack
         uses: taiki-e/install-action@v2
@@ -36,3 +62,24 @@ jobs:
       - name: payment-link wasm build
         shell: bash
         run: make payment-link-wasm
+
+      - name: Show sccache stats
+        if: always()
+        shell: bash
+        run: sccache --show-stats
+
+      # !cancelled(), not always() — don't delete+save on a cancelled run.
+      - name: Delete stale sccache cache entry
+        if: ${{ !cancelled() && github.event_name == 'push' }}
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh cache delete "sccache-local-wasm-${{ runner.os }}-${{ runner.arch }}" --repo "${{ github.repository }}"
+
+      - name: Save sccache cache
+        if: ${{ !cancelled() && github.event_name == 'push' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: sccache-local-wasm-${{ runner.os }}-${{ runner.arch }}

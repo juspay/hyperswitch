@@ -87,6 +87,7 @@ export const connectorDetails = {
     }),
     MandateSingleUseNo3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         currency: "EUR",
 
         payment_method: "card",
@@ -100,6 +101,7 @@ export const connectorDetails = {
     }),
     MandateSingleUseNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         currency: "EUR",
 
         payment_method: "card",
@@ -113,6 +115,7 @@ export const connectorDetails = {
     }),
     MandateMultiUseNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         currency: "EUR",
 
         payment_method: "card",
@@ -126,6 +129,7 @@ export const connectorDetails = {
     }),
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         currency: "EUR",
         payment_method_type: "credit",
         payment_method_data: {
@@ -311,6 +315,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -481,6 +486,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: ThreeDSChallengeTestCardDetails,

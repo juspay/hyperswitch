@@ -1,0 +1,18 @@
+-- `payment_intent.business_label` still carries `DEFAULT 'default'` from
+-- 2023-03-23, when the column was created `NOT NULL DEFAULT 'default'` — a
+-- default being what NOT NULL requires. 2023-08-28 dropped the NOT NULL and
+-- left the default behind.
+--
+-- Three of the four columns created that way have since had the default
+-- removed: merchant_connector_account.business_country and .business_label in
+-- 2023-02-20, payment_intent.business_country in 2023-04-05 (alongside its enum
+-- conversion). This column is the one that was missed, so the value is an
+-- omission rather than a choice.
+--
+-- It is not inert. A freshly migrated database inserts the literal string
+-- 'default' where a long-running one stores NULL, for byte-identical SQL:
+-- diesel's Insertable emits the SQL keyword DEFAULT for an Option::None field
+-- rather than binding NULL, so the value is decided by the schema alone. The
+-- row then reads back as 'default' and is carried into later updates, which is
+-- how one schema difference becomes a behavioural one.
+ALTER TABLE payment_intent ALTER COLUMN business_label DROP DEFAULT;
