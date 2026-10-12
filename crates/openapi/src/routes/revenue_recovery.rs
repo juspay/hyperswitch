@@ -115,7 +115,7 @@ pub async fn revenue_recovery_payments_create() {}
 /// reference id within the business profile given in the `X-Profile-Id` header.
 #[utoipa::path(
     post,
-    path = "/v2/revenue-recovery/{merchant_reference_id}/cancel",
+    path = "/v2/recovery/{merchant_reference_id}/cancel",
     params(
         ("merchant_reference_id" = String, Path, description = "Merchant reference id of the invoice whose revenue recovery workflow should be cancelled"),
         (

@@ -3483,7 +3483,7 @@ pub struct RevenueRecovery;
 impl RevenueRecovery {
     pub fn server(state: AppState) -> Scope {
         use super::revenue_recovery;
-        web::scope("/v2/revenue-recovery")
+        web::scope("/v2/recovery")
             .app_data(web::Data::new(state))
             .service(
                 web::resource("/{merchant_reference_id}/cancel")

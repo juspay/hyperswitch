@@ -4977,7 +4977,7 @@
         ]
       }
     },
-    "/v2/revenue-recovery/{merchant_reference_id}/cancel": {
+    "/v2/recovery/{merchant_reference_id}/cancel": {
       "post": {
         "tags": [
           "Revenue Recovery"
