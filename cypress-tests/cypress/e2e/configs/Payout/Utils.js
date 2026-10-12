@@ -114,6 +114,9 @@ export const CONNECTOR_LISTS = {
     // connectors
     CLIENT_AUTH_CONFIRM: ["paypal"],
     BANK_TRANSFER_OPEN_BANKING: ["truelayer", "trustly"],
+    // Closed-loop passthrough payout with token_type open_banking through UCS
+    // (PR #14535) - only verified connectors
+    BANK_TRANSFER_OPEN_BANKING_PASSTHROUGH: ["truelayer"],
     BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL: [],
     BANK_TRANSFER_OPEN_BANKING_MANUAL_FULFILL: ["trustly"],
     BANK_TRANSFER_OPEN_BANKING_INVALID_ACCOUNT_NUMBER: ["trustly"],

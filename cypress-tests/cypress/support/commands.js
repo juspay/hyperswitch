@@ -5178,6 +5178,68 @@ Cypress.Commands.add(
   }
 );
 
+/**
+ * Retrieves a completed payment (force_sync) and stashes the closed-loop
+ * payout source details from the response into globalState:
+ * - sender_payment_instrument_id -> "senderPaymentInstrumentId" (payout psp_token)
+ * - connector_customer_id -> "connectorCustomerId" (payout psp_customer_id)
+ * These are populated only for UCS-routed payments (e.g. truelayer), where
+ * the connector-service returns them on authorize/psync — they are null on
+ * the direct gateway, so a closed-loop passthrough payout must create its
+ * source payment through UCS.
+ */
+Cypress.Commands.add(
+  "retrieveClosedLoopPayoutSourceCallTest",
+  (globalState) => {
+    const payment_id = globalState.get("paymentID");
+
+    if (!payment_id) {
+      throw new Error(
+        "retrieveClosedLoopPayoutSourceCallTest: payment_id is not set in global state; the preceding payment flow must have failed"
+      );
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true&expand_attempts=true`,
+      headers,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        expect(response.body.payment_id).to.equal(payment_id);
+        expect(response.body.status, "payment status").to.equal("succeeded");
+
+        expect(
+          response.body.sender_payment_instrument_id,
+          "sender_payment_instrument_id"
+        ).to.be.a("string").and.to.not.be.empty;
+        expect(
+          response.body.connector_customer_id,
+          "connector_customer_id"
+        ).to.be.a("string").and.to.not.be.empty;
+
+        globalState.set(
+          "senderPaymentInstrumentId",
+          response.body.sender_payment_instrument_id
+        );
+        globalState.set(
+          "connectorCustomerId",
+          response.body.connector_customer_id
+        );
+      });
+    });
+  }
+);
+
 Cypress.Commands.add(
   "retrievePaymentCallAutoRetryTest",
   ({ globalState, attempt = null, expectedIntentStatus }) => {
