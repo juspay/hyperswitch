@@ -1540,6 +1540,16 @@ impl Settings<SecuredSecret> {
         let environment_source =
             environment_source.with_list_parse_key("deja.recording.kafka.brokers");
 
+        #[cfg(feature = "olap")]
+        let environment_source = {
+            use strum::IntoEnumIterator;
+            analytics::reports::ReportKind::iter().fold(environment_source, |source, report| {
+                source.with_list_parse_key(&format!(
+                    "report_download_config.process_tracker.report_email_bcc.{report}"
+                ))
+            })
+        };
+
         let config = config
             .add_source(environment_source)
             .build()

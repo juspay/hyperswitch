@@ -1,6 +1,6 @@
 //! The reports ported from the `weekly_*_report_generator_step_1` Lambdas: their headers, column
 //! order and rows, with standard values. Amounts are written as the Lambdas did: payments and
-//! payouts in major units, refunds and disputes as stored.
+//! payouts in major units, refunds and disputes as stored. The email wording is each Lambda's.
 
 use super::{
     major_units,
@@ -15,6 +15,8 @@ pub(super) const V1_PAYMENTS: ReportDefinition = ReportDefinition {
     name: "v1_payments",
     webhook_type: "payment_report",
     title: "Payments",
+    noun: "payments",
+    covers: "payments processed",
     from: "payment_attempt AS pa LEFT JOIN payment_intent AS pi \
            ON pi.merchant_id = pa.merchant_id \
            AND pi.payment_id = pa.payment_id \
@@ -76,6 +78,8 @@ pub(super) const REFUNDS: ReportDefinition = ReportDefinition {
     name: "refunds",
     webhook_type: "refund_report",
     title: "Refunds",
+    noun: "refund",
+    covers: "refunds made by your customers",
     from: "refund AS ref",
     table: "ref",
     organization_scoped: true,
@@ -112,6 +116,8 @@ pub(super) const DISPUTES: ReportDefinition = ReportDefinition {
     name: "disputes",
     webhook_type: "dispute_report",
     title: "Disputes",
+    noun: "dispute",
+    covers: "disputes made by your customers",
     from: "dispute",
     table: "dispute",
     organization_scoped: true,
@@ -142,6 +148,8 @@ pub(super) const PAYOUTS: ReportDefinition = ReportDefinition {
     name: "payouts",
     webhook_type: "payout_report",
     title: "Payouts",
+    noun: "payout",
+    covers: "payouts made by your customers",
     from: "payouts AS p LEFT JOIN payout_attempt AS pa \
            ON pa.merchant_id = p.merchant_id AND pa.payout_id = p.payout_id",
     table: "p",
@@ -188,6 +196,8 @@ pub(super) const RELAY: ReportDefinition = ReportDefinition {
     name: "relay",
     webhook_type: "relay_report",
     title: "Relay",
+    noun: "relay",
+    covers: "relay requests made by your customers",
     from: "relay",
     table: "relay",
     organization_scoped: false,
@@ -211,7 +221,9 @@ pub(super) const RELAY: ReportDefinition = ReportDefinition {
 pub(super) const AUTHENTICATIONS: ReportDefinition = ReportDefinition {
     name: "authentication",
     webhook_type: "authentication_report",
-    title: "Authentications",
+    title: "Authentication",
+    noun: "authentication",
+    covers: "authentications made by your customers",
     from: "authentication",
     table: "authentication",
     organization_scoped: true,
@@ -254,4 +266,84 @@ pub(super) const AUTHENTICATIONS: ReportDefinition = ReportDefinition {
         Text("authentication.service_details"),
         Text("authentication.organization_id"),
     ],
+};
+
+/// `v2_payments` and `revenue_recovery` read v2's tables: every attempt, with its payment, scoped
+/// and ordered by the payment.
+const V2_PAYMENTS_FROM: &str =
+    "payment_attempt AS pa INNER JOIN payment_intent AS pi ON pi.id = pa.payment_id";
+
+macro_rules! v2_payment_columns {
+    ($($extra:expr),* $(,)?) => {
+        &[
+            Text("pi.id"),
+            Expr("attempt_id", "pa.id::text"),
+            Text("pa.status"),
+            Expr("amount", major_units!("pi.amount", "pi.currency")),
+            Text("pi.currency"),
+            Text("pa.connector"),
+            Text("pa.connector_payment_id"),
+            Expr(
+                "amount_to_capture",
+                major_units!("pa.amount_to_capture", "pi.currency"),
+            ),
+            Text("pi.customer_id"),
+            Time("pi.created_at"),
+            Expr("order_details", "to_jsonb(pi.order_details)::text"),
+            Text("pa.error_message"),
+            Text("pi.capture_method"),
+            Text("pa.authentication_type"),
+            Text("pa.payment_method_type_v2"),
+            Text("pa.payment_method_subtype"),
+            Text("pi.metadata"),
+            Text("pi.setup_future_usage"),
+            Text("pi.statement_descriptor"),
+            Text("pi.description"),
+            Text("pa.payment_method_data"),
+            Text("pa.card_network"),
+            Time("pi.modified_at"),
+            Text("pa.error_code"),
+            Text("pa.payment_method_id"),
+            Text("pi.merchant_reference_id"),
+            Text("pi.profile_id"),
+            $($extra,)*
+        ]
+    };
+}
+
+pub(super) const V2_PAYMENTS: ReportDefinition = ReportDefinition {
+    name: "v2_payments",
+    webhook_type: "payment_report",
+    title: "Payments",
+    noun: "payments",
+    covers: "payments processed",
+    from: V2_PAYMENTS_FROM,
+    table: "pi",
+    organization_scoped: true,
+    columns: v2_payment_columns![
+        // v2's payment_attempt has no mandate_id, which left the Lambda's query failing; kept empty
+        // so the column stays where it was.
+        Expr("mandate_id", "NULL::text"),
+        Expr(
+            "allowed_payment_method_types",
+            "pi.allowed_payment_method_types::jsonb::text",
+        ),
+        Text("pa.fingerprint_id"),
+        Expr(
+            "card_holder_name",
+            "pa.payment_method_data->'card'->>'card_holder_name'",
+        ),
+    ],
+};
+
+pub(super) const REVENUE_RECOVERY: ReportDefinition = ReportDefinition {
+    name: "revenue_recovery",
+    webhook_type: "payment_report",
+    title: "Revenue Recovery",
+    noun: "revenue recovery transactions",
+    covers: "revenue recovery transactions processed",
+    from: V2_PAYMENTS_FROM,
+    table: "pi",
+    organization_scoped: true,
+    columns: v2_payment_columns![],
 };

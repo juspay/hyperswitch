@@ -1160,7 +1160,9 @@ impl ReportConfig {
     pub fn lambda_function(&self, report: reports::ReportKind) -> &str {
         use reports::ReportKind;
         match report {
-            ReportKind::V1Payments => &self.payment_function,
+            ReportKind::V1Payments | ReportKind::V2Payments | ReportKind::RevenueRecovery => {
+                &self.payment_function
+            }
             ReportKind::Refunds => &self.refund_function,
             ReportKind::Disputes => &self.dispute_function,
             ReportKind::Payouts => &self.payout_function,
@@ -1184,10 +1186,22 @@ pub struct ProcessTrackerReportConfig {
     pub page_size: usize,
     /// Longest one page's fetch may run on the replica, in seconds.
     pub query_timeout_secs: u64,
-    /// Copied on every report email, each as its own message.
+    /// Blind-copied on every report email.
     pub email_bcc: Vec<common_utils::pii::Email>,
+    /// Replaces `email_bcc` for the reports it lists, as each Lambda had its own BCC list, e.g.
+    /// `disputes = ["disputes-ops@example.com"]`.
+    pub report_email_bcc: HashMap<reports::ReportKind, Vec<common_utils::pii::Email>>,
     /// Names the environment in the email subject, as `REPORT_ENV_LABEL` did for the Lambda.
     pub email_env_label: String,
+}
+
+impl ProcessTrackerReportConfig {
+    /// The addresses blind-copied on `report`'s emails.
+    pub fn email_bcc(&self, report: reports::ReportKind) -> &[common_utils::pii::Email] {
+        self.report_email_bcc
+            .get(&report)
+            .unwrap_or(&self.email_bcc)
+    }
 }
 
 impl Default for ProcessTrackerReportConfig {
@@ -1198,6 +1212,7 @@ impl Default for ProcessTrackerReportConfig {
             page_size: 5_000,
             query_timeout_secs: 300,
             email_bcc: Vec::new(),
+            report_email_bcc: HashMap::new(),
             email_env_label: "Hyperswitch".to_owned(),
         }
     }

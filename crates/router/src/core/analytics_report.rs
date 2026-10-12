@@ -120,6 +120,7 @@ pub async fn generate_report(
     request: GenerateReportRequest,
 ) -> CustomResult<ApplicationResponse<()>, AnalyticsError> {
     let config = &state.conf.report_download_config;
+    let report = report.requested_by(&request.request);
     match config.uses_process_tracker(report) {
         false => {
             let json_bytes =
@@ -140,13 +141,6 @@ async fn enqueue_report(
     report: ReportKind,
     mut request: GenerateReportRequest,
 ) -> CustomResult<(), AnalyticsError> {
-    // The report definitions query v1 tables; v2's `v2_payments` and `revenue_recovery` are not
-    // ported yet.
-    if cfg!(feature = "v2") {
-        return Err(report!(AnalyticsError::NotImplemented(
-            "Generating v2 reports on the process tracker"
-        )));
-    }
     // Rejected here, with a 400, rather than failing in the background.
     report.validate_columns(&request)?;
 
@@ -414,11 +408,13 @@ async fn send_emails(
     {
         let config = &state.conf.report_download_config.process_tracker;
         let (start, end) = tracking_data.time_range();
-        let title = tracking_data.report.definition().title;
+        let report = tracking_data.report;
+        let definition = report.definition();
         let email = services::email::types::AnalyticsReportEmail {
-            recipients: email_recipients(&tracking_data.request, &config.email_bcc),
-            report_name: format!("{} {title}", config.email_env_label),
-            covers: title.to_lowercase(),
+            recipients: email_recipients(&tracking_data.request, config.email_bcc(report)),
+            report_name: format!("{} {}", config.email_env_label, definition.title),
+            noun: definition.noun.to_owned(),
+            covers: definition.covers.to_owned(),
             start: reports::format_timestamp(start),
             end: reports::format_timestamp(end),
             download_url: download_url.to_owned(),

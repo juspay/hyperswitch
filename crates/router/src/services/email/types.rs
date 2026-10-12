@@ -94,6 +94,7 @@ pub enum EmailBody {
     },
     AnalyticsReport {
         report_name: String,
+        noun: String,
         covers: String,
         start: String,
         end: String,
@@ -285,6 +286,7 @@ Email         : {user_email}
             }
             EmailBody::AnalyticsReport {
                 report_name,
+                noun,
                 covers,
                 start,
                 end,
@@ -293,6 +295,7 @@ Email         : {user_email}
             } => format!(
                 include_str!("assets/analytics_report.html"),
                 report_name = report_name,
+                noun = noun,
                 covers = covers,
                 start = start,
                 end = end,
@@ -815,7 +818,9 @@ pub struct AnalyticsReportEmail {
     pub recipients: external_services::email::EmailRecipients,
     /// Names the report, with the environment, e.g. "Sandbox Payments".
     pub report_name: String,
-    /// What the report covers, as the body words it, e.g. "payments".
+    /// The report, as the body names it: "the refund report".
+    pub noun: String,
+    /// The rows, as the body describes them, e.g. "refunds made by your customers".
     pub covers: String,
     pub start: String,
     pub end: String,
@@ -829,6 +834,7 @@ impl EmailData for AnalyticsReportEmail {
     async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let body = html::get_html_body(EmailBody::AnalyticsReport {
             report_name: self.report_name.clone(),
+            noun: self.noun.clone(),
             covers: self.covers.clone(),
             start: self.start.clone(),
             end: self.end.clone(),

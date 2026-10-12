@@ -22,8 +22,13 @@ pub struct ReportDefinition {
     pub name: &'static str,
     /// `data.report_type` in the report webhook, e.g. `payment_report`.
     pub webhook_type: &'static str,
-    /// What the report covers, as the email words it, e.g. `Payments`.
+    /// Names the report in the email's subject and link, e.g. `Refunds`.
     pub title: &'static str,
+    /// The report, as the email's body names it: "the `refund` report".
+    pub noun: &'static str,
+    /// The rows, as the email's body describes them: "an overview of `refunds made by your
+    /// customers` via Hyperswitch".
+    pub covers: &'static str,
     /// The `FROM` clause, joins included.
     from: &'static str,
     /// The alias whose `organization_id`, `merchant_id`, `processor_merchant_id`, `profile_id`
@@ -67,8 +72,18 @@ impl Column {
 
 /// The reports that can be generated.
 #[derive(
-    Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, strum::EnumIter,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumIter,
 )]
+#[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ReportKind {
     V1Payments,
@@ -77,6 +92,8 @@ pub enum ReportKind {
     Payouts,
     Relay,
     Authentications,
+    V2Payments,
+    RevenueRecovery,
 }
 
 impl ReportKind {
@@ -88,13 +105,32 @@ impl ReportKind {
             Self::Payouts => &definitions::PAYOUTS,
             Self::Relay => &definitions::RELAY,
             Self::Authentications => &definitions::AUTHENTICATIONS,
+            Self::V2Payments => &definitions::V2_PAYMENTS,
+            Self::RevenueRecovery => &definitions::REVENUE_RECOVERY,
         }
+    }
+
+    /// The report `request` asks for from `self`'s routes: on v2 the payment routes serve the
+    /// report its `report_type` names, as the payment Lambda did.
+    pub fn requested_by(self, request: &api_models::analytics::ReportRequest) -> Self {
+        #[cfg(feature = "v2")]
+        if self == Self::V1Payments {
+            use api_models::analytics::ReportType;
+            return match request.report_type {
+                ReportType::V2Payments => Self::V2Payments,
+                ReportType::RevenueRecovery => Self::RevenueRecovery,
+            };
+        }
+        let _ = request;
+        self
     }
 
     /// The flow the report's API requests are logged under.
     pub fn flow(self) -> AnalyticsFlow {
         match self {
-            Self::V1Payments => AnalyticsFlow::GeneratePaymentReport,
+            Self::V1Payments | Self::V2Payments | Self::RevenueRecovery => {
+                AnalyticsFlow::GeneratePaymentReport
+            }
             Self::Refunds => AnalyticsFlow::GenerateRefundReport,
             Self::Disputes => AnalyticsFlow::GenerateDisputeReport,
             Self::Payouts => AnalyticsFlow::GeneratePayoutReport,
@@ -447,7 +483,35 @@ mod tests {
         let counts = ReportKind::iter()
             .map(|report| report.definition().columns.len())
             .collect::<Vec<_>>();
-        assert_eq!(counts, [35, 23, 16, 33, 13, 35]);
+        assert_eq!(counts, [35, 23, 16, 33, 13, 35, 31, 27]);
+    }
+
+    #[test]
+    fn v2_payment_report_headers_match_lambda() {
+        // BASE_CSV_COLUMNS and V2_PAYMENTS_EXTRA_CSV_COLUMNS from
+        // weekly_payment_report_generator_step_1.
+        let base = concat!(
+            r#""id","attempt_id","status","amount","currency","connector","connector_payment_id","#,
+            r#""amount_to_capture","customer_id","created_at","order_details","error_message","#,
+            r#""capture_method","authentication_type","payment_method_type_v2","#,
+            r#""payment_method_subtype","metadata","setup_future_usage","statement_descriptor","#,
+            r#""description","payment_method_data","card_network","modified_at","error_code","#,
+            r#""payment_method_id","merchant_reference_id","profile_id""#,
+        );
+        let header = |definition: &ReportDefinition| {
+            String::from_utf8_lossy(&csv_record(definition.columns.iter().map(|c| c.header())))
+                .into_owned()
+        };
+        assert_eq!(
+            header(&definitions::REVENUE_RECOVERY),
+            format!("{base}\r\n")
+        );
+        assert_eq!(
+            header(&definitions::V2_PAYMENTS),
+            format!(
+                "{base},\"mandate_id\",\"allowed_payment_method_types\",\"fingerprint_id\",\"card_holder_name\"\r\n"
+            )
+        );
     }
 
     #[test]
