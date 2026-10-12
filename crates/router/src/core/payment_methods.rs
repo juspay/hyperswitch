@@ -379,12 +379,13 @@ pub async fn render_pm_collect_link(
                 })?;
                 // Fetch customer
 
-                let use_merchant_reference_id = crate::core::payments::helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
-                    &state,
-                    &provider,
-                    Some(&customer_id),
-                )
-                .await;
+                let use_merchant_reference_id =
+                    payment_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                        &state,
+                        &provider,
+                        Some(&customer_id),
+                    )
+                    .await;
                 let customer = db
                     .find_customer_by_customer_id_merchant_id(
                         &customer_id,

@@ -4,6 +4,8 @@ use diesel_models::generic_link::PaymentMethodCollectLinkData;
 use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 
+#[cfg(feature = "v1")]
+use crate::core::payments::helpers as payment_helpers;
 use crate::{
     consts,
     core::{
@@ -36,7 +38,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let merchant_id = platform.get_provider().get_account().get_id().clone();
     #[cfg(feature = "v1")]
     let use_merchant_reference_id =
-        crate::core::payments::helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+        payment_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
             state,
             platform.get_provider(),
             Some(&customer_id),

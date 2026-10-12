@@ -325,9 +325,6 @@ pub trait CustomerInterface {
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<bool, Self::Error>;
 
-    /// `use_merchant_reference_id_lookup` is the superposition flag resolved by the caller: when
-    /// true and `customer_id` is not already in the global id format, the lookup is served from
-    /// the `merchant_reference_id` of the customer instead of its `customer_id`.
     #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,

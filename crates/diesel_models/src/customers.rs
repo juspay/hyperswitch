@@ -173,8 +173,6 @@ pub struct Customer {
     pub document_details: Option<Encryption>,
     pub id: Option<common_utils::id_type::GlobalCustomerId>,
     pub preferred_connectors: Option<pii::SecretSerdeValue>,
-    /// Populated only for customers created through the v2 customers API. Used to look up a
-    /// customer by the merchant supplied reference id.
     #[serde(default)]
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
 }
