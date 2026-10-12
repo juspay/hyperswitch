@@ -827,13 +827,22 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             if derived_payment_method_id.is_some()
                 && err.current_context().is_db_unique_violation() =>
         {
-            // With the Redis KV store, a concurrent request claims the payment method id slightly
-            // before it writes the payment method. Re-sending the record then returns it.
             let existing_payment_method =
-                find_migrated_payment_method(db, provider, &customer_id, &payment_method_id)
+                match find_migrated_payment_method(db, provider, &customer_id, &payment_method_id)
                     .await?
-                    .ok_or_else(|| report!(errors::ApiErrorResponse::DuplicatePaymentMethod))
-                    .attach_printable("Migrated payment method not found after unique violation")?;
+                {
+                    Some(payment_method) => payment_method,
+                    // With the Redis KV store, a concurrent request claims the payment method id
+                    // slightly before it writes the payment method. Re-sending the record then
+                    // returns it.
+                    None => {
+                        return Err(err)
+                            .change_context(errors::ApiErrorResponse::DuplicatePaymentMethod)
+                            .attach_printable(
+                                "Migrated payment method not found after unique violation",
+                            );
+                    }
+                };
             let existing_payment_method = update_already_migrated_payment_method(
                 db,
                 provider,
