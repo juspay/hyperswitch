@@ -5109,6 +5109,7 @@ fn create_connector_token_details_update(
             mandates::CommonMandateReference {
                 payments: Some(payments_mandate_reference),
                 payouts: None,
+                recurring_context: None,
             }
         }
     }

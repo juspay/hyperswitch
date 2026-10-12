@@ -348,6 +348,9 @@ impl std::ops::DerefMut for PaymentsTokenReference {
 pub struct CommonMandateReference {
     pub payments: Option<PaymentsMandateReference>,
     pub payouts: Option<PayoutsMandateReference>,
+    /// Contains approved JPMorgan relationship context without requiring a processor handle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recurring_context: Option<common_types::payments::JpmorganRecurringContext>,
 }
 
 #[cfg(feature = "v2")]
@@ -355,6 +358,9 @@ pub struct CommonMandateReference {
 pub struct CommonMandateReference {
     pub payments: Option<PaymentsTokenReference>,
     pub payouts: Option<PayoutsMandateReference>,
+    /// Contains approved JPMorgan relationship context without requiring a processor handle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recurring_context: Option<common_types::payments::JpmorganRecurringContext>,
 }
 
 impl CommonMandateReference {
@@ -376,6 +382,15 @@ impl CommonMandateReference {
             })
             .transpose()
             .change_context(ParsingError::StructParseFailure("payout mandate details"))?;
+
+        if let Some(context) = &self.recurring_context {
+            let context = serde_json::to_value(context).change_context(
+                ParsingError::StructParseFailure("recurring relationship context"),
+            )?;
+            if let Some(entries) = payments.as_object_mut() {
+                entries.insert("recurring_context".to_string(), context);
+            }
+        }
 
         Ok(payments)
     }
@@ -405,6 +420,7 @@ impl From<diesel_models::CommonMandateReference> for CommonMandateReference {
         Self {
             payments: value.payments.map(|payments| payments.into()),
             payouts: value.payouts.map(|payouts| payouts.into()),
+            recurring_context: value.recurring_context,
         }
     }
 }
@@ -414,6 +430,7 @@ impl From<CommonMandateReference> for diesel_models::CommonMandateReference {
         Self {
             payments: value.payments.map(|payments| payments.into()),
             payouts: value.payouts.map(|payouts| payouts.into()),
+            recurring_context: value.recurring_context,
         }
     }
 }

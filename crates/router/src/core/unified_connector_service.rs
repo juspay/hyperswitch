@@ -2343,6 +2343,15 @@ pub fn build_unified_connector_service_payment_method(
                 payment_method: Some(PaymentMethod::NetworkToken(network_token)),
             })
         }
+        #[cfg(feature = "v1")]
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(network_token_details) => {
+            let network_token_data = hyperswitch_domain_models::payment_method_data::NetworkTokenData::from(network_token_details);
+            let network_token = payments_grpc::NetworkTokenData::foreign_try_from(network_token_data)?;
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::NetworkToken(network_token)),
+            })
+        }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(wallet_token_data) => {
             let decrypted_wallet_token_details = payments_grpc::DecryptedWalletTokenDetailsForNetworkTransactionId::foreign_try_from(wallet_token_data)?;
 

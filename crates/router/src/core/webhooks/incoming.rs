@@ -2516,15 +2516,15 @@ async fn update_payment_method_mandate_status(
                 .attach_printable("received a non-mandate status event")),
         }?;
 
-    let payment_mandate_reference = common_mandate_reference
+    common_mandate_reference
         .payments
-        .clone()
+        .as_ref()
         .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("no payment mandate reference found for payment method")?;
 
     let updated_mandate_details = tokenization::update_connector_mandate_details_status(
         merchant_connector_id.clone(),
-        payment_mandate_reference,
+        common_mandate_reference,
         connector_mandate_status,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)

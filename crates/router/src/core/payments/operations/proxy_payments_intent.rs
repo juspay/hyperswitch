@@ -128,9 +128,16 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, ProxyPaymentsRequest, PaymentCon
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        _request: &ProxyPaymentsRequest,
+        request: &ProxyPaymentsRequest,
         platform: &'a domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
+        if request.recurring_details.safetech_context.is_some() {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Use the payments create or confirm endpoint for Safetech context"
+                    .to_owned(),
+            }
+            .into());
+        }
         let validate_result = operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),
             storage_scheme: platform.get_processor().get_account().storage_scheme,
@@ -230,7 +237,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             }
         };
 
-        let processor_payment_token = request.recurring_details.processor_payment_token.clone();
+        let processor_payment_token = request
+            .recurring_details
+            .processor_payment_token
+            .clone()
+            .expose();
 
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent

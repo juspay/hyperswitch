@@ -92,8 +92,11 @@ pub async fn call_proxy_api(
 ) -> RouterResult<payments_domain::PaymentConfirmData<api_types::Authorize>> {
     let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
     let recurring_details = api_models::mandates::ProcessorPaymentToken {
-        processor_payment_token: payment_processor_token.to_string(),
+        processor_payment_token: hyperswitch_masking::Secret::new(
+            payment_processor_token.to_string(),
+        ),
         merchant_connector_id: Some(revenue_recovery.get_merchant_connector_id_for_api_request()),
+        safetech_context: None,
     };
     let req = payments_api::ProxyPaymentsRequest {
         return_url: None,

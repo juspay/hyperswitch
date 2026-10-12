@@ -499,7 +499,7 @@ where
             .ok();
         }
 
-        let mandate_details = payment_method
+        let mut mandate_details = payment_method
             .get_common_mandate_reference()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
@@ -518,6 +518,61 @@ where
         // Update connector mandate details whenever off_session or pending activation,
         // irrespective of current active/inactive status — activates inactive mandates too.
         if is_off_session || is_mandate_pending_activation {
+            if router_data.connector == "jpmorgan"
+                && matches!(
+                    payment_attempt.status,
+                    enums::AttemptStatus::Charged | enums::AttemptStatus::Authorized
+                )
+            {
+                if let Some(metadata) = payment_attempt.connector_metadata.as_ref() {
+                    if metadata
+                        .get("jpmorgan")
+                        .and_then(|context| context.get("stored_credential"))
+                        .is_some()
+                    {
+                        let context = serde_json::from_value::<
+                            common_types::payments::JpmorganFeatureData,
+                        >(metadata.clone())
+                        .map_err(|_| {
+                            report!(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Invalid JPMorgan initialization context")
+                        })?;
+                        if context.jpmorgan.stored_credential.initialization_reference
+                            == router_data.connector_request_reference_id
+                        {
+                            let original_network_transaction_id = router_data
+                                .response
+                                .as_ref()
+                                .ok()
+                                .and_then(types::PaymentsResponseData::get_network_transaction_id)
+                                .filter(|reference| !reference.trim().is_empty());
+                            let original_transaction_link_id =
+                                router_data.response.as_ref().ok().and_then(
+                                    types::PaymentsResponseData::get_network_transaction_link_id,
+                                );
+                            if let Some(original_network_transaction_id) =
+                                original_network_transaction_id.filter(|_| {
+                                    original_transaction_link_id
+                                        .as_ref()
+                                        .is_none_or(|reference| !reference.trim().is_empty())
+                                })
+                            {
+                                mandate_details
+                                    .recurring_context
+                                    .get_or_insert_with(HashMap::new)
+                                    .insert(
+                                        mca_id.clone(),
+                                        common_types::payments::JpmorganStoredRelationship {
+                                            original_network_transaction_id,
+                                            original_transaction_link_id,
+                                            connector_feature_data: context,
+                                        },
+                                    );
+                            }
+                        }
+                    }
+                }
+            }
             let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
                 payment_attempt
                     .connector_mandate_detail

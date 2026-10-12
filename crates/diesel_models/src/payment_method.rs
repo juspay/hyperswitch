@@ -1640,6 +1640,7 @@ pub struct ConnectorMandateCompatDetails {
     payments:
         HashMap<common_utils::id_type::MerchantConnectorAccountId, ConnectorMandateCompatReference>,
     payouts: Option<PayoutsMandateReference>,
+    recurring_context: Option<common_types::payments::JpmorganRecurringContext>,
 }
 
 impl TryFrom<serde_json::Value> for ConnectorMandateCompatDetails {
@@ -1657,12 +1658,22 @@ impl TryFrom<serde_json::Value> for ConnectorMandateCompatDetails {
             .map(serde_json::from_value)
             .transpose()
             .map_err(|_| ParsingError::StructParseFailure("payout mandate details"))?;
+        let recurring_context = payment_connector_references
+            .remove("recurring_context")
+            .map(serde_json::from_value::<Option<common_types::payments::JpmorganRecurringContext>>)
+            .transpose()
+            .map_err(|_| ParsingError::StructParseFailure("recurring relationship context"))?
+            .flatten();
         let payments = serde_json::from_value(serde_json::Value::Object(std::mem::take(
             payment_connector_references,
         )))
         .map_err(|_| ParsingError::StructParseFailure("payment mandate details"))?;
 
-        Ok(Self { payments, payouts })
+        Ok(Self {
+            payments,
+            payouts,
+            recurring_context,
+        })
     }
 }
 
@@ -1677,6 +1688,13 @@ impl ConnectorMandateCompatDetails {
                     payment_connector_references.insert("payouts".to_string(), payouts);
                 },
             )?;
+        }
+
+        if let Some(context) = self.recurring_context {
+            let context = serde_json::to_value(context).ok()?;
+            connector_mandate_details_value
+                .as_object_mut()?
+                .insert("recurring_context".to_string(), context);
         }
 
         Some(connector_mandate_details_value)
@@ -1704,6 +1722,9 @@ impl ConnectorMandateCompatDetails {
 pub struct CommonMandateReference {
     pub payments: Option<PaymentsMandateReference>,
     pub payouts: Option<PayoutsMandateReference>,
+    /// Contains approved JPMorgan relationship context without requiring a processor handle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recurring_context: Option<common_types::payments::JpmorganRecurringContext>,
 }
 
 #[cfg(feature = "v2")]
@@ -1712,6 +1733,9 @@ pub struct CommonMandateReference {
 pub struct CommonMandateReference {
     pub payments: Option<PaymentsTokenReference>,
     pub payouts: Option<PayoutsMandateReference>,
+    /// Contains approved JPMorgan relationship context without requiring a processor handle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recurring_context: Option<common_types::payments::JpmorganRecurringContext>,
 }
 
 impl CommonMandateReference {
@@ -1745,7 +1769,49 @@ impl CommonMandateReference {
             }
         }
 
+        if let Some(context) = &self.recurring_context {
+            let context = serde_json::to_value(context).change_context(
+                ParsingError::StructParseFailure("recurring relationship context"),
+            )?;
+            if let Some(entries) = payments.as_object_mut() {
+                entries.insert("recurring_context".to_string(), context);
+            }
+        }
+
         Ok(payments)
+    }
+
+    /// Parse the flat connector-details document and its reserved context maps.
+    pub fn from_value(mut value: serde_json::Value) -> CustomResult<Self, ParsingError> {
+        let entries = value
+            .as_object_mut()
+            .ok_or(ParsingError::StructParseFailure(
+                "connector mandate details",
+            ))?;
+        let payouts = entries
+            .remove("payouts")
+            .map(serde_json::from_value::<Option<PayoutsMandateReference>>)
+            .transpose()
+            .change_context(ParsingError::StructParseFailure("payout mandate details"))?
+            .flatten();
+        let recurring_context = entries
+            .remove("recurring_context")
+            .map(serde_json::from_value::<Option<common_types::payments::JpmorganRecurringContext>>)
+            .transpose()
+            .change_context(ParsingError::StructParseFailure(
+                "recurring relationship context",
+            ))?
+            .flatten();
+        let payment_entries = serde_json::Value::Object(std::mem::take(entries));
+        #[cfg(feature = "v1")]
+        let payments = Self::parse_payments_reference_with_token_fallback(payment_entries)?;
+        #[cfg(feature = "v2")]
+        let payments = Self::parse_payments_reference_with_legacy_fallback(payment_entries)?;
+        Ok(Self {
+            payments: Some(payments),
+            payouts,
+            recurring_context,
+        })
     }
 
     #[cfg(feature = "v1")]
@@ -1916,34 +1982,7 @@ where
             DB,
         >>::from_sql(bytes)?;
 
-        let payments_data = value
-            .clone()
-            .as_object_mut()
-            .map(|obj| {
-                obj.remove("payouts");
-
-                Self::parse_payments_reference_with_token_fallback(serde_json::Value::Object(
-                    obj.clone(),
-                ))
-            })
-            .transpose()?;
-
-        let payouts_data = serde_json::from_value::<Option<Self>>(value)
-            .inspect_err(|err| {
-                router_env::logger::error!("Failed to parse payouts data: {}", err);
-            })
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse payouts data",
-            ))
-            .map(|optional_common_mandate_details| {
-                optional_common_mandate_details
-                    .and_then(|common_mandate_details| common_mandate_details.payouts)
-            })?;
-
-        Ok(Self {
-            payments: payments_data,
-            payouts: payouts_data,
-        })
+        Self::from_value(value).map_err(Into::into)
     }
 }
 
@@ -1959,34 +1998,7 @@ where
             DB,
         >>::from_sql(bytes)?;
 
-        let payments_data = value
-            .clone()
-            .as_object_mut()
-            .map(|obj| {
-                obj.remove("payouts");
-
-                Self::parse_payments_reference_with_legacy_fallback(serde_json::Value::Object(
-                    obj.clone(),
-                ))
-            })
-            .transpose()?;
-
-        let payouts_data = serde_json::from_value::<Option<Self>>(value)
-            .inspect_err(|err| {
-                router_env::logger::error!("Failed to parse payouts data: {}", err);
-            })
-            .change_context(ParsingError::StructParseFailure(
-                "Failed to parse payouts data",
-            ))
-            .map(|optional_common_mandate_details| {
-                optional_common_mandate_details
-                    .and_then(|common_mandate_details| common_mandate_details.payouts)
-            })?;
-
-        Ok(Self {
-            payments: payments_data,
-            payouts: payouts_data,
-        })
+        Self::from_value(value).map_err(Into::into)
     }
 }
 
@@ -1996,6 +2008,7 @@ impl From<PaymentsMandateReference> for CommonMandateReference {
         Self {
             payments: Some(payment_reference),
             payouts: None,
+            recurring_context: None,
         }
     }
 }

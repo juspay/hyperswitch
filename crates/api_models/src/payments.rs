@@ -10686,6 +10686,23 @@ pub struct JpmorganConnectorMetadata {
     pub requested_challenge_preference: Option<JpmorganChallengePreference>,
     pub original_three_ds: Option<JpmorganOriginalThreeDs>,
     pub trans_status_reason: Option<String>,
+    /// Defines the agreement for initialization or supplies the original agreement for MIT.
+    pub recurring_agreement: Option<crate::mandates::JpmorganRecurringAgreement>,
+    /// Identifies the credential type when you import an existing decrypted wallet relationship.
+    pub wallet_account_number_type: Option<JpmorganWalletAccountNumberType>,
+}
+
+/// Identifies a documented decrypted wallet credential type for JPMorgan payments.
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganWalletAccountNumberType {
+    /// Contains a Google Pay primary account number.
+    Pan,
+    /// Contains a Google Pay or Apple Pay device token.
+    DeviceToken,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -14632,8 +14649,10 @@ impl PaymentRevenueRecoveryMetadata {
             processor_payment_token: self
                 .billing_connector_payment_details
                 .payment_processor_token
-                .clone(),
+                .clone()
+                .into(),
             merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
+            safetech_context: None,
         }
     }
     pub fn get_merchant_connector_id_for_api_request(&self) -> id_type::MerchantConnectorAccountId {

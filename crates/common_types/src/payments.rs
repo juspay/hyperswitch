@@ -1461,6 +1461,112 @@ pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
     pub device_manufacturer_identifier: Option<Secret<String>>,
 }
 
+/// Contains stored JPMorgan relationships, indexed by merchant connector account.
+pub type JpmorganRecurringContext =
+    HashMap<common_utils::id_type::MerchantConnectorAccountId, JpmorganStoredRelationship>;
+
+/// Original JPMorgan relationship context for a saved payment method.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct JpmorganStoredRelationship {
+    /// Network transaction ID returned by the initial payment or verification.
+    pub original_network_transaction_id: String,
+    /// Mastercard transaction link ID returned by the initial transaction.
+    pub original_transaction_link_id: Option<String>,
+    /// Processing context for the original relationship, without payment credentials.
+    pub connector_feature_data: JpmorganFeatureData,
+}
+
+/// JPMorgan context passed through the UCS feature-data field.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct JpmorganFeatureData {
+    /// Connector-specific relationship context.
+    pub jpmorgan: JpmorganStoredContext,
+}
+
+/// Approved initialization context retained for later payments.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct JpmorganStoredContext {
+    /// Reference to the transaction that establishes the relationship.
+    pub stored_credential: JpmorganStoredCredential,
+    /// Original recurring agreement, when applicable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurring: Option<JpmorganStoredAgreement>,
+    /// Wallet classification established during initialization, when applicable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wallet: Option<JpmorganStoredWallet>,
+}
+
+/// Non-secret reference to a successful initialization request.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganStoredCredential {
+    /// Request reference used for the initial transaction.
+    pub initialization_reference: String,
+    /// Flow used to establish the relationship.
+    pub source: JpmorganInitializationSource,
+}
+
+/// JPMorgan flow that establishes a stored relationship.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum JpmorganInitializationSource {
+    /// A successful payment establishes the relationship.
+    Payment,
+    /// A successful zero-amount verification establishes the relationship.
+    Verification,
+}
+
+/// Recurring agreement established by the initial transaction.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganStoredAgreement {
+    /// Initial sequence retained instead of a subsequent charge sequence.
+    pub recurring_sequence: JpmorganInitialRecurringSequence,
+    /// Agreement ID reused for subsequent recurring payments.
+    pub agreement_id: String,
+    /// Whether the agreement permits variable payment amounts.
+    pub is_variable_amount: bool,
+}
+
+/// Sequence accepted for a stored initialization agreement.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganInitialRecurringSequence {
+    /// The initial transaction establishes the agreement.
+    First,
+}
+
+/// Wallet classification retained without tokens or cryptograms.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct JpmorganStoredWallet {
+    /// Wallet provider used during initialization.
+    pub provider: JpmorganWalletProvider,
+    /// Verified payment account-number type.
+    pub account_number_type: JpmorganWalletAccountNumberType,
+    /// Verified card network, when available.
+    pub network: Option<enums::CardNetwork>,
+}
+
+/// Wallet providers supported by the documented decrypted-token flows.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganWalletProvider {
+    /// Apple Pay supplies a decrypted device token.
+    ApplePay,
+    /// Google Pay supplies a decrypted PAN or device token.
+    GooglePay,
+}
+
+/// Documented account-number types for decrypted wallet payments.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganWalletAccountNumberType {
+    /// The credential contains the underlying card account number.
+    Pan,
+    /// The credential contains a device-specific payment token.
+    DeviceToken,
+}
+
 /// Billing frequency for a card installment plan
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]

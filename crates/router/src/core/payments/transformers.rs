@@ -519,6 +519,11 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         feature_metadata: None,
         installment_details: None,
         connector_intent_metadata: None,
+        connector_meta: payment_data
+            .payment_attempt
+            .connector_metadata
+            .clone()
+            .expose_option(),
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
         recipient_details,
         business_country: None,
@@ -1865,6 +1870,11 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         authentication_data: None,
         feature_metadata: None,
         connector_intent_metadata: None,
+        connector_meta: payment_data
+            .payment_attempt
+            .connector_metadata
+            .clone()
+            .expose_option(),
         merchant_order_reference_id: None,
         mit_category: None,
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
@@ -5425,6 +5435,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             feature_metadata: None,
             installment_details: None,
             connector_intent_metadata: None,
+            connector_meta: payment_data
+                .payment_attempt
+                .connector_metadata
+                .clone()
+                .expose_option(),
             is_account_funded_transaction: payment_data
                 .payment_intent
                 .is_account_funded_transaction,
@@ -5708,6 +5723,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             feature_metadata,
             installment_details: payment_data.payment_attempt.installment_data.clone(),
             connector_intent_metadata,
+            connector_meta: payment_data.payment_attempt.connector_metadata.clone(),
             is_account_funded_transaction: payment_data
                 .payment_intent
                 .is_account_funded_transaction,
@@ -7369,6 +7385,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .transpose()?,
             merchant_order_reference_id,
             mit_category: payment_data.payment_intent.mit_category,
+            connector_meta: payment_data.payment_attempt.connector_metadata.clone(),
             is_account_funded_transaction: payment_data
                 .payment_intent
                 .is_account_funded_transaction,
