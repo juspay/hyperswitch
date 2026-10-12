@@ -992,7 +992,7 @@ impl TryFrom<ChargebeeTransactionPaymentMethod> for enums::PaymentMethod {
             | ChargebeeTransactionPaymentMethod::AfterPay => Ok(Self::PayLater),
             ChargebeeTransactionPaymentMethod::Other => Err(errors::ConnectorError::NotSupported {
                 message: "payment method in revenue recovery webhook".to_string(),
-                connector: "chargebee",
+                connector: "chargebee".into(),
             }
             .into()),
         }
@@ -1205,7 +1205,7 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
             | enums::AttemptStatus::Expired
             | enums::AttemptStatus::CaptureReview => Err(errors::ConnectorError::NotSupported {
                 message: "Record back flow is only supported for terminal status".to_string(),
-                connector: "chargebee",
+                connector: "chargebee".into(),
             }
             .into()),
         }

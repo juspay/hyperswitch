@@ -7,7 +7,8 @@ use common_utils::id_type;
 
 use super::{ForexMetric, NameDescription, TimeRange};
 use crate::enums::{
-    AuthenticationType, Connector, Currency, IntentStatus, PaymentMethod, PaymentMethodType,
+    AuthenticationType, Connector, Currency, FutureUsage, IntentStatus, PaymentMethod,
+    PaymentMethodType,
 };
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
@@ -38,6 +39,10 @@ pub struct PaymentIntentFilters {
     pub error_reason: Vec<String>,
     #[serde(default)]
     pub customer_id: Vec<id_type::CustomerId>,
+    #[serde(default)]
+    pub off_session: Vec<bool>,
+    #[serde(default)]
+    pub setup_future_usage: Vec<FutureUsage>,
 }
 
 #[derive(
@@ -75,6 +80,8 @@ pub enum PaymentIntentDimensions {
     CardLast4,
     CardIssuer,
     ErrorReason,
+    OffSession,
+    SetupFutureUsage,
 }
 
 #[derive(
@@ -165,6 +172,8 @@ pub struct PaymentIntentMetricsBucketIdentifier {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub off_session: Option<bool>,
+    pub setup_future_usage: Option<FutureUsage>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     #[serde(rename = "time_bucket")]
@@ -187,6 +196,8 @@ impl PaymentIntentMetricsBucketIdentifier {
         card_last_4: Option<String>,
         card_issuer: Option<String>,
         error_reason: Option<String>,
+        off_session: Option<bool>,
+        setup_future_usage: Option<FutureUsage>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -202,6 +213,8 @@ impl PaymentIntentMetricsBucketIdentifier {
             card_last_4,
             card_issuer,
             error_reason,
+            off_session,
+            setup_future_usage,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -222,6 +235,8 @@ impl Hash for PaymentIntentMetricsBucketIdentifier {
         self.card_last_4.hash(state);
         self.card_issuer.hash(state);
         self.error_reason.hash(state);
+        self.off_session.hash(state);
+        self.setup_future_usage.map(|i| i.to_string()).hash(state);
         self.time_bucket.hash(state);
     }
 }

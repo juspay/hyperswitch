@@ -649,7 +649,7 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         *response.unwrap_err().current_context(),
         router::core::errors::ConnectorError::NotSupported {
             message: "Maestro".to_string(),
-            connector: "Forte",
+            connector: "Forte".into(),
         }
     )
 }

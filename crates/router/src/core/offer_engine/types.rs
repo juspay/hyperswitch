@@ -70,7 +70,7 @@ pub struct OfferPaymentMethodInfo {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub card_bin: Option<String>,
+    pub card_bin: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

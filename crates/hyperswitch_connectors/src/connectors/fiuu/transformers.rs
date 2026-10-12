@@ -190,7 +190,7 @@ impl TryFrom<BankNames> for BankCode {
             BankNames::OcbcBank => Ok(Self::OCBCMYKL),
             bank => Err(errors::ConnectorError::NotSupported {
                 message: format!("Invalid BankName for FPX Refund: {bank:?}"),
-                connector: "Fiuu",
+                connector: "Fiuu".into(),
             })?,
         }
     }
@@ -589,6 +589,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                     | WalletData::SamsungPay(_)
                     | WalletData::TwintRedirect {}
                     | WalletData::VippsRedirect {}
+                    | WalletData::WeroRedirect {}
                     | WalletData::TouchNGoRedirect(_)
                     | WalletData::WeChatPayRedirect(_)
                     | WalletData::WeChatPayQr(_)

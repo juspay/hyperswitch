@@ -1,5 +1,13 @@
 use utoipa::ToSchema;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OfferEngineCredentialSource {
+    None,
+    Application,
+    Merchant,
+}
+
 /// Request to browse the offers available to a merchant.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BrowseOffersRequest {

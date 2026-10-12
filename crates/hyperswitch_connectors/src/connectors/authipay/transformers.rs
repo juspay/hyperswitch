@@ -136,7 +136,7 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
                     | Some(enums::CaptureMethod::Scheduled) => {
                         return Err(errors::ConnectorError::NotSupported {
                             message: "Capture method not supported by Authipay".to_string(),
-                            connector: "Authipay",
+                            connector: "Authipay".into(),
                         }
                         .into());
                     }

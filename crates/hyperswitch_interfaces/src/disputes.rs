@@ -26,6 +26,8 @@ pub struct DisputePayload {
     pub created_at: Option<PrimitiveDateTime>,
     /// updated_at
     pub updated_at: Option<PrimitiveDateTime>,
+    /// additional_details
+    pub additional_details: Option<common_types::disputes::AdditionalDetails>,
 }
 
 impl From<DisputeSyncResponse> for DisputePayload {
@@ -41,6 +43,7 @@ impl From<DisputeSyncResponse> for DisputePayload {
             challenge_required_by: dispute_sync_data.challenge_required_by,
             created_at: dispute_sync_data.created_at,
             updated_at: dispute_sync_data.updated_at,
+            additional_details: None,
         }
     }
 }

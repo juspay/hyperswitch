@@ -169,6 +169,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Elavon => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
                 }
+                enums::Connector::ElavonPg => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::ElavonPg::new())))
+                }
                 enums::Connector::Envoy => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Envoy::new())))
                 }

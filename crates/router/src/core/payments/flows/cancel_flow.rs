@@ -95,7 +95,13 @@ impl Feature<api::Void, types::PaymentsCancelData>
             router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
         );
 
-        payments::gateway::handle_gateway_call::<_, _, _, PaymentFlowData, _>(
+        Box::pin(payments::gateway::handle_gateway_call::<
+            _,
+            _,
+            _,
+            PaymentFlowData,
+            _,
+        >(
             state,
             self,
             connector,
@@ -103,7 +109,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
             call_connector_action,
             connector_request,
             return_raw_connector_response,
-        )
+        ))
         .await
     }
 

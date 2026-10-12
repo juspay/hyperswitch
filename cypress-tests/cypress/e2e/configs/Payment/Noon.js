@@ -122,6 +122,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         customer_acceptance: null,
+        connector_metadata: connectorMetadata,
         setup_future_usage: "on_session",
       },
       Response: {
@@ -337,6 +338,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
+        connector_metadata: connectorMetadata,
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -436,6 +438,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
+        connector_metadata: connectorMetadata,
         mandate_data: multiUseMandateData,
       },
       Response: {
@@ -451,6 +454,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
+        connector_metadata: connectorMetadata,
         mandate_data: multiUseMandateData,
       },
       Response: {
@@ -605,6 +609,7 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+        connector_metadata: connectorMetadata,
       },
       Response: {
         status: 200,
@@ -670,6 +675,7 @@ export const connectorDetails = {
         },
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
+        connector_metadata: connectorMetadata,
       },
       Response: {
         status: 200,
@@ -775,6 +781,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         customer_acceptance: null,
+        connector_metadata: connectorMetadata,
         setup_future_usage: "on_session",
       },
       Response: {

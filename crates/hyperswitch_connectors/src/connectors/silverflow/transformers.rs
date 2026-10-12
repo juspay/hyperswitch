@@ -116,7 +116,7 @@ impl TryFrom<&SilverflowRouterData<&PaymentsAuthorizeRouterData>> for Silverflow
                     | Some(enums::CaptureMethod::SequentialAutomatic) => {
                         return Err(errors::ConnectorError::NotSupported {
                             message: "Capture method not supported by Silverflow".to_string(),
-                            connector: "Silverflow",
+                            connector: "Silverflow".into(),
                         }
                         .into());
                     }

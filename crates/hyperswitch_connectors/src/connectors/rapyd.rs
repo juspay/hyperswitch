@@ -955,6 +955,7 @@ impl IncomingWebhook for Rapyd {
             connector_status: webhook_dispute_data.status.to_string(),
             created_at: webhook_dispute_data.created_at,
             updated_at: webhook_dispute_data.updated_at,
+            additional_details: None,
         })
     }
 }

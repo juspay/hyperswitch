@@ -87,9 +87,12 @@ fn build_refreshable_payment_method(
     let card_details: &CardDetail = match raw_payment_method_data {
         Some(RawPaymentMethodData::Card(card_details)) => Some(card_details),
         Some(RawPaymentMethodData::CardWithNT(details)) => Some(&details.card_details),
-        Some(RawPaymentMethodData::BankDebit(_) | RawPaymentMethodData::ProxyCard(_)) | None => {
-            None
-        }
+        Some(
+            RawPaymentMethodData::BankDebit(_)
+            | RawPaymentMethodData::Wallet(_)
+            | RawPaymentMethodData::ProxyCard(_),
+        )
+        | None => None,
     }
     .ok_or_else(|| report!(AccountUpdaterError::CardUnusable))
     .attach_printable("Unvaulted payment method data holds no card")?;

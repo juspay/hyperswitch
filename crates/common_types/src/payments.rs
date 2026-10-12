@@ -1046,6 +1046,52 @@ pub enum RecoveryAction {
     InvalidAction,
 }
 
+/// Action to be taken on the transaction reported through the revenue recovery API
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryPaymentsAction {
+    /// Records the external transaction against payment intent and schedules a retry.
+    ScheduleFailedPayment,
+    /// Records the external payment and stops the internal process tracker.
+    SuccessPaymentExternal,
+}
+
+impl From<RecoveryPaymentsAction> for RecoveryAction {
+    fn from(action: RecoveryPaymentsAction) -> Self {
+        match action {
+            RecoveryPaymentsAction::ScheduleFailedPayment => Self::ScheduleFailedPayment,
+            RecoveryPaymentsAction::SuccessPaymentExternal => Self::SuccessPaymentExternal,
+        }
+    }
+}
+
+/// Status of the transaction reported.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryTransactionStatus {
+    /// The transaction was charged in full.
+    Charged,
+    /// The transaction failed.
+    Failure,
+    /// The transaction was charged for a part of the amount.
+    PartialCharged,
+    /// The transaction was charged for a part of the amount and the remaining amount can still be captured.
+    PartialChargedAndChargeable,
+}
+
+impl From<RecoveryTransactionStatus> for common_enums::AttemptStatus {
+    fn from(status: RecoveryTransactionStatus) -> Self {
+        match status {
+            RecoveryTransactionStatus::Charged => Self::Charged,
+            RecoveryTransactionStatus::Failure => Self::Failure,
+            RecoveryTransactionStatus::PartialCharged => Self::PartialCharged,
+            RecoveryTransactionStatus::PartialChargedAndChargeable => {
+                Self::PartialChargedAndChargeable
+            }
+        }
+    }
+}
+
 /// Billing Descriptor information to be sent to the payment gateway
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema,
@@ -1404,6 +1450,11 @@ pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
     #[schema(value_type = Option<CardNetwork>)]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<enums::CardNetwork>,
+
+    /// Identifier of the device that generated the token
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub device_manufacturer_identifier: Option<Secret<String>>,
 }
 
 /// Billing frequency for a card installment plan
@@ -1723,8 +1774,25 @@ pub struct ExternalSurchargeDetails {
     pub external_surcharge_id: String,
     /// Surcharge amount in minor units
     pub external_surcharge_amount: MinorUnit,
+    /// Surcharge percentage returned by the connector (e.g. InterPayments), if provided.
+    /// Stored as a `Decimal` so the enclosing attempt model can keep deriving `Eq`.
+    #[schema(value_type = Option<f64>)]
+    pub surcharge_percentage: Option<Decimal>,
     /// Whether /v1/ch/sale has been successfully called
     pub sale_notified: bool,
+}
+
+impl ExternalSurchargeDetails {
+    /// Convert an `f64` surcharge percentage (as produced by the surcharge connector) into the
+    /// `Decimal` representation stored on the attempt. Returns `None` for `None`/non-finite input.
+    pub fn decimal_percentage_from_f64(value: Option<f64>) -> Option<Decimal> {
+        value.and_then(Decimal::from_f64)
+    }
+
+    /// The surcharge percentage as an `f64` for API responses, if present.
+    pub fn surcharge_percentage_as_f64(&self) -> Option<f64> {
+        self.surcharge_percentage.and_then(|value| value.to_f64())
+    }
 }
 
 impl_to_sql_from_sql_json!(ExternalSurchargeDetails);
@@ -1783,3 +1851,15 @@ pub struct AppliedOfferDetailsV1 {
 }
 
 impl_to_sql_from_sql_json!(AppliedOfferDetails);
+
+/// Values the router applied to a payment attempt in place of what was requested (stored as JSONB)
+#[derive(
+    Clone, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize, diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct AppliedOverrides {
+    /// Capture method actually sent to the connector for this attempt
+    pub capture_method_applied: Option<enums::CaptureMethod>,
+}
+
+impl_to_sql_from_sql_json!(AppliedOverrides);
