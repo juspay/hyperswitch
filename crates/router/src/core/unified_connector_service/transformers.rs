@@ -9156,13 +9156,15 @@ impl<F>
         Ok(Self {
             vendor_details: Some(payments_grpc::VendorDetails {
                 account_type: match vendor_details.account_type.as_str() {
-                    "custom" => Some(payments_grpc::payout_enums::PayoutAccountType::Custom as i32),
-                    "express" => {
-                        Some(payments_grpc::payout_enums::PayoutAccountType::Express as i32)
-                    }
-                    "standard" => {
-                        Some(payments_grpc::payout_enums::PayoutAccountType::Standard as i32)
-                    }
+                    "custom" => Some(i32::from(
+                        payments_grpc::payout_enums::PayoutAccountType::Custom,
+                    )),
+                    "express" => Some(i32::from(
+                        payments_grpc::payout_enums::PayoutAccountType::Express,
+                    )),
+                    "standard" => Some(i32::from(
+                        payments_grpc::payout_enums::PayoutAccountType::Standard,
+                    )),
                     _ => None,
                 },
                 vendor_category_code: vendor_details
@@ -9176,8 +9178,8 @@ impl<F>
                 statement_descriptor: business_profile_name,
                 owners_provided: vendor_details.company_owners_provided,
                 vendor_type: match vendor_details.business_type.as_str() {
-                    "company" => Some(payments_grpc::BankHolderType::Business as i32),
-                    "individual" => Some(payments_grpc::BankHolderType::Personal as i32),
+                    "company" => Some(i32::from(payments_grpc::BankHolderType::Business)),
+                    "individual" => Some(i32::from(payments_grpc::BankHolderType::Personal)),
                     _ => None,
                 },
                 card_payments_enabled: vendor_details.capabilities_card_payments,
@@ -9226,8 +9228,8 @@ impl<F>
                     .external_account_account_holder_type
                     .as_deref()
                 {
-                    Some("individual") => Some(payments_grpc::BankHolderType::Personal as i32),
-                    Some("company") => Some(payments_grpc::BankHolderType::Business as i32),
+                    Some("individual") => Some(i32::from(payments_grpc::BankHolderType::Personal)),
+                    Some("company") => Some(i32::from(payments_grpc::BankHolderType::Business)),
                     _ => None,
                 },
                 tos_acceptance_date: individual_details.tos_acceptance_date,
