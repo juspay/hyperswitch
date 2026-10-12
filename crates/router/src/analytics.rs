@@ -3080,7 +3080,12 @@ pub mod routes {
                     payment_response_hash_key: hash_key,
                 };
 
-                crate::core::analytics_report::generate_payment_report(&state, lambda_req).await
+                crate::core::analytics_report::generate_report(
+                    &state,
+                    analytics::reports::ReportKind::V1Payments,
+                    lambda_req,
+                )
+                .await
             },
             auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
                 &auth::ApiKeyAuth {
@@ -3163,7 +3168,12 @@ pub mod routes {
                     payment_response_hash_key: None,
                 };
 
-                crate::core::analytics_report::generate_payment_report(&state, lambda_req).await
+                crate::core::analytics_report::generate_report(
+                    &state,
+                    analytics::reports::ReportKind::V1Payments,
+                    lambda_req,
+                )
+                .await
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationReportRead,
@@ -3264,7 +3274,12 @@ pub mod routes {
                     payment_response_hash_key: hash_key,
                 };
 
-                crate::core::analytics_report::generate_payment_report(&state, lambda_req).await
+                crate::core::analytics_report::generate_report(
+                    &state,
+                    analytics::reports::ReportKind::V1Payments,
+                    lambda_req,
+                )
+                .await
             },
             auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
                 &auth::ApiKeyAuth {

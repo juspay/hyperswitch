@@ -1,20 +1,55 @@
-//! Report generation that used to run in the reporting Lambdas, read from the analytics Postgres
-//! pool.
+//! Reports generated from the analytics Postgres pool, replacing the reporting Lambdas.
 //!
-//! Every column is rendered to text by Postgres, so the CSV carries standard values: JSON columns
-//! as JSON, booleans as `true`/`false`, timestamps as ISO 8601 UTC with milliseconds (the format
-//! API responses use) and amounts as exact decimals.
+//! A report is a [`ReportDefinition`]: where its rows come from and the SQL rendering each column
+//! as text. [`write_csv`] runs any definition. Postgres renders the values, so the CSV carries
+//! standard ones: JSON as JSON, booleans as `true`/`false`, timestamps as ISO 8601 UTC with
+//! milliseconds (the format API responses use) and amounts as exact decimals.
 
 pub mod payments;
 
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use sqlx::{postgres::PgRow, Row};
+use futures::TryStreamExt;
+use sqlx::{Postgres, QueryBuilder, Row};
 
 use crate::{enums::AuthInfo, errors::AnalyticsError, AnalyticsProvider};
 
-/// The format of every timestamp in a report, its file name aside: ISO 8601 UTC with
-/// milliseconds, as API responses render them.
+/// Where a report's rows come from and the columns written for each.
+#[derive(Debug)]
+pub struct ReportDefinition {
+    /// Names the report in file keys and file names, e.g. `v1_payments`.
+    pub name: &'static str,
+    /// `data.report_type` in the report webhook, e.g. `payment_report`.
+    pub webhook_type: &'static str,
+    /// What the report covers, as the email words it, e.g. `Payments`.
+    pub title: &'static str,
+    /// The `FROM` clause, joins included.
+    from: &'static str,
+    /// The alias whose `organization_id`, `merchant_id`, `processor_merchant_id`, `profile_id`
+    /// and `created_at` scope the rows.
+    table: &'static str,
+    /// Whether `table` has an `organization_id` column; `relay` does not.
+    organization_scoped: bool,
+    /// Each column's header and the SQL rendering it as text. `NULL` becomes an empty field.
+    columns: &'static [(&'static str, &'static str)],
+}
+
+/// The reports that can be generated.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReportKind {
+    V1Payments,
+}
+
+impl ReportKind {
+    pub fn definition(self) -> &'static ReportDefinition {
+        match self {
+            Self::V1Payments => &payments::V1_PAYMENTS,
+        }
+    }
+}
+
+/// The format of every timestamp in a report: ISO 8601 UTC with milliseconds.
 const TIMESTAMP_FORMAT: &[time::format_description::FormatItem<'static>] = time::macros::format_description!(
     "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z"
 );
@@ -31,6 +66,23 @@ macro_rules! sql_timestamp {
 }
 pub(crate) use sql_timestamp;
 
+/// An amount in major units as an exact decimal carrying its currency's places (`65.00`, `4.074`,
+/// `2537`). The exponent table is the Lambdas' own.
+macro_rules! major_units {
+    ($amount:literal, $currency:literal) => {
+        concat!(
+            "(CASE WHEN ", $currency, " IN ('BHD','IQD','JOD','KWD','LYD','OMR','TND') THEN round(",
+            $amount,
+            "::numeric / 1000, 3) WHEN ", $currency, " IN ('BIF','CLP','DJF','GNF','JPY','KMF','KRW','MGA','PYG','RWF','UGX','VND','VUV','XAF','XOF','XPF') THEN ",
+            $amount,
+            "::numeric ELSE round(",
+            $amount,
+            "::numeric / 100, 2) END)::text"
+        )
+    };
+}
+pub(crate) use major_units;
+
 /// Formats a timestamp as the report's CSV cells do.
 pub fn format_timestamp(value: time::PrimitiveDateTime) -> String {
     value
@@ -38,87 +90,12 @@ pub fn format_timestamp(value: time::PrimitiveDateTime) -> String {
         .unwrap_or_else(|_| value.to_string())
 }
 
-/// One CSV column: its header and the SQL expression rendering it as text. `NULL` becomes an
-/// empty field.
-#[derive(Clone, Copy, Debug)]
-struct ReportColumn {
-    header: &'static str,
-    expression: &'static str,
+/// Whether reports can be generated with this provider, so a request fails up front instead of
+/// in the background. Reports read the Postgres pool; ClickHouse-only deployments cannot serve them.
+pub fn is_supported(provider: &AnalyticsProvider) -> bool {
+    report_pool(provider).is_ok()
 }
 
-impl ReportColumn {
-    const fn new(header: &'static str, expression: &'static str) -> Self {
-        Self { header, expression }
-    }
-}
-
-/// The rows a report may include, taken from the requester's auth. Mirrors the filters the
-/// analytics query builder applies for the same `AuthInfo`.
-#[derive(Clone, Debug)]
-pub struct ReportScope {
-    org_id: String,
-    merchant_ids: Option<Vec<String>>,
-    processor_merchant_ids: Option<Vec<String>>,
-    profile_ids: Option<Vec<String>>,
-}
-
-impl From<&AuthInfo> for ReportScope {
-    fn from(auth: &AuthInfo) -> Self {
-        let ids = |ids: &[common_utils::id_type::MerchantId]| {
-            ids.iter()
-                .map(|id| id.get_string_repr().to_owned())
-                .collect::<Vec<_>>()
-        };
-
-        match auth {
-            AuthInfo::OrgLevel { org_id } => Self {
-                org_id: org_id.get_string_repr().to_owned(),
-                merchant_ids: None,
-                processor_merchant_ids: None,
-                profile_ids: None,
-            },
-            AuthInfo::MerchantLevel {
-                org_id,
-                merchant_ids,
-                processor_merchant_ids,
-            } => Self {
-                org_id: org_id.get_string_repr().to_owned(),
-                merchant_ids: Some(ids(merchant_ids)),
-                processor_merchant_ids: processor_merchant_ids.as_deref().map(ids),
-                profile_ids: None,
-            },
-            AuthInfo::ProfileLevel {
-                org_id,
-                merchant_id,
-                profile_ids,
-                processor_merchant_id,
-            } => Self {
-                org_id: org_id.get_string_repr().to_owned(),
-                merchant_ids: Some(vec![merchant_id.get_string_repr().to_owned()]),
-                processor_merchant_ids: processor_merchant_id
-                    .as_ref()
-                    .map(|id| vec![id.get_string_repr().to_owned()]),
-                profile_ids: Some(
-                    profile_ids
-                        .iter()
-                        .map(|id| id.get_string_repr().to_owned())
-                        .collect(),
-                ),
-            },
-        }
-    }
-}
-
-/// One page of report rows, already encoded as CSV.
-#[derive(Debug)]
-pub struct ReportPage<C> {
-    pub csv: Vec<u8>,
-    pub row_count: usize,
-    /// Where the next page starts; `None` once the scan is exhausted.
-    pub next_cursor: Option<C>,
-}
-
-/// Every report reads through the Postgres pool; ClickHouse-only deployments cannot serve them.
 fn report_pool(provider: &AnalyticsProvider) -> CustomResult<&sqlx::PgPool, AnalyticsError> {
     match provider {
         AnalyticsProvider::Sqlx(client)
@@ -130,54 +107,140 @@ fn report_pool(provider: &AnalyticsProvider) -> CustomResult<&sqlx::PgPool, Anal
     }
 }
 
-/// Whether reports can be generated with this provider, so a request fails up front instead of
-/// in the background.
-pub fn is_supported(provider: &AnalyticsProvider) -> bool {
-    report_pool(provider).is_ok()
+/// Receives a report's CSV as [`write_csv`] produces it.
+#[async_trait::async_trait]
+pub trait CsvSink: Send {
+    async fn write(&mut self, bytes: &[u8]) -> CustomResult<(), AnalyticsError>;
 }
 
-/// RFC 4180: every field quoted, quotes doubled, CRLF line endings.
-fn push_csv_record<I, S>(out: &mut Vec<u8>, fields: I)
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<str>,
-{
+/// Streams the rows `auth` may see, created within `[start_time, end_time]` (inclusive at both
+/// ends, as the Lambda was), to `sink` as CSV records, header first. Returns the number of rows.
+pub async fn write_csv(
+    provider: &AnalyticsProvider,
+    report: &ReportDefinition,
+    auth: &AuthInfo,
+    start_time: time::PrimitiveDateTime,
+    end_time: time::PrimitiveDateTime,
+    sink: &mut dyn CsvSink,
+) -> CustomResult<usize, AnalyticsError> {
+    let table = report.table;
+    let mut query = QueryBuilder::<Postgres>::new("SELECT ");
+    let mut columns = query.separated(", ");
+    for (_, expression) in report.columns {
+        columns.push(*expression);
+    }
+    query.push(format_args!(" FROM {} WHERE TRUE", report.from));
+    push_scope(&mut query, report, auth);
+    query.push(format_args!(" AND {table}.created_at >= "));
+    query.push_bind(start_time);
+    query.push(format_args!(" AND {table}.created_at <= "));
+    query.push_bind(end_time);
+    query.push(format_args!(" ORDER BY {table}.created_at"));
+
+    sink.write(&csv_record(
+        report.columns.iter().map(|(header, _)| *header),
+    ))
+    .await?;
+
+    let mut rows = query.build().fetch(report_pool(provider)?);
+    let mut row_count = 0;
+    while let Some(row) = rows
+        .try_next()
+        .await
+        .change_context(AnalyticsError::UnknownError)
+        .attach_printable_lazy(|| format!("Failed to read the {} report", report.name))?
+    {
+        let fields = (0..report.columns.len())
+            .map(|index| row.try_get::<Option<String>, _>(index))
+            .collect::<Result<Vec<_>, _>>()
+            .change_context(AnalyticsError::UnknownError)
+            .attach_printable("Failed to decode a report row")?;
+        sink.write(&csv_record(
+            fields.into_iter().map(Option::unwrap_or_default),
+        ))
+        .await?;
+        row_count += 1;
+    }
+    Ok(row_count)
+}
+
+/// The same scope the analytics query builder applies for `auth`. The Lambda ignored
+/// `processor_merchant_id`, so a connected merchant received its platform's other rows.
+fn push_scope(query: &mut QueryBuilder<'_, Postgres>, report: &ReportDefinition, auth: &AuthInfo) {
+    let table = report.table;
+    let ids = |ids: &[common_utils::id_type::MerchantId]| {
+        ids.iter()
+            .map(|id| id.get_string_repr().to_owned())
+            .collect::<Vec<_>>()
+    };
+    let (org_id, filters) = match auth {
+        AuthInfo::OrgLevel { org_id } => (org_id, Vec::new()),
+        AuthInfo::MerchantLevel {
+            org_id,
+            merchant_ids,
+            processor_merchant_ids,
+        } => (
+            org_id,
+            [
+                Some(("merchant_id", ids(merchant_ids))),
+                processor_merchant_ids
+                    .as_deref()
+                    .map(|processor_ids| ("processor_merchant_id", ids(processor_ids))),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+        ),
+        AuthInfo::ProfileLevel {
+            org_id,
+            merchant_id,
+            profile_ids,
+            processor_merchant_id,
+        } => (
+            org_id,
+            [
+                Some(("merchant_id", ids(std::slice::from_ref(merchant_id)))),
+                Some((
+                    "profile_id",
+                    profile_ids
+                        .iter()
+                        .map(|id| id.get_string_repr().to_owned())
+                        .collect(),
+                )),
+                processor_merchant_id
+                    .as_ref()
+                    .map(|id| ("processor_merchant_id", ids(std::slice::from_ref(id)))),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+        ),
+    };
+
+    if report.organization_scoped {
+        query.push(format_args!(" AND {table}.organization_id = "));
+        query.push_bind(org_id.get_string_repr().to_owned());
+    }
+    for (column, values) in filters {
+        query.push(format_args!(" AND {table}.{column} = ANY("));
+        query.push_bind(values);
+        query.push(")");
+    }
+}
+
+/// One RFC 4180 record: every field quoted, quotes doubled, CRLF line ending.
+fn csv_record<S: AsRef<str>>(fields: impl IntoIterator<Item = S>) -> Vec<u8> {
+    let mut out = Vec::new();
     for (index, field) in fields.into_iter().enumerate() {
         if index > 0 {
             out.push(b',');
         }
         out.push(b'"');
-        for byte in field.as_ref().bytes() {
-            if byte == b'"' {
-                out.push(b'"');
-            }
-            out.push(byte);
-        }
+        out.extend_from_slice(field.as_ref().replace('"', "\"\"").as_bytes());
         out.push(b'"');
     }
     out.extend_from_slice(b"\r\n");
-}
-
-fn csv_header(columns: &[ReportColumn]) -> Vec<u8> {
-    let mut out = Vec::new();
-    push_csv_record(&mut out, columns.iter().map(|column| column.header));
     out
-}
-
-fn render_rows(columns: &[ReportColumn], rows: &[PgRow]) -> CustomResult<Vec<u8>, AnalyticsError> {
-    let mut out = Vec::new();
-    for row in rows {
-        let fields = (0..columns.len())
-            .map(|index| {
-                row.try_get::<Option<String>, _>(index)
-                    .map(Option::unwrap_or_default)
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .change_context(AnalyticsError::UnknownError)
-            .attach_printable("Failed to decode a report row")?;
-        push_csv_record(&mut out, fields);
-    }
-    Ok(out)
 }
 
 #[cfg(test)]
@@ -186,9 +249,10 @@ mod tests {
 
     #[test]
     fn csv_record_quotes_every_field() {
-        let mut out = Vec::new();
-        push_csv_record(&mut out, ["", "a\"b", "x\ny", "true", "1.50"]);
-        assert_eq!(out, b"\"\",\"a\"\"b\",\"x\ny\",\"true\",\"1.50\"\r\n");
+        assert_eq!(
+            csv_record(["", "a\"b", "x\ny", "true", "1.50"]),
+            b"\"\",\"a\"\"b\",\"x\ny\",\"true\",\"1.50\"\r\n"
+        );
     }
 
     #[test]
@@ -197,5 +261,24 @@ mod tests {
             format_timestamp(time::macros::datetime!(2026-10-12 09:10:07.215205)),
             "2026-10-12T09:10:07.215Z"
         );
+    }
+
+    #[test]
+    fn payment_report_header_matches_lambda() {
+        // V1_PAYMENTS_CSV_COLUMNS from weekly_payment_report_generator_step_1.
+        let expected = concat!(
+            r#""payment_id","attempt_id","status","amount","currency","connector","#,
+            r#""connector_transaction_id","amount_to_capture","customer_id","created_at","#,
+            r#""order_details","error_message","capture_method","authentication_type","#,
+            r#""mandate_id","payment_method","payment_method_type","metadata","#,
+            r#""setup_future_usage","statement_descriptor_name","description","off_session","#,
+            r#""business_country","business_label","business_sub_label","#,
+            r#""allowed_payment_method_types","payment_method_data","card_network","#,
+            r#""fingerprint_id","modified_at","error_code","payment_method_id","#,
+            r#""card_holder_name","merchant_order_reference_id","profile_id""#,
+            "\r\n"
+        );
+        let header = csv_record(payments::V1_PAYMENTS.columns.iter().map(|(h, _)| *h));
+        assert_eq!(String::from_utf8_lossy(&header), expected);
     }
 }
