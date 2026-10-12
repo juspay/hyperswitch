@@ -243,7 +243,7 @@ impl PaymentMethod {
         conn: &DatabaseConnectionWithContext<'_>,
         payment_method: payment_method::PaymentMethodUpdateInternal,
     ) -> StorageResult<Self> {
-        match generics::generic_update_with_unique_predicate_get_result::<
+        match Box::pin(generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,
@@ -252,7 +252,7 @@ impl PaymentMethod {
             conn,
             dsl::payment_method_id.eq(self.payment_method_id.to_owned()),
             payment_method,
-        )
+        ))
         .await
         {
             Err(error) => match error.current_context() {

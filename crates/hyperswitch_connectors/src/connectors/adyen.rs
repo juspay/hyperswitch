@@ -414,6 +414,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Flexiti
                 | PaymentMethodType::RevolutPay
                 | PaymentMethodType::Bluecode
+                | PaymentMethodType::Wero
                 | PaymentMethodType::SepaGuarenteedDebit
                 | PaymentMethodType::OpenBanking
                 | PaymentMethodType::NetworkToken

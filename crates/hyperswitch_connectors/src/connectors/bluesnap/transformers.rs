@@ -400,6 +400,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                 | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
+                | WalletData::WeroRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::CashappQr(_)
