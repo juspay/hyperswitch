@@ -9,7 +9,9 @@ use common_utils::{errors::CustomResult, pii};
 use hyperswitch_masking::{PeekInterface, Secret};
 
 use crate::{
-    email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString},
+    email::{
+        EmailClient, EmailError, EmailRecipients, EmailResult, EmailSettings, IntermediateString,
+    },
     report_with_cause,
 };
 
@@ -96,17 +98,18 @@ impl EmailClient for SmtpServer {
 
     async fn send_email(
         &self,
-        recipient: pii::Email,
+        recipients: EmailRecipients,
         subject: String,
         body: Self::RichText,
         _proxy_url: Option<&String>,
     ) -> EmailResult<()> {
         // A new connection for every email
+        let (to, cc, bcc) = recipients.into_addresses();
         let message = EmailMessage {
             from: self.sender.peek().to_owned(),
-            to: vec![recipient.peek().to_owned()],
-            cc: Vec::new(),
-            bcc: Vec::new(),
+            to,
+            cc,
+            bcc,
             subject,
             html_body: body,
         };

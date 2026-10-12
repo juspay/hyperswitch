@@ -10,7 +10,9 @@ use hyperswitch_masking::PeekInterface;
 use router_env::logger;
 
 use crate::{
-    email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString},
+    email::{
+        EmailClient, EmailError, EmailRecipients, EmailResult, EmailSettings, IntermediateString,
+    },
     report_with_cause,
 };
 
@@ -58,17 +60,18 @@ impl EmailClient for AwsSes {
 
     async fn send_email(
         &self,
-        recipient: pii::Email,
+        recipients: EmailRecipients,
         subject: String,
         body: Self::RichText,
         proxy_url: Option<&String>,
     ) -> EmailResult<()> {
         // A new role session for every email, as the one created at startup would expire
+        let (to, cc, bcc) = recipients.into_addresses();
         let message = EmailMessage {
             from: self.sender.peek().to_owned(),
-            to: vec![recipient.peek().to_owned()],
-            cc: Vec::new(),
-            bcc: Vec::new(),
+            to,
+            cc,
+            bcc,
             subject,
             html_body: body,
         };
