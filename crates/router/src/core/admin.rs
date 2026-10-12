@@ -1672,7 +1672,7 @@ struct ConnectorTypeAndConnectorName<'a> {
     connector_name: &'a api_enums::Connector,
 }
 
-fn is_default_fallback_connector_type(connector_type: &api_enums::ConnectorType) -> bool {
+fn is_default_fallback_connector_type(connector_type: api_enums::ConnectorType) -> bool {
     matches!(
         connector_type,
         api_enums::ConnectorType::PaymentProcessor | api_enums::ConnectorType::PayoutProcessor
@@ -1751,7 +1751,7 @@ impl ConnectorTypeAndConnectorName<'_> {
                 })?;
             routable_connector = Some(routable_connector_option);
         };
-        Ok(routable_connector.filter(|_| is_default_fallback_connector_type(self.connector_type)))
+        Ok(routable_connector.filter(|_| is_default_fallback_connector_type(*self.connector_type)))
     }
 }
 #[cfg(feature = "v1")]
@@ -3192,7 +3192,7 @@ pub async fn update_connector(
         merchant_config
             .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
             .await?;
-    } else if is_default_fallback_connector_type(&mca.connector_type) {
+    } else if is_default_fallback_connector_type(mca.connector_type) {
         merchant_config
             .retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists()
             .await?;
@@ -5247,7 +5247,7 @@ mod default_fallback_connector_tests {
         use api_enums::ConnectorType::*;
 
         for connector_type in [PaymentProcessor, PayoutProcessor] {
-            assert!(is_default_fallback_connector_type(&connector_type));
+            assert!(is_default_fallback_connector_type(connector_type));
         }
         for connector_type in [
             PaymentVas,
@@ -5263,7 +5263,7 @@ mod default_fallback_connector_tests {
             BillingProcessor,
             VaultProcessor,
         ] {
-            assert!(!is_default_fallback_connector_type(&connector_type));
+            assert!(!is_default_fallback_connector_type(connector_type));
         }
     }
 
