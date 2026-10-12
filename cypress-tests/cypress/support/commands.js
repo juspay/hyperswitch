@@ -3171,81 +3171,112 @@ Cypress.Commands.add(
   }
 );
 
-// Returns the response (wrapped, so callers can chain .then() on it) so
-// this can be reused wherever the payment-method-list call itself is needed
-// alongside custom assertions — see assertCustomerAcceptanceSupport below.
 Cypress.Commands.add("paymentMethodsCallTest", (globalState, data = null) => {
   const resData = data?.Response || data;
   const clientSecret = globalState.get("clientSecret");
   const paymentIntentID = clientSecret.split("_secret_")[0];
 
-  return cy
-    .request({
-      method: "GET",
-      url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${clientSecret}`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("publishableKey"),
-      },
-    })
-    .then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${clientSecret}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("publishableKey"),
+    },
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
 
-      return cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
 
-        // Verify response against config data if provided (only check fields defined in config)
-        if (resData?.body) {
-          for (const key in resData.body) {
-            expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
-          }
+      // Verify response against config data if provided (only check fields defined in config)
+      if (resData?.body) {
+        for (const key in resData.body) {
+          expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
         }
+      }
 
-        // Verify intent_data if provided in config (for installment tests)
-        if (resData?.intent_data) {
-          expect(response.body.intent_data, "intent_data").to.exist;
-          for (const key in resData.intent_data) {
-            expect(
-              response.body.intent_data[key],
-              `intent_data.${key}`
-            ).to.deep.equal(resData.intent_data[key]);
-          }
+      // Verify intent_data if provided in config (for installment tests)
+      if (resData?.intent_data) {
+        expect(response.body.intent_data, "intent_data").to.exist;
+        for (const key in resData.intent_data) {
+          expect(
+            response.body.intent_data[key],
+            `intent_data.${key}`
+          ).to.deep.equal(resData.intent_data[key]);
         }
+      }
 
-        expect(response.body).to.have.property("redirect_url");
-        expect(response.body).to.have.property("payment_methods");
-        if (
-          globalState.get("collectBillingDetails") === true ||
-          globalState.get("alwaysCollectBillingDetails") === true
-        ) {
-          expect(
-            response.body.collect_billing_details_from_wallets,
-            "collectBillingDetailsFromWallets"
-          ).to.be.true;
-        } else
-          expect(
-            response.body.collect_billing_details_from_wallets,
-            "collectBillingDetailsFromWallets"
-          ).to.be.false;
+      // Verify customer_acceptance_support if provided in config: every
+      // payment_method_type must carry a valid value, and each listed
+      // { paymentMethod, paymentMethodType, expected } entry must match.
+      if (resData?.customer_acceptance_support) {
+        const validValues = ["supported", "partially_supported", "unsupported"];
+        const seen = new Set();
 
-        if (
-          globalState.get("collectShippingDetails") === true ||
-          globalState.get("alwaysCollectShippingDetails") === true
-        ) {
-          expect(
-            response.body.collect_shipping_details_from_wallets,
-            "collectShippingDetailsFromWallets"
-          ).to.be.true;
-        } else
-          expect(
-            response.body.collect_shipping_details_from_wallets,
-            "collectShippingDetailsFromWallets"
-          ).to.be.false;
-        globalState.set("paymentID", paymentIntentID);
-        cy.log(response);
-        return cy.wrap(response);
-      });
+        response.body.payment_methods.forEach((paymentMethod) => {
+          paymentMethod.payment_method_types.forEach((paymentMethodType) => {
+            const actual = paymentMethodType.customer_acceptance_support;
+            expect(validValues).to.include(actual);
+
+            resData.customer_acceptance_support.forEach(
+              ({ paymentMethod: pm, paymentMethodType: pmt, expected }) => {
+                if (
+                  paymentMethod.payment_method === pm &&
+                  paymentMethodType.payment_method_type === pmt
+                ) {
+                  seen.add(`${pm}.${pmt}`);
+                  expect(
+                    actual,
+                    `${pm}.${pmt} customer_acceptance_support`
+                  ).to.equal(expected);
+                }
+              }
+            );
+          });
+        });
+
+        resData.customer_acceptance_support.forEach(
+          ({ paymentMethod: pm, paymentMethodType: pmt }) => {
+            expect(seen.has(`${pm}.${pmt}`), `${pm}.${pmt} entry present`).to.be
+              .true;
+          }
+        );
+      }
+
+      expect(response.body).to.have.property("redirect_url");
+      expect(response.body).to.have.property("payment_methods");
+      if (
+        globalState.get("collectBillingDetails") === true ||
+        globalState.get("alwaysCollectBillingDetails") === true
+      ) {
+        expect(
+          response.body.collect_billing_details_from_wallets,
+          "collectBillingDetailsFromWallets"
+        ).to.be.true;
+      } else
+        expect(
+          response.body.collect_billing_details_from_wallets,
+          "collectBillingDetailsFromWallets"
+        ).to.be.false;
+
+      if (
+        globalState.get("collectShippingDetails") === true ||
+        globalState.get("alwaysCollectShippingDetails") === true
+      ) {
+        expect(
+          response.body.collect_shipping_details_from_wallets,
+          "collectShippingDetailsFromWallets"
+        ).to.be.true;
+      } else
+        expect(
+          response.body.collect_shipping_details_from_wallets,
+          "collectShippingDetailsFromWallets"
+        ).to.be.false;
+      globalState.set("paymentID", paymentIntentID);
+      cy.log(response);
     });
+  });
 });
 
 Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
@@ -9002,59 +9033,6 @@ Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
     });
   });
 });
-
-// Fetches the payment method list and asserts every payment_method_type
-// carries a valid `customer_acceptance_support` value, additionally checking
-// the expected value for each `{ paymentMethod, paymentMethodType, expected }`
-// entry passed in.
-Cypress.Commands.add(
-  "assertCustomerAcceptanceSupport",
-  (globalState, expectedEntries = []) => {
-    const validValues = ["supported", "partially_supported", "unsupported"];
-
-    return cy.paymentMethodsCallTest(globalState).then((response) => {
-      const paymentMethods = response.body["payment_methods"] || [];
-      expect(paymentMethods).to.be.an("array");
-
-      const seen = new Set();
-
-      paymentMethods.forEach((paymentMethod) => {
-        (paymentMethod["payment_method_types"] || []).forEach(
-          (paymentMethodType) => {
-            expect(paymentMethodType).to.have.property(
-              "customer_acceptance_support"
-            );
-            expect(validValues).to.include(
-              paymentMethodType["customer_acceptance_support"]
-            );
-
-            expectedEntries.forEach(
-              ({ paymentMethod: pm, paymentMethodType: pmt, expected }) => {
-                if (
-                  paymentMethod["payment_method"] === pm &&
-                  paymentMethodType["payment_method_type"] === pmt
-                ) {
-                  seen.add(`${pm}.${pmt}`);
-                  expect(
-                    paymentMethodType["customer_acceptance_support"],
-                    `${pm}.${pmt} customer_acceptance_support`
-                  ).to.equal(expected);
-                }
-              }
-            );
-          }
-        );
-      });
-
-      expectedEntries.forEach(
-        ({ paymentMethod: pm, paymentMethodType: pmt }) => {
-          expect(seen.has(`${pm}.${pmt}`), `${pm}.${pmt} entry present`).to.be
-            .true;
-        }
-      );
-    });
-  }
-);
 
 // Unlike blocklistCreateRule/blocklistDeleteRule, these accept an
 // `expectSuccess` flag so callers can assert both the success and the

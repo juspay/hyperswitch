@@ -71,13 +71,17 @@ describe("Payment Method List - customer_acceptance_support field", () => {
       });
 
       it("payment-method-list-call-test: card.credit is supported", () => {
-        cy.assertCustomerAcceptanceSupport(globalState, [
-          {
-            paymentMethod: "card",
-            paymentMethodType: "credit",
-            expected: "supported",
+        cy.paymentMethodsCallTest(globalState, {
+          Response: {
+            customer_acceptance_support: [
+              {
+                paymentMethod: "card",
+                paymentMethodType: "credit",
+                expected: "supported",
+              },
+            ],
           },
-        ]);
+        });
       });
     }
   );
@@ -146,13 +150,17 @@ describe("Payment Method List - customer_acceptance_support field", () => {
       });
 
       it("payment-method-list-call-test: bank_redirect.open_banking is partially_supported", () => {
-        cy.assertCustomerAcceptanceSupport(globalState, [
-          {
-            paymentMethod: "bank_redirect",
-            paymentMethodType: "open_banking",
-            expected: "partially_supported",
+        cy.paymentMethodsCallTest(globalState, {
+          Response: {
+            customer_acceptance_support: [
+              {
+                paymentMethod: "bank_redirect",
+                paymentMethodType: "open_banking",
+                expected: "partially_supported",
+              },
+            ],
           },
-        ]);
+        });
       });
     }
   );
