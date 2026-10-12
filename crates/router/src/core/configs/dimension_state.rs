@@ -796,3 +796,76 @@ pub type DimensionsWithProcessorMerchantIdAndPaymentMethodType = Dimensions<
     NoWebhookEvent,
     HasPaymentMethodType,
 >;
+
+/// Dimensions for configs that can be targeted down to a single merchant connector account.
+///
+/// `merchant_connector_id` is not part of the generic [`Dimensions`] state, so this wraps a
+/// profile-scoped dimension state and adds the connector and the merchant connector account to
+/// the Superposition context.
+#[derive(Clone)]
+pub struct DimensionsWithMerchantConnectorAccount {
+    dimensions: DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    connector: Option<Connector>,
+    merchant_connector_id: id_type::MerchantConnectorAccountId,
+}
+
+impl DimensionsWithMerchantConnectorAccount {
+    pub fn new(
+        dimensions: DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        connector: Option<Connector>,
+        merchant_connector_id: id_type::MerchantConnectorAccountId,
+    ) -> Self {
+        Self {
+            dimensions,
+            connector,
+            merchant_connector_id,
+        }
+    }
+}
+
+impl DimensionsBase for DimensionsWithMerchantConnectorAccount {
+    fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
+        let mut ctx = self.dimensions.to_superposition_context()?;
+
+        if let Some(connector) = self.connector {
+            ctx = ctx.with("connector", connector.to_string().as_str());
+        }
+
+        Some(ctx.with(
+            "merchant_connector_id",
+            self.merchant_connector_id.get_string_repr(),
+        ))
+    }
+
+    fn get_provider_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.dimensions.get_provider_merchant_id()
+    }
+
+    fn get_processor_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.dimensions.get_processor_merchant_id()
+    }
+
+    fn get_organization_id(&self) -> Option<&id_type::OrganizationId> {
+        self.dimensions.get_organization_id()
+    }
+
+    fn get_profile_id(&self) -> Option<&id_type::ProfileId> {
+        self.dimensions.get_profile_id()
+    }
+
+    fn get_connector(&self) -> Option<Connector> {
+        self.connector
+    }
+
+    fn get_payout_retry_type(&self) -> Option<&PayoutRetryType> {
+        self.dimensions.get_payout_retry_type()
+    }
+
+    fn get_incoming_webhook_event(&self) -> Option<IncomingWebhookEvent> {
+        self.dimensions.get_incoming_webhook_event()
+    }
+
+    fn get_payment_method_type(&self) -> Option<PaymentMethodType> {
+        self.dimensions.get_payment_method_type()
+    }
+}

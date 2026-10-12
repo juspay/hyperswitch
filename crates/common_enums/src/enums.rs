@@ -395,6 +395,10 @@ pub enum RevenueRecoveryABAlgorithm {
     /// the weekday and month-day signals are softmaxed before the max, and the day is drawn by the
     /// per-day walk. Kept as the control arm, and kept stable because invoices already carry it.
     AdaptiveRetry,
+    /// Control's pairing, hybridised with the static ladder: the ladder bounds the model's time
+    /// rather than standing by for what it declines, reproducing the behaviour production ran
+    /// before systematic sampling landed. Differs from `AdaptiveRetry` in the ladder's role alone.
+    HybridAdaptiveRetry,
     /// Control's combine, drawn instead by systematic sampling. Differs from `AdaptiveRetry` in the
     /// sampler alone, so a difference between the two is attributable to the draw.
     SystematicKMaxAtSoftmax,
@@ -2670,6 +2674,7 @@ pub enum PaymentMethodType {
     VietQr,
     Venmo,
     Walley,
+    Wero,
     WeChatPay,
     SevenEleven,
     Lawson,
@@ -2847,6 +2852,7 @@ impl PaymentMethodType {
             Self::NetworkToken => "Network Token",
             Self::Payshap => "PayShap",
             Self::PayshapProxy => "PayShap Proxy",
+            Self::Wero => "Wero",
             Self::Ted => "TED",
         };
         display_name.to_string()
@@ -9308,6 +9314,7 @@ pub enum PaymentSource {
 pub enum BrowserName {
     #[default]
     Safari,
+    Chrome,
     #[serde(other)]
     Unknown,
 }
