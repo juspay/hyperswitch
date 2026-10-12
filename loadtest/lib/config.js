@@ -50,4 +50,12 @@ function resolveMaybe(base, value) {
   return path.isAbsolute(String(value)) ? String(value) : path.resolve(base, String(value));
 }
 
-module.exports = { loadYaml, parseYaml, resolveMaybe };
+function inheritedEnvironmentArgs(names, env = process.env) {
+  return (Array.isArray(names) ? names : []).flatMap((name) => {
+    if (!/^[A-Z_][A-Z0-9_]*$/.test(name)) throw new Error('Invalid inherited environment variable name');
+    if (!env[name]) throw new Error(`Environment variable ${name} is not set`);
+    return ['-e', name];
+  });
+}
+
+module.exports = { loadYaml, parseYaml, resolveMaybe, inheritedEnvironmentArgs };

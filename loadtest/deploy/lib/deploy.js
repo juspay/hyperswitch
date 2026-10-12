@@ -4,7 +4,7 @@
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
-const { loadYaml, resolveMaybe } = require("../../lib/config");
+const { loadYaml, resolveMaybe, inheritedEnvironmentArgs } = require("../../lib/config");
 const { applyServiceCpusets, loadCpuAllocation } = require("../../lib/cpu");
 const { run, runShell } = require("./process");
 
@@ -230,6 +230,7 @@ function serviceRunArgs(state, name, service) {
   if (service.cpuset !== null && service.cpuset !== undefined && service.cpuset !== "") args.push("--cpuset-cpus", String(service.cpuset));
   if (service.user !== null && service.user !== undefined && service.user !== "") args.push("--user", String(service.user));
   for (const [key, value] of Object.entries(service.env || {})) if (value !== null && value !== undefined) args.push("-e", `${key}=${value}`);
+  args.push(...inheritedEnvironmentArgs(service.env_from));
   if (service.env_file) args.push("--env-file", render(resolveMaybe(state.configDir, service.env_file), templateVariables(state)));
   for (const volume of arrayValue(service.volumes).filter(Boolean)) args.push("-v", render(String(volume), templateVariables(state)));
   if (service.log_mount) {

@@ -145,7 +145,7 @@ application_services:
       ALLOW_DIFF_KEYS_OVERLAPPING_CTX: true
       ALLOW_SAME_KEYS_NON_OVERLAPPING_CTX: true
       TENANT_MIDDLEWARE_EXCLUSION_LIST: /health,/assets/favicon.ico,/pkg/frontend.js,/pkg,/pkg/frontend_bg.wasm,/pkg/tailwind.css,/pkg/style.css,/assets,/admin,/oidc/login,/admin/organisations,/organisations,/organisations/switch/{organisation_id},/
-      KRONOS_ENCRYPTION_KEY: 5d5e2e704c866bddeb6dd7ef1ea69f39a6eb3934f60e3f13f67c605b513ced9e
+    env_from: [KRONOS_ENCRYPTION_KEY]
       KRONOS_DB_POOL_SIZE: 1
       KRONOS_DISPATCH_TOKEN: dispatch-test
     volumes: null

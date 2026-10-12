@@ -24,8 +24,8 @@ targets:
 merchant:
   mode: existing
   merchant_id: "merchant_1784819090"
-  api_key: "snd_p2mH7jFULyQ9SOjIkq0nVKHTyPGR6Wt8HaHsiyzgyof5cE2GiYGhRp8NuMiRsLln"
-  publishable_key: "pk_snd_c586739d366747b2acd31cd62c9ab744"
+  api_key_env: LOADTEST_MERCHANT_API_KEY
+  publishable_key_env: LOADTEST_MERCHANT_PUBLISHABLE_KEY
   profile_id: "pro_SxtzpqsjQWbY49JJLn1b"
 
 superposition:
