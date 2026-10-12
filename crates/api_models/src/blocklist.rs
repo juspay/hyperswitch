@@ -398,7 +398,10 @@ mod tests {
         assert_eq!(single.transaction_type, BlocklistTransactionType::Payout);
         assert_eq!(list.transaction_type, BlocklistTransactionType::Payout);
         assert_eq!(count.transaction_type, BlocklistTransactionType::Payout);
-        assert_eq!(lookup.transaction_type, Some(BlocklistTransactionType::Payout));
+        assert_eq!(
+            lookup.transaction_type,
+            Some(BlocklistTransactionType::Payout)
+        );
     }
 
     #[test]
