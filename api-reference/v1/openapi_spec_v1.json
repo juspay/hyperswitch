@@ -29837,6 +29837,33 @@
           "PATCH"
         ]
       },
+      "Mifinity": {
+        "type": "object",
+        "required": [
+          "destination_account"
+        ],
+        "properties": {
+          "destination_account": {
+            "type": "string",
+            "description": "The recipient's MiFinity wallet identifier. This can be an email address\nor a MiFinity account number.",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
+      "MifinityAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for a MiFinity wallet payout.",
+        "required": [
+          "destination_account"
+        ],
+        "properties": {
+          "destination_account": {
+            "type": "string",
+            "description": "Recipient email address or MiFinity account number.",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
       "MifinityData": {
         "type": "object",
         "required": [
@@ -40252,6 +40279,7 @@
           "gigadat",
           "gotyme_sanlam",
           "loonio",
+          "mifinity",
           "nomupay",
           "nuvei",
           "payone",
@@ -50386,6 +50414,17 @@
           {
             "type": "object",
             "required": [
+              "mifinity"
+            ],
+            "properties": {
+              "mifinity": {
+                "$ref": "#/components/schemas/Mifinity"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "paypal"
             ],
             "properties": {
@@ -50414,6 +50453,9 @@
           },
           {
             "$ref": "#/components/schemas/GooglePayDecryptAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/MifinityAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PaypalAdditionalData"
