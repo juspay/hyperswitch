@@ -304,6 +304,7 @@ pub struct Payment {
     fast_funds: Option<bool>,
     #[serde(rename = "ISO8583ReturnCode")]
     return_code: Option<ReturnCode>,
+    issuer_response_code: Option<ReturnCode>,
     card_p_a_r: Option<String>,
 }
 
@@ -454,9 +455,9 @@ impl WorldpayXmlPaymentMethodCode {
 #[derive(Debug, Deserialize, Serialize)]
 struct ReturnCode {
     #[serde(rename = "@description")]
-    description: String,
+    description: Option<String>,
     #[serde(rename = "@code")]
-    code: String,
+    code: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -3617,16 +3618,29 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                             let error_code = payment_data
                                 .return_code
                                 .as_ref()
-                                .map(|code| code.code.clone());
+                                .and_then(|code| code.code.clone());
                             let error_message = payment_data
                                 .return_code
                                 .as_ref()
-                                .map(|code| code.description.clone());
+                                .and_then(|code| code.description.clone());
+
+                            let issuer_error_code = payment_data
+                                .issuer_response_code
+                                .as_ref()
+                                .and_then(|code| code.code.clone());
+
+                            let issuer_error_message = payment_data
+                                .issuer_response_code
+                                .as_ref()
+                                .and_then(|code| code.description.clone());
 
                             Err(ErrorResponse {
-                                code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                                code: error_code
+                                    .or(issuer_error_code.clone())
+                                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                                 message: error_message
                                     .clone()
+                                    .or(issuer_error_message.clone())
                                     .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                                 reason: error_message.clone(),
                                 status_code: item.http_code,
@@ -3634,8 +3648,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                                 connector_transaction_id: None,
                                 connector_response_reference_id: None,
                                 network_advice_code: None,
-                                network_decline_code: None,
-                                network_error_message: None,
+                                network_decline_code: issuer_error_code.clone(),
+                                network_error_message: issuer_error_message.clone(),
                                 connector_metadata: None,
                             })
                         } else {
@@ -3686,16 +3700,29 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                     let error_code = payment_data
                         .return_code
                         .as_ref()
-                        .map(|code| code.code.clone());
+                        .and_then(|code| code.code.clone());
                     let error_message = payment_data
                         .return_code
                         .as_ref()
-                        .map(|code| code.description.clone());
+                        .and_then(|code| code.description.clone());
+
+                    let issuer_error_code = payment_data
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.code.clone());
+
+                    let issuer_error_message = payment_data
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.description.clone());
 
                     Err(ErrorResponse {
-                        code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                        code: error_code
+                            .or(issuer_error_code.clone())
+                            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                         message: error_message
                             .clone()
+                            .or(issuer_error_message.clone())
                             .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                         reason: error_message.clone(),
                         status_code: item.http_code,
@@ -3703,8 +3730,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                         connector_transaction_id: None,
                         connector_response_reference_id: None,
                         network_advice_code: None,
-                        network_decline_code: None,
-                        network_error_message: None,
+                        network_decline_code: issuer_error_code.clone(),
+                        network_error_message: issuer_error_message.clone(),
                         connector_metadata: None,
                     })
                 } else {
@@ -4395,23 +4422,37 @@ fn process_payment_response(
         let error_code = payment_data
             .return_code
             .as_ref()
-            .map(|code| code.code.clone());
+            .and_then(|code| code.code.clone());
         let error_message = payment_data
             .return_code
             .as_ref()
-            .map(|code| code.description.clone());
+            .and_then(|code| code.description.clone());
+
+        let issuer_error_code = payment_data
+            .issuer_response_code
+            .as_ref()
+            .and_then(|code| code.code.clone());
+
+        let issuer_error_message = payment_data
+            .issuer_response_code
+            .as_ref()
+            .and_then(|code| code.description.clone());
 
         Err(Box::new(ErrorResponse {
-            code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            code: error_code
+                .or(issuer_error_code.clone())
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: error_message
+                .or(issuer_error_message.clone())
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: Some(order_code.clone()),
             connector_response_reference_id: None,
             network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_decline_code: issuer_error_code.clone(),
+            network_error_message: issuer_error_message.clone(),
             connector_metadata: None,
         }))
     } else {
