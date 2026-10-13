@@ -7894,9 +7894,6 @@ where
     };
 
     let (connector_request, should_continue_further) = if should_continue_further {
-        // The Hyperswitch connector request is needed only for the direct gateway. On the UCS path
-        // the request is built by UCS, and building it here fails for connectors that do not
-        // support the proxy's payment method data natively.
         if gateway_context.execution_path.is_direct_gateway() {
             router_data
                 .build_flow_specific_connector_request(
@@ -8094,9 +8091,6 @@ where
         .await?;
 
     let (connector_request, should_continue_further) = if should_continue_further {
-        // The Hyperswitch connector request is needed only for the direct gateway. On the UCS path
-        // the request is built by UCS, and building it here fails for connectors that do not
-        // support the proxy's `MandatePayment` payment method data natively.
         if gateway_context.execution_path.is_direct_gateway() {
             router_data
                 .build_flow_specific_connector_request(
