@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.07.0-hotfix2
+
+### Bug Fixes
+
+- **config:** Remove country filter for worldpayxml ([#14791](https://github.com/juspay/hyperswitch/pull/14791)) ([`2e83703`](https://github.com/juspay/hyperswitch/commit/2e837035e0cecbd3b96637f0314c15d801a7a090))
+- **connector:** [WorldpayXML][Checkout] map issuer errors and allow optional return-code attributes ([#14790](https://github.com/juspay/hyperswitch/pull/14790)) ([`3d76771`](https://github.com/juspay/hyperswitch/commit/3d76771cb3f057efbe2f9ee1ccc6f208ecc3fb54))
+- **connectors:** [fiuu] psync deserialization error ([#14772](https://github.com/juspay/hyperswitch/pull/14772)) ([`93b4698`](https://github.com/juspay/hyperswitch/commit/93b469873b0d574f03eb8cf12708d159bb9fb3da))
+
+**Full Changelog:** [`2026.10.07.0-hotfix1...2026.10.07.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.10.07.0-hotfix1...2026.10.07.0-hotfix2)
+
+- - -
+
 ## 2026.10.07.0-hotfix1
 
 ### Bug Fixes
