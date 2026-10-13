@@ -94,6 +94,8 @@ pub use self::app::DummyConnector;
 pub use self::app::PaymentMethodSession;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 pub use self::app::Proxy;
+#[cfg(all(feature = "v2", feature = "oltp"))]
+pub use self::app::RevenueRecovery;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
     Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, ExternalService,
