@@ -304,6 +304,7 @@ pub struct Payment {
     fast_funds: Option<bool>,
     #[serde(rename = "ISO8583ReturnCode")]
     return_code: Option<ReturnCode>,
+    #[serde(rename = "IssuerResponseCode")]
     issuer_response_code: Option<ReturnCode>,
     card_p_a_r: Option<String>,
 }
