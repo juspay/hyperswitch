@@ -481,16 +481,12 @@ pub mod core {
 
     impl From<&InjectorRequest> for Box<dyn VaultConnectorStrategy> {
         fn from(request: &InjectorRequest) -> Self {
-            match (
-                &request.connection_config.vault_connector_type,
-                &request.connection_config.vault_connector_id,
-            ) {
-                (
-                    Some(injector_types::VaultConnectorType::Transformation),
-                    Some(injector_types::VaultConnectors::HyperswitchVault),
-                ) => Box::new(HyperswitchVaultStrategy),
-                (Some(injector_types::VaultConnectorType::Proxy), _) => Box::new(ProxyStrategy),
-                (Some(injector_types::VaultConnectorType::Transformation), _) => {
+            match &request.connection_config.vault_connector_type {
+                _ if request.connection_config.uses_hyperswitch_vault_proxy() => {
+                    Box::new(HyperswitchVaultStrategy)
+                }
+                Some(injector_types::VaultConnectorType::Proxy) => Box::new(ProxyStrategy),
+                Some(injector_types::VaultConnectorType::Transformation) => {
                     Box::new(FallbackTransformationStrategy)
                 }
                 _ => Box::new(ProxyStrategy), //by default, the token replacement is done in the forward proxy (e.g. VGS), so ProxyStrategy is the safe default
@@ -593,10 +589,18 @@ pub mod core {
         let vault_connector_str = request.connection_config.vault_connector_metric_str();
         let http_method_str = request.connection_config.http_method.as_metric_str();
         let endpoint_host = request.connection_config.endpoint_host();
+        let body_format = request
+            .connector_payload
+            .body
+            .as_ref()
+            .map_or("legacy", |body| body.as_metric_str());
 
         metrics::INJECTOR_INVOCATIONS_COUNT.add(
             1,
-            router_env::metric_attributes!(("vault_connector", vault_connector_str)),
+            router_env::metric_attributes!(
+                ("vault_connector", vault_connector_str),
+                ("body_format", body_format)
+            ),
         );
 
         let injector = Injector::new();
@@ -609,18 +613,20 @@ pub mod core {
             router_env::metric_attributes!(
                 ("vault_connector", vault_connector_str),
                 ("http_method", http_method_str),
-                ("endpoint_host", endpoint_host.clone())
+                ("endpoint_host", endpoint_host.clone()),
+                ("body_format", body_format)
             ),
         );
 
         result.inspect_err(|e| {
-            logger::error!("Injector core failed: {:?}", e);
+            logger::error!(body_format, error = ?e, "Injector core failed");
             metrics::INJECTOR_FAILED_TOKEN_REPLACEMENTS_COUNT.add(
                 1,
                 router_env::metric_attributes!(
                     ("vault_connector", vault_connector_str),
                     ("http_method", http_method_str),
-                    ("endpoint_host", endpoint_host)
+                    ("endpoint_host", endpoint_host),
+                    ("body_format", body_format)
                 ),
             );
         })
@@ -646,9 +652,15 @@ pub mod core {
             let start_time = std::time::Instant::now();
 
             let vault_data = request.token_data.specific_token_data.clone().expose();
+            let body_format = request
+                .connector_payload
+                .body
+                .as_ref()
+                .map_or("legacy", |body| body.as_metric_str());
 
             logger::debug!(
                 template_length = request.connector_payload.template.len(),
+                body_format,
                 vault_connector_type = ?request.connection_config.vault_connector_type,
                 "Processing token injection request"
             );
@@ -671,7 +683,9 @@ pub mod core {
             let content_type = request
                 .connection_config
                 .headers
-                .get("Content-Type")
+                .iter()
+                .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+                .map(|(_, value)| value)
                 .map(|ct| ContentType::from_header_value(&ct.clone().expose()))
                 .unwrap_or(ContentType::ApplicationXWwwFormUrlencoded);
 
@@ -679,11 +693,22 @@ pub mod core {
             let response = strategy
                 .send(self, &request, &processed_payload, &content_type)
                 .await?;
+            let wrapped = request.connection_config.uses_hyperswitch_vault_proxy();
+            let connector_status_code =
+                response.connector_status_code(wrapped).map_err(|error| {
+                    let report = error_stack::Report::new(error);
+                    match response.vault_proxy_failure_summary().filter(|_| wrapped) {
+                        Some(summary) => report.attach_printable(summary),
+                        None => report,
+                    }
+                })?;
 
             let elapsed = start_time.elapsed();
             logger::info!(
                 duration_ms = elapsed.as_millis(),
-                status_code = response.status_code,
+                status_code = connector_status_code,
+                http_status_code = response.status_code,
+                body_format,
                 response_size = serde_json::to_string(&response.response)
                     .map(|s| s.len())
                     .unwrap_or(0),
@@ -694,7 +719,8 @@ pub mod core {
             metrics::INJECTOR_SUCCESSFUL_TOKEN_REPLACEMENTS_COUNT.add(
                 1,
                 router_env::metric_attributes!(
-                    ("status_code", response.status_code.to_string()),
+                    ("status_code", connector_status_code.to_string()),
+                    ("body_format", body_format),
                     (
                         "vault_connector",
                         request.connection_config.vault_connector_metric_str()
@@ -889,13 +915,18 @@ pub mod core {
                     ))
                 })?;
 
-            let vault_proxy_request =
+            let mut vault_proxy_request =
                 injector_types::HyperswitchVaultProxyRequest::try_from_injector_request(
                     processed_payload,
                     &request.connection_config,
                     &request.token_data,
                 )
                 .map_err(error_stack::Report::new)?;
+            if let Some(body) = &request.connector_payload.body {
+                // Only a JSON body is duplicated into the legacy field.
+                vault_proxy_request.request_body = body.legacy_value().into();
+                vault_proxy_request.body = Some(body.clone().into());
+            }
 
             logger::info!(
                 vault_endpoint = %vault_endpoint,
@@ -1025,6 +1056,7 @@ mod tests {
 
         let request = InjectorRequest {
             connector_payload: ConnectorPayload {
+                body: None,
                 template: "card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string(),
             },
             token_data: TokenData {
@@ -1101,6 +1133,7 @@ mod tests {
 
         let request = InjectorRequest {
             connector_payload: ConnectorPayload {
+                body: None,
                 template: "card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string(),
             },
             token_data: TokenData {
