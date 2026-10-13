@@ -131,7 +131,6 @@ pub trait BlocklistInterface {
         limit: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError>;
 
-
     async fn get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -822,7 +821,6 @@ impl BlocklistInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-
     #[instrument(skip_all)]
     async fn get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
         &self,
@@ -1179,7 +1177,6 @@ impl BlocklistInterface for MockDb {
         Ok(entries)
     }
 
-
     async fn get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -1491,7 +1488,6 @@ impl BlocklistInterface for KafkaStore {
             )
             .await
     }
-
 
     #[instrument(skip_all)]
     async fn get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(

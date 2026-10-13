@@ -536,7 +536,10 @@ mod tests {
 
     #[test]
     fn selected_clone_retry_stops_after_its_legacy_pass() {
-        for selected in [BlocklistTransactionType::Payment, BlocklistTransactionType::Payout] {
+        for selected in [
+            BlocklistTransactionType::Payment,
+            BlocklistTransactionType::Payout,
+        ] {
             let mut tracking = legacy_tracking(); // starts draining_legacy_rows = true
             tracking.selected_transaction_type = Some(selected);
             // Already in legacy pass → exhausted.

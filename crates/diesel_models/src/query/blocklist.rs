@@ -936,7 +936,6 @@ impl Blocklist {
         .await
     }
 
-
     pub async fn list_payment_after_fingerprint_by_legacy_merchant_id_profile_id(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -1024,7 +1023,6 @@ impl Blocklist {
         )
         .await
     }
-
 
     pub async fn delete_payment_by_processor_merchant_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
