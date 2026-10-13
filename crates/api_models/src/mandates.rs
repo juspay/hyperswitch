@@ -196,6 +196,11 @@ pub enum RecurringDetails {
     /// Allows doing MIT with only Card data (no reference id)
     #[smithy(value_type = "CardWithLimitedData")]
     CardWithLimitedData(Box<CardWithLimitedData>),
+
+    /// Network token details for an MIT, with external vault card details to fall back to when
+    /// the network token attempt is declined in a way the network flags as retryable on the card.
+    #[smithy(value_type = "NetworkTokenWithVaultCardFallback")]
+    NetworkTokenWithVaultCardFallback(Box<NetworkTokenWithVaultCardFallback>),
 }
 
 /// Processor payment token for MIT payments where payment_method_data is not available
@@ -412,6 +417,68 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     pub transaction_link_id: Option<String>,
 }
 
+/// Network token details for an MIT: no network transaction ID, and no cryptogram.
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct NetworkTokenDetails {
+    /// The Network Token
+    #[schema(value_type = String, example = "4604000460040787")]
+    #[smithy(value_type = "String")]
+    pub network_token: cards::NetworkToken,
+
+    /// The token's expiry month
+    #[schema(value_type = String, example = "05")]
+    #[smithy(value_type = "String")]
+    pub token_exp_month: Secret<String>,
+
+    /// The token's expiry year
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub token_exp_year: Secret<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// The type of the card such as Credit, Debit
+    #[schema(example = "CREDIT")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_type: Option<String>,
+
+    /// The country in which the card was issued
+    #[schema(example = "INDIA")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country: Option<String>,
+
+    /// The bank code of the bank that issued the card
+    #[schema(example = "JP_AMEX")]
+    #[smithy(value_type = "Option<String>")]
+    pub bank_code: Option<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuer: Option<String>,
+
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub nick_name: Option<Secret<String>>,
+
+    /// The ECI(Electronic Commerce Indicator) value for this authentication.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub eci: Option<String>,
+}
+
 /// Card details held in an external vault, referenced by a vault alias rather than by PAN.
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
@@ -500,6 +567,74 @@ pub struct NetworkTransactionIdAndVaultCardDetails {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub transaction_link_id: Option<String>,
+}
+
+/// Network token details for an MIT, with a vault card to fall back to on a clear-PAN eligible
+/// decline. Both arms share one `network_transaction_id`.
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct NetworkTokenWithVaultCardFallback {
+    /// The network token to attempt first
+    #[smithy(value_type = "NetworkTokenDetails")]
+    pub network_token: NetworkTokenDetails,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated
+    /// Transaction (CIT) when `setup_future_usage` is set to `off_session`. Shared by both arms.
+    #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
+    pub network_transaction_id: Secret<String>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a
+    /// CIT (Customer Initiated Transaction), when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub transaction_link_id: Option<String>,
+
+    /// The external vault card details to fall back to
+    #[smithy(value_type = "VaultCardData")]
+    pub vault_card_data: VaultCardData,
+}
+
+impl NetworkTokenWithVaultCardFallback {
+    /// Arm 1's details, as the concrete type. Callers that need the enum use
+    /// [`Self::to_network_token_arm`]; this exists so conversions over the struct stay total.
+    pub fn network_token_arm_details(&self) -> NetworkTransactionIdAndNetworkTokenDetails {
+        NetworkTransactionIdAndNetworkTokenDetails {
+            network_token: self.network_token.network_token.clone(),
+            token_exp_month: self.network_token.token_exp_month.clone(),
+            token_exp_year: self.network_token.token_exp_year.clone(),
+            card_network: self.network_token.card_network.clone(),
+            card_type: self.network_token.card_type.clone(),
+            card_issuing_country: self.network_token.card_issuing_country.clone(),
+            bank_code: self.network_token.bank_code.clone(),
+            card_holder_name: self.network_token.card_holder_name.clone(),
+            card_issuer: self.network_token.card_issuer.clone(),
+            nick_name: self.network_token.nick_name.clone(),
+            eci: self.network_token.eci.clone(),
+            network_transaction_id: self.network_transaction_id.clone(),
+            transaction_link_id: self.transaction_link_id.clone(),
+        }
+    }
+
+    /// Arm 1 — the network token attempt, in the shape the existing NTI proxy core understands.
+    pub fn to_network_token_arm(&self) -> RecurringDetails {
+        RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(Box::new(
+            self.network_token_arm_details(),
+        ))
+    }
+
+    /// Arm 2 — the vault card alias, in the shape the external vault proxy core understands.
+    pub fn to_vault_card_arm(&self) -> RecurringDetails {
+        RecurringDetails::NetworkTransactionIdAndVaultCardDetails(Box::new(
+            NetworkTransactionIdAndVaultCardDetails {
+                vault_card_data: self.vault_card_data.clone(),
+                network_transaction_id: self.network_transaction_id.clone(),
+                transaction_link_id: self.transaction_link_id.clone(),
+            },
+        ))
+    }
 }
 
 impl RecurringDetails {
