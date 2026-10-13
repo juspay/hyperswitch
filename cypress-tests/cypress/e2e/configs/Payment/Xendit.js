@@ -1131,7 +1131,7 @@ export const connectorDetails = {
         },
       },
     },
-      SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+    SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
       Request: {
         setup_future_usage: "off_session",
         billing: null,
