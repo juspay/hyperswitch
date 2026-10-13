@@ -158,6 +158,10 @@ impl superposition::Config for ShouldOverrideSetupFutureUsageToOffSession {
     type TargetingKey = id_type::MerchantId;
     const SUPERPOSITION_KEY: &'static str =
         superposition_consts::SHOULD_OVERRIDE_SETUP_FUTURE_USAGE_TO_OFF_SESSION;
+
+    fn default_value() -> Self::Output {
+        false
+    }
 }
 
 config! {

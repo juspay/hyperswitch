@@ -1712,7 +1712,7 @@ impl From<WalletPaymentMethodData> for PaymentMethodsData {
                     card_exp_month: None,
                     card_exp_year: None,
                     auth_code: None,
-                    paypal_id: None,
+                    provider_details: None,
                     email: data.email,
                 })
             }
@@ -1890,9 +1890,35 @@ pub struct PaymentMethodDataWalletInfo {
     /// Email address associated with the wallet (e.g. PayPal email)
     #[schema(value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<pii::Email>,
+    /// Details specific to the wallet provider.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_details: Option<WalletProviderDetails>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub enum WalletProviderDetails {
+    Paypal(PaypalWalletInfo),
+}
+
+impl WalletProviderDetails {
+    /// Merge provider details without erasing a saved identifier omitted by the response.
+    pub fn merge(incoming: Option<Self>, saved: Option<Self>) -> Option<Self> {
+        match (incoming, saved) {
+            (Some(Self::Paypal(incoming)), Some(Self::Paypal(saved))) => {
+                Some(Self::Paypal(PaypalWalletInfo {
+                    paypal_id: incoming.paypal_id.or(saved.paypal_id),
+                }))
+            }
+            (incoming, saved) => incoming.or(saved),
+        }
+    }
+}
+
+/// PayPal-specific wallet details. Email belongs to the shared wallet model.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaypalWalletInfo {
     /// Unique identifier of the payer's PayPal account.
     #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub paypal_id: Option<hyperswitch_masking::Secret<String>>,
 }
 
@@ -1922,7 +1948,7 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
             email: item.email,
-            paypal_id: None,
+            provider_details: None,
         }
     }
 }
@@ -1968,7 +1994,7 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
             email: None,
-            paypal_id: None,
+            provider_details: None,
         }
     }
 }
@@ -3211,17 +3237,28 @@ pub struct ResponsePaymentMethodsEnabledForClient {
 pub enum WalletPaymentMethodDataForClient {
     ApplePay(Box<PaymentMethodDataWalletInfo>),
     GooglePay(Box<PaymentMethodDataWalletInfo>),
-    Paypal(Box<PaypalWalletInfo>),
+    Paypal(Box<PaypalWalletDetailsForClient>),
 }
 
 /// PayPal account details returned for a saved wallet.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct PaypalWalletInfo {
+pub struct PaypalWalletDetailsForClient {
     #[schema(value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<pii::Email>,
     #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
     #[serde(alias = "payer_id")]
     pub paypal_id: Option<hyperswitch_masking::Secret<String>>,
+}
+
+impl From<PaymentMethodDataWalletInfo> for PaypalWalletDetailsForClient {
+    fn from(info: PaymentMethodDataWalletInfo) -> Self {
+        Self {
+            email: info.email,
+            paypal_id: info.provider_details.and_then(|details| match details {
+                WalletProviderDetails::Paypal(info) => info.paypal_id,
+            }),
+        }
+    }
 }
 
 /// Bank debit payment method data returned in the client-facing PM list.

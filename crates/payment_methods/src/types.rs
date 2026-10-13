@@ -45,7 +45,7 @@ pub struct PaymentMethodResponseItemV1 {
 pub enum WalletPaymentMethodData {
     ApplePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
     GooglePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
-    Paypal(Box<api_models::payment_methods::PaypalWalletInfo>),
+    Paypal(Box<api_models::payment_methods::PaypalWalletDetailsForClient>),
 }
 
 /// V2 PaymentMethodResponseData enum

@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use ::payment_methods::controller::PaymentMethodsController;
 #[cfg(feature = "v1")]
-use api_models::payment_methods::PaymentMethodDataWalletInfo;
+use api_models::payment_methods::{
+    PaymentMethodDataWalletInfo, PaypalWalletInfo, WalletProviderDetails,
+};
 use common_enums::{ConnectorMandateStatus, PaymentMethod, WalletDecryptedToken};
 use common_types::{self, callback_mapper::CallbackMapperData};
 use common_utils::{
@@ -204,7 +206,9 @@ fn get_paypal_wallet_info(
             card_exp_year: None,
             auth_code: None,
             email: email.clone(),
-            paypal_id: payer_id.clone(),
+            provider_details: Some(WalletProviderDetails::Paypal(PaypalWalletInfo {
+                paypal_id: payer_id.clone(),
+            })),
         }),
         _ => None,
     }
@@ -236,7 +240,10 @@ async fn update_saved_paypal_wallet(
                 .attach_printable("Unable to parse saved PayPal wallet data")?;
             if let Some(domain::PaymentMethodsData::WalletDetails(saved_wallet)) = saved_data {
                 wallet_info.email = wallet_info.email.or(saved_wallet.email);
-                wallet_info.paypal_id = wallet_info.paypal_id.or(saved_wallet.paypal_id);
+                wallet_info.provider_details = WalletProviderDetails::merge(
+                    wallet_info.provider_details,
+                    saved_wallet.provider_details,
+                );
             }
             let encrypted_data = create_encrypted_data(
                 &state.into(),

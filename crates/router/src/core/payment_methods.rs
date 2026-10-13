@@ -4249,7 +4249,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                             card_exp_month: None,
                             card_exp_year: None,
                             auth_code: None,
-                            paypal_id: None,
+                            provider_details: None,
                             email: data.email,
                         },
                     ))
@@ -5149,7 +5149,10 @@ fn build_payment_methods_additional_data_for_create(
                         .or(vaulted_wallet_info.card_exp_year),
                     auth_code: wallet_info.auth_code.or(vaulted_wallet_info.auth_code),
                     email: wallet_info.email.or(vaulted_wallet_info.email),
-                    paypal_id: wallet_info.paypal_id.or(vaulted_wallet_info.paypal_id),
+                    provider_details: payment_methods::WalletProviderDetails::merge(
+                        wallet_info.provider_details,
+                        vaulted_wallet_info.provider_details,
+                    ),
                 },
             )
         }

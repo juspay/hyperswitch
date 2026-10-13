@@ -13,7 +13,7 @@ use ::payment_methods::{
 use api_models::admin::PaymentMethodsEnabled;
 #[cfg(feature = "v1")]
 use api_models::payment_methods::{
-    PaymentMethodListIntentDataInput, PaymentMethodSubtypeSpecificDataForClient, PaypalWalletInfo,
+    PaymentMethodListIntentDataInput, PaymentMethodSubtypeSpecificDataForClient,
     ResponsePaymentMethodsEnabledForClient, WalletPaymentMethodDataForClient,
 };
 use api_models::{
@@ -6252,6 +6252,43 @@ fn filter_latest_wallet_methods(
     result
 }
 
+/// Returns saved wallet display details for PayPal, the currently supported wallet subtype.
+/// Other wallet subtypes and non-wallet payment method data return no display details.
+#[cfg(feature = "v1")]
+fn get_saved_wallet_details_for_client(
+    pm: &domain::PaymentMethod,
+) -> errors::RouterResult<Option<WalletPaymentMethodDataForClient>> {
+    let payment_method_data = pm
+        .payment_method_data
+        .as_ref()
+        .map(|data| {
+            data.get_inner()
+                .peek()
+                .clone()
+                .parse_value::<domain::PaymentMethodsData>("PaymentMethodsData")
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse saved wallet data")?;
+
+    Ok(match payment_method_data {
+        Some(domain::PaymentMethodsData::WalletDetails(info))
+            if pm.get_payment_method_subtype() == Some(enums::PaymentMethodType::Paypal) =>
+        {
+            Some(WalletPaymentMethodDataForClient::Paypal(Box::new(
+                info.into(),
+            )))
+        }
+        Some(domain::PaymentMethodsData::WalletDetails(..))
+        | Some(domain::PaymentMethodsData::Card(..))
+        | Some(domain::PaymentMethodsData::BankDetails(..))
+        | Some(domain::PaymentMethodsData::NetworkToken(..))
+        | Some(domain::PaymentMethodsData::BankDebit(..))
+        | Some(domain::PaymentMethodsData::BankRedirect(..))
+        | None => None,
+    })
+}
+
 #[cfg(feature = "v1")]
 pub async fn list_customer_payment_method(
     state: &routes::SessionState,
@@ -6432,30 +6469,8 @@ pub async fn list_customer_payment_method(
             requires_cvv && !(off_session_payment_flag && pm.connector_mandate_details.is_some())
         };
         // Need validation for enabled payment method ,querying MCA
-        let wallets = if payment_method == enums::PaymentMethod::Wallet
-            && pm.get_payment_method_subtype() == Some(enums::PaymentMethodType::Paypal)
-        {
-            pm.payment_method_data
-                .as_ref()
-                .map(|data| data.get_inner().peek().clone())
-                .map(|data| data.parse_value::<domain::PaymentMethodsData>("PaymentMethodsData"))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to parse saved PayPal wallet data")?
-                .and_then(|data| match data {
-                    domain::PaymentMethodsData::WalletDetails(info) => Some(
-                        WalletPaymentMethodDataForClient::Paypal(Box::new(PaypalWalletInfo {
-                            email: info.email,
-                            paypal_id: info.paypal_id,
-                        })),
-                    ),
-                    _ => None,
-                })
-        } else {
-            None
-        };
-
         let pma = api::CustomerPaymentMethod {
+            wallets: get_saved_wallet_details_for_client(&pm)?,
             payment_token: parent_payment_method_token.to_owned(),
             payment_method_id: pm.payment_method_id.clone(),
             customer_id: pm.customer_id.clone().get_required_value("customer_id")?,
@@ -6463,7 +6478,6 @@ pub async fn list_customer_payment_method(
             payment_method_type: pm.get_payment_method_subtype(),
             payment_method_issuer: pm.payment_method_issuer,
             card: pm_list_context.card_details,
-            wallets,
             metadata: pm.metadata,
             payment_method_issuer_code: pm.payment_method_issuer_code,
             recurring_enabled: Some(mca_enabled),
