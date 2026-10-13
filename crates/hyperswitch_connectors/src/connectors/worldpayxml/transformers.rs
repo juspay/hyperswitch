@@ -3635,12 +3635,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                                 .and_then(|code| code.description.clone());
 
                             Err(ErrorResponse {
-                                code: error_code
-                                    .or(issuer_error_code.clone())
-                                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                                code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
                                 message: error_message
                                     .clone()
-                                    .or(issuer_error_message.clone())
                                     .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                                 reason: error_message.clone(),
                                 status_code: item.http_code,
@@ -3648,8 +3645,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                                 connector_transaction_id: None,
                                 connector_response_reference_id: None,
                                 network_advice_code: None,
-                                network_decline_code: issuer_error_code.clone(),
-                                network_error_message: issuer_error_message.clone(),
+                                network_decline_code: issuer_error_code,
+                                network_error_message: issuer_error_message,
                                 connector_metadata: None,
                             })
                         } else {
@@ -3717,12 +3714,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                         .and_then(|code| code.description.clone());
 
                     Err(ErrorResponse {
-                        code: error_code
-                            .or(issuer_error_code.clone())
-                            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                        code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
                         message: error_message
                             .clone()
-                            .or(issuer_error_message.clone())
                             .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                         reason: error_message.clone(),
                         status_code: item.http_code,
@@ -3730,8 +3724,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                         connector_transaction_id: None,
                         connector_response_reference_id: None,
                         network_advice_code: None,
-                        network_decline_code: issuer_error_code.clone(),
-                        network_error_message: issuer_error_message.clone(),
+                        network_decline_code: issuer_error_code,
+                        network_error_message: issuer_error_message,
                         connector_metadata: None,
                     })
                 } else {
@@ -4439,20 +4433,16 @@ fn process_payment_response(
             .and_then(|code| code.description.clone());
 
         Err(Box::new(ErrorResponse {
-            code: error_code
-                .or(issuer_error_code.clone())
-                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: error_message
-                .or(issuer_error_message.clone())
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: Some(order_code.clone()),
             connector_response_reference_id: None,
             network_advice_code: None,
-            network_decline_code: issuer_error_code.clone(),
-            network_error_message: issuer_error_message.clone(),
+            network_decline_code: issuer_error_code,
+            network_error_message: issuer_error_message,
             connector_metadata: None,
         }))
     } else {
