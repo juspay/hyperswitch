@@ -114,9 +114,8 @@ pub mod db_metrics {
 
         let table_name = std::any::type_name::<T>().rsplit("::").nth(1);
 
-        // The first tracked query on a connection is what attributes its lease to a
-        // table. `take_lease_time` yields the duration once and only once, so a
-        // connection serving several queries is not counted several times.
+        // The first tracked query attributes the lease to its table. `take_lease_time`
+        // yields the duration once, so a multi-query connection isn't counted twice.
         if let Some(lease_time) = conn.take_lease_time() {
             crate::connection_lease::record(
                 conn.lease_target(),
