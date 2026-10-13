@@ -110,7 +110,6 @@ impl Blocklist {
     }
     /// Returns payment and legacy NULL-namespace fingerprint rows for the resolved profile
     /// and merchant-wide entries.
-
     pub async fn list_payment_by_processor_merchant_id_profile_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -297,7 +296,6 @@ impl Blocklist {
     /// excluded — they hold vault HMACs of full card numbers, which cannot be matched from a
     /// BIN. Uses the same processor-merchant-with-legacy-fallback and profile-or-merchant-wide
     /// predicates as the single-entry lookups.
-
     pub async fn find_payment_by_processor_merchant_id_profile_id_card_bins(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -601,6 +599,46 @@ impl Blocklist {
         .await
     }
 
+    pub async fn get_all_count_by_processor_merchant_id_data_kind(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        data_kind: common_enums::BlocklistDataKind,
+    ) -> StorageResult<usize> {
+        generics::generic_count::<<Self as HasTable>::Table, _>(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .or(dsl::processor_merchant_id
+                    .is_null()
+                    .and(dsl::merchant_id.eq(processor_merchant_id.to_owned())))
+                .and(dsl::data_kind.eq_any(equivalent_data_kinds(data_kind))),
+        )
+        .await
+    }
+
+    pub async fn get_all_count_by_processor_merchant_id_profile_id_data_kind(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        data_kind: common_enums::BlocklistDataKind,
+    ) -> StorageResult<usize> {
+        generics::generic_count::<<Self as HasTable>::Table, _>(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .or(dsl::processor_merchant_id
+                    .is_null()
+                    .and(dsl::merchant_id.eq(processor_merchant_id.to_owned())))
+                .and(dsl::data_kind.eq_any(equivalent_data_kinds(data_kind)))
+                .and(
+                    dsl::profile_id
+                        .eq(profile_id.to_owned())
+                        .or(dsl::profile_id.is_null()),
+                ),
+        )
+        .await
+    }
+
     pub async fn get_payment_count_by_processor_merchant_id_profile_id_data_kind(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -735,6 +773,40 @@ impl Blocklist {
             .map_err(|e| error_stack::report!(e))
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Failed to count blocklist entries by fingerprint length")
+    }
+
+    pub async fn count_all_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        data_kind: common_enums::BlocklistDataKind,
+    ) -> StorageResult<Vec<(i32, i64)>> {
+        let query = <Self as HasTable>::table()
+            .filter(
+                dsl::processor_merchant_id
+                    .eq(processor_merchant_id.to_owned())
+                    .or(dsl::processor_merchant_id
+                        .is_null()
+                        .and(dsl::merchant_id.eq(processor_merchant_id.to_owned())))
+                    .and(dsl::data_kind.eq_any(equivalent_data_kinds(data_kind)))
+                    .and(
+                        dsl::profile_id
+                            .eq(profile_id.to_owned())
+                            .or(dsl::profile_id.is_null()),
+                    ),
+            )
+            .group_by(fingerprint_length())
+            .select((fingerprint_length(), count_star()));
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            generics::db_metrics::DatabaseOperation::Count,
+            query.get_results_async(conn.raw_connection()),
+        )
+        .await
+        .map_err(|e| error_stack::report!(e))
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to count blocklist entries by fingerprint length")
     }
 
     pub async fn list_payment_by_processor_merchant_id(

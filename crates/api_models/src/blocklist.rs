@@ -107,10 +107,10 @@ pub struct ToggleBlocklistQuery {
 pub struct BlocklistCountQuery {
     #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
-    /// Only `payment` and `payout` are supported. Defaults to `payment`.
-    #[serde(default)]
-    #[schema(value_type = BlocklistTransactionType)]
-    pub transaction_type: common_enums::BlocklistTransactionType,
+    /// Counts only `payment` or `payout` when selected. When omitted, counts both,
+    /// including legacy NULL entries, which belong to `payment` when filtered.
+    #[schema(value_type = Option<BlocklistTransactionType>)]
+    pub transaction_type: Option<common_enums::BlocklistTransactionType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -138,24 +138,14 @@ pub struct BlocklistLookupQuery {
     pub transaction_type: Option<common_enums::BlocklistTransactionType>,
 }
 
-/// A single blocklist entry that matched the lookup value.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct BlocklistLookupMatch {
-    /// The kind of data that is blocked.
-    #[schema(value_type = BlocklistDataKind)]
-    pub data_kind: enums::BlocklistDataKind,
-    /// The transaction type this entry blocks.
-    #[schema(value_type = BlocklistTransactionType)]
-    pub transaction_type: common_enums::BlocklistTransactionType,
-}
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BlocklistLookupResponse {
     pub data: String,
     /// Whether any entry matches within the resolved profile and selected transaction namespaces.
     pub blocked: bool,
-    /// All blocklist entries that matched `data`, empty when `blocked` is false.
-    pub blocked_for: Vec<BlocklistLookupMatch>,
+    /// Distinct transaction types that block `data`, empty when `blocked` is false.
+    #[schema(value_type = Vec<BlocklistTransactionType>)]
+    pub transaction_types: Vec<common_enums::BlocklistTransactionType>,
 }
 
 impl ApiEventMetric for BlocklistCountQuery {}
@@ -377,7 +367,7 @@ mod tests {
 
         assert_eq!(single.transaction_type, BlocklistTransactionType::Payment);
         assert_eq!(list.transaction_type, BlocklistTransactionType::Payment);
-        assert_eq!(count.transaction_type, BlocklistTransactionType::Payment);
+        assert_eq!(count.transaction_type, None);
         assert_eq!(lookup.transaction_type, None);
     }
 
@@ -401,10 +391,26 @@ mod tests {
 
         assert_eq!(single.transaction_type, BlocklistTransactionType::Payout);
         assert_eq!(list.transaction_type, BlocklistTransactionType::Payout);
-        assert_eq!(count.transaction_type, BlocklistTransactionType::Payout);
+        assert_eq!(
+            count.transaction_type,
+            Some(BlocklistTransactionType::Payout)
+        );
         assert_eq!(
             lookup.transaction_type,
             Some(BlocklistTransactionType::Payout)
+        );
+    }
+
+    #[test]
+    fn payment_selection_is_retained_by_count_query() {
+        let count: BlocklistCountQuery = serde_json::from_value(
+            json!({"data_kind": "generic_card_bin", "transaction_type": "payment"}),
+        )
+        .unwrap();
+
+        assert_eq!(
+            count.transaction_type,
+            Some(BlocklistTransactionType::Payment)
         );
     }
 

@@ -7823,7 +7823,7 @@
           {
             "name": "transaction_type",
             "in": "query",
-            "description": "Blocklist flow: payment (default) or payout.",
+            "description": "Counts only payment or payout when selected. When omitted, counts both, including legacy NULL entries. Legacy NULL entries belong to payment when filtered.",
             "required": false,
             "schema": {
               "allOf": [
@@ -7935,7 +7935,7 @@
         ],
         "responses": {
           "200": {
-            "description": "All matches within the resolved profile, including merchant-wide entries. blocked_for contains transaction_type and data_kind, without profile IDs.",
+            "description": "All matches within the resolved profile, including merchant-wide entries. transaction_types contains distinct matching payment/payout namespaces, without data kinds or profile IDs.",
             "content": {
               "application/json": {
                 "schema": {
@@ -17166,7 +17166,12 @@
             "$ref": "#/components/schemas/BlocklistDataKind"
           },
           "transaction_type": {
-            "$ref": "#/components/schemas/BlocklistTransactionType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17258,22 +17263,6 @@
           }
         }
       },
-      "BlocklistLookupMatch": {
-        "type": "object",
-        "description": "A single blocklist entry that matched the lookup value.",
-        "required": [
-          "data_kind",
-          "transaction_type"
-        ],
-        "properties": {
-          "data_kind": {
-            "$ref": "#/components/schemas/BlocklistDataKind"
-          },
-          "transaction_type": {
-            "$ref": "#/components/schemas/BlocklistTransactionType"
-          }
-        }
-      },
       "BlocklistLookupQuery": {
         "type": "object",
         "required": [
@@ -17300,7 +17289,7 @@
         "required": [
           "data",
           "blocked",
-          "blocked_for"
+          "transaction_types"
         ],
         "properties": {
           "data": {
@@ -17310,12 +17299,12 @@
             "type": "boolean",
             "description": "Whether any entry matches within the resolved profile and selected transaction namespaces."
           },
-          "blocked_for": {
+          "transaction_types": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/BlocklistLookupMatch"
+              "$ref": "#/components/schemas/BlocklistTransactionType"
             },
-            "description": "All blocklist entries that matched `data`, empty when `blocked` is false."
+            "description": "Distinct transaction types that block `data`, empty when `blocked` is false."
           }
         }
       },

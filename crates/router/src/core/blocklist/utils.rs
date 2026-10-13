@@ -143,7 +143,7 @@ pub async fn list_blocklist_entries_for_merchant(
         .store
         .get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
             processor_merchant_id,
-            query.transaction_type,
+            Some(query.transaction_type),
             profile_id,
             query.data_kind,
         )
@@ -299,18 +299,18 @@ pub async fn lookup_blocklist_entry(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to look up blocklist entries")?;
 
-    let blocked_for: Vec<_> = entries
-        .into_iter()
-        .map(|entry| api_blocklist::BlocklistLookupMatch {
-            data_kind: entry.data_kind,
-            transaction_type: entry.transaction_type.unwrap_or_default(),
-        })
-        .collect();
+    let mut transaction_types = Vec::with_capacity(entries.len().min(2));
+    for entry in entries {
+        let transaction_type = entry.transaction_type.unwrap_or_default();
+        if !transaction_types.contains(&transaction_type) {
+            transaction_types.push(transaction_type);
+        }
+    }
 
     Ok(api_blocklist::BlocklistLookupResponse {
         data: query.data.get_string_repr().to_string(),
-        blocked: !blocked_for.is_empty(),
-        blocked_for,
+        blocked: !transaction_types.is_empty(),
+        transaction_types,
     })
 }
 
