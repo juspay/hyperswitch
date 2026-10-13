@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
 use ::payment_methods::controller::PaymentMethodsController;
-#[cfg(feature = "v1")]
-use api_models::payment_methods::{
-    PaymentMethodDataWalletInfo, PaypalWalletInfo, WalletProviderDetails,
-};
 use common_enums::{ConnectorMandateStatus, PaymentMethod, WalletDecryptedToken};
 use common_types::{self, callback_mapper::CallbackMapperData};
 use common_utils::{
@@ -191,143 +187,6 @@ pub struct SavePaymentMethodDataResponse {
 }
 
 #[cfg(feature = "v1")]
-fn get_paypal_wallet_info(
-    connector_response: Option<&hyperswitch_domain_models::router_data::ConnectorResponseData>,
-) -> Option<PaymentMethodDataWalletInfo> {
-    match connector_response?.additional_payment_method_data.as_ref()? {
-        hyperswitch_domain_models::router_data::AdditionalPaymentMethodConnectorResponse::Paypal {
-            email,
-            payer_id,
-        } if email.is_some() || payer_id.is_some() => Some(PaymentMethodDataWalletInfo {
-            last4: None,
-            card_network: None,
-            card_type: None,
-            card_exp_month: None,
-            card_exp_year: None,
-            auth_code: None,
-            email: email.clone(),
-            provider_details: Some(WalletProviderDetails::Paypal(PaypalWalletInfo {
-                paypal_id: payer_id.clone(),
-            })),
-        }),
-        _ => None,
-    }
-}
-
-#[cfg(feature = "v1")]
-async fn update_saved_paypal_wallet(
-    state: &SessionState,
-    platform: &domain::Platform,
-    pm: &domain::PaymentMethod,
-    connector_response: Option<&hyperswitch_domain_models::router_data::ConnectorResponseData>,
-) -> RouterResult<Option<domain::PaymentMethod>> {
-    let wallet_info = match pm.get_payment_method_subtype() {
-        Some(storage_enums::PaymentMethodType::Paypal) => {
-            get_paypal_wallet_info(connector_response)
-        }
-        _ => None,
-    };
-
-    match wallet_info {
-        Some(mut wallet_info) => {
-            let saved_data = pm
-                .payment_method_data
-                .as_ref()
-                .map(|data| data.get_inner().peek().clone())
-                .map(|data| data.parse_value::<domain::PaymentMethodsData>("PaymentMethodsData"))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to parse saved PayPal wallet data")?;
-            if let Some(domain::PaymentMethodsData::WalletDetails(saved_wallet)) = saved_data {
-                wallet_info.email = wallet_info.email.or(saved_wallet.email);
-                wallet_info.provider_details = WalletProviderDetails::merge(
-                    wallet_info.provider_details,
-                    saved_wallet.provider_details,
-                );
-            }
-            let encrypted_data = create_encrypted_data(
-                &state.into(),
-                platform.get_provider().get_key_store(),
-                domain::PaymentMethodsData::WalletDetails(wallet_info),
-                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt PayPal wallet data")?;
-            let compat_action = payment_methods::payment_method_modular_forward_compat_action(
-                state,
-                &pm.merchant_id,
-                &platform.get_provider().get_account().organization_id,
-                pm.customer_id.as_ref(),
-            )
-            .await;
-            let update = types::storage::PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
-                payment_method_data: Some(encrypted_data.into()),
-                scheme: None,
-                last_used_at: common_utils::date_time::now(),
-                last_modified_by: platform
-                    .get_initiator()
-                    .and_then(|initiator| initiator.to_created_by())
-                    .map(|initiator| initiator.to_string()),
-            };
-            state
-                .store
-                .update_payment_method(
-                    platform.get_provider().get_key_store(),
-                    pm.clone(),
-                    update,
-                    platform.get_provider().get_account().storage_scheme,
-                    compat_action,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to update saved PayPal wallet data")
-                .map(Some)
-        }
-        None => Ok(None),
-    }
-}
-
-#[cfg(feature = "v1")]
-pub(super) async fn update_paypal_wallet_from_response<F, Req>(
-    state: &SessionState,
-    platform: &domain::Platform,
-    payment_method_id: Option<&str>,
-    router_data: &types::RouterData<F, Req, types::PaymentsResponseData>,
-) -> RouterResult<Option<domain::PaymentMethod>> {
-    let has_wallet_info = router_data.response.is_ok()
-        && get_paypal_wallet_info(router_data.connector_response.as_ref()).is_some();
-
-    match (has_wallet_info, payment_method_id) {
-        (true, Some(payment_method_id)) => {
-            match state
-                .store
-                .find_payment_method(
-                    platform.get_provider().get_key_store(),
-                    payment_method_id,
-                    platform.get_provider().get_account().storage_scheme,
-                )
-                .await
-            {
-                Ok(payment_method) => {
-                    update_saved_paypal_wallet(
-                        state,
-                        platform,
-                        &payment_method,
-                        router_data.connector_response.as_ref(),
-                    )
-                    .await
-                }
-                Err(error) if error.current_context().is_db_not_found() => Ok(None),
-                Err(error) => Err(error)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unable to retrieve saved PayPal wallet"),
-            }
-        }
-        _ => Ok(None),
-    }
-}
-#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn save_payment_method<FData>(
@@ -494,27 +353,17 @@ where
                 // payment method" branches below, which would otherwise mint a
                 // locker-less orphan payment_methods row (no card => no locker call
                 // => no dedup => throwaway locker_id).
-                if update_saved_paypal_wallet(
-                    state,
-                    platform,
+                payment_methods::cards::update_last_used_at(
                     &existing_pm,
-                    save_payment_method_data.connector_response.as_ref(),
+                    state,
+                    platform.get_provider().get_account().storage_scheme,
+                    platform.get_provider().get_key_store(),
                 )
-                .await?
-                .is_none()
-                {
-                    payment_methods::cards::update_last_used_at(
-                        &existing_pm,
-                        state,
-                        platform.get_provider().get_account().storage_scheme,
-                        platform.get_provider().get_key_store(),
-                    )
-                    .await
-                    .map_err(|e| {
-                        logger::error!("Failed to update last used at: {:?}", e);
-                    })
-                    .ok();
-                }
+                .await
+                .map_err(|error| {
+                    logger::error!(?error, "Failed to update last used at");
+                })
+                .ok();
 
                 // The existing payment method may still be missing a network token (the workflow
                 // skips it if one is already present), so hand it to the process tracker as well.
@@ -603,10 +452,10 @@ where
                             domain::WalletData::PaypalRedirect(_)
                             | domain::WalletData::PaypalSdk(_),
                         ),
-                    ) => {
-                        get_paypal_wallet_info(save_payment_method_data.connector_response.as_ref())
-                            .map(domain::PaymentMethodsData::WalletDetails)
-                    }
+                    ) => payment_methods::cards::get_paypal_wallet_info(
+                        save_payment_method_data.connector_response.as_ref(),
+                    )
+                    .map(domain::PaymentMethodsData::WalletDetails),
                     (_, domain::PaymentMethodData::BankDebit(bank_debit_data)) => bank_debit_data
                         .get_bank_debit_details()
                         .map(domain::PaymentMethodsData::BankDebit),
@@ -1195,27 +1044,17 @@ where
                         }?;
 
                         if let Some(customer_saved_pm) = customer_saved_pm_option {
-                            if update_saved_paypal_wallet(
-                                state,
-                                platform,
+                            payment_methods::cards::update_last_used_at(
                                 &customer_saved_pm,
-                                save_payment_method_data.connector_response.as_ref(),
+                                state,
+                                platform.get_provider().get_account().storage_scheme,
+                                platform.get_provider().get_key_store(),
                             )
-                            .await?
-                            .is_none()
-                            {
-                                payment_methods::cards::update_last_used_at(
-                                    &customer_saved_pm,
-                                    state,
-                                    platform.get_provider().get_account().storage_scheme,
-                                    platform.get_provider().get_key_store(),
-                                )
-                                .await
-                                .map_err(|e| {
-                                    logger::error!("Failed to update last used at: {:?}", e);
-                                })
-                                .ok();
-                            }
+                            .await
+                            .map_err(|error| {
+                                logger::error!(?error, "Failed to update last used at");
+                            })
+                            .ok();
                             resp.payment_method_id = customer_saved_pm.payment_method_id;
                         } else {
                             let pm_metadata =

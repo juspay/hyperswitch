@@ -1405,16 +1405,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             business_profile,
         ))
         .await?;
-        if let Some(payment_method) = tokenization::update_paypal_wallet_from_response(
-            state,
-            platform,
-            payment_data.payment_attempt.payment_method_id.as_deref(),
-            resp,
-        )
-        .await?
-        {
-            payment_data.payment_method_info = Some(payment_method);
-        }
         Ok(())
     }
 
@@ -2516,16 +2506,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             _business_profile,
         ))
         .await?;
-        if let Some(payment_method) = tokenization::update_paypal_wallet_from_response(
-            state,
-            platform,
-            payment_data.payment_attempt.payment_method_id.as_deref(),
-            resp,
-        )
-        .await?
-        {
-            payment_data.payment_method_info = Some(payment_method);
-        }
         Ok(())
     }
 
@@ -3993,7 +3973,7 @@ async fn create_or_update_payment_method_from_payment_response<F: Clone>(
     storage_scheme: enums::MerchantStorageScheme,
     organization_id: &common_utils::id_type::OrganizationId,
     initiator: Option<&domain::Initiator>,
-    additional_payment_method_data: Option<
+    connector_returned_payment_method_details: Option<
         &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     >,
     merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
@@ -4007,7 +3987,7 @@ async fn create_or_update_payment_method_from_payment_response<F: Clone>(
             attempt_status,
             platform,
             business_profile,
-            additional_payment_method_data,
+            connector_returned_payment_method_details,
         )
         .await
         {
@@ -4103,28 +4083,29 @@ async fn create_or_update_payment_method_from_payment_response<F: Clone>(
             last_modified_by,
         };
 
-        let additional_data_update =
-            if let Some(payment_method_data_update) = additional_payment_method_data {
-                payment_methods::cards::prepare_payment_method_update_from_connector_details(
-                    state,
-                    platform,
-                    &payment_method,
-                    merchant_connector_id,
-                    payment_method_data_update,
-                    business_profile,
-                )
-                .await
-                .inspect_err(|error| {
-                    logger::error!(
-                        ?error,
-                        payment_method_id = %id,
-                        "Failed to prepare payment method details from PSync response"
-                    );
-                })
-                .ok()
-            } else {
-                None
-            };
+        let additional_data_update = if let Some(connector_returned_payment_method_details) =
+            connector_returned_payment_method_details
+        {
+            payment_methods::cards::prepare_payment_method_update_from_connector_details(
+                state,
+                platform,
+                &payment_method,
+                merchant_connector_id,
+                connector_returned_payment_method_details,
+                business_profile,
+            )
+            .await
+            .inspect_err(|error| {
+                logger::error!(
+                    ?error,
+                    payment_method_id = %id,
+                    "Failed to prepare payment method details from PSync response"
+                );
+            })
+            .ok()
+        } else {
+            None
+        };
 
         let pm_update = combine_payment_method_updates(pm_update, additional_data_update);
         let compat_action = payment_methods::payment_method_modular_forward_compat_action(

@@ -2802,6 +2802,10 @@ where
                 payment_account_reference: None,
             }),
             connector_response,
+            connector_returned_payment_method_details: get_connector_disclosed_paypal_details(
+                item.data.payment_method_type,
+                item.response.payer.as_ref(),
+            ),
             sender_payment_instrument_id: item
                 .response
                 .payer
@@ -3199,6 +3203,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsSyncResponse, T, Payments
                 item.data.payment_method_type,
                 item.response.payer.as_ref(),
             ),
+            connector_returned_payment_method_details: get_connector_disclosed_paypal_details(
+                item.data.payment_method_type,
+                item.response.payer.as_ref(),
+            ),
             sender_payment_instrument_id: item
                 .response
                 .payer
@@ -3568,6 +3576,26 @@ impl Payer {
                 Some(AdditionalPaymentMethodConnectorResponse::Paypal { email, payer_id })
             }
         }
+    }
+}
+
+/// Discloses PayPal wallet details for the shared payment-method response update.
+fn get_connector_disclosed_paypal_details(
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+    payer: Option<&Payer>,
+) -> Option<PaymentMethodData> {
+    match (payment_method_type, payer) {
+        (Some(common_enums::PaymentMethodType::Paypal), Some(payer))
+            if payer.email_address.is_some() || payer.payer_id.is_some() =>
+        {
+            Some(PaymentMethodData::Wallet(WalletData::PaypalRedirect(
+                hyperswitch_domain_models::payment_method_data::PaypalRedirection {
+                    email: payer.email_address.clone(),
+                    paypal_id: payer.payer_id.clone(),
+                },
+            )))
+        }
+        _ => None,
     }
 }
 

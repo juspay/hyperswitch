@@ -5797,6 +5797,20 @@ pub struct PaypalRedirection {
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
+    /// PayPal payer identifier.
+    #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
+    #[smithy(value_type = "Option<String>")]
+    pub payer_id: Option<Secret<String>>,
+}
+
+impl From<payment_methods::PaymentMethodDataWalletInfo> for PaypalRedirection {
+    fn from(info: payment_methods::PaymentMethodDataWalletInfo) -> Self {
+        let paypal_info = payment_methods::PaypalWalletDetailsForClient::from(info);
+        Self {
+            email: paypal_info.email,
+            payer_id: paypal_info.paypal_id,
+        }
+    }
 }
 
 #[derive(
@@ -14316,6 +14330,7 @@ mod billing_from_payment_method_data {
         let paypal_wallet_payment_method_data =
             PaymentMethodData::Wallet(WalletData::PaypalRedirect(PaypalRedirection {
                 email: Some(test_email.clone()),
+                payer_id: None,
             }));
 
         let billing_address = paypal_wallet_payment_method_data

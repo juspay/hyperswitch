@@ -1384,6 +1384,8 @@ pub struct CashappQr {}
 pub struct PaypalRedirection {
     /// paypal's email address
     pub email: Option<Email>,
+    /// PayPal payer identifier disclosed by the connector response.
+    pub paypal_id: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -2945,6 +2947,7 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::PaypalRedirect(paypal_redirect_data) => {
                 Self::PaypalRedirect(PaypalRedirection {
                     email: paypal_redirect_data.email,
+                    paypal_id: paypal_redirect_data.payer_id,
                 })
             }
             api_models::payments::WalletData::PaypalSdk(paypal_sdk_data) => {
