@@ -467,8 +467,10 @@ async fn retryable_call_connector_type_payout_retry(
     )
     .await;
 
+    let mut frm_outcome = PayoutFrmOutcome::Continue;
+
     if config_multiple_connector_bool && payout_data.should_call_gsm() {
-        Box::pin(retry::do_gsm_multiple_connector_actions(
+        frm_outcome = Box::pin(retry::do_gsm_multiple_connector_actions(
             state,
             routing_data,
             connector_data.clone(),
@@ -482,26 +484,28 @@ async fn retryable_call_connector_type_payout_retry(
         .await?;
     }
 
-    let config_single_connector_bool = retry::config_should_call_gsm_payout(
-        state,
-        dimensions,
-        PayoutRetryType::SingleConnector,
-        payout_data.payouts.customer_id.as_ref(),
-    )
-    .await;
-
-    if config_single_connector_bool && payout_data.should_call_gsm() {
-        Box::pin(retry::do_gsm_single_connector_actions(
+    if frm_outcome == PayoutFrmOutcome::Continue {
+        let config_single_connector_bool = retry::config_should_call_gsm_payout(
             state,
-            connector_data,
-            payout_data,
-            platform,
             dimensions,
-            header_payload,
-            pre_frm_failure_mode,
-            payout_frm_applicability,
-        ))
-        .await?;
+            PayoutRetryType::SingleConnector,
+            payout_data.payouts.customer_id.as_ref(),
+        )
+        .await;
+
+        if config_single_connector_bool && payout_data.should_call_gsm() {
+            Box::pin(retry::do_gsm_single_connector_actions(
+                state,
+                connector_data,
+                payout_data,
+                platform,
+                dimensions,
+                header_payload,
+                pre_frm_failure_mode,
+                payout_frm_applicability,
+            ))
+            .await?;
+        }
     }
 
     Ok(())

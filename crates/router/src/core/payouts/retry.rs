@@ -40,12 +40,13 @@ pub async fn do_gsm_multiple_connector_actions(
     header_payload: HeaderPayload,
     pre_frm_failure_mode: &PreFrmFailureMode,
     payout_frm_applicability: Option<&PayoutFrmApplicability>,
-) -> RouterResult<()> {
+) -> RouterResult<PayoutFrmOutcome> {
     let mut retries = None;
 
     metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
     let mut connector = original_connector_data;
+    let mut frm_outcome = PayoutFrmOutcome::Continue;
 
     loop {
         let gsm = get_gsm(state, &connector, payout_data).await?;
@@ -75,7 +76,7 @@ pub async fn do_gsm_multiple_connector_actions(
 
                 connector = super::get_next_connector(&mut connectors_routing_data)?.connector_data;
 
-                let frm_outcome = Box::pin(do_retry(
+                frm_outcome = Box::pin(do_retry(
                     &state.clone(),
                     connector.to_owned(),
                     platform,
@@ -96,7 +97,7 @@ pub async fn do_gsm_multiple_connector_actions(
             common_enums::GsmDecision::DoDefault => break,
         }
     }
-    Ok(())
+    Ok(frm_outcome)
 }
 
 #[instrument(skip_all)]
