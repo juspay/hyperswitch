@@ -29,7 +29,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
 /// or recording an externally successful payment.
 #[utoipa::path(
     post,
-    path = "/v2/payments/recovery",
+    path = "/v2/recovery",
     params(
         (
             "X-Profile-Id" = String, Header,
