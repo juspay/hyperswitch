@@ -119,9 +119,10 @@ impl common_utils::events::ApiEventMetric for ProxyResponse {}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use hyperswitch_masking::PeekInterface;
     use serde_json::{json, Value};
+
+    use super::*;
 
     #[test]
     fn legacy_request_needs_no_new_fields() {

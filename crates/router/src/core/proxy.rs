@@ -118,8 +118,9 @@ pub async fn proxy_core(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use hyperswitch_masking::ExposeInterface;
+
+    use super::*;
 
     #[test]
     fn saas_response_preserves_connector_bytes_status_and_repeated_headers() {
