@@ -158,7 +158,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
         let db = &*state.store;
         let key_manager_state = &state.into();
 
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let storage_scheme = platform.get_processor().get_storage_scheme();
 
         let payment_intent = db
             .find_payment_intent_by_id(
@@ -213,7 +213,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                 hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::proxy_create_domain_model(
                     &payment_intent,
                     cell_id,
-                    storage_scheme,
+                    storage_scheme.inner(),
                     request,
                     encrypted_data,
                     platform.get_initiator(),
@@ -374,7 +374,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
         F: 'b + Send,
     {
         let db = &*state.store;
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
 
         let intent_status = common_enums::IntentStatus::Processing;
@@ -401,7 +401,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
         let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
                 status: intent_status,
-                updated_by: storage_scheme.to_string(),
+                updated_by: storage_scheme.inner().to_string(),
                 active_attempt_id,
             };
 
@@ -422,7 +422,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
 
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
             status: attempt_status,
-            updated_by: storage_scheme.to_string(),
+            updated_by: storage_scheme.inner().to_string(),
             connector,
             merchant_connector_id,
             authentication_type,
@@ -498,7 +498,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 payment_data.payment_intent,
                 payment_intent_update,
                 processor.get_key_store(),
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -509,7 +509,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 processor.get_key_store(),
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

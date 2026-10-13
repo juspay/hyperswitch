@@ -397,7 +397,7 @@ where
     async fn update_tracker<'b>(
         &'b self,
         state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
+        processor: &domain::Processor,
         mut frm_data: FrmData,
         payment_data: &mut D,
         frm_suggestion: Option<FrmSuggestion>,
@@ -410,7 +410,7 @@ where
     async fn update_tracker<'b>(
         &'b self,
         state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
+        processor: &domain::Processor,
         mut frm_data: FrmData,
         payment_data: &mut D,
         frm_suggestion: Option<FrmSuggestion>,
@@ -593,8 +593,8 @@ where
                 .update_payment_attempt_with_attempt_id(
                     payment_data.get_payment_attempt().clone(),
                     payment_attempt_update,
-                    frm_data.merchant_account.storage_scheme,
-                    key_store,
+                    processor.get_storage_scheme(),
+                    processor.get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -621,8 +621,8 @@ where
                         merchant_decision,
                         updated_by: frm_data.merchant_account.storage_scheme.to_string(),
                     },
-                    key_store,
-                    frm_data.merchant_account.storage_scheme,
+                    processor.get_key_store(),
+                    processor.get_storage_scheme(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

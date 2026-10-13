@@ -326,9 +326,9 @@ async fn store_bank_details_in_payment_methods(
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &payload.payment_id,
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .to_not_found_response(ApiErrorResponse::PaymentNotFound)?;

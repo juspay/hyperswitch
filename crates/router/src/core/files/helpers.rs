@@ -324,9 +324,9 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     .store
                     .find_payment_intent_by_payment_id_processor_merchant_id(
                         &dispute.payment_id,
-                        processor.get_account().get_id(),
+                        &processor.get_processor_merchant_id(),
                         processor.get_key_store(),
-                        processor.get_account().storage_scheme,
+                        processor.get_storage_scheme(),
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -335,9 +335,9 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     .store
                     .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                         &dispute.payment_id,
-                        processor.get_account().get_id(),
+                        &processor.get_processor_merchant_id(),
                         &dispute.attempt_id,
-                        processor.get_account().storage_scheme,
+                        processor.get_storage_scheme(),
                         processor.get_key_store(),
                     )
                     .await

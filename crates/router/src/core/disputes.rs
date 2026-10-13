@@ -74,9 +74,9 @@ pub async fn retrieve_dispute(
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &dispute.payment_id,
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -89,9 +89,9 @@ pub async fn retrieve_dispute(
             let payment_attempt = db
                 .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                     &dispute.payment_id,
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     &dispute.attempt_id,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                     platform.get_processor().get_key_store(),
                 )
                 .await
@@ -210,9 +210,9 @@ pub async fn retrieve_disputes_list(
             .store
             .find_payment_intent_by_payment_id_processor_merchant_id(
                 &dispute_response.payment_id,
-                processor.get_account().get_id(),
+                &processor.get_processor_merchant_id(),
                 processor.get_key_store(),
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -461,9 +461,9 @@ pub async fn accept_dispute(
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &dispute.payment_id,
-            processor.get_account().get_id(),
+            &processor.get_processor_merchant_id(),
             processor.get_key_store(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -471,9 +471,9 @@ pub async fn accept_dispute(
     let payment_attempt = db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &dispute.payment_id,
-            processor.get_account().get_id(),
+            &processor.get_processor_merchant_id(),
             &dispute.attempt_id,
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
             processor.get_key_store(),
         )
         .await
@@ -591,9 +591,9 @@ pub async fn submit_evidence(
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &dispute.payment_id,
-            processor.get_account().get_id(),
+            &processor.get_processor_merchant_id(),
             processor.get_key_store(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -601,9 +601,9 @@ pub async fn submit_evidence(
     let payment_attempt = db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &dispute.payment_id,
-            processor.get_account().get_id(),
+            &processor.get_processor_merchant_id(),
             &dispute.attempt_id,
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
             processor.get_key_store(),
         )
         .await
@@ -755,7 +755,7 @@ pub async fn attach_evidence(
             })
         },
     )?;
-    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+    let storage_scheme = platform.get_processor().get_storage_scheme();
     let create_file_response = Box::pin(files::files_create_core(
         state.clone(),
         platform,
@@ -785,7 +785,7 @@ pub async fn attach_evidence(
             .attach_printable("Error while encoding dispute evidence")?
             .into(),
     };
-    db.update_dispute(dispute, update_dispute, storage_scheme)
+    db.update_dispute(dispute, update_dispute, storage_scheme.inner())
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: dispute_id.to_owned(),

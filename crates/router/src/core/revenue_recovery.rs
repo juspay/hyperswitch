@@ -286,7 +286,7 @@ pub async fn upsert_calculate_pcr_task(
                     let revenue_recovery_payment_data = pcr::RevenueRecoveryPaymentData {
                         merchant_account: platform.get_processor().get_account().clone(),
                         profile: business_profile.clone(),
-                        key_store: platform.get_processor().get_key_store().clone(),
+                        key_store: platform.get_processor().get_key_store().inner().clone(),
                         billing_mca: billing_connector_account.clone(),
                         retry_algorithm: revenue_recovery_retry,
                         psync_data: None,
@@ -1612,13 +1612,17 @@ pub async fn resume_revenue_recovery_process_tracker(
         IntentStatus::Succeeded => {
             // Sync the intent's *active* (charged) attempt, NOT tracking_data's attempt — the latter
             // is the original failed attempt; the successful retry lives on `active_attempt_id`.
+            let processor_account = domain::ProcessorMerchantAccount::from_untagged(
+                revenue_recovery_payment_data.merchant_account.clone(),
+            );
+            let processor_key_store = domain::ProcessorKeyStore::from_untagged(
+                revenue_recovery_payment_data.key_store.clone(),
+            );
             let payment_intent = db
                 .find_payment_intent_by_id(
                     &id,
-                    &revenue_recovery_payment_data.key_store,
-                    revenue_recovery_payment_data
-                        .merchant_account
-                        .storage_scheme,
+                    &processor_key_store,
+                    processor_account.get_storage_scheme(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)

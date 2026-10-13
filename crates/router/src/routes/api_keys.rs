@@ -26,7 +26,12 @@ pub async fn api_key_create(
         &req,
         payload,
         |state, auth_data, payload, _| {
-            let key_store = auth_data.platform.get_processor().get_key_store().clone();
+            let key_store = auth_data
+                .platform
+                .get_processor()
+                .get_key_store()
+                .inner()
+                .clone();
             async move { api_keys::create_api_key(state, payload, key_store).await }
         },
         auth::auth_type(

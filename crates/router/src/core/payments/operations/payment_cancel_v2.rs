@@ -143,7 +143,7 @@ impl<F: Send + Clone + Sync>
         let db = &*state.store;
 
         let merchant_id = platform.get_processor().get_account().get_id();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let storage_scheme = platform.get_processor().get_storage_scheme();
         let payment_intent = db
             .find_payment_intent_by_id(
                 payment_id,
@@ -214,13 +214,13 @@ impl<F: Clone + Send + Sync>
         F: 'b + Send,
     {
         let db = &*state.store;
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let merchant_key_store = processor.get_key_store();
 
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::VoidUpdate {
             status: enums::AttemptStatus::VoidInitiated,
             cancellation_reason: payment_data.payment_attempt.cancellation_reason.clone(),
-            updated_by: storage_scheme.to_string(),
+            updated_by: storage_scheme.inner().to_string(),
         };
 
         let updated_payment_attempt = db

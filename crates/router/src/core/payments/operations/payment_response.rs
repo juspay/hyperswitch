@@ -915,7 +915,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         .update_payment_attempt_with_attempt_id(
                             payment_attempt,
                             payment_attempt_update,
-                            cloned_platform.get_processor().get_account().storage_scheme,
+                            cloned_platform.get_processor().get_storage_scheme(),
                             cloned_platform.get_processor().get_key_store(),
                         )
                         .await;
@@ -1090,7 +1090,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                     .update_payment_attempt_with_attempt_id(
                         payment_data.payment_attempt.clone(),
                         payment_attempt_update,
-                        processor.get_account().storage_scheme,
+                        processor.get_storage_scheme(),
                         processor.get_key_store(),
                     )
                     .await
@@ -1120,7 +1120,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                     payment_data.payment_intent.clone(),
                     payment_intent_update,
                     processor.get_key_store(),
-                    processor.get_account().storage_scheme,
+                    processor.get_storage_scheme(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -1477,7 +1477,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
                                 payment_intent,
                                 payment_intent_update,
                                 processor.get_key_store(),
-                                processor.get_account().storage_scheme,
+                                processor.get_storage_scheme(),
                             )
                             .await
                             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -1557,7 +1557,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
                     .update_payment_attempt_with_attempt_id(
                         payment_data.payment_attempt.clone(),
                         payment_attempt_update,
-                        processor.get_account().storage_scheme,
+                        processor.get_storage_scheme(),
                         processor.get_key_store(),
                     )
                     .await
@@ -1633,7 +1633,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
                             payment_intent,
                             payment_intent_update,
                             processor.get_key_store(),
-                            processor.get_account().storage_scheme,
+                            processor.get_storage_scheme(),
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -3156,7 +3156,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let m_db = state.clone().store;
     let m_payment_attempt_update = payment_attempt_update.clone();
     let m_payment_attempt = payment_attempt.clone();
-    let m_storage_scheme = processor.get_account().storage_scheme;
+    let m_storage_scheme = processor.get_storage_scheme();
     let m_key_store = processor.get_key_store().clone();
 
     let diesel_payment_attempt = payment_attempt
@@ -3256,7 +3256,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     let m_db = state.clone().store;
     let m_key_store = processor.get_key_store().clone();
-    let m_storage_scheme = processor.get_account().storage_scheme;
+    let m_storage_scheme = processor.get_storage_scheme();
     let m_payment_data_payment_intent = payment_data.payment_intent.clone();
     let m_payment_intent_update = payment_intent_update.clone();
     let payment_intent_fut = tokio::spawn(
@@ -3287,7 +3287,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .clone()
                 .and_then(|mandate_ids| mandate_ids.mandate_id));
     let m_router_data_response = router_data.response.clone();
-    let m_storage_scheme = processor.get_account().storage_scheme;
+    let m_storage_scheme = processor.get_storage_scheme();
     let mandate_update_fut = tokio::spawn(
         async move {
             mandate::update_connector_mandate_id(
@@ -3296,7 +3296,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 m_payment_data_mandate_id,
                 m_payment_method_id,
                 m_router_data_response,
-                m_storage_scheme,
+                m_storage_scheme.inner(),
             )
             .await
         }
@@ -4180,7 +4180,7 @@ impl<F: Clone>
                 payment_data.payment_intent,
                 payment_intent_update,
                 processor.get_key_store(),
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4191,7 +4191,7 @@ impl<F: Clone>
                 processor.get_key_store(),
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4242,7 +4242,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 payment_data.payment_intent,
                 payment_intent_update,
                 processor.get_key_store(),
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4253,7 +4253,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 processor.get_key_store(),
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4434,7 +4434,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
                 payment_data.payment_intent,
                 payment_intent_update,
                 processor.get_key_store(),
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4445,7 +4445,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
                 processor.get_key_store(),
                 payment_attempt,
                 payment_attempt_update,
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4699,7 +4699,7 @@ impl
                 payment_data.payment_intent,
                 payment_intent_update,
                 processor.get_key_store(),
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4710,7 +4710,7 @@ impl
                 processor.get_key_store(),
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4763,7 +4763,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                 payment_data.payment_intent,
                 payment_intent_update,
                 processor.get_key_store(),
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4774,7 +4774,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                 processor.get_key_store(),
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5089,7 +5089,7 @@ impl<F: Clone + Send + Sync>
                 payment_data.payment_intent.clone(),
                 payment_intent_update,
                 processor.get_key_store(),
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -5103,7 +5103,7 @@ impl<F: Clone + Send + Sync>
                 processor.get_key_store(),
                 payment_data.payment_attempt.clone(),
                 payment_attempt_update,
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -5156,7 +5156,7 @@ impl<F: Clone + Send + Sync>
             Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { status, .. }) => {
                 if status.is_success() {
                     let m_db = db.clone().store;
-                    let storage_scheme = processor.get_account().storage_scheme;
+                    let storage_scheme = processor.get_storage_scheme();
                     let key_store = processor.get_key_store();
 
                     let update_request_fields = payment_data
@@ -5227,7 +5227,7 @@ impl<F: Clone + Send + Sync>
                                         payment_data.payment_intent.customer_id.as_ref(),
                                         processor.get_key_store(),
                                         &payment_data.payment_intent.payment_id,
-                                        storage_scheme,
+                                        storage_scheme.inner(),
                                     )
                                     .await?;
 

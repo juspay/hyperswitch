@@ -377,6 +377,7 @@ impl SubscriptionWithHandler<'_> {
                 .platform
                 .get_processor()
                 .get_key_store()
+                .inner()
                 .clone(),
         }
     }

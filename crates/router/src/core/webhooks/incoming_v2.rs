@@ -424,7 +424,7 @@ async fn payments_incoming_webhook_flow(
                 profile.get_id(),
                 key_manager_state,
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await?;
 
@@ -575,8 +575,8 @@ async fn get_trackers_response_for_payment_get_operation<F>(
     payment_id: &api::PaymentIdType,
     profile_id: &common_utils::id_type::ProfileId,
     key_manager_state: &KeyManagerState,
-    merchant_key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
+    merchant_key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
 ) -> errors::RouterResult<payments::operations::GetTrackerResponse<PaymentStatusData<F>>>
 where
     F: Clone,

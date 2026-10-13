@@ -1647,9 +1647,9 @@ async fn refunds_incoming_webhook_flow(
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &refund.payment_id,
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1764,9 +1764,9 @@ pub async fn get_payment_attempt_from_object_reference_id(
     match object_reference_id {
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(ref id)) => db
             .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
-                processor.get_account().get_id(),
+                &processor.get_processor_merchant_id(),
                 id,
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
                 processor.get_key_store(),
             )
             .await
@@ -1774,8 +1774,8 @@ pub async fn get_payment_attempt_from_object_reference_id(
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::PaymentAttemptId(ref id)) => db
             .find_payment_attempt_by_attempt_id_processor_merchant_id(
                 id,
-                processor.get_account().get_id(),
-                processor.get_account().storage_scheme,
+                &processor.get_processor_merchant_id(),
+                processor.get_storage_scheme(),
                 processor.get_key_store(),
             )
             .await
@@ -1783,8 +1783,8 @@ pub async fn get_payment_attempt_from_object_reference_id(
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::PreprocessingId(ref id)) => db
             .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
                 id,
-                processor.get_account().get_id(),
-                processor.get_account().storage_scheme,
+                &processor.get_processor_merchant_id(),
+                processor.get_storage_scheme(),
                 processor.get_key_store(),
             )
             .await
@@ -1806,7 +1806,7 @@ pub async fn get_or_update_dispute_object(
     connector_name: &str,
 ) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
     let db = &*state.store;
-    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+    let storage_scheme = platform.get_processor().get_storage_scheme();
     let incoming_dispute_stage = dispute_details.dispute_stage;
     let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
         dispute_stage: dispute_details.dispute_stage,
@@ -1872,7 +1872,7 @@ pub async fn get_or_update_dispute_object(
             let connector_dispute_id = new_dispute.connector_dispute_id.clone();
             match state
                 .store
-                .insert_dispute(new_dispute.clone(), storage_scheme)
+                .insert_dispute(new_dispute.clone(), storage_scheme.inner())
                 .await
             {
                 Ok(dispute) => Ok(dispute),
@@ -1886,7 +1886,7 @@ pub async fn get_or_update_dispute_object(
                             platform.get_processor().get_account().get_id(),
                             &payment_attempt.payment_id,
                             &connector_dispute_id,
-                            storage_scheme,
+                            storage_scheme.inner(),
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?;
@@ -1898,7 +1898,7 @@ pub async fn get_or_update_dispute_object(
                                 incoming_dispute_stage,
                                 dispute_status,
                                 update_dispute,
-                                storage_scheme,
+                                storage_scheme.inner(),
                             )
                             .await
                         }
@@ -1922,7 +1922,7 @@ pub async fn get_or_update_dispute_object(
                 incoming_dispute_stage,
                 dispute_status,
                 update_dispute,
-                storage_scheme,
+                storage_scheme.inner(),
             )
             .await
         }
@@ -2069,18 +2069,18 @@ async fn external_authentication_incoming_webhook_flow(
                     .store
                     .find_payment_intent_by_payment_id_processor_merchant_id(
                         &payment_id,
-                        platform.get_processor().get_account().get_id(),
+                        &platform.get_processor().get_processor_merchant_id(),
                         platform.get_processor().get_key_store(),
-                        platform.get_processor().get_account().storage_scheme,
+                        platform.get_processor().get_storage_scheme(),
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-                let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
+                let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
                 let payment_confirm_req = api::PaymentsRequest {
                     payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
                         payment_intent.payment_id.clone(),
                     )),
-                    merchant_id: Some(processor_merchant_id.clone()),
+                    merchant_id: Some(processor_merchant_id.inner().clone()),
                     ..Default::default()
                 };
                 let is_setup_mandate = payment_intent.is_setup_mandate();
@@ -2097,7 +2097,7 @@ async fn external_authentication_incoming_webhook_flow(
                         &payment_intent.payment_id,
                         &processor_merchant_id,
                         &attempt_id,
-                        platform.get_processor().get_account().storage_scheme,
+                        platform.get_processor().get_storage_scheme(),
                         platform.get_processor().get_key_store(),
                     )
                     .await
@@ -2141,7 +2141,7 @@ async fn external_authentication_incoming_webhook_flow(
                         payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
                             payment_intent.payment_id.clone(),
                         )),
-                        merchant_id: Some(processor_merchant_id.clone()),
+                        merchant_id: Some(processor_merchant_id.inner().clone()),
                         payment_token: Some(payment_token),
                         payment_method: Some(common_enums::PaymentMethod::Card),
                         payment_method_type: payment_attempt.payment_method_type,
@@ -2341,7 +2341,7 @@ async fn mandates_incoming_webhook_flow(
         let mandates_response = Box::new(
             api::mandates::MandateResponse::from_db_mandate(
                 &state,
-                platform.get_processor().get_key_store().clone(),
+                platform.get_processor().get_key_store().inner().clone(),
                 updated_mandate.clone(),
                 platform.get_processor().get_account(),
             )
@@ -2409,7 +2409,7 @@ async fn associated_data_incoming_webhook_flow(
         match associated_data {
             Some(associated_data) => {
                 let processor = platform.get_processor();
-                let merchant_id = processor.get_account().get_id().to_owned();
+                let merchant_id = processor.get_processor_merchant_id().to_owned();
 
                 // Resolve the payment once to derive the locking key.
                 let payment_id = get_payment_attempt_from_object_reference_id(
@@ -2426,7 +2426,7 @@ async fn associated_data_incoming_webhook_flow(
                         &payment_id,
                         &merchant_id,
                         processor.get_key_store(),
-                        processor.get_account().storage_scheme,
+                        processor.get_storage_scheme(),
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -2440,7 +2440,7 @@ async fn associated_data_incoming_webhook_flow(
                 };
                 lock_action
                     .clone()
-                    .perform_locking_action(&state, merchant_id.clone())
+                    .perform_locking_action(&state, merchant_id.inner().clone())
                     .await?;
 
                 let payment_attempt = get_payment_attempt_from_object_reference_id(
@@ -2481,7 +2481,7 @@ async fn associated_data_incoming_webhook_flow(
                             .update_payment_attempt_with_attempt_id(
                                 payment_attempt,
                                 attempt_update,
-                                processor.get_account().storage_scheme,
+                                processor.get_storage_scheme(),
                                 processor.get_key_store(),
                             )
                             .await
@@ -2511,7 +2511,7 @@ async fn associated_data_incoming_webhook_flow(
                 };
 
                 lock_action
-                    .free_lock_action(&state, merchant_id.clone())
+                    .free_lock_action(&state, merchant_id.inner().clone())
                     .await?;
 
                 payment_method_update_result?;
@@ -2822,7 +2822,7 @@ async fn update_payment_attempt_associated_data(
                 .update_payment_attempt_with_attempt_id(
                     payment_attempt,
                     attempt_update,
-                    processor.get_account().storage_scheme,
+                    processor.get_storage_scheme(),
                     processor.get_key_store(),
                 )
                 .await
@@ -3032,9 +3032,9 @@ async fn disputes_incoming_webhook_flow(
                 let payment_intent = db
                     .find_payment_intent_by_payment_id_processor_merchant_id(
                         &payment_attempt.payment_id,
-                        platform.get_processor().get_account().get_id(),
+                        &platform.get_processor().get_processor_merchant_id(),
                         platform.get_processor().get_key_store(),
-                        platform.get_processor().get_account().storage_scheme,
+                        platform.get_processor().get_storage_scheme(),
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3452,7 +3452,7 @@ async fn update_connector_mandate_details(
                             .update_payment_attempt_with_attempt_id(
                                 payment_attempt.clone(),
                                 attempt_update,
-                                platform.get_processor().get_account().storage_scheme,
+                                platform.get_processor().get_storage_scheme(),
                                 platform.get_processor().get_key_store(),
                             )
                             .await

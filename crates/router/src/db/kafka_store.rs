@@ -30,6 +30,9 @@ use hyperswitch_domain_models::{
     invoice::{Invoice as DomainInvoice, InvoiceInterface, InvoiceUpdate as DomainInvoiceUpdate},
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
+    platform::{
+        ProcessorKeyStore, ProcessorMerchantId, ProcessorStorageScheme, ProviderMerchantId,
+    },
     refunds,
     subscription::{
         Subscription as DomainSubscription, SubscriptionInterface,
@@ -1746,8 +1749,8 @@ impl PaymentAttemptInterface for KafkaStore {
     async fn insert_payment_attempt(
         &self,
         payment_attempt: storage::PaymentAttempt,
-        storage_scheme: MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
+        storage_scheme: ProcessorStorageScheme,
+        key_store: &ProcessorKeyStore,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         let attempt = self
             .diesel_store
@@ -1768,9 +1771,9 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn insert_payment_attempt(
         &self,
-        merchant_key_store: &domain::MerchantKeyStore,
+        merchant_key_store: &ProcessorKeyStore,
         payment_attempt: storage::PaymentAttempt,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         let attempt = self
             .diesel_store
@@ -1793,8 +1796,8 @@ impl PaymentAttemptInterface for KafkaStore {
         &self,
         this: storage::PaymentAttempt,
         payment_attempt: storage::PaymentAttemptUpdate,
-        storage_scheme: MerchantStorageScheme,
-        merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: ProcessorStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         let mut attempt = self
             .diesel_store
@@ -1823,10 +1826,10 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn update_payment_attempt(
         &self,
-        merchant_key_store: &domain::MerchantKeyStore,
+        merchant_key_store: &ProcessorKeyStore,
         this: storage::PaymentAttempt,
         payment_attempt: storage::PaymentAttemptUpdate,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         let attempt = self
             .diesel_store
@@ -1852,10 +1855,10 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_processor_merchant_id_connector_txn_id(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         connector_txn_id: &str,
-        storage_scheme: MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
+        storage_scheme: ProcessorStorageScheme,
+        key_store: &ProcessorKeyStore,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
             .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
@@ -1870,10 +1873,10 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
-        merchant_key_store: &domain::MerchantKeyStore,
+        merchant_key_store: &ProcessorKeyStore,
         profile_id: &id_type::ProfileId,
         connector_transaction_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
             .find_payment_attempt_by_profile_id_connector_transaction_id(
@@ -1889,10 +1892,10 @@ impl PaymentAttemptInterface for KafkaStore {
     async fn find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
         &self,
         payment_id: &id_type::PaymentId,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         attempt_id: &str,
-        storage_scheme: MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
+        storage_scheme: ProcessorStorageScheme,
+        key_store: &ProcessorKeyStore,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
@@ -1909,9 +1912,9 @@ impl PaymentAttemptInterface for KafkaStore {
     async fn find_payment_attempt_by_attempt_id_processor_merchant_id(
         &self,
         attempt_id: &str,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
+        processor_merchant_id: &ProcessorMerchantId,
+        storage_scheme: ProcessorStorageScheme,
+        key_store: &ProcessorKeyStore,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
             .find_payment_attempt_by_attempt_id_processor_merchant_id(
@@ -1926,9 +1929,9 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_id(
         &self,
-        merchant_key_store: &domain::MerchantKeyStore,
+        merchant_key_store: &ProcessorKeyStore,
         attempt_id: &id_type::GlobalAttemptId,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
             .find_payment_attempt_by_id(merchant_key_store, attempt_id, storage_scheme)
@@ -1939,8 +1942,8 @@ impl PaymentAttemptInterface for KafkaStore {
     async fn find_payment_attempts_by_payment_intent_id(
         &self,
         payment_id: &id_type::GlobalPaymentId,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: MerchantStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<Vec<storage::PaymentAttempt>, errors::StorageError> {
         self.diesel_store
             .find_payment_attempts_by_payment_intent_id(
@@ -1955,9 +1958,9 @@ impl PaymentAttemptInterface for KafkaStore {
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
+        processor_merchant_id: &ProcessorMerchantId,
+        storage_scheme: ProcessorStorageScheme,
+        key_store: &ProcessorKeyStore,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
             .find_payment_attempt_last_successful_attempt_by_payment_id_processor_merchant_id(
@@ -1973,9 +1976,9 @@ impl PaymentAttemptInterface for KafkaStore {
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
+        processor_merchant_id: &ProcessorMerchantId,
+        storage_scheme: ProcessorStorageScheme,
+        key_store: &ProcessorKeyStore,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
             .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
@@ -1990,9 +1993,9 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
         &self,
-        merchant_key_store: &domain::MerchantKeyStore,
+        merchant_key_store: &ProcessorKeyStore,
         payment_id: &id_type::GlobalPaymentId,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
             .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
@@ -2007,9 +2010,9 @@ impl PaymentAttemptInterface for KafkaStore {
     async fn find_payment_attempt_by_preprocessing_id_processor_merchant_id(
         &self,
         preprocessing_id: &str,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
+        processor_merchant_id: &ProcessorMerchantId,
+        storage_scheme: ProcessorStorageScheme,
+        key_store: &ProcessorKeyStore,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         self.diesel_store
             .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
@@ -2025,8 +2028,8 @@ impl PaymentAttemptInterface for KafkaStore {
     async fn get_filters_for_payments(
         &self,
         pi: &[hyperswitch_domain_models::payments::PaymentIntent],
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: MerchantStorageScheme,
+        processor_merchant_id: &ProcessorMerchantId,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<
         hyperswitch_domain_models::payments::payment_attempt::PaymentListFilters,
         errors::StorageError,
@@ -2039,7 +2042,7 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v1")]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         active_attempt_ids: &[String],
         connector: Option<Vec<api_models::enums::Connector>>,
         payment_method: Option<Vec<common_enums::PaymentMethod>>,
@@ -2048,7 +2051,7 @@ impl PaymentAttemptInterface for KafkaStore {
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<common_enums::CardNetwork>>,
         card_discovery: Option<Vec<common_enums::CardDiscovery>>,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
             .get_total_count_of_filtered_payment_attempts(
@@ -2069,7 +2072,7 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v2")]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
-        merchant_id: &id_type::MerchantId,
+        merchant_id: &ProcessorMerchantId,
         active_attempt_ids: &[String],
         connector: Option<Vec<api_models::enums::Connector>>,
         payment_method_type: Option<Vec<common_enums::PaymentMethod>>,
@@ -2077,7 +2080,7 @@ impl PaymentAttemptInterface for KafkaStore {
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<common_enums::CardNetwork>>,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
             .get_total_count_of_filtered_payment_attempts(
@@ -2097,10 +2100,10 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v1")]
     async fn find_attempts_by_processor_merchant_id_payment_id(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         payment_id: &id_type::PaymentId,
-        storage_scheme: MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
+        storage_scheme: ProcessorStorageScheme,
+        key_store: &ProcessorKeyStore,
     ) -> CustomResult<Vec<storage::PaymentAttempt>, errors::StorageError> {
         self.diesel_store
             .find_attempts_by_processor_merchant_id_payment_id(
@@ -2120,8 +2123,8 @@ impl PaymentIntentInterface for KafkaStore {
         &self,
         this: storage::PaymentIntent,
         payment_intent: storage::PaymentIntentUpdate,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: MerchantStorageScheme,
+        key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<storage::PaymentIntent, errors::StorageError> {
         let intent = self
             .diesel_store
@@ -2155,8 +2158,8 @@ impl PaymentIntentInterface for KafkaStore {
     async fn insert_payment_intent(
         &self,
         new: storage::PaymentIntent,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: MerchantStorageScheme,
+        key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<storage::PaymentIntent, errors::StorageError> {
         logger::debug!("Inserting PaymentIntent Via KafkaStore");
         let state = self
@@ -2188,9 +2191,9 @@ impl PaymentIntentInterface for KafkaStore {
     async fn find_payment_intent_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
-        processor_merchant_id: &id_type::MerchantId,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: MerchantStorageScheme,
+        processor_merchant_id: &ProcessorMerchantId,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<storage::PaymentIntent, errors::StorageError> {
         self.diesel_store
             .find_payment_intent_by_payment_id_processor_merchant_id(
@@ -2206,8 +2209,8 @@ impl PaymentIntentInterface for KafkaStore {
     async fn find_payment_intent_by_id(
         &self,
         payment_id: &id_type::GlobalPaymentId,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: MerchantStorageScheme,
+        key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<storage::PaymentIntent, errors::StorageError> {
         self.diesel_store
             .find_payment_intent_by_id(payment_id, key_store, storage_scheme)
@@ -2217,10 +2220,10 @@ impl PaymentIntentInterface for KafkaStore {
     #[cfg(all(feature = "olap", feature = "v1"))]
     async fn filter_payment_intent_by_constraints(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: MerchantStorageScheme,
+        key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<Vec<storage::PaymentIntent>, errors::StorageError> {
         self.diesel_store
             .filter_payment_intent_by_constraints(
@@ -2235,7 +2238,7 @@ impl PaymentIntentInterface for KafkaStore {
     #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_filtered_payment_intents_attempt_for_platform(
         &self,
-        platform_merchant_id: &id_type::MerchantId,
+        provider_merchant_id: &ProviderMerchantId,
         filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
     ) -> CustomResult<
         Vec<(
@@ -2245,28 +2248,28 @@ impl PaymentIntentInterface for KafkaStore {
         errors::StorageError,
     > {
         self.diesel_store
-            .get_filtered_payment_intents_attempt_for_platform(platform_merchant_id, filters)
+            .get_filtered_payment_intents_attempt_for_platform(provider_merchant_id, filters)
             .await
     }
 
     #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_payment_intents_attempt_count_for_platform(
         &self,
-        platform_merchant_id: &id_type::MerchantId,
+        provider_merchant_id: &ProviderMerchantId,
         filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
-            .get_payment_intents_attempt_count_for_platform(platform_merchant_id, filters)
+            .get_payment_intents_attempt_count_for_platform(provider_merchant_id, filters)
             .await
     }
 
     #[cfg(all(feature = "olap", feature = "v1"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         time_range: &common_utils::types::TimeRange,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: MerchantStorageScheme,
+        key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<Vec<storage::PaymentIntent>, errors::StorageError> {
         self.diesel_store
             .filter_payment_intents_by_time_range_constraints(
@@ -2280,7 +2283,7 @@ impl PaymentIntentInterface for KafkaStore {
     #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError> {
@@ -2292,10 +2295,10 @@ impl PaymentIntentInterface for KafkaStore {
     #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: MerchantStorageScheme,
+        key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<
         Vec<(
             hyperswitch_domain_models::payments::PaymentIntent,
@@ -2316,10 +2319,10 @@ impl PaymentIntentInterface for KafkaStore {
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        merchant_id: &id_type::MerchantId,
+        merchant_id: &ProcessorMerchantId,
         constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: MerchantStorageScheme,
+        key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<
         Vec<(
             hyperswitch_domain_models::payments::PaymentIntent,
@@ -2340,9 +2343,9 @@ impl PaymentIntentInterface for KafkaStore {
     #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<Vec<String>, errors::StorageError> {
         self.diesel_store
             .get_filtered_active_attempt_ids_for_total_count(
@@ -2358,8 +2361,8 @@ impl PaymentIntentInterface for KafkaStore {
         &self,
         merchant_reference_id: &id_type::PaymentReferenceId,
         profile_id: &id_type::ProfileId,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: &MerchantStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: &ProcessorStorageScheme,
     ) -> error_stack::Result<hyperswitch_domain_models::payments::PaymentIntent, errors::StorageError>
     {
         self.diesel_store
@@ -2374,9 +2377,9 @@ impl PaymentIntentInterface for KafkaStore {
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        merchant_id: &id_type::MerchantId,
+        merchant_id: &ProcessorMerchantId,
         constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<Vec<Option<String>>, errors::StorageError> {
         self.diesel_store
             .get_filtered_active_attempt_ids_for_total_count(

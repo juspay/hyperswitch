@@ -59,8 +59,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
     > {
         let db = &*state.store;
 
-        let processor_merchant_id = platform.get_processor().get_account().get_id();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
+        let storage_scheme = platform.get_processor().get_storage_scheme();
         let (payment_intent, mut payment_attempt, currency, amount);
 
         let payment_id = payment_id
@@ -70,7 +70,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
         payment_intent = db
             .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
             )
@@ -80,7 +80,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
         payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
                 platform.get_processor().get_key_store(),
@@ -128,7 +128,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
                     &payment_attempt.merchant_id,
                     &payment_attempt.payment_id,
                     &payment_attempt.attempt_id,
-                    storage_scheme,
+                    storage_scheme.inner(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -137,7 +137,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
                 .insert_capture(
                     payment_attempt
                         .make_new_capture(amount_to_capture, enums::CaptureStatus::Started)?,
-                    storage_scheme,
+                    storage_scheme.inner(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment {
@@ -161,7 +161,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             payment_intent.shipping_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -171,7 +171,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             payment_intent.billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -181,7 +181,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             payment_attempt.payment_method_billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -311,7 +311,7 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCa
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let merchant_key_store = processor.get_key_store();
 
         payment_data.payment_attempt = if payment_data.multiple_capture_data.is_some()
@@ -329,7 +329,7 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCa
                     storage::PaymentAttemptUpdate::CaptureUpdate {
                         amount_to_capture,
                         multiple_capture_count,
-                        updated_by: storage_scheme.to_string(),
+                        updated_by: storage_scheme.inner().to_string(),
                     },
                     storage_scheme,
                     merchant_key_store,

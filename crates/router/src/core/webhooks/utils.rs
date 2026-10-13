@@ -380,7 +380,7 @@ async fn resolve_webhook_recipient_inner(
 
         (
             provider.get_account().clone(),
-            provider.get_key_store().clone(),
+            provider.get_key_store().inner().clone(),
             provider_profile,
         )
     } else {
@@ -388,7 +388,7 @@ async fn resolve_webhook_recipient_inner(
 
         (
             processor.get_account().clone(),
-            processor.get_key_store().clone(),
+            processor.get_key_store().inner().clone(),
             profile.clone(),
         )
     };

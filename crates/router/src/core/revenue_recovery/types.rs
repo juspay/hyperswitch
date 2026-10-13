@@ -1653,18 +1653,21 @@ async fn persist_billing_connector_transaction_id(
     };
     revenue_recovery.billing_connector_transaction_id = Some(connector_transaction_id.to_string());
 
-    let storage_scheme = revenue_recovery_payment_data
-        .merchant_account
-        .storage_scheme;
+    let processor_account = domain::ProcessorMerchantAccount::from_untagged(
+        revenue_recovery_payment_data.merchant_account.clone(),
+    );
+    let processor_key_store =
+        domain::ProcessorKeyStore::from_untagged(revenue_recovery_payment_data.key_store.clone());
+    let storage_scheme = processor_account.get_storage_scheme();
     let update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::RecordBackUpdate {
         feature_metadata: Some(feature_metadata),
-        updated_by: storage_scheme.to_string(),
+        updated_by: storage_scheme.inner().to_string(),
     };
 
     if let Err(error) = state
         .store
         .update_payment_attempt(
-            &revenue_recovery_payment_data.key_store,
+            &processor_key_store,
             payment_attempt.clone(),
             update,
             storage_scheme,

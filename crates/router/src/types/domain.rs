@@ -25,7 +25,11 @@ mod business_profile {
 }
 
 mod platform {
-    pub use hyperswitch_domain_models::platform::{Initiator, Platform, Processor, Provider};
+    pub use hyperswitch_domain_models::platform::{
+        Initiator, Platform, Processor, ProcessorKeyStore, ProcessorMerchantAccount,
+        ProcessorMerchantId, ProcessorStorageScheme, Provider, ProviderKeyStore,
+        ProviderMerchantAccount, ProviderMerchantId, ProviderStorageScheme,
+    };
 }
 mod customers {
     pub use hyperswitch_domain_models::customer::*;

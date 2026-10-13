@@ -1,38 +1,125 @@
+use std::ops::Deref;
+
 use common_utils::types::authentication::AuthInfo;
 
 pub use crate::{merchant_account::MerchantAccount, merchant_key_store::MerchantKeyStore};
+
+impl Deref for ProviderKeyStore {
+    type Target = MerchantKeyStore;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Deref for ProviderMerchantId {
+    type Target = common_utils::id_type::MerchantId;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Deref for ProviderStorageScheme {
+    type Target = common_enums::MerchantStorageScheme;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Deref for ProcessorKeyStore {
+    type Target = MerchantKeyStore;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Deref for ProcessorMerchantId {
+    type Target = common_utils::id_type::MerchantId;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Deref for ProcessorStorageScheme {
+    type Target = common_enums::MerchantStorageScheme;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ProviderKeyStore(MerchantKeyStore);
+
+impl ProviderKeyStore {
+    pub fn inner(&self) -> &MerchantKeyStore {
+        &self.0
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ProviderStorageScheme(common_enums::MerchantStorageScheme);
+
+impl ProviderStorageScheme {
+    pub fn inner(&self) -> common_enums::MerchantStorageScheme {
+        self.0
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ProviderMerchantAccount(MerchantAccount);
+
+impl ProviderMerchantAccount {
+    pub fn get_account(&self) -> &MerchantAccount {
+        &self.0
+    }
+
+    pub fn get_provider_merchant_id(&self) -> ProviderMerchantId {
+        ProviderMerchantId(self.0.get_id().clone())
+    }
+
+    pub fn get_storage_scheme(&self) -> ProviderStorageScheme {
+        ProviderStorageScheme(self.0.storage_scheme)
+    }
+}
 
 /// Provider = The business owner or the governing entity in the hierarchy.
 /// In a platform-connected setup this is represented by the platform merchant.
 /// For a standard merchant, both provider and processor are represented by the same entity.
 #[derive(Clone, Debug)]
 pub struct Provider {
-    account: MerchantAccount,
-    key_store: MerchantKeyStore,
+    account: ProviderMerchantAccount,
+    key_store: ProviderKeyStore,
 }
 
 impl Provider {
     fn new(account: MerchantAccount, key_store: MerchantKeyStore) -> Self {
-        Self { account, key_store }
+        Self {
+            account: ProviderMerchantAccount(account),
+            key_store: ProviderKeyStore(key_store),
+        }
     }
 
-    /// Returns a reference to the merchant account of the provider.
-    pub fn get_account(&self) -> &MerchantAccount {
+    pub fn get_provider_merchant_account(&self) -> &ProviderMerchantAccount {
         &self.account
     }
 
-    /// Returns a reference to the key store associated with the provider.
-    pub fn get_key_store(&self) -> &MerchantKeyStore {
+    /// Untagged on purpose: interfaces outside payments still take `&MerchantAccount`.
+    pub fn get_account(&self) -> &MerchantAccount {
+        self.account.get_account()
+    }
+
+    pub fn get_key_store(&self) -> &ProviderKeyStore {
         &self.key_store
     }
 
-    /// Returns the provider merchant
     pub fn get_provider_merchant_id(&self) -> ProviderMerchantId {
-        ProviderMerchantId(self.account.get_id().clone())
+        self.account.get_provider_merchant_id()
+    }
+
+    pub fn get_storage_scheme(&self) -> ProviderStorageScheme {
+        self.account.get_storage_scheme()
     }
 }
 
-/// Provider Merchant ID
 #[derive(Debug, Clone)]
 pub struct ProviderMerchantId(common_utils::id_type::MerchantId);
 
@@ -45,36 +132,95 @@ impl ProviderMerchantId {
         Self(id)
     }
 }
-/// Processor = The merchant account whose processor credentials are used
-/// to execute the operation.
+
+#[derive(Clone, Debug)]
+pub struct ProcessorKeyStore(MerchantKeyStore);
+
+impl ProcessorKeyStore {
+    pub fn inner(&self) -> &MerchantKeyStore {
+        &self.0
+    }
+
+    pub fn from_untagged(key_store: MerchantKeyStore) -> Self {
+        Self(key_store)
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ProcessorStorageScheme(common_enums::MerchantStorageScheme);
+
+impl ProcessorStorageScheme {
+    pub fn inner(&self) -> common_enums::MerchantStorageScheme {
+        self.0
+    }
+
+    pub fn postgres_only() -> Self {
+        Self(common_enums::MerchantStorageScheme::PostgresOnly)
+    }
+
+    pub fn retag(self, storage_scheme: common_enums::MerchantStorageScheme) -> Self {
+        Self(storage_scheme)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ProcessorMerchantAccount(MerchantAccount);
+
+impl ProcessorMerchantAccount {
+    /// Boundary hatch for flows that resolve a merchant account without a [`Platform`].
+    pub fn from_untagged(account: MerchantAccount) -> Self {
+        Self(account)
+    }
+
+    pub fn get_account(&self) -> &MerchantAccount {
+        &self.0
+    }
+
+    pub fn get_processor_merchant_id(&self) -> ProcessorMerchantId {
+        ProcessorMerchantId(self.0.get_id().clone())
+    }
+
+    pub fn get_storage_scheme(&self) -> ProcessorStorageScheme {
+        ProcessorStorageScheme(self.0.storage_scheme)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Processor {
-    account: MerchantAccount,
-    key_store: MerchantKeyStore,
+    account: ProcessorMerchantAccount,
+    key_store: ProcessorKeyStore,
 }
 
 impl Processor {
     fn new(account: MerchantAccount, key_store: MerchantKeyStore) -> Self {
-        Self { account, key_store }
+        Self {
+            account: ProcessorMerchantAccount(account),
+            key_store: ProcessorKeyStore(key_store),
+        }
     }
 
-    /// Returns a reference to the merchant account of the processor.
-    pub fn get_account(&self) -> &MerchantAccount {
+    pub fn get_processor_merchant_account(&self) -> &ProcessorMerchantAccount {
         &self.account
     }
 
-    /// Returns a reference to the key store associated with the processor.
-    pub fn get_key_store(&self) -> &MerchantKeyStore {
+    /// Untagged on purpose: interfaces outside payments still take `&MerchantAccount`.
+    pub fn get_account(&self) -> &MerchantAccount {
+        self.account.get_account()
+    }
+
+    pub fn get_key_store(&self) -> &ProcessorKeyStore {
         &self.key_store
     }
 
-    /// Returns the processor merchant ID
     pub fn get_processor_merchant_id(&self) -> ProcessorMerchantId {
-        ProcessorMerchantId(self.account.get_id().clone())
+        self.account.get_processor_merchant_id()
+    }
+
+    pub fn get_storage_scheme(&self) -> ProcessorStorageScheme {
+        self.account.get_storage_scheme()
     }
 }
 
-/// Processor Merchant ID
 #[derive(Debug, Clone)]
 pub struct ProcessorMerchantId(common_utils::id_type::MerchantId);
 
@@ -90,7 +236,6 @@ impl From<common_utils::id_type::MerchantId> for ProcessorMerchantId {
     }
 }
 
-/// Initiator = The entity that initiated the operation.
 #[derive(Clone, Debug)]
 pub enum Initiator {
     Api {

@@ -6,8 +6,6 @@ use common_utils::id_type;
 use error_stack::{report, ResultExt};
 use strum::IntoEnumIterator;
 
-#[cfg(feature = "v1")]
-use crate::types::storage::enums as storage_enums;
 use crate::{
     core::{
         admin,
@@ -168,10 +166,10 @@ pub async fn get_filters_for_payments(
     let db = state.store.as_ref();
     let pi = db
         .filter_payment_intents_by_time_range_constraints(
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             &time_range,
             platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -179,9 +177,9 @@ pub async fn get_filters_for_payments(
     let filters = db
         .get_filters_for_payments(
             pi.as_slice(),
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             // since OLAP doesn't have KV. Force to get the data from PSQL.
-            storage_enums::MerchantStorageScheme::PostgresOnly,
+            domain::ProcessorStorageScheme::postgres_only(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -298,7 +296,7 @@ pub async fn get_aggregates_for_payments(
     let db = state.store.as_ref();
     let intent_status_with_count = db
         .get_intent_status_with_count(
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             profile_id_list,
             &time_range,
         )

@@ -871,7 +871,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         state,
-                        platform.get_processor().get_key_store(),
+                        platform.get_processor(),
                         frm_data.clone(),
                         payment_data,
                         None,
@@ -1003,7 +1003,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         state,
-                        platform.get_processor().get_key_store(),
+                        platform.get_processor(),
                         frm_data.to_owned(),
                         payment_data,
                         None,
@@ -1036,7 +1036,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         state,
-                        platform.get_processor().get_key_store(),
+                        platform.get_processor(),
                         frm_data.to_owned(),
                         payment_data,
                         frm_suggestion,
@@ -1183,9 +1183,9 @@ pub async fn frm_fulfillment_core(
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &req.payment_id.clone(),
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -1198,9 +1198,9 @@ pub async fn frm_fulfillment_core(
             let payment_attempt = db
                 .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                     &payment_intent.payment_id,
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     &payment_intent.active_attempt.get_id(),
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                     platform.get_processor().get_key_store(),
                 )
                 .await
@@ -1343,9 +1343,9 @@ pub async fn notify_frm_of_chargeback(
     let payment_intent = match db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             payment_id,
-            processor.get_account().get_id(),
+            &processor.get_processor_merchant_id(),
             processor.get_key_store(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
         )
         .await
     {
@@ -1358,9 +1358,9 @@ pub async fn notify_frm_of_chargeback(
     let payment_attempt = match db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &payment_intent.payment_id,
-            processor.get_account().get_id(),
+            &processor.get_processor_merchant_id(),
             &payment_intent.active_attempt.get_id(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
             processor.get_key_store(),
         )
         .await

@@ -271,7 +271,7 @@ where
     async fn update_tracker<'b>(
         &'b self,
         state: &SessionState,
-        _key_store: &domain::MerchantKeyStore,
+        _processor: &domain::Processor,
         mut frm_data: FrmData,
         payment_data: &mut D,
         _frm_suggestion: Option<FrmSuggestion>,
