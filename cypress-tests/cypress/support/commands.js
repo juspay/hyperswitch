@@ -8009,6 +8009,43 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
   });
 });
 
+/**
+ * Force-syncs a payout via GET /payouts/{payout_id}?force_sync=true. The
+ * payouts_retrieve route accepts the force_sync query param and calls the
+ * connector's PoSync when the payout is in a syncable (non-terminal) state,
+ * so the response reflects the connector-reported status. This is the
+ * payout-side analogue of the payment force-sync retrieves.
+ */
+Cypress.Commands.add("syncPayoutCallTest", (globalState, data) => {
+  const payout_id = globalState.get("payoutID");
+  const resBody = data?.Response?.body || {};
+  if (!payout_id) {
+    throw new Error(
+      "sync-payout-call-test: payout_id is not set in global state; the preceding create/confirm/fulfill payout step must have failed"
+    );
+  }
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/payouts/${payout_id}?force_sync=true`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.body.payout_id).to.equal(payout_id);
+      expect(response.body.amount).to.equal(globalState.get("payoutAmount"));
+      for (const key in resBody) {
+        expect(response.body[key]).to.deep.equal(resBody[key]);
+      }
+    });
+  });
+});
+
 // User API calls
 Cypress.Commands.add("signupUserWithMerchant", (namePrefix, globalState) => {
   const baseUrl = globalState.get("baseUrl");

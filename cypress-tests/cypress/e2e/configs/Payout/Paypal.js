@@ -20,7 +20,10 @@ const wallet_data = {
  * saved-payout specs (00003-00006) skip cleanly at the gate instead of
  * "passing" by asserting the Commons.js 501 not-implemented fallback.
  * Positive PayPal payout coverage lives in 00009-ClientAuthPayoutConfirm.cy.js
- * (wallet_pm), gated by CONNECTOR_LISTS.INCLUDE.CLIENT_AUTH_CONFIRM.
+ * (wallet_pm), gated by CONNECTOR_LISTS.INCLUDE.CLIENT_AUTH_CONFIRM, and in
+ * the full wallet payout lifecycle spec 00010-WalletPayout.cy.js (create ->
+ * confirm -> fulfill -> sync -> retrieve, PayPal and Venmo wallet variants),
+ * gated by CONNECTOR_LISTS.INCLUDE.WALLET_PAYOUT.
  */
 export const connectorDetails = {
   wallet_pm: {
@@ -161,6 +164,179 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "pending",
+          payout_type: "wallet",
+        },
+      },
+    },
+    // Full wallet payout lifecycle (merchant-auth, manual fulfill):
+    // create -> confirm -> fulfill -> force-sync retrieve. Consumed by the
+    // wallet payout spec (00010-WalletPayout.cy.js), gated by
+    // CONNECTOR_LISTS.INCLUDE.WALLET_PAYOUT. Response bodies for
+    // Fulfill / RetrieveAfterFulfill / SyncAfterFulfill reflect the PayPal
+    // sandbox behaviour verified in the CLA-440 pipeline runs (payouts stay
+    // "pending" until the sandbox receiver claims them) and must be
+    // re-verified against the live server if the sandbox changes.
+    Confirm: {
+      Request: {
+        amount: 100,
+        currency: "GBP",
+        payout_type: "wallet",
+        payout_method_data: {
+          wallet: {
+            paypal: wallet_data,
+          },
+        },
+        entity_type: "NaturalPerson",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_fulfillment",
+          payout_type: "wallet",
+        },
+      },
+    },
+    Fulfill: {
+      Request: {
+        payout_type: "wallet",
+        payout_method_data: {
+          wallet: {
+            paypal: wallet_data,
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+          payout_type: "wallet",
+        },
+      },
+    },
+    RetrieveAfterFulfill: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+          payout_type: "wallet",
+        },
+      },
+    },
+    SyncAfterFulfill: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+          payout_type: "wallet",
+        },
+      },
+    },
+    // Venmo wallet variants: Venmo payouts route through the same
+    // PayoutMethodData::Wallet arm with recipient_wallet = Venmo and are
+    // resolved from telephone_number only (no email / paypal_id). They use
+    // the same paypal connector credentials — no separate creds.json key.
+    // Sandbox support for Venmo payout items must be live-verified.
+    CreateVenmo: {
+      Request: {
+        amount: 100,
+        currency: "GBP",
+        payout_type: "wallet",
+        payout_method_data: {
+          wallet: {
+            venmo: wallet_data,
+          },
+        },
+        entity_type: "NaturalPerson",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_confirmation",
+          payout_type: "wallet",
+        },
+      },
+    },
+    ConfirmVenmo: {
+      Request: {
+        amount: 100,
+        currency: "GBP",
+        payout_type: "wallet",
+        payout_method_data: {
+          wallet: {
+            venmo: wallet_data,
+          },
+        },
+        entity_type: "NaturalPerson",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_fulfillment",
+          payout_type: "wallet",
+        },
+      },
+    },
+    FulfillVenmo: {
+      Request: {
+        payout_type: "wallet",
+        payout_method_data: {
+          wallet: {
+            venmo: wallet_data,
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+          payout_type: "wallet",
+        },
+      },
+    },
+    // Negative: every paypal wallet receiver field is schema-optional, so a
+    // payout created with an empty paypal receiver object is accepted at
+    // create/confirm and reaches requires_fulfillment — but the fulfill
+    // transformer (PaypalPayoutItem::try_from) requires at least one receiver
+    // identifier (email / telephone_number / paypal_id) and fails with
+    // MissingRequiredField "receiver_data", which the router surfaces as
+    // 400 IR_04. The payout silently stays in requires_fulfillment.
+    MissingReceiverDataConfirm: {
+      Request: {
+        amount: 100,
+        currency: "GBP",
+        payout_type: "wallet",
+        payout_method_data: {
+          wallet: {
+            paypal: {},
+          },
+        },
+        entity_type: "NaturalPerson",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_fulfillment",
+          payout_type: "wallet",
+        },
+      },
+    },
+    MissingReceiverDataFulfill: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+            message: "Missing required param: receiver_data",
+          },
+        },
+      },
+    },
+    MissingReceiverDataRetrieveAfterFulfill: {
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_fulfillment",
           payout_type: "wallet",
         },
       },
