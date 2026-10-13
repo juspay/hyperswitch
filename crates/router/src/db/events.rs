@@ -2001,6 +2001,8 @@ mod tests {
             network_tokenization_credentials: None,
             fingerprint_secret: None,
             offer_engine_config: None,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         });
         let merchant_account = state
             .store
@@ -2086,6 +2088,7 @@ mod tests {
             merchant_category_code: None,
             dispute_polling_interval: None,
             is_manual_retry_enabled: None,
+            auto_fallback_capture_method: None,
             always_enable_overcapture: None,
             external_vault_details: domain::ExternalVaultDetails::Skip,
             billing_processor_id: None,
@@ -2112,6 +2115,8 @@ mod tests {
         let primary_object_created_at = Some(common_utils::date_time::now());
         let expected_response = api::PaymentsResponse {
             payment_id,
+            payment_method_list: None,
+            session_tokens: None,
             status: IntentStatus::Succeeded,
             amount: MinorUnit::new(6540),
             amount_capturable: MinorUnit::new(0),
@@ -2140,6 +2145,7 @@ mod tests {
             off_session: None,
             capture_on: None,
             capture_method: None,
+            capture_method_applied: None,
             payment_method: None,
             payment_method_data: None,
             payment_token: None,

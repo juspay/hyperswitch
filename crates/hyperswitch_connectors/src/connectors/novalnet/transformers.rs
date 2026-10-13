@@ -430,11 +430,13 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     | WalletDataPaymentMethod::SamsungPay(_)
                     | WalletDataPaymentMethod::TwintRedirect {}
                     | WalletDataPaymentMethod::VippsRedirect {}
+                    | WalletDataPaymentMethod::WeroRedirect {}
                     | WalletDataPaymentMethod::TouchNGoRedirect(_)
                     | WalletDataPaymentMethod::WeChatPayRedirect(_)
                     | WalletDataPaymentMethod::CashappQr(_)
                     | WalletDataPaymentMethod::SwishQr(_)
                     | WalletDataPaymentMethod::WeChatPayQr(_)
+                    | WalletDataPaymentMethod::Neteller(_)
                     | WalletDataPaymentMethod::Mifinity(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("novalnet"),
@@ -1912,11 +1914,13 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 | WalletDataPaymentMethod::SamsungPay(_)
                 | WalletDataPaymentMethod::TwintRedirect {}
                 | WalletDataPaymentMethod::VippsRedirect {}
+                | WalletDataPaymentMethod::WeroRedirect {}
                 | WalletDataPaymentMethod::TouchNGoRedirect(_)
                 | WalletDataPaymentMethod::WeChatPayRedirect(_)
                 | WalletDataPaymentMethod::CashappQr(_)
                 | WalletDataPaymentMethod::SwishQr(_)
                 | WalletDataPaymentMethod::WeChatPayQr(_)
+                | WalletDataPaymentMethod::Neteller(_)
                 | WalletDataPaymentMethod::Mifinity(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("novalnet"),

@@ -105,6 +105,7 @@ impl_get_primary_key!(
     schema::invoice::table,
     schema::subscription::table,
     schema::batch_blocklist_jobs::table,
+    schema::hierarchical_resources::table,
     // v2 tables
     schema_v2::dashboard_metadata::table,
     schema_v2::merchant_connector_account::table,

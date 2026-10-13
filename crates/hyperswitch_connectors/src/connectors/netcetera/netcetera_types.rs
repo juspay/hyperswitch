@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use common_utils::{pii::Email, types::SemanticVersion};
+use common_utils::{
+    pii::{Email, EmailStrategy},
+    types::SemanticVersion,
+};
 use hyperswitch_domain_models::router_request_types::{
     authentication::MessageCategory, BrowserInformation,
 };
@@ -1081,7 +1084,7 @@ pub struct MerchantRiskIndicator {
     delivery_timeframe: Option<String>,
 
     /// For electronic delivery, the email address to which the merchandise was delivered.
-    delivery_email_address: Option<String>,
+    delivery_email_address: Option<hyperswitch_masking::Secret<String, EmailStrategy>>,
 
     /// Indicates whether the cardholder is reordering previously purchased merchandise.
     ///
@@ -1324,7 +1327,7 @@ pub struct SellerInfo {
 
     /// Business or contact email address of the Seller. The value length is maximum 254 characters. Accepted values
     /// shall meet requirements of Section 3.4 of IETF RFC 5322. This field is optional.
-    seller_email: Option<String>,
+    seller_email: Option<hyperswitch_masking::Secret<String, EmailStrategy>>,
 
     /// Business or contact phone number of the Seller. Country Code and Subscriber sections of the number represented
     /// by the following named fields:

@@ -120,6 +120,7 @@ impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenReques
             | WalletData::AmazonPayRedirect(_)
             | WalletData::Paysera(_)
             | WalletData::Skrill(_)
+            | WalletData::Neteller(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)
@@ -137,6 +138,7 @@ impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenReques
             | WalletData::SamsungPay(_)
             | WalletData::TwintRedirect {}
             | WalletData::VippsRedirect {}
+            | WalletData::WeroRedirect {}
             | WalletData::TouchNGoRedirect(_)
             | WalletData::WeChatPayRedirect(_)
             | WalletData::WeChatPayQr(_)

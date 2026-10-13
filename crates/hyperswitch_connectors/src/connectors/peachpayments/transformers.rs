@@ -25,7 +25,6 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
-use time::OffsetDateTime;
 
 use crate::{
     types::ResponseRouterData,
@@ -269,6 +268,11 @@ pub enum CardNetworkLowercase {
     Prop,
     PrivateLabel,
     Dinacard,
+    AirPlus,
+    Aurore,
+    EftposAustralia,
+    GeCapital,
+    Uatp,
 }
 
 impl From<common_enums::CardNetwork> for CardNetworkLowercase {
@@ -292,6 +296,11 @@ impl From<common_enums::CardNetwork> for CardNetworkLowercase {
             common_enums::CardNetwork::Prop => Self::Prop,
             common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
             common_enums::CardNetwork::Dinacard => Self::Dinacard,
+            common_enums::CardNetwork::AirPlus => Self::AirPlus,
+            common_enums::CardNetwork::Aurore => Self::Aurore,
+            common_enums::CardNetwork::EftposAustralia => Self::EftposAustralia,
+            common_enums::CardNetwork::GeCapital => Self::GeCapital,
+            common_enums::CardNetwork::Uatp => Self::Uatp,
         }
     }
 }
@@ -461,7 +470,7 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
         {
             return Err(errors::ConnectorError::NotSupported {
                 message: "3DS flow".to_string(),
-                connector: CONNECTOR,
+                connector: CONNECTOR.into(),
             }
             .into());
         }
@@ -906,7 +915,8 @@ fn get_transaction_operations(
 }
 
 fn get_send_date_time() -> Result<String, errors::ConnectorError> {
-    OffsetDateTime::now_utc()
+    common_utils::date_time::now()
+        .assume_utc()
         .format(&time::format_description::well_known::Iso8601::DEFAULT)
         .map_err(|_| errors::ConnectorError::RequestEncodingFailed)
 }

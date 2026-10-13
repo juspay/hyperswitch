@@ -33,7 +33,7 @@ pub mod revenue_recovery;
 use diesel_models::refund::Refund;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use serde::Serialize;
-use time::{OffsetDateTime, PrimitiveDateTime};
+use time::PrimitiveDateTime;
 
 #[cfg(feature = "payouts")]
 use self::payout::KafkaPayout;
@@ -394,12 +394,12 @@ impl KafkaProducer {
                     .key(&event.key())
                     .payload(&event.value()?)
                     .timestamp(event.creation_timestamp().unwrap_or_else(|| {
-                        (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000)
+                        common_utils::date_time::now_unix_timestamp_millis()
                             .try_into()
                             .unwrap_or_else(|_| {
                                 // kafka producer accepts milliseconds
                                 // try converting nanos to millis if that fails convert seconds to millis
-                                OffsetDateTime::now_utc().unix_timestamp() * 1_000
+                                common_utils::date_time::now_unix_timestamp() * 1_000
                             })
                     })),
             )

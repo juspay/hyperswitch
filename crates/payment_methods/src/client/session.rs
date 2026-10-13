@@ -84,6 +84,9 @@ pub struct ModularPMSessionCreateResponse {
     /// External vault session details returned by the PM service when an external vault is
     /// configured for the profile.
     pub external_vault_details: Option<VaultSessionDetailsResponse>,
+    /// When the session stops being usable on the PM service side.
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub expires_at: Option<time::PrimitiveDateTime>,
 }
 
 /// V1-facing response (thin wrapper around the wire response).
@@ -94,6 +97,7 @@ pub struct CreatePaymentMethodSessionResponse {
     pub customer_id: Option<id_type::CustomerId>,
     pub sdk_authorization: Option<String>,
     pub external_vault_details: Option<api_models::payments::VaultSessionDetails>,
+    pub expires_at: Option<time::PrimitiveDateTime>,
 }
 
 // --- Conversions ---
@@ -119,6 +123,7 @@ impl TryFrom<ModularPMSessionCreateResponse> for CreatePaymentMethodSessionRespo
             customer_id: resp.customer_id,
             sdk_authorization: resp.sdk_authorization,
             external_vault_details: resp.external_vault_details.map(Into::into),
+            expires_at: resp.expires_at,
         })
     }
 }

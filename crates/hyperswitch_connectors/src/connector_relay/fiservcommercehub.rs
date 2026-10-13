@@ -16,8 +16,6 @@ use hyperswitch_interfaces::{
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 use ring::hmac;
 use serde::{Deserialize, Serialize};
-use time::OffsetDateTime;
-use uuid::Uuid;
 
 pub struct Fiservcommercehub;
 
@@ -282,9 +280,9 @@ impl Fiservcommercehub {
         auth: &FiservcommercehubAuthType,
         body_str: &str,
     ) -> Vec<(String, Maskable<String>)> {
-        let timestamp_ms = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
+        let timestamp_ms = common_utils::date_time::now_unix_timestamp_millis();
         let timestamp_str = timestamp_ms.to_string();
-        let client_request_id = Uuid::new_v4().to_string();
+        let client_request_id = common_utils::generate_uuid_v4().to_string();
         let signature = auth.generate_hmac_signature(&client_request_id, &timestamp_str, body_str);
 
         vec![

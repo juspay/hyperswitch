@@ -10,9 +10,7 @@ use common_utils::{
 };
 #[cfg(feature = "v1")]
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
-#[cfg(feature = "v2")]
-use hyperswitch_masking::ExposeInterface;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use utoipa::ToSchema;
@@ -50,7 +48,7 @@ pub struct MerchantAccountCreate {
     pub return_url: Option<url::Url>,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsRequest>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
     #[serde(skip)]
@@ -452,7 +450,7 @@ pub struct MerchantAccountUpdate {
     pub return_url: Option<url::Url>,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsRequest>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
     #[serde(skip)]
@@ -675,7 +673,7 @@ pub struct MerchantAccountResponse {
     pub merchant_details: Option<Encryptable<pii::SecretSerdeValue>>,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsResponse>,
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[serde(skip)]
@@ -867,7 +865,65 @@ pub struct PrimaryBusinessDetails {
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct WebhookDetails {
+pub struct WebhookDetailsRequest {
+    ///The version for Webhook
+    #[schema(max_length = 255, max_length = 255, example = "1.0.2")]
+    pub webhook_version: Option<String>,
+
+    ///The user name for Webhook login
+    #[schema(max_length = 255, max_length = 255, example = "ekart_retail")]
+    pub webhook_username: Option<String>,
+
+    ///The password for Webhook login
+    #[schema(value_type = Option<String>, max_length = 255, example = "ekart@123")]
+    pub webhook_password: Option<Secret<String>>,
+
+    /// The HTTP or HTTPS webhook URL. DNS must resolve to public addresses. Must not be empty;
+    /// omit this field entirely to leave an existing stored webhook URL unchanged.
+    #[schema(value_type = Option<String>, min_length = 1, example = "https://www.ekart.com/webhooks")]
+    pub webhook_url: Option<Secret<common_utils::outbound_url::SafeOutboundUrl>>,
+
+    /// If this property is true, a webhook message is posted whenever a new payment is created
+    #[schema(example = true)]
+    pub payment_created_enabled: Option<bool>,
+
+    /// If this property is true, a webhook message is posted whenever a payment is successful
+    #[schema(example = true)]
+    pub payment_succeeded_enabled: Option<bool>,
+
+    /// If this property is true, a webhook message is posted whenever a payment fails
+    #[schema(example = true)]
+    pub payment_failed_enabled: Option<bool>,
+
+    /// List of payment statuses that triggers a webhook for payment intents
+    #[schema(value_type = Vec<IntentStatus>, example = json!(["succeeded", "failed", "partially_captured", "requires_merchant_action"]))]
+    pub payment_statuses_enabled: Option<HashSet<api_enums::IntentStatus>>,
+
+    /// List of refund statuses that triggers a webhook for refunds
+    #[schema(value_type = Vec<RefundStatus>, example = json!(["success", "failure"]))]
+    pub refund_statuses_enabled: Option<HashSet<api_enums::RefundStatus>>,
+
+    /// List of payout statuses that triggers a webhook for payouts
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["success", "failed"]))]
+    pub payout_statuses_enabled: Option<HashSet<api_enums::PayoutStatus>>,
+
+    /// List of dispute statuses that trigger outgoing webhooks for disputes
+    #[schema(value_type = Option<Vec<DisputeStatus>>, example = json!(["dispute_opened", "dispute_won"]))]
+    pub dispute_statuses_enabled: Option<HashSet<api_enums::DisputeStatus>>,
+
+    /// List of mandate statuses that trigger outgoing webhooks for mandates
+    #[schema(value_type = Option<Vec<MandateStatus>>, example = json!(["active", "inactive"]))]
+    pub mandate_statuses_enabled: Option<HashSet<api_enums::MandateStatus>>,
+
+    /// List of invoice statuses that trigger outgoing webhooks for subscriptions
+    #[schema(value_type = Option<Vec<InvoiceStatus>>, example = json!(["invoice_paid"]))]
+    pub invoice_statuses_enabled: Option<HashSet<api_enums::InvoiceStatus>>,
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct WebhookDetailsResponse {
     ///The version for Webhook
     #[schema(max_length = 255, max_length = 255, example = "1.0.2")]
     pub webhook_version: Option<String>,
@@ -881,7 +937,7 @@ pub struct WebhookDetails {
     pub webhook_password: Option<Secret<String>>,
 
     ///The url for the webhook endpoint
-    #[schema(value_type = Option<String>, example = "www.ekart.com/webhooks")]
+    #[schema(value_type = Option<String>, example = "https://www.ekart.com/webhooks")]
     pub webhook_url: Option<Secret<String>>,
 
     /// If this property is true, a webhook message is posted whenever a new payment is created
@@ -922,42 +978,30 @@ pub struct WebhookDetails {
     pub invoice_statuses_enabled: Option<HashSet<api_enums::InvoiceStatus>>,
 }
 
-impl WebhookDetails {
-    pub fn merge(self, other: Self) -> Self {
+impl From<WebhookDetailsRequest> for WebhookDetailsResponse {
+    fn from(item: WebhookDetailsRequest) -> Self {
         Self {
-            webhook_version: other.webhook_version.or(self.webhook_version),
-            webhook_username: other.webhook_username.or(self.webhook_username),
-            webhook_password: other.webhook_password.or(self.webhook_password),
-            webhook_url: other.webhook_url.or(self.webhook_url),
-            payment_created_enabled: other
-                .payment_created_enabled
-                .or(self.payment_created_enabled),
-            payment_succeeded_enabled: other
-                .payment_succeeded_enabled
-                .or(self.payment_succeeded_enabled),
-            payment_failed_enabled: other.payment_failed_enabled.or(self.payment_failed_enabled),
-            payment_statuses_enabled: other
-                .payment_statuses_enabled
-                .or(self.payment_statuses_enabled),
-            refund_statuses_enabled: other
-                .refund_statuses_enabled
-                .or(self.refund_statuses_enabled),
+            webhook_version: item.webhook_version,
+            webhook_username: item.webhook_username,
+            webhook_password: item.webhook_password,
+            webhook_url: item
+                .webhook_url
+                .map(|url| Secret::new(url.expose().get_string_repr().to_owned())),
+            payment_created_enabled: item.payment_created_enabled,
+            payment_failed_enabled: item.payment_failed_enabled,
+            payment_succeeded_enabled: item.payment_succeeded_enabled,
+            payment_statuses_enabled: item.payment_statuses_enabled,
+            refund_statuses_enabled: item.refund_statuses_enabled,
             #[cfg(feature = "payouts")]
-            payout_statuses_enabled: other
-                .payout_statuses_enabled
-                .or(self.payout_statuses_enabled),
-            dispute_statuses_enabled: other
-                .dispute_statuses_enabled
-                .or(self.dispute_statuses_enabled),
-            mandate_statuses_enabled: other
-                .mandate_statuses_enabled
-                .or(self.mandate_statuses_enabled),
-            invoice_statuses_enabled: other
-                .invoice_statuses_enabled
-                .or(self.invoice_statuses_enabled),
+            payout_statuses_enabled: item.payout_statuses_enabled,
+            dispute_statuses_enabled: item.dispute_statuses_enabled,
+            mandate_statuses_enabled: item.mandate_statuses_enabled,
+            invoice_statuses_enabled: item.invoice_statuses_enabled,
         }
     }
+}
 
+impl WebhookDetailsRequest {
     fn validate_statuses<T>(statuses: &HashSet<T>, status_type_name: &str) -> Result<(), String>
     where
         T: strum::IntoEnumIterator + Copy + Eq + std::hash::Hash + std::fmt::Debug,
@@ -1004,6 +1048,43 @@ impl WebhookDetails {
         }
 
         Ok(())
+    }
+}
+
+impl WebhookDetailsResponse {
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            webhook_version: other.webhook_version.or(self.webhook_version),
+            webhook_username: other.webhook_username.or(self.webhook_username),
+            webhook_password: other.webhook_password.or(self.webhook_password),
+            webhook_url: other.webhook_url.or(self.webhook_url),
+            payment_created_enabled: other
+                .payment_created_enabled
+                .or(self.payment_created_enabled),
+            payment_succeeded_enabled: other
+                .payment_succeeded_enabled
+                .or(self.payment_succeeded_enabled),
+            payment_failed_enabled: other.payment_failed_enabled.or(self.payment_failed_enabled),
+            payment_statuses_enabled: other
+                .payment_statuses_enabled
+                .or(self.payment_statuses_enabled),
+            refund_statuses_enabled: other
+                .refund_statuses_enabled
+                .or(self.refund_statuses_enabled),
+            #[cfg(feature = "payouts")]
+            payout_statuses_enabled: other
+                .payout_statuses_enabled
+                .or(self.payout_statuses_enabled),
+            dispute_statuses_enabled: other
+                .dispute_statuses_enabled
+                .or(self.dispute_statuses_enabled),
+            mandate_statuses_enabled: other
+                .mandate_statuses_enabled
+                .or(self.mandate_statuses_enabled),
+            invoice_statuses_enabled: other
+                .invoice_statuses_enabled
+                .or(self.invoice_statuses_enabled),
+        }
     }
 }
 
@@ -2337,7 +2418,7 @@ pub struct ProfileCreate {
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsRequest>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -2485,6 +2566,12 @@ pub struct ProfileCreate {
     /// Indicates if manual retry for payment is enabled or not
     pub is_manual_retry_enabled: Option<bool>,
 
+    /// When `true`, a payment whose requested `capture_method` is not supported by the
+    /// connector chosen for it is processed with `automatic` capture instead of being rejected,
+    /// and the payment method list does not hide payment methods based on `capture_method`.
+    #[schema(example = true)]
+    pub auto_fallback_capture_method: Option<bool>,
+
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
@@ -2545,7 +2632,7 @@ pub struct ProfileCreate {
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsRequest>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -2714,7 +2801,7 @@ pub struct ProfileResponse {
     pub redirect_to_merchant_with_http_post: bool,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsResponse>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -2875,6 +2962,12 @@ pub struct ProfileResponse {
     /// Indicates if manual retry for payment is enabled or not
     pub is_manual_retry_enabled: Option<bool>,
 
+    /// When `true`, a payment whose requested `capture_method` is not supported by the
+    /// connector chosen for it is processed with `automatic` capture instead of being rejected,
+    /// and the payment method list does not hide payment methods based on `capture_method`.
+    #[schema(example = true)]
+    pub auto_fallback_capture_method: Option<bool>,
+
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
@@ -2936,7 +3029,7 @@ pub struct ProfileResponse {
     pub redirect_to_merchant_with_http_post: bool,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsResponse>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -3110,7 +3203,7 @@ pub struct ProfileUpdate {
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsRequest>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -3264,6 +3357,12 @@ pub struct ProfileUpdate {
     /// Indicates if manual retry for payment is enabled or not
     pub is_manual_retry_enabled: Option<bool>,
 
+    /// When `true`, a payment whose requested `capture_method` is not supported by the
+    /// connector chosen for it is processed with `automatic` capture instead of being rejected,
+    /// and the payment method list does not hide payment methods based on `capture_method`.
+    #[schema(example = true)]
+    pub auto_fallback_capture_method: Option<bool>,
+
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
@@ -3317,7 +3416,7 @@ pub struct ProfileUpdate {
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<WebhookDetailsRequest>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -3699,6 +3798,10 @@ pub struct PaymentLinkConfigRequest {
     /// Custom text for the separator shown between wallet and card payment method sections
     #[schema(value_type = Option<String>, max_length = 64, example = "Or pay with")]
     pub payment_methods_separator_text: Option<String>,
+    /// Duration in seconds before the status page auto-redirects to the return URL.
+    /// Set to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.
+    #[schema(value_type = Option<u32>, example = 10, minimum = 0, maximum = 900)]
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 impl PaymentLinkConfigRequest {
@@ -3708,7 +3811,16 @@ impl PaymentLinkConfigRequest {
         if let Some(custom_message) = self.custom_message_for_payment_method_types.as_ref() {
             custom_message.validate().map_err(|e| e.to_string())?;
         }
-        Ok(())
+
+        self.redirect_delay_seconds
+            .filter(|&delay| delay > consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS)
+            .map(|_| {
+                Err(format!(
+                    "redirect_delay_seconds must not exceed {} seconds",
+                    consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS
+                ))
+            })
+            .unwrap_or(Ok(()))
     }
 }
 
@@ -3834,6 +3946,9 @@ pub struct PaymentLinkConfig {
     pub show_merchant_name: Option<bool>,
     /// Custom text for the separator shown between wallet and card payment method sections
     pub payment_methods_separator_text: Option<String>,
+    /// Duration in seconds before the status page auto-redirects to the return URL.
+    /// Set to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -3916,6 +4031,32 @@ mod tests {
     use super::*;
 
     #[test]
+    fn empty_webhook_url_fails_validation_while_omission_preserves_the_destination() {
+        let existing: WebhookDetailsResponse = serde_json::from_value(serde_json::json!({
+            "webhook_url": "https://merchant.example.com/hook"
+        }))
+        .expect("configured webhook");
+
+        assert!(
+            serde_json::from_value::<WebhookDetailsRequest>(serde_json::json!({
+                "webhook_url": ""
+            }))
+            .is_err()
+        );
+
+        let omitted: WebhookDetailsRequest = serde_json::from_value(serde_json::json!({
+            "payment_succeeded_enabled": true
+        }))
+        .expect("partial webhook update");
+        let retained =
+            serde_json::to_value(existing.merge(omitted.into())).expect("retained webhook");
+        assert_eq!(
+            retained.get("webhook_url"),
+            Some(&serde_json::json!("https://merchant.example.com/hook"))
+        );
+    }
+
+    #[test]
     fn test_payment_link_config_request_validation() {
         // Safe input should validate successfully
         let safe_request = PaymentLinkConfigRequest {
@@ -3947,6 +4088,7 @@ mod tests {
             color_icon_card_cvc_error: None,
             show_merchant_name: None,
             payment_methods_separator_text: None,
+            redirect_delay_seconds: None,
         };
         assert!(safe_request.validate().is_ok());
 

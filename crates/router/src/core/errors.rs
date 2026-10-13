@@ -92,7 +92,8 @@ macro_rules! unimplemented_payment_method {
 
 macro_rules! impl_error_type {
     ($name: ident, $arg: tt) => {
-        #[derive(Debug)]
+        // Serializable so `ResultCodec` can replay a recorded failure as itself.
+        #[derive(Debug, serde::Serialize, serde::Deserialize)]
         pub struct $name;
 
         impl_error_display!($name, $arg);
@@ -270,9 +271,13 @@ pub enum GooglePayDecryptionError {
     DecryptedTokenExpired,
     #[error("Failed to parse the given value")]
     ParsingFailed,
+    #[error("Gateway merchant id in the token does not match the merchant being paid")]
+    InvalidGatewayMerchantId,
 }
 
+// Serializable under `deja` so a recorded error replays as the same variant.
 #[derive(Debug, Clone, thiserror::Error)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum RoutingError {
     #[error("Merchant routing algorithm not found in cache")]
     CacheMiss,

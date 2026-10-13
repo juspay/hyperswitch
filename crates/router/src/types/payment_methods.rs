@@ -13,17 +13,21 @@ use hyperswitch_masking::Secret;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "v2")]
-use crate::types::storage;
 use crate::{
     consts,
     types::{api, domain},
 };
+#[cfg(feature = "v2")]
+use crate::{routes::app::SessionState, types::storage};
 
 pub trait VaultingInterface {
     fn get_vaulting_request_url() -> &'static str;
 
     fn get_vaulting_flow_name() -> &'static str;
+
+    fn supports_plain_response() -> bool {
+        false
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -144,6 +148,11 @@ impl VaultingInterface for GetVaultFingerprint {
 
     fn get_vaulting_flow_name() -> &'static str {
         consts::V2_VAULT_GET_FINGERPRINT_FLOW_TYPE
+    }
+
+    // The response is only a fingerprint id.
+    fn supports_plain_response() -> bool {
+        true
     }
 }
 
@@ -568,11 +577,25 @@ impl From<WriteMode> for VaultQueryParam {
     }
 }
 
+/// Determines when a payment method is written to durable storage relative to the payment.
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display, strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PaymentMethodIntegrationType {
+    /// Vault the card at session confirm, before the payment is attempted.
+    VaultThenPay,
+    /// Vault the card only once the payment has been acknowledged.
+    PayThenVault,
+}
+
 #[cfg(feature = "v2")]
 pub struct PaymentMethodUpdateHandler<'a> {
     pub platform: &'a hyperswitch_domain_models::platform::Platform,
     pub profile: &'a hyperswitch_domain_models::business_profile::Profile,
     pub request: hyperswitch_domain_models::payment_methods::PaymentMethodUpdate,
     pub payment_method: hyperswitch_domain_models::payment_methods::PaymentMethod,
-    pub state: &'a crate::routes::app::SessionState,
+    pub insert_promoted_record: bool,
+    pub state: &'a SessionState,
 }

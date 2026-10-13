@@ -370,6 +370,7 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                         | WalletData::AmazonPayRedirect(_)
                         | WalletData::Paysera(_)
                         | WalletData::Skrill(_)
+                        | WalletData::Neteller(_)
                         | WalletData::BluecodeRedirect {}
                         | WalletData::MomoRedirect(_)
                         | WalletData::KakaoPayRedirect(_)
@@ -387,6 +388,7 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                         | WalletData::SamsungPay(_)
                         | WalletData::TwintRedirect {}
                         | WalletData::VippsRedirect {}
+                        | WalletData::WeroRedirect {}
                         | WalletData::TouchNGoRedirect(_)
                         | WalletData::WeChatPayRedirect(_)
                         | WalletData::WeChatPayQr(_)

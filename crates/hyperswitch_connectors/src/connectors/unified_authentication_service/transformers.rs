@@ -449,7 +449,10 @@ impl<F, T>
                         .map(|response| response.three_ds_server_trans_id.clone()),
                     three_ds_method_data,
                     three_ds_method_url,
-                    message_version: maximum_supported_3ds_version,
+                    message_version: three_ds_eligibility_response
+                        .as_ref()
+                        .and_then(|response| response.highest_common_supported_version.clone())
+                        .or(maximum_supported_3ds_version),
                     connector_metadata: None,
                     directory_server_id: three_ds_eligibility_response
                         .as_ref()
@@ -846,6 +849,7 @@ pub struct ThreeDsEligibilityResponse {
     pub error_details: Option<String>,
     pub is_card_found_in_2x_ranges: bool,
     pub directory_server_id: Option<String>,
+    pub highest_common_supported_version: Option<common_utils::types::SemanticVersion>,
 }
 
 impl ThreeDsEligibilityResponse {
@@ -1087,7 +1091,9 @@ impl<F, T>
         let response = match item.response {
             UnifiedAuthenticationServiceAuthenticateResponse::Success(auth_response) => {
                 let authn_flow_type = match auth_response.three_ds_auth_response.trans_status {
-                    common_enums::TransactionStatus::ChallengeRequired => {
+                    // SPC is not supported, so `S` falls back to the regular ACS challenge
+                    common_enums::TransactionStatus::ChallengeRequired
+                    | common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
                         AuthNFlowType::Challenge(Box::new(ChallengeParams {
                             acs_url: auth_response.three_ds_auth_response.acs_url.clone(),
                             challenge_request: auth_response

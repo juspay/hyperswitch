@@ -316,6 +316,14 @@ impl PaymentIntent {
             .unwrap_or(false)
     }
 
+    #[cfg(feature = "v1")]
+    pub fn is_post_capture_void_attempted(&self) -> bool {
+        self.state_metadata
+            .as_ref()
+            .map(|state_metadata| state_metadata.post_capture_void.is_some())
+            .unwrap_or(false)
+    }
+
     #[cfg(feature = "v2")]
     /// This is the url to which the customer will be redirected to, after completing the redirection flow
     pub fn create_finish_redirection_url(
@@ -1717,6 +1725,9 @@ where
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,
                 first_payment_attempt_pg_error_code: first_pg_error_code,
+                revenue_recovery_ab_routing: revenue_recovery
+                    .as_ref()
+                    .and_then(|data| data.revenue_recovery_ab_routing),
             }),
             None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector not found in payment attempt")?,

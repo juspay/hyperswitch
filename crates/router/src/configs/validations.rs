@@ -279,6 +279,54 @@ impl super::settings::GooglePayDecryptConfig {
                     "google_pay_root_signing_keys must not be empty".into(),
                 ))
             },
+        )?;
+
+        // The private key, gateway id and common merchant id together describe Hyperswitch's
+        // registered Google Pay gateway: the key decrypts the token, the id derives the
+        // `gateway:<id>` recipient it was signed against, and the common merchant id is sent to
+        // the SDK for INTERNAL_GATEWAY merchants that do not supply one of their own. Either all
+        // of them are configured or none is, otherwise the INTERNAL_GATEWAY flow raises a payment
+        // sheet whose token cannot be decrypted.
+        let internal_gateway_fields = [
+            (
+                "google_pay_private_key",
+                self.google_pay_private_key.is_none(),
+            ),
+            (
+                "google_pay_gateway_id",
+                self.google_pay_gateway_id.is_none(),
+            ),
+            (
+                "google_pay_common_merchant_id",
+                self.google_pay_common_merchant_id.is_none(),
+            ),
+        ];
+        let missing_fields = internal_gateway_fields
+            .iter()
+            .filter_map(|(field, is_missing)| is_missing.then_some(*field))
+            .collect::<Vec<_>>();
+
+        when(
+            !missing_fields.is_empty() && missing_fields.len() != internal_gateway_fields.len(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(format!(
+                    "google_pay_private_key, google_pay_gateway_id and \
+                     google_pay_common_merchant_id must either all be set or all be unset; \
+                     missing: {}",
+                    missing_fields.join(", ")
+                )))
+            },
+        )?;
+
+        when(
+            self.google_pay_gateway_id
+                .as_ref()
+                .is_some_and(|gateway_id| gateway_id.trim().is_empty()),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "google_pay_gateway_id must not be empty".into(),
+                ))
+            },
         )
     }
 }

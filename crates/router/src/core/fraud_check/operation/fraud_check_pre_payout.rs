@@ -1,0 +1,130 @@
+use diesel_models::enums::FraudCheckLastStep;
+use error_stack::ResultExt;
+use hyperswitch_connectors::types::PoFrmRouterData;
+
+use crate::{
+    core::{
+        errors::{RouterResult, StorageErrorExt},
+        fraud_check::types::PayoutFrmData,
+        payouts::PayoutData,
+    },
+    errors,
+    types::{
+        fraud_check::FraudCheckResponseData,
+        storage::{
+            enums::{FraudCheckStatus, FraudCheckType},
+            fraud_check::{FraudCheckNew, FraudCheckUpdate},
+        },
+    },
+    SessionState,
+};
+
+#[derive(Debug, Clone, Copy)]
+pub struct FraudCheckPrePayout;
+
+impl FraudCheckPrePayout {
+    pub async fn get_tracker(
+        &self,
+        state: &SessionState,
+        payout_data: &PayoutData,
+        frm_connector_name: &str,
+    ) -> RouterResult<PayoutFrmData> {
+        let db = &*state.store;
+
+        let payout_id = payout_data.payouts.payout_id.clone();
+        let frm_id = common_utils::generate_uuid_v4().to_string();
+        let fraud_check_value = db
+            .insert_fraud_check_response(FraudCheckNew {
+                frm_id: frm_id.clone(),
+                payment_id: None,
+                payout_id: Some(payout_id.clone()),
+                merchant_id: payout_data.payouts.merchant_id.clone(),
+                processor_merchant_id: payout_data.payouts.processor_merchant_id.clone(),
+                attempt_id: payout_data.payout_attempt.payout_attempt_id.clone(),
+                created_at: common_utils::date_time::now(),
+                frm_name: frm_connector_name.to_owned(),
+                frm_transaction_id: None,
+                frm_transaction_type: FraudCheckType::PreFrm,
+                frm_status: FraudCheckStatus::Pending,
+                frm_score: None,
+                frm_reason: None,
+                frm_error: None,
+                payment_details: None,
+                metadata: None,
+                modified_at: common_utils::date_time::now(),
+                last_step: FraudCheckLastStep::Processing,
+                payment_capture_method: None,
+                created_by: None,
+            })
+            .await
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicateFraudCheck { frm_id })?;
+
+        Ok(PayoutFrmData {
+            fraud_check: fraud_check_value,
+            amount: payout_data.payouts.amount,
+            currency: payout_data.payouts.destination_currency,
+            payout_attempt: payout_data.payout_attempt.clone(),
+            customer_details: payout_data.customer_details.clone(),
+            payout_method_data: payout_data.payout_method_data.clone(),
+            billing_address: payout_data.billing_address.clone(),
+        })
+    }
+
+    pub async fn update_tracker(
+        &self,
+        state: &SessionState,
+        mut frm_data: PayoutFrmData,
+        router_data: PoFrmRouterData,
+    ) -> RouterResult<PayoutFrmData> {
+        let db = &*state.store;
+
+        match router_data.response {
+            Ok(FraudCheckResponseData::TransactionResponse {
+                resource_id,
+                status,
+                connector_metadata,
+                reason,
+                score,
+            }) => {
+                let fraud_check_update = FraudCheckUpdate::ResponseUpdate {
+                    frm_status: status,
+                    frm_transaction_id: resource_id.get_optional_response_id(),
+                    frm_reason: reason,
+                    frm_score: score,
+                    metadata: connector_metadata,
+                    modified_at: common_utils::date_time::now(),
+                    last_step: FraudCheckLastStep::PoFrm,
+                    payment_capture_method: None,
+                };
+
+                frm_data.fraud_check = db
+                    .update_fraud_check_response_with_frm_id(
+                        frm_data.fraud_check.clone(),
+                        fraud_check_update,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)?;
+            }
+            Err(error) => {
+                let fraud_check_update = FraudCheckUpdate::ErrorUpdate {
+                    status: FraudCheckStatus::TransactionFailure,
+                    error_message: Some(Some(error.message)),
+                };
+
+                frm_data.fraud_check = db
+                    .update_fraud_check_response_with_frm_id(
+                        frm_data.fraud_check.clone(),
+                        fraud_check_update,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)?;
+            }
+            Ok(_) => {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unexpected response in po_frm flow")?;
+            }
+        }
+
+        Ok(frm_data)
+    }
+}

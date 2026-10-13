@@ -165,7 +165,15 @@ where
         default_fields: HashMap<String, Value>,
         formatter: F,
     ) -> error_stack::Result<Self, ConfigError> {
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "router_env cannot use the common_utils seams: common_utils depends on router_env (common_utils/Cargo.toml:74), so the reverse edge would be a dependency cycle. Moving the seam primitives below router_env is the fix, and it is a different change"
+        )]
         let pid = std::process::id();
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "router_env cannot use the common_utils seams -- common_utils depends on router_env, so the reverse edge would be a cycle -- and a log line wants the real syscall hostname, where common_utils::hostname reads HOSTNAME from the environment"
+        )]
         let hostname = gethostname::gethostname().to_string_lossy().into_owned();
         let service = service.to_string();
         #[cfg(feature = "vergen")]
@@ -227,7 +235,12 @@ where
         map_serializer.serialize_entry(FN, name)?;
         map_serializer
             .serialize_entry(FULL_NAME, &format_args!("{}::{}", metadata.target(), name))?;
-        if let Ok(time) = &time::OffsetDateTime::now_utc().format(&Iso8601::DEFAULT) {
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "router_env cannot use the common_utils seams: common_utils depends on router_env (common_utils/Cargo.toml:74), so the reverse edge would be a dependency cycle. Moving the seam primitives below router_env is the fix, and it is a different change"
+        )]
+        let formatted_time = time::OffsetDateTime::now_utc().format(&Iso8601::DEFAULT);
+        if let Ok(time) = &formatted_time {
             map_serializer.serialize_entry(TIME, time)?;
         }
 

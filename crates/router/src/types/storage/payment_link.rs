@@ -2,6 +2,7 @@ use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 pub use diesel_models::{
     payment_link::{PaymentLink, PaymentLinkNew},
+    query::generics::db_metrics,
     schema::payment_link::dsl,
 };
 use error_stack::ResultExt;
@@ -17,8 +18,16 @@ pub trait PaymentLinkDbExt: Sized {
     async fn filter_by_constraints(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        payment_link_list_constraints: api_models::payments::PaymentLinkListConstraints,
+        payment_link_list_constraints: &api_models::payments::PaymentLinkListConstraints,
+        profile_id: Option<common_utils::id_type::ProfileId>,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
+
+    async fn get_total_count_of_payment_links(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        payment_link_list_constraints: &api_models::payments::PaymentLinkListConstraints,
+        profile_id: Option<common_utils::id_type::ProfileId>,
+    ) -> CustomResult<i64, errors::DatabaseError>;
 }
 
 #[async_trait::async_trait]
@@ -26,7 +35,8 @@ impl PaymentLinkDbExt for PaymentLink {
     async fn filter_by_constraints(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
-        payment_link_list_constraints: api_models::payments::PaymentLinkListConstraints,
+        payment_link_list_constraints: &api_models::payments::PaymentLinkListConstraints,
+        profile_id: Option<common_utils::id_type::ProfileId>,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         let mut filter = diesel_models::list::into_boxed_list(
             <Self as HasTable>::table()
@@ -40,33 +50,81 @@ impl PaymentLinkDbExt for PaymentLink {
                 .order(dsl::created_at.desc()),
         );
 
-        if let Some(created_time) = payment_link_list_constraints.created {
-            filter = filter.filter(dsl::created_at.eq(created_time));
-        }
-        if let Some(created_time_lt) = payment_link_list_constraints.created_lt {
-            filter = filter.filter(dsl::created_at.lt(created_time_lt));
-        }
-        if let Some(created_time_gt) = payment_link_list_constraints.created_gt {
-            filter = filter.filter(dsl::created_at.gt(created_time_gt));
-        }
-        if let Some(created_time_lte) = payment_link_list_constraints.created_lte {
-            filter = filter.filter(dsl::created_at.le(created_time_lte));
-        }
-        if let Some(created_time_gte) = payment_link_list_constraints.created_gte {
-            filter = filter.filter(dsl::created_at.ge(created_time_gte));
-        }
-        if let Some(limit) = payment_link_list_constraints.limit {
-            filter = filter.limit(limit);
-        }
+        filter = match profile_id {
+            Some(pid) => filter.filter(dsl::profile_id.eq(pid)),
+            None => filter,
+        };
+
+        filter = match payment_link_list_constraints.time_range {
+            Some(tr) => {
+                let f = filter.filter(dsl::created_at.ge(tr.start_time));
+                match tr.end_time {
+                    Some(end_time) => f.filter(dsl::created_at.le(end_time)),
+                    None => f,
+                }
+            }
+            None => filter,
+        };
+
+        let filter = diesel_models::list::apply_pagination(
+            filter,
+            payment_link_list_constraints.limit,
+            payment_link_list_constraints.offset,
+        );
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
-        filter
-            .get_results_async(conn.raw_connection())
-            .await
-            // The query built here returns an empty Vec when no records are found, and if any error does occur,
-            // it would be an internal database error, due to which we are raising a DatabaseError::Unknown error
-            .change_context(errors::DatabaseError::Others)
-            .attach_printable("Error filtering payment link by specified constraints")
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            db_metrics::DatabaseOperation::Filter,
+            filter.get_results_async(conn.raw_connection()),
+        )
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Error filtering payment link by specified constraints")
+    }
+
+    async fn get_total_count_of_payment_links(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        payment_link_list_constraints: &api_models::payments::PaymentLinkListConstraints,
+        profile_id: Option<common_utils::id_type::ProfileId>,
+    ) -> CustomResult<i64, errors::DatabaseError> {
+        let mut filter = diesel_models::list::into_boxed_list(
+            <Self as HasTable>::table().count().filter(
+                dsl::processor_merchant_id
+                    .eq(processor_merchant_id.to_owned())
+                    .or(dsl::processor_merchant_id
+                        .is_null()
+                        .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
+            ),
+        );
+
+        filter = match profile_id {
+            Some(pid) => filter.filter(dsl::profile_id.eq(pid)),
+            None => filter,
+        };
+
+        filter = match payment_link_list_constraints.time_range {
+            Some(tr) => {
+                let f = filter.filter(dsl::created_at.ge(tr.start_time));
+                match tr.end_time {
+                    Some(end_time) => f.filter(dsl::created_at.le(end_time)),
+                    None => f,
+                }
+            }
+            None => filter,
+        };
+
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            db_metrics::DatabaseOperation::Count,
+            filter.get_result_async(conn.raw_connection()),
+        )
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Error counting payment links by specified constraints")
     }
 }

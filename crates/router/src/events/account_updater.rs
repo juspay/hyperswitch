@@ -47,7 +47,9 @@ impl<'a> KafkaAccountUpdaterEvent<'a> {
             updater_outcome,
             error_category,
             latency_ms,
-            created_at: OffsetDateTime::now_utc().unix_timestamp_nanos(),
+            created_at: common_utils::date_time::now()
+                .assume_utc()
+                .unix_timestamp_nanos(),
         }
     }
 }

@@ -31,6 +31,30 @@
         "summary": "Payments - Create",
         "description": "Creates a payment resource, which represents a customer's intent to pay.\nThis endpoint is the starting point for various payment flows:\n",
         "operationId": "Create a Payment",
+        "parameters": [
+          {
+            "name": "X-Integration-Type",
+            "in": "header",
+            "description": "Selects the response shape. `server` returns the payment together with `payment_method_list` and `session_tokens`, so a server-to-server integration can render its checkout from one call; it is honoured only with merchant API key authentication. `client`, or no header, returns the payment response unchanged.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "server"
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -627,6 +651,90 @@
                       "profile_id": "pro_pzzzzzzzzzzz",
                       "status": "succeeded"
                     }
+                  },
+                  "12. Server integration response": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "customer_id": "cus_abcdefgh",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "customer_id": "cus_abcdefgh",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "profile_id": "pro_abcdefghijklmnop",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [
+                          {
+                            "card_networks": [
+                              "Visa",
+                              "Mastercard"
+                            ],
+                            "customer_acceptance_support": "supported",
+                            "payment_method": "card",
+                            "payment_method_type": "credit"
+                          }
+                        ],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_abcdefghijklmnop",
+                      "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+                      "session_tokens": {
+                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "session_token": [],
+                        "vault_details": {
+                          "vault_data": {
+                            "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM="
+                          },
+                          "vault_type": "hyperswitch"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "13. Server integration, one section failed": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_abcdefghijklmnop",
+                      "session_tokens": {
+                        "error": {
+                          "code": "HE_00",
+                          "message": "Something went wrong",
+                          "type": "api"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
                   }
                 }
               }
@@ -667,6 +775,28 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Integration-Type",
+            "in": "header",
+            "description": "Selects the response shape. `server` returns the payment together with `payment_method_list` and `session_tokens`, so a server-to-server integration can render its checkout from one call; it is honoured only with merchant API key authentication. `client`, or no header, returns the payment response unchanged.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "server"
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -714,6 +844,92 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PaymentsCreateResponseOpenApi"
+                },
+                "examples": {
+                  "Server integration response": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "customer_id": "cus_abcdefgh",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "customer_id": "cus_abcdefgh",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "profile_id": "pro_abcdefghijklmnop",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [
+                          {
+                            "card_networks": [
+                              "Visa",
+                              "Mastercard"
+                            ],
+                            "customer_acceptance_support": "supported",
+                            "payment_method": "card",
+                            "payment_method_type": "credit"
+                          }
+                        ],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_abcdefghijklmnop",
+                      "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+                      "session_tokens": {
+                        "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                        "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                        "session_token": [],
+                        "vault_details": {
+                          "vault_data": {
+                            "sdk_authorization": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM="
+                          },
+                          "vault_type": "hyperswitch"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "Server integration, one section failed": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+                      "currency": "USD",
+                      "merchant_id": "merchant_1668273825",
+                      "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                      "payment_method_list": {
+                        "customer_payment_methods": [],
+                        "intent_data": {
+                          "amount": 6540,
+                          "attempt_count": 1,
+                          "currency": "USD",
+                          "payment_id": "pay_mbabizu24mvu3mela5njyhpit4",
+                          "status": "requires_payment_method"
+                        },
+                        "payment_methods_enabled": [],
+                        "sdk_next_action": {
+                          "next_action": "confirm"
+                        }
+                      },
+                      "profile_id": "pro_abcdefghijklmnop",
+                      "session_tokens": {
+                        "error": {
+                          "code": "HE_00",
+                          "message": "Something went wrong",
+                          "type": "api"
+                        }
+                      },
+                      "status": "requires_payment_method"
+                    }
+                  }
                 }
               }
             }
@@ -794,6 +1010,17 @@
               "type": "boolean",
               "nullable": true
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -838,6 +1065,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -924,6 +1162,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -1039,6 +1288,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -1100,6 +1360,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -1166,6 +1437,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -1214,6 +1496,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -1342,6 +1635,17 @@
               "format": "date-time",
               "nullable": true
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -1386,6 +1690,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -1454,6 +1769,17 @@
               "type": "string",
               "nullable": true
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -1477,6 +1803,155 @@
           },
           {
             "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/payment_link/list": {
+      "post": {
+        "tags": [
+          "Payment Links"
+        ],
+        "summary": "Payment Link - List",
+        "description": "To list the payment links across all profiles for a merchant",
+        "operationId": "List Payment Links",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentLinkListConstraints"
+              },
+              "examples": {
+                "List with default params": {
+                  "value": {}
+                },
+                "List with pagination and time range": {
+                  "value": {
+                    "end_time": "2025-03-31T23:59:59Z",
+                    "limit": 10,
+                    "offset": 0,
+                    "start_time": "2025-01-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment links listed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentLinkListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (e.g. end_time before start_time, range > 3 months)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/payment_link/profile/list": {
+      "post": {
+        "tags": [
+          "Payment Links"
+        ],
+        "summary": "Payment Link - Profile List",
+        "description": "To list payment links scoped to the authenticated business profile",
+        "operationId": "List Profile Payment Links",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentLinkListConstraints"
+              },
+              "examples": {
+                "List with default params": {
+                  "value": {}
+                },
+                "List with pagination": {
+                  "value": {
+                    "limit": 5,
+                    "offset": 0,
+                    "start_time": "2025-01-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment links listed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentLinkListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -1669,6 +2144,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -1861,6 +2347,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -1936,6 +2433,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -1971,6 +2479,19 @@
         "summary": "Refunds - Create",
         "description": "Creates a refund against an already processed payment. In case of some processors, you can even opt to refund only a partial amount multiple times until the original charge amount has been refunded",
         "operationId": "Create a Refund",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2050,6 +2571,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -2089,6 +2621,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -2145,6 +2688,19 @@
         "summary": "Refunds - List",
         "description": "Lists all the refunds associated with the merchant, or for a specific payment if payment_id is provided",
         "operationId": "List all Refunds",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4622,6 +5178,17 @@
               "type": "boolean",
               "nullable": true
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -4768,6 +5335,17 @@
               "format": "date-time",
               "nullable": true
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -4917,6 +5495,17 @@
               "format": "date-time",
               "nullable": true
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -4952,6 +5541,19 @@
         "summary": "Disputes - Disputes Filters",
         "description": "Lists all the filters associated with disputes",
         "operationId": "List all filters for disputes",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "responses": {
           "200": {
             "description": "List of filters",
@@ -4982,6 +5584,19 @@
         "summary": "Disputes - Disputes Filters Profile",
         "description": "Lists all the filters associated with disputes for the given profiles",
         "operationId": "List all filters for disputes for the given Profiles",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "responses": {
           "200": {
             "description": "List of filters",
@@ -5021,6 +5636,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -5063,6 +5689,19 @@
         "summary": "Disputes - Uploads Dispute Evidence",
         "description": "Uploads evidence for a dispute",
         "operationId": "Submit Dispute Evidence",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5111,6 +5750,19 @@
         "summary": "Disputes - Attach Evidence to Dispute",
         "description": "Attaches an uploaded evidence file to a dispute",
         "operationId": "Attach Evidence to Dispute",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "requestBody": {
           "description": "A multipart/form-data request with a `file` field containing the evidence file.",
           "content": {
@@ -5160,6 +5812,19 @@
         "summary": "Disputes - Delete Evidence attached to a Dispute",
         "description": "Deletes an evidence file attached to a dispute",
         "operationId": "Delete Evidence attached to a Dispute",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5205,6 +5870,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -5259,6 +5935,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -5300,6 +5987,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -5332,6 +6030,19 @@
         "summary": "Routing - Create",
         "description": "Create a routing config",
         "operationId": "Create a routing config",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5419,6 +6130,17 @@
               "type": "string",
               "nullable": true
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -5466,6 +6188,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -5516,6 +6249,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -5557,6 +6301,19 @@
         "summary": "Routing - Deactivate",
         "description": "Deactivates a routing config",
         "operationId": "Deactivate a routing config",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5609,6 +6366,19 @@
         "summary": "Routing - Update Default Config",
         "description": "Update default fallback config",
         "operationId": "Update default fallback config",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5662,6 +6432,19 @@
         "summary": "Routing - Retrieve Default Config",
         "description": "Retrieve default fallback config",
         "operationId": "Retrieve default fallback config",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successfully retrieved default config",
@@ -5708,6 +6491,17 @@
               "type": "string",
               "nullable": true
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -5749,6 +6543,19 @@
         "summary": "Routing - Retrieve Default For Profile",
         "description": "Retrieve default config for profiles",
         "operationId": "Retrieve default configs for all profiles",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successfully retrieved default config",
@@ -5794,6 +6601,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -5881,6 +6699,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -6113,6 +6942,17 @@
             "schema": {
               "$ref": "#/components/schemas/DynamicRoutingFeatures"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -6197,6 +7037,17 @@
             "schema": {
               "$ref": "#/components/schemas/DynamicRoutingFeatures"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -6281,6 +7132,17 @@
             "schema": {
               "$ref": "#/components/schemas/DynamicRoutingFeatures"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -6365,6 +7227,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -6422,6 +7295,19 @@
         "summary": "Routing - Evaluate",
         "description": "Evaluate routing rules",
         "operationId": "Evaluate routing rules",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6474,6 +7360,19 @@
         "summary": "Routing - Feedback",
         "description": "Update gateway scores for dynamic routing",
         "operationId": "Update gateway scores",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6526,6 +7425,19 @@
         "summary": "Routing - Rule Evaluate",
         "description": "Evaluate routing rules",
         "operationId": "Evaluate routing rules (alternative)",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6578,6 +7490,19 @@
         "summary": "Offers - Browse",
         "description": "Lists the offers currently available to the merchant. Offers that are not eligible are\nexcluded, so the response contains only offers that can be used.",
         "operationId": "Browse offers",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6635,6 +7560,17 @@
               "type": "string",
               "nullable": true
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -6668,6 +7604,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       },
@@ -6695,6 +7634,17 @@
               "type": "string",
               "nullable": true
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -6715,6 +7665,12 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
+          },
+          {
+            "publishable_key": []
           }
         ]
       },
@@ -6733,6 +7689,17 @@
               "type": "string",
               "nullable": true
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -6763,6 +7730,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -6782,6 +7752,17 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -6802,6 +7783,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -6831,6 +7815,17 @@
               "type": "string",
               "nullable": true
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -6851,6 +7846,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -6880,6 +7878,17 @@
               "type": "string",
               "nullable": true
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
@@ -6900,6 +7909,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -6920,10 +7932,21 @@
               "type": "string",
               "nullable": true
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
-          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The CSV must have a header row: `type,data,metadata`. `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
+          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The part's `filename` is recorded on the job and returned as `file_name`. The CSV must have a header row: `type,data,metadata`. `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
           "content": {
             "multipart/form-data": {
               "schema": {
@@ -6951,6 +7974,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       },
@@ -6983,11 +8009,46 @@
               "nullable": true,
               "minimum": 0
             }
+          },
+          {
+            "name": "job_type",
+            "in": "query",
+            "description": "Restricts the listing to `upload`, `export`, or `profile_clone` jobs. All kinds are returned when omitted, newest first.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BatchBlocklistJobType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Restricts the listing to jobs run for this business profile, plus jobs that predate profile scoping. When no profile can be resolved, all of the merchant's jobs are returned, as before.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
           "200": {
-            "description": "List of batch blocklist jobs",
+            "description": "List of batch blocklist jobs. Rows report `downloadable`, but never `download_url` - fetch the link from `GET /blocklist/batch/{job_id}` when the merchant asks for that specific file.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7000,6 +8061,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -7014,16 +8078,27 @@
           {
             "name": "job_id",
             "in": "path",
-            "description": "The job ID returned by the batch upload endpoint",
+            "description": "The job ID returned by the batch upload endpoint, or the export ID returned by `POST /blocklist/export`",
             "required": true,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "responses": {
           "200": {
-            "description": "Batch blocklist job status",
+            "description": "Batch blocklist job status. For a completed export whose file is still stored, this is where the short-lived `download_url` is issued.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7039,6 +8114,121 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/blocklist/export": {
+      "post": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Start a blocklist CSV export",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "The business profile whose blocklist is exported. Resolution follows the same rules as blocking a single entry.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Blocklist export started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistExportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No profile could be resolved"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/blocklist/clone": {
+      "post": {
+        "tags": [
+          "Blocklist"
+        ],
+        "summary": "Blocklist - Clone Entries",
+        "description": "Copies a business profile's blocklist entries onto other profiles of the same merchant. The\ncopy runs as one background job whose process tracker clones onto the targets one at a time.\nPoll `/blocklist/batch/{job_id}` for per-target progress in the job metadata.",
+        "operationId": "Clone blocklist entries across profiles",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Source profile whose entries are copied; it also owns the clone job. Required when the authenticated dashboard session does not provide a profile context",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloneBlocklistEntriesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "One background job was started; it clones onto the target profiles one at a time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloneBlocklistEntriesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing profile context, no targets given, or a target is the source profile"
+          },
+          "404": {
+            "description": "The source or a target profile does not belong to the merchant"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -7055,6 +8245,33 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PayoutsCreateRequest"
+              },
+              "examples": {
+                "External vault proxy payout (not yet implemented)": {
+                  "value": {
+                    "amount": 1000,
+                    "auto_fulfill": true,
+                    "confirm": true,
+                    "connector": [
+                      "cybersource"
+                    ],
+                    "currency": "USD",
+                    "customer_id": "cus_external_vault_123",
+                    "entity_type": "Individual",
+                    "merchant_order_reference_id": "merchant_payout_1001",
+                    "payout_id": "payout_proxy_merchant_1001",
+                    "payout_method_id": "pm_external_vault_123",
+                    "payout_type": "card",
+                    "profile_id": "pro_external_vault_123",
+                    "recurring": false
+                  }
+                },
+                "Normal payout": {
+                  "value": {
+                    "amount": 1000,
+                    "currency": "USD"
+                  }
+                }
               }
             }
           },
@@ -7072,7 +8289,10 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing mandatory fields or invalid request"
+          },
+          "501": {
+            "description": "External-vault proxy payout execution is not implemented yet"
           }
         },
         "security": [
@@ -8030,6 +9250,19 @@
         "summary": "Profile Acquirer - Create",
         "description": "Create a new Profile Acquirer for accessing our APIs from your servers.",
         "operationId": "Create a Profile Acquirer",
+        "parameters": [
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -8088,6 +9321,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Connected-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": "merchant_abc"
           }
         ],
         "requestBody": {
@@ -9417,32 +10661,8 @@
           "Card Issuer"
         ],
         "summary": "Card Issuer - List",
-        "description": "Lists card issuers with optional search filter",
+        "description": "Lists all card issuers",
         "operationId": "List Card Issuers",
-        "parameters": [
-          {
-            "name": "query",
-            "in": "query",
-            "description": "Optional search term to filter issuers by name",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "nullable": true
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "Maximum number of results to return",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true,
-              "minimum": 0
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Card issuers listed",
@@ -10052,6 +11272,20 @@
             "type": "string",
             "description": "The country code of the card.",
             "example": "US/34456",
+            "nullable": true
+          }
+        }
+      },
+      "AdditionalDetails": {
+        "type": "object",
+        "description": "Additional details of a dispute, stored as jsonb",
+        "properties": {
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DisputeNetworkDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -10900,6 +12134,11 @@
           },
           "payment_data": {
             "$ref": "#/components/schemas/ApplePayCryptogramData"
+          },
+          "device_manufacturer_identifier": {
+            "type": "string",
+            "description": "Identifier of the device that generated the token.",
+            "nullable": true
           }
         }
       },
@@ -11148,9 +12387,61 @@
             "example": "003925",
             "nullable": true
           },
+          "device_pan_bin": {
+            "type": "string",
+            "description": "Bin of the DPAN (device PAN) obtained from decrypting the Apple Pay payment data",
+            "nullable": true
+          },
+          "card_bin": {
+            "type": "string",
+            "description": "Bin of the underlying card, provided by the connector when it resolves the DPAN",
+            "nullable": true
+          },
+          "card_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardType"
+              }
+            ],
+            "nullable": true
+          },
           "auth_code": {
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The card's product/subtype, as returned by the connector",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
+          "issuer_name": {
+            "type": "string",
+            "description": "The name of the card issuer, as returned by the connector",
+            "nullable": true
+          },
+          "issuer_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           }
         }
@@ -12629,6 +13920,9 @@
           },
           {
             "$ref": "#/components/schemas/PayshapProxyBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/TedBankTransfer"
           }
         ],
         "description": "Deprecated - Use `BankTransfer` instead"
@@ -12658,6 +13952,9 @@
           },
           {
             "$ref": "#/components/schemas/PayshapProxyBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/TedBankTransferAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -13774,7 +15071,97 @@
           "sns",
           "seb",
           "swedbank",
-          "mock_uk_payments"
+          "mock_uk_payments",
+          "abanca",
+          "alm_brand",
+          "alpha_fx",
+          "arbejdernes_landsbank",
+          "arbuthnot_latham",
+          "banco_popular",
+          "bank_pocztowy",
+          "bankia",
+          "bn_bank",
+          "cater_allen",
+          "chelsea_building_society",
+          "citadele",
+          "coop_pank",
+          "cooperative_bank",
+          "cumberland",
+          "dab_bank",
+          "djurslands_bank",
+          "dnb",
+          "etne_sparebank",
+          "fana_sparebank",
+          "fidor_bank",
+          "flekkefjord_sparebank",
+          "forex_bank",
+          "haugesund_sparebank",
+          "hoare_and_co",
+          "ica_banken",
+          "jyske_bank",
+          "kleinwort_hambros",
+          "klp_banken",
+          "kreditbanken",
+          "landkreditt_bank",
+          "lansforsakringar",
+          "lhv_pank",
+          "lillesands_sparebank",
+          "luminor",
+          "luster_sparebank",
+          "metro_bank",
+          "nordfyns_bank",
+          "nordjyske_bank",
+          "norisbank",
+          "nykredit_bank",
+          "obos_banken",
+          "orange_finanse",
+          "pareto_bank",
+          "pko_bank_polski",
+          "ringkjobing_landbobank",
+          "sbanken",
+          "siauliu_bankas",
+          "silicon_valley_bank",
+          "skandiabanken",
+          "skjern_bank",
+          "skudenes_og_aakra_sparebank",
+          "sogne_og_greipstad_sparebank",
+          "spar_nord_bank",
+          "sparbanken_syd",
+          "sparda_bank",
+          "spare_bank1",
+          "sparebanken_more",
+          "sparebanken_ost",
+          "sparebanken_sogn_og_fjordane",
+          "sparebanken_sor",
+          "sparebanken_vest",
+          "sparekassen_danmark",
+          "sparekassen_sjaelland_fyn",
+          "spareskillingsbanken",
+          "sydbank",
+          "vanquis_bank",
+          "vestjysk_bank",
+          "voss_sparebank",
+          "yorkshire_building_society",
+          "spare_bank1_gudbrandsdal",
+          "spare_bank1_hallingdal_valdres",
+          "spare_bank1_lom_og_skjak",
+          "spare_bank1_modum",
+          "spare_bank1_nordmore",
+          "spare_bank1_ringerike_hadeland",
+          "spare_bank1_smn",
+          "spare_bank1_sr_bank",
+          "spare_bank1_sore_sunnmore",
+          "spare_bank1_sorost_norge_bv",
+          "spare_bank1_sorost_norge_telemark",
+          "spare_bank1_ostfold_akershus",
+          "spare_bank1_ostlandet",
+          "citi_handlowy",
+          "deutsche_bank_polska",
+          "ing_bank_slaski",
+          "ing_diba",
+          "nordea_direct",
+          "santander_uk",
+          "swedbank_sparbankerna"
         ]
       },
       "BankRedirect": {
@@ -14574,6 +15961,27 @@
                     "type": "string",
                     "enum": [
                       "payshap_proxy"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TedBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "ted"
                     ]
                   }
                 }
@@ -15415,16 +16823,18 @@
       },
       "BatchBlocklistJobStatusResponse": {
         "type": "object",
-        "description": "Response for `GET /blocklist/batch/{job_id}`.",
+        "description": "One batch blocklist job, as returned by the listing and by `GET /blocklist/batch/{job_id}`.",
         "required": [
           "job_id",
           "merchant_id",
+          "job_type",
           "status",
           "total_rows",
           "succeeded_rows",
           "failed_rows",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "downloadable"
         ],
         "properties": {
           "job_id": {
@@ -15432,6 +16842,20 @@
           },
           "merchant_id": {
             "type": "string"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The profile that owns this job; for a clone job, the profile whose entries are copied.",
+            "example": "pro_abcdefghijklmnop",
+            "nullable": true
+          },
+          "job_type": {
+            "$ref": "#/components/schemas/BatchBlocklistJobType"
+          },
+          "file_name": {
+            "type": "string",
+            "description": "The file the merchant uploaded, or the name the export downloads as. Clone jobs return\n`null`.",
+            "nullable": true
           },
           "status": {
             "$ref": "#/components/schemas/BatchBlocklistJobStatus"
@@ -15451,6 +16875,14 @@
             "format": "int32",
             "minimum": 0
           },
+          "metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfileCloneJobMetadata"
+              }
+            ],
+            "nullable": true
+          },
           "created_at": {
             "type": "string",
             "format": "date-time"
@@ -15458,8 +16890,41 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Exports only: when the stored file is removed by the storage lifecycle rule.",
+            "nullable": true
+          },
+          "downloadable": {
+            "type": "boolean",
+            "description": "Whether this job's file can be fetched right now."
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "download_url": {
+            "type": "string",
+            "description": "Exports only: short-lived signed link, generated per request and never stored. Null in the\nlisting, which does not mint a link per row.",
+            "nullable": true
+          },
+          "download_url_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           }
         }
+      },
+      "BatchBlocklistJobType": {
+        "type": "string",
+        "description": "Distinguishes bulk upload, CSV export, and profile clone jobs.",
+        "enum": [
+          "upload",
+          "export",
+          "profile_clone"
+        ]
       },
       "BatchBlocklistUploadResponse": {
         "type": "object",
@@ -15654,6 +17119,28 @@
           "extended_card_bin",
           "generic_card_bin"
         ]
+      },
+      "BlocklistExportResponse": {
+        "type": "object",
+        "description": "Response for `POST /blocklist/export`.",
+        "required": [
+          "export_id",
+          "status",
+          "file_name"
+        ],
+        "properties": {
+          "export_id": {
+            "type": "string",
+            "description": "Present for support and log correlation."
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatus"
+          },
+          "file_name": {
+            "type": "string",
+            "description": "The name this export will download as."
+          }
+        }
       },
       "BlocklistLookupQuery": {
         "type": "object",
@@ -16593,6 +18080,28 @@
             "example": "CREDIT",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_issuing_country": {
             "type": "string",
             "example": "INDIA",
@@ -16836,6 +18345,27 @@
             "type": "string",
             "description": "Card Type",
             "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -16904,6 +18434,26 @@
           },
           "card_type": {
             "type": "string",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "saved_to_locker": {
@@ -16998,26 +18548,6 @@
           }
         }
       },
-      "CardIssuerListQuery": {
-        "type": "object",
-        "properties": {
-          "query": {
-            "type": "string",
-            "description": "Optional search term to filter issuers by name (case-insensitive prefix match)",
-            "example": "hdfc",
-            "nullable": true
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Maximum number of results to return (default: 30, max: 255)",
-            "default": 30,
-            "example": 30,
-            "maximum": 255,
-            "minimum": 0
-          }
-        }
-      },
       "CardIssuerListResponse": {
         "type": "object",
         "required": [
@@ -17094,7 +18624,12 @@
           "Nyce",
           "Prop",
           "PrivateLabel",
-          "Dinacard"
+          "Dinacard",
+          "AirPlus",
+          "Aurore",
+          "EftposAustralia",
+          "GeCapital",
+          "Uatp"
         ]
       },
       "CardNetworkTokenizeRequest": {
@@ -17325,6 +18860,27 @@
           },
           "card_type": {
             "type": "string",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`.",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "card_network": {
@@ -17624,6 +19180,28 @@
             "example": "CREDIT",
             "nullable": true
           },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
           "card_issuing_country": {
             "type": "string",
             "example": "INDIA",
@@ -17914,6 +19492,48 @@
         "type": "string",
         "description": "For Client based calls, SDK will use the client_secret\\nin order to call /payment_methods\\nClient secret will be generated whenever a new\\npayment method is created"
       },
+      "CloneBlocklistEntriesRequest": {
+        "type": "object",
+        "required": [
+          "target_profile_ids"
+        ],
+        "properties": {
+          "target_profile_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CloneBlocklistEntriesResponse": {
+        "type": "object",
+        "description": "Response for `POST /blocklist/clone`.",
+        "required": [
+          "source_profile_id",
+          "job_id",
+          "status",
+          "target_profile_ids"
+        ],
+        "properties": {
+          "source_profile_id": {
+            "type": "string",
+            "example": "pro_abcdefghijklmnop"
+          },
+          "job_id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatus"
+          },
+          "target_profile_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "CollectionActions": {
         "type": "object",
         "description": "Represents the legal or administrative actions that may be taken for non-payment, such as protest rules and automatic write-off timelines.",
@@ -18171,6 +19791,7 @@
           "ctp_visa",
           "cybersource",
           "cybersourcedecisionmanager",
+          "d24",
           "datatrans",
           "deutschebank",
           "digitalvirgo",
@@ -18179,6 +19800,8 @@
           "ebanx",
           "envoy",
           "elavon",
+          "etisalat",
+          "elavon_pg",
           "facilitapay",
           "finix",
           "fiserv",
@@ -18191,6 +19814,7 @@
           "gigadat",
           "givepayments",
           "globalpay",
+          "globalpayments_heartland",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -18206,10 +19830,12 @@
           "imerchantsolutions",
           "itaubank",
           "jpmorgan",
+          "jpmorgan_orbital",
           "juspay",
           "juspaythreedsserver",
           "klarna",
           "loonio",
+          "merchante",
           "mifinity",
           "mollie",
           "moneris",
@@ -18225,8 +19851,10 @@
           "nuvei",
           "opennode",
           "paybox",
+          "paydotcom",
           "payload",
           "payme",
+          "paynearme",
           "payone",
           "paypal",
           "paysafe",
@@ -18246,6 +19874,7 @@
           "recurly",
           "redsys",
           "revolv3",
+          "saferpay",
           "santander",
           "shift4",
           "silverflow",
@@ -18275,8 +19904,10 @@
           "worldpayxml",
           "worldpaymodular",
           "signifyd",
+          "nsure",
           "plaid",
           "riskified",
+          "sanlam_payshield",
           "xendit",
           "zen",
           "zift",
@@ -18465,6 +20096,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CheckoutData"
+              }
+            ],
+            "nullable": true
+          },
+          "stripe": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StripeConnectorMetadata"
               }
             ],
             "nullable": true
@@ -21517,6 +23156,37 @@
           }
         }
       },
+      "DisputeNetworkDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Visa specific dispute details",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "rapid_dispute_resolution": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/RapidDisputeResolution"
+                  }
+                ],
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "visa"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Card network specific details of a dispute",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "DisputeResponse": {
         "type": "object",
         "required": [
@@ -21616,6 +23286,14 @@
           "is_already_refunded": {
             "type": "boolean",
             "description": "Shows if the disputed amount(dispute_lost statuses only) + refunded amount is greater than captured amount"
+          },
+          "additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -21684,6 +23362,14 @@
             "type": "string",
             "format": "date-time",
             "description": "Time at which dispute is received"
+          },
+          "additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -22980,6 +24666,12 @@
           },
           "external_surcharge_amount": {
             "$ref": "#/components/schemas/MinorUnit"
+          },
+          "surcharge_percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "Surcharge percentage returned by the connector (e.g. InterPayments), if provided.\nStored as a `Decimal` so the enclosing attempt model can keep deriving `Eq`.",
+            "nullable": true
           },
           "sale_notified": {
             "type": "boolean",
@@ -24379,6 +26071,14 @@
           }
         }
       },
+      "GooglePayTokenizationSpecificationType": {
+        "type": "string",
+        "description": "The tokenization type sent to the Google Pay SDK.\n\nUnlike [`GooglePayTokenizationType`], this holds only the values Google itself understands:\nthe Hyperswitch-internal `INTERNAL_GATEWAY` marker is resolved into `PAYMENT_GATEWAY` during\nthe session flow before this is built, so it can never leak into an SDK response.",
+        "enum": [
+          "PAYMENT_GATEWAY",
+          "DIRECT"
+        ]
+      },
       "GooglePayWalletData": {
         "type": "object",
         "required": [
@@ -24508,6 +26208,14 @@
           "token": {
             "type": "string",
             "description": "Token generated for the wallet"
+          },
+          "auth_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAuthMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24602,8 +26310,7 @@
         ],
         "properties": {
           "type": {
-            "type": "string",
-            "description": "The token specification type(ex: PAYMENT_GATEWAY)"
+            "$ref": "#/components/schemas/GooglePayTokenizationSpecificationType"
           },
           "parameters": {
             "$ref": "#/components/schemas/GpayTokenParameters"
@@ -26414,7 +28121,7 @@
           "webhook_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WebhookDetails"
+                "$ref": "#/components/schemas/WebhookDetailsRequest"
               }
             ],
             "nullable": true
@@ -26890,7 +28597,7 @@
           "webhook_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WebhookDetails"
+                "$ref": "#/components/schemas/WebhookDetailsResponse"
               }
             ],
             "nullable": true
@@ -27042,7 +28749,7 @@
           "webhook_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WebhookDetails"
+                "$ref": "#/components/schemas/WebhookDetailsRequest"
               }
             ],
             "nullable": true
@@ -28130,6 +29837,33 @@
           "PATCH"
         ]
       },
+      "Mifinity": {
+        "type": "object",
+        "required": [
+          "destination_account"
+        ],
+        "properties": {
+          "destination_account": {
+            "type": "string",
+            "description": "The recipient's MiFinity wallet identifier. This can be an email address\nor a MiFinity account number.",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
+      "MifinityAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for a MiFinity wallet payout.",
+        "required": [
+          "destination_account"
+        ],
+        "properties": {
+          "destination_account": {
+            "type": "string",
+            "description": "Recipient email address or MiFinity account number.",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
       "MifinityData": {
         "type": "object",
         "required": [
@@ -28259,6 +29993,9 @@
           }
         }
       },
+      "NetellerData": {
+        "type": "object"
+      },
       "NetworkDetails": {
         "type": "object",
         "properties": {
@@ -28382,6 +30119,81 @@
           }
         }
       },
+      "NetworkTokenDetails": {
+        "type": "object",
+        "description": "Network token details for an MIT: no network transaction ID, and no cryptogram.",
+        "required": [
+          "network_token",
+          "token_exp_month",
+          "token_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "network_token": {
+            "type": "string",
+            "description": "The Network Token",
+            "example": "4604000460040787"
+          },
+          "token_exp_month": {
+            "type": "string",
+            "description": "The token's expiry month",
+            "example": "05"
+          },
+          "token_exp_year": {
+            "type": "string",
+            "description": "The token's expiry year",
+            "example": "24"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the card such as Credit, Debit",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "The country in which the card was issued",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code of the bank that issued the card",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
+            "nullable": true
+          }
+        }
+      },
       "NetworkTokenResponse": {
         "type": "object",
         "properties": {
@@ -28440,6 +30252,32 @@
           }
         }
       },
+      "NetworkTokenWithVaultCardFallback": {
+        "type": "object",
+        "description": "Network token details for an MIT, with a vault card to fall back to on a clear-PAN eligible\ndecline. Both arms share one `network_transaction_id`.",
+        "required": [
+          "network_token",
+          "network_transaction_id",
+          "vault_card_data"
+        ],
+        "properties": {
+          "network_token": {
+            "$ref": "#/components/schemas/NetworkTokenDetails"
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated\nTransaction (CIT) when `setup_future_usage` is set to `off_session`. Shared by both arms."
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a\nCIT (Customer Initiated Transaction), when `setup_future_usage` is set to `off_session`.",
+            "nullable": true
+          },
+          "vault_card_data": {
+            "$ref": "#/components/schemas/VaultCardData"
+          }
+        }
+      },
       "NetworkTransactionIdAndCardDetails": {
         "type": "object",
         "required": [
@@ -28487,6 +30325,28 @@
           "card_type": {
             "type": "string",
             "example": "CREDIT",
+            "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "example": "CLASSIC",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
             "nullable": true
           },
           "card_issuing_country": {
@@ -28581,6 +30441,11 @@
               }
             ],
             "nullable": true
+          },
+          "device_manufacturer_identifier": {
+            "type": "string",
+            "description": "Identifier of the device that generated the token",
+            "nullable": true
           }
         }
       },
@@ -28664,6 +30529,28 @@
           "transaction_link_id": {
             "type": "string",
             "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
+          }
+        }
+      },
+      "NetworkTransactionIdAndVaultCardDetails": {
+        "type": "object",
+        "description": "Network transaction ID and external vault card details for an MIT.",
+        "required": [
+          "vault_card_data",
+          "network_transaction_id"
+        ],
+        "properties": {
+          "vault_card_data": {
+            "$ref": "#/components/schemas/VaultCardData"
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated\nTransaction (CIT) when `setup_future_usage` is set to `off_session`."
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT\n(Customer Initiated Transaction), when `setup_future_usage` is set to `off_session`.",
             "nullable": true
           }
         }
@@ -29384,12 +31271,6 @@
                 "$ref": "#/components/schemas/RankingAlgorithm"
               }
             ],
-            "nullable": true
-          },
-          "eliminationEnabled": {
-            "type": "boolean",
-            "description": "Whether elimination logic is enabled for filtering gateways",
-            "example": true,
             "nullable": true
           }
         }
@@ -30719,6 +32600,17 @@
             "description": "Currency code for the payment",
             "example": "USD"
           },
+          "preferredConnectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Ordered preferred connector account identities in `connector:mca_id` format.",
+            "example": [
+              "adyen:mca_5678"
+            ],
+            "nullable": true
+          },
           "paymentType": {
             "type": "string",
             "description": "Type of payment transaction being processed",
@@ -30993,6 +32885,13 @@
             "type": "string",
             "description": "Custom text for the separator shown between wallet and card payment method sections",
             "nullable": true
+          },
+          "redirect_delay_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL.\nSet to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.",
+            "nullable": true,
+            "minimum": 0
           }
         }
       },
@@ -31188,6 +33087,15 @@
             "example": "Or pay with",
             "nullable": true,
             "maxLength": 64
+          },
+          "redirect_delay_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL.\nSet to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.",
+            "example": 10,
+            "nullable": true,
+            "maximum": 900,
+            "minimum": 0
           }
         }
       },
@@ -31210,6 +33118,56 @@
           },
           "payment_id": {
             "type": "string"
+          }
+        }
+      },
+      "PaymentLinkListConstraints": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TimeRange"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
+              },
+              "offset": {
+                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
+              }
+            }
+          }
+        ]
+      },
+      "PaymentLinkListResponse": {
+        "type": "object",
+        "required": [
+          "size",
+          "total_count",
+          "data"
+        ],
+        "properties": {
+          "size": {
+            "type": "integer",
+            "description": "The number of payment links included in the current page",
+            "minimum": 0
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total number of payment links matching the given filters"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RetrievePaymentLinkResponse"
+            },
+            "description": "The list of payment link response objects"
           }
         }
       },
@@ -32608,6 +34566,26 @@
           }
         }
       },
+      "PaymentMethodListResult": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ClientPaymentMethodsListResponse"
+          },
+          {
+            "type": "object",
+            "description": "Serializes as `{ \"error\": { ... } }` — the same envelope the HTTP layer puts around\n`ErrorResponse`, so this reads identically to the standalone endpoint's error body.",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+              }
+            }
+          }
+        ],
+        "description": "The combined payment-method list, or the error that prevented it being built.\n\nSerialized untagged: a success is the listing object itself, a failure is `{ \"error\": {...} }`.\nGated on `errors` as well as `v1`: it holds [`crate::errors::types::ErrorResponse`], which\nlives behind that feature because it pulls in `reqwest`. `euclid_wasm` builds\n`api_models/v1` without `errors`, and cannot take `actix-web` in via that feature on a\nwasm target, so the section types simply do not exist there."
+      },
       "PaymentMethodMetaData": {
         "type": "object",
         "description": "Represents metadata about the payment method used in the 3DS decision rule.",
@@ -32887,6 +34865,7 @@
           "momo",
           "momo_atm",
           "multibanco",
+          "neteller",
           "online_banking_thailand",
           "online_banking_czech_republic",
           "online_banking_finland",
@@ -32931,6 +34910,7 @@
           "viet_qr",
           "venmo",
           "walley",
+          "wero",
           "we_chat_pay",
           "seven_eleven",
           "lawson",
@@ -32950,7 +34930,8 @@
           "open_banking",
           "network_token",
           "payshap",
-          "payshap_proxy"
+          "payshap_proxy",
+          "ted"
         ]
       },
       "PaymentMethodUpdate": {
@@ -33013,6 +34994,14 @@
           }
         },
         "additionalProperties": false
+      },
+      "PaymentProcessingDetailInputType": {
+        "type": "string",
+        "description": "Specifies how the Apple Pay payment processing details are supplied.",
+        "enum": [
+          "raw",
+          "link_hierarchical_resource"
+        ]
       },
       "PaymentProcessingDetails": {
         "type": "object",
@@ -34557,6 +36546,22 @@
             "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
             "nullable": true
           },
+          "payment_method_list": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodListResult"
+              }
+            ],
+            "nullable": true
+          },
+          "session_tokens": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionTokensResult"
+              }
+            ],
+            "nullable": true
+          },
           "connector": {
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
@@ -34678,6 +36683,14 @@
             "nullable": true
           },
           "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "capture_method_applied": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/CaptureMethod"
@@ -36395,6 +38408,22 @@
             "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
             "nullable": true
           },
+          "payment_method_list": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodListResult"
+              }
+            ],
+            "nullable": true
+          },
+          "session_tokens": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionTokensResult"
+              }
+            ],
+            "nullable": true
+          },
           "connector": {
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
@@ -36531,6 +38560,14 @@
             "nullable": true
           },
           "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "capture_method_applied": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/CaptureMethod"
@@ -38070,7 +40107,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated. _Deprecated: Use customer_id instead._",
+            "description": "Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._",
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
@@ -38218,7 +40255,7 @@
           },
           "payout_method_id": {
             "type": "string",
-            "description": "Identifier for payout method",
+            "description": "Saved payment-method identifier, resolved internally for normal payouts and to vault tokens for proxy payouts.",
             "nullable": true
           },
           "browser_info": {
@@ -38242,6 +40279,7 @@
           "gigadat",
           "gotyme_sanlam",
           "loonio",
+          "mifinity",
           "nomupay",
           "nuvei",
           "payone",
@@ -38476,6 +40514,14 @@
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
             "example": "E0001",
+            "nullable": true
+          },
+          "frm_message": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FrmMessage"
+              }
+            ],
             "nullable": true
           },
           "profile_id": {
@@ -39160,7 +41206,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated. _Deprecated: Use customer_id instead._",
+            "description": "Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._",
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
@@ -39310,7 +41356,7 @@
           },
           "payout_method_id": {
             "type": "string",
-            "description": "Identifier for payout method",
+            "description": "Saved payment-method identifier, resolved internally for normal payouts and to vault tokens for proxy payouts.",
             "nullable": true
           },
           "browser_info": {
@@ -39430,7 +41476,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated. _Deprecated: Use customer_id instead._",
+            "description": "Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._",
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
@@ -39574,7 +41620,7 @@
           },
           "payout_method_id": {
             "type": "string",
-            "description": "Identifier for payout method",
+            "description": "Saved payment-method identifier, resolved internally for normal payouts and to vault tokens for proxy payouts.",
             "nullable": true
           },
           "browser_info": {
@@ -41031,6 +43077,50 @@
         },
         "additionalProperties": false
       },
+      "ProfileCloneJobMetadata": {
+        "type": "object",
+        "description": "Progress of a profile-clone job across its target profiles.",
+        "required": [
+          "targets"
+        ],
+        "properties": {
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileCloneTargetMetadata"
+            }
+          }
+        }
+      },
+      "ProfileCloneTargetMetadata": {
+        "type": "object",
+        "description": "Progress of one target profile within a profile-clone job.",
+        "required": [
+          "profile_id",
+          "status",
+          "processed_rows"
+        ],
+        "properties": {
+          "profile_id": {
+            "type": "string",
+            "example": "pro_abcdefghijklmnop"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatus"
+          },
+          "processed_rows": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Source entries handled so far for this target.",
+            "minimum": 0
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Present when this target's clone failed.",
+            "nullable": true
+          }
+        }
+      },
       "ProfileCreate": {
         "type": "object",
         "properties": {
@@ -41069,7 +43159,7 @@
           "webhook_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WebhookDetails"
+                "$ref": "#/components/schemas/WebhookDetailsRequest"
               }
             ],
             "nullable": true
@@ -41297,6 +43387,12 @@
             "description": "Indicates if manual retry for payment is enabled or not",
             "nullable": true
           },
+          "auto_fallback_capture_method": {
+            "type": "boolean",
+            "description": "When `true`, a payment whose requested `capture_method` is not supported by the\nconnector chosen for it is processed with `automatic` capture instead of being rejected,\nand the payment method list does not hide payment methods based on `capture_method`.",
+            "example": true,
+            "nullable": true
+          },
           "always_enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
@@ -41442,7 +43538,7 @@
           "webhook_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WebhookDetails"
+                "$ref": "#/components/schemas/WebhookDetailsResponse"
               }
             ],
             "nullable": true
@@ -41696,6 +43792,12 @@
             "description": "Indicates if manual retry for payment is enabled or not",
             "nullable": true
           },
+          "auto_fallback_capture_method": {
+            "type": "boolean",
+            "description": "When `true`, a payment whose requested `capture_method` is not supported by the\nconnector chosen for it is processed with `automatic` capture instead of being rejected,\nand the payment method list does not hide payment methods based on `capture_method`.",
+            "example": true,
+            "nullable": true
+          },
           "always_enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
@@ -41914,6 +44016,19 @@
           "PL_BASED_ROUTING",
           "NTW_BASED_ROUTING"
         ]
+      },
+      "RapidDisputeResolution": {
+        "type": "object",
+        "description": "Visa Rapid Dispute Resolution details",
+        "required": [
+          "applied"
+        ],
+        "properties": {
+          "applied": {
+            "type": "boolean",
+            "description": "Whether Rapid Dispute Resolution has been applied"
+          }
+        }
       },
       "RealTimePaymentData": {
         "oneOf": [
@@ -42504,11 +44619,47 @@
               "type": {
                 "type": "string",
                 "enum": [
+                  "network_transaction_id_and_vault_card_details"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndVaultCardDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
                   "card_with_limited_data"
                 ]
               },
               "data": {
                 "$ref": "#/components/schemas/CardWithLimitedData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "network_token_with_vault_card_fallback"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/NetworkTokenWithVaultCardFallback"
               }
             }
           }
@@ -43385,6 +45536,13 @@
               }
             ],
             "nullable": true
+          },
+          "surcharge_percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "The surcharge percentage returned by the surcharge connector (e.g. InterPayments), if\navailable. Present only on responses when an external surcharge connector supplied it;\nignored on requests.",
+            "example": 3.25,
+            "nullable": true
           }
         }
       },
@@ -43707,6 +45865,7 @@
         "type": "object",
         "required": [
           "payment_link_id",
+          "payment_id",
           "merchant_id",
           "link_to_pay",
           "amount",
@@ -43718,6 +45877,10 @@
             "type": "string",
             "description": "Identifier for Payment Link"
           },
+          "payment_id": {
+            "type": "string",
+            "description": "Identifier for the associated Payment"
+          },
           "merchant_id": {
             "type": "string",
             "description": "Identifier for Merchant"
@@ -43725,6 +45888,11 @@
           "processor_merchant_id": {
             "type": "string",
             "description": "Identifier for the processor merchant",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Identifier for the business profile",
             "nullable": true
           },
           "link_to_pay": {
@@ -43918,6 +46086,7 @@
           "cryptopay",
           "cybersource",
           "cybersourcedecisionmanager",
+          "d24",
           "datatrans",
           "deutschebank",
           "digitalvirgo",
@@ -43925,7 +46094,9 @@
           "dwolla",
           "ebanx",
           "elavon",
+          "elavon_pg",
           "envoy",
+          "etisalat",
           "facilitapay",
           "finix",
           "fiserv",
@@ -43938,6 +46109,7 @@
           "gigadat",
           "givepayments",
           "globalpay",
+          "globalpayments_heartland",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -43951,8 +46123,10 @@
           "interpayments",
           "itaubank",
           "jpmorgan",
+          "jpmorgan_orbital",
           "klarna",
           "loonio",
+          "merchante",
           "mifinity",
           "mollie",
           "moneris",
@@ -43967,7 +46141,9 @@
           "nuvei",
           "opennode",
           "paybox",
+          "paydotcom",
           "payme",
+          "paynearme",
           "payload",
           "payone",
           "paypal",
@@ -43989,9 +46165,12 @@
           "redsys",
           "revolv3",
           "riskified",
+          "saferpay",
+          "sanlam_payshield",
           "santander",
           "shift4",
           "signifyd",
+          "nsure",
           "silverflow",
           "square",
           "stax",
@@ -44650,6 +46829,14 @@
             "example": "E9040088820260710172800044983797",
             "nullable": true
           },
+          "journey_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderJourneyName"
+              }
+            ],
+            "nullable": true
+          },
           "paid_at": {
             "type": "string",
             "format": "date-time",
@@ -44659,6 +46846,16 @@
           }
         },
         "additionalProperties": false
+      },
+      "SantanderJourneyName": {
+        "type": "string",
+        "enum": [
+          "journey_1",
+          "journey_2",
+          "journey_3",
+          "journey_4",
+          "awaiting_definition"
+        ]
       },
       "SantanderMandateDetails": {
         "type": "object",
@@ -45473,10 +47670,38 @@
                   }
                 ],
                 "nullable": true
+              },
+              "payment_processing_detail_input_type": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PaymentProcessingDetailInputType"
+                  }
+                ],
+                "nullable": true
               }
             }
           }
         ]
+      },
+      "SessionTokensResult": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PaymentsSessionResponse"
+          },
+          {
+            "type": "object",
+            "description": "Serializes as `{ \"error\": { ... } }` — the same envelope the HTTP layer puts around\n`ErrorResponse`, so this reads identically to the standalone endpoint's error body.",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+              }
+            }
+          }
+        ],
+        "description": "Wallet session tokens, or the error that prevented them being minted.\n\nSerialized untagged: a success is the whole `PaymentsSessionResponse` object, a failure is\n`{ \"error\": {...} }`.\nGated on `errors` as well as `v1` — see [`crate::payment_methods::PaymentMethodListResult`]."
       },
       "SizeVariants": {
         "type": "string",
@@ -45843,6 +48068,16 @@
           "direct",
           "destination"
         ]
+      },
+      "StripeConnectorMetadata": {
+        "type": "object",
+        "properties": {
+          "error_on_requires_action": {
+            "type": "boolean",
+            "description": "For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright\ninstead of returning a `requires_action` status, since there's no customer present to\ncomplete additional authentication.",
+            "nullable": true
+          }
+        }
       },
       "StripeSplitPaymentRequest": {
         "type": "object",
@@ -46397,6 +48632,12 @@
             "type": "number",
             "format": "double",
             "description": "sum of display_surcharge_amount and display_tax_on_surcharge_amount"
+          },
+          "surcharge_percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "Surcharge percentage returned by the external surcharge connector, if provided.",
+            "nullable": true
           }
         }
       },
@@ -46472,6 +48713,117 @@
           "taxable",
           "exempt"
         ]
+      },
+      "TedBankTransfer": {
+        "type": "object",
+        "required": [
+          "bank_account_number"
+        ],
+        "properties": {
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code (COMPE code) used to identify the bank",
+            "example": "033",
+            "nullable": true
+          },
+          "ispb": {
+            "type": "string",
+            "description": "An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution",
+            "example": "90400888",
+            "nullable": true
+          },
+          "bank_branch": {
+            "type": "string",
+            "description": "The branch code",
+            "example": "0001",
+            "nullable": true
+          },
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number",
+            "example": "000123456"
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_id": {
+            "type": "string",
+            "description": "Individual taxpayer identification number (CPF for individuals, CNPJ for companies)",
+            "example": "123.456.789-09",
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "João Silva",
+            "nullable": true
+          }
+        }
+      },
+      "TedBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for TED bank transfer payout method",
+        "properties": {
+          "bank_account_number": {
+            "type": "string",
+            "description": "Partially masked bank account number",
+            "example": "0001****3456",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code (COMPE code)",
+            "example": "033",
+            "nullable": true
+          },
+          "ispb": {
+            "type": "string",
+            "description": "An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution",
+            "example": "90400888",
+            "nullable": true
+          },
+          "bank_branch": {
+            "type": "string",
+            "description": "The branch code",
+            "example": "0001",
+            "nullable": true
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "João Silva",
+            "nullable": true
+          }
+        }
       },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
@@ -46856,6 +49208,27 @@
               }
             ],
             "nullable": true
+          },
+          "card_subtype": {
+            "type": "string",
+            "description": "The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -46959,7 +49332,8 @@
           "R",
           "C",
           "D",
-          "I"
+          "I",
+          "S"
         ]
       },
       "TransactionType": {
@@ -47556,6 +49930,88 @@
           "propertyName": "type"
         }
       },
+      "VaultCardData": {
+        "type": "object",
+        "description": "Card details held in an external vault, referenced by a vault alias rather than by PAN.",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The vault alias which refers to the card number",
+            "example": "token_card_number"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the card such as Credit, Debit",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "The country in which the card was issued",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code of the bank that issued the card",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "bin_number": {
+            "type": "string",
+            "description": "The first six digits of the card number",
+            "example": "424242",
+            "nullable": true
+          },
+          "last_four": {
+            "type": "string",
+            "description": "The last four digits of the card number",
+            "example": "4242",
+            "nullable": true
+          }
+        }
+      },
       "VaultCardToken": {
         "type": "object",
         "description": "Card token data carried by the external vault proxy `vault_card_token_data` variant. Its\n`card_cvc` is a vault token detokenized on the wire by the external vault (e.g. VGS). Kept as a\ndistinct type from [`CardToken`] so the self-hosted `card_cvc_token` field does not leak into\nthe proxy contract.",
@@ -47958,6 +50414,17 @@
           {
             "type": "object",
             "required": [
+              "mifinity"
+            ],
+            "properties": {
+              "mifinity": {
+                "$ref": "#/components/schemas/Mifinity"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "paypal"
             ],
             "properties": {
@@ -47988,6 +50455,9 @@
             "$ref": "#/components/schemas/GooglePayDecryptAdditionalData"
           },
           {
+            "$ref": "#/components/schemas/MifinityAdditionalData"
+          },
+          {
             "$ref": "#/components/schemas/PaypalAdditionalData"
           },
           {
@@ -47999,9 +50469,9 @@
       "WalletAdditionalDataForCard": {
         "type": "object",
         "properties": {
-          "last4": {
+          "type": {
             "type": "string",
-            "description": "Last 4 digits of the card number",
+            "description": "The type of payment method",
             "nullable": true
           },
           "card_network": {
@@ -48009,9 +50479,50 @@
             "description": "The information of the payment method",
             "nullable": true
           },
-          "type": {
+          "card_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardType"
+              }
+            ],
+            "nullable": true
+          },
+          "card_subtype": {
             "type": "string",
-            "description": "The type of payment method",
+            "description": "The card's product/subtype, as returned by the connector",
+            "nullable": true
+          },
+          "card_segment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardSegmentType"
+              }
+            ],
+            "nullable": true
+          },
+          "funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FundingSource"
+              }
+            ],
+            "nullable": true
+          },
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number",
+            "nullable": true
+          },
+          "card_bin": {
+            "type": "string",
+            "description": "Bin of the underlying card",
+            "example": "411111",
+            "nullable": true
+          },
+          "device_pan_bin": {
+            "type": "string",
+            "description": "Bin of the DPAN (device PAN) obtained from decrypting the wallet payment data.",
+            "example": "411111",
             "nullable": true
           },
           "card_exp_month": {
@@ -48024,6 +50535,19 @@
             "type": "string",
             "description": "The card's expiry year",
             "example": "25",
+            "nullable": true
+          },
+          "issuer_name": {
+            "type": "string",
+            "description": "The name of the card issuer, as returned by the connector",
+            "nullable": true
+          },
+          "issuer_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           },
           "auth_code": {
@@ -48413,6 +50937,18 @@
           },
           {
             "type": "object",
+            "title": "Neteller",
+            "required": [
+              "neteller"
+            ],
+            "properties": {
+              "neteller": {
+                "$ref": "#/components/schemas/NetellerData"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "SwishQr",
             "required": [
               "swish_qr"
@@ -48458,6 +50994,18 @@
               "vipps_redirect": {
                 "type": "object",
                 "description": "Wallet data for Vipps Redirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "WeroRedirect",
+            "required": [
+              "wero_redirect"
+            ],
+            "properties": {
+              "wero_redirect": {
+                "type": "object"
               }
             }
           },
@@ -48700,7 +51248,134 @@
           "manual_retry"
         ]
       },
-      "WebhookDetails": {
+      "WebhookDetailsRequest": {
+        "type": "object",
+        "required": [
+          "payment_statuses_enabled",
+          "refund_statuses_enabled"
+        ],
+        "properties": {
+          "webhook_version": {
+            "type": "string",
+            "description": "The version for Webhook",
+            "example": "1.0.2",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "webhook_username": {
+            "type": "string",
+            "description": "The user name for Webhook login",
+            "example": "ekart_retail",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "webhook_password": {
+            "type": "string",
+            "description": "The password for Webhook login",
+            "example": "ekart@123",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "webhook_url": {
+            "type": "string",
+            "description": "The HTTP or HTTPS webhook URL. DNS must resolve to public addresses. Must not be empty;\nomit this field entirely to leave an existing stored webhook URL unchanged.",
+            "example": "https://www.ekart.com/webhooks",
+            "nullable": true,
+            "minLength": 1
+          },
+          "payment_created_enabled": {
+            "type": "boolean",
+            "description": "If this property is true, a webhook message is posted whenever a new payment is created",
+            "example": true,
+            "nullable": true
+          },
+          "payment_succeeded_enabled": {
+            "type": "boolean",
+            "description": "If this property is true, a webhook message is posted whenever a payment is successful",
+            "example": true,
+            "nullable": true
+          },
+          "payment_failed_enabled": {
+            "type": "boolean",
+            "description": "If this property is true, a webhook message is posted whenever a payment fails",
+            "example": true,
+            "nullable": true
+          },
+          "payment_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of payment statuses that triggers a webhook for payment intents",
+            "example": [
+              "succeeded",
+              "failed",
+              "partially_captured",
+              "requires_merchant_action"
+            ]
+          },
+          "refund_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RefundStatus"
+            },
+            "description": "List of refund statuses that triggers a webhook for refunds",
+            "example": [
+              "success",
+              "failure"
+            ]
+          },
+          "payout_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutStatus"
+            },
+            "description": "List of payout statuses that triggers a webhook for payouts",
+            "example": [
+              "success",
+              "failed"
+            ],
+            "nullable": true
+          },
+          "dispute_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DisputeStatus"
+            },
+            "description": "List of dispute statuses that trigger outgoing webhooks for disputes",
+            "example": [
+              "dispute_opened",
+              "dispute_won"
+            ],
+            "nullable": true
+          },
+          "mandate_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MandateStatus"
+            },
+            "description": "List of mandate statuses that trigger outgoing webhooks for mandates",
+            "example": [
+              "active",
+              "inactive"
+            ],
+            "nullable": true
+          },
+          "invoice_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceStatus"
+            },
+            "description": "List of invoice statuses that trigger outgoing webhooks for subscriptions",
+            "example": [
+              "invoice_paid"
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WebhookDetailsResponse": {
         "type": "object",
         "required": [
           "payment_statuses_enabled",
@@ -48731,7 +51406,7 @@
           "webhook_url": {
             "type": "string",
             "description": "The url for the webhook endpoint",
-            "example": "www.ekart.com/webhooks",
+            "example": "https://www.ekart.com/webhooks",
             "nullable": true
           },
           "payment_created_enabled": {

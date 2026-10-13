@@ -1,6 +1,7 @@
 CREATE TABLE fraud_check_queue (
     `frm_id` String,
-    `payment_id` String,
+    `payment_id` Nullable(String),
+    `payout_id` Nullable(String),
     `merchant_id` String,
     `attempt_id` String,
     `created_at` DateTime CODEC(T64, LZ4),
@@ -31,7 +32,8 @@ kafka_handle_error_mode = 'stream';
 
 CREATE TABLE fraud_check (
     `frm_id` String,
-    `payment_id` String,
+    `payment_id` Nullable(String),
+    `payout_id` Nullable(String),
     `merchant_id` LowCardinality(String),
     `attempt_id` String,
     `created_at` DateTime DEFAULT now() CODEC(T64, LZ4),
@@ -65,7 +67,8 @@ ORDER BY
 
 CREATE MATERIALIZED VIEW fraud_check_mv TO fraud_check (
     `frm_id` String,
-    `payment_id` String,
+    `payment_id` Nullable(String),
+    `payout_id` Nullable(String),
     `merchant_id` String,
     `attempt_id` String,
     `created_at` DateTime64(3),
@@ -92,6 +95,7 @@ CREATE MATERIALIZED VIEW fraud_check_mv TO fraud_check (
 SELECT
     frm_id,
     payment_id,
+    payout_id,
     merchant_id,
     attempt_id,
     created_at,

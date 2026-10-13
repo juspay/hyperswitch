@@ -278,9 +278,13 @@
                       "v1/blocklist/post-blocklist",
                       "v1/blocklist/delete-blocklist",
                       "v1/blocklist/post-blocklisttoggle",
+                      "v1/blocklist/blocklist--count",
+                      "v1/blocklist/blocklist--lookup",
                       "v1/blocklist/blocklist--batch-upload",
                       "v1/blocklist/blocklist--batch-list",
-                      "v1/blocklist/blocklist--batch-status"
+                      "v1/blocklist/blocklist--batch-status",
+                      "v1/blocklist/blocklist--export-create",
+                      "v1/blocklist/blocklist--clone"
                     ]
                   },
                   {
@@ -336,7 +340,7 @@
             ]
           },
           {
-            "version": "2.0.0 [BETA]",
+            "version": "2.0.0",
             "groups": [
               {
                 "group": "Get Started [BETA]",
@@ -500,12 +504,17 @@
                     ]
                   },
                   {
-                    "group": "Revenue Recovery",
+                    "group": "Schemas",
                     "pages": [
-                      "v2/revenue-recovery/revenue-recovery--create",
-                      "v2/revenue-recovery/revenue-recovery--retrieve"
+                      "v2/schemas/outgoing--webhook"
                     ]
                   }
+                ]
+              },
+              {
+                "group": "Revenue Recovery",
+                "pages": [
+                  "v2/revenue-recovery/revenue-recovery--create"
                 ]
               }
             ]

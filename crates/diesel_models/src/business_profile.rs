@@ -98,6 +98,9 @@ pub struct Profile {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub order_fulfillment_time: Option<i64>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 #[cfg(feature = "v1")]
@@ -166,6 +169,7 @@ pub struct ProfileNew {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub order_fulfillment_time: Option<i64>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 #[cfg(feature = "v1")]
@@ -236,6 +240,9 @@ pub struct ProfileUpdateInternal {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub order_fulfillment_time: Option<i64>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 /// Note: The order of fields in the struct is important.
@@ -318,6 +325,9 @@ pub struct Profile {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub order_fulfillment_time: Option<i64>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
@@ -472,6 +482,8 @@ pub struct ProfileUpdateInternal {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
@@ -649,6 +661,7 @@ pub struct PaymentLinkConfigRequest {
     pub color_icon_card_cvc_error: Option<String>,
     pub show_merchant_name: Option<bool>,
     pub payment_methods_separator_text: Option<String>,
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]

@@ -156,6 +156,7 @@ pub async fn form_payment_link_data(
                 color_icon_card_cvc_error: None,
                 show_merchant_name: Some(DEFAULT_SHOW_MERCHANT_NAME),
                 payment_methods_separator_text: None,
+                redirect_delay_seconds: None,
             }
         };
 
@@ -286,6 +287,7 @@ pub async fn form_payment_link_data(
             unified_message: payment_attempt.unified_message,
             capture_method: payment_attempt.capture_method,
             setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
+            redirect_delay_seconds: payment_link_config.redirect_delay_seconds,
         };
 
         return Ok((
@@ -539,19 +541,65 @@ fn validate_sdk_requirements(
 pub async fn list_payment_link(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    constraints: api_models::payments::PaymentLinkListConstraints,
-) -> RouterResponse<Vec<api_models::payments::RetrievePaymentLinkResponse>> {
+    mut constraints: api_models::payments::PaymentLinkListConstraints,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+) -> RouterResponse<api_models::payments::PaymentLinkListResponse> {
     let db = state.store.as_ref();
-    let payment_link = db
-        .list_payment_link_by_processor_merchant_id(merchant.get_id(), constraints)
+    let now = common_utils::date_time::now();
+
+    let time_range = match constraints.time_range {
+        None => common_utils::types::TimeRange {
+            start_time: now.saturating_sub(time::Duration::days(30)),
+            end_time: Some(now),
+        },
+        Some(tr) => {
+            let end = tr.end_time.unwrap_or(now);
+            if end <= tr.start_time {
+                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "end_time must be after start_time".to_string(),
+                }));
+            } else if (end - tr.start_time) > time::Duration::days(90) {
+                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "time range cannot exceed 3 months".to_string(),
+                }));
+            } else {
+                common_utils::types::TimeRange {
+                    start_time: tr.start_time,
+                    end_time: Some(end),
+                }
+            }
+        }
+    };
+    constraints.time_range = Some(time_range);
+
+    let payment_links = db
+        .list_payment_link_by_processor_merchant_id(
+            merchant.get_id(),
+            &constraints,
+            profile_id.clone(),
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve payment link")?;
-    let payment_link_list = future::try_join_all(payment_link.into_iter().map(|payment_link| {
+
+    let total_count = db
+        .get_total_count_of_payment_links(merchant.get_id(), &constraints, profile_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to retrieve total count of payment links")?;
+
+    let data = future::try_join_all(payment_links.into_iter().map(|payment_link| {
         api_models::payments::RetrievePaymentLinkResponse::from_db_payment_link(payment_link)
     }))
     .await?;
-    Ok(services::ApplicationResponse::Json(payment_link_list))
+    let size = data.len();
+    Ok(services::ApplicationResponse::Json(
+        api_models::payments::PaymentLinkListResponse {
+            size,
+            total_count,
+            data,
+        },
+    ))
 }
 
 pub fn check_payment_link_status(
@@ -720,6 +768,7 @@ pub fn get_payment_link_config_based_on_priority(
         color_icon_card_cvc_error,
         show_merchant_name,
         payment_methods_separator_text,
+        redirect_delay_seconds,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
@@ -742,6 +791,7 @@ pub fn get_payment_link_config_based_on_priority(
         (color_icon_card_cvc_error),
         (show_merchant_name),
         (payment_methods_separator_text),
+        (redirect_delay_seconds),
     );
 
     let payment_link_config =
@@ -778,6 +828,7 @@ pub fn get_payment_link_config_based_on_priority(
             color_icon_card_cvc_error,
             show_merchant_name,
             payment_methods_separator_text,
+            redirect_delay_seconds,
         };
 
     common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(&payment_link_config)
@@ -903,6 +954,7 @@ pub async fn get_payment_link_status(
             color_icon_card_cvc_error: None,
             show_merchant_name: Some(DEFAULT_SHOW_MERCHANT_NAME),
             payment_methods_separator_text: None,
+            redirect_delay_seconds: None,
         }
     };
 
@@ -987,6 +1039,7 @@ pub async fn get_payment_link_status(
         unified_message: unified_translated_message,
         capture_method: payment_attempt.capture_method,
         setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
+        redirect_delay_seconds: payment_link_config.redirect_delay_seconds,
     };
     let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(Box::new(
         payment_details,

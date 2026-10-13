@@ -38,6 +38,7 @@ pub struct DisputeNew {
     pub created_by: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
+    pub additional_details: Option<common_types::disputes::AdditionalDetails>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Identifiable, Queryable, Selectable)]
@@ -74,6 +75,7 @@ pub struct Dispute {
     pub dispute_currency: Option<storage_enums::Currency>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub additional_details: Option<common_types::disputes::AdditionalDetails>,
 }
 
 impl Dispute {
@@ -116,6 +118,7 @@ pub enum DisputeUpdate {
         connector_reason_code: Option<String>,
         challenge_required_by: Option<PrimitiveDateTime>,
         connector_updated_at: Option<PrimitiveDateTime>,
+        additional_details: Option<common_types::disputes::AdditionalDetails>,
     },
     StatusUpdate {
         dispute_status: storage_enums::DisputeStatus,
@@ -138,6 +141,7 @@ pub struct DisputeUpdateInternal {
     connector_updated_at: Option<PrimitiveDateTime>,
     modified_at: PrimitiveDateTime,
     evidence: Option<Secret<serde_json::Value>>,
+    additional_details: Option<common_types::disputes::AdditionalDetails>,
 }
 
 impl From<DisputeUpdate> for DisputeUpdateInternal {
@@ -151,6 +155,7 @@ impl From<DisputeUpdate> for DisputeUpdateInternal {
                 connector_reason_code,
                 challenge_required_by,
                 connector_updated_at,
+                additional_details,
             } => Self {
                 dispute_stage: Some(dispute_stage),
                 dispute_status: Some(dispute_status),
@@ -161,6 +166,7 @@ impl From<DisputeUpdate> for DisputeUpdateInternal {
                 connector_updated_at,
                 modified_at: common_utils::date_time::now(),
                 evidence: None,
+                additional_details,
             },
             DisputeUpdate::StatusUpdate {
                 dispute_status,
@@ -175,6 +181,7 @@ impl From<DisputeUpdate> for DisputeUpdateInternal {
                 challenge_required_by: None,
                 connector_updated_at: None,
                 evidence: None,
+                additional_details: None,
             },
             DisputeUpdate::EvidenceUpdate { evidence } => Self {
                 evidence: Some(evidence),
@@ -186,6 +193,7 @@ impl From<DisputeUpdate> for DisputeUpdateInternal {
                 challenge_required_by: None,
                 connector_updated_at: None,
                 modified_at: common_utils::date_time::now(),
+                additional_details: None,
             },
         }
     }
@@ -203,6 +211,7 @@ impl DisputeUpdateInternal {
             connector_updated_at,
             modified_at: _,
             evidence,
+            additional_details,
         } = self;
 
         Dispute {
@@ -215,6 +224,7 @@ impl DisputeUpdateInternal {
             connector_updated_at: connector_updated_at.or(source.connector_updated_at),
             modified_at: common_utils::date_time::now(),
             evidence: evidence.unwrap_or(source.evidence),
+            additional_details: additional_details.or(source.additional_details),
             ..source
         }
     }

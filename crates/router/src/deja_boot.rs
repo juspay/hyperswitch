@@ -30,6 +30,10 @@ fn non_empty(value: Option<&str>) -> Option<&str> {
 /// Without a known revision it falls back to the bare-timestamp form (with a
 /// warning) rather than claiming a provenance it does not have.
 fn fallback_run_id(settings: &DejaSettings) -> String {
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "names the recording itself, once at boot before any request; seaming it would be circular"
+    )]
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or(std::time::Duration::ZERO);
@@ -130,11 +134,20 @@ fn env_value_named(name: &str) -> Option<String> {
 }
 
 fn fallback_instance_id() -> String {
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "distinguishes one running instance from another, once at boot before any request; seaming it would be circular"
+    )]
     let now_ns = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or(std::time::Duration::ZERO)
         .as_nanos();
-    format!("pi-{}-{now_ns}", std::process::id())
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "distinguishes one running instance from another, once at boot before any request; seaming it would be circular"
+    )]
+    let pid = std::process::id();
+    format!("pi-{pid}-{now_ns}")
 }
 
 fn resolved_instance_id(settings: &DejaSettings) -> String {

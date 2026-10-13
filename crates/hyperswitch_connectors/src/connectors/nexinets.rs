@@ -891,7 +891,7 @@ impl ConnectorSpecifications for Nexinets {
             .unwrap_or_else(|| {
                 let max_payment_reference_id_length =
                     nexinets::nexinets_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH;
-                nanoid::nanoid!(max_payment_reference_id_length)
+                common_utils::generate_nanoid_with_default_alphabet(max_payment_reference_id_length)
             })
     }
 }

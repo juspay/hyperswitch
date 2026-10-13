@@ -87,15 +87,9 @@ async fn decision_engine_token_request(
     // a failure here costs a name in the dashboard and nothing else.
     let email = match state.global_store.find_user_by_user_id(&user.user_id).await {
         Ok(found) => {
-            // `Email` wraps a `Secret`, so it takes both traits to reach the string.
-            use hyperswitch_masking::{ExposeInterface, PeekInterface};
-            Some(
-                domain::UserFromStorage::from(found)
-                    .get_email()
-                    .expose()
-                    .peek()
-                    .to_string(),
-            )
+            // `Email` wraps the masked secret we want, so one unwrap reaches it.
+            use hyperswitch_masking::ExposeInterface;
+            Some(domain::UserFromStorage::from(found).get_email().expose())
         }
         Err(error) => {
             router_env::logger::warn!(
@@ -702,13 +696,6 @@ async fn merge_de_routing_records(
             .filter(|record| record.kind == routing_types::RoutingAlgorithmKind::Dynamic)
             .cloned(),
     );
-    compare_and_log_result(
-        de_result.clone(),
-        hs_result.clone(),
-        "list_routing".to_string(),
-        false,
-    );
-
     let mut merged = build_list_routing_result(
         state,
         platform.clone(),
@@ -1158,12 +1145,12 @@ pub async fn link_routing_config(
         Ok(routing_algorithm) => routing_algorithm,
         Err(error) => {
             // DE-only rule ids (e.g. created on the DE dashboard) activate directly on the DE.
-            if let Some((business_profile, record)) = find_de_record_for_algorithm(
+            if let Some((business_profile, record)) = Box::pin(find_de_record_for_algorithm(
                 &state,
                 &platform,
                 authentication_profile_id.clone(),
                 &algorithm_id,
-            )
+            ))
             .await?
             {
                 utils::when(record.algorithm_for != transaction_type, || {
@@ -1678,12 +1665,12 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
         Ok(routing_algorithm) => routing_algorithm,
         Err(error) => {
             // DE-only rules have no HS row; serve them from the DE.
-            if let Some((_business_profile, record)) = find_de_record_for_algorithm(
+            if let Some((_business_profile, record)) = Box::pin(find_de_record_for_algorithm(
                 &state,
                 &platform,
                 authentication_profile_id.clone(),
                 &algorithm_id,
-            )
+            ))
             .await?
             {
                 let response = de_record_to_merchant_routing_algorithm(record)?;
@@ -2297,12 +2284,6 @@ pub async fn retrieve_linked_routing_config(
                 &transaction_type,
                 hs_records.clone(),
             );
-            compare_and_log_result(
-                de_records.clone(),
-                hs_records.clone(),
-                "list_active_routing".to_string(),
-                false,
-            );
             let dimensions = dimension_state::Dimensions::new()
                 .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
                 .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
@@ -2778,7 +2759,7 @@ pub async fn success_based_routing_update_configs(
         cache_key.into(),
     )];
     let _ = cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
+        &*state.store,
         cache_entries_to_redact,
     )
     .await
@@ -2884,7 +2865,7 @@ pub async fn elimination_routing_update_configs(
     )];
 
     cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
+        &*state.store,
         cache_entries_to_redact,
     )
     .await
@@ -3156,7 +3137,7 @@ pub async fn contract_based_routing_update_configs(
         cache_key.into(),
     )];
     let _ = cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
+        &*state.store,
         cache_entries_to_redact,
     )
     .await
@@ -3354,22 +3335,6 @@ impl RoutableConnectors {
 
         Ok(connector_data)
     }
-}
-
-/// Clears the Decision Engine routing diff kill-switch counter for a profile, so the switch can
-/// trip again after the profile is re-enabled for the Decision Engine.
-pub async fn reset_decision_engine_diff_counter(
-    state: SessionState,
-    profile_id: common_utils::id_type::ProfileId,
-) -> RouterResult<service_api::ApplicationResponse<()>> {
-    reset_de_diff_counter(&state, &profile_id).await?;
-
-    router_env::logger::info!(
-        profile_id=?profile_id.get_string_repr(),
-        "decision_engine_euclid: routing diff counter reset via api"
-    );
-
-    Ok(service_api::ApplicationResponse::StatusOk)
 }
 
 /// A merchant account and its key store, by id. Migration works from
@@ -3888,9 +3853,7 @@ pub async fn routing_migration_status(
             only_in_de.sort();
         }
 
-        // The *configured* cut-over. `get_routing_result_source` would overlay Hyperswitch
-        // routing when the diff counter is over threshold — right for a payment, wrong here: a
-        // tripped kill switch would turn a runtime condition into a migration verdict.
+        // The configured cut-over source for this profile.
         let dimensions = dimension_state::Dimensions::new()
             .with_processor_merchant_id(merchant_id.clone().into())
             .with_provider_merchant_id(

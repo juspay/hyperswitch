@@ -1,7 +1,7 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{
     card_issuer as card_issuer_types, cards_info as card_info_types, enums as api_enums,
-    gsm as gsm_api_types, payment_methods,
+    gsm as gsm_api_types, offer_engine as offer_engine_api, payment_methods,
     payments::{self, CustomerDetails},
     routing::ConnectorSelection,
 };
@@ -20,10 +20,12 @@ use hyperswitch_domain_models::{mandates, payments::payment_intent::CustomerData
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
+#[cfg(feature = "olap")]
+use crate::core::webhooks::utils::redact_header_values;
 #[cfg(feature = "v2")]
 use crate::db::storage::revenue_recovery_redis_operation;
 use crate::{
-    core::errors,
+    core::{errors, offer_engine},
     headers::{
         ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_CLIENT_PLATFORM, X_CLIENT_SOURCE,
         X_CLIENT_VERSION, X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI,
@@ -317,7 +319,9 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Venmo
             | api_enums::PaymentMethodType::Mifinity
             | api_enums::PaymentMethodType::RevolutPay
-            | api_enums::PaymentMethodType::Bluecode => Self::Wallet,
+            | api_enums::PaymentMethodType::Neteller
+            | api_enums::PaymentMethodType::Bluecode
+            | api_enums::PaymentMethodType::Wero => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay
@@ -402,7 +406,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PixQr
             | api_enums::PaymentMethodType::Payshap
             | api_enums::PaymentMethodType::PayshapProxy
-            | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
+            | api_enums::PaymentMethodType::Pix
+            | api_enums::PaymentMethodType::Ted => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard
             | api_enums::PaymentMethodType::BhnCardNetwork => Self::GiftCard,
@@ -753,6 +758,41 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             profile_id: dispute.profile_id,
             merchant_connector_id: dispute.merchant_connector_id,
             is_already_refunded: false,
+            additional_details: dispute.additional_details,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<storage::Dispute> for api_models::disputes::PlatformDisputeListItem {
+    fn foreign_from(dispute: storage::Dispute) -> Self {
+        Self {
+            dispute_id: dispute.dispute_id,
+            payment_id: dispute.payment_id,
+            attempt_id: dispute.attempt_id,
+            merchant_id: dispute.merchant_id,
+            processor_merchant_id: dispute.processor_merchant_id,
+            amount: dispute.amount,
+            currency: dispute.dispute_currency.unwrap_or(
+                dispute
+                    .currency
+                    .to_uppercase()
+                    .parse_enum("Currency")
+                    .unwrap_or_default(),
+            ),
+            dispute_stage: dispute.dispute_stage,
+            dispute_status: dispute.dispute_status,
+            connector: dispute.connector,
+            connector_status: dispute.connector_status,
+            connector_dispute_id: dispute.connector_dispute_id,
+            connector_reason: dispute.connector_reason,
+            connector_reason_code: dispute.connector_reason_code,
+            challenge_required_by: dispute.challenge_required_by,
+            connector_created_at: dispute.connector_created_at,
+            connector_updated_at: dispute.connector_updated_at,
+            created_at: dispute.created_at,
+            profile_id: dispute.profile_id,
+            merchant_connector_id: dispute.merchant_connector_id,
         }
     }
 }
@@ -812,6 +852,7 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaym
             connector_created_at: dispute.connector_created_at,
             connector_updated_at: dispute.connector_updated_at,
             created_at: dispute.created_at,
+            additional_details: dispute.additional_details,
         }
     }
 }
@@ -1494,6 +1535,7 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::OpenBanking(_) => Self::OpenBanking,
             api_models::payouts::Bank::Payshap(_) => Self::Payshap,
             api_models::payouts::Bank::PayshapProxy(_) => Self::PayshapProxy,
+            api_models::payouts::Bank::Ted(_) => Self::Ted,
         }
     }
 }
@@ -1512,6 +1554,7 @@ impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMetho
             api_models::payouts::BankTransfer::OpenBanking(_) => Self::OpenBanking,
             api_models::payouts::BankTransfer::Payshap(_) => Self::Payshap,
             api_models::payouts::BankTransfer::PayshapProxy(_) => Self::PayshapProxy,
+            api_models::payouts::BankTransfer::Ted(_) => Self::Ted,
         }
     }
 }
@@ -1524,6 +1567,7 @@ impl ForeignFrom<&api_models::payouts::Wallet> for api_enums::PaymentMethodType 
             api_models::payouts::Wallet::Venmo(_) => Self::Venmo,
             api_models::payouts::Wallet::ApplePayDecrypt(_) => Self::ApplePay,
             api_models::payouts::Wallet::GooglePayDecrypt(_) => Self::GooglePay,
+            api_models::payouts::Wallet::Mifinity(_) => Self::Mifinity,
         }
     }
 }
@@ -1911,8 +1955,10 @@ impl ForeignFrom<(storage::PaymentLink, payments::PaymentLinkStatus)>
     ) -> Self {
         Self {
             payment_link_id: payment_link_config.payment_link_id,
+            payment_id: payment_link_config.payment_id,
             merchant_id: payment_link_config.merchant_id,
             processor_merchant_id: payment_link_config.processor_merchant_id,
+            profile_id: payment_link_config.profile_id,
             link_to_pay: payment_link_config.link_to_pay,
             amount: payment_link_config.amount,
             created_at: payment_link_config.created_at,
@@ -2241,12 +2287,20 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
 }
 
 #[cfg(feature = "olap")]
-impl TryFrom<domain::EventWithDeliverySuccessSource>
-    for api_models::webhook_events::EventRetrieveResponse
+impl
+    ForeignTryFrom<(
+        domain::EventWithDeliverySuccessSource,
+        Option<&std::collections::HashSet<String>>,
+    )> for api_models::webhook_events::EventRetrieveResponse
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(value: domain::EventWithDeliverySuccessSource) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (value, sensitive_header_names): (
+            domain::EventWithDeliverySuccessSource,
+            Option<&std::collections::HashSet<String>>,
+        ),
+    ) -> Result<Self, Self::Error> {
         use crate::utils::OptionExt;
 
         let item = value.event.clone();
@@ -2256,7 +2310,7 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
         // We cannot retrieve events with only some of these fields populated.
         let event_information = api_models::webhook_events::EventListItemResponse::try_from(value)?;
 
-        let request = item
+        let mut request: api_models::webhook_events::OutgoingWebhookRequestContent = item
             .request
             .get_required_value("request")
             .change_context(errors::ApiErrorResponse::InternalServerError)?
@@ -2264,7 +2318,7 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
             .parse_struct("OutgoingWebhookRequestContent")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse webhook event request information")?;
-        let response = item
+        let mut response: api_models::webhook_events::OutgoingWebhookResponseContent = item
             .response
             .get_required_value("response")
             .change_context(errors::ApiErrorResponse::InternalServerError)?
@@ -2272,6 +2326,13 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
             .parse_struct("OutgoingWebhookResponseContent")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse webhook event response information")?;
+
+        // The persisted event retains the original header values, which webhook retries reuse.
+        // The keys are masked only in the response
+        redact_header_values(&mut request.headers, sensitive_header_names);
+        if let Some(headers) = response.headers.as_mut() {
+            redact_header_values(headers, sensitive_header_names);
+        }
 
         Ok(Self {
             event_information,
@@ -2529,10 +2590,18 @@ impl ForeignFrom<diesel_models::business_profile::WalletBlockingConfig>
     }
 }
 
-impl ForeignFrom<api_models::admin::WebhookDetails>
+impl ForeignFrom<api_models::admin::WebhookDetailsRequest>
     for diesel_models::business_profile::WebhookDetails
 {
-    fn foreign_from(item: api_models::admin::WebhookDetails) -> Self {
+    fn foreign_from(item: api_models::admin::WebhookDetailsRequest) -> Self {
+        api_models::admin::WebhookDetailsResponse::from(item).foreign_into()
+    }
+}
+
+impl ForeignFrom<api_models::admin::WebhookDetailsResponse>
+    for diesel_models::business_profile::WebhookDetails
+{
+    fn foreign_from(item: api_models::admin::WebhookDetailsResponse) -> Self {
         Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
@@ -2553,7 +2622,7 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
 }
 
 impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
-    for api_models::admin::WebhookDetails
+    for api_models::admin::WebhookDetailsResponse
 {
     fn foreign_from(item: diesel_models::business_profile::WebhookDetails) -> Self {
         Self {
@@ -2644,6 +2713,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
             show_merchant_name: item.show_merchant_name,
             payment_methods_separator_text: item.payment_methods_separator_text,
+            redirect_delay_seconds: item.redirect_delay_seconds,
         }
     }
 }
@@ -2683,6 +2753,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
             show_merchant_name: item.show_merchant_name,
             payment_methods_separator_text: item.payment_methods_separator_text,
+            redirect_delay_seconds: item.redirect_delay_seconds,
         }
     }
 }
@@ -2866,6 +2937,9 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
             card_issuer: card_info.card_issuer.to_owned(),
             card_network: card_info.card_network.to_owned(),
             card_type: card_info.card_type.to_owned(),
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
             bank_code: None,
@@ -2884,6 +2958,22 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
     }
 }
 
+impl ForeignTryFrom<storage::CardIssuerListItem> for card_issuer_types::CardIssuerResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(from: storage::CardIssuerListItem) -> Result<Self, Self::Error> {
+        let issuer_name = CardIssuerName::try_new(from.issuer_name).change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "issuer_name".into(),
+            },
+        )?;
+        Ok(Self {
+            id: from.id,
+            issuer_name,
+        })
+    }
+}
+
 impl ForeignTryFrom<storage::CardIssuer> for card_issuer_types::CardIssuerResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -2897,5 +2987,17 @@ impl ForeignTryFrom<storage::CardIssuer> for card_issuer_types::CardIssuerRespon
             id: from.id,
             issuer_name,
         })
+    }
+}
+
+impl ForeignFrom<offer_engine::OfferEngineCredentialSource>
+    for offer_engine_api::OfferEngineCredentialSource
+{
+    fn foreign_from(from: offer_engine::OfferEngineCredentialSource) -> Self {
+        match from {
+            offer_engine::OfferEngineCredentialSource::None => Self::None,
+            offer_engine::OfferEngineCredentialSource::Application => Self::Application,
+            offer_engine::OfferEngineCredentialSource::Merchant => Self::Merchant,
+        }
     }
 }

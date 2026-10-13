@@ -17,7 +17,7 @@ use euclid::{
 };
 use router_env::{instrument, logger, tracing};
 use serde::{Deserialize, Serialize};
-use storage_impl::redis::cache::{self, SURCHARGE_CACHE};
+use storage_impl::redis::cache;
 
 use crate::{
     core::{
@@ -136,11 +136,11 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
             surcharge_decision_configs::MerchantSurchargeConfigs::default(),
         ),
         (None, Some(algorithm_id)) => {
-            let cached_algo = ensure_algorithm_cached(
+            let cached_algo = Box::pin(ensure_algorithm_cached(
                 &*state.store,
                 &payment_attempt.merchant_id,
                 algorithm_id.as_str(),
-            )
+            ))
             .await?;
 
             let merchant_surcharge_config = cached_algo.merchant_surcharge_configs.clone();
@@ -251,11 +251,11 @@ pub async fn perform_surcharge_decision_management_for_session_flow(
             SurchargeSource::Predetermined(request_surcharge_details)
         }
         (None, Some(algorithm_id)) => {
-            let cached_algo = ensure_algorithm_cached(
+            let cached_algo = Box::pin(ensure_algorithm_cached(
                 &*state.store,
                 &payment_attempt.merchant_id,
                 algorithm_id.as_str(),
-            )
+            ))
             .await?;
 
             SurchargeSource::Generate(cached_algo)
@@ -302,11 +302,11 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
             SurchargeSource::Predetermined(request_surcharge_details)
         }
         (None, Some(algorithm_id)) => {
-            let cached_algo = ensure_algorithm_cached(
+            let cached_algo = Box::pin(ensure_algorithm_cached(
                 &*state.store,
                 &payment_attempt.merchant_id,
                 algorithm_id.as_str(),
-            )
+            ))
             .await?;
 
             SurchargeSource::Generate(cached_algo)
@@ -495,7 +495,12 @@ pub async fn ensure_algorithm_cached(
     let key = merchant_id.get_surcharge_dsk_key();
 
     let value_to_cache = || async {
-        let config: diesel_models::Config = store.find_config_by_key(algorithm_id).await?;
+        let config: diesel_models::Config = store
+            .find_config_by_key_optional(algorithm_id)
+            .await?
+            .ok_or(errors::StorageError::ValueNotFound(
+                algorithm_id.to_string(),
+            ))?;
         let record: SurchargeDecisionManagerRecord = config
             .config
             .parse_struct("Program")
@@ -505,12 +510,12 @@ pub async fn ensure_algorithm_cached(
             .change_context(errors::StorageError::ValueNotFound("Program".to_string()))
             .attach_printable("Error initializing DSL interpreter backend")
     };
-    let interpreter = cache::get_or_populate_in_memory(
-        store.get_cache_store().as_ref(),
+    let interpreter = Box::pin(cache::get_or_populate_in_memory_redis(
+        store,
         &key,
-        value_to_cache,
-        &SURCHARGE_CACHE,
-    )
+        value_to_cache(),
+        cache::CacheId::Surcharge,
+    ))
     .await
     .change_context(ConfigError::CacheMiss)
     .attach_printable("Unable to retrieve cached routing algorithm even after refresh")?;

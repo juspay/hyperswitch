@@ -63,6 +63,29 @@ impl PaymentId {
         )
     }
 
+    /// Get the Redis key under which the payment-method vault session for this payment is cached
+    pub fn get_pm_vault_session_redis_key(&self, merchant_id: &super::MerchantId) -> String {
+        format!(
+            "{}_{}_pm_vault_session",
+            merchant_id.get_string_repr(),
+            self.get_string_repr()
+        )
+    }
+
+    /// Get the Redis key under which this payment's token for one saved payment method is pinned
+    pub fn get_pm_token_redis_key(
+        &self,
+        merchant_id: &super::MerchantId,
+        payment_method_id: &str,
+    ) -> String {
+        format!(
+            "{}_{}_{}_pm_token",
+            merchant_id.get_string_repr(),
+            self.get_string_repr(),
+            payment_method_id
+        )
+    }
+
     /// Generate a test payment id with prefix test_
     pub fn generate_test_payment_id_for_sample_data() -> Self {
         let id = generate_id_with_default_len("test");

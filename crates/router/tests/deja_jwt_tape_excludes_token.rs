@@ -12,7 +12,7 @@
 //!
 //! Own test binary: `set_global_runtime_hook` is a one-shot `OnceLock`, so the
 //! recording install here cannot share a process with the replay install in
-//! `deja_jwt_novel_token_fail_stops.rs`.
+//! `deja_jwt_novel_token_drops_only_the_clock.rs`.
 #![cfg(feature = "deja")]
 
 use router::services::authentication::{decode_jwt_verified, JwtDecodeOutcome};
@@ -30,6 +30,10 @@ struct Claims {
     sub: String,
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "test helper: a free fn, so allow-expect-in-tests does not cover it; a failure to read the artifact dir should fail the test loudly"
+)]
 fn artifact_bytes(dir: &std::path::Path) -> Vec<u8> {
     let mut out = Vec::new();
     let mut stack = vec![dir.to_path_buf()];

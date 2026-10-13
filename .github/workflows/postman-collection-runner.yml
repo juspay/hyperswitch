@@ -103,11 +103,9 @@ jobs:
 
       - name: Install Diesel CLI with Postgres Support
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - uses: taiki-e/install-action@v2
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}

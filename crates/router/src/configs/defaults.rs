@@ -48,6 +48,10 @@ impl Default for super::settings::Database {
             min_idle_pool_size: 2,
             max_lifetime: 1800,
             idle_timeout: 300,
+            keepalives_idle: common_utils::DEFAULT_DB_KEEPALIVES_IDLE_SECS,
+            keepalives_interval: common_utils::DEFAULT_DB_KEEPALIVES_INTERVAL_SECS,
+            keepalives_count: common_utils::DEFAULT_DB_KEEPALIVES_COUNT,
+            tcp_user_timeout_ms: common_utils::DEFAULT_DB_TCP_USER_TIMEOUT_MS,
         }
     }
 }
@@ -63,6 +67,8 @@ impl Default for super::settings::Locker {
             ttl_for_storage_in_secs: 60 * 60 * 24 * 365 * 7,
             decryption_scheme: Default::default(),
             create_entity_on_merchant_create: false,
+            #[cfg(feature = "v2")]
+            plain_fingerprint_response: true,
         }
     }
 }

@@ -45,6 +45,8 @@ pub struct PayoutAttempt {
     pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
     pub connector_eligibility_reference_id: Option<String>,
     pub connector_request_reference_id: Option<String>,
+    pub active_frm_id: Option<String>,
+    pub execution_kind: Option<storage_enums::PayoutExecutionKind>,
 }
 
 #[derive(
@@ -92,6 +94,8 @@ pub struct PayoutAttemptNew {
     pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
     pub connector_eligibility_reference_id: Option<String>,
     pub connector_request_reference_id: Option<String>,
+    pub active_frm_id: Option<String>,
+    pub execution_kind: Option<storage_enums::PayoutExecutionKind>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,6 +110,7 @@ pub enum PayoutAttemptUpdate {
         unified_message: Option<UnifiedMessage>,
         payout_connector_metadata: Option<pii::SecretSerdeValue>,
         connector_eligibility_reference_id: Option<String>,
+        active_frm_id: Option<String>,
     },
     PayoutTokenUpdate {
         payout_token: String,
@@ -121,6 +126,7 @@ pub enum PayoutAttemptUpdate {
         routing_info: Option<serde_json::Value>,
         merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
         connector_request_reference_id: String,
+        active_frm_id: Option<String>,
     },
     AdditionalPayoutDataUpdate {
         additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
@@ -164,6 +170,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
     pub connector_eligibility_reference_id: Option<String>,
     pub connector_request_reference_id: Option<String>,
+    pub active_frm_id: Option<String>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {
@@ -192,6 +199,7 @@ impl Default for PayoutAttemptUpdateInternal {
             additional_source_bank_data: None,
             connector_eligibility_reference_id: None,
             connector_request_reference_id: None,
+            active_frm_id: None,
         }
     }
 }
@@ -213,6 +221,7 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 unified_message,
                 payout_connector_metadata,
                 connector_eligibility_reference_id,
+                active_frm_id,
             } => Self {
                 connector_payout_id,
                 status: Some(status),
@@ -223,6 +232,7 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 unified_message,
                 payout_connector_metadata,
                 connector_eligibility_reference_id,
+                active_frm_id,
                 ..Default::default()
             },
             PayoutAttemptUpdate::BusinessUpdate {
@@ -242,11 +252,13 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 routing_info,
                 merchant_connector_id,
                 connector_request_reference_id,
+                active_frm_id,
             } => Self {
                 connector: Some(connector),
                 routing_info,
                 merchant_connector_id,
                 connector_request_reference_id: Some(connector_request_reference_id),
+                active_frm_id,
                 ..Default::default()
             },
             PayoutAttemptUpdate::AdditionalPayoutDataUpdate {

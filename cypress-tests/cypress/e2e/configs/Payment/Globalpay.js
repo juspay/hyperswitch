@@ -54,6 +54,9 @@ const payment_method_data_no3ds = {
   card: {
     last4: "1111",
     card_type: "DEBIT",
+    card_subtype: "VISA CLASSIC",
+    card_segment_type: "consumer",
+    funding_source: "DEBIT",
     card_network: "Visa",
     card_issuer: "CONOTOXIA SP Z OO",
     card_issuing_country: "POLAND",
@@ -404,6 +407,7 @@ export const connectorDetails = {
     // Mandate flows
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -420,6 +424,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -436,6 +441,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -452,6 +458,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -556,6 +563,7 @@ export const connectorDetails = {
     },
     MITAutoCapture: {
       Request: {
+        amount: 6000,
         currency: "EUR",
         billing: billingAddressEurope,
       },
@@ -568,6 +576,7 @@ export const connectorDetails = {
     },
     MITAutoCaptureWithCustomerAcceptance: {
       Request: {
+        amount: 6000,
         currency: "EUR",
         billing: billingAddressEurope,
         customer_acceptance: {
@@ -588,6 +597,7 @@ export const connectorDetails = {
     },
     MITManualCapture: {
       Request: {
+        amount: 6000,
         currency: "EUR",
         billing: billingAddressEurope,
       },
@@ -603,6 +613,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -641,6 +652,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         setup_future_usage: "off_session",
         payment_method: "card",
@@ -745,6 +757,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -763,6 +776,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,

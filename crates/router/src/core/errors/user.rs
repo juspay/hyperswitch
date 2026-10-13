@@ -6,7 +6,9 @@ pub type UserResult<T> = CustomResult<T, UserErrors>;
 pub type UserResponse<T> = CustomResult<ApplicationResponse<T>, UserErrors>;
 pub mod sample_data;
 
+// Serializable under `deja` so a recorded error replays as the same variant.
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum UserErrors {
     #[error("User InternalServerError")]
     InternalServerError,

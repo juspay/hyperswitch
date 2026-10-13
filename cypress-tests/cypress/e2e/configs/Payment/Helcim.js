@@ -218,6 +218,7 @@ const card_pm = {
   }),
   ZeroAuthConfirmPayment: getCustomExchange({
     Request: {
+      amount: 0,
       payment_type: "setup_mandate",
       payment_method: "card",
       payment_method_data: { card: successfulNo3DSCardDetails },
@@ -236,6 +237,9 @@ const card_pm = {
     },
   }),
   ZeroAuthMandate: {
+    Request: {
+      amount: 0,
+    },
     Response: {
       status: 501,
       body: {
@@ -254,6 +258,7 @@ const card_pm = {
   // they see no real mandate was created.
   MandateSingleUseNo3DSAutoCapture: {
     Request: {
+      amount: 6000,
       ...cardMandateBaseRequest,
       mandate_data: singleUseMandateData,
     },
@@ -264,6 +269,7 @@ const card_pm = {
   },
   MandateSingleUseNo3DSManualCapture: {
     Request: {
+      amount: 6000,
       ...cardMandateBaseRequest,
       mandate_data: singleUseMandateData,
     },
@@ -274,6 +280,7 @@ const card_pm = {
   },
   PaymentMethodIdMandateNo3DSAutoCapture: {
     Request: {
+      amount: 6000,
       ...cardMandateBaseRequest,
       mandate_data: null,
       customer_acceptance: customerAcceptance,
@@ -287,6 +294,7 @@ const card_pm = {
   },
   PaymentMethodIdMandateNo3DSManualCapture: {
     Request: {
+      amount: 6000,
       ...cardMandateBaseRequest,
       mandate_data: null,
       customer_acceptance: customerAcceptance,
@@ -306,7 +314,7 @@ const card_pm = {
     Configs: {
       TRIGGER_SKIP: true,
     },
-    Request: {},
+    Request: { amount: 6000 },
     Response: {
       status: 400,
       body: {
@@ -323,7 +331,7 @@ const card_pm = {
     Configs: {
       TRIGGER_SKIP: true,
     },
-    Request: {},
+    Request: { amount: 6000 },
     Response: {
       status: 400,
       body: {
@@ -341,7 +349,7 @@ const card_pm = {
   // same as Fiuu.js's MITAutoCapture.
   MITAutoCapture: {
     Configs: { TRIGGER_SKIP: true },
-    Request: {},
+    Request: { amount: 6000 },
     Response: {
       status: 200,
       body: { status: "succeeded" },
@@ -350,6 +358,7 @@ const card_pm = {
   MITAutoCaptureWithCustomerAcceptance: {
     Configs: { TRIGGER_SKIP: true },
     Request: {
+      amount: 6000,
       customer_acceptance: {
         acceptance_type: "offline",
         accepted_at: "1963-05-03T04:07:52.723Z",
@@ -366,7 +375,7 @@ const card_pm = {
   },
   MITManualCapture: {
     Configs: { TRIGGER_SKIP: true },
-    Request: {},
+    Request: { amount: 6000 },
     Response: {
       status: 200,
       body: { status: "requires_capture" },
@@ -374,7 +383,7 @@ const card_pm = {
   },
   MITWithoutBillingAddress: {
     Configs: { TRIGGER_SKIP: true },
-    Request: { billing: null },
+    Request: { amount: 6000, billing: null },
     Response: {
       status: 200,
       body: { status: "succeeded" },
@@ -382,6 +391,7 @@ const card_pm = {
   },
   MandateMultiUseNo3DSAutoCapture: {
     Request: {
+      amount: 6000,
       ...cardMandateBaseRequest,
       mandate_data: multiUseMandateData,
     },
@@ -392,6 +402,7 @@ const card_pm = {
   },
   MandateMultiUseNo3DSManualCapture: {
     Request: {
+      amount: 6000,
       ...cardMandateBaseRequest,
       mandate_data: multiUseMandateData,
     },
