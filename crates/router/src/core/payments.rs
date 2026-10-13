@@ -12081,14 +12081,14 @@ where
     let txn = TransactionData::Payment(transaction_data.clone());
     let txn_data = transaction_data.clone();
     let fallback = fallback_config.clone();
-    let mut active_mca_ids = None;
     let fallback_outcome = (
         fallback.clone(),
         common_enums::RoutingApproach::DefaultFallback,
         true,
     );
 
-    let routing_outcome = if let Some(stage) = straight_through_routing_stage {
+    let has_straight_through_routing = straight_through_routing_stage.is_some();
+    let straight_through_outcome = if let Some(stage) = straight_through_routing_stage {
         stage
             .route(StraightThroughRoutingInput { creds_identifier })
             .await
@@ -12104,13 +12104,30 @@ where
                 )
             })
     } else {
-        let ids = routing::get_active_merchant_connector_accounts(
-            &state,
-            processor.get_key_store(),
-            business_profile.get_id(),
+        None
+    };
+
+    let needs_mca_eligibility = straight_through_outcome
+        .as_ref()
+        .map(|(_, _, requires_eligibility)| *requires_eligibility)
+        .unwrap_or(true);
+    let active_mca_ids = if needs_mca_eligibility {
+        Some(
+            routing::get_active_merchant_connector_accounts(
+                &state,
+                processor.get_key_store(),
+                business_profile.get_id(),
+            )
+            .await
+            .map(|accounts| accounts.get_ids()),
         )
-        .await
-        .map(|accounts| accounts.get_ids());
+    } else {
+        None
+    };
+
+    let routing_outcome = if has_straight_through_routing {
+        straight_through_outcome
+    } else {
         let outcome = static_dynamic_routing_v1_for_payments(
             &state,
             processor.get_key_store(),
@@ -12120,7 +12137,9 @@ where
             backend_input,
             fallback,
             preferred_connector,
-            ids.as_ref().ok(),
+            active_mca_ids
+                .as_ref()
+                .and_then(|result| result.as_ref().ok()),
         )
         .await
         .inspect_err(|err| {
@@ -12134,58 +12153,48 @@ where
                 out.requires_eligibility,
             )
         });
-        active_mca_ids = Some(ids);
         outcome
     };
 
     let (connectors, routing_approach, requires_eligibility) =
         routing_outcome.unwrap_or(fallback_outcome);
 
-    let final_connectors = if requires_eligibility {
-        let ids_result = match active_mca_ids {
-            Some(result) => result,
-            None => routing::get_active_merchant_connector_accounts(
-                &state,
-                processor.get_key_store(),
-                business_profile.get_id(),
-            )
-            .await
-            .map(|accounts| accounts.get_ids()),
-        };
-        let eligibility_result = match ids_result {
-            Ok(ids) => {
-                routing::perform_eligibility_analysis_with_fallback(
-                    &state,
-                    processor.get_key_store(),
-                    connectors.clone(),
-                    &txn,
-                    eligible_connectors.clone(),
-                    business_profile,
-                    Some(&ids),
-                )
-                .await
-            }
-            Err(error) => {
-                logger::error!(error=?error, "euclid_routing: failed to fetch active merchant connector accounts; degrading to fallback config");
-                routing::get_eligibility_fallback_config(
-                    &state,
-                    &txn,
-                    eligible_connectors.clone(),
-                    business_profile,
-                )
-                .await
-            }
-        };
-        eligibility_result
-            .inspect_err(|err| {
-                logger::error!(
-                    error = ?err,
-                    "euclid: eligibility analysis failed, using fallback connectors"
-                );
-            })
-            .unwrap_or_else(|_| fallback_config.clone())
-    } else {
-        connectors
+    let final_connectors = match active_mca_ids {
+        Some(ids_result) if requires_eligibility => {
+            let eligibility_result = match ids_result {
+                Ok(ids) => {
+                    routing::perform_eligibility_analysis_with_fallback(
+                        &state,
+                        processor.get_key_store(),
+                        connectors.clone(),
+                        &txn,
+                        eligible_connectors.clone(),
+                        business_profile,
+                        Some(&ids),
+                    )
+                    .await
+                }
+                Err(error) => {
+                    logger::error!(error=?error, "euclid_routing: failed to fetch active merchant connector accounts; degrading to fallback config");
+                    routing::get_eligibility_fallback_config(
+                        &state,
+                        &txn,
+                        eligible_connectors.clone(),
+                        business_profile,
+                    )
+                    .await
+                }
+            };
+            eligibility_result
+                .inspect_err(|err| {
+                    logger::error!(
+                        error = ?err,
+                        "euclid: eligibility analysis failed, using fallback connectors"
+                    );
+                })
+                .unwrap_or_else(|_| fallback_config.clone())
+        }
+        _ => connectors,
     };
 
     core_routing::log_connectors("eligibility", &final_connectors);
