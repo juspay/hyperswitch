@@ -17,9 +17,10 @@ pub async fn add_entry_to_blocklist(
     state: SessionState,
     platform: domain::Platform,
     profile_id: Option<common_utils::id_type::ProfileId>,
+    transaction_type: common_enums::BlocklistTransactionType,
     body: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResponse<api_blocklist::AddToBlocklistResponse> {
-    utils::insert_entry_into_blocklist(&state, &platform, profile_id, body)
+    utils::insert_entry_into_blocklist(&state, &platform, profile_id, transaction_type, body)
         .await
         .map(services::ApplicationResponse::Json)
 }
@@ -28,9 +29,10 @@ pub async fn remove_entry_from_blocklist(
     state: SessionState,
     processor: domain::Processor,
     profile_id: Option<common_utils::id_type::ProfileId>,
+    transaction_type: common_enums::BlocklistTransactionType,
     body: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResponse<api_blocklist::DeleteFromBlocklistResponse> {
-    utils::delete_entry_from_blocklist(&state, &processor, profile_id, body)
+    utils::delete_entry_from_blocklist(&state, &processor, profile_id, transaction_type, body)
         .await
         .map(services::ApplicationResponse::Json)
 }
@@ -89,10 +91,18 @@ pub async fn upload_batch_blocklist(
     profile_id: Option<common_utils::id_type::ProfileId>,
     csv_bytes: bytes::Bytes,
     file_name: Option<String>,
+    transaction_type: Option<common_enums::BlocklistTransactionType>,
 ) -> RouterResponse<api_blocklist::BatchBlocklistUploadResponse> {
-    batch::initiate_batch_blocklist_upload(&state, &platform, profile_id, csv_bytes, file_name)
-        .await
-        .map(services::ApplicationResponse::Json)
+    batch::initiate_batch_blocklist_upload(
+        &state,
+        &platform,
+        profile_id,
+        csv_bytes,
+        file_name,
+        transaction_type,
+    )
+    .await
+    .map(services::ApplicationResponse::Json)
 }
 
 pub async fn get_batch_blocklist_job_status(
@@ -131,8 +141,9 @@ pub async fn create_blocklist_export(
     state: SessionState,
     platform: domain::Platform,
     profile_id: Option<common_utils::id_type::ProfileId>,
+    transaction_type: Option<common_enums::BlocklistTransactionType>,
 ) -> RouterResponse<api_blocklist::BlocklistExportResponse> {
-    export::initiate_blocklist_export(&state, &platform, profile_id)
+    export::initiate_blocklist_export(&state, &platform, profile_id, transaction_type)
         .await
         .map(services::ApplicationResponse::Json)
 }
