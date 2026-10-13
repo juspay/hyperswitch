@@ -853,13 +853,13 @@ pub async fn get_payment_method_integration_type(
         .await
 }
 
-pub async fn get_should_generate_payment_method_fingerprint(
+pub async fn get_should_generate_merchant_scoped_payment_method_fingerprint(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
     dimensions
-        .get_should_generate_payment_method_fingerprint(
+        .get_should_generate_merchant_scoped_payment_method_fingerprint(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             customer_id,

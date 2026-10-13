@@ -526,8 +526,8 @@ pub mod superposition {
         "vaulting.should_trigger_fingerprint_migration";
     /// Merchant-scoped payment method fingerprint configuration key (org and merchant scoped).
     /// When enabled, vaulting a card also derives a merchant-keyed fingerprint for it.
-    pub const SHOULD_GENERATE_PAYMENT_METHOD_FINGERPRINT: &str =
-        "vaulting.should_generate_payment_method_fingerprint";
+    pub const SHOULD_GENERATE_MERCHANT_SCOPED_PAYMENT_METHOD_FINGERPRINT: &str =
+        "vaulting.should_generate_merchant_scoped_payment_method_fingerprint";
     /// Timeout (in seconds) for fetching a network token from the tokenization service during a
     /// payment configuration key
     pub const NETWORK_TOKEN_FETCH_TIMEOUT_IN_SECS: &str =

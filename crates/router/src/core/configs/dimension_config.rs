@@ -537,15 +537,15 @@ impl DatabaseBackedConfig for ShouldTriggerFingerprintMigration {
 }
 
 config! {
-    superposition_key = SHOULD_GENERATE_PAYMENT_METHOD_FINGERPRINT,
+    superposition_key = SHOULD_GENERATE_MERCHANT_SCOPED_PAYMENT_METHOD_FINGERPRINT,
     output = bool,
     default = false,
     requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
     targeting_key = id_type::CustomerId
 }
 
-impl DatabaseBackedConfig for ShouldGeneratePaymentMethodFingerprint {
-    const KEY: &'static str = "should_generate_payment_method_fingerprint";
+impl DatabaseBackedConfig for ShouldGenerateMerchantScopedPaymentMethodFingerprint {
+    const KEY: &'static str = "should_generate_merchant_scoped_payment_method_fingerprint";
 }
 
 config! {
