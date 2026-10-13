@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.07.0-hotfix1
+
+### Bug Fixes
+
+- **payments:** Update connector mandate id in payment method irrespective of active/inactive status ([#14759](https://github.com/juspay/hyperswitch/pull/14759)) ([`2a791cd`](https://github.com/juspay/hyperswitch/commit/2a791cdc674e332e473381fbd500495627ec36c4))
+
+**Full Changelog:** [`2026.10.07.0...2026.10.07.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.10.07.0...2026.10.07.0-hotfix1)
+
+- - -
+
 ## 2026.10.07.0
 
 ### Features
