@@ -52,6 +52,8 @@ use validator::PayoutExecutionKindValidation;
 
 #[cfg(all(feature = "olap", feature = "payouts"))]
 use crate::consts as payout_consts;
+#[cfg(feature = "payout_retry")]
+use crate::core::fraud_check::types::PayoutFrmApplicability;
 #[cfg(feature = "olap")]
 use crate::types::PayoutActionData;
 use crate::{
@@ -115,6 +117,9 @@ macro_rules! handle_payout_pre_frm_result {
         }
     }};
 }
+
+#[cfg(feature = "payout_retry")]
+pub(super) use handle_payout_pre_frm_result;
 
 // ********************************************** TYPES **********************************************
 #[derive(Clone)]
@@ -292,14 +297,14 @@ pub async fn make_connector_decision(
 
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(routing_data) => {
-            let frm_outcome = match payout_frm_applicability {
+            let frm_outcome = match payout_frm_applicability.as_ref() {
                 Some(applicability) => handle_payout_pre_frm_result!(
                     Box::pin(fraud_check::pre_payouts_frm_core(
                         state,
                         platform,
                         payout_data,
                         &routing_data.connector_data,
-                        applicability,
+                        applicability.clone(),
                         &pre_frm_failure_mode,
                     ))
                     .await,
@@ -330,6 +335,8 @@ pub async fn make_connector_decision(
                         platform,
                         dimensions,
                         header_payload,
+                        &pre_frm_failure_mode,
+                        payout_frm_applicability.as_ref(),
                     )
                     .await?;
                 }
@@ -345,14 +352,14 @@ pub async fn make_connector_decision(
 
             let connector_data = get_next_connector(&mut routing_data)?.connector_data;
 
-            let frm_outcome = match payout_frm_applicability {
+            let frm_outcome = match payout_frm_applicability.as_ref() {
                 Some(applicability) => handle_payout_pre_frm_result!(
                     Box::pin(fraud_check::pre_payouts_frm_core(
                         state,
                         platform,
                         payout_data,
                         &connector_data,
-                        applicability,
+                        applicability.clone(),
                         &pre_frm_failure_mode,
                     ))
                     .await,
@@ -384,6 +391,8 @@ pub async fn make_connector_decision(
                         platform,
                         dimensions,
                         header_payload,
+                        &pre_frm_failure_mode,
+                        payout_frm_applicability.as_ref(),
                     )
                     .await?;
                 }
@@ -401,6 +410,7 @@ pub async fn make_connector_decision(
 }
 
 #[cfg(feature = "payout_retry")]
+#[allow(clippy::too_many_arguments)]
 async fn predetermined_call_connector_type_payout_retry(
     state: &SessionState,
     connector_data: api::ConnectorData,
@@ -408,6 +418,8 @@ async fn predetermined_call_connector_type_payout_retry(
     platform: &domain::Platform,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     header_payload: HeaderPayload,
+    pre_frm_failure_mode: &common_enums::PreFrmFailureMode,
+    payout_frm_applicability: Option<&PayoutFrmApplicability>,
 ) -> RouterResult<()> {
     let config_bool = retry::config_should_call_gsm_payout(
         state,
@@ -425,6 +437,8 @@ async fn predetermined_call_connector_type_payout_retry(
             platform,
             dimensions,
             header_payload,
+            pre_frm_failure_mode,
+            payout_frm_applicability,
         ))
         .await?;
     }
@@ -433,6 +447,7 @@ async fn predetermined_call_connector_type_payout_retry(
 }
 
 #[cfg(feature = "payout_retry")]
+#[allow(clippy::too_many_arguments)]
 async fn retryable_call_connector_type_payout_retry(
     state: &SessionState,
     routing_data: IntoIter<api::ConnectorRoutingData>,
@@ -441,6 +456,8 @@ async fn retryable_call_connector_type_payout_retry(
     platform: &domain::Platform,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     header_payload: HeaderPayload,
+    pre_frm_failure_mode: &common_enums::PreFrmFailureMode,
+    payout_frm_applicability: Option<&PayoutFrmApplicability>,
 ) -> RouterResult<()> {
     let config_multiple_connector_bool = retry::config_should_call_gsm_payout(
         state,
@@ -459,6 +476,8 @@ async fn retryable_call_connector_type_payout_retry(
             platform,
             dimensions,
             header_payload.clone(),
+            pre_frm_failure_mode,
+            payout_frm_applicability,
         ))
         .await?;
     }
@@ -479,6 +498,8 @@ async fn retryable_call_connector_type_payout_retry(
             platform,
             dimensions,
             header_payload,
+            pre_frm_failure_mode,
+            payout_frm_applicability,
         ))
         .await?;
     }

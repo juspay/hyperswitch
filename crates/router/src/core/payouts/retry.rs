@@ -1,6 +1,6 @@
 use std::vec::IntoIter;
 
-use common_enums::PayoutRetryType;
+use common_enums::{PayoutRetryType, PreFrmFailureMode};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::HeaderPayload;
 use router_env::{
@@ -8,12 +8,19 @@ use router_env::{
     tracing::{self, instrument},
 };
 
-use super::{call_connector_payout, validator::PayoutExecutionKindValidation, PayoutData};
+use super::{
+    call_connector_payout, handle_payout_pre_frm_result, update_frm_blocked_payout_tracker,
+    validator::PayoutExecutionKindValidation, PayoutData,
+};
 use crate::{
     consts,
     core::{
         configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
+        fraud_check::{
+            self,
+            types::{PayoutFrmApplicability, PayoutFrmOutcome},
+        },
         payouts,
     },
     routes::{self, app, metrics},
@@ -31,6 +38,8 @@ pub async fn do_gsm_multiple_connector_actions(
     platform: &domain::Platform,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     header_payload: HeaderPayload,
+    pre_frm_failure_mode: &PreFrmFailureMode,
+    payout_frm_applicability: Option<&PayoutFrmApplicability>,
 ) -> RouterResult<()> {
     let mut retries = None;
 
@@ -66,17 +75,23 @@ pub async fn do_gsm_multiple_connector_actions(
 
                 connector = super::get_next_connector(&mut connectors_routing_data)?.connector_data;
 
-                Box::pin(do_retry(
+                let frm_outcome = Box::pin(do_retry(
                     &state.clone(),
                     connector.to_owned(),
                     platform,
                     header_payload.clone(),
                     payout_data,
                     dimensions,
+                    pre_frm_failure_mode,
+                    payout_frm_applicability,
                 ))
                 .await?;
 
                 retries = retries.map(|i| i.saturating_sub(1));
+
+                if frm_outcome == PayoutFrmOutcome::Blocked {
+                    break;
+                }
             }
             common_enums::GsmDecision::DoDefault => break,
         }
@@ -93,6 +108,8 @@ pub async fn do_gsm_single_connector_actions(
     platform: &domain::Platform,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     header_payload: HeaderPayload,
+    pre_frm_failure_mode: &PreFrmFailureMode,
+    payout_frm_applicability: Option<&PayoutFrmApplicability>,
 ) -> RouterResult<()> {
     let mut retries = None;
 
@@ -126,17 +143,23 @@ pub async fn do_gsm_single_connector_actions(
                     break;
                 }
 
-                Box::pin(do_retry(
+                let frm_outcome = Box::pin(do_retry(
                     &state.clone(),
                     original_connector_data.to_owned(),
                     platform,
                     header_payload.clone(),
                     payout_data,
                     dimensions,
+                    pre_frm_failure_mode,
+                    payout_frm_applicability,
                 ))
                 .await?;
 
                 retries = retries.map(|i| i.saturating_sub(1));
+
+                if frm_outcome == PayoutFrmOutcome::Blocked {
+                    break;
+                }
             }
             common_enums::GsmDecision::DoDefault => break,
         }
@@ -211,20 +234,63 @@ pub async fn do_retry(
     header_payload: HeaderPayload,
     payout_data: &mut PayoutData,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-) -> RouterResult<()> {
+    pre_frm_failure_mode: &PreFrmFailureMode,
+    payout_frm_applicability: Option<&PayoutFrmApplicability>,
+) -> RouterResult<PayoutFrmOutcome> {
     metrics::AUTO_RETRY_PAYOUT_COUNT.add(1, &[]);
 
     modify_trackers(state, &connector, platform, payout_data).await?;
 
-    Box::pin(call_connector_payout(
-        state,
-        platform,
-        header_payload,
-        &connector,
-        payout_data,
-        dimensions,
-    ))
-    .await
+    let rerun_payout_frm_before_auto_retry = dimensions
+        .with_profile_id(payout_data.profile_id.clone())
+        .with_connector(connector.connector_name)
+        .get_rerun_payout_frm_before_auto_retry(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+
+    let frm_outcome = if rerun_payout_frm_before_auto_retry {
+        match payout_frm_applicability {
+            Some(applicability) => handle_payout_pre_frm_result!(
+                Box::pin(fraud_check::pre_payouts_frm_core(
+                    state,
+                    platform,
+                    payout_data,
+                    &connector,
+                    applicability.clone(),
+                    pre_frm_failure_mode,
+                ))
+                .await,
+                pre_frm_failure_mode,
+                platform,
+                PayoutFrmOutcome::Continue
+            )?,
+            None => PayoutFrmOutcome::Continue,
+        }
+    } else {
+        PayoutFrmOutcome::Continue
+    };
+
+    match frm_outcome {
+        PayoutFrmOutcome::Continue => {
+            Box::pin(call_connector_payout(
+                state,
+                platform,
+                header_payload,
+                &connector,
+                payout_data,
+                dimensions,
+            ))
+            .await?;
+        }
+        PayoutFrmOutcome::Blocked => {
+            update_frm_blocked_payout_tracker(state, platform, payout_data).await?;
+        }
+    }
+
+    Ok(frm_outcome)
 }
 
 #[instrument(skip_all)]
