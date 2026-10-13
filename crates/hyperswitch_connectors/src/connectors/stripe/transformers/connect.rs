@@ -3,7 +3,7 @@ use common_utils::{ext_traits::OptionExt as _, pii::Email};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
 use hyperswitch_interfaces::errors;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::ErrorDetails;
@@ -83,10 +83,58 @@ pub struct StripeConnectReversalResponse {
     source_refund: Option<String>,
 }
 
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum PayoutAccountType {
+    Custom,
+    Express,
+    Standard,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum PayoutBusinessType {
+    Company,
+    Individual,
+}
+
+impl TryFrom<&str> for PayoutAccountType {
+    type Error = Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "custom" => Ok(Self::Custom),
+            "express" => Ok(Self::Express),
+            "standard" => Ok(Self::Standard),
+            _ => Err(error_stack::report!(
+                errors::ConnectorError::InvalidDataFormat {
+                    field_name: "vendor_details.account_type".into(),
+                }
+            )),
+        }
+    }
+}
+
+impl TryFrom<&str> for PayoutBusinessType {
+    type Error = Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "company" => Ok(Self::Company),
+            "individual" => Ok(Self::Individual),
+            _ => Err(error_stack::report!(
+                errors::ConnectorError::InvalidDataFormat {
+                    field_name: "business_type".into(),
+                }
+            )),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct StripeConnectRecipientCreateRequest {
     #[serde(rename = "type")]
-    account_type: String,
+    account_type: PayoutAccountType,
     country: Option<enums::CountryAlpha2>,
     email: Option<Email>,
     #[serde(rename = "capabilities[card_payments][requested]")]
@@ -97,7 +145,7 @@ pub struct StripeConnectRecipientCreateRequest {
     tos_acceptance_date: Option<i64>,
     #[serde(rename = "tos_acceptance[ip]")]
     tos_acceptance_ip: Option<Secret<String>>,
-    business_type: String,
+    business_type: PayoutBusinessType,
     #[serde(rename = "business_profile[mcc]")]
     business_profile_mcc: Option<i32>,
     #[serde(rename = "business_profile[url]")]
@@ -195,7 +243,7 @@ pub struct RecipientBankAccountRequest {
     #[serde(rename = "external_account[account_number]")]
     external_account_account_number: Secret<String>,
     #[serde(rename = "external_account[account_holder_type]")]
-    external_account_account_holder_type: String,
+    external_account_account_holder_type: PayoutBusinessType,
     #[serde(rename = "external_account[routing_number]")]
     external_account_routing_number: Secret<String>,
 }
@@ -331,15 +379,19 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientCreateRequest {
             payout_vendor_details.vendor_details,
             payout_vendor_details.individual_details,
         );
+        let date_of_birth = individual_details
+            .date_of_birth
+            .as_ref()
+            .map(|date| date.peek());
         Ok(Self {
-            account_type: vendor_details.account_type,
+            account_type: PayoutAccountType::try_from(vendor_details.account_type.as_str())?,
             country: address.country,
             email: Some(customer_email.clone()),
             capabilities_card_payments: vendor_details.capabilities_card_payments,
             capabilities_transfers: vendor_details.capabilities_transfers,
             tos_acceptance_date: individual_details.tos_acceptance_date,
             tos_acceptance_ip: individual_details.tos_acceptance_ip,
-            business_type: vendor_details.business_type,
+            business_type: PayoutBusinessType::try_from(vendor_details.business_type.as_str())?,
             business_profile_mcc: vendor_details.business_profile_mcc,
             business_profile_url: vendor_details.business_profile_url,
             business_profile_name: vendor_details.business_profile_name.clone(),
@@ -354,9 +406,15 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientCreateRequest {
             company_owners_provided: vendor_details.company_owners_provided,
             individual_first_name: address.first_name,
             individual_last_name: address.last_name,
-            individual_dob_day: individual_details.individual_dob_day,
-            individual_dob_month: individual_details.individual_dob_month,
-            individual_dob_year: individual_details.individual_dob_year,
+            individual_dob_day: date_of_birth
+                .map(|date| Secret::new(date.day().to_string()))
+                .or(individual_details.individual_dob_day),
+            individual_dob_month: date_of_birth
+                .map(|date| Secret::new(u8::from(date.month()).to_string()))
+                .or(individual_details.individual_dob_month),
+            individual_dob_year: date_of_birth
+                .map(|date| Secret::new(date.year().to_string()))
+                .or(individual_details.individual_dob_year),
             individual_address_line1: address.line1,
             individual_address_line2: address.line2,
             individual_address_postal_code: address.zip,
@@ -422,9 +480,12 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                             })?,
                         external_account_currency: request.destination_currency.to_owned(),
                         external_account_account_holder_name: customer_name,
-                        external_account_account_holder_type: payout_vendor_details
-                            .individual_details
-                            .get_external_account_account_holder_type()?,
+                        external_account_account_holder_type: PayoutBusinessType::try_from(
+                            payout_vendor_details
+                                .individual_details
+                                .get_external_account_account_holder_type()?
+                                .as_str(),
+                        )?,
                         external_account_account_number: bank_details.bank_account_number,
                         external_account_routing_number: bank_details.bank_routing_number,
                     }))
