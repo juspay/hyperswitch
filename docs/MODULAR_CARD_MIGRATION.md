@@ -61,16 +61,17 @@ duplicate rows, returning each source line with the same confirmed PM ID.
 Before POST, a non-expiring Redis attempt record is saved. Its key and payload
 digest use keyed hashing; its value contains only the digest and optional PM ID.
 `migration_operation_id` identifies this record for operational reconciliation.
-Pending attempts survive the short lock's expiry. Lost responses, cancellation
-and journal-write failures after POST cannot trigger another blind POST.
+Pending attempts survive the short lock's expiry. At the migration layer, lost
+responses, cancellation and post-write journal failures are reconciled before
+another create is considered.
 Explicit authentication rejections (401/403 before the modular create handler)
 clear the pending attempt, allowing a safe retry after credentials are corrected.
 Other error statuses are not assumed to prove that storage failed.
 
-Migration customer/card creation opts out of the HTTP client's automatic replay
-after a connection closes without a complete response. Such writes must be
-reconciled using the attempt record. The opt-out defaults to false for all other
-callers, preserving their existing retry policy.
+Customer and card calls retain the shared HTTP client's existing connection-close
+retry behavior. There is no migration-specific transport override. The journal
+covers application-level retries and resumes, not automatic transport replay;
+duplicate upstream writes after a dropped response remain possible.
 
 Customer creation also writes a non-expiring `MODULAR_CUSTOMER_MIGRATION_*`
 pending marker before POST. Its value contains only the optional generated customer
@@ -135,13 +136,12 @@ Legacy migration also passed against that backend. The migration-specific
 `include_new` listing and missing-BIN preflight fixes were verified live; 45
 router tests and 11 payment-method tests passed after those fixes.
 
-A later dropped-card-response check exposed automatic transport replay. The
-opt-out above passes the v1 binary-target compile check, but its new socket test
-and rebuilt runtime verification are still pending. Earlier feature-combination
-checks do not validate this latest transport change. A stored-card payment
-attempt returned HTTP 501 (`IR_00`, `Payment methods is not implemented`); its
-cause remains unresolved. The delayed-card-commit-after-lock-expiry case is also
-pending. These are integration sign-off blockers, not successful payment evidence.
+A dropped-card-response check exposed automatic transport replay. This release
+retains the existing retry policy; migration-specific transport changes and their
+tests were removed to keep the feature scope small. A stored-card payment attempt
+returned HTTP 501 (`IR_00`, `Payment methods is not implemented`); its cause remains
+unresolved. Hosted sandbox payment and delayed-card-commit checks remain pending;
+earlier local results do not establish integration readiness for the latest build.
 
 PR #14589 supplies the merchant-reference resolution used by the intended v1
 payment flow. It is still open against main, and was reported separately deployed

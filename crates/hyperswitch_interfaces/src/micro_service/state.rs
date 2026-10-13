@@ -13,10 +13,6 @@ use super::error::MicroserviceClientError;
 /// Validated -> TransformedRequest -> Executed -> TransformedResponse
 #[async_trait::async_trait]
 pub trait ClientOperation {
-    /// Preserve the normal retry policy unless a non-idempotent flow opts out.
-    fn disable_connection_closed_retry(&self) -> bool {
-        false
-    }
     /// HTTP method for this flow, used by the executor when building the request.
     ///
     /// This is a compile-time constant so the executor can remain generic.

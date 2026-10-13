@@ -76,8 +76,10 @@ pub struct PaymentMethodsMigrateForm {
 
     pub merchant_connector_ids: Option<text::Text<String>>,
 
+    /// Omitted/false selects the existing migration handler and response contract.
     pub use_modular_customer_creation: Option<text::Text<bool>>,
 
+    /// Temporary merchant credential for customer calls; the batch itself uses admin auth.
     pub customer_api_key: Option<text::Text<hyperswitch_masking::StrongSecret<String>>>,
 }
 
@@ -104,6 +106,7 @@ impl PaymentMethodsMigrateForm {
         {
             return Ok(CustomerMigrationOptions::Legacy);
         }
+        // Move the secret out of the form only after modular migration is selected.
         let api_key = self
             .customer_api_key
             .take()
