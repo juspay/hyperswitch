@@ -10083,42 +10083,70 @@ Cypress.Commands.add("paymentMethodCreateCall", (globalState, pmData) => {
   });
 });
 
-Cypress.Commands.add("getRawPaymentMethodDetailsCall", (globalState) => {
-  const apiKey = globalState.get("apiKey");
-  const profileId = globalState.get("profileId");
-  const paymentMethodId = globalState.get("paymentMethodId");
+Cypress.Commands.add(
+  "getRawPaymentMethodDetailsCall",
+  (globalState, pmData) => {
+    const apiKey = globalState.get("apiKey");
+    const profileId = globalState.get("profileId");
+    const paymentMethodId = globalState.get("paymentMethodId");
 
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("pmServiceUrl")}/v1/payment-methods/${paymentMethodId}?fetch_raw_detail=true`,
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "X-Profile-Id": profileId,
-      Authorization: `api-key=${apiKey}`,
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    if (response.status === 200) {
-      expect(response.body).to.have.property("id");
-      expect(response.body.id).to.equal(paymentMethodId);
-      expect(response.body).to.have.property("payment_method_type");
-      expect(response.body).to.have.property("payment_method_subtype");
-      expect(response.body).to.have.property("payment_method_data");
-      const card = response.body.payment_method_data.card;
-      expect(card).to.have.property("last4_digits");
-      expect(card).to.have.property("expiry_month");
-      expect(card).to.have.property("expiry_year");
-      expect(card).to.have.property("card_holder_name");
-      expect(card).to.have.property("saved_to_locker");
-      expect(card.saved_to_locker).to.be.true;
-    } else {
-      throw new Error(
-        `Get raw payment method details failed with status ${response.status}: ${JSON.stringify(response.body)}`
-      );
-    }
-  });
-});
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("pmServiceUrl")}/v1/payment-methods/${paymentMethodId}?fetch_raw_detail=true`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Profile-Id": profileId,
+        Authorization: `api-key=${apiKey}`,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      if (response.status === 200) {
+        expect(response.body).to.have.property("id");
+        expect(response.body.id).to.equal(paymentMethodId);
+        expect(response.body).to.have.property("payment_method_type");
+        expect(response.body).to.have.property("payment_method_subtype");
+        expect(response.body).to.have.property("payment_method_data");
+        const card = response.body.payment_method_data.card;
+        expect(card).to.have.property("last4_digits");
+        expect(card).to.have.property("expiry_month");
+        expect(card).to.have.property("expiry_year");
+        expect(card).to.have.property("card_holder_name");
+        expect(card).to.have.property("saved_to_locker");
+        expect(card.saved_to_locker).to.be.true;
+
+        // `fetch_raw_detail=true` only includes raw_payment_method_data when
+        // the merchant-scoped
+        // `payments.should_return_raw_payment_method_details` superposition
+        // config allows it for external api keys — a denied fetch silently
+        // omits the field, so asserting it here verifies that config too
+        const expectedCard = pmData?.payment_method_data?.card;
+        if (expectedCard) {
+          const rawCard = response.body.raw_payment_method_data?.card;
+          expect(rawCard, "raw_payment_method_data.card").to.not.be.undefined;
+          expect(rawCard.card_number, "raw card_number").to.equal(
+            expectedCard.card_number
+          );
+          expect(rawCard.card_exp_month, "raw card_exp_month").to.equal(
+            expectedCard.card_exp_month
+          );
+          expect(rawCard.card_exp_year, "raw card_exp_year").to.equal(
+            expectedCard.card_exp_year
+          );
+          if (expectedCard.card_holder_name) {
+            expect(rawCard.card_holder_name, "raw card_holder_name").to.equal(
+              expectedCard.card_holder_name
+            );
+          }
+        }
+      } else {
+        throw new Error(
+          `Get raw payment method details failed with status ${response.status}: ${JSON.stringify(response.body)}`
+        );
+      }
+    });
+  }
+);
 
 Cypress.Commands.add("updateSavedPMCall", (globalState, updateData) => {
   const apiKey = globalState.get("apiKey");
@@ -10422,6 +10450,67 @@ Cypress.Commands.add(
       } else {
         throw new Error(
           `Payment with saved PM failed with status ${response.status}: ${JSON.stringify(response.body)}`
+        );
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "confirmWithSavedPMCall",
+  (globalState, confirmData, useToken = false) => {
+    const baseUrl = globalState.get("baseUrl");
+    const apiKey = globalState.get("apiKey");
+    const customerId = globalState.get("customerId");
+    const profileId = globalState.get("profileId");
+    const paymentIntentId = globalState.get("paymentID");
+
+    // Same token resolution as paymentWithSavedPMCall — the payment being
+    // confirmed was created against this token.
+    const paymentToken = useToken
+      ? globalState.get("paymentMethodToken") || globalState.get("paymentToken")
+      : globalState.get("paymentMethodId");
+
+    if (!paymentIntentId) {
+      throw new Error(
+        "confirmWithSavedPMCall: no `paymentID` found; create the payment with paymentWithSavedPMCall first"
+      );
+    }
+
+    if (!paymentToken) {
+      throw new Error(
+        "confirmWithSavedPMCall: no payment token found. Set `paymentMethodId` via a payment method create, or `paymentMethodToken` via the payment method session flow, before calling this command"
+      );
+    }
+
+    const requestBody = {
+      ...confirmData,
+      confirm: true,
+      customer_id: customerId,
+      profile_id: profileId,
+      payment_token: paymentToken,
+    };
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/payments/${paymentIntentId}/confirm`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: requestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      if (response.status === 200) {
+        globalState.set("paymentId", response.body.payment_id);
+        globalState.set("paymentID", response.body.payment_id);
+        expect(response.body).to.have.property("payment_id");
+        expect(response.body).to.have.property("status");
+        expect(response.body.amount).to.equal(confirmData.amount);
+        expect(response.body.currency).to.equal(confirmData.currency);
+      } else {
+        throw new Error(
+          `Confirm with saved PM failed with status ${response.status}: ${JSON.stringify(response.body)}`
         );
       }
     });
