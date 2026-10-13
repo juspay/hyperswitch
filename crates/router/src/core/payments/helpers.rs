@@ -622,7 +622,8 @@ pub async fn get_token_pm_type_mandate_details(
                         None,
                         None,
                     ),
-                    RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_) => (
+                    RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
+                    | RecurringDetails::NetworkTokenWithVaultCardFallback(_) => (
                         None,
                         request.payment_method,
                         request.payment_method_type,
@@ -1429,6 +1430,7 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
         | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
         | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
         | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
+        | RecurringDetails::NetworkTokenWithVaultCardFallback(_)
         | RecurringDetails::CardWithLimitedData(_) => Ok(()),
         _ => {
             req.customer_id.check_value_present("customer_id")?;

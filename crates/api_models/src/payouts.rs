@@ -677,8 +677,17 @@ pub struct TedBankTransfer {
 pub enum Wallet {
     ApplePayDecrypt(ApplePayDecrypt),
     GooglePayDecrypt(GooglePayDecrypt),
+    Mifinity(Mifinity),
     Paypal(Paypal),
     Venmo(Venmo),
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct Mifinity {
+    /// The recipient's MiFinity wallet identifier. This can be an email address
+    /// or a MiFinity account number.
+    #[schema(value_type = String, example = "john.doe@example.com")]
+    pub destination_account: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -1183,9 +1192,18 @@ pub struct PayoutVendorDetails {
 pub struct PayoutIndividualDetails {
     pub tos_acceptance_date: Option<i64>,
     pub tos_acceptance_ip: Option<Secret<String>>,
+    /// Deprecated. Use `date_of_birth`.
+    #[schema(deprecated, value_type = Option<String>)]
     pub individual_dob_day: Option<Secret<String>>,
+    /// Deprecated. Use `date_of_birth`.
+    #[schema(deprecated, value_type = Option<String>)]
     pub individual_dob_month: Option<Secret<String>>,
+    /// Deprecated. Use `date_of_birth`.
+    #[schema(deprecated, value_type = Option<String>)]
     pub individual_dob_year: Option<Secret<String>>,
+    /// The individual's date of birth.
+    #[schema(value_type = Option<time::Date>, example = "1990-01-31")]
+    pub date_of_birth: Option<Secret<time::Date>>,
     pub individual_id_number: Option<Secret<String>>,
     pub individual_ssn_last_4: Option<Secret<String>>,
     pub external_account_account_holder_type: Option<String>,
@@ -1719,6 +1737,11 @@ impl From<Wallet> for payout_method_utils::WalletAdditionalData {
                     telephone_number: telephone_number.map(From::from),
                 }))
             }
+            Wallet::Mifinity(Mifinity {
+                destination_account,
+            }) => Self::Mifinity(Box::new(payout_method_utils::MifinityAdditionalData {
+                destination_account: destination_account.into(),
+            })),
             Wallet::GooglePayDecrypt(GooglePayDecrypt {
                 expiry_month,
                 expiry_year,
@@ -1888,6 +1911,7 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 Wallet::Paypal(_) => Self::Paypal,
                 Wallet::Venmo(_) => Self::Venmo,
                 Wallet::GooglePayDecrypt(_) => Self::GooglePay,
+                Wallet::Mifinity(_) => Self::Mifinity,
             },
             PayoutMethodData::BankRedirect(bank_redirect) => match bank_redirect {
                 BankRedirect::Interac(_) => Self::Interac,
