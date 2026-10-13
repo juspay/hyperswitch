@@ -76,15 +76,16 @@ pub async fn initiate_blocklist_export(
     profile_id: Option<id_type::ProfileId>,
 ) -> RouterResult<api_blocklist::BlocklistExportResponse> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
         platform.get_processor(),
         profile_id.as_ref(),
         &*state.store,
-        true,
     )
-    .await?;
+    .await?
+    .get_id()
+    .to_owned();
 
     let export_id = common_utils::generate_id(crate::consts::ID_LENGTH, "blkexp");
     let now = date_time::now();

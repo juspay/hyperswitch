@@ -446,6 +446,8 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "payments.requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
+    /// Blocklist guard configuration key: when true, payments are screened against the merchant's blocklist
+    pub const PAYMENT_BLOCKLIST_GUARD: &str = "payments.payment_blocklist_guard";
     /// Organization-scoped block implicit customer creation configuration key
     pub const BLOCK_IMPLICIT_CUSTOMER_CREATION: &str = "payments.block_implicit_customer_creation";
     /// Fingerprint secret configuration key retained for migration fallback
@@ -467,6 +469,10 @@ pub mod superposition {
     /// Whether the adaptive revenue recovery retry algorithm — static ladder combined with
     /// the smart algorithm — replaces the decider-based smart retry implementation
     pub const ADAPTIVE_RETRY_ENABLED: &str = "revenue_recovery.adaptive_retry_enabled";
+    /// Whether A/B routing decides which retry implementation an invoice runs.
+    pub const REVENUE_RECOVERY_AB_ENABLED: &str = "revenue_recovery.ab_enabled";
+    /// Which retry implementation inside the `Smart` arm an invoice runs under A/B routing.
+    pub const REVENUE_RECOVERY_AB_ALGORITHM: &str = "revenue_recovery.ab_algorithm";
     /// Days from the first attempt during which an invoice may still be retried
     pub const RECOVERY_GRACE_PERIOD_DAYS: &str = "revenue_recovery.grace_period_days";
     /// Total retries an invoice is allowed across its whole recovery lifecycle
@@ -542,6 +548,21 @@ pub mod superposition {
     pub const THREEDS_ROUTING_REGION_UAS: &str = "routing.threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "webhooks.incoming_webhook_disabled_events";
+    /// Whether unverified webhook rate limiting is enabled, defaults to `false`
+    pub const UNVERIFIED_WEBHOOK_RATE_LIMIT_ENABLED: &str =
+        "webhooks.unverified_webhook_rate_limit_enabled";
+    /// Fixed window, in seconds, over which unverified webhooks are counted
+    pub const UNVERIFIED_WEBHOOK_RATE_LIMIT_WINDOW_IN_SECS: &str =
+        "webhooks.unverified_webhook_rate_limit_window_in_secs";
+    /// Maximum unverified webhooks per merchant per window, defaults to 60, `0` disables the merchant level
+    pub const UNVERIFIED_WEBHOOK_MERCHANT_RATE_LIMIT: &str =
+        "webhooks.unverified_webhook_merchant_rate_limit";
+    /// Maximum unverified webhooks per profile per window, `0` disables the profile level
+    pub const UNVERIFIED_WEBHOOK_PROFILE_RATE_LIMIT: &str =
+        "webhooks.unverified_webhook_profile_rate_limit";
+    /// Maximum unverified webhooks per merchant connector account per window, `0` disables the merchant connector account level
+    pub const UNVERIFIED_WEBHOOK_MERCHANT_CONNECTOR_ACCOUNT_RATE_LIMIT: &str =
+        "webhooks.unverified_webhook_merchant_connector_account_rate_limit";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
     /// checkout sdk configuration
@@ -552,6 +573,18 @@ pub mod superposition {
     pub const PAYOUT_FRM_CALL: &str = "payouts.payout_frm_call";
     /// Maximum number of card issuers a list request reads
     pub const CARD_ISSUER_LIST_MAX_LIMIT: &str = "card_issuer.list_max_limit";
+    /// Preferred-connector routing enablement configuration key per profile
+    pub const PREFERRED_CONNECTORS_ROUTING_ENABLED: &str =
+        "routing.preferred_connectors_routing_enabled";
+    /// Payment method types eligible for preferred-connectors routing (comma-separated)
+    pub const PREFERRED_CONNECTORS_ENABLED_PAYMENT_METHOD_TYPES: &str =
+        "routing.preferred_connectors_enabled_payment_method_types";
+    /// Payout blocklist guard configuration key
+    pub const PAYOUT_BLOCKLIST_GUARD: &str = "payouts.payout_blocklist_guard";
+    /// Accept connector payment amount mismatch configuration key (scoped by processor merchant
+    /// and payment method type). When enabled, a connector-reported payment amount that differs
+    /// from the requested amount does not fail the integrity check. Refunds are not affected.
+    pub const ACCEPT_PAYMENT_AMOUNT_MISMATCH: &str = "payments.accept_payment_amount_mismatch";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.

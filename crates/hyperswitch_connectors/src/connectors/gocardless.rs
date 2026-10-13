@@ -18,12 +18,12 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        CreateConnectorCustomer, PreProcessing,
+        CreateConnectorCustomer,
     },
     router_request_types::{
         AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -80,7 +80,6 @@ impl api::RefundExecute for Gocardless {}
 impl api::RefundSync for Gocardless {}
 impl api::PaymentToken for Gocardless {}
 impl api::ConnectorCustomer for Gocardless {}
-impl api::PaymentsPreProcessing for Gocardless {}
 
 const GOCARDLESS_VERSION: &str = "2015-07-06";
 const GOCARDLESS_VERSION_HEADER: &str = "GoCardless-Version";
@@ -350,11 +349,6 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
-}
-
-impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
-    for Gocardless
-{
 }
 
 impl ConnectorValidation for Gocardless {}

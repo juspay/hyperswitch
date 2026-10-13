@@ -9,10 +9,15 @@ global_meter!(GLOBAL_METER, "ROUTER_API");
 
 counter_metric!(HEALTH_METRIC, GLOBAL_METER); // No. of health API hits
 counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
+counter_metric!(PREFERRED_CONNECTORS_UPDATE_FAILURES, GLOBAL_METER);
 
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
-histogram_metric_f64!(REQUEST_TIME, GLOBAL_METER);
+histogram_metric_f64!(
+    REQUEST_TIME,
+    GLOBAL_METER,
+    boundaries: router_env::metrics::exponential_histogram_buckets(),
+);
 
 histogram_metric_f64!(
     PAYMENT_OPERATION_DURATION,
@@ -136,6 +141,9 @@ counter_metric!(PAYMENT_CANCEL_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_CANCEL, GLOBAL_METER);
 
 counter_metric!(PAYMENT_EXTEND_AUTHORIZATION_COUNT, GLOBAL_METER);
+// Number of attempts sent to the connector with automatic capture
+// because the requested capture method was unsupported.
+counter_metric!(AUTO_FALLBACK_CAPTURE_METHOD_APPLIED, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_EXTEND_AUTHORIZATION_COUNT, GLOBAL_METER);
 
 counter_metric!(MANDATE_COUNT, GLOBAL_METER);
@@ -295,3 +303,89 @@ counter_metric!(VAULT_CALL_FAILURES, GLOBAL_METER);
 
 // Encryption/keymanager latency for payment_methods operations
 histogram_metric_f64!(PAYMENT_METHOD_CRYPTO_DURATION, GLOBAL_METER);
+
+// Revenue recovery
+//
+// Every counter below marks a point where an invoice stopped being priced or stopped being
+// recovered. Each one existed only as a log line first, which answers "did this happen to this
+// invoice" but never "how often, and to which invoices" — and the second question is the one that
+// decides both whether an experiment is valid and whether recovery is healthy.
+//
+// Where an arm can be attributed, the algorithm is carried as an attribute: an arm that drops
+// invoices for reasons correlated with the arm itself biases the comparison, and an unlabelled
+// aggregate cannot show that.
+
+// Points where an invoice could not be priced at all.
+counter_metric!(
+    REVENUE_RECOVERY_AB_MISSING_ERROR_CODE,
+    GLOBAL_METER,
+    name: "revenue_recovery.ab.missing_error_code",
+    description: "Invoices whose retry model needed the previous attempt's error code to pick a \
+                  time, but the CALCULATE task carried none — the model declines and the global \
+                  fallback covers it; `algorithm` is `unenrolled` outside the experiment",
+    unit: "1",
+);
+// No algorithm attribute on this one: the thing being counted is that no arm was resolved yet, so
+// there is nothing to attribute it to.
+counter_metric!(
+    REVENUE_RECOVERY_AB_UNASSIGNED_ALGORITHM,
+    GLOBAL_METER,
+    name: "revenue_recovery.ab.unassigned_algorithm",
+    description: "Invoices that reached the A/B arm with no retry implementation recorded on the \
+                  intent, so no algorithm could be replayed",
+    unit: "1",
+);
+counter_metric!(
+    REVENUE_RECOVERY_NO_SCHEDULE_TIME,
+    GLOBAL_METER,
+    name: "revenue_recovery.no_schedule_time",
+    description: "Invoices left with no retry time after both sources declined — the assigned \
+                  model and the MIT cascading ladder behind it",
+    unit: "1",
+);
+
+// The stats store is shared by every arm, so a failure here says nothing about which algorithm an
+// invoice was on — it carries the cluster instead. Every code failing at once is the store being
+// unreachable; one code failing alone is that cluster's stored document.
+counter_metric!(
+    REVENUE_RECOVERY_STATS_LOOKUP_FAILED,
+    GLOBAL_METER,
+    name: "revenue_recovery.stats_lookup_failed",
+    description: "Retry-stats lookups that errored, so the model declined and the invoice fell \
+                  through to the global fallback — distinct from a cluster with no stats yet",
+    unit: "1",
+);
+
+// Points where recovery itself ends, whichever algorithm was running.
+//
+// The verdict every CALCULATE decision ends on, by outcome and by the algorithm that produced it.
+// Four of the six outcomes mean the invoice is not being retried; the two that do schedule
+// something are counted as well, because a drop rate is only readable against the total.
+counter_metric!(
+    REVENUE_RECOVERY_CALCULATE_OUTCOME,
+    GLOBAL_METER,
+    name: "revenue_recovery.calculate_outcome",
+    description: "CALCULATE decisions by outcome (scheduled, next_available_time, hard_decline, \
+                  retries_exhausted, grace_window_expired, none) and retry algorithm",
+    unit: "1",
+);
+counter_metric!(
+    REVENUE_RECOVERY_GRACE_WINDOW_UNRESOLVED,
+    GLOBAL_METER,
+    name: "revenue_recovery.grace_window_unresolved",
+    description: "Invoices whose grace window — how long they have left to be recovered — could \
+                  not be established, ending recovery for that invoice; `reason` says which of \
+                  the three steps could not be completed",
+    unit: "1",
+);
+// Not to be read as "the invoice ran out of retries", which is the ordinary end of its life and
+// finishes the job cleanly. This counts a stored retry count that is not a count at all — the only
+// way `i32 -> u32` fails is a negative — so the remaining budget cannot be derived from it.
+counter_metric!(
+    REVENUE_RECOVERY_RETRY_COUNT_INVALID,
+    GLOBAL_METER,
+    name: "revenue_recovery.retry_count_invalid",
+    description: "Invoices whose stored retry count was negative and so not a usable count, \
+                  leaving the remaining retry budget underivable and ending recovery",
+    unit: "1",
+);

@@ -115,8 +115,8 @@ pub struct JpmorganOrbitalMetadata {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct MifinityMetadata {
-    brand_id: Secret<String>,
-    destination_account_number: Secret<String>,
+    brand_id: Option<Secret<String>>,
+    destination_account_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -548,6 +548,17 @@ pub enum ConnectorSpecificConfig {
         ssl_merchant_id: Secret<String>,
         ssl_user_id: Secret<String>,
         ssl_pin: Secret<String>,
+    },
+    /// Elavon Payment Gateway (EPG) - Elavon's JSON REST gateway, HTTP Basic auth.
+    /// NOT the `Elavon` variant above, which is Elavon Converge (an XML API).
+    /// Field names must match `ConnectorSpecificConfig::ElavonPg` in the
+    /// connector-service repo (`crates/types-traits/domain_types/src/router_data.rs`).
+    /// `api_key` = merchant alias, the HTTP Basic username
+    /// `key1`    = secret API key (`sk_...`), the HTTP Basic password
+    ElavonPg {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        base_url: Option<String>,
     },
     /// Redsys connector configuration
     Redsys {
@@ -1442,6 +1453,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Elavon requires SignatureKey auth type")),
             },
+            Connector::ElavonPg => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::ElavonPg {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("ElavonPg requires BodyKey auth type")),
+            },
             Connector::Fiserv => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,
@@ -2110,10 +2129,10 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
 
                     Ok(Self::Mifinity {
                         key: api_key.clone(),
-                        brand_id: mifinity_meta.as_ref().map(|m| m.brand_id.clone()),
+                        brand_id: mifinity_meta.as_ref().and_then(|m| m.brand_id.clone()),
                         destination_account_number: mifinity_meta
                             .as_ref()
-                            .map(|m| m.destination_account_number.clone()),
+                            .and_then(|m| m.destination_account_number.clone()),
                     })
                 }
                 _ => Err(err("Mifinity requires HeaderKey auth type")),

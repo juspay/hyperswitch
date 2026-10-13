@@ -21,13 +21,13 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        CompleteAuthorize, CreateOrder, InitPayment, PreProcessing,
+        CompleteAuthorize, CreateOrder, InitPayment,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, CreateOrderRequestData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -35,14 +35,14 @@ use hyperswitch_domain_models::{
     },
     types::{
         CreateOrderRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
-        PaymentsPreProcessingRouterData, RefundsRouterData, TokenizationRouterData,
+        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, RefundsRouterData,
+        TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorSpecifications, ConnectorValidation, PaymentsPreProcessing,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     disputes::DisputePayload,
@@ -50,8 +50,8 @@ use hyperswitch_interfaces::{
     events::connector_api_logs::ConnectorEvent,
     types::{
         CreateOrderType, PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
-        PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType,
-        RefundSyncType, Response, TokenizationType,
+        PaymentsSyncType, PaymentsVoidType, RefundExecuteType, RefundSyncType, Response,
+        TokenizationType,
     },
     webhooks,
 };
@@ -60,7 +60,7 @@ use transformers as payme;
 
 use crate::{
     types::ResponseRouterData,
-    utils::{self, ForeignTryFrom, PaymentsPreProcessingRequestData},
+    utils::{self, ForeignTryFrom},
 };
 
 #[derive(Clone)]
@@ -293,8 +293,6 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Payme {}
 
-impl PaymentsPreProcessing for Payme {}
-
 impl ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData> for Payme {
     fn get_headers(
         &self,
@@ -360,115 +358,6 @@ impl ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseD
 
         let req_amount = data.request.minor_amount;
         let req_currency = data.request.currency;
-
-        let apple_pay_amount = utils::convert_amount(
-            self.apple_pay_google_pay_amount_converter,
-            req_amount,
-            req_currency,
-        )?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        RouterData::foreign_try_from((
-            ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-            apple_pay_amount,
-        ))
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-
-    fn get_5xx_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        // we are always getting 500 in error scenarios
-        self.build_error_response(res, event_builder)
-    }
-}
-
-impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
-    for Payme
-{
-    fn get_headers(
-        &self,
-        req: &PaymentsPreProcessingRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
-    {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &PaymentsPreProcessingRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}api/generate-sale", self.base_url(connectors)))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &PaymentsPreProcessingRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_amount = req.request.get_minor_amount();
-        let req_currency = req.request.get_currency()?;
-        let amount = utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
-        let connector_router_data = payme::PaymeRouterData::try_from((amount, req))?;
-        let connector_req = payme::GenerateSaleRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &PaymentsPreProcessingRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let req = Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .attach_default_headers()
-                .headers(PaymentsPreProcessingType::get_headers(
-                    self, req, connectors,
-                )?)
-                .url(&PaymentsPreProcessingType::get_url(self, req, connectors)?)
-                .set_body(PaymentsPreProcessingType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        );
-        Ok(req)
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsPreProcessingRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
-        let response: payme::GenerateSaleResponse = res
-            .response
-            .parse_struct("Payme GenerateSaleResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let req_amount = data.request.get_minor_amount();
-        let req_currency = data.request.get_currency()?;
 
         let apple_pay_amount = utils::convert_amount(
             self.apple_pay_google_pay_amount_converter,

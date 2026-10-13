@@ -32,12 +32,13 @@ base64-serde = "0.8.0"
 blake3 = { version = "1.8.2", features = ["serde"] }
 bytes = { version = "1.10.1", features = ["serde"] }
 diesel = "2.2.10"
-deja = { git = "https://github.com/juspay/deja", rev = "ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "9230641b943a469ef4b506c05e3e9201363f3d10", optional = true, default-features = false, features = ["error-stack"] }
 error-stack = "0.4.1"
 futures = { version = "0.3.31", optional = true }
 globset = "0.4.16"
 hex = "0.4.3"
 http = "0.2.12"
+ip_network = { version = "0.4.1", default-features = false }
 md5 = "0.7.0"
 nanoid = "0.4.0"
 nutype = { version = "0.4.3", features = ["serde"] }
@@ -70,7 +71,7 @@ ammonia = "3.3"
 
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }
-hyperswitch_masking = { version = "0.0.1", features = ["diesel", "time"] }
+hyperswitch_masking = { version = "0.0.1", features = ["diesel", "serde", "time"] }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true, default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.uuid]

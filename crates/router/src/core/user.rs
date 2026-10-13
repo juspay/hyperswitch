@@ -34,7 +34,10 @@ use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 use super::{admin, errors::ApiErrorResponse};
 use crate::{
     consts,
-    core::encryption::send_request_to_key_service_for_user,
+    core::{
+        configs::dimension_state::Dimensions, encryption::send_request_to_key_service_for_user,
+        offer_engine,
+    },
     db::{
         domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
         user_role::ListUserRolesByUserIdPayload,
@@ -196,6 +199,17 @@ pub async fn get_active_user_details(
         EntityType::Profile,
     )
     .await?;
+
+    let offer_engine_credential_source = offer_engine::resolve_offer_engine_credential_source(
+        &state,
+        &Dimensions::new()
+            .with_processor_merchant_id(user_from_token.merchant_id.clone().into())
+            .with_organization_id(user_from_token.org_id.clone())
+            .with_profile_id(user_from_token.profile_id.clone()),
+    )
+    .await
+    .foreign_into();
+
     Ok(ApplicationResponse::Json(
         user_api::GetUserDetailsResponse {
             merchant_id: user_from_token.merchant_id,
@@ -211,6 +225,7 @@ pub async fn get_active_user_details(
             entity_type: role_info.get_entity_type(),
             theme_id: theme.map(|theme| theme.theme_id),
             version,
+            offer_engine_credential_source,
         },
     ))
 }
