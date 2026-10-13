@@ -4,15 +4,6 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
-## Unreleased
-
-### API Changes
-
-- **blocklist:** Count all transaction namespaces when `transaction_type` is omitted from `/blocklist/count`; explicit payment and payout filters retain their existing scope.
-- **blocklist:** Replace lookup response `blocked_for` objects with a distinct `transaction_types` array. Legacy NULL entries are reported as payment.
-
-- - -
-
 ## 2026.10.12.0
 
 ### Features
