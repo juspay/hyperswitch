@@ -87,10 +87,9 @@ finix.base_url = "https://finix.sandbox-payments-api.com"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
-fiuu.base_url = "https://sandbox.merchant.razer.com/"
+fiuu.base_url = "https://sandbox-payment.fiuu.com/"
 flexiti.base_url = "https://onlineapi.flexiti.fi/flexiti/online-api/"
-fiuu.secondary_base_url="https://sandbox.merchant.razer.com/"
-fiuu.third_base_url="https://api.merchant.razer.com/"
+fiuu.secondary_base_url="https://sandbox-api.fiuu.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 getnet.base_url = "https://api-test.getneteurope.com/engine/rest"
 gigadat.base_url = "https://interac.express-connect.com/"
@@ -1085,7 +1084,7 @@ connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 connector_list = "worldpayvantiv"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer, gotyme_sanlam, paysafe, razorpay"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration

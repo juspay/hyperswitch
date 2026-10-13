@@ -30,11 +30,16 @@ impl MerchantConnectorAccount {
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_connector_account: MerchantConnectorAccountUpdateInternal,
     ) -> StorageResult<Self> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+        match Box::pin(generics::generic_update_by_id::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
             conn,
             self.merchant_connector_id.to_owned(),
             merchant_connector_account,
-        )
+        ))
         .await
         {
             Err(error) => match error.current_context() {
