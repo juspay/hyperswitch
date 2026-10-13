@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.23.0-hotfix7
+
+### Features
+
+- **connector:** Migrate Fiuu connector to fiuu.com domain ([#14770](https://github.com/juspay/hyperswitch/pull/14770)) ([`6addb42`](https://github.com/juspay/hyperswitch/commit/6addb422f00581f35bb871ebaa479f5b5ff4397f))
+
+**Full Changelog:** [`2026.09.23.0-hotfix6...2026.09.23.0-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.09.23.0-hotfix6...2026.09.23.0-hotfix7)
+
+- - -
+
 ## 2026.09.23.0-hotfix6
 
 ### Features
