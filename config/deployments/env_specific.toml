@@ -82,14 +82,28 @@ wildcard_origin = false                 # If true, allows any origin to make req
 sender_email = "example@example.com" # Sender email
 aws_region = ""                      # AWS region used by AWS SES
 allowed_unverified_days = 1          # Number of days the api calls ( with jwt token ) can be made without verifying the email
-active_email_client = "SES"          # The currently active email client
+active_email_client = "SES"          # The currently active email client (NO_EMAIL_CLIENT | SES | SMTP)
 recon_recipient_email = "recon@example.com"          # Recipient email for recon request email
 prod_intent_recipient_email = "business@example.com" # Recipient email for prod intent email
 
-# Configuration for aws ses, applicable when the active email client is SES
+# Required only if `active_email_client` above is set to "SES"
 [email.aws_ses]
 email_role_arn = ""        # The amazon resource name ( arn ) of the role which has permission to send emails
 sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
+
+# Required only if `active_email_client` above is set to "SMTP"
+[email.smtp]
+host = "mailhog"         # SMTP host
+port = 1025               # SMTP port
+timeout = 10               # Timeout for SMTP connection in seconds
+connection = "plaintext" # currently plaintext and starttls are supported
+
+# Optional, only if [email.smtp] above needs to be reached through a SOCKS5 proxy
+[email.smtp.socks5]
+host = "127.0.0.1"    # SOCKS5 proxy hostname or IP
+port = 1080           # SOCKS5 proxy port
+username = "testuser" # SOCKS5 username, if the proxy requires auth
+password = "testpass" # SOCKS5 password, if the proxy requires auth
 
 [events]
 source = "logs" # The event sink to push events supports kafka or logs (stdout)
@@ -492,7 +506,6 @@ request_timeout = 35                    # Per-RPC Request Timeout in Seconds
 keep_alive_interval = 30                # HTTP/2 PING keepalive interval in Seconds on the shared channel
 keep_alive_timeout = 20                 # Time in Seconds to wait for a keepalive PING acknowledgement before the connection is treated as dead
 tcp_keepalive = 60                      # TCP keepalive idle time in Seconds on the shared channel
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]

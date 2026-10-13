@@ -3927,6 +3927,234 @@ where
     )
 }
 
+/// Whether the profile that ran the network token arm has clear-PAN retries enabled. An
+/// unreadable profile counts as disabled.
+#[cfg(feature = "v1")]
+async fn is_clear_pan_retry_enabled_for_profile(
+    state: &SessionState,
+    platform: &domain::Platform,
+    network_token_response: &payments_api::PaymentsResponse,
+) -> bool {
+    match network_token_response.profile_id.as_ref() {
+        Some(profile_id) => state
+            .store
+            .find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                profile_id,
+            )
+            .await
+            .map(|business_profile| business_profile.is_clear_pan_retries_enabled)
+            .inspect_err(|error| {
+                logger::error!(
+                    ?error,
+                    "could not read the profile to check is_clear_pan_retries_enabled; treating the vault card fallback as disabled"
+                );
+            })
+            .unwrap_or(false),
+        None => false,
+    }
+}
+
+/// Whether a declined network-token arm may be re-run against the vault card. Mirrors the
+/// clear-PAN rule in `retry.rs`: profile switch on, GSM decides `Retry` and sets
+/// `clear_pan_possible`.
+#[cfg(feature = "v1")]
+async fn is_vault_card_fallback_eligible(
+    state: &SessionState,
+    platform: &domain::Platform,
+    network_token_response: &payments_api::PaymentsResponse,
+) -> bool {
+    let issuer_details = network_token_response
+        .error_details
+        .as_ref()
+        .and_then(|error_details| error_details.issuer_details.as_ref());
+    // The response's `error_message` is `error_reason.or(error_message)`, while `retry.rs` keys
+    // the GSM row on the raw connector message. Prefer the raw one so both look up the same row.
+    let error_message = network_token_response
+        .error_details
+        .as_ref()
+        .and_then(|error_details| error_details.connector_details.as_ref())
+        .and_then(|connector_details| connector_details.message.clone())
+        .or_else(|| network_token_response.error_message.clone());
+
+    match (
+        network_token_response.status,
+        network_token_response.connector.clone(),
+    ) {
+        // The merchant-level switch gates this exactly as it gates the clear-PAN auto retry in
+        // `retry.rs`, so a merchant that turned clear-PAN retries off does not get the fallback
+        // either. Checked first, so a disabled profile costs no GSM lookup.
+        (enums::IntentStatus::Failed, Some(connector)) => {
+            // The vault card arm inherits arm one's gateway, and the external vault proxy has no
+            // Direct implementation — a fallback that would land on Direct cannot authorize, so it
+            // is not worth creating an attempt for.
+            crate::core::unified_connector_service::is_ucs_execution_path_for_external_vault_proxy(
+                state,
+                platform.get_processor(),
+                &connector,
+                network_token_response
+                    .payment_method
+                    .unwrap_or(common_enums::PaymentMethod::Card),
+                network_token_response.payment_method_type,
+            )
+            .await
+            .unwrap_or(false)
+                && is_clear_pan_retry_enabled_for_profile(state, platform, network_token_response)
+                    .await
+                && helpers::get_gsm_record(
+                    state,
+                    connector.clone(),
+                    consts::PAYMENT_FLOW_STR,
+                    &core_utils::get_flow_name::<api::Authorize>().unwrap_or_default(),
+                    network_token_response.error_code.clone(),
+                    error_message,
+                    issuer_details.and_then(|details| details.code.clone()),
+                    issuer_details
+                        .and_then(|details| details.network_details.as_ref())
+                        .and_then(|network_details| network_details.name.clone()),
+                )
+                .await
+                .and_then(|gsm| gsm.feature_data.get_retry_feature_data())
+                .map(|retry_feature_data| {
+                    // Auto retries require the decision as well as the flag, so a row that permits a
+                    // clear-PAN retry but decides `DoDefault` must not trigger the fallback either.
+                    retry_feature_data.get_decision() == common_enums::GsmDecision::Retry
+                        && retry_feature_data.is_clear_pan_possible()
+                })
+                .unwrap_or(false)
+        }
+        _ => false,
+    }
+}
+
+/// Recovers the payment response carried by an [`ApplicationResponse`], if it carries one.
+#[cfg(feature = "v1")]
+fn payment_response_from_application_response(
+    application_response: &services::ApplicationResponse<payments_api::PaymentsResponse>,
+) -> Option<&payments_api::PaymentsResponse> {
+    match application_response {
+        services::ApplicationResponse::Json(response) => Some(response),
+        services::ApplicationResponse::JsonWithHeaders((response, _)) => Some(response),
+        _ => None,
+    }
+}
+
+/// Runs a network-token MIT and, on a clear-PAN eligible decline, re-runs it against the vault
+/// card under the same network transaction ID.
+///
+/// The arms run on different cores (`PaymentData<Authorize>` vs `PaymentData<ExternalVaultProxy>`),
+/// so they are composed at the response level. The fallback runs at most once.
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn network_token_with_vault_card_fallback_core<Op>(
+    state: SessionState,
+    req_state: ReqState,
+    platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
+    operation: Op,
+    req: payments_api::PaymentsRequest,
+    fallback: Box<api_models::mandates::NetworkTokenWithVaultCardFallback>,
+    auth_flow: services::AuthFlow,
+    header_payload: HeaderPayload,
+) -> RouterResponse<payments_api::PaymentsResponse>
+where
+    Op: Debug
+        + Sync
+        + Clone
+        + Operation<api::Authorize, payments_api::PaymentsRequest, Data = PaymentData<api::Authorize>>,
+{
+    let all_keys_required = req.all_keys_required;
+
+    let network_token_request = payments_api::PaymentsRequest {
+        recurring_details: Some(fallback.to_network_token_arm()),
+        ..req.clone()
+    };
+
+    let network_token_outcome = Box::pin(proxy_for_payments_core::<
+        api::Authorize,
+        payments_api::PaymentsResponse,
+        _,
+        _,
+        _,
+        PaymentData<api::Authorize>,
+    >(
+        state.clone(),
+        req_state.clone(),
+        platform.clone(),
+        profile_id.clone(),
+        operation,
+        network_token_request,
+        auth_flow,
+        CallConnectorAction::Trigger,
+        header_payload.clone(),
+        req.all_keys_required,
+    ))
+    .await?;
+
+    let network_token_response = payment_response_from_application_response(&network_token_outcome);
+
+    let fallback_target = match network_token_response {
+        Some(response) => {
+            match is_vault_card_fallback_eligible(&state, &platform, response).await {
+                true => Some((
+                    response.payment_id.clone(),
+                    response.payment_method,
+                    response.payment_method_type,
+                )),
+                false => None,
+            }
+        }
+        None => None,
+    };
+
+    match fallback_target {
+        None => Ok(network_token_outcome),
+        Some((payment_id, payment_method, payment_method_type)) => {
+            logger::info!(
+                payment_id = ?payment_id,
+                "network token arm declined as clear-pan eligible, falling back to the vault card arm"
+            );
+
+            let vault_card_request = payments_api::PaymentsRequest {
+                payment_id: Some(payments_api::PaymentIdType::PaymentIntentId(payment_id)),
+                recurring_details: Some(fallback.to_vault_card_arm()),
+                // A confirm call may omit these, having supplied them at create. Arm two creates a
+                // fresh attempt, which needs them, so carry arm one's resolved values forward
+                // rather than relying on the request repeating them.
+                payment_method: payment_method.or(req.payment_method),
+                payment_method_type: payment_method_type.or(req.payment_method_type),
+                ..req
+            };
+
+            // No attempt bookkeeping here: the external vault proxy confirm operation always
+            // advances the attempt count, so the vault card arm lands on its own attempt and arm
+            // one's decline survives.
+            Box::pin(external_vault_proxy_for_payments_core::<
+                api::ExternalVaultProxy,
+                payments_api::PaymentsResponse,
+                _,
+                _,
+                _,
+                PaymentData<api::ExternalVaultProxy>,
+            >(
+                state.clone(),
+                req_state,
+                platform.clone(),
+                profile_id,
+                // Always the confirm operation, for both endpoints: arm one has already persisted
+                // the intent, including on a single-call create+confirm.
+                PaymentExternalVaultProxyConfirm,
+                vault_card_request,
+                auth_flow,
+                CallConnectorAction::Trigger,
+                header_payload,
+                all_keys_required,
+            ))
+            .await
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
@@ -6114,16 +6342,14 @@ where
     )
     .await?;
 
-    if let Some(connector_customer_id) = {
-        core_utils::get_connector_customer_id(
-            &state.conf,
-            &connector.connector_name.to_string(),
-            payment_data.get_connector_customer_id(),
-            &payment_data.get_payment_intent().customer_id,
-            &payment_data.get_payment_method_info().cloned(),
-            payment_data.get_payment_attempt(),
-        )?
-    } {
+    if let Some(connector_customer_id) = core_utils::get_connector_customer_id(
+        &state.conf,
+        &connector.connector_name.to_string(),
+        payment_data.get_connector_customer_id(),
+        &payment_data.get_payment_intent().customer_id,
+        &payment_data.get_payment_method_info().cloned(),
+        payment_data.get_payment_attempt(),
+    )? {
         router_data.connector_customer = Some(connector_customer_id);
     }
 
@@ -6514,7 +6740,7 @@ where
         }
     }
 
-    if let Some(network_token_data) = network_tokenization::evaluate_and_fetch_altid(
+    if let Some(network_token_data) = Box::pin(network_tokenization::evaluate_and_fetch_altid(
         state,
         payment_data.get_payment_method_data(),
         payment_data.get_payment_intent().currency,
@@ -6525,7 +6751,7 @@ where
             .is_none(),
         payment_data.get_payment_intent().amount,
         business_profile,
-    )
+    ))
     .await?
     {
         payment_data.set_payment_method_data(Some(domain::PaymentMethodData::NetworkToken(
@@ -8374,6 +8600,7 @@ pub async fn get_merchant_bank_data_for_open_banking_connectors(
     Ok(final_recipient_data)
 }
 
+#[cfg(feature = "v1")]
 async fn blocklist_guard<F, ApiRequest, D>(
     state: &SessionState,
     processor: &domain::Processor,
@@ -8386,24 +8613,14 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let processor_merchant_id = processor.get_account().get_id();
-    let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
-    let blocklist_guard_enabled = state
-        .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, "false".to_string())
+    let blocklist_guard_enabled = dimensions
+        .with_profile_id(business_profile.get_id().clone())
+        .get_payment_blocklist_guard(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await;
-
-    let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
-        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-        // If it is not present in db we are defaulting it to false
-        Err(inner) => {
-            if !inner.current_context().is_db_not_found() {
-                logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
-            }
-            false
-        }
-    };
 
     if blocklist_guard_enabled {
         Ok(operation
@@ -11517,6 +11734,8 @@ pub fn get_proxy_connector_filters(
     match recurring_details {
         RecurringDetails::NetworkTransactionIdAndCardDetails(_)
         | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
+        | RecurringDetails::NetworkTokenWithVaultCardFallback(_)
         | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(state
             .conf
             .network_transaction_id_supported_connectors
@@ -12413,6 +12632,11 @@ where
                         .attach_printable("No mandate record found for merchant connector ID")
                 })?;
 
+            validate_connector_mandate_status_for_mit(
+                &connector_routing_data.connector_data,
+                mandate_reference_record,
+            )?;
+
             if let Some(mandate_currency) =
                 mandate_reference_record.original_payment_authorized_currency
             {
@@ -12487,6 +12711,11 @@ where
                             .attach_printable("no eligible connector found for token-based MIT flow since there were no connector mandate details")?
                             .get(merchant_connector_id)
                         {
+                            validate_connector_mandate_status_for_mit(
+                                &connector_data,
+                                mandate_reference_record,
+                            )?;
+
                             common_utils::fp_utils::when(
                                 mandate_reference_record
                                     .original_payment_authorized_currency
@@ -12564,6 +12793,28 @@ where
     Ok(ConnectorCallType::PreDetermined(
         chosen_connector_data.into(),
     ))
+}
+
+#[cfg(feature = "v1")]
+fn validate_connector_mandate_status_for_mit(
+    connector_data: &api::ConnectorData,
+    mandate_reference_record: &mandates::PaymentsMandateReferenceRecord,
+) -> RouterResult<()> {
+    let should_allow_inactive_connector_mandate = connector_data
+        .connector
+        .should_allow_mit_when_connector_mandate_status_is_inactive()
+        .unwrap_or(true);
+
+    common_utils::fp_utils::when(
+        !should_allow_inactive_connector_mandate
+            && mandate_reference_record.connector_mandate_status
+                == Some(common_enums::ConnectorMandateStatus::Inactive),
+        || {
+            Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                reason: "connector mandate is inactive".into(),
+            }))
+        },
+    )
 }
 
 pub fn filter_ntid_supported_connectors(
@@ -13683,16 +13934,17 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching authentication record")?;
-        let payment_method_details = helpers::get_payment_method_details_from_payment_token(
-            &state,
-            &payment_attempt,
-            &payment_intent,
-            &platform,
-            storage_scheme,
-        )
-        .await?
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("missing payment_method_details")?;
+        let payment_method_details =
+            Box::pin(helpers::get_payment_method_details_from_payment_token(
+                &state,
+                &payment_attempt,
+                &payment_intent,
+                &platform,
+                storage_scheme,
+            ))
+            .await?
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing payment_method_details")?;
         Box::pin(authentication_core::perform_authentication(
             &state,
             business_profile.merchant_id,
@@ -14119,6 +14371,7 @@ fn get_eligible_manual_update_statuses(
 pub async fn payments_manual_status_update_eligible_statuses(
     state: SessionState,
     platform: domain::Platform,
+    profile_id_from_auth_layer: Option<id_type::ProfileId>,
     payment_id: id_type::PaymentId,
 ) -> RouterResponse<api_models::payments::PaymentsManualStatusUpdateEligibleStatusesResponse> {
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -14151,6 +14404,8 @@ pub async fn payments_manual_status_update_eligible_statuses(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
+
+    core_utils::validate_profile_id_from_auth_layer(profile_id_from_auth_layer, &payment_intent)?;
 
     if payment_intent.status != enums::IntentStatus::Conflicted {
         return Err(errors::ApiErrorResponse::InvalidRequestData {
@@ -14191,6 +14446,7 @@ pub async fn payments_manual_status_update_eligible_statuses(
 pub async fn payments_manual_status_update(
     state: SessionState,
     platform: domain::Platform,
+    profile_id_from_auth_layer: Option<id_type::ProfileId>,
     payment_id: id_type::PaymentId,
     req: api_models::payments::PaymentsManualStatusUpdateRequest,
 ) -> RouterResponse<api_models::payments::PaymentsManualStatusUpdateResponse> {
@@ -14226,6 +14482,8 @@ pub async fn payments_manual_status_update(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
+
+    core_utils::validate_profile_id_from_auth_layer(profile_id_from_auth_layer, &payment_intent)?;
 
     if !matches!(
         payment_intent.status,
@@ -14346,6 +14604,7 @@ trait EligibilityCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse>;
 
     // Run the actual check and return the SDK Next Action if applicable
@@ -14397,9 +14656,20 @@ impl EligibilityCheck for BlockListCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        let merchant_id = platform.get_processor().get_account().get_id();
-        Ok(blocklist_utils::is_blocklist_guard_enabled(state, merchant_id).await)
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_profile_id(profile_id.clone());
+
+        Ok(dimensions
+            .get_payment_blocklist_guard(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                None,
+            )
+            .await)
     }
 
     async fn execute_check(
@@ -14494,6 +14764,7 @@ impl EligibilityCheck for CardTestingCheck {
         &self,
         _state: &SessionState,
         _platform: &domain::Platform,
+        _profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         // This check is always run as there is no runtime config enablement
         Ok(true)
@@ -14575,7 +14846,9 @@ impl EligibilityHandler {
         &self,
         check: C,
     ) -> CustomResult<Option<api_models::payments::SdkNextAction>, errors::ApiErrorResponse> {
-        let should_run = check.should_run(&self.state, &self.platform).await?;
+        let should_run = check
+            .should_run(&self.state, &self.platform, self.business_profile.get_id())
+            .await?;
         Ok(match should_run {
             true => check
                 .execute_check(

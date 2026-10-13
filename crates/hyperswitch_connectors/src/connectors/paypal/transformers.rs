@@ -1220,6 +1220,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
+                | WalletData::WeroRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
@@ -1423,6 +1424,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::UpiCollect
                     | enums::PaymentMethodType::UpiIntent
                     | enums::PaymentMethodType::Vipps
+                    | enums::PaymentMethodType::Wero
                     | enums::PaymentMethodType::VietQr
                     | enums::PaymentMethodType::Venmo
                     | enums::PaymentMethodType::Walley
@@ -3191,6 +3193,10 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalPayoutI
                 })?,
                 WalletPayout::GooglePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
                     message: "GooglePayDecrypt PayoutMethodType is not supported".to_string(),
+                    connector: "Paypal".into(),
+                })?,
+                WalletPayout::Mifinity(_) => Err(errors::ConnectorError::NotSupported {
+                    message: "MiFinity PayoutMethodType is not supported".to_string(),
                     connector: "Paypal".into(),
                 })?,
             },

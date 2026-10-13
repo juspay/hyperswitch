@@ -715,6 +715,17 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    fn should_allow_mit_when_connector_mandate_status_is_inactive(&self) -> Option<bool> {
+        match self {
+            Self::Old(connector) => {
+                connector.should_allow_mit_when_connector_mandate_status_is_inactive()
+            }
+            Self::New(connector) => {
+                connector.should_allow_mit_when_connector_mandate_status_is_inactive()
+            }
+        }
+    }
+
     /// Supported payment methods for session token generation
     fn supported_payment_method_types_for_sdk_client_token_generation(
         &self,

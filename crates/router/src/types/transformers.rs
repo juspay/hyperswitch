@@ -320,7 +320,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Mifinity
             | api_enums::PaymentMethodType::RevolutPay
             | api_enums::PaymentMethodType::Neteller
-            | api_enums::PaymentMethodType::Bluecode => Self::Wallet,
+            | api_enums::PaymentMethodType::Bluecode
+            | api_enums::PaymentMethodType::Wero => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay
@@ -1566,6 +1567,7 @@ impl ForeignFrom<&api_models::payouts::Wallet> for api_enums::PaymentMethodType 
             api_models::payouts::Wallet::Venmo(_) => Self::Venmo,
             api_models::payouts::Wallet::ApplePayDecrypt(_) => Self::ApplePay,
             api_models::payouts::Wallet::GooglePayDecrypt(_) => Self::GooglePay,
+            api_models::payouts::Wallet::Mifinity(_) => Self::Mifinity,
         }
     }
 }

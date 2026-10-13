@@ -618,28 +618,6 @@ pub async fn check_blocklist(
     Ok(block_reason)
 }
 
-/// Whether the merchant has enabled the blocklist guard (the same config key that gates
-/// confirm-time and eligibility-time blocklist checks). Defaults to `false` when unset.
-pub async fn is_blocklist_guard_enabled(
-    state: &SessionState,
-    processor_merchant_id: &common_utils::id_type::MerchantId,
-) -> bool {
-    let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
-    match state
-        .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, "false".to_string())
-        .await
-    {
-        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-        Err(error) => {
-            if !error.current_context().is_db_not_found() {
-                logger::error!(?error, "Error fetching blocklist guard enabled config");
-            }
-            false
-        }
-    }
-}
-
 /// Returns the subset of `bins` (card ISINs / extended BINs) that have an active BIN
 /// blocklist entry (BIN kinds only — PAN-fingerprint entries cannot be matched from a
 /// BIN) for this merchant/profile, resolved with a single batched query. Merchant-wide
