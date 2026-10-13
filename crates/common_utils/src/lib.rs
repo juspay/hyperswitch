@@ -746,6 +746,22 @@ pub fn generate_time_ordered_id_without_prefix() -> String {
 pub fn generate_id_with_len(length: usize) -> String {
     nanoid::nanoid!(length, &consts::ALPHABETS)
 }
+/// OS default is ~2 hours, far too slow to notice a connection killed by a managed-Postgres
+/// (Aurora/RDS/AlloyDB) failover.
+pub const DEFAULT_DB_KEEPALIVES_IDLE_SECS: u64 = 5;
+
+/// OS default is ~75s, which would make detection minutes-slow.
+pub const DEFAULT_DB_KEEPALIVES_INTERVAL_SECS: u64 = 2;
+
+/// With the two values above, a dead idle connection is detected in ~11s instead of hanging
+/// indefinitely.
+pub const DEFAULT_DB_KEEPALIVES_COUNT: u32 = 3;
+
+/// Bounds how long a checkout's health-check ping can hang against a peer that went silent
+/// without a TCP RST/FIN -- what managed-Postgres failover does. Must stay below
+/// `connection_timeout` (10s), or a hung ping masks the dead connection as healthy.
+pub const DEFAULT_DB_TCP_USER_TIMEOUT_MS: u64 = 5_000;
+
 #[allow(missing_docs)]
 pub trait DbConnectionParams {
     fn get_username(&self) -> &str;
@@ -753,9 +769,27 @@ pub trait DbConnectionParams {
     fn get_host(&self) -> &str;
     fn get_port(&self) -> u16;
     fn get_dbname(&self) -> &str;
+
+    /// See [`DEFAULT_DB_KEEPALIVES_IDLE_SECS`].
+    fn get_pool_keepalives_idle(&self) -> u64 {
+        DEFAULT_DB_KEEPALIVES_IDLE_SECS
+    }
+    /// See [`DEFAULT_DB_KEEPALIVES_INTERVAL_SECS`].
+    fn get_pool_keepalives_interval(&self) -> u64 {
+        DEFAULT_DB_KEEPALIVES_INTERVAL_SECS
+    }
+    /// See [`DEFAULT_DB_KEEPALIVES_COUNT`].
+    fn get_pool_keepalives_count(&self) -> u32 {
+        DEFAULT_DB_KEEPALIVES_COUNT
+    }
+    /// See [`DEFAULT_DB_TCP_USER_TIMEOUT_MS`].
+    fn get_pool_tcp_user_timeout_ms(&self) -> u64 {
+        DEFAULT_DB_TCP_USER_TIMEOUT_MS
+    }
+
     fn get_database_url(&self, schema: &str) -> String {
         format!(
-            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c%20search_path%3D{}",
+            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c%20search_path%3D{}&keepalives=1&keepalives_idle={}&keepalives_interval={}&keepalives_count={}&tcp_user_timeout={}",
             self.get_username(),
             self.get_password().peek(),
             self.get_host(),
@@ -763,6 +797,10 @@ pub trait DbConnectionParams {
             self.get_dbname(),
             schema,
             schema,
+            self.get_pool_keepalives_idle(),
+            self.get_pool_keepalives_interval(),
+            self.get_pool_keepalives_count(),
+            self.get_pool_tcp_user_timeout_ms(),
         )
     }
 }
