@@ -211,6 +211,10 @@ does not pass the check. Fork pull requests and merge-queue entries do not run
 this automatic replay because the Jenkins image build has privileged credentials.
 Maintainers can request a reviewed fork replay with the `deja-art` label.
 
+The workflow requires the `DEJA_ART_JENKINS_WEBHOOK_URL` repository secret.
+Compatible recordings become available after the sbx rollout; a live end-to-end
+run is not established by this documentation.
+
 ### Cargo Commands
 
 Due to the extensive use of features in hyperswitch, you will often need to add

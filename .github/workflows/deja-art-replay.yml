@@ -23,7 +23,10 @@ jobs:
         uses: actions/github-script@v7
         env:
           JENKINS_WEBHOOK_URL: ${{ secrets.DEJA_ART_JENKINS_WEBHOOK_URL }}
-        with:
+          script: |
+            const fs = require('fs');
+            const https = require('https');
+            const { URL } = require('url');
           script: |
             const fs = require('fs');
             const https = require('https');
