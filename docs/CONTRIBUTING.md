@@ -212,8 +212,8 @@ this automatic replay because the Jenkins image build has privileged credentials
 Maintainers can request a reviewed fork replay with the `deja-art` label.
 
 The workflow requires the `DEJA_ART_JENKINS_WEBHOOK_URL` repository secret.
-Compatible recordings become available after the sbx rollout; a live end-to-end
-run is not established by this documentation.
+A compatible recording must be captured after the sbx rollout; this
+documentation does not establish that a live end-to-end replay has run.
 
 ### Cargo Commands
 
