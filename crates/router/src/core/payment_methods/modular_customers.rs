@@ -1010,3 +1010,6 @@ async fn resolve_batch<B: CustomerBackend, C: cards::CardBackend>(
     }
     results
 }
+
+#[cfg(test)]
+mod tests;
