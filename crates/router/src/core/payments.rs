@@ -664,6 +664,10 @@ impl PreCallRejection for error_stack::Report<errors::ApiErrorResponse> {
                         | errors::ConnectorError::NotImplemented(_)
                         | errors::ConnectorError::MissingRequiredField { .. }
                         | errors::ConnectorError::MissingRequiredFields { .. }
+                        // Request-phase by construction: a UCS `IntegrationError` refusal
+                        // (`integration_error_code_to_variant`) or a request-builder validation.
+                        // No connector call was made, so the pre-call state is safe to restore.
+                        | errors::ConnectorError::InvalidDataFormat { .. }
                         | errors::ConnectorError::RequestEncodingFailed
                         | errors::ConnectorError::FailedToObtainAuthType
                         | errors::ConnectorError::InvalidConnectorName
