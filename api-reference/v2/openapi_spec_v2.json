@@ -12878,6 +12878,14 @@
               }
             ],
             "nullable": true
+          },
+          "jpmorgan": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganConnectorMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -18342,6 +18350,215 @@
           }
         }
       },
+      "JpmorganAuthenticationAmount": {
+        "type": "object",
+        "required": [
+          "minor_amount",
+          "currency"
+        ],
+        "properties": {
+          "minor_amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          }
+        }
+      },
+      "JpmorganAuthenticationUseCase": {
+        "type": "string",
+        "enum": [
+          "single_payment",
+          "recurring_payment_fixed",
+          "installment_payment",
+          "payment_on_shipment",
+          "recurring_payment_other",
+          "preauthorization_rental",
+          "preauthorization_no_rental"
+        ]
+      },
+      "JpmorganChallengePreference": {
+        "type": "string",
+        "enum": [
+          "no_preference",
+          "no_challenge",
+          "challenge_requested",
+          "challenge_mandate",
+          "no_challenge_lvp",
+          "no_challenge_tra",
+          "no_challenge_mit",
+          "no_challenge_data",
+          "no_challenge_da",
+          "no_challenge_trusted",
+          "challenge_trusted",
+          "no_challenge_scp",
+          "challenge_device_binding",
+          "challenge_issuer_requested",
+          "challenge_mit"
+        ]
+      },
+      "JpmorganConnectorMetadata": {
+        "type": "object",
+        "properties": {
+          "authentication_use_case": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganAuthenticationUseCase"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_fraud_risk_score": {
+            "type": "string",
+            "nullable": true
+          },
+          "requested_challenge_preference": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganChallengePreference"
+              }
+            ],
+            "nullable": true
+          },
+          "original_three_ds": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganOriginalThreeDs"
+              }
+            ],
+            "nullable": true
+          },
+          "trans_status_reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "recurring_agreement": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganRecurringAgreement"
+              }
+            ],
+            "nullable": true
+          },
+          "wallet_account_number_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganWalletAccountNumberType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "JpmorganOriginalThreeDs": {
+        "type": "object",
+        "properties": {
+          "program_protocol": {
+            "type": "string",
+            "nullable": true
+          },
+          "authentication_timestamp": {
+            "type": "string",
+            "description": "The original authentication time in RFC3339 format, including its UTC offset.",
+            "nullable": true
+          },
+          "authentication_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganAuthenticationAmount"
+              }
+            ],
+            "nullable": true
+          },
+          "directory_server_transaction_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "authentication_method": {
+            "type": "string",
+            "nullable": true
+          },
+          "requested_challenge_preference": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganChallengePreference"
+              }
+            ],
+            "nullable": true
+          },
+          "issuer_fraud_score": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "JpmorganRecurringAgreement": {
+        "type": "object",
+        "description": "Describes the original agreement for subsequent JPMorgan merchant-initiated payments.",
+        "required": [
+          "agreement_id",
+          "is_variable_amount"
+        ],
+        "properties": {
+          "agreement_id": {
+            "type": "string",
+            "description": "Contains the agreement identifier used by the initial cardholder payment."
+          },
+          "is_variable_amount": {
+            "type": "boolean",
+            "description": "Specifies whether the agreement permits variable payment amounts."
+          }
+        }
+      },
+      "JpmorganSafetechContext": {
+        "type": "object",
+        "description": "Contains the original card relationship for an external JPMorgan Safetech token.",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "card_network",
+          "network_transaction_id"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "Contains the underlying card expiry month, from 1 to 12."
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Contains the underlying card expiry year with four digits."
+          },
+          "card_network": {
+            "$ref": "#/components/schemas/CardNetwork"
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "Contains the network transaction ID from the original cardholder payment."
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "Contains the original Mastercard Transaction Link Identifier when applicable.",
+            "nullable": true
+          },
+          "recurring_agreement": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganRecurringAgreement"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "JpmorganWalletAccountNumberType": {
+        "type": "string",
+        "description": "Identifies a documented decrypted wallet credential type for JPMorgan payments.",
+        "enum": [
+          "PAN",
+          "DEVICE_TOKEN"
+        ]
+      },
       "KakaoPayRedirection": {
         "type": "object"
       },
@@ -21098,6 +21315,11 @@
             "type": "string",
             "description": "The token's expiry year",
             "example": "24"
+          },
+          "token_cryptogram": {
+            "type": "string",
+            "description": "The payment-network cryptogram, when required for this transaction.",
+            "nullable": true
           },
           "card_network": {
             "allOf": [
@@ -29760,6 +29982,14 @@
           },
           "merchant_connector_id": {
             "type": "string",
+            "nullable": true
+          },
+          "safetech_context": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganSafetechContext"
+              }
+            ],
             "nullable": true
           }
         }
