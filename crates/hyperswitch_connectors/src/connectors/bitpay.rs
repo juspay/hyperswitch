@@ -383,6 +383,21 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bitpay {
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Bitpay {
+    async fn verify_webhook_source(
+        &self,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: common_utils::crypto::Encryptable<
+            hyperswitch_masking::Secret<serde_json::Value>,
+        >,
+        _connector_name: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        // Bitpay does not provide a signature in the webhook request, so we cannot verify the source of the webhook.
+        // On returning false we will trigger a Psync call to the connector to get the latest status of the payment.
+        Ok(false)
+    }
+
     fn get_webhook_object_reference_id(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,

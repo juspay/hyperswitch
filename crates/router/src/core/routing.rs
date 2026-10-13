@@ -1145,12 +1145,12 @@ pub async fn link_routing_config(
         Ok(routing_algorithm) => routing_algorithm,
         Err(error) => {
             // DE-only rule ids (e.g. created on the DE dashboard) activate directly on the DE.
-            if let Some((business_profile, record)) = find_de_record_for_algorithm(
+            if let Some((business_profile, record)) = Box::pin(find_de_record_for_algorithm(
                 &state,
                 &platform,
                 authentication_profile_id.clone(),
                 &algorithm_id,
-            )
+            ))
             .await?
             {
                 utils::when(record.algorithm_for != transaction_type, || {
@@ -1665,12 +1665,12 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
         Ok(routing_algorithm) => routing_algorithm,
         Err(error) => {
             // DE-only rules have no HS row; serve them from the DE.
-            if let Some((_business_profile, record)) = find_de_record_for_algorithm(
+            if let Some((_business_profile, record)) = Box::pin(find_de_record_for_algorithm(
                 &state,
                 &platform,
                 authentication_profile_id.clone(),
                 &algorithm_id,
-            )
+            ))
             .await?
             {
                 let response = de_record_to_merchant_routing_algorithm(record)?;
@@ -2759,7 +2759,7 @@ pub async fn success_based_routing_update_configs(
         cache_key.into(),
     )];
     let _ = cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
+        &*state.store,
         cache_entries_to_redact,
     )
     .await
@@ -2865,7 +2865,7 @@ pub async fn elimination_routing_update_configs(
     )];
 
     cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
+        &*state.store,
         cache_entries_to_redact,
     )
     .await
@@ -3137,7 +3137,7 @@ pub async fn contract_based_routing_update_configs(
         cache_key.into(),
     )];
     let _ = cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
+        &*state.store,
         cache_entries_to_redact,
     )
     .await

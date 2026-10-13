@@ -32,7 +32,10 @@ use hyperswitch_interfaces::{
 };
 use router_env::RequestId;
 use scheduler::SchedulerInterface;
-use storage_impl::{redis::RedisStore, MockDb};
+use storage_impl::{
+    redis::{cache::Caches, RedisStore},
+    MockDb,
+};
 use tokio::sync::oneshot;
 
 use self::settings::Tenant;
@@ -362,6 +365,9 @@ pub struct AppState {
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition_service: Arc<SuperpositionClient>,
+    /// In-memory caches, shared with every tenant's store and with the redis subscriber
+    /// that invalidates them.
+    pub caches: Arc<Caches>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -499,6 +505,9 @@ impl AppState {
             )
             .await
             .expect("Failed to create store");
+            // One set for the whole process: every tenant store and the single redis
+            // subscriber that invalidates entries must point at the same caches.
+            let caches = Arc::new(Caches::new(&conf.cache));
             let global_store: Box<dyn GlobalStorageInterface> =
                 Box::pin(Self::get_store_interface(
                     &storage_impl,
@@ -508,6 +517,7 @@ impl AppState {
                     conf.global_database_config(),
                     conf.global_database_config(),
                     Arc::clone(&cache_store),
+                    Arc::clone(&caches),
                     testable,
                 ))
                 .await
@@ -521,7 +531,13 @@ impl AppState {
             let (stores, accounts_store) = conf
                 .multitenancy
                 .tenants
-                .get_store_interface_maps(&storage_impl, &conf, Arc::clone(&cache_store), testable)
+                .get_store_interface_maps(
+                    &storage_impl,
+                    &conf,
+                    Arc::clone(&cache_store),
+                    Arc::clone(&caches),
+                    testable,
+                )
                 .await;
 
             #[cfg(feature = "email")]
@@ -564,6 +580,7 @@ impl AppState {
                 infra_components: infra_component_values,
                 enhancement,
                 superposition_service,
+                caches,
             }
         })
         .await
@@ -581,6 +598,7 @@ impl AppState {
         master_config: settings::Database,
         accounts_config: settings::Database,
         cache_store: Arc<RedisStore>,
+        caches: Arc<Caches>,
         testable: bool,
     ) -> Box<dyn CommonStorageInterface> {
         let km_conf = conf.key_manager.get_inner();
@@ -615,6 +633,7 @@ impl AppState {
                             master_config.clone(),
                             accounts_config.clone(),
                             Arc::clone(&cache_store),
+                            Arc::clone(&caches),
                             testable,
                             key_manager_state,
                         )
@@ -634,6 +653,7 @@ impl AppState {
                         master_config,
                         accounts_config,
                         Arc::clone(&cache_store),
+                        caches,
                         testable,
                         key_manager_state,
                     )
@@ -982,6 +1002,14 @@ impl Payments {
                     web::resource("/list")
                         .route(web::get().to(payments::payments_list))
                         .route(web::post().to(payments::payments_list_by_filter)),
+                )
+                .service(
+                    web::resource("/platform/list")
+                        .route(web::get().to(payments::payments_list_for_platform)),
+                )
+                .service(
+                    web::resource("/platform/filter")
+                        .route(web::get().to(payments::payments_list_for_platform_filters)),
                 )
                 .service(
                     web::resource("/profile/list")

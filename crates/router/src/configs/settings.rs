@@ -48,7 +48,7 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
 use serde::Deserialize;
-use storage_impl::config::QueueStrategy;
+use storage_impl::{config::QueueStrategy, redis::cache::CacheConfig};
 
 #[cfg(feature = "olap")]
 use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
@@ -90,6 +90,9 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
     pub redis: RedisSettings,
+    /// Per-cache tuning for the in-memory caches. Anything left unset keeps the compiled-in
+    /// default for that cache.
+    pub cache: CacheConfig,
     pub log: Log,
     #[cfg(feature = "deja")]
     #[serde(default)]
@@ -505,6 +508,7 @@ impl TenantConfig {
         storage_impl: &app::StorageImpl,
         conf: &configs::Settings,
         cache_store: Arc<storage_impl::redis::RedisStore>,
+        caches: Arc<storage_impl::redis::cache::Caches>,
         testable: bool,
     ) -> (StorageInterfaceMap, AccountsStorageInterfaceMap) {
         #[allow(clippy::expect_used)]
@@ -523,6 +527,7 @@ impl TenantConfig {
                     conf.master_database.clone().into_inner(),
                     conf.accounts_database_config(),
                     cache_store.clone(),
+                    caches.clone(),
                     testable,
                 ))
                 .await;
@@ -1199,6 +1204,10 @@ pub struct Database {
     pub min_idle_pool_size: u32,
     pub max_lifetime: u64,
     pub idle_timeout: u64,
+    pub keepalives_idle: u64,
+    pub keepalives_interval: u64,
+    pub keepalives_count: u32,
+    pub tcp_user_timeout_ms: u64,
 }
 
 impl From<Database> for storage_impl::config::Database {
@@ -1215,6 +1224,10 @@ impl From<Database> for storage_impl::config::Database {
             min_idle_pool_size: val.min_idle_pool_size,
             max_lifetime: val.max_lifetime,
             idle_timeout: val.idle_timeout,
+            keepalives_idle: val.keepalives_idle,
+            keepalives_interval: val.keepalives_interval,
+            keepalives_count: val.keepalives_count,
+            tcp_user_timeout_ms: val.tcp_user_timeout_ms,
         }
     }
 }
@@ -1476,7 +1489,12 @@ impl MerchantAdviceCodeLookupConfig {
             | common_enums::CardNetwork::Nyce
             | common_enums::CardNetwork::Prop
             | common_enums::CardNetwork::PrivateLabel
-            | common_enums::CardNetwork::Dinacard => None,
+            | common_enums::CardNetwork::Dinacard
+            | common_enums::CardNetwork::AirPlus
+            | common_enums::CardNetwork::Aurore
+            | common_enums::CardNetwork::EftposAustralia
+            | common_enums::CardNetwork::GeCapital
+            | common_enums::CardNetwork::Uatp => None,
         }
     }
 }

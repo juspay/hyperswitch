@@ -54,6 +54,7 @@ pub enum PayoutConnectors {
     Gigadat,
     GotymeSanlam,
     Loonio,
+    Mifinity,
     Nomupay,
     Nuvei,
     Payone,
@@ -70,7 +71,7 @@ pub enum PayoutConnectors {
 }
 
 #[cfg(feature = "v2")]
-/// Whether active attempt is to be set/unset
+/// Whether active attempt is to be set/unset/left alone
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub enum UpdateActiveAttempt {
     /// Request to set the active attempt id
@@ -78,6 +79,8 @@ pub enum UpdateActiveAttempt {
     Set(common_utils::id_type::GlobalAttemptId),
     /// To unset the active attempt id
     Unset,
+    /// Leave the active attempt id as it is.
+    NoAction,
 }
 
 /// Generic enum to handle updating or clearing a field
@@ -102,6 +105,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Gigadat => Self::Gigadat,
             PayoutConnectors::GotymeSanlam => Self::GotymeSanlam,
             PayoutConnectors::Loonio => Self::Loonio,
+            PayoutConnectors::Mifinity => Self::Mifinity,
             PayoutConnectors::Nomupay => Self::Nomupay,
             PayoutConnectors::Nuvei => Self::Nuvei,
             PayoutConnectors::Payone => Self::Payone,
@@ -131,6 +135,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Gigadat => Self::Gigadat,
             PayoutConnectors::GotymeSanlam => Self::GotymeSanlam,
             PayoutConnectors::Loonio => Self::Loonio,
+            PayoutConnectors::Mifinity => Self::Mifinity,
             PayoutConnectors::Nomupay => Self::Nomupay,
             PayoutConnectors::Nuvei => Self::Nuvei,
             PayoutConnectors::Payone => Self::Payone,
@@ -161,6 +166,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Gigadat => Ok(Self::Gigadat),
             Connector::GotymeSanlam => Ok(Self::GotymeSanlam),
             Connector::Loonio => Ok(Self::Loonio),
+            Connector::Mifinity => Ok(Self::Mifinity),
             Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Nomupay => Ok(Self::Nomupay),
             Connector::Payone => Ok(Self::Payone),

@@ -23,6 +23,8 @@ use serde_with::serde_as;
 
 use self::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest;
 use super::payment_method_data::PaymentMethodData;
+#[cfg(feature = "payouts")]
+use crate::payouts;
 use crate::{
     address,
     errors::api_error_response::{ApiErrorResponse, NotImplementedMessage},
@@ -174,6 +176,16 @@ pub struct PaymentsAuthorizeData {
     /// The merchant's business country for this payment. Connectors use it for requirements that
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
+}
+
+impl PaymentsAuthorizeData {
+    pub fn is_connector_mandate(&self) -> bool {
+        self.customer_acceptance.is_some()
+            && matches!(
+                self.setup_future_usage,
+                Some(storage_enums::FutureUsage::OffSession)
+            )
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1062,6 +1074,13 @@ pub struct PaymentsSyncData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub connector_mandate_id: Option<String>,
+    /// Whether partial authorization was enabled for this payment. Used to avoid treating a
+    /// legitimately lower authorized amount as an integrity mismatch on sync.
+    pub enable_partial_authorization:
+        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
+    /// Whether overcapture was applied for this payment by the connector. Used to avoid treating
+    /// a legitimate overcapture as an integrity mismatch on sync.
+    pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1449,7 +1468,10 @@ pub enum SplitRefundsRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct StripeSplitRefund {
-    pub charge_id: String,
+    /// `None` when the Stripe charge id could not be resolved from the payment attempt. The
+    /// refund is then issued against the payment intent instead, and the Connect routing is
+    /// still derived from `transfer_account_id` and `charge_type`.
+    pub charge_id: Option<String>,
     pub transfer_account_id: String,
     pub charge_type: api_models::enums::PaymentChargeType,
     pub options: ChargeRefundsOptions,
@@ -1698,6 +1720,9 @@ pub struct PayoutsData {
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
     pub connector_eligibility_reference_id: Option<String>,
+    /// Exclude replayable vault tokens from serialized router comparisons.
+    #[serde(skip)]
+    pub external_vault_pmd: Option<payouts::proxy::ExternalVaultPayoutMethodData>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1901,6 +1926,16 @@ pub struct SetupMandateRequestData {
     /// The merchant's business country for this payment. Connectors use it for requirements that
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
+}
+
+impl SetupMandateRequestData {
+    pub fn is_connector_mandate(&self) -> bool {
+        self.customer_acceptance.is_some()
+            && matches!(
+                self.setup_future_usage,
+                Some(storage_enums::FutureUsage::OffSession)
+            )
+    }
 }
 
 #[derive(Debug, Clone)]

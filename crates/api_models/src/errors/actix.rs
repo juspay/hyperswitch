@@ -10,6 +10,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::ForbiddenPrivateResource(_) => StatusCode::NOT_FOUND,
             Self::Conflict(_) => StatusCode::CONFLICT,
             Self::Gone(_) => StatusCode::GONE,
+            Self::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
             Self::Unprocessable(_) => StatusCode::UNPROCESSABLE_ENTITY,
             Self::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
