@@ -1482,7 +1482,7 @@ impl
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
             // If status is requires capture, get the total amount that can be captured
             // This is in cases where the capture method will be `manual` or `manual_multiple`
-            // We do not need to handle the case where amount_to_capture is provided here as it cannot be passed in authroize flow
+            // The authorize flow does not accept amount_to_capture.
             common_enums::IntentStatus::RequiresCapture => {
                 let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
@@ -2612,7 +2612,7 @@ impl
             | common_enums::IntentStatus::RequiresConfirmation => None,
             // If status is requires capture, get the total amount that can be captured
             // This is in cases where the capture method will be `manual` or `manual_multiple`
-            // We do not need to handle the case where amount_to_capture is provided here as it cannot be passed in authroize flow
+            // The authorize flow does not accept amount_to_capture.
             common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
                 let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();

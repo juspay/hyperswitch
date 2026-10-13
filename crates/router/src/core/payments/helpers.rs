@@ -576,6 +576,39 @@ pub async fn get_token_pm_type_mandate_details(
     payment_intent_customer_id: Option<&id_type::CustomerId>,
     pm_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<MandateGenericData> {
+    let network_references = match request.recurring_details.as_ref() {
+        Some(RecurringDetails::NetworkTransactionIdAndCardDetails(details)) => Some((
+            Some(&details.network_transaction_id),
+            details.transaction_link_id.as_ref(),
+        )),
+        Some(RecurringDetails::CardWithLimitedData(details)) => Some((
+            details.network_transaction_id.as_ref(),
+            details.transaction_link_id.as_ref(),
+        )),
+        Some(RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(details)) => Some((
+            Some(&details.network_transaction_id),
+            details.transaction_link_id.as_ref(),
+        )),
+        Some(RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(details)) => {
+            Some((
+                Some(&details.network_transaction_id),
+                details.transaction_link_id.as_ref(),
+            ))
+        }
+        Some(RecurringDetails::NetworkTransactionIdAndVaultCardDetails(details)) => Some((
+            Some(&details.network_transaction_id),
+            details.transaction_link_id.as_ref(),
+        )),
+        _ => None,
+    };
+    if network_references.is_some_and(|(ntid, tlid)| {
+        ntid.is_some_and(|value| value.peek().trim().is_empty())
+            || tlid.is_some_and(|value| value.trim().is_empty())
+    }) {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Network transaction references must not be blank".to_owned(),
+        }));
+    }
     if matches!(request.recurring_details.as_ref(), Some(RecurringDetails::ProcessorPaymentToken(token)) if token.safetech_context.is_some())
         && (request.off_session != Some(true)
             || mandate_type != Some(api::MandateTransactionType::RecurringMandateTransaction))

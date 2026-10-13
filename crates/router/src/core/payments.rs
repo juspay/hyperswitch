@@ -12475,7 +12475,7 @@ where
                 }
                 _ => {}
             }
-            let feature_data = serde_json::to_value(&context.connector_feature_data)
+            let jpmorgan_context = serde_json::to_value(&context.connector_feature_data.jpmorgan)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to serialize saved JPMorgan relationship context")?;
             let mut attempt = payment_data.get_payment_attempt().clone();
@@ -12486,7 +12486,7 @@ where
                 report!(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
                     .attach_printable("Payment attempt connector context must be an object")
             })?;
-            metadata.insert("jpmorgan".to_string(), feature_data["jpmorgan"].clone());
+            metadata.insert("jpmorgan".to_string(), jpmorgan_context);
             payment_data.set_payment_attempt(attempt);
         }
     }

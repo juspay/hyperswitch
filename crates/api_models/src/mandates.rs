@@ -230,6 +230,7 @@ pub struct JpmorganSafetechContext {
     #[smithy(value_type = "String")]
     pub card_exp_year: Secret<String>,
     /// Identifies the underlying card network, not a network inferred from token digits.
+    #[schema(value_type = CardNetwork)]
     pub card_network: api_enums::CardNetwork,
     /// Contains the network transaction ID from the original cardholder payment.
     #[schema(value_type = String)]

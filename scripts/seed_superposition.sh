@@ -291,7 +291,7 @@ put_or_fail "$SUPERPOSITION_URL/context" '{
     "change_reason": "Deja recording sampler"
 }' "deja_record override"
 
-# Prove the sampler policy actually resolves: a mis-seeded cohort fails
+# Verify the sampler policy: an incorrectly seeded cohort fails
 # silently (`deja_record` just keeps resolving to false), so assert both
 # directions here where the answer is still cheap to get.
 resolve_deja_record() {
