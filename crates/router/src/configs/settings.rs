@@ -1321,6 +1321,10 @@ pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
     pub ignore_error: WebhookIgnoreErrorSettings,
     pub redis_lock_expiry_seconds: u32,
+    /// Connectors whose incoming webhooks are source verified only when the infrastructure
+    /// layer has marked the request as received over a mutually authenticated TLS connection.
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub mtls_required_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
