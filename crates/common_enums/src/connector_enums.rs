@@ -249,6 +249,7 @@ impl Connector {
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
                 | (Self::Itaubank, Some(PayoutType::Bank))
                 | (Self::Deutschebank, Some(PayoutType::Bank))
+                | (Self::Mifinity, Some(PayoutType::Wallet | PayoutType::Bank))
         )
     }
     #[cfg(feature = "payouts")]
@@ -257,7 +258,9 @@ impl Connector {
         payout_method: Option<PayoutType>,
         is_passthrough: bool,
     ) -> bool {
-        if matches!(self, Self::Trustly) {
+        if matches!(self, Self::Mifinity) {
+            false
+        } else if matches!(self, Self::Trustly) {
             !is_passthrough
         } else {
             matches!(payout_method, Some(PayoutType::Bank))

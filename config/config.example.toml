@@ -58,6 +58,10 @@ connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
 max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+keepalives_idle = 5       # Idle seconds before the OS sends TCP keepalive probes
+keepalives_interval = 2   # Seconds between keepalive probes
+keepalives_count = 3      # Unanswered probes before the OS declares the connection dead
+tcp_user_timeout_ms = 5000 # Unacked-data timeout (ms); keep below connection_timeout
 
 # Replica SQL data store credentials
 [replica_database]
@@ -72,6 +76,10 @@ connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
 max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+keepalives_idle = 5       # Idle seconds before the OS sends TCP keepalive probes
+keepalives_interval = 2   # Seconds between keepalive probes
+keepalives_count = 3      # Unanswered probes before the OS declares the connection dead
+tcp_user_timeout_ms = 5000 # Unacked-data timeout (ms); keep below connection_timeout
 
 # Accounts schema SQL data store credentials (merchant accounts, profiles, MCAs, key stores)
 [accounts_database]
@@ -86,6 +94,10 @@ connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
 max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+keepalives_idle = 5       # Idle seconds before the OS sends TCP keepalive probes
+keepalives_interval = 2   # Seconds between keepalive probes
+keepalives_count = 3      # Unanswered probes before the OS declares the connection dead
+tcp_user_timeout_ms = 5000 # Unacked-data timeout (ms); keep below connection_timeout
 
 # Global tenant (users, roles) SQL data store credentials
 [global_database]
@@ -100,6 +112,10 @@ connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
 max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+keepalives_idle = 5       # Idle seconds before the OS sends TCP keepalive probes
+keepalives_interval = 2   # Seconds between keepalive probes
+keepalives_count = 3      # Unanswered probes before the OS declares the connection dead
+tcp_user_timeout_ms = 5000 # Unacked-data timeout (ms); keep below connection_timeout
 
 # Redis credentials
 [redis]
@@ -373,10 +389,9 @@ finix.base_url = "https://finix.sandbox-payments-api.com"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
-fiuu.base_url = "https://sandbox.merchant.razer.com/"
+fiuu.base_url = "https://sandbox-payment.fiuu.com/"
 flexiti.base_url = "https://onlineapi.flexiti.fi/flexiti/online-api/"
-fiuu.secondary_base_url="https://sandbox.merchant.razer.com/"
-fiuu.third_base_url="https://api.merchant.razer.com/"
+fiuu.secondary_base_url="https://sandbox-api.fiuu.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 getnet.base_url = "https://api-test.getneteurope.com/engine/rest"
 gigadat.base_url = "https://interac.express-connect.com/"
