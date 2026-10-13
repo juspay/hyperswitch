@@ -1,0 +1,100 @@
+name: Deja ART Replay
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: deja-art-replay-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    name: Deja ART CI Gate
+    if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+    runs-on: hyperswitch-runners
+    timeout-minutes: 180
+    steps:
+      - name: Dispatch and wait for Jenkins verdict
+        uses: actions/github-script@v7
+        env:
+          JENKINS_WEBHOOK_URL: ${{ secrets.DEJA_ART_JENKINS_WEBHOOK_URL }}
+        with:
+          script: |
+            const fs = require('fs');
+            const https = require('https');
+            const { URL } = require('url');
+            const endpoint = process.env.JENKINS_WEBHOOK_URL;
+            if (!endpoint) throw new Error('Required secret DEJA_ART_JENKINS_WEBHOOK_URL is not configured.');
+            let webhook;
+            try {
+              webhook = new URL(endpoint);
+            } catch {
+              throw new Error('DEJA_ART_JENKINS_WEBHOOK_URL must be a valid HTTPS URL.');
+            }
+            if (webhook.protocol !== 'https:') throw new Error('DEJA_ART_JENKINS_WEBHOOK_URL must use HTTPS.');
+
+            const eventName = context.eventName;
+            const payload = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+            if (eventName !== 'pull_request') throw new Error(`Unsupported event: ${eventName}`);
+            const sha = payload.pull_request?.head?.sha;
+            if (!sha) throw new Error('Pull request event has no head SHA.');
+            const marker = `${context.runId}-${process.env.GITHUB_RUN_ATTEMPT}`;
+            const { owner, repo } = context.repo;
+            const checkName = 'Deja ART Replay CI';
+            const listChecks = async () => {
+              const checks = await github.paginate(github.rest.checks.listForRef, {
+                owner, repo, ref: sha, filter: 'all', per_page: 100,
+              });
+              return checks.filter(check =>
+                check.name === checkName && check.app?.slug === 'hyperswitch-bot');
+            };
+            const post = (url, body) => new Promise((resolve, reject) => {
+              const request = https.request(url, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Content-Length': Buffer.byteLength(body),
+                  'X-GitHub-Event': eventName,
+                  'X-Deja-ART-CI': 'hyperswitch-actions',
+                  'X-Deja-ART-Run': marker,
+                },
+              }, response => {
+                response.resume();
+                response.on('end', () => {
+                  if (response.statusCode < 200 || response.statusCode >= 300)
+                    reject(new Error(`Jenkins webhook returned HTTP ${response.statusCode}.`));
+                  else resolve();
+                });
+              });
+              request.setTimeout(30000, () => request.destroy());
+              request.on('error', () => reject(new Error('Unable to deliver the Jenkins webhook request.')));
+              request.end(body);
+            });
+
+            await post(webhook, fs.readFileSync(process.env.GITHUB_EVENT_PATH));
+            core.info(`Dispatched ${eventName} for the requested commit; waiting for its Jenkins check.`);
+
+            const deadline = Date.now() + 170 * 60 * 1000;
+            while (Date.now() < deadline) {
+              const checks = await listChecks();
+              const correlated = checks.filter(check => {
+                const summaryLines = (check.output?.summary || '').split(/\r?\n/);
+                return summaryLines.includes(`Deja ART CI run: ${marker}`) &&
+                  (check.head_sha || '').toLowerCase() === sha.toLowerCase();
+              });
+              const check = correlated.find(item => item.status === 'completed');
+              if (check) {
+                core.info(`Jenkins check completed with conclusion: ${check.conclusion || 'unknown'}.`);
+                if (check.conclusion !== 'success')
+                  throw new Error(`Jenkins Deja ART Replay concluded ${check.conclusion || 'without a conclusion'}.`);
+                core.info('Jenkins Deja ART Replay passed.');
+                return;
+              }
+              await new Promise(resolve => setTimeout(resolve, 15000));
+            }
+            throw new Error('Timed out waiting for a correlated Deja ART Replay check on the requested commit.');

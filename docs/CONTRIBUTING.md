@@ -203,6 +203,14 @@ Before making a large change, it is usually a good idea to first open an issue
 describing the change to solicit feedback and guidance.
 This will increase the likelihood of the PR getting merged.
 
+### Deja ART Replay CI
+
+Same-repository pull requests run the Deja ART replay on their head commit. The
+`Deja ART CI Gate` check waits for Jenkins to publish a verdict; dispatch alone
+does not pass the check. Fork pull requests and merge-queue entries do not run
+this automatic replay because the Jenkins image build has privileged credentials.
+Maintainers can request a reviewed fork replay with the `deja-art` label.
+
 ### Cargo Commands
 
 Due to the extensive use of features in hyperswitch, you will often need to add
