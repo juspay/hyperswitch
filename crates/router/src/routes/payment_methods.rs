@@ -493,16 +493,49 @@ async fn get_merchant_account(
 pub async fn migrate_payment_methods(
     state: web::Data<AppState>,
     req: HttpRequest,
-    MultipartForm(form): MultipartForm<migration::PaymentMethodsMigrateForm>,
+    MultipartForm(mut form): MultipartForm<migration::PaymentMethodsMigrateForm>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsMigrate;
-    let (merchant_id, records, merchant_connector_ids) =
-        match form.validate_and_get_payment_method_records() {
-            Ok((merchant_id, records, merchant_connector_ids)) => {
-                (merchant_id, records, merchant_connector_ids)
-            }
-            Err(e) => return api::log_and_return_error_response(e.into()),
-        };
+    // Dispatch before entering the legacy handler; opt-in is required for modular behavior.
+    let options = match form.take_customer_migration_options() {
+        Ok(options) => options,
+        Err(error) => return api::log_and_return_error_response(error.into()),
+    };
+    // Strict CSV headers apply only to the new contract, preserving legacy parsing.
+    if matches!(options, migration::CustomerMigrationOptions::Modular { .. }) {
+        if let Err(error) = form.validate_modular_csv_headers() {
+            return api::log_and_return_error_response(error.into());
+        }
+    }
+    let (merchant_id, records, merchant_connector_ids) = match form
+        .validate_and_get_payment_method_records()
+    {
+        Ok((merchant_id, records, merchant_connector_ids)) => {
+            (merchant_id, records, merchant_connector_ids)
+        }
+        Err(e) => {
+            // CSV errors can echo invalid email/name values. Keep modular errors generic.
+            let error = if matches!(options, migration::CustomerMigrationOptions::Modular { .. }) {
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid modular migration CSV; check field types".to_string(),
+                }
+            } else {
+                e
+            };
+            return api::log_and_return_error_response(error.into());
+        }
+    };
+    if let migration::CustomerMigrationOptions::Modular { api_key } = options {
+        return migrate_modular_customers(
+            state,
+            req,
+            merchant_id,
+            records,
+            merchant_connector_ids,
+            api_key,
+        )
+        .await;
+    }
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -580,6 +613,71 @@ pub async fn migrate_payment_methods(
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
+    .await
+}
+
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+/// Read-only contract discovery; no customer calls, credentials or cards are created.
+pub async fn migration_capabilities(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    api::server_wrap(
+        Flow::PaymentMethodsMigrate,
+        state,
+        &req,
+        (),
+        |_state, _, (), _| async {
+            Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(api::ApplicationResponse::Json(
+                crate::core::payment_methods::modular_customers::capabilities(),
+            ))
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+// Retain admin authentication here; the supplied merchant key is validated in prepare.
+async fn migrate_modular_customers(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    merchant_id: id_type::MerchantId,
+    records: Vec<api_models::payment_methods::PaymentMethodRecord>,
+    merchant_connector_ids: Option<Vec<id_type::MerchantConnectorAccountId>>,
+    api_key: hyperswitch_masking::StrongSecret<String>,
+) -> HttpResponse {
+    api::server_wrap(
+        Flow::PaymentMethodsMigrate,
+        state,
+        &req,
+        records,
+        |state, _, records, _| {
+            let merchant_id = merchant_id.clone();
+            let merchant_connector_ids = merchant_connector_ids.clone();
+            let api_key = api_key.clone();
+            async move {
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+                let platform = domain::Platform::new(
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    merchant_account,
+                    key_store,
+                    None,
+                );
+                let results = crate::core::payment_methods::modular_customers::prepare(
+                    &state,
+                    &platform,
+                    records,
+                    merchant_connector_ids,
+                    api_key,
+                )
+                .await?;
+                Ok(api::ApplicationResponse::Json(results))
+            }
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
     .await
 }
 
