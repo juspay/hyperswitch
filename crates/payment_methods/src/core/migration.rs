@@ -144,6 +144,7 @@ fn validate_modular_csv_headers(data: &[u8]) -> Result<(), errors::ApiErrorRespo
 
 #[cfg(all(test, feature = "v1"))]
 mod customer_options_tests {
+    // Verify optional-field dispatch, secret handling and the unchanged legacy default.
     use actix_web::{http::header, test, web, App, HttpResponse};
 
     use super::*;

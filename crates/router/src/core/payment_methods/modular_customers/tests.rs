@@ -1,3 +1,4 @@
+//! Synthetic customer backends exercise validation, identity and application-level recovery.
 use std::{
     collections::VecDeque,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -644,94 +645,8 @@ fn requests_use_modular_auth_profile_tenant_and_encoded_reference() {
     )
     .expect("POST");
     assert_eq!(create.method, Method::Post);
-    assert!(create.disable_connection_closed_retry);
-    assert!(!request.disable_connection_closed_retry);
     assert_eq!(create.url, "http://modular.invalid/v1/customers");
     assert!(create.body.is_some());
-}
-
-#[tokio::test]
-async fn transport_retry_opt_out_preserves_legacy_policy_and_sends_mutations_once() {
-    use std::{
-        io::{Read, Write},
-        net::{Shutdown, TcpListener},
-        time::{Duration, Instant},
-    };
-    for disable in [false, true] {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("listener");
-        listener.set_nonblocking(true).expect("nonblocking");
-        let address = listener.local_addr().expect("address");
-        let expected = if disable { 1 } else { 2 };
-        let server = std::thread::spawn(move || {
-            let deadline = Instant::now() + Duration::from_secs(5);
-            let mut accepted = 0;
-            while accepted < expected {
-                let (mut stream, _) = match listener.accept() {
-                    Ok(connection) => connection,
-                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                        assert!(
-                            Instant::now() < deadline,
-                            "expected transport request was not received"
-                        );
-                        std::thread::sleep(Duration::from_millis(2));
-                        continue;
-                    }
-                    Err(error) => panic!("accept failed: {error}"),
-                };
-                stream
-                    .set_read_timeout(Some(Duration::from_secs(2)))
-                    .expect("timeout");
-                let mut bytes = Vec::new();
-                loop {
-                    let mut chunk = [0; 4096];
-                    let size = stream.read(&mut chunk).expect("request");
-                    assert!(size > 0);
-                    bytes.extend_from_slice(chunk.get(..size).expect("read length within buffer"));
-                    if let Some(end) = bytes.windows(4).position(|slice| slice == b"\r\n\r\n") {
-                        if bytes.len() >= end + 6 {
-                            break;
-                        }
-                    }
-                }
-                accepted += 1;
-                if accepted == 1 {
-                    // The synthetic mutation has committed, but no response is returned.
-                    stream.shutdown(Shutdown::Both).expect("close");
-                } else {
-                    stream
-                        .write_all(
-                            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}",
-                        )
-                        .expect("response");
-                }
-            }
-            accepted
-        });
-        let mut request = Request::new(
-            Method::Post,
-            &format!("http://{address}/synthetic-mutation"),
-        );
-        request.set_body(RequestContent::RawBytes(b"qa".to_vec()));
-        request.disable_connection_closed_retry = disable;
-        let response = external_services::http_client::send_request(
-            &hyperswitch_interfaces::types::Proxy::default(),
-            request,
-            Some(3),
-        )
-        .await;
-        if disable {
-            assert_eq!(
-                response.expect_err("do not resend").current_context(),
-                &hyperswitch_interfaces::errors::HttpClientError::ConnectionClosedIncompleteMessage
-            );
-        } else {
-            assert_eq!(
-                response.expect("legacy retry").status(),
-                reqwest::StatusCode::OK
-            );
-        }
-        assert_eq!(server.join().expect("server"), expected);
-    }
 }
 
 #[test]

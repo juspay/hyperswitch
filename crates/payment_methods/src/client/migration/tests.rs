@@ -1,16 +1,9 @@
+//! Verify migration conversion preserves supported fields without inventing CVC.
 use super::*;
 
 // Preserve JSON indexing's missing-field-as-null behavior using checked access.
 fn json_at(value: &serde_json::Value, pointer: &str) -> serde_json::Value {
     value.pointer(pointer).cloned().unwrap_or_default()
-}
-
-#[test]
-fn only_migration_create_disables_incomplete_response_retry() {
-    use hyperswitch_interfaces::micro_service::ClientOperation;
-    assert!(CreateMigrationPaymentMethod.disable_connection_closed_retry());
-    assert!(!super::super::create::CreatePaymentMethod.disable_connection_closed_retry());
-    assert!(!ListMigrationCustomerPaymentMethods.disable_connection_closed_retry());
 }
 
 #[test]

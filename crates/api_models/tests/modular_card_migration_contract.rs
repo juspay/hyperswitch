@@ -1,3 +1,4 @@
+//! Check synthetic migration payloads against the real modular customer/card DTOs.
 #![cfg(feature = "v2")]
 
 use hyperswitch_masking::PeekInterface;

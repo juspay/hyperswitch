@@ -1,3 +1,4 @@
+//! Synthetic storage backends cover duplicate cards, partial writes and resumed attempts.
 use std::{
     collections::{HashMap, VecDeque},
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
