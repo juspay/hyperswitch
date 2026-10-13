@@ -23,7 +23,6 @@ pub mod card_issuer;
 pub mod cards_info;
 pub mod config;
 pub mod configs;
-pub mod connection;
 pub mod customers;
 pub mod database;
 pub mod dispute;

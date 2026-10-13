@@ -25,10 +25,10 @@ pub trait ReverseLookupInterface {
 mod storage {
     use error_stack::report;
     use router_env::{instrument, tracing};
+    use storage_impl::DatabaseStore;
 
     use super::{ReverseLookupInterface, Store};
     use crate::{
-        connection,
         errors::{self, CustomResult},
         types::storage::{
             enums,
@@ -44,7 +44,7 @@ mod storage {
             new: ReverseLookupNew,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<ReverseLookup, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             new.insert(&conn)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
@@ -56,7 +56,7 @@ mod storage {
             id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<ReverseLookup, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             ReverseLookup::find_by_lookup_id(id, &conn)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
@@ -69,13 +69,13 @@ mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::SetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{
-        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    use storage_impl::{
+        redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
+        DatabaseStore,
     };
 
     use super::{ReverseLookupInterface, Store};
     use crate::{
-        connection,
         core::errors::utils::RedisErrorExt,
         errors::{self, CustomResult},
         types::storage::{
@@ -101,7 +101,7 @@ mod storage {
             .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_write(self).await?;
+                    let conn = self.pg_connection_write().await?;
                     new.insert(&conn)
                         .await
                         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -114,7 +114,7 @@ mod storage {
                         source: new.source.clone(),
                         updated_by: storage_scheme.to_string(),
                     };
-                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let mut query_gen_conn = self.pg_connection_write().await?;
                     let drainer_query = new
                         .generate_drainer_insert_query(&mut query_gen_conn)
                         .await
@@ -154,7 +154,7 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<ReverseLookup, errors::StorageError> {
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let conn = self.pg_connection_read().await?;
                 ReverseLookup::find_by_lookup_id(id, &conn)
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))

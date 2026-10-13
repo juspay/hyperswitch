@@ -4,10 +4,10 @@ use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use futures::future::try_join_all;
 use router_env::{instrument, tracing};
+use storage_impl::DatabaseStore;
 
 use super::{MockDb, Store};
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     types::{
         domain::{
@@ -212,7 +212,7 @@ impl EventInterface for Store {
         event: domain::Event,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         event
             .construct_new()
             .await
@@ -236,7 +236,7 @@ impl EventInterface for Store {
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::find_by_event_id(&conn, event_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
@@ -257,7 +257,7 @@ impl EventInterface for Store {
         event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::find_by_merchant_id_event_id(&conn, merchant_id, event_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
@@ -278,7 +278,7 @@ impl EventInterface for Store {
         idempotent_event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::find_by_merchant_id_idempotent_event_id(
             &conn,
             merchant_id,
@@ -303,7 +303,7 @@ impl EventInterface for Store {
         idempotent_event_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::find_by_initiator_merchant_id_idempotent_event_id(
             &conn,
             initiator_merchant_id,
@@ -334,7 +334,7 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::list_initial_attempts_by_initiator_merchant_id_constraints(
             &conn,
             initiator_merchant_id,
@@ -377,7 +377,7 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::list_initial_attempts_by_merchant_id_constraints(
             &conn,
             merchant_id,
@@ -415,7 +415,7 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::list_by_initiator_merchant_id_initial_attempt_id(
             &conn,
             initial_attempt_id,
@@ -448,7 +448,7 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::list_by_merchant_id_initial_attempt_id(
             &conn,
             merchant_id,
@@ -482,7 +482,7 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::list_initial_attempts_by_initiator_merchant_id_primary_object_id(
             &conn,
             initiator_merchant_id,
@@ -516,7 +516,7 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::list_initial_attempts_by_merchant_id_primary_object_id(
             &conn,
             merchant_id,
@@ -548,7 +548,7 @@ impl EventInterface for Store {
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Option<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::find_initial_attempt_by_merchant_id_initial_attempt_id(
             &conn,
             merchant_id,
@@ -588,7 +588,7 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::list_initial_attempts_by_profile_id_constraints(
             &conn,
             profile_id,
@@ -628,7 +628,7 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::list_initial_attempts_by_profile_id_primary_object_id(
             &conn,
             profile_id,
@@ -660,7 +660,7 @@ impl EventInterface for Store {
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Option<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::find_initial_attempt_by_profile_id_initial_attempt_id(
             &conn,
             profile_id,
@@ -696,7 +696,7 @@ impl EventInterface for Store {
         event: domain::EventUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         storage::Event::update_by_event_id(&conn, event_id, event.into())
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
@@ -718,7 +718,7 @@ impl EventInterface for Store {
         event: domain::EventUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         storage::Event::update_by_merchant_id_event_id(&conn, merchant_id, event_id, event.into())
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
@@ -741,7 +741,7 @@ impl EventInterface for Store {
         is_delivered: Option<bool>,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::count_initial_attempts_by_profile_id_constraints(
             &conn,
             profile_id,
@@ -766,7 +766,7 @@ impl EventInterface for Store {
         is_delivered: Option<bool>,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::count_initial_attempts_by_initiator_merchant_id_constraints(
             &conn,
             initiator_merchant_id,
@@ -791,7 +791,7 @@ impl EventInterface for Store {
         is_delivered: Option<bool>,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Event::count_initial_attempts_by_constraints(
             &conn,
             merchant_id,

@@ -22,7 +22,7 @@ use crate::{
     lookup::ReverseLookupInterface,
     mock_db::MockDb,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-    utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
+    utils::try_redis_get_else_try_database_get,
     DatabaseStore, RouterStore,
 };
 
@@ -66,7 +66,7 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
         authentication: Authentication,
         _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let inserted_authentication = Box::pin(
             authentication
                 .construct_new()
@@ -98,7 +98,7 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
         state: &common_utils::types::keymanager::KeyManagerState,
         _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         // Stagger release: try processor_merchant_id, fall back to merchant_id for legacy NULL rows.
         let result = diesel_authentication::find_by_processor_merchant_id_authentication_id(
             &conn,
@@ -149,7 +149,7 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
         state: &common_utils::types::keymanager::KeyManagerState,
         _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         // Stagger release: try processor_merchant_id, fall back to merchant_id for legacy NULL rows.
         let result = diesel_authentication::find_authentication_by_processor_merchant_id_connector_authentication_id(
             &conn,
@@ -200,7 +200,7 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
         state: &common_utils::types::keymanager::KeyManagerState,
         _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let authentication_update_internal =
             diesel_models::authentication::AuthenticationUpdateInternal::from(
                 diesel_models::authentication::AuthenticationUpdate::from(authentication_update),
@@ -315,7 +315,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                     .await
                     .change_context(errors::StorageError::EncryptionError)?;
 
-                let mut query_gen_conn = pg_connection_write(self).await?;
+                let mut query_gen_conn = self.pg_connection_write().await?;
                 let drainer_query = authentication_to_insert
                     .generate_drainer_insert_query(&mut query_gen_conn)
                     .await
@@ -391,7 +391,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
         let database_call = || async {
-            let conn = pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             // Stagger release: try processor_merchant_id, fall back to merchant_id for legacy NULL rows.
             let result = diesel_authentication::find_by_processor_merchant_id_authentication_id(
                 &conn,
@@ -490,7 +490,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
         let database_call = || async {
-            let conn = pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             // Stagger release: try processor_merchant_id, fall back to merchant_id for legacy NULL rows.
             let result =
                 diesel_authentication::find_authentication_by_processor_merchant_id_connector_authentication_id(
@@ -688,7 +688,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                     .encode_to_string_of_json()
                     .change_context(errors::StorageError::SerializationFailed)?;
 
-                let mut query_gen_conn = pg_connection_write(self).await?;
+                let mut query_gen_conn = self.pg_connection_write().await?;
                 let drainer_query = authentication_update_internal
                     .generate_drainer_update_query(
                         &mut query_gen_conn,

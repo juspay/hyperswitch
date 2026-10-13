@@ -1,8 +1,8 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
+use storage_impl::DatabaseStore;
 
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     db::MockDb,
     services::Store,
@@ -43,7 +43,7 @@ impl PaymentLinkInterface for Store {
         &self,
         payment_link_id: &str,
     ) -> CustomResult<storage::PaymentLink, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::PaymentLink::find_link_by_payment_link_id(&conn, payment_link_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -54,7 +54,7 @@ impl PaymentLinkInterface for Store {
         &self,
         payment_link_config: storage::PaymentLinkNew,
     ) -> CustomResult<storage::PaymentLink, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         payment_link_config
             .insert(&conn)
             .await
@@ -68,7 +68,7 @@ impl PaymentLinkInterface for Store {
         payment_link_constraints: &api_models::payments::PaymentLinkListConstraints,
         profile_id: Option<common_utils::id_type::ProfileId>,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::PaymentLink::filter_by_constraints(
             &conn,
             processor_merchant_id,
@@ -86,7 +86,7 @@ impl PaymentLinkInterface for Store {
         payment_link_constraints: &api_models::payments::PaymentLinkListConstraints,
         profile_id: Option<common_utils::id_type::ProfileId>,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::PaymentLink::get_total_count_of_payment_links(
             &conn,
             processor_merchant_id,

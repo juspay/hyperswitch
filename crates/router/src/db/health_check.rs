@@ -2,10 +2,10 @@ use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use diesel_models::ConfigNew;
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
+use storage_impl::DatabaseStore;
 
 use super::{MockDb, Store};
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -19,7 +19,8 @@ pub trait HealthCheckDbInterface {
 impl HealthCheckDbInterface for Store {
     #[instrument(skip_all)]
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
-        let conn = connection::pg_connection_write(self)
+        let conn = self
+            .pg_connection_write()
             .await
             .change_context(errors::HealthCheckDBError::DBError)?;
 

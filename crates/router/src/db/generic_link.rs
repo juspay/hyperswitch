@@ -1,8 +1,8 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
+use storage_impl::DatabaseStore;
 
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     db::MockDb,
     services::Store,
@@ -55,7 +55,7 @@ impl GenericLinkInterface for Store {
         &self,
         link_id: &str,
     ) -> CustomResult<storage::GenericLinkState, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::GenericLink::find_generic_link_by_link_id(&conn, link_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -66,7 +66,7 @@ impl GenericLinkInterface for Store {
         &self,
         link_id: &str,
     ) -> CustomResult<storage::PaymentMethodCollectLink, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::GenericLink::find_pm_collect_link_by_link_id(&conn, link_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -77,7 +77,7 @@ impl GenericLinkInterface for Store {
         &self,
         link_id: &str,
     ) -> CustomResult<storage::PayoutLink, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::GenericLink::find_payout_link_by_link_id(&conn, link_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -88,7 +88,7 @@ impl GenericLinkInterface for Store {
         &self,
         generic_link: storage::GenericLinkNew,
     ) -> CustomResult<storage::GenericLinkState, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         generic_link
             .insert(&conn)
             .await
@@ -100,7 +100,7 @@ impl GenericLinkInterface for Store {
         &self,
         pm_collect_link: storage::GenericLinkNew,
     ) -> CustomResult<storage::PaymentMethodCollectLink, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         pm_collect_link
             .insert_pm_collect_link(&conn)
             .await
@@ -112,7 +112,7 @@ impl GenericLinkInterface for Store {
         &self,
         pm_collect_link: storage::GenericLinkNew,
     ) -> CustomResult<storage::PayoutLink, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         pm_collect_link
             .insert_payout_link(&conn)
             .await
@@ -125,7 +125,7 @@ impl GenericLinkInterface for Store {
         payout_link: storage::PayoutLink,
         payout_link_update: storage::PayoutLinkUpdate,
     ) -> CustomResult<storage::PayoutLink, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         payout_link
             .update_payout_link(&conn, payout_link_update)
             .await

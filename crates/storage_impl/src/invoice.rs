@@ -9,8 +9,7 @@ pub use hyperswitch_domain_models::{
 use router_env::{instrument, tracing};
 
 use crate::{
-    connection, errors::StorageError, kv_router_store::KVRouterStore, DatabaseStore, MockDb,
-    RouterStore,
+    errors::StorageError, kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore,
 };
 
 #[async_trait::async_trait]
@@ -27,7 +26,7 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
             .construct_new()
             .await
             .change_context(StorageError::DecryptionError)?;
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         Box::pin(self.call_database(key_store, inv_new.insert(&conn))).await
     }
 
@@ -37,7 +36,7 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         invoice_id: String,
     ) -> CustomResult<DomainInvoice, StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         self.call_database(
             key_store,
             Invoice::find_invoice_by_id_invoice_id(&conn, invoice_id),
@@ -56,7 +55,7 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
             .construct_new()
             .await
             .change_context(StorageError::DecryptionError)?;
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         self.call_database(
             key_store,
             Invoice::update_invoice_entry(&conn, invoice_id, inv_new),
@@ -70,7 +69,7 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         subscription_id: String,
     ) -> CustomResult<DomainInvoice, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let invoices: Vec<DomainInvoice> = self
             .find_resources(
                 key_store,
@@ -100,7 +99,7 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
         subscription_id: String,
         connector_invoice_id: common_utils::id_type::InvoiceId,
     ) -> CustomResult<Option<DomainInvoice>, StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         self.find_optional_resource(
             key_store,
             Invoice::get_invoice_by_subscription_id_connector_invoice_id(

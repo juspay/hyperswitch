@@ -4,7 +4,6 @@ use hyperswitch_domain_models::configs::ConfigInterface;
 use router_env::{instrument, tracing};
 
 use crate::{
-    connection,
     errors::StorageError,
     kv_router_store,
     redis::{
@@ -74,7 +73,7 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
         &self,
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let inserted = config
             .insert(&conn)
             .await
@@ -94,7 +93,7 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, StorageError> {
         cache::publish_and_redact(self, CacheKind::Config(key.into()), || async {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             storage::Config::update_by_key(&conn, key, config_update)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
@@ -109,7 +108,7 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
         key: &str,
     ) -> CustomResult<Option<storage::Config>, StorageError> {
         let find_config_by_key_from_db = || async {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             match storage::Config::find_by_key(&conn, key)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
@@ -153,7 +152,7 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
 
     #[instrument(skip_all)]
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<storage::Config, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let deleted = storage::Config::delete_by_key(&conn, key)
             .await
             .map_err(|error| report!(StorageError::from(error)))?;

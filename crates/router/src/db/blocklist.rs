@@ -1,10 +1,9 @@
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
-use storage_impl::{utils::pg_connection_read_replica, MockDb};
+use storage_impl::{DatabaseStore, MockDb};
 
 use super::Store;
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     db::kafka_store::KafkaStore,
     types::storage,
@@ -143,7 +142,7 @@ impl BlocklistInterface for Store {
         &self,
         pm_blocklist: storage::BlocklistNew,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         pm_blocklist
             .insert(&conn)
             .await
@@ -156,7 +155,7 @@ impl BlocklistInterface for Store {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
         let result = storage::Blocklist::find_by_processor_merchant_id_fingerprint_id(
@@ -194,7 +193,7 @@ impl BlocklistInterface for Store {
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         let result = storage::Blocklist::find_by_processor_merchant_id_profile_id_fingerprint_id(
             &conn,
             processor_merchant_id,
@@ -232,7 +231,7 @@ impl BlocklistInterface for Store {
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_ids: Vec<String>,
     ) -> CustomResult<Option<storage::Blocklist>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Blocklist::find_by_processor_merchant_id_profile_id_fingerprint_ids(
             &conn,
             processor_merchant_id,
@@ -250,7 +249,7 @@ impl BlocklistInterface for Store {
         profile_id: &common_utils::id_type::ProfileId,
         card_bins: Vec<String>,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Blocklist::find_by_processor_merchant_id_profile_id_card_bins(
             &conn,
             processor_merchant_id,
@@ -266,7 +265,7 @@ impl BlocklistInterface for Store {
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Blocklist::list_by_processor_merchant_id(&conn, processor_merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -280,7 +279,7 @@ impl BlocklistInterface for Store {
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Blocklist::list_by_processor_merchant_id_data_kind(
             &conn,
             processor_merchant_id,
@@ -300,7 +299,7 @@ impl BlocklistInterface for Store {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Blocklist::get_count_by_processor_merchant_id_data_kind(
             &conn,
             processor_merchant_id,
@@ -318,7 +317,7 @@ impl BlocklistInterface for Store {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we delete by merchant_id (which has the same value)
         let result = storage::Blocklist::delete_by_processor_merchant_id_fingerprint_id(
@@ -356,7 +355,7 @@ impl BlocklistInterface for Store {
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let result = storage::Blocklist::delete_by_processor_merchant_id_profile_id_fingerprint_id(
             &conn,
             processor_merchant_id,
@@ -396,7 +395,7 @@ impl BlocklistInterface for Store {
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         match profile_id {
             Some(profile_id) => {
                 storage::Blocklist::list_by_processor_merchant_id_profile_id_data_kind(
@@ -434,7 +433,7 @@ impl BlocklistInterface for Store {
         snapshot_at: time::PrimitiveDateTime,
         limit: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        let conn = pg_connection_read_replica(self).await?;
+        let conn = self.pg_connection_read_replica().await?;
         storage::Blocklist::list_after_fingerprint_by_processor_merchant_id_profile_id(
             &conn,
             processor_merchant_id,
@@ -456,7 +455,7 @@ impl BlocklistInterface for Store {
         snapshot_at: time::PrimitiveDateTime,
         limit: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        let conn = pg_connection_read_replica(self).await?;
+        let conn = self.pg_connection_read_replica().await?;
         storage::Blocklist::list_after_fingerprint_by_legacy_merchant_id_profile_id(
             &conn,
             merchant_id,
@@ -476,7 +475,7 @@ impl BlocklistInterface for Store {
         profile_id: Option<&common_utils::id_type::ProfileId>,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         match profile_id {
             Some(profile_id) => {
                 storage::Blocklist::get_count_by_processor_merchant_id_profile_id_data_kind(
@@ -508,7 +507,7 @@ impl BlocklistInterface for Store {
         profile_id: &common_utils::id_type::ProfileId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<Vec<(i32, i64)>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::Blocklist::count_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
             &conn,
             processor_merchant_id,
@@ -526,7 +525,7 @@ impl BlocklistInterface for Store {
         &self,
         entries: Vec<storage::BlocklistNew>,
     ) -> CustomResult<usize, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         storage::BlocklistNew::bulk_insert_on_conflict_do_nothing(&conn, entries)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))

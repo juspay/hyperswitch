@@ -15,8 +15,8 @@ use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
 use crate::{
-    behaviour::Conversion, connection, errors::StorageError, kv_router_store::KVRouterStore,
-    DatabaseStore, MockDb, RouterStore,
+    behaviour::Conversion, errors::StorageError, kv_router_store::KVRouterStore, DatabaseStore,
+    MockDb, RouterStore,
 };
 
 /// Parse a diesel row into the strongly-typed domain model.
@@ -123,7 +123,7 @@ impl<T: DatabaseStore> RevenueRecoveryRetryStatsInterface for RouterStore<T> {
     ) -> CustomResult<Option<DomainRevenueRecoveryRetryStats>, StorageError> {
         // Read from the write primary: callers do read-modify-write on the same row,
         // so a lagged replica can miss a just-committed INSERT and trigger a duplicate-key violation.
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         RevenueRecoveryRetryStats::find_by_key(&conn, cluster_key.as_db_string())
             .await
             .map_err(|error| report!(StorageError::from(error)))?
@@ -137,7 +137,7 @@ impl<T: DatabaseStore> RevenueRecoveryRetryStatsInterface for RouterStore<T> {
         &self,
         revenue_recovery_retry_stats: DomainRevenueRecoveryRetryStats,
     ) -> CustomResult<DomainRevenueRecoveryRetryStats, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let inserted = RevenueRecoveryRetryStatsNew {
             cluster_key: revenue_recovery_retry_stats.cluster_key.as_db_string(),
             stats: Secret::new(revenue_recovery_retry_stats.stats.to_json()),
@@ -153,7 +153,7 @@ impl<T: DatabaseStore> RevenueRecoveryRetryStatsInterface for RouterStore<T> {
         &self,
         revenue_recovery_retry_stats: DomainRevenueRecoveryRetryStats,
     ) -> CustomResult<DomainRevenueRecoveryRetryStats, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let updated = RevenueRecoveryRetryStats::update_stats(
             &conn,
             revenue_recovery_retry_stats.cluster_key.as_db_string(),

@@ -26,7 +26,6 @@ use crate::{
     diesel_error_to_data_error, errors,
     kv_router_store::{FindResourceBy, KVRouterStore},
     redis::kv_store::KvStorePartition,
-    utils::{pg_connection_read, pg_connection_write},
     DatabaseStore, RouterStore,
 };
 #[cfg(feature = "v1")]
@@ -48,7 +47,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         payment_method_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         Box::pin(self.find_resource_by_id(
             key_store,
             storage_scheme,
@@ -66,7 +65,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         payment_method_id: &id_type::GlobalPaymentMethodId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         Box::pin(self.find_resource_by_id(
             key_store,
             storage_scheme,
@@ -86,7 +85,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         locker_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         Box::pin(self.find_resource_by_id(
             key_store,
             storage_scheme,
@@ -188,7 +187,8 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         let create_resource_fut = {
             let payment_method_new = payment_method_new.clone();
             async move {
-                let conn = pg_connection_write(self)
+                let conn = self
+                    .pg_connection_write()
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
                 payment_method_new.insert(&conn).await
@@ -197,7 +197,8 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         let drainer_query_fut = {
             let payment_method_new = payment_method_new.clone();
             async move {
-                let mut conn = pg_connection_write(self)
+                let mut conn = self
+                    .pg_connection_write()
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
                 payment_method_new
@@ -257,7 +258,8 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             let payment_method = payment_method.clone();
             let p_update = p_update.clone();
             async move {
-                let conn = pg_connection_write(self)
+                let conn = self
+                    .pg_connection_write()
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
                 Box::pin(payment_method.update_with_payment_method_id(&conn, p_update)).await
@@ -267,7 +269,8 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             let payment_method_id = payment_method.payment_method_id.clone();
             let p_update = p_update.clone();
             async move {
-                let mut conn = pg_connection_write(self)
+                let mut conn = self
+                    .pg_connection_write()
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
                 p_update
@@ -362,7 +365,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         limit: Option<i64>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         Box::pin(self.filter_resources(
             key_store,
             storage_scheme,
@@ -398,7 +401,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         limit: Option<i64>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, Self::Error> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         Box::pin(self.filter_resources(
             key_store,
             storage_scheme,
@@ -521,7 +524,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         payment_method_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         self.call_database_new(
             key_store,
             PaymentMethod::find_by_payment_method_id(&conn, payment_method_id),
@@ -536,7 +539,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         payment_method_id: &id_type::GlobalPaymentMethodId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         self.call_database_new(
             key_store,
             PaymentMethod::find_by_id(&conn, payment_method_id),
@@ -551,7 +554,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         locker_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         self.call_database_new(
             key_store,
             PaymentMethod::find_by_locker_id(&conn, locker_id),
@@ -568,7 +571,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         payment_method_ids: &[String],
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         self.find_resources_new(
             key_store,
             PaymentMethod::find_by_merchant_id_payment_method_ids(
@@ -589,7 +592,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         merchant_id: &id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         PaymentMethod::get_count_by_customer_id_merchant_id_status(
             &conn,
             customer_id,
@@ -609,7 +612,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         merchant_id: &id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         PaymentMethod::get_count_by_merchant_id_status(&conn, merchant_id, status)
             .await
             .map_err(|error| {
@@ -631,7 +634,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .await
             .change_context(errors::StorageError::DecryptionError)?;
 
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let payment_method: DomainPaymentMethod =
             Box::pin(self.call_database_new(key_store, payment_method_new.insert(&conn))).await?;
 
@@ -656,7 +659,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .await
             .change_context(errors::StorageError::DecryptionError)?;
 
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let payment_method: DomainPaymentMethod = Box::pin(self.call_database_new(
             key_store,
             payment_method.update_with_payment_method_id(&conn, payment_method_update.into()),
@@ -683,7 +686,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         let payment_method = Conversion::convert(payment_method)
             .await
             .change_context(errors::StorageError::DecryptionError)?;
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let payment_method: DomainPaymentMethod = Box::pin(
             self.call_database_new(
                 key_store,
@@ -709,7 +712,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         merchant_id: &id_type::MerchantId,
         limit: Option<i64>,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         self.find_resources_new(
             key_store,
             PaymentMethod::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id, limit),
@@ -726,7 +729,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         id: &id_type::GlobalCustomerId,
         limit: Option<i64>,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         self.find_resources_new(
             key_store,
             PaymentMethod::find_by_global_customer_id(&conn, id, limit),
@@ -745,7 +748,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         limit: Option<i64>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         self.find_resources_new(
             key_store,
             PaymentMethod::find_by_customer_id_merchant_id_status(
@@ -771,7 +774,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         limit: Option<i64>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, Self::Error> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         self.find_resources_new(
             key_store,
             PaymentMethod::find_by_customer_id_merchant_id_status_pm_type(
@@ -797,7 +800,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         limit: Option<i64>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         self.find_resources_new(
             key_store,
             PaymentMethod::find_by_global_customer_id_merchant_id_status(
@@ -822,7 +825,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         limit: Option<i64>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         self.find_resources_new(
             key_store,
             PaymentMethod::find_by_global_customer_id_merchant_id_statuses(
@@ -843,7 +846,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         merchant_id: &id_type::MerchantId,
         payment_method_id: &str,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         self.call_database_new(
             key_store,
             PaymentMethod::delete_by_merchant_id_payment_method_id(
@@ -865,7 +868,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         let payment_method = Conversion::convert(payment_method)
             .await
             .change_context(errors::StorageError::DecryptionError)?;
-        let conn = pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let payment_method_update = PaymentMethodUpdate::StatusUpdate {
             status: Some(common_enums::PaymentMethodStatus::Inactive),
             last_modified_by: initiator
@@ -887,7 +890,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         fingerprint_id: &str,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         self.call_database_new(
             key_store,
             PaymentMethod::find_by_fingerprint_id(&conn, fingerprint_id),

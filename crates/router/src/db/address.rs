@@ -79,10 +79,10 @@ mod storage {
     use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
     use error_stack::{report, ResultExt};
     use router_env::{instrument, tracing};
+    use storage_impl::DatabaseStore;
 
     use super::AddressInterface;
     use crate::{
-        connection,
         core::errors::{self, CustomResult},
         services::Store,
         types::{
@@ -101,7 +101,7 @@ mod storage {
             address_id: &str,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             storage_types::Address::find_by_address_id(&conn, address_id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
@@ -128,7 +128,7 @@ mod storage {
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             storage_types::Address::find_by_merchant_id_payment_id_address_id(
                 &conn,
                 merchant_id,
@@ -153,7 +153,7 @@ mod storage {
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             storage_types::Address::update_by_address_id(&conn, address_id, address.into())
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
@@ -180,7 +180,7 @@ mod storage {
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             let address = Conversion::convert(this)
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
@@ -210,7 +210,7 @@ mod storage {
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             address
                 .construct_new()
                 .await
@@ -238,7 +238,7 @@ mod storage {
             address: domain::CustomerAddress,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             address
                 .construct_new()
                 .await
@@ -268,7 +268,7 @@ mod storage {
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             storage_types::Address::update_by_merchant_id_customer_id(
                 &conn,
                 customer_id,
@@ -301,13 +301,13 @@ mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{
-        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    use storage_impl::{
+        redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
+        DatabaseStore,
     };
 
     use super::AddressInterface;
     use crate::{
-        connection,
         core::errors::{self, CustomResult},
         services::Store,
         types::{
@@ -327,7 +327,7 @@ mod storage {
             address_id: &str,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             storage_types::Address::find_by_address_id(&conn, address_id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
@@ -354,7 +354,7 @@ mod storage {
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = self.pg_connection_read().await?;
             let database_call = || async {
                 storage_types::Address::find_by_merchant_id_payment_id_address_id(
                     &conn,
@@ -414,7 +414,7 @@ mod storage {
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             storage_types::Address::update_by_address_id(&conn, address_id, address.into())
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
@@ -458,7 +458,7 @@ mod storage {
             .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_write(self).await?;
+                    let conn = self.pg_connection_write().await?;
                     address
                         .update(&conn, address_update.into())
                         .await
@@ -485,7 +485,7 @@ mod storage {
                     let redis_value = serde_json::to_string(&updated_address)
                         .change_context(errors::StorageError::KVError)?;
 
-                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let mut query_gen_conn = self.pg_connection_write().await?;
                     let drainer_query = address_update_internal
                         .generate_drainer_update_query(
                             &mut query_gen_conn,
@@ -543,7 +543,7 @@ mod storage {
             .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_write(self).await?;
+                    let conn = self.pg_connection_write().await?;
                     address_new
                         .insert(&conn)
                         .await
@@ -590,7 +590,7 @@ mod storage {
                         origin_zip: address_new.origin_zip.clone(),
                     };
 
-                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let mut query_gen_conn = self.pg_connection_write().await?;
                     let drainer_query = address_new
                         .generate_drainer_insert_query(&mut query_gen_conn)
                         .await
@@ -636,7 +636,7 @@ mod storage {
             address: domain::CustomerAddress,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             address
                 .construct_new()
                 .await
@@ -666,7 +666,7 @@ mod storage {
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = self.pg_connection_write().await?;
             storage_types::Address::update_by_merchant_id_customer_id(
                 &conn,
                 customer_id,

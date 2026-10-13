@@ -7,11 +7,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
-use crate::{
-    kv_router_store,
-    utils::{pg_accounts_connection_read, pg_accounts_connection_write},
-    CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
-};
+use crate::{kv_router_store, CustomResult, DatabaseStore, MockDb, RouterStore, StorageError};
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> HierarchicalResourceInterface for kv_router_store::KVRouterStore<T> {
@@ -80,7 +76,7 @@ impl<T: DatabaseStore> HierarchicalResourceInterface for RouterStore<T> {
         resource: domain::HierarchicalResource,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::HierarchicalResource, Self::Error> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         let identifier = resource
             .key_identifier()
             .change_context(Self::Error::EncryptionError)?;
@@ -107,7 +103,7 @@ impl<T: DatabaseStore> HierarchicalResourceInterface for RouterStore<T> {
         id: common_utils::id_type::ResourceId,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::HierarchicalResource, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
         let resource =
             diesel_models::hierarchical_resource::HierarchicalResource::find_by_id(&conn, id)
                 .await
@@ -131,7 +127,7 @@ impl<T: DatabaseStore> HierarchicalResourceInterface for RouterStore<T> {
         &self,
         id: common_utils::id_type::ResourceId,
     ) -> CustomResult<String, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
         diesel_models::hierarchical_resource::HierarchicalResource::find_by_id(&conn, id)
             .await
             .map(|resource| resource.scope_id)
@@ -145,7 +141,7 @@ impl<T: DatabaseStore> HierarchicalResourceInterface for RouterStore<T> {
         resource_type: String,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::HierarchicalResource>, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
         let resources = diesel_models::hierarchical_resource::HierarchicalResource::list_by_scope_id_and_resource_type(
             &conn,
             scope_id,
@@ -177,7 +173,7 @@ impl<T: DatabaseStore> HierarchicalResourceInterface for RouterStore<T> {
         update: domain::HierarchicalResourceDataUpdate,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::HierarchicalResource, Self::Error> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         let resource = diesel_models::hierarchical_resource::HierarchicalResource::update_by_id(
             &conn,
             id,

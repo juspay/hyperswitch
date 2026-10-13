@@ -1,10 +1,9 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
-use storage_impl::MockDb;
+use storage_impl::{DatabaseStore, MockDb};
 
 use super::Store;
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
     db::kafka_store::KafkaStore,
     types::storage,
@@ -37,7 +36,7 @@ impl BlocklistLookupInterface for Store {
         &self,
         blocklist_lookup_entry: storage::BlocklistLookupNew,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         blocklist_lookup_entry
             .insert(&conn)
             .await
@@ -50,7 +49,7 @@ impl BlocklistLookupInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
         storage::BlocklistLookup::find_by_merchant_id_fingerprint(&conn, merchant_id, fingerprint)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -62,7 +61,7 @@ impl BlocklistLookupInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         storage::BlocklistLookup::delete_by_merchant_id_fingerprint(&conn, merchant_id, fingerprint)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))

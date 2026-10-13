@@ -2,10 +2,9 @@ use common_utils::{errors::CustomResult, types::keymanager};
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
-use storage_impl::MockDb;
+use storage_impl::{DatabaseStore, MockDb};
 
 use crate::{
-    connection,
     core::errors,
     services::Store,
     types::domain::{
@@ -44,7 +43,7 @@ impl UserKeyStoreInterface for Store {
         user_key_store: domain::UserKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = self.pg_connection_write().await?;
         let user_id = user_key_store.user_id.clone();
         user_key_store
             .construct_new()
@@ -69,7 +68,7 @@ impl UserKeyStoreInterface for Store {
         user_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
 
         diesel_models::user_key_store::UserKeyStore::find_by_user_id(&conn, user_id)
             .await
@@ -90,7 +89,7 @@ impl UserKeyStoreInterface for Store {
         from: u32,
         limit: u32,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self.pg_connection_read().await?;
 
         let key_stores = diesel_models::user_key_store::UserKeyStore::get_all_user_key_stores(
             &conn, from, limit,

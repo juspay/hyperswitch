@@ -21,9 +21,7 @@ use crate::redis::{
 };
 use crate::{
     behaviour::{Conversion, ForeignFrom, ReverseConversion},
-    kv_router_store,
-    utils::{pg_accounts_connection_read, pg_accounts_connection_write},
-    CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
+    kv_router_store, CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
 
 /// Cache key for a profile, shared by both the profile-scoped and merchant-scoped lookups.
@@ -165,7 +163,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         business_profile: domain::Profile,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         Box::pin(
             business_profile
                 .construct_new()
@@ -192,7 +190,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, StorageError> {
         let fetch_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let conn = self.pg_accounts_connection_read().await?;
             diesel::Profile::find_by_profile_id(&conn, profile_id)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
@@ -240,7 +238,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, StorageError> {
         let fetch_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let conn = self.pg_accounts_connection_read().await?;
             diesel::Profile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
@@ -288,7 +286,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         profile_name: &str,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
         self.call_database_new(
             merchant_key_store,
             diesel::Profile::find_by_profile_name_merchant_id(&conn, profile_name, merchant_id),
@@ -303,7 +301,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         current_state: domain::Profile,
         profile_update: domain::ProfileUpdate,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         let updated_profile = Box::pin(
             Conversion::convert(current_state)
                 .await
@@ -333,7 +331,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         profile_id: &common_utils::id_type::ProfileId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         let is_deleted =
             diesel::Profile::delete_by_profile_id_merchant_id(&conn, profile_id, merchant_id)
                 .await
@@ -351,7 +349,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<domain::Profile>, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
         self.find_resources_new(
             merchant_key_store,
             diesel::Profile::list_profile_by_merchant_id(&conn, merchant_id),

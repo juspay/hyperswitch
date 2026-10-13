@@ -23,7 +23,6 @@ use crate::{
     behaviour::{Conversion, ForeignFrom, ForeignInto, ReverseConversion},
     kv_router_store,
     store::MerchantAccountUpdateInternal,
-    utils::{pg_accounts_connection_read, pg_accounts_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
 
@@ -155,7 +154,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         merchant_account: domain::MerchantAccount,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         merchant_account
             .construct_new()
             .await
@@ -180,7 +179,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
         let fetch_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let conn = self.pg_accounts_connection_read().await?;
             storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
@@ -228,7 +227,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         merchant_account: domain::MerchantAccountUpdate,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
 
         let updated_merchant_account = Conversion::convert(this)
             .await
@@ -259,7 +258,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         merchant_account: domain::MerchantAccountUpdate,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         let updated_merchant_account = storage::MerchantAccount::update_with_specific_fields(
             &conn,
             merchant_id,
@@ -289,7 +288,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         publishable_key: &str,
     ) -> CustomResult<(domain::MerchantAccount, MerchantKeyStore), StorageError> {
         let fetch_by_pub_key_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let conn = self.pg_accounts_connection_read().await?;
 
             storage::MerchantAccount::find_by_publishable_key(&conn, publishable_key)
                 .await
@@ -337,7 +336,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, StorageError> {
         use futures::future::try_join_all;
-        let conn = pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
 
         let encrypted_merchant_accounts =
             storage::MerchantAccount::list_by_organization_id(&conn, organization_id)
@@ -380,7 +379,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
 
         let is_deleted_func = || async {
             storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
@@ -416,7 +415,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         &self,
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
 
         let encrypted_merchant_accounts =
             storage::MerchantAccount::list_multiple_merchant_accounts(&conn, merchant_ids)
@@ -479,7 +478,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         )>,
         StorageError,
     > {
-        let conn = pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
         let encrypted_merchant_accounts =
             storage::MerchantAccount::list_all_merchant_accounts(&conn, limit, offset)
                 .await
@@ -500,7 +499,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         &self,
         merchant_account: domain::MerchantAccountUpdate,
     ) -> CustomResult<usize, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
 
         let db_func = || async {
             storage::MerchantAccount::update_all_merchant_accounts(
