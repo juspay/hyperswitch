@@ -3534,52 +3534,41 @@ impl ProfileAcquirer {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "oltp"))]
+#[cfg(feature = "v2")]
 pub struct RevenueRecovery;
 
-#[cfg(all(feature = "v2", feature = "oltp"))]
+#[cfg(feature = "v2")]
 impl RevenueRecovery {
     pub fn server(state: AppState) -> Scope {
-        use super::payments;
+        use super::{payments, revenue_recovery_data_backfill, revenue_recovery_redis};
         web::scope("/v2/recovery")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(payments::recovery_payments_create)))
-    }
-}
-
-#[cfg(feature = "v2")]
-pub struct RecoveryDataBackfill;
-#[cfg(feature = "v2")]
-impl RecoveryDataBackfill {
-    pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/recovery/data-backfill")
-            .app_data(web::Data::new(state))
             .service(
-                web::resource("").route(
-                    web::post()
-                        .to(super::revenue_recovery_data_backfill::revenue_recovery_data_backfill),
-                ),
+                web::scope("/data-backfill")
+                    .service(
+                        web::resource("").route(
+                            web::post()
+                                .to(revenue_recovery_data_backfill::revenue_recovery_data_backfill),
+                        ),
+                    )
+                    .service(
+                        web::resource("/status/{connector_cutomer_id}/{payment_intent_id}").route(
+                            web::post().to(
+                                revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
+                            ),
+                        ),
+                    )
+                    .service(web::resource("/redis-data/{connector_cutomer_id}").route(
+                        web::get().to(revenue_recovery_redis::get_revenue_recovery_redis_data),
+                    ))
+                    .service(web::resource("/update-token").route(web::put().to(
+                        revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
+                    )))
+                    .service(web::resource("/retry-stats").route(web::post().to(
+                        revenue_recovery_data_backfill::revenue_recovery_retry_stats_migration,
+                    ))),
             )
-            .service(web::resource("/status/{connector_cutomer_id}/{payment_intent_id}").route(
-                web::post().to(
-                    super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
-                ),
-            ))
-            .service(web::resource("/redis-data/{connector_cutomer_id}").route(
-                web::get().to(
-                    super::revenue_recovery_redis::get_revenue_recovery_redis_data,
-                ),
-            ))
-            .service(web::resource("/update-token").route(
-                web::put().to(
-                    super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
-                ),
-            ))
-            .service(web::resource("/retry-stats").route(
-                web::post().to(
-                    super::revenue_recovery_data_backfill::revenue_recovery_retry_stats_migration,
-                ),
-            ))
     }
 }
 
