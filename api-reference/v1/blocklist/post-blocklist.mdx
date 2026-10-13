@@ -1,16 +1,3 @@
 ---
 openapi: post /blocklist
 ---
-
-## Payment and payout blocklists
-
-For add and delete requests, set the optional `transaction_type` field in the JSON
-body to `payment` or `payout`, alongside the existing `type` and `data` fields.
-List, count, and lookup requests use the `transaction_type` query parameter.
-Omission selects `payment` for add, delete, list, and count. Lookup omission
-includes both payment and payout; an explicit selector restricts lookup to that
-namespace. Identical BINs or fingerprints can exist in both blocklists.
-
-Legacy entries with a NULL transaction namespace are treated as payment entries.
-Payment operations include both NULL and explicit payment entries; payout
-operations include only explicit payout entries.
