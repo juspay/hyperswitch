@@ -496,10 +496,12 @@ pub async fn migrate_payment_methods(
     MultipartForm(mut form): MultipartForm<migration::PaymentMethodsMigrateForm>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsMigrate;
+    // Dispatch before entering the legacy handler; opt-in is required for modular behavior.
     let options = match form.take_customer_migration_options() {
         Ok(options) => options,
         Err(error) => return api::log_and_return_error_response(error.into()),
     };
+    // Strict CSV headers apply only to the new contract, preserving legacy parsing.
     if matches!(options, migration::CustomerMigrationOptions::Modular { .. }) {
         if let Err(error) = form.validate_modular_csv_headers() {
             return api::log_and_return_error_response(error.into());
@@ -615,6 +617,7 @@ pub async fn migrate_payment_methods(
 }
 
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+/// Read-only contract discovery; no customer calls, credentials or cards are created.
 pub async fn migration_capabilities(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     api::server_wrap(
         Flow::PaymentMethodsMigrate,
@@ -633,6 +636,7 @@ pub async fn migration_capabilities(state: web::Data<AppState>, req: HttpRequest
 }
 
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+// Retain admin authentication here; the supplied merchant key is validated in prepare.
 async fn migrate_modular_customers(
     state: web::Data<AppState>,
     req: HttpRequest,

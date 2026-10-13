@@ -115,7 +115,6 @@ impl<O: ClientOperation> TransformedRequest<O> {
         }
 
         // Step 3: Attach body (if any).
-        http_request.disable_connection_closed_retry = self.op.disable_connection_closed_retry();
         if let Some(body) = self.op.body(self.request) {
             http_request.set_body(body);
         }

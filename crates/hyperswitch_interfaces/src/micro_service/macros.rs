@@ -69,13 +69,9 @@ macro_rules! impl_microservice_flow {
         $(, path_params = $path_params_fn:expr)?
         $(, query_params = $query_params_fn:expr)?
         $(, validate = $validate_fn:expr)?
-        $(, disable_connection_closed_retry = $disable_retry:expr)?
     ) => {
         #[async_trait::async_trait]
         impl $crate::micro_service::ClientOperation for $flow {
-            fn disable_connection_closed_retry(&self) -> bool {
-                false $(|| $disable_retry)?
-            }
             const METHOD: common_utils::request::Method = $method;
             const PATH_TEMPLATE: &'static str = $path;
 
