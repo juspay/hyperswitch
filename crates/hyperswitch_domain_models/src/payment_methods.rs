@@ -36,7 +36,8 @@ use crate::transformers::ForeignTryFrom;
 #[cfg(feature = "v2")]
 use crate::{address::Address, platform::Initiator};
 use crate::{
-    mandates::CommonMandateReference, merchant_key_store::MerchantKeyStore,
+    mandates::{self, CommonMandateReference},
+    merchant_key_store::MerchantKeyStore,
     payment_method_data as domain_payment_method_data,
 };
 
@@ -216,20 +217,49 @@ impl PaymentMethod {
 
     #[cfg(feature = "v1")]
     pub fn get_common_mandate_reference(&self) -> Result<CommonMandateReference, ParsingError> {
-        self.connector_mandate_details
+        let payments_data = self
+            .connector_mandate_details
             .clone()
-            .map(diesel_models::CommonMandateReference::from_value)
+            .map(|mut mandate_details| {
+                mandate_details
+                    .as_object_mut()
+                    .map(|obj| obj.remove("payouts"));
+
+                diesel_models::CommonMandateReference::parse_payments_reference_with_token_fallback(
+                    mandate_details,
+                )
+                .map(mandates::PaymentsMandateReference::from)
+            })
             .transpose()
-            .map_err(|_| ParsingError::StructParseFailure("connector mandate details"))
-            .map(|details| {
-                details
-                    .map(CommonMandateReference::from)
-                    .unwrap_or(CommonMandateReference {
-                        payments: None,
-                        payouts: None,
-                        recurring_context: None,
+            .map_err(|err| {
+                router_env::logger::error!("Failed to parse payments data: {:?}", err);
+                ParsingError::StructParseFailure("Failed to parse payments data")
+            })?;
+
+        let payouts_data = self
+            .connector_mandate_details
+            .clone()
+            .map(|mandate_details| {
+                serde_json::from_value::<Option<CommonMandateReference>>(mandate_details)
+                    .inspect_err(|err| {
+                        router_env::logger::error!("Failed to parse payouts data: {:?}", err);
+                    })
+                    .map(|optional_common_mandate_details| {
+                        optional_common_mandate_details
+                            .and_then(|common_mandate_details| common_mandate_details.payouts)
                     })
             })
+            .transpose()
+            .map_err(|err| {
+                router_env::logger::error!("Failed to parse payouts data: {:?}", err);
+                ParsingError::StructParseFailure("Failed to parse payouts data")
+            })?
+            .flatten();
+
+        Ok(CommonMandateReference {
+            payments: payments_data,
+            payouts: payouts_data,
+        })
     }
 
     #[cfg(feature = "v2")]
@@ -240,7 +270,6 @@ impl PaymentMethod {
             Ok(CommonMandateReference {
                 payments: None,
                 payouts: None,
-                recurring_context: None,
             })
         }
     }

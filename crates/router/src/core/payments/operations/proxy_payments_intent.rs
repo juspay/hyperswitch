@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
     mandates, payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, ValidateRequest};
@@ -128,16 +128,9 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, ProxyPaymentsRequest, PaymentCon
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &ProxyPaymentsRequest,
+        _request: &ProxyPaymentsRequest,
         platform: &'a domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
-        if request.recurring_details.safetech_context.is_some() {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Use the payments create or confirm endpoint for Safetech context"
-                    .to_owned(),
-            }
-            .into());
-        }
         let validate_result = operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),
             storage_scheme: platform.get_processor().get_account().storage_scheme,
@@ -237,11 +230,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             }
         };
 
-        let processor_payment_token = request
-            .recurring_details
-            .processor_payment_token
-            .clone()
-            .expose();
+        let processor_payment_token = request.recurring_details.processor_payment_token.clone();
 
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent

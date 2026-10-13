@@ -93,9 +93,8 @@ pub enum RecurringDetails {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ProcessorPaymentToken {
-    pub processor_payment_token: Secret<String>,
+    pub processor_payment_token: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub safetech_context: Option<api_models::mandates::JpmorganSafetechContext>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -154,8 +153,6 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
 
     /// The token's expiry year
     pub token_exp_year: Secret<String>,
-
-    pub token_cryptogram: Option<Secret<String>>,
 
     /// The card network for the card
     pub card_network: Option<api_enums::CardNetwork>,
@@ -833,7 +830,6 @@ pub struct NetworkTokenDetailsForNetworkTransactionId {
     pub network_token: cards::NetworkToken,
     pub token_exp_month: Secret<String>,
     pub token_exp_year: Secret<String>,
-    pub token_cryptogram: Option<Secret<String>>,
     pub card_issuer: Option<String>,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<String>,
@@ -1159,7 +1155,6 @@ impl From<NetworkTransactionIdAndNetworkTokenDetails>
             network_token: network_token_details_for_nti.network_token,
             token_exp_month: network_token_details_for_nti.token_exp_month,
             token_exp_year: network_token_details_for_nti.token_exp_year,
-            token_cryptogram: network_token_details_for_nti.token_cryptogram,
             card_network: network_token_details_for_nti.card_network,
             card_issuer: network_token_details_for_nti.card_issuer,
             card_type: network_token_details_for_nti.card_type,
@@ -1179,7 +1174,7 @@ impl From<NetworkTokenDetailsForNetworkTransactionId> for NetworkTokenData {
             token_number: network_token_details_for_nti.network_token,
             token_exp_month: network_token_details_for_nti.token_exp_month,
             token_exp_year: network_token_details_for_nti.token_exp_year,
-            token_cryptogram: network_token_details_for_nti.token_cryptogram,
+            token_cryptogram: None,
             card_issuer: network_token_details_for_nti.card_issuer,
             card_network: network_token_details_for_nti.card_network,
             card_type: network_token_details_for_nti.card_type,
@@ -4983,7 +4978,6 @@ impl From<api_mandates::RecurringDetails> for RecurringDetails {
                 Self::ProcessorPaymentToken(ProcessorPaymentToken {
                     processor_payment_token: token.processor_payment_token,
                     merchant_connector_id: token.merchant_connector_id,
-                    safetech_context: token.safetech_context,
                 })
             }
             api_mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(
@@ -5054,7 +5048,6 @@ impl From<api_mandates::NetworkTransactionIdAndNetworkTokenDetails>
             network_token: value.network_token,
             token_exp_month: value.token_exp_month,
             token_exp_year: value.token_exp_year,
-            token_cryptogram: value.token_cryptogram,
             network_transaction_id: value.network_transaction_id,
             transaction_link_id: value.transaction_link_id,
             card_holder_name: value.card_holder_name,

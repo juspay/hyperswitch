@@ -258,7 +258,6 @@ pub async fn update_payment_method_record(
                 } else {
                     mandate_details.payouts
                 },
-                recurring_context: mandate_details.recurring_context,
             };
 
             let connector_mandate_details_value = updated_connector_mandate_details
@@ -351,7 +350,6 @@ pub async fn update_payment_method_record(
                 } else {
                     mandate_details.payouts
                 },
-                recurring_context: mandate_details.recurring_context,
             };
 
             let connector_mandate_details_value = updated_connector_mandate_details

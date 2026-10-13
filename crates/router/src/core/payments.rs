@@ -12602,7 +12602,7 @@ pub fn get_mandate_reference_id<F: Clone, D>(
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let mut mandate_reference_id = match action_type {
+    let mandate_reference_id = match action_type {
         Some(ActionType::NetworkTokenWithNetworkTransactionId(network_token_data)) => {
             logger::info!("using network token with network_transaction_id for MIT flow");
 
@@ -12667,58 +12667,6 @@ where
         }
         None => None,
     };
-    if connector_routing_data.connector_data.connector_name == router_types::Connector::Jpmorgan
-        && mandate_reference_id.is_some()
-    {
-        let details = payment_method_info
-            .get_common_mandate_reference()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid saved JPMorgan relationship context")?;
-        let saved_context = connector_routing_data
-            .connector_data
-            .merchant_connector_id
-            .as_ref()
-            .and_then(|account| details.recurring_context.as_ref()?.get(account));
-        if let Some(context) = saved_context {
-            if context.original_network_transaction_id.trim().is_empty()
-                || context
-                    .original_transaction_link_id
-                    .as_ref()
-                    .is_some_and(|reference| reference.trim().is_empty())
-            {
-                return Err(
-                    report!(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-                        .attach_printable("Saved JPMorgan network references are invalid"),
-                );
-            }
-            match mandate_reference_id.as_mut() {
-                Some(mandates::MandateReferenceId::NetworkMandateId(reference)) => {
-                    reference.network_transaction_id =
-                        context.original_network_transaction_id.clone();
-                    reference.transaction_link_id = context.original_transaction_link_id.clone();
-                }
-                Some(mandates::MandateReferenceId::NetworkTokenWithNTI(reference)) => {
-                    reference.network_transaction_id =
-                        context.original_network_transaction_id.clone();
-                    reference.transaction_link_id = context.original_transaction_link_id.clone();
-                }
-                _ => {}
-            }
-            let jpmorgan_context = serde_json::to_value(&context.connector_feature_data.jpmorgan)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to serialize saved JPMorgan relationship context")?;
-            let mut attempt = payment_data.get_payment_attempt().clone();
-            let metadata = attempt
-                .connector_metadata
-                .get_or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
-            let metadata = metadata.as_object_mut().ok_or_else(|| {
-                report!(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-                    .attach_printable("Payment attempt connector context must be an object")
-            })?;
-            metadata.insert("jpmorgan".to_string(), jpmorgan_context);
-            payment_data.set_payment_attempt(attempt);
-        }
-    }
     Ok(mandate_reference_id)
 }
 

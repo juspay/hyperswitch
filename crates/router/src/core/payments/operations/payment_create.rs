@@ -464,24 +464,38 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .transpose()?;
 
         let mandate_id = if mandate_id.is_none() {
-            match request.recurring_details.as_ref() {
-                Some(RecurringDetails::ProcessorPaymentToken(token)) => Some(
-                    helpers::processor_token_mandate(token, payment_id.get_string_repr())?,
-                ),
-                Some(
+            request
+                .recurring_details
+                .as_ref()
+                .and_then(|recurring_details| match recurring_details {
+                    RecurringDetails::ProcessorPaymentToken(token) => Some(mandates::MandateIds {
+                        mandate_id: None,
+                        mandate_reference_id: Some(
+                            mandates::MandateReferenceId::ConnectorMandateId(
+                                mandates::ConnectorMandateReferenceId::new(
+                                    Some(token.processor_payment_token.clone()),
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                ),
+                            ),
+                        ),
+                    }),
                     RecurringDetails::CardWithLimitedData(_)
                     | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
                     | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
                     | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
                     | RecurringDetails::NetworkTokenWithVaultCardFallback(_)
-                    | RecurringDetails::NetworkTransactionIdAndCardDetails(_),
-                ) => Some(mandates::MandateIds {
-                    mandate_id: None,
-                    mandate_reference_id: mandate_reference_id_from_recurring_details,
-                }),
-                Some(RecurringDetails::PaymentMethodId(_) | RecurringDetails::MandateId(_))
-                | None => None,
-            }
+                    | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
+                        Some(mandates::MandateIds {
+                            mandate_id: None,
+                            mandate_reference_id: mandate_reference_id_from_recurring_details,
+                        })
+                    }
+                    RecurringDetails::PaymentMethodId(_) | RecurringDetails::MandateId(_) => None,
+                })
         } else {
             mandate_id
         };

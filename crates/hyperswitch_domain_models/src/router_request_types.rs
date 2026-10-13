@@ -170,8 +170,6 @@ pub struct PaymentsAuthorizeData {
     pub installment_details: Option<common_types::payments::InstallmentData>,
     // Contains the connector specific metadata coming from payments request
     pub connector_intent_metadata: Option<ConnectorMetadata>,
-    /// Contains the connector context saved on the payment attempt.
-    pub connector_meta: Option<serde_json::Value>,
     /// Indicates whether this payment is an account funded transaction.
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<api_models::payments::RecipientDetails>,
@@ -1921,8 +1919,6 @@ pub struct SetupMandateRequestData {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub authentication_data: Option<AuthenticationData>,
     pub connector_intent_metadata: Option<ConnectorMetadata>,
-    /// Contains the connector context saved on the payment attempt.
-    pub connector_meta: Option<serde_json::Value>,
     pub merchant_order_reference_id: Option<String>,
     pub mit_category: Option<common_enums::MitCategory>,
     pub is_account_funded_transaction: Option<bool>,

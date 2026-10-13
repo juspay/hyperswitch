@@ -459,113 +459,6 @@ pub async fn get_address_by_id(
 }
 
 #[cfg(feature = "v1")]
-#[derive(serde::Serialize)]
-struct JpmorganSafetechExpiry {
-    month: i32,
-    year: i32,
-}
-
-#[cfg(feature = "v1")]
-#[derive(serde::Serialize)]
-struct JpmorganSafetechMandateMetadata {
-    token_provider: &'static str,
-    handle: String,
-    token: hyperswitch_masking::Secret<String>,
-    expiry: JpmorganSafetechExpiry,
-    network: common_enums::CardNetwork,
-    original_network_transaction_id: String,
-    original_transaction_link_id: Option<String>,
-    recurring: Option<common_types::payments::JpmorganStoredAgreement>,
-}
-
-/// Builds a processor reference without exposing imported Safetech credentials as identifiers.
-#[cfg(feature = "v1")]
-pub fn processor_token_mandate(
-    token: &api_models::mandates::ProcessorPaymentToken,
-    payment_reference: &str,
-) -> RouterResult<mandates::MandateIds> {
-    let (handle, metadata) = if let Some(context) = token.safetech_context.as_ref() {
-        let month = context.card_exp_month.peek().parse::<i32>().ok();
-        let year = context.card_exp_year.peek().parse::<i32>().ok();
-        let valid_agreement = context
-            .recurring_agreement
-            .as_ref()
-            .is_none_or(|agreement| {
-                !agreement.agreement_id.trim().is_empty() && agreement.agreement_id.len() <= 100
-            });
-        if token.merchant_connector_id.is_none()
-            || token.processor_payment_token.peek().trim().is_empty()
-            || payment_reference.trim().is_empty()
-            || !month.is_some_and(|month| (1..=12).contains(&month))
-            || !year.is_some_and(|year| (1000..=9999).contains(&year))
-            || context.network_transaction_id.peek().trim().is_empty()
-            || context
-                .transaction_link_id
-                .as_ref()
-                .is_some_and(|id| id.trim().is_empty())
-            || (context.card_network == common_enums::CardNetwork::Mastercard
-                && context.transaction_link_id.is_none())
-            || matches!(
-                context.card_network,
-                common_enums::CardNetwork::AirPlus
-                    | common_enums::CardNetwork::Aurore
-                    | common_enums::CardNetwork::EftposAustralia
-                    | common_enums::CardNetwork::GeCapital
-                    | common_enums::CardNetwork::Uatp
-            )
-            || !valid_agreement
-        {
-            return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Safetech context requires valid expiry, network references, agreement details, and a merchant connector account".to_owned(),
-            }));
-        }
-        let handle = format!("hs:jpmorgan:safetech:external:{payment_reference}");
-        let metadata = JpmorganSafetechMandateMetadata {
-            token_provider: "SAFETECH",
-            handle: handle.clone(),
-            token: token.processor_payment_token.clone(),
-            expiry: JpmorganSafetechExpiry {
-                month: month.ok_or(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "safetech_context.card_exp_month".into(),
-                })?,
-                year: year.ok_or(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "safetech_context.card_exp_year".into(),
-                })?,
-            },
-            network: context.card_network.clone(),
-            original_network_transaction_id: context.network_transaction_id.peek().clone(),
-            original_transaction_link_id: context.transaction_link_id.clone(),
-            recurring: context.recurring_agreement.as_ref().map(|agreement| {
-                common_types::payments::JpmorganStoredAgreement {
-                    recurring_sequence:
-                        common_types::payments::JpmorganInitialRecurringSequence::First,
-                    agreement_id: agreement.agreement_id.clone(),
-                    is_variable_amount: agreement.is_variable_amount,
-                }
-            }),
-        };
-        let metadata = serde_json::to_value(metadata)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        (handle, Some(pii::SecretSerdeValue::new(metadata)))
-    } else {
-        (token.processor_payment_token.peek().clone(), None)
-    };
-    Ok(mandates::MandateIds {
-        mandate_id: None,
-        mandate_reference_id: Some(mandates::MandateReferenceId::ConnectorMandateId(
-            mandates::ConnectorMandateReferenceId::new(
-                Some(handle),
-                None,
-                None,
-                metadata,
-                None,
-                None,
-            ),
-        )),
-    })
-}
-
-#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn get_token_pm_type_mandate_details(
     state: &SessionState,
@@ -576,47 +469,6 @@ pub async fn get_token_pm_type_mandate_details(
     payment_intent_customer_id: Option<&id_type::CustomerId>,
     pm_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<MandateGenericData> {
-    let network_references = match request.recurring_details.as_ref() {
-        Some(RecurringDetails::NetworkTransactionIdAndCardDetails(details)) => Some((
-            Some(&details.network_transaction_id),
-            details.transaction_link_id.as_ref(),
-        )),
-        Some(RecurringDetails::CardWithLimitedData(details)) => Some((
-            details.network_transaction_id.as_ref(),
-            details.transaction_link_id.as_ref(),
-        )),
-        Some(RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(details)) => Some((
-            Some(&details.network_transaction_id),
-            details.transaction_link_id.as_ref(),
-        )),
-        Some(RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(details)) => {
-            Some((
-                Some(&details.network_transaction_id),
-                details.transaction_link_id.as_ref(),
-            ))
-        }
-        Some(RecurringDetails::NetworkTransactionIdAndVaultCardDetails(details)) => Some((
-            Some(&details.network_transaction_id),
-            details.transaction_link_id.as_ref(),
-        )),
-        _ => None,
-    };
-    if network_references.is_some_and(|(ntid, tlid)| {
-        ntid.is_some_and(|value| value.peek().trim().is_empty())
-            || tlid.is_some_and(|value| value.trim().is_empty())
-    }) {
-        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Network transaction references must not be blank".to_owned(),
-        }));
-    }
-    if matches!(request.recurring_details.as_ref(), Some(RecurringDetails::ProcessorPaymentToken(token)) if token.safetech_context.is_some())
-        && (request.off_session != Some(true)
-            || mandate_type != Some(api::MandateTransactionType::RecurringMandateTransaction))
-    {
-        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Safetech context requires an off-session recurring payment".to_owned(),
-        }));
-    }
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     let (
         payment_token,
@@ -643,14 +495,6 @@ pub async fn get_token_pm_type_mandate_details(
                         (None, request.payment_method, None, None, None, None, None)
                     }
                     RecurringDetails::ProcessorPaymentToken(processor_payment_token) => {
-                        if processor_payment_token.safetech_context.is_some()
-                            && processor_payment_token.merchant_connector_id.is_none()
-                        {
-                            return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                                message: "Safetech context requires a merchant connector account"
-                                    .to_owned(),
-                            }));
-                        }
                         if let Some(mca_id) = &processor_payment_token.merchant_connector_id {
                             let db = &*state.store;
 
@@ -676,15 +520,6 @@ pub async fn get_token_pm_type_mandate_details(
                                     },
                                 )?
                                 .connector_name;
-                            if (processor_payment_token.safetech_context.is_some()
-                                && connector_name != "jpmorgan")
-                                || (processor_payment_token.safetech_context.is_none()
-                                    && connector_name == "jpmorgan")
-                            {
-                                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                                    message: "JPMorgan processor tokens require Safetech context and a JPMorgan merchant connector account".to_owned(),
-                                }));
-                            }
                             (
                                 None,
                                 request.payment_method,

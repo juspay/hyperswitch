@@ -1805,7 +1805,6 @@ impl
                                 network_token: card_with_nt.network_token_details.card_number.into(),
                                 token_exp_month: card_with_nt.network_token_details.card_exp_month,
                                 token_exp_year: card_with_nt.network_token_details.card_exp_year,
-                                token_cryptogram: None,
                                 card_issuer: card_with_nt.network_token_details.card_issuer,
                                 card_network: card_with_nt.network_token_details.card_network,
                                 card_type: card_with_nt

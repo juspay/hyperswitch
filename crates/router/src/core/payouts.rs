@@ -2861,23 +2861,10 @@ pub async fn create_recipient_disburse_account(
                     },
                 )]);
 
-                let mut common_connector_mandate = payout_data
-                    .payment_method
-                    .as_ref()
-                    .map(|method| method.get_common_mandate_reference())
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?
-                    .map(CommonMandateReference::from)
-                    .unwrap_or(CommonMandateReference {
-                        payments: None,
-                        payouts: None,
-                        recurring_context: None,
-                    });
-                common_connector_mandate
-                    .payouts
-                    .get_or_insert_with(|| PayoutsMandateReference(HashMap::new()))
-                    .0
-                    .extend(connector_mandate_details);
+                let common_connector_mandate = CommonMandateReference {
+                    payments: None,
+                    payouts: Some(PayoutsMandateReference(connector_mandate_details)),
+                };
 
                 let connector_mandate_details_value = common_connector_mandate
                     .get_mandate_details_value()

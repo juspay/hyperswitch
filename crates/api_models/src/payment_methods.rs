@@ -390,10 +390,9 @@ where
     let payments_data = value
         .clone()
         .map(|mut mandate_details| {
-            mandate_details.as_object_mut().map(|obj| {
-                obj.remove("payouts");
-                obj.remove("recurring_context");
-            });
+            mandate_details
+                .as_object_mut()
+                .map(|obj| obj.remove("payouts"));
 
             serde_json::from_value::<PaymentsMandateReference>(mandate_details)
         })

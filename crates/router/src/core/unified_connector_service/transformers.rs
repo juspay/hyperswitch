@@ -73,169 +73,6 @@ const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
 
-#[derive(Default, serde::Serialize, serde::Deserialize)]
-struct JpmorganMitContext {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    stored_credential: Option<common_types::payments::JpmorganStoredCredential>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    recurring: Option<common_types::payments::JpmorganStoredAgreement>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    wallet: Option<common_types::payments::JpmorganStoredWallet>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    wallet_account_number_type: Option<common_types::payments::JpmorganWalletAccountNumberType>,
-    #[serde(flatten)]
-    other: serde_json::Map<String, serde_json::Value>,
-}
-
-fn jpmorgan_request_metadata(
-    connector: &str,
-    request_metadata: Option<&serde_json::Value>,
-    stored: Option<&serde_json::Value>,
-    metadata: Option<&api_models::payments::ConnectorMetadata>,
-    payment_method: Option<&hyperswitch_domain_models::payment_method_data::PaymentMethodData>,
-    is_mit: bool,
-) -> Result<Option<serde_json::Value>, error_stack::Report<UnifiedConnectorServiceError>> {
-    let supplied = metadata.and_then(|metadata| metadata.jpmorgan.as_ref());
-    let agreement = supplied.and_then(|metadata| metadata.recurring_agreement.as_ref());
-    let wallet_type = supplied.and_then(|metadata| metadata.wallet_account_number_type.as_ref());
-    let invalid_context = || UnifiedConnectorServiceError::InvalidDataFormat {
-        field_name: "connector_metadata.jpmorgan".into(),
-    };
-    if connector != "jpmorgan" {
-        if agreement.is_some() || wallet_type.is_some() {
-            return Err(invalid_context().into());
-        }
-        return Ok(request_metadata.cloned());
-    }
-    let stored_context = stored.and_then(|value| value.get("jpmorgan"));
-    if agreement.is_none() && wallet_type.is_none() && stored_context.is_none() {
-        return Ok(request_metadata.cloned());
-    }
-    let mut feature = match request_metadata {
-        Some(serde_json::Value::Object(feature)) => feature.clone(),
-        Some(_) => return Err(invalid_context().into()),
-        None => serde_json::Map::new(),
-    };
-    if let Some(stored_context) = stored_context {
-        let stored_context = stored_context.as_object().ok_or_else(invalid_context)?;
-        let mut merged = match feature.get("jpmorgan") {
-            Some(serde_json::Value::Object(context)) => context.clone(),
-            Some(_) => return Err(invalid_context().into()),
-            None => serde_json::Map::new(),
-        };
-        for (key, value) in stored_context {
-            if merged.get(key).is_some_and(|supplied| supplied != value) {
-                return Err(invalid_context().into());
-            }
-            merged.entry(key.clone()).or_insert_with(|| value.clone());
-        }
-        feature.insert("jpmorgan".to_owned(), serde_json::Value::Object(merged));
-    }
-    let mut context = feature
-        .get("jpmorgan")
-        .cloned()
-        .map(serde_json::from_value::<JpmorganMitContext>)
-        .transpose()
-        .change_context(invalid_context())?
-        .unwrap_or_default();
-    if let Some(agreement) = agreement {
-        if agreement.agreement_id.trim().is_empty() || agreement.agreement_id.len() > 100 {
-            return Err(invalid_context().into());
-        }
-        let recurring = common_types::payments::JpmorganStoredAgreement {
-            recurring_sequence: common_types::payments::JpmorganInitialRecurringSequence::First,
-            agreement_id: agreement.agreement_id.clone(),
-            is_variable_amount: agreement.is_variable_amount,
-        };
-        if context
-            .recurring
-            .as_ref()
-            .is_some_and(|stored| stored != &recurring)
-        {
-            return Err(invalid_context().into());
-        }
-        context.recurring = Some(recurring);
-    }
-    if let Some(wallet_type) = wallet_type {
-        let Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(wallet)) = payment_method else {
-            return Err(invalid_context().into());
-        };
-        let provider = match wallet.token_source.as_ref() {
-            Some(common_types::payments::TokenSource::GooglePay) => {
-                common_types::payments::JpmorganWalletProvider::GooglePay
-            }
-            Some(common_types::payments::TokenSource::ApplePay) => {
-                common_types::payments::JpmorganWalletProvider::ApplePay
-            }
-            None => return Err(invalid_context().into()),
-        };
-        let account_number_type = match wallet_type {
-            api_models::payments::JpmorganWalletAccountNumberType::Pan
-                if provider == common_types::payments::JpmorganWalletProvider::GooglePay =>
-            {
-                common_types::payments::JpmorganWalletAccountNumberType::Pan
-            }
-            api_models::payments::JpmorganWalletAccountNumberType::DeviceToken => {
-                common_types::payments::JpmorganWalletAccountNumberType::DeviceToken
-            }
-            _ => return Err(invalid_context().into()),
-        };
-        let network = wallet.card_network.clone().ok_or_else(invalid_context)?;
-        if matches!(
-            network,
-            common_enums::CardNetwork::AirPlus
-                | common_enums::CardNetwork::Aurore
-                | common_enums::CardNetwork::EftposAustralia
-                | common_enums::CardNetwork::GeCapital
-                | common_enums::CardNetwork::Uatp
-        ) {
-            return Err(invalid_context().into());
-        }
-        let wallet_context = common_types::payments::JpmorganStoredWallet {
-            provider,
-            account_number_type,
-            network: Some(network),
-        };
-        if context
-            .wallet
-            .as_ref()
-            .is_some_and(|stored| stored != &wallet_context)
-        {
-            return Err(invalid_context().into());
-        }
-        context.wallet = Some(wallet_context);
-    }
-    if is_mit {
-        context.stored_credential = None;
-        context.other.clear();
-        if let Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(wallet)) = payment_method {
-            if let Some(stored_wallet) = context.wallet.as_ref() {
-                let provider = match wallet.token_source.as_ref() {
-                    Some(common_types::payments::TokenSource::GooglePay) => common_types::payments::JpmorganWalletProvider::GooglePay,
-                    Some(common_types::payments::TokenSource::ApplePay) => common_types::payments::JpmorganWalletProvider::ApplePay,
-                    None => return Err(invalid_context().into()),
-                };
-                if provider != stored_wallet.provider
-                    || wallet.card_network.as_ref().zip(stored_wallet.network.as_ref()).is_some_and(|(actual, stored)| actual != stored)
-                    || context.wallet_account_number_type.as_ref().is_some_and(|actual| actual != &stored_wallet.account_number_type)
-                {
-                    return Err(invalid_context().into());
-                }
-                if wallet.card_network.is_some() {
-                    context.wallet_account_number_type = Some(stored_wallet.account_number_type.clone());
-                    context.wallet = None;
-                }
-            }
-        }
-    }
-    feature.insert(
-        "jpmorgan".to_owned(),
-        serde_json::to_value(context)
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?,
-    );
-    Ok(Some(serde_json::Value::Object(feature)))
-}
-
 impl transformers::ForeignTryFrom<&api_models::payments::ConnectorMetadata>
     for payments_grpc::AdditionalConnectorDetails
 {
@@ -257,19 +94,6 @@ impl transformers::ForeignTryFrom<&api_models::payments::ConnectorMetadata>
             stripe,
             jpmorgan,
         } = metadata;
-        if jpmorgan.as_ref().is_some_and(|data| {
-            data.authentication_use_case.is_some()
-                || data.merchant_fraud_risk_score.is_some()
-                || data.requested_challenge_preference.is_some()
-                || data.original_three_ds.is_some()
-                || data.trans_status_reason.is_some()
-        }) {
-            return Err(UnifiedConnectorServiceError::NotImplemented(
-                "JPMorgan authentication metadata is not supported by the UCS client contract"
-                    .to_owned(),
-            )
-            .into());
-        }
         fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
             serde_json::to_value(value)
                 .ok()
@@ -294,6 +118,125 @@ impl transformers::ForeignTryFrom<&api_models::payments::ConnectorMetadata>
                 .map(|data| payments_grpc::StripeAdditionalInformation {
                     error_on_requires_action: data.error_on_requires_action,
                 }),
+            jpmorgan: jpmorgan
+                .as_ref()
+                .map(payments_grpc::JpmorganAdditionalInformation::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
+impl ForeignFrom<&api_models::payments::JpmorganAuthenticationUseCase>
+    for payments_grpc::JpmorganAuthenticationUseCase
+{
+    fn foreign_from(value: &api_models::payments::JpmorganAuthenticationUseCase) -> Self {
+        use api_models::payments::JpmorganAuthenticationUseCase;
+        match value {
+            JpmorganAuthenticationUseCase::SinglePayment => Self::SinglePayment,
+            JpmorganAuthenticationUseCase::RecurringPaymentFixed => Self::RecurringPaymentFixed,
+            JpmorganAuthenticationUseCase::InstallmentPayment => Self::InstallmentPayment,
+            JpmorganAuthenticationUseCase::PaymentOnShipment => Self::PaymentOnShipment,
+            JpmorganAuthenticationUseCase::RecurringPaymentOther => Self::RecurringPaymentOther,
+            JpmorganAuthenticationUseCase::PreauthorizationRental => Self::PreauthorizationRental,
+            JpmorganAuthenticationUseCase::PreauthorizationNoRental => {
+                Self::PreauthorizationNoRental
+            }
+        }
+    }
+}
+
+impl ForeignFrom<&api_models::payments::JpmorganChallengePreference>
+    for payments_grpc::JpmorganChallengePreference
+{
+    fn foreign_from(value: &api_models::payments::JpmorganChallengePreference) -> Self {
+        use api_models::payments::JpmorganChallengePreference;
+        match value {
+            JpmorganChallengePreference::NoPreference => Self::NoPreference,
+            JpmorganChallengePreference::NoChallenge => Self::NoChallenge,
+            JpmorganChallengePreference::ChallengeRequested => Self::ChallengeRequested,
+            JpmorganChallengePreference::ChallengeMandate => Self::ChallengeMandate,
+            JpmorganChallengePreference::NoChallengeLvp => Self::NoChallengeLvp,
+            JpmorganChallengePreference::NoChallengeTra => Self::NoChallengeTra,
+            JpmorganChallengePreference::NoChallengeMit => Self::NoChallengeMit,
+            JpmorganChallengePreference::NoChallengeData => Self::NoChallengeData,
+            JpmorganChallengePreference::NoChallengeDa => Self::NoChallengeDa,
+            JpmorganChallengePreference::NoChallengeTrusted => Self::NoChallengeTrusted,
+            JpmorganChallengePreference::ChallengeTrusted => Self::ChallengeTrusted,
+            JpmorganChallengePreference::NoChallengeScp => Self::NoChallengeScp,
+            JpmorganChallengePreference::ChallengeDeviceBinding => Self::ChallengeDeviceBinding,
+            JpmorganChallengePreference::ChallengeIssuerRequested => Self::ChallengeIssuerRequested,
+            JpmorganChallengePreference::ChallengeMit => Self::ChallengeMit,
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<&api_models::payments::JpmorganConnectorMetadata>
+    for payments_grpc::JpmorganAdditionalInformation
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: &api_models::payments::JpmorganConnectorMetadata,
+    ) -> Result<Self, Self::Error> {
+        let original_three_ds = value
+            .original_three_ds
+            .as_ref()
+            .map(|original| -> Result<_, Self::Error> {
+                if let Some(timestamp) = &original.authentication_timestamp {
+                    time::OffsetDateTime::parse(
+                        timestamp,
+                        &time::format_description::well_known::Rfc3339,
+                    )
+                    .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
+                        field_name:
+                            "connector_metadata.jpmorgan.original_three_ds.authentication_timestamp"
+                                .into(),
+                    })?;
+                }
+                let authentication_amount = original
+                    .authentication_amount
+                    .as_ref()
+                    .map(|amount| -> Result<_, Self::Error> {
+                        Ok(payments_grpc::Money {
+                            minor_amount: amount.minor_amount.get_amount_as_i64(),
+                            currency: payments_grpc::Currency::foreign_try_from(amount.currency)?
+                                .into(),
+                        })
+                    })
+                    .transpose()?;
+                Ok(payments_grpc::JpmorganOriginalThreeDs {
+                    program_protocol: original.program_protocol.clone(),
+                    authentication_timestamp: original.authentication_timestamp.clone(),
+                    authentication_amount,
+                    directory_server_transaction_id: original
+                        .directory_server_transaction_id
+                        .clone(),
+                    authentication_method: original.authentication_method.map(|method| {
+                        payments_grpc::DecoupledAuthenticationType::foreign_from(method).into()
+                    }),
+                    requested_challenge_preference: original
+                        .requested_challenge_preference
+                        .as_ref()
+                        .map(|preference| {
+                            payments_grpc::JpmorganChallengePreference::foreign_from(preference)
+                                .into()
+                        }),
+                    issuer_fraud_score: original.issuer_fraud_score.clone(),
+                })
+            })
+            .transpose()?;
+        Ok(Self {
+            authentication_use_case: value.authentication_use_case.as_ref().map(|use_case| {
+                payments_grpc::JpmorganAuthenticationUseCase::foreign_from(use_case).into()
+            }),
+            merchant_fraud_risk_score: value.merchant_fraud_risk_score.clone(),
+            requested_challenge_preference: value.requested_challenge_preference.as_ref().map(
+                |preference| {
+                    payments_grpc::JpmorganChallengePreference::foreign_from(preference).into()
+                },
+            ),
+            original_three_ds,
+            trans_status_reason: value.trans_status_reason.clone(),
         })
     }
 }
@@ -861,20 +804,11 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method_token = if router_data.connector == "jpmorgan"
-            && matches!(
-                &router_data.request.payment_method_data,
-                hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
-            ) {
-            None
-        } else {
-            router_data.payment_method_token.as_ref()
-        };
         let payment_method =
             unified_connector_service::build_unified_connector_service_payment_method(
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
-                payment_method_token,
+                router_data.payment_method_token.as_ref(),
                 router_data.connector_meta_data.as_ref(),
             )?;
 
@@ -901,19 +835,14 @@ impl
             .clone()
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
-        let metadata = jpmorgan_request_metadata(
-            &router_data.connector,
-            router_data.request.metadata.as_ref(),
-            router_data.request.connector_meta.as_ref(),
-            router_data.request.connector_intent_metadata.as_ref(),
-            Some(&router_data.request.payment_method_data),
-            false,
-        )?
-        .as_ref()
-        .map(serde_json::to_string)
-        .transpose()
-        .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-        .map(|s| s.into());
+        let metadata = router_data
+            .request
+            .metadata
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
         let setup_future_usage = router_data
             .request
             .setup_future_usage
@@ -1146,19 +1075,10 @@ impl
 
         let payment_method = payment_method_data
             .map(|payment_method_data| {
-                let payment_method_token = if router_data.connector == "jpmorgan"
-                    && matches!(
-                        &payment_method_data,
-                        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
-                    ) {
-                    None
-                } else {
-                    router_data.payment_method_token.as_ref()
-                };
                 unified_connector_service::build_unified_connector_service_payment_method(
                     payment_method_data,
                     router_data.request.payment_method_type,
-                    payment_method_token,
+                    router_data.payment_method_token.as_ref(),
                     router_data.connector_meta_data.as_ref(),
                 )
             })
@@ -3097,7 +3017,7 @@ impl
 /// today's behaviour. Extend one connector at a time, after confirming its
 /// connector-service SetupMandate builder handles `PaymentMethodData::Card`.
 fn setup_mandate_accepts_raw_card(connector: &str) -> bool {
-    matches!(connector, "stripe" | "jpmorgan")
+    matches!(connector, "stripe")
 }
 
 impl
@@ -3183,11 +3103,7 @@ impl
                 .map(payments_grpc::SplitPaymentsDetails::foreign_from),
             test_mode: router_data.test_mode,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
-            mit_category: router_data
-                .request
-                .mit_category
-                .map(payments_grpc::MitCategory::foreign_from)
-                .map(|category| category.into()),
+            mit_category: None,
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -3236,23 +3152,14 @@ impl
                     .transpose()?,
                 router_data.request.connector_intent_metadata.as_ref(),
             ),
-            metadata: jpmorgan_request_metadata(
-                &router_data.connector,
-                router_data
-                    .request
-                    .metadata
-                    .as_ref()
-                    .map(|metadata| metadata.peek()),
-                router_data.request.connector_meta.as_ref(),
-                router_data.request.connector_intent_metadata.as_ref(),
-                Some(&router_data.request.payment_method_data),
-                false,
-            )?
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into()),
+            metadata: router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(|s| s.into()),
             return_url: router_data.request.router_return_url.clone(),
             webhook_url: router_data.request.webhook_url.clone(),
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
@@ -3299,12 +3206,7 @@ impl
                 .as_ref()
                 .map(|data| Secret::new(data.peek().to_string())),
             l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
-            setup_mandate_details: router_data
-                .request
-                .setup_mandate_details
-                .as_ref()
-                .map(payments_grpc::SetupMandateDetails::foreign_try_from)
-                .transpose()?,
+            setup_mandate_details: None,
             partner_merchant_identifier_details: router_data
                 .request
                 .partner_merchant_identifier_details
@@ -3590,7 +3492,8 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-        // Use the stored subtype when the request does not provide one.
+        // MIT/recurring charges do not resend the payment method, so the subtype of the saved
+        // payment method comes from the stored mandate via `recurring_mandate_payment_data`.
         let payment_method_type = router_data
             .request
             .payment_method_type
@@ -3608,28 +3511,6 @@ impl
         let connector_recurring_payment_id = match &router_data.request.mandate_id {
             Some(mandate) => match &mandate.mandate_reference_id {
                 Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_id)) => {
-                    let metadata = connector_mandate_id.get_mandate_metadata();
-                    if (router_data.connector == "jpmorgan" && metadata.is_none())
-                        || (router_data.connector != "jpmorgan"
-                            && metadata.as_ref().is_some_and(|metadata| {
-                                metadata
-                                    .peek()
-                                    .get("token_provider")
-                                    .and_then(serde_json::Value::as_str)
-                                    == Some("SAFETECH")
-                            }))
-                    {
-                        return Err(UnifiedConnectorServiceError::InvalidDataFormat {
-                            field_name: "recurring_details.data.safetech_context".into(),
-                        }
-                        .into());
-                    }
-                    let mandate_metadata = metadata
-                        .as_ref()
-                        .map(|metadata| serde_json::to_string(metadata.peek()))
-                        .transpose()
-                        .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-                        .map(Secret::new);
                     Some(payments_grpc::MandateReference {
                         mandate_id_type: Some(
                             payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
@@ -3639,7 +3520,14 @@ impl
                                     payment_method_id: connector_mandate_id.get_payment_method_id(),
                                     connector_mandate_request_reference_id: connector_mandate_id
                                         .get_connector_mandate_request_reference_id(),
-                                    mandate_metadata,
+                                    mandate_metadata: connector_mandate_id
+                                        .get_mandate_metadata()
+                                        .map(|mandate_metadata| {
+                                            Secret::new(
+                                                serde_json::to_string(&mandate_metadata.expose())
+                                                    .unwrap_or_default(),
+                                            )
+                                        }),
                                 },
                             ),
                         ),
@@ -3760,28 +3648,14 @@ impl
             }),
             original_payment_authorized_amount,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
-            metadata: jpmorgan_request_metadata(
-                &router_data.connector,
-                router_data.request.metadata.as_ref(),
-                router_data.request.connector_meta.as_ref().filter(|_| {
-                    !matches!(
-                        router_data
-                            .request
-                            .mandate_id
-                            .as_ref()
-                            .and_then(|mandate| mandate.mandate_reference_id.as_ref()),
-                        Some(mandates::MandateReferenceId::ConnectorMandateId(_))
-                    )
-                }),
-                router_data.request.connector_intent_metadata.as_ref(),
-                Some(&router_data.request.payment_method_data),
-                true,
-            )?
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into()),
+            metadata: router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(|s| s.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             email: router_data
@@ -5140,7 +5014,6 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data
     }
 }
 
-/// Maps network-token MIT credentials and preserves a supplied cryptogram.
 #[cfg(feature = "v1")]
 impl
     transformers::ForeignTryFrom<
@@ -5168,9 +5041,7 @@ impl
             ),
             token_exp_month: Some(token_nti_data.token_exp_month.expose().into()),
             token_exp_year: Some(token_nti_data.token_exp_year.expose().into()),
-            token_cryptogram: token_nti_data
-                .token_cryptogram
-                .map(|cryptogram| cryptogram.expose().into()),
+            token_cryptogram: None,
             card_issuer: token_nti_data.card_issuer.clone(),
             card_network: card_network.map(|card_network| card_network.into()),
             card_type: token_nti_data.card_type.clone(),
@@ -5618,22 +5489,6 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
                 }),
             ),
             common_types::payments::GpayTokenizationData::Decrypted(decrypted_data) => {
-                let has_cryptogram = decrypted_data.cryptogram.is_some();
-                let valid_cryptogram = decrypted_data
-                    .cryptogram
-                    .as_ref()
-                    .is_some_and(|value| !value.peek().trim().is_empty());
-                let valid_authentication = match decrypted_data.auth_method {
-                    Some(common_enums::GooglePayAuthMethod::PanOnly) => !has_cryptogram,
-                    Some(common_enums::GooglePayAuthMethod::Cryptogram) => valid_cryptogram,
-                    None => !has_cryptogram || valid_cryptogram,
-                };
-                if !valid_authentication {
-                    return Err(UnifiedConnectorServiceError::InvalidDataFormat {
-                        field_name: "google_pay.tokenization_data.auth_method".into(),
-                    }
-                    .into());
-                }
                 let application_primary_account_number = CardNumber::from_str(
                     &decrypted_data
                         .application_primary_account_number
@@ -5653,6 +5508,14 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
                         .clone()
                         .map(|cryptogram| cryptogram.expose().into()),
                     eci_indicator: decrypted_data.eci_indicator.clone(),
+                    auth_method: decrypted_data.auth_method.map(|method| match method {
+                        common_enums::GooglePayAuthMethod::PanOnly => {
+                            payments_grpc::GooglePayAuthMethod::PanOnly.into()
+                        }
+                        common_enums::GooglePayAuthMethod::Cryptogram => {
+                            payments_grpc::GooglePayAuthMethod::Cryptogram3ds.into()
+                        }
+                    }),
                 }))
             }
         }
@@ -7235,7 +7098,7 @@ impl transformers::ForeignTryFrom<api_models::payments::CartesBancairesParams>
         Ok(Self {
             cavv_algorithm: payments_grpc::CavvAlgorithm::foreign_from(value.cavv_algorithm).into(),
             cb_exemption: value.cb_exemption,
-            cb_score: value.cb_score,
+            cb_score: Some(value.cb_score),
         })
     }
 }

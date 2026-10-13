@@ -209,54 +209,11 @@ pub enum RecurringDetails {
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ProcessorPaymentToken {
-    #[schema(value_type = String)]
     #[smithy(value_type = "String")]
-    pub processor_payment_token: Secret<String>,
+    pub processor_payment_token: String,
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    /// Supplies the original relationship when you use an external JPMorgan Safetech token.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub safetech_context: Option<JpmorganSafetechContext>,
-}
-
-/// Contains the original card relationship for an external JPMorgan Safetech token.
-#[derive(
-    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
-)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct JpmorganSafetechContext {
-    /// Contains the underlying card expiry month, from 1 to 12.
-    #[schema(value_type = String)]
-    #[smithy(value_type = "String")]
-    pub card_exp_month: Secret<String>,
-    /// Contains the underlying card expiry year with four digits.
-    #[schema(value_type = String)]
-    #[smithy(value_type = "String")]
-    pub card_exp_year: Secret<String>,
-    /// Identifies the underlying card network, not a network inferred from token digits.
-    #[schema(value_type = CardNetwork)]
-    pub card_network: api_enums::CardNetwork,
-    /// Contains the network transaction ID from the original cardholder payment.
-    #[schema(value_type = String)]
-    #[smithy(value_type = "String")]
-    pub network_transaction_id: Secret<String>,
-    /// Contains the original Mastercard Transaction Link Identifier when applicable.
-    pub transaction_link_id: Option<String>,
-    /// Contains the original agreement for Recurring or Subscription payments.
-    pub recurring_agreement: Option<JpmorganRecurringAgreement>,
-}
-
-/// Describes the original agreement for subsequent JPMorgan merchant-initiated payments.
-#[derive(
-    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
-)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct JpmorganRecurringAgreement {
-    /// Contains the agreement identifier used by the initial cardholder payment.
-    pub agreement_id: String,
-    /// Specifies whether the agreement permits variable payment amounts.
-    pub is_variable_amount: bool,
 }
 
 #[derive(
@@ -406,11 +363,6 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     #[schema(value_type = String, example = "24")]
     #[smithy(value_type = "String")]
     pub token_exp_year: Secret<String>,
-
-    /// The payment-network cryptogram, when required for this transaction.
-    #[schema(value_type = Option<String>)]
-    #[smithy(value_type = "Option<String>")]
-    pub token_cryptogram: Option<Secret<String>>,
 
     /// The card network for the card
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
@@ -651,7 +603,6 @@ impl NetworkTokenWithVaultCardFallback {
     pub fn network_token_arm_details(&self) -> NetworkTransactionIdAndNetworkTokenDetails {
         NetworkTransactionIdAndNetworkTokenDetails {
             network_token: self.network_token.network_token.clone(),
-            token_cryptogram: None,
             token_exp_month: self.network_token.token_exp_month.clone(),
             token_exp_year: self.network_token.token_exp_year.clone(),
             card_network: self.network_token.card_network.clone(),

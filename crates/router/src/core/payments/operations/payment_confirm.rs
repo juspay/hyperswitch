@@ -847,29 +847,41 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let unified_address = address.unify_with_payment_method_data_billing(pmd_address);
 
         // If processor_payment_token is passed in request then populating the same in PaymentData
-        let mandate_id = match request.recurring_details.as_ref() {
-            Some(RecurringDetails::ProcessorPaymentToken(token)) => {
-                payment_intent.is_payment_processor_token_flow = Some(true);
-                Some(helpers::processor_token_mandate(
-                    token,
-                    payment_intent.get_id().get_string_repr(),
-                )?)
-            }
-            Some(
+        let mandate_id = request
+            .recurring_details
+            .as_ref()
+            .and_then(|recurring_details| match recurring_details {
+                RecurringDetails::ProcessorPaymentToken(token) => {
+                    payment_intent.is_payment_processor_token_flow = Some(true);
+                    Some(mandates::MandateIds {
+                        mandate_id: None,
+                        mandate_reference_id: Some(
+                            mandates::MandateReferenceId::ConnectorMandateId(
+                                ConnectorMandateReferenceId::new(
+                                    Some(token.processor_payment_token.clone()), // connector_mandate_id
+                                    None, // payment_method_id
+                                    None, // update_history
+                                    None, // mandate_metadata
+                                    None, // connector_mandate_request_reference_id
+                                    None,
+                                ),
+                            ),
+                        ),
+                    })
+                }
                 RecurringDetails::CardWithLimitedData(_)
                 | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
                 | RecurringDetails::NetworkTokenWithVaultCardFallback(_)
-                | RecurringDetails::NetworkTransactionIdAndCardDetails(_),
-            ) => Some(mandates::MandateIds {
-                mandate_id: None,
-                mandate_reference_id: mandate_reference_id_from_recurring_details,
-            }),
-            Some(RecurringDetails::PaymentMethodId(_) | RecurringDetails::MandateId(_)) | None => {
-                None
-            }
-        };
+                | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
+                    Some(mandates::MandateIds {
+                        mandate_id: None,
+                        mandate_reference_id: mandate_reference_id_from_recurring_details,
+                    })
+                }
+                RecurringDetails::PaymentMethodId(_) | RecurringDetails::MandateId(_) => None,
+            });
 
         let pmt_order_tax_amount = payment_intent.tax_details.clone().and_then(|tax| {
             if tax.payment_method_type.clone().map(|a| a.pmt) == payment_attempt.payment_method_type

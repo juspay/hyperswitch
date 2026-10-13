@@ -736,11 +736,9 @@ where
                                         .connector_mandate_details
                                         .clone()
                                         .map(|val| {
-                                             val.parse_value::<serde_json::Value>(
-                                                 "connector mandate details",
-                                             )
-                                             .and_then(diesel_models::CommonMandateReference::from_value)
-                                             .map(CommonMandateReference::from)
+                                            val.parse_value::<PaymentsMandateReference>(
+                                                "PaymentsMandateReference",
+                                            )
                                         })
                                         .transpose()
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1949,7 +1947,6 @@ pub fn add_connector_mandate_details_in_payment_method(
         Some(CommonMandateReference {
             payments: Some(PaymentsMandateReference(mandate_details)),
             payouts: None,
-            recurring_context: None,
         })
     } else {
         None
@@ -1969,12 +1966,6 @@ pub fn update_connector_mandate_details(
     connector_mandate_status: ConnectorMandateStatus,
     connector_mandate_request_reference_id: Option<String>,
 ) -> RouterResult<Option<CommonMandateReference>> {
-    let recurring_context = mandate_details
-        .as_ref()
-        .and_then(|details| details.recurring_context.clone());
-    let payout_data = mandate_details
-        .as_ref()
-        .and_then(|details| details.payouts.clone());
     let mandate_reference = match mandate_details
         .as_ref()
         .and_then(|common_mandate| common_mandate.payments.clone())
@@ -2014,13 +2005,14 @@ pub fn update_connector_mandate_details(
                         connector_customer_id: None,
                     });
 
+                let payout_data = mandate_details.and_then(|common_mandate| common_mandate.payouts);
+
                 Some(CommonMandateReference {
                     payments: Some(payment_mandate_reference),
                     payouts: payout_data,
-                    recurring_context,
                 })
             } else {
-                mandate_details
+                None
             }
         }
         None => add_connector_mandate_details_in_payment_method(
@@ -2032,13 +2024,7 @@ pub fn update_connector_mandate_details(
             mandate_metadata,
             connector_mandate_status,
             connector_mandate_request_reference_id,
-        )
-        .map(|mut details| {
-            details.payouts = payout_data;
-            details.recurring_context = recurring_context;
-            details
-        })
-        .or(mandate_details),
+        ),
     };
     Ok(mandate_reference)
 }
@@ -2046,15 +2032,34 @@ pub fn update_connector_mandate_details(
 #[cfg(feature = "v1")]
 pub fn update_connector_mandate_details_status(
     merchant_connector_id: id_type::MerchantConnectorAccountId,
-    mut mandate_details: CommonMandateReference,
+    mut payment_mandate_reference: PaymentsMandateReference,
     status: ConnectorMandateStatus,
 ) -> RouterResult<Option<CommonMandateReference>> {
-    if let Some(payments) = mandate_details.payments.as_mut() {
-        payments.entry(merchant_connector_id).and_modify(|record| {
-            record.connector_mandate_status = Some(status);
-        });
-    }
-    Ok(Some(mandate_details))
+    let mandate_reference = {
+        payment_mandate_reference
+            .entry(merchant_connector_id)
+            .and_modify(|pm| {
+                let update_rec = PaymentsMandateReferenceRecord {
+                    connector_mandate_id: pm.connector_mandate_id.clone(),
+                    payment_method_type: pm.payment_method_type,
+                    original_payment_authorized_amount: pm.original_payment_authorized_amount,
+                    original_payment_authorized_currency: pm.original_payment_authorized_currency,
+                    mandate_metadata: pm.mandate_metadata.clone(),
+                    connector_mandate_status: Some(status),
+                    connector_mandate_request_reference_id: pm
+                        .connector_mandate_request_reference_id
+                        .clone(),
+                    connector_customer_id: None,
+                };
+                *pm = update_rec
+            });
+        Some(payment_mandate_reference)
+    };
+
+    Ok(Some(CommonMandateReference {
+        payments: mandate_reference,
+        payouts: None,
+    }))
 }
 
 #[cfg(feature = "v2")]
