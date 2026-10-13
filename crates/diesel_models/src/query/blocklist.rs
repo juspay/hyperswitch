@@ -110,7 +110,6 @@ impl Blocklist {
     }
     /// Returns payment and legacy NULL-namespace fingerprint rows for the resolved profile
     /// and merchant-wide entries.
-
     pub async fn list_payment_by_processor_merchant_id_profile_id_fingerprint_id(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -297,7 +296,6 @@ impl Blocklist {
     /// excluded — they hold vault HMACs of full card numbers, which cannot be matched from a
     /// BIN. Uses the same processor-merchant-with-legacy-fallback and profile-or-merchant-wide
     /// predicates as the single-entry lookups.
-
     pub async fn find_payment_by_processor_merchant_id_profile_id_card_bins(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
