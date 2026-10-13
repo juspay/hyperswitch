@@ -1618,7 +1618,7 @@ impl HybridRoutingStage {
 
                 OpenRouterDecideGatewayRequest::construct_sr_request(
                     input.payment_dsl_input.payment_attempt,
-                    input.static_connectors.to_vec(),
+                    input.fallback_config.to_vec(),
                     Some(or_types::RankingAlgorithm::SrBasedRouting),
                     preferred_connector,
                 )
@@ -1726,6 +1726,7 @@ fn profile_has_active_routing_algorithm(business_profile: &domain::Profile) -> b
 #[cfg(feature = "v1")]
 pub async fn perform_hybrid_routing_if_enabled(
     state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
     business_profile: &domain::Profile,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     payment_dsl_input: &routing::PaymentsDslInput<'_>,
@@ -1739,7 +1740,6 @@ pub async fn perform_hybrid_routing_if_enabled(
     common_enums::RoutingApproach,
 ) {
     let stage = HybridRoutingStage;
-
     let preferred_connector = match preferred_connector {
         Some(connector)
             if utils::is_preferred_connectors_routing_enabled(state, dimensions).await =>
@@ -1747,17 +1747,6 @@ pub async fn perform_hybrid_routing_if_enabled(
             Some(connector)
         }
         _ => None,
-    };
-
-    let input = HybridRoutingInput {
-        state,
-        business_profile,
-        payment_dsl_input,
-        backend_input,
-        fallback_config,
-        static_connectors,
-        static_approach: static_approach.clone(),
-        preferred_connector,
     };
 
     // Flag-aware like every other consumer: with static_routing_enabled off the profile is
@@ -1770,16 +1759,37 @@ pub async fn perform_hybrid_routing_if_enabled(
     // algorithm is the normal state and must not skip evaluation; for every other profile
     // there is nothing to evaluate against, so the DE call is skipped.
     if is_decision_engine_cutover_enabled {
-        let hybrid_stage_outcome = stage
-            .route(input)
+        // Filter fallbacks by payment eligibility before sending them to Decision Engine.
+        let hybrid_stage_outcome = async {
+            let eligible_fallback = filter_fallback_based_on_eligibility(
+                state,
+                key_store,
+                fallback_config,
+                &routing::TransactionData::Payment(payment_dsl_input.clone()),
+                business_profile,
+            )
             .await
             .inspect_err(|error| {
-                logger::error!(
-                    error=?error,
-                    "euclid: hybrid routing failed"
-                );
-            })
-            .unwrap_or_else(|_| RoutingConnectorOutcomeWithApproach::empty());
+                logger::error!(error=?error, "euclid: fallback eligibility failed before hybrid routing");
+            })?;
+            let input = HybridRoutingInput {
+                state,
+                business_profile,
+                payment_dsl_input,
+                backend_input,
+                fallback_config: &eligible_fallback,
+                static_connectors,
+                static_approach: static_approach.clone(),
+                preferred_connector,
+            };
+
+            stage.route(input).await
+        }
+        .await
+        .inspect_err(|error| {
+            logger::error!(error=?error, "euclid: hybrid routing failed");
+        })
+        .unwrap_or_else(|_| RoutingConnectorOutcomeWithApproach::empty());
 
         let selected_source = if hybrid_stage_outcome.connectors.is_empty() {
             "hyperswitch_static"
@@ -2594,6 +2604,32 @@ fn update_eligible_connectors_for_installments(
             )
         })
         .or(installment_supported_connectors)
+}
+
+/// Filters active fallbacks by payment eligibility while preserving their configured order.
+#[cfg(feature = "v1")]
+pub async fn filter_fallback_based_on_eligibility(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    fallback_config: &[routing_types::RoutableConnectorChoice],
+    transaction_data: &routing::TransactionData<'_>,
+    business_profile: &domain::Profile,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    let active_mca_ids =
+        get_active_merchant_connector_accounts(state, key_store, business_profile.get_id())
+            .await?
+            .get_ids();
+
+    perform_eligibility_analysis(
+        state,
+        key_store,
+        fallback_config.to_vec(),
+        transaction_data,
+        None,
+        business_profile.get_id(),
+        &active_mca_ids,
+    )
+    .await
 }
 
 pub async fn perform_eligibility_analysis(
