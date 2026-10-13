@@ -89,14 +89,14 @@ pub enum BankAdditionalData {
     Trustly(Box<TrustlyBankTransferAdditionalData>),
     /// Additional data for sepa bank transfer payout method
     Sepa(Box<SepaBankTransferAdditionalData>),
-    /// Additional data for pix bank transfer payout method
-    Pix(Box<PixBankTransferAdditionalData>),
-    /// Additional data for open banking payout method
-    OpenBanking(Box<OpenBankingAdditionalData>),
     /// Additional data for PayShap bank transfer payout method
     Payshap(Box<PayshapBankTransferAdditionalData>),
     /// Additional data for PayShap proxy bank transfer payout method
     PayshapProxy(Box<PayshapProxyBankTransferAdditionalData>),
+    /// Additional data for pix bank transfer payout method
+    Pix(Box<PixBankTransferAdditionalData>),
+    /// Additional data for open banking payout method
+    OpenBanking(Box<OpenBankingAdditionalData>),
     /// Additional data for TED bank transfer payout method
     Ted(Box<TedBankTransferAdditionalData>),
 }
@@ -248,6 +248,7 @@ pub struct PixBankTransferAdditionalData {
     Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
+#[serde(deny_unknown_fields)]
 pub struct PayshapBankTransferAdditionalData {
     /// Bank account number is a unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "**** 67890")]
@@ -267,6 +268,7 @@ pub struct PayshapBankTransferAdditionalData {
     Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
+#[serde(deny_unknown_fields)]
 pub struct PayshapProxyBankTransferAdditionalData {
     /// Cellphone proxy.
     #[schema(value_type = Option<String>, example = "******* 4567")]
