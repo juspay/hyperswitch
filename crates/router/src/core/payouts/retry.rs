@@ -355,7 +355,7 @@ pub async fn modify_trackers(
         error_code: None,
         created_at: common_utils::date_time::now(),
         last_modified_at: common_utils::date_time::now(),
-        merchant_connector_id: None,
+        merchant_connector_id: connector.merchant_connector_id.clone(),
         routing_info: None,
         unified_code: None,
         unified_message: None,
