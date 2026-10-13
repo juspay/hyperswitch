@@ -116,7 +116,10 @@ pub async fn send_request(
 
     let request_builder = {
         match request.method {
-            Method::Get => client.get(url),
+            Method::Get => match request.body {
+                Some(RequestContent::RawBytes(payload)) => client.get(url).body(payload),
+                _ => client.get(url),
+            },
             Method::Post => {
                 let client = client.post(url);
                 match request.body {
@@ -159,7 +162,10 @@ pub async fn send_request(
                     None => client,
                 }
             }
-            Method::Delete => client.delete(url),
+            Method::Delete => match request.body {
+                Some(RequestContent::RawBytes(payload)) => client.delete(url).body(payload),
+                _ => client.delete(url),
+            },
         }
     };
 

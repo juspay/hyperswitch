@@ -40,8 +40,8 @@ pub use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     api_client::{
-        call_connector_api, execute_connector_processing_step, handle_response,
-        store_raw_connector_response_if_required,
+        call_connector_api, call_connector_api_for_proxy, execute_connector_processing_step,
+        handle_response, store_raw_connector_response_if_required,
     },
     connector_integration_v2::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,

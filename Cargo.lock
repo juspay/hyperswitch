@@ -2213,6 +2213,7 @@ dependencies = [
  "hyperswitch_masking",
  "ip_network",
  "md5",
+ "mime 0.3.17",
  "nanoid",
  "nutype",
  "once_cell",

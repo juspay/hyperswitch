@@ -33,7 +33,7 @@
                         "Authorization": "Bearer sk_test_example"
                     },
                     "token": "pm_0196ea5a42a67583863d5b1253d62931",
-                    "token_type": "PaymentMethodId",
+                    "token_type": "payment_method_id",
                     "method": "POST"
                 })
             )
@@ -87,7 +87,7 @@ pub async fn proxy_core() {}
                         "Authorization": "Bearer sk_test_example"
                     },
                     "token": "pm_0196ea5a42a67583863d5b1253d62931",
-                    "token_type": "PaymentMethodId",
+                    "token_type": "payment_method_id",
                     "method": "POST"
                 })
             )

@@ -502,6 +502,25 @@ pub async fn call_connector_api(
     flow_name: &str,
     option_timeout_secs: Option<u64>,
 ) -> CustomResult<Result<types::Response, types::Response>, ApiClientError> {
+    call_connector_api_inner(state, request, flow_name, option_timeout_secs, false).await
+}
+
+/// Forward a vault proxy request, accepting every successful connector status.
+pub async fn call_connector_api_for_proxy(
+    state: &dyn ApiClientWrapper,
+    request: Request,
+    option_timeout_secs: Option<u64>,
+) -> CustomResult<Result<types::Response, types::Response>, ApiClientError> {
+    call_connector_api_inner(state, request, "proxy", option_timeout_secs, true).await
+}
+
+async fn call_connector_api_inner(
+    state: &dyn ApiClientWrapper,
+    request: Request,
+    flow_name: &str,
+    option_timeout_secs: Option<u64>,
+    accept_all_successes: bool,
+) -> CustomResult<Result<types::Response, types::Response>, ApiClientError> {
     // The `reqwest::Response` held across awaits nests decompression internals deeply
     // enough to overflow the compiler's trait recursion limit when this future's type
     // is composed into callers' futures, so it is erased behind a boxed trait object
@@ -551,7 +570,11 @@ pub async fn call_connector_api(
             }
         }
 
-        handle_response(response).await
+        if accept_all_successes {
+            handle_response_inner(response, true).await
+        } else {
+            handle_response(response).await
+        }
     }
     .boxed()
     .await
@@ -562,13 +585,27 @@ pub async fn call_connector_api(
 pub async fn handle_response(
     response: CustomResult<reqwest::Response, ApiClientError>,
 ) -> CustomResult<Result<types::Response, types::Response>, ApiClientError> {
+    handle_response_inner(response, false).await
+}
+
+async fn handle_response_inner(
+    response: CustomResult<reqwest::Response, ApiClientError>,
+    accept_all_successes: bool,
+) -> CustomResult<Result<types::Response, types::Response>, ApiClientError> {
     response
         .map(|response| async {
-            logger::info!(?response);
+            logger::info!(
+                status_code = response.status().as_u16(),
+                response_size = ?response.content_length(),
+                "Connector HTTP response received"
+            );
             let status_code = response.status().as_u16();
             let headers = Some(response.headers().to_owned());
             match status_code {
-                200..=202 | 302 | 204 => {
+                status
+                    if matches!(status, 200..=202 | 302 | 204)
+                        || (accept_all_successes && (200..=299).contains(&status)) =>
+                {
                     // If needed add log line
                     // logger:: error!( error_parsing_response=?err);
                     let response = response
@@ -668,4 +705,42 @@ pub fn get_flow_name<F>() -> CustomResult<String, api_error_response::ApiErrorRe
         .ok_or(api_error_response::ApiErrorResponse::InternalServerError)
         .attach_printable("Flow stringify failed")?
         .to_string())
+}
+
+#[cfg(test)]
+mod proxy_response_tests {
+    use super::*;
+
+    fn response(status: u16) -> reqwest::Response {
+        http::Response::builder()
+            .status(status)
+            .header("set-cookie", "one=1")
+            .header("set-cookie", "two=2")
+            .body(b"\x00\xff<connector-reply/>".to_vec())
+            .unwrap()
+            .into()
+    }
+
+    #[tokio::test]
+    async fn proxy_preserves_success_and_error_responses_without_changing_native_status_policy() {
+        for status in [200, 201, 202, 203, 205, 206, 299, 302, 422, 500] {
+            let reply = handle_response_inner(Ok(response(status)), true)
+                .await
+                .unwrap();
+            assert_eq!(reply.is_ok(), status < 400);
+            let reply = reply.unwrap_or_else(|reply| reply);
+            assert_eq!(reply.status_code, status);
+            assert_eq!(reply.response.as_ref(), b"\x00\xff<connector-reply/>");
+            assert_eq!(
+                reply.headers.unwrap().get_all("set-cookie").iter().count(),
+                2
+            );
+        }
+        for status in [203, 205, 206, 299] {
+            assert!(handle_response(Ok(response(status))).await.is_err());
+        }
+        assert!(handle_response_inner(Ok(response(301)), true)
+            .await
+            .is_err());
+    }
 }

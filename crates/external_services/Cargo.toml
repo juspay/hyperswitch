@@ -121,6 +121,7 @@ router_env = { version = "0.1.0", path = "../router_env", default-features = fal
 tonic-prost-build = "0.14"
 
 [dev-dependencies]
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 # Test-only: the deja gRPC transport test drives a real tonic server over a
 # TcpListener via `tokio_stream::wrappers::TcpListenerStream` (the `net` feature).
 tokio-stream = { version = "0.1.17", features = ["net"] }

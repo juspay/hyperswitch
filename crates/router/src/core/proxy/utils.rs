@@ -10,12 +10,6 @@ use hyperswitch_domain_models::payment_methods;
 use hyperswitch_masking::{Mask, PeekInterface};
 use serde_json::Value;
 use storage_impl::behaviour::Conversion;
-use x509_parser::nom::{
-    bytes::complete::{tag, take_while1},
-    character::complete::{char, multispace0},
-    sequence::{delimited, preceded, terminated},
-    IResult,
-};
 
 use crate::{
     core::{
@@ -41,7 +35,7 @@ impl ProxyRequestWrapper {
         state: &SessionState,
         provider: &domain::Provider,
     ) -> RouterResult<ProxyRecord> {
-        let token = &self.0.token;
+        let token = self.0.token.peek();
 
         match self.0.token_type {
             proxy_api_models::TokenType::PaymentMethodId => {
@@ -162,10 +156,32 @@ impl ProxyRequestWrapper {
     pub fn get_headers(&self) -> Vec<(String, hyperswitch_masking::Maskable<String>)> {
         self.0
             .headers
+            .peek()
             .as_map()
             .iter()
             .map(|(key, value)| (key.clone(), value.clone().into_masked()))
             .collect()
+    }
+
+    /// Header names are case-insensitive; conflicting duplicate Content-Types are
+    /// rejected instead of selecting a nondeterministic HashMap entry.
+    pub fn get_content_type(&self) -> RouterResult<Option<&str>> {
+        let mut values = self
+            .0
+            .headers
+            .peek()
+            .as_map()
+            .iter()
+            .filter(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+            .map(|(_, value)| value.as_str());
+        let first = values.next();
+        if values.any(|value| Some(value) != first) {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Conflicting connector Content-Type headers".into(),
+            }
+            .into());
+        }
+        Ok(first)
     }
 
     pub fn get_destination_url(&self) -> &str {
@@ -362,35 +378,6 @@ impl ProxyRecord {
             }
         }
     }
-}
-
-#[derive(Debug)]
-pub struct TokenReference {
-    pub field: String,
-}
-
-pub fn parse_token(input: &str) -> IResult<&str, TokenReference> {
-    let (input, field) = delimited(
-        tag("{{"),
-        preceded(
-            multispace0,
-            preceded(
-                char('$'),
-                terminated(
-                    take_while1(|c: char| c.is_alphanumeric() || c == '_'),
-                    multispace0,
-                ),
-            ),
-        ),
-        tag("}}"),
-    )(input)?;
-
-    Ok((
-        input,
-        TokenReference {
-            field: field.to_string(),
-        },
-    ))
 }
 
 pub fn contains_token(s: &str) -> bool {

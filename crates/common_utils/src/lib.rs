@@ -28,6 +28,7 @@ pub mod new_type;
 pub mod outbound_url;
 pub mod payout_method_utils;
 pub mod pii;
+pub mod proxy;
 #[allow(missing_docs)] // Todo: add docs
 pub mod request;
 pub mod request_context;
