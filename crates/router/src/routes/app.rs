@@ -1811,6 +1811,7 @@ impl PaymentMethods {
                 .service(
                     web::resource("/migrate-batch")
                         .route(web::post().to(payment_methods::migrate_payment_methods))
+                        // Capability discovery shares the existing admin-authenticated endpoint.
                         .route(web::get().to(payment_methods::migration_capabilities)),
                 )
                 .service(

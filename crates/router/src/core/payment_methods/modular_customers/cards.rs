@@ -1,5 +1,6 @@
 //! Permanent raw-card storage using existing modular create/list/retrieve transport.
 //! Redis attempt records contain only keyed digests and IDs, never card/customer details.
+//! Separate matching and recovery from transport so resumed rows can verify existing storage.
 
 use common_utils::request::Headers;
 use hyperswitch_masking::{Maskable, PeekInterface};
@@ -77,6 +78,7 @@ pub(super) struct StoredCard {
 }
 
 #[async_trait::async_trait]
+// Keep storage decisions separate from the existing modular service and Redis adapters.
 pub(super) trait CardBackend: Sync {
     async fn lock(&self, key: &str) -> Result<(), CardError>;
     async fn unlock(&self, key: &str) -> Result<(), CardError>;
@@ -115,6 +117,7 @@ pub(super) fn identity(
         "MODULAR_CARD_MIGRATION_{}",
         blake3::keyed_hash(hash_key, scoped.as_bytes()).to_hex()
     );
+    // A second digest detects changed expiry, cardholder or billing data for the same PAN.
     let payload = serde_json::to_vec(&card.payload(customer.clone()))
         .map_err(|_| CardError::PayloadConflict)?;
     let digest = blake3::keyed_hash(hash_key, &payload).to_hex().to_string();
@@ -129,6 +132,7 @@ pub(super) async fn store<B: CardBackend>(
     customer: &id_type::GlobalCustomerId,
     card: &MigrationCardInput,
 ) -> Result<(StoredCard, bool), CardError> {
+    // Serialize migration attempts for this customer/card across requests and profiles.
     backend.lock(key).await?;
     let mut posted = false;
     let result = async {
@@ -139,6 +143,7 @@ pub(super) async fn store<B: CardBackend>(
         {
             return Err(CardError::PayloadConflict);
         }
+        // A verified existing card is reused; a remembered different ID is ambiguous.
         if let Some(found) = backend.find(profile, customer, card).await? {
             if attempt
                 .as_ref()
@@ -163,6 +168,7 @@ pub(super) async fn store<B: CardBackend>(
             // A timeout/absence from the active list does not prove the previous POST failed.
             return Err(CardError::UncertainStorage);
         }
+        // Record the attempt before creating so a later application-level retry can reconcile.
         backend
             .remember(
                 key,
@@ -192,6 +198,7 @@ pub(super) async fn store<B: CardBackend>(
                 )
                 .await?;
         }
+        // Confirm storage through reads even when the create response was lost.
         let confirmed = backend
             .find(profile, customer, card)
             .await
@@ -236,6 +243,7 @@ fn headers(
     merchant: &id_type::MerchantId,
     profile: &id_type::ProfileId,
 ) -> Headers {
+    // Card calls reuse internal merchant/profile auth; customer calls use the temporary key.
     let mut headers = Headers::new();
     headers.insert((
         crate::headers::X_MERCHANT_ID.to_string(),
@@ -282,6 +290,7 @@ impl ServiceCardBackend<'_> {
             &headers,
             &self.state.conf.trace_header.header_name,
         );
+        // Fresh permanent cards are New, so the migration list explicitly includes that status.
         let listed = ListMigrationCustomerPaymentMethods::call(
             self.state,
             &client,
@@ -320,6 +329,7 @@ impl ServiceCardBackend<'_> {
             if !is_modular_id(&item.id, "pm") {
                 return Err(CardError::InvalidResponse);
             }
+            // Read full details for identity verification; masked listing fields are insufficient.
             let retrieved = RetrievePaymentMethod::call(
                 self.state,
                 &client,
@@ -361,6 +371,7 @@ fn matches_stored_card(
     card: &MigrationCardInput,
     retrieved: &payment_methods::client::retrieve::RetrievePaymentMethodResponse,
 ) -> Result<bool, CardError> {
+    // Validate response ownership and permanent storage before trusting its card data.
     if !is_modular_id(payment_method_id, "pm")
         || retrieved.payment_method_id != payment_method_id
         || retrieved.merchant_id != *merchant
@@ -396,6 +407,7 @@ fn verify_fields(
     subtype: Option<common_enums::PaymentMethodType>,
     billing: Option<&api_models::payments::Address>,
 ) -> Result<(), CardError> {
+    // Compare every supplied field while allowing the service to enrich missing metadata.
     let month = |value: &hyperswitch_masking::Secret<String>| value.peek().parse::<u8>().ok();
     let year = |value: &hyperswitch_masking::Secret<String>| {
         value
@@ -542,6 +554,7 @@ impl CardBackend for ServiceCardBackend<'_> {
             &headers,
             &self.state.conf.trace_header.header_name,
         );
+        // Reuse the migration converter and ordinary modular create transport.
         let created = CreateMigrationPaymentMethod::call(
             self.state,
             &client,

@@ -27,6 +27,7 @@ use crate::{
     types::{domain, transformers::ForeignFrom},
 };
 
+// Use the same credit/debit inference as ordinary payment flows.
 fn supported_card_subtype(
     explicit: Option<common_enums::PaymentMethodType>,
     bin_card_type: Option<String>,
@@ -159,6 +160,7 @@ pub struct ModularMigrationResult {
 }
 
 #[derive(Debug, Serialize)]
+// Stable codes and retry hints let the tool report partial failures without sensitive values.
 struct MigrationError {
     stage: &'static str,
     code: &'static str,
@@ -202,6 +204,7 @@ pub struct MigrationCapabilities {
 
 impl common_utils::events::ApiEventMetric for MigrationCapabilities {}
 
+// Advertise the compiled contract, not upstream service health or merchant readiness.
 pub fn capabilities() -> MigrationCapabilities {
     MigrationCapabilities {
         contract_version: 1,
@@ -217,6 +220,7 @@ fn validate_key(
     merchant_id: &id_type::MerchantId,
     now: time::PrimitiveDateTime,
 ) -> Result<(), CustomerError> {
+    // Customer creation must use a live, expiring key owned by this batch merchant.
     if key_merchant != merchant_id {
         return Err(CustomerError::InvalidCredential);
     }
@@ -238,6 +242,7 @@ fn customer_request(record: &PaymentMethodRecord) -> Result<CustomerRequest, Cus
     if record.customer_id.get_string_repr().trim().is_empty() {
         return Err(CustomerError::InvalidInput);
     }
+    // The CSV customer_id remains the merchant reference; the service generates the real ID.
     Ok(CustomerRequest {
         merchant_reference_id: record.customer_id.clone(),
         name: Secret::new(name.to_string()),
@@ -249,6 +254,7 @@ fn validate_customer_details(
     records: &[PaymentMethodRecord],
     merchant_id: &id_type::MerchantId,
 ) -> Result<Vec<CustomerRequest>, CustomerError> {
+    // Reject inconsistent name/email across cards for the same customer before any writes.
     let mut details: HashMap<id_type::CustomerId, CustomerRequest> = HashMap::new();
     let mut requests = Vec::with_capacity(records.len());
     for record in records {
@@ -303,6 +309,7 @@ fn single_profile(
     bindings: &[(id_type::MerchantId, id_type::ProfileId)],
     merchant_id: &id_type::MerchantId,
 ) -> Result<id_type::ProfileId, CustomerError> {
+    // Every mapped MCA on a row must belong to this merchant and resolve to one profile.
     let first = bindings.first().ok_or(CustomerError::InvalidProfile)?;
     if bindings
         .iter()
@@ -332,6 +339,7 @@ fn unique_customer(
     mut customers: Vec<CustomerResponse>,
     reference: &id_type::CustomerId,
 ) -> Result<Option<CustomerResponse>, CustomerError> {
+    // Duplicate references are ambiguous; never choose an arbitrary generated customer ID.
     match customers.len() {
         0 => Ok(None),
         1 => customers
@@ -386,6 +394,7 @@ async fn resolve_customer<B: CustomerBackend>(
     let mut creation_attempted = false;
     let outcome = async {
         let attempt = backend.attempt(input).await?;
+        // Reuse a confirmed customer before considering a new create, including resumed rows.
         if let Some(customer) = unique_customer(backend.list(input).await?, reference)? {
             if attempt
                 .as_ref()
@@ -412,8 +421,8 @@ async fn resolve_customer<B: CustomerBackend>(
         backend
             .remember(input, CustomerAttempt { customer_id: None })
             .await?;
-        // Never blindly retry POST. Reconcile even a failed/lost create response against
-        // a primary-backed list (limit two), to detect duplicate references.
+        // Reconcile the create result with a primary-backed list, including lost responses.
+        // The shared HTTP client retains its normal connection-close retry behavior.
         creation_attempted = true;
         let created = backend.create(input).await;
         if matches!(
@@ -511,6 +520,7 @@ fn customer_journal_key(
     reference: &id_type::CustomerId,
     hash_key: &[u8; 32],
 ) -> String {
+    // Persist only a keyed reference digest and generated ID, never customer details or keys.
     let identity = format!(
         "customer-migration-v1\0{tenant}\0{}\0{}",
         merchant.get_string_repr(),
@@ -617,6 +627,7 @@ fn customer_http_request(
         .join(&path)
         .map_err(|_| CustomerError::ServiceUnavailable)?;
     if !create {
+        // Read at most two matching references so duplicate customers can be detected.
         url.query_pairs_mut()
             .append_pair(
                 "customer_id",
@@ -629,7 +640,7 @@ fn customer_http_request(
         if create { Method::Post } else { Method::Get },
         url.as_str(),
     );
-    request.disable_connection_closed_retry = create;
+    // Keep customer API merchant-key authentication, with the row profile and current tenant.
     let mut headers = Headers::new();
     headers.insert((
         "Authorization".to_string(),
@@ -698,6 +709,7 @@ impl CustomerBackend for ServiceBackend<'_> {
             .map_err(|_| CustomerError::JournalUnavailable)?;
         let value =
             serde_json::to_string(&attempt).map_err(|_| CustomerError::JournalUnavailable)?;
+        // Keep pending IDs across lock expiry so resumes reconcile older create attempts.
         redis
             .set_key_without_modifying_ttl(
                 &redis_interface::RedisKey::from(
@@ -761,6 +773,7 @@ pub async fn prepare(
     api_key: StrongSecret<String>,
 ) -> RouterResult<Vec<ModularMigrationResult>> {
     let merchant = platform.get_provider().get_account().get_id();
+    // Verify the supplied key locally before sending customer requests to another service.
     let hash_key = state.conf.api_keys.get_inner().get_hash_key()?;
     let hashed =
         api_keys::PlaintextApiKey::from(api_key.peek().as_str()).keyed_hash(hash_key.peek());
@@ -792,6 +805,7 @@ pub async fn prepare(
     let customers =
         validate_customer_details(&records, merchant).map_err(CustomerError::api_error)?;
     for (record, customer) in records.into_iter().zip(customers) {
+        // MCAs select the profile and enforce ownership; they are not stored as card tokens.
         let mut bindings = Vec::new();
         for mca_id in
             connector_ids(&record, fallback_mcas.as_ref()).map_err(CustomerError::api_error)?
@@ -888,6 +902,7 @@ async fn resolve_batch<B: CustomerBackend, C: cards::CardBackend>(
     merchant: &id_type::MerchantId,
     hash_key: &[u8; 32],
 ) -> Vec<ModularMigrationResult> {
+    // Reuse customer/card outcomes within this batch while returning every source row.
     let mut resolved: HashMap<
         id_type::CustomerId,
         Result<(CustomerResponse, bool), CustomerError>,
@@ -943,6 +958,7 @@ async fn resolve_batch<B: CustomerBackend, C: cards::CardBackend>(
                 continue;
             }
         };
+        // Preserve customer success even when card storage later fails, for reports and resume.
         row.customer_id = Some(customer.id.clone());
         row.customer_created = created;
         row.customer_migration_status = MigrationStatus::Success;

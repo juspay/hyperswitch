@@ -41,6 +41,7 @@ impl TryFrom<&PaymentMethodRecord> for MigrationCardInput {
     type Error = MigrationCardInputError;
 
     fn try_from(row: &PaymentMethodRecord) -> Result<Self, Self::Error> {
+        // Fail on fields this raw-card contract cannot preserve instead of dropping them.
         let mut unsupported = Vec::new();
         macro_rules! reject {
             ($($field:ident),+ $(,)?) => { $(
@@ -104,6 +105,7 @@ impl TryFrom<&PaymentMethodRecord> for MigrationCardInput {
             .ok_or_else(|| Self::Error::invalid("card_expiry_year"))?;
         crate::core::migration::validate_card_expiry(month, year)
             .map_err(|_| Self::Error::invalid("card_expiry"))?;
+        // Normalize source expiry formats before comparing or storing the card.
         let month_number: u8 = month
             .peek()
             .parse()
@@ -133,6 +135,7 @@ impl TryFrom<&PaymentMethodRecord> for MigrationCardInput {
                     .map_err(|_| Self::Error::invalid("card_scheme"))
             })
             .transpose()?;
+        // Customer name/email belong to customer creation; cardholder and billing stay here.
         let address = payments::AddressDetails {
             city: row.billing_address_city.clone(),
             country: row.billing_address_country,
@@ -165,6 +168,7 @@ impl TryFrom<&PaymentMethodRecord> for MigrationCardInput {
                 card_subtype: None,
                 card_segment_type: None,
                 funding_source: None,
+                // Migration exports do not contain CVC; permanent storage must accept its absence.
                 card_cvc: None,
             },
             billing,
@@ -174,6 +178,7 @@ impl TryFrom<&PaymentMethodRecord> for MigrationCardInput {
 }
 
 impl MigrationCardInput {
+    // Always bind permanent storage to the resolved global ID, not the merchant reference.
     pub fn payload(&self, customer_id: id_type::GlobalCustomerId) -> ModularPMCreateRequest {
         ModularPMCreateRequest {
             payment_method_type: common_enums::PaymentMethod::Card,
@@ -214,6 +219,7 @@ impl CreateMigrationPaymentMethod {
     }
 }
 
+// Reuse the standard modular transport and its existing HTTP retry policy.
 hyperswitch_interfaces::impl_microservice_flow!(
     CreateMigrationPaymentMethod,
     method = Method::Post,
@@ -224,8 +230,7 @@ hyperswitch_interfaces::impl_microservice_flow!(
     v1_response = CreatePaymentMethodResponse,
     client = crate::client::PaymentMethodClient<'_>,
     body = CreateMigrationPaymentMethod::body,
-    path_params = CreateMigrationPaymentMethod::path,
-    disable_connection_closed_retry = true
+    path_params = CreateMigrationPaymentMethod::path
 );
 
 /// Reconciliation must include freshly vaulted `New` cards, which have not yet been used.
