@@ -86,6 +86,10 @@ pub struct Database {
     pub dbname: String,
     pub pool_size: u32,
     pub connection_timeout: u64,
+    pub keepalives_idle: u64,
+    pub keepalives_interval: u64,
+    pub keepalives_count: u32,
+    pub tcp_user_timeout_ms: u64,
 }
 
 impl DbConnectionParams for Database {
@@ -103,6 +107,18 @@ impl DbConnectionParams for Database {
     }
     fn get_dbname(&self) -> &str {
         &self.dbname
+    }
+    fn get_pool_keepalives_idle(&self) -> u64 {
+        self.keepalives_idle
+    }
+    fn get_pool_keepalives_interval(&self) -> u64 {
+        self.keepalives_interval
+    }
+    fn get_pool_keepalives_count(&self) -> u32 {
+        self.keepalives_count
+    }
+    fn get_pool_tcp_user_timeout_ms(&self) -> u64 {
+        self.tcp_user_timeout_ms
     }
 }
 
@@ -212,6 +228,10 @@ impl Default for Database {
             dbname: String::new(),
             pool_size: 5,
             connection_timeout: 10,
+            keepalives_idle: common_utils::DEFAULT_DB_KEEPALIVES_IDLE_SECS,
+            keepalives_interval: common_utils::DEFAULT_DB_KEEPALIVES_INTERVAL_SECS,
+            keepalives_count: common_utils::DEFAULT_DB_KEEPALIVES_COUNT,
+            tcp_user_timeout_ms: common_utils::DEFAULT_DB_TCP_USER_TIMEOUT_MS,
         }
     }
 }

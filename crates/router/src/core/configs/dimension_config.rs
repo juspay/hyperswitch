@@ -312,6 +312,25 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
 }
 
 config! {
+    superposition_key = PAYMENT_BLOCKLIST_GUARD,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PaymentBlocklistGuard {
+    const KEY: &'static str = "payment_blocklist_guard";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Retain the legacy merchant key used by the blocklist toggle API.
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| id.get_blocklist_guard_key())
+    }
+}
+
+config! {
     superposition_key = GSM_PAYOUT_CALL,
     output = bool,
     default = false,
@@ -944,6 +963,87 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
                 .ok()
             })
             .map(|event| disabled_events.contains(&event))
+    }
+}
+
+config! {
+    superposition_key = UNVERIFIED_WEBHOOK_RATE_LIMIT_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithMerchantConnectorAccount,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for UnverifiedWebhookRateLimitEnabled {
+    const KEY: &'static str = "unverified_webhook_rate_limit_enabled";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Unverified webhook rate limiting is configured only in superposition, so there is no db fallback.
+        None
+    }
+}
+
+config! {
+    superposition_key = UNVERIFIED_WEBHOOK_RATE_LIMIT_WINDOW_IN_SECS,
+    output = u32,
+    default = 60u32,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for UnverifiedWebhookRateLimitWindowInSecs {
+    const KEY: &'static str = "unverified_webhook_rate_limit_window_in_secs";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = UNVERIFIED_WEBHOOK_MERCHANT_RATE_LIMIT,
+    output = u32,
+    default = 60u32,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for UnverifiedWebhookMerchantRateLimit {
+    const KEY: &'static str = "unverified_webhook_merchant_rate_limit";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = UNVERIFIED_WEBHOOK_PROFILE_RATE_LIMIT,
+    output = u32,
+    default = 0u32,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for UnverifiedWebhookProfileRateLimit {
+    const KEY: &'static str = "unverified_webhook_profile_rate_limit";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = UNVERIFIED_WEBHOOK_MERCHANT_CONNECTOR_ACCOUNT_RATE_LIMIT,
+    output = u32,
+    default = 0u32,
+    requires = dimension_state::DimensionsWithMerchantConnectorAccount,
+    targeting_key = id_type::MerchantConnectorAccountId
+}
+
+impl DatabaseBackedConfig for UnverifiedWebhookMerchantConnectorAccountRateLimit {
+    const KEY: &'static str = "unverified_webhook_merchant_connector_account_rate_limit";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
     }
 }
 
