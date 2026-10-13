@@ -5003,7 +5003,7 @@
                       }
                     },
                     "token": "pm_0196ea5a42a67583863d5b1253d62931",
-                    "token_type": "PaymentMethodId"
+                    "token_type": "payment_method_id"
                   }
                 }
               }
@@ -5085,7 +5085,7 @@
                       }
                     },
                     "token": "pm_0196ea5a42a67583863d5b1253d62931",
-                    "token_type": "PaymentMethodId"
+                    "token_type": "payment_method_id"
                   }
                 }
               }
@@ -30259,6 +30259,145 @@
           "contract_default"
         ]
       },
+      "ProxyBody": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "json"
+                ]
+              },
+              "data": {
+                "type": "string",
+                "description": "Serialized JSON template. Unchanged tokens retain their original bytes."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "xml"
+                ]
+              },
+              "data": {
+                "type": "string",
+                "description": "A complete, UTF-8 XML/SOAP document."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "form_url_encoded"
+                ]
+              },
+              "data": {
+                "type": "string",
+                "description": "An encoded form. Duplicate keys and ordering are significant."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text"
+                ]
+              },
+              "data": {
+                "type": "string",
+                "description": "A UTF-8 text template."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "multipart"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ProxyMultipartPart"
+                },
+                "description": "Typed multipart parts; file contents are opaque base64."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "raw_bytes"
+                ]
+              },
+              "data": {
+                "type": "string",
+                "description": "Opaque base64-encoded bytes, with no token interpolation."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "none"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "The connector body inside the JSON proxy envelope. Binary bodies are opaque.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "ProxyCardData": {
         "type": "object",
         "required": [
@@ -30419,10 +30558,77 @@
           }
         }
       },
+      "ProxyMultipartPart": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "A text field whose value may reference vaulted data.",
+            "required": [
+              "name",
+              "value",
+              "type"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Form field name."
+              },
+              "value": {
+                "type": "string",
+                "description": "UTF-8 value that may contain vault placeholders."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A binary file; bytes must survive the proxy without modification.",
+            "required": [
+              "name",
+              "filename",
+              "mime_type",
+              "data_base64",
+              "type"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Form field name."
+              },
+              "filename": {
+                "type": "string",
+                "description": "Original file name."
+              },
+              "mime_type": {
+                "type": "string",
+                "description": "Content-Type of the opaque file bytes."
+              },
+              "data_base64": {
+                "type": "string",
+                "description": "Standard base64-encoded file bytes."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "file"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "A multipart field or file. Metadata is never interpolated.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "ProxyRequest": {
         "type": "object",
         "required": [
-          "request_body",
           "destination_url",
           "headers",
           "method",
@@ -30432,6 +30638,29 @@
         "properties": {
           "request_body": {
             "description": "The request body that needs to be forwarded"
+          },
+          "body": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProxyBody"
+              }
+            ],
+            "nullable": true
+          },
+          "certificate": {
+            "type": "string",
+            "description": "Client certificate for the connector, independent of proxy authentication.",
+            "nullable": true
+          },
+          "certificate_key": {
+            "type": "string",
+            "description": "Private key associated with the connector client certificate.",
+            "nullable": true
+          },
+          "ca_certificate": {
+            "type": "string",
+            "description": "Custom CA certificate for the connector connection.",
+            "nullable": true
           },
           "destination_url": {
             "type": "string",
@@ -30465,6 +30694,29 @@
         "properties": {
           "response": {
             "description": "The response received from the destination"
+          },
+          "response_body_base64": {
+            "type": "string",
+            "description": "Original connector body bytes. New clients must prefer this to `response`.",
+            "nullable": true
+          },
+          "response_headers_multi": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "allOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "description": "Connector headers preserving repeated names such as Set-Cookie.",
+            "nullable": true
           },
           "status_code": {
             "type": "integer",
