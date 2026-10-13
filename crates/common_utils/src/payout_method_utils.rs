@@ -538,3 +538,53 @@ impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{AdditionalPayoutMethodData, BankAdditionalData};
+
+    #[test]
+    fn stored_payshap_data_deserialize_as_payshap() -> Result<(), serde_json::Error> {
+        // BankAdditionalData is untagged. A PayShap account number alone also
+        // fits Pix's optional fields unless the PayShap variant is tried first.
+        let payshap: AdditionalPayoutMethodData = serde_json::from_value(json!({
+            "Bank": {"bank_account_number": "****67890"}
+        }))?;
+        assert!(matches!(
+            payshap,
+            AdditionalPayoutMethodData::Bank(bank) if matches!(*bank, BankAdditionalData::Payshap(_))
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn stored_payshap_with_all_fields_deserializes_as_payshap() -> Result<(), serde_json::Error> {
+        let payshap: AdditionalPayoutMethodData = serde_json::from_value(json!({
+            "Bank": {
+                "bank_account_number": "****67890",
+                "account_holder_name": "Test Holder",
+                "bank_name": "nedbank"
+            }
+        }))?;
+        assert!(matches!(
+            payshap,
+            AdditionalPayoutMethodData::Bank(bank) if matches!(*bank, BankAdditionalData::Payshap(_))
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn stored_payshap_proxy_with_shap_id_deserializes_as_payshap_proxy(
+    ) -> Result<(), serde_json::Error> {
+        let payshap_proxy: AdditionalPayoutMethodData = serde_json::from_value(json!({
+            "Bank": {"shap_id": "****3123"}
+        }))?;
+        assert!(matches!(
+            payshap_proxy,
+            AdditionalPayoutMethodData::Bank(bank) if matches!(*bank, BankAdditionalData::PayshapProxy(_))
+        ));
+        Ok(())
+    }
+}
