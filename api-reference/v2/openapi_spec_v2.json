@@ -4866,7 +4866,7 @@
         ]
       }
     },
-    "/v2/payments/recovery": {
+    "/v2/recovery": {
       "post": {
         "tags": [
           "Revenue Recovery"
