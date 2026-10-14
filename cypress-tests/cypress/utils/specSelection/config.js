@@ -179,7 +179,7 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "56-VaultTokenizationDisable.cy.js": ["card"],
   "54-OfferEngine.cy.js": ["card"],
   "54-ConnectorAgnosticMandates.cy.js": ["card"],
-  "57-CardHolderNameBillingFallback.cy.js": ["card"],
+  "54-CardHolderNameBillingFallback.cy.js": ["card"],
 });
 
 /**
