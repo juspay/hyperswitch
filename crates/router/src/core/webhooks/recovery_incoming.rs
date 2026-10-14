@@ -122,7 +122,10 @@ pub async fn recovery_incoming_webhook_flow(
         connector_enum,
         request_details,
         billing_connector_invoice_details.as_ref(),
-    )?;
+    )?
+    .with_default_partial_authorization(
+        billing_connector_account.is_partial_authorization_enabled(),
+    );
 
     let is_event_recovery_transaction_event = event_type.is_recovery_transaction_event();
 
@@ -347,6 +350,16 @@ impl RevenueRecoveryInvoice {
             })
             .await
     }
+    /// Fills in partial authorization from the billing connector account when the invoice
+    /// itself does not carry a value.
+    fn with_default_partial_authorization(mut self, default: bool) -> Self {
+        self.0.enable_partial_authorization = self
+            .0
+            .enable_partial_authorization
+            .or_else(|| Some(default.into()));
+        self
+    }
+
     fn get_recovery_invoice_details(
         connector_enum: &connector_integration_interface::ConnectorEnum,
         request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,

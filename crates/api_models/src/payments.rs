@@ -14764,7 +14764,9 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = RecoveryPaymentsAction, example = "schedule_failed_payment")]
     pub action: common_payments_types::RecoveryPaymentsAction,
 
-    /// Allow partial authorization for this payment
+    /// Allow partial authorization for this payment. When passed, this takes priority over the
+    /// value configured on the billing connector account; otherwise the billing connector
+    /// account's value is used (default `false`).
     #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 

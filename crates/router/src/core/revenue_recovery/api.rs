@@ -314,9 +314,19 @@ pub async fn custom_revenue_recovery_core(
         })
     })?;
 
+    // The API value takes priority; otherwise use the billing connector account's setting.
+    let mut intent_request = request.clone();
+    intent_request.enable_partial_authorization =
+        request.enable_partial_authorization.or_else(|| {
+            Some(
+                billing_connector_account
+                    .is_partial_authorization_enabled()
+                    .into(),
+            )
+        });
     let recovery_intent =
         recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
-            request.clone(),
+            intent_request,
             &state,
             &req_state,
             &platform,

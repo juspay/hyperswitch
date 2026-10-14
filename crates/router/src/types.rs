@@ -1620,6 +1620,9 @@ impl ForeignFrom<&domain::MerchantConnectorAccountFeatureMetadata>
                         .billing_connector_retry_threshold,
                     max_hybrid_cascading_retry_count: revenue_recovery_metadata
                         .max_hybrid_cascading_retry_count,
+                    grace_period_days: revenue_recovery_metadata.grace_period_days,
+                    enable_partial_authorization: revenue_recovery_metadata
+                        .enable_partial_authorization,
                     billing_account_reference: revenue_recovery_metadata
                         .mca_reference
                         .recovery_to_billing
@@ -1651,6 +1654,9 @@ impl ForeignTryFrom<&api_models::admin::MerchantConnectorAccountFeatureMetadata>
                         .billing_connector_retry_threshold,
                     max_hybrid_cascading_retry_count: revenue_recovery_metadata
                         .max_hybrid_cascading_retry_count,
+                    grace_period_days: revenue_recovery_metadata.grace_period_days,
+                    enable_partial_authorization: revenue_recovery_metadata
+                        .enable_partial_authorization,
                     mca_reference,
                 })
             })
