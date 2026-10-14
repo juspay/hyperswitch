@@ -94,6 +94,8 @@ pub mod proxy;
 pub use self::app::DummyConnector;
 #[cfg(feature = "v2")]
 pub use self::app::PaymentMethodSession;
+#[cfg(all(feature = "oltp", feature = "v2"))]
+pub use self::app::Proxy;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
     Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, ExternalService,
@@ -110,8 +112,6 @@ pub use self::app::{
 };
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
-#[cfg(all(feature = "oltp", feature = "v2"))]
-pub use self::app::{Proxy, RevenueRecovery};
 #[cfg(feature = "v2")]
 pub use self::app::{RevenueRecovery, Tokenization};
 #[cfg(all(feature = "stripe", feature = "v1"))]

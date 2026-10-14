@@ -363,14 +363,6 @@ pub fn mk_app(
         }
     }
 
-    // `/v2/recovery` is a prefix of `/v2/recovery/data-backfill`. Actix does not fall through
-    // to a later scope once a scope's prefix matches, so this scope is registered after
-    // `RecoveryDataBackfill`.
-    #[cfg(all(feature = "v2", feature = "oltp"))]
-    {
-        server_app = server_app.service(routes::RevenueRecovery::server(state.clone()));
-    }
-
     #[cfg(all(feature = "payouts", feature = "v1"))]
     {
         server_app = server_app
