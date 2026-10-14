@@ -205,6 +205,16 @@ impl JWTFlow {
             new_lineage_context.clone(),
         );
 
+        if let Some(idle_timeout_in_secs) = state.conf.user.idle_session_timeout_in_secs {
+            auth::blacklist::insert_user_in_blacklist(state, &new_lineage_context.user_id).await?;
+            auth::idle_session::start_idle_session(
+                state,
+                &new_lineage_context.user_id,
+                idle_timeout_in_secs,
+            )
+            .await?;
+        }
+
         auth::AuthToken::new_token(
             new_lineage_context.user_id,
             new_lineage_context.merchant_id,

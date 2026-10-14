@@ -74,6 +74,8 @@ pub const USER_BLACKLIST_PREFIX: &str = "BU_";
 
 pub const ROLE_BLACKLIST_PREFIX: &str = "BR_";
 
+pub const USER_IDLE_SESSION_PREFIX: &str = "IS_";
+
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 

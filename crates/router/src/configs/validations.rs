@@ -26,6 +26,22 @@ impl super::settings::Secrets {
     }
 }
 
+impl super::settings::UserSettings {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(
+            self.idle_session_timeout_in_secs
+                .is_some_and(|idle_timeout_in_secs| idle_timeout_in_secs <= 0),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "user idle session timeout must be greater than 0 when set".into(),
+                ))
+            },
+        )
+    }
+}
+
 impl super::settings::Locker {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;

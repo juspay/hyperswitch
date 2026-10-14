@@ -53,7 +53,7 @@ use router_env::{instrument, tracing, RequestId, Tag};
 use serde::Serialize;
 
 use super::{
-    authentication::AuthenticateAndFetch,
+    authentication::{idle_session, AuthenticateAndFetch},
     connector_integration_interface::BoxedConnectorIntegrationInterface,
 };
 use crate::{
@@ -253,6 +253,10 @@ where
     // Currently auth failures are not recorded as API events
     let (auth_out, auth_type) = api_auth
         .authenticate_and_fetch(request.headers(), &session_state)
+        .await
+        .switch()?;
+
+    idle_session::check_idle_session(&session_state, &auth_type, flow)
         .await
         .switch()?;
 
