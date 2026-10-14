@@ -86,7 +86,10 @@ export const connectorDetails = {
           },
         },
       },
-      ConfirmDisabled: {
+      AutoFallbackDisabled: {
+        Configs: {
+          skipBillingAssertion: true,
+        },
         Request: {
           payment_method: "crypto",
           payment_method_type: "crypto_currency",
@@ -110,7 +113,7 @@ export const connectorDetails = {
           },
         },
       },
-      ConfirmEnabled: {
+      AutoFallbackEnabled: {
         Request: {
           payment_method: "crypto",
           payment_method_type: "crypto_currency",

@@ -39,7 +39,10 @@ export const connectorDetails = {
           },
         },
       },
-      ConfirmDisabled: {
+      AutoFallbackDisabled: {
+        Configs: {
+          skipBillingAssertion: true,
+        },
         Request: {
           payment_method: "bank_transfer",
           payment_method_type: "pix",
@@ -73,7 +76,7 @@ export const connectorDetails = {
           },
         },
       },
-      ConfirmEnabled: {
+      AutoFallbackEnabled: {
         Request: {
           payment_method: "bank_transfer",
           payment_method_type: "pix",

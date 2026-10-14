@@ -71,12 +71,20 @@ describe("Card - Auto Fallback Capture Method flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
-      it("confirm-payment-call-test with no eligible connector error", () => {
+      it("confirm-payment-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["AutoFallbackCaptureMethod"]["ConfirmDisabled"];
+        ]["AutoFallbackCaptureMethod"]["AutoFallbackDisabled"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["AutoFallbackCaptureMethod"]["AutoFallbackDisabled"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     }
   );
@@ -127,12 +135,20 @@ describe("Card - Auto Fallback Capture Method flow test", () => {
       it("confirm-payment-call-test with capture_method_applied automatic", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["AutoFallbackCaptureMethod"]["ConfirmEnabled"];
+        ]["AutoFallbackCaptureMethod"]["AutoFallbackEnabled"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["AutoFallbackCaptureMethod"]["AutoFallbackEnabled"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     }
   );

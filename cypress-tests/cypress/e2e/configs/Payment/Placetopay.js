@@ -66,7 +66,10 @@ export const connectorDetails = {
           },
         },
       },
-      ConfirmDisabled: {
+      AutoFallbackDisabled: {
+        Configs: {
+          skipBillingAssertion: true,
+        },
         Request: manualCaptureConfirmRequest,
         Response: {
           status: 400,
@@ -80,7 +83,7 @@ export const connectorDetails = {
           },
         },
       },
-      ConfirmEnabled: {
+      AutoFallbackEnabled: {
         Request: manualCaptureConfirmRequest,
         Response: {
           status: 200,

@@ -141,7 +141,10 @@ export const connectorDetails = {
           },
         },
       },
-      ConfirmDisabled: {
+      AutoFallbackDisabled: {
+        Configs: {
+          skipBillingAssertion: true,
+        },
         Request: {
           payment_method: "upi",
           payment_method_type: "upi_collect",
@@ -166,7 +169,7 @@ export const connectorDetails = {
           },
         },
       },
-      ConfirmEnabled: {
+      AutoFallbackEnabled: {
         Request: {
           payment_method: "upi",
           payment_method_type: "upi_collect",

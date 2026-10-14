@@ -669,7 +669,10 @@ export const connectorDetails = {
           },
         },
       },
-      ConfirmDisabled: {
+      AutoFallbackDisabled: {
+        Configs: {
+          skipBillingAssertion: true,
+        },
         Request: {
           payment_method: "card",
           payment_method_type: "credit",
@@ -690,7 +693,7 @@ export const connectorDetails = {
           },
         },
       },
-      ConfirmEnabled: {
+      AutoFallbackEnabled: {
         Request: {
           payment_method: "card",
           payment_method_type: "credit",
