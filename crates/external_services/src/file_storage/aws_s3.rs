@@ -178,6 +178,27 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "aws_s3")]
+    #[test]
+    fn invalid_config_keeps_the_validation_error_as_its_source() {
+        let config = file_storage_config(serde_json::json!({
+            "file_storage_backend": "aws_s3",
+            "aws_s3": { "region": "us-east-1" },
+        }));
+
+        let source = config
+            .validate()
+            .err()
+            .as_ref()
+            .and_then(std::error::Error::source)
+            .map(ToString::to_string);
+
+        assert_eq!(
+            source.as_deref(),
+            Some("aws s3 bucket name must not be empty")
+        );
+    }
+
     #[cfg(feature = "oci_object_storage")]
     #[test]
     fn oci_object_storage_backend_config_deserializes_and_validates() {

@@ -13,6 +13,8 @@ use aws_sdk_s3::{
     Client,
 };
 
+use super::InvalidStorageConfig;
+
 /// Configuration for AWS S3 file storage.
 #[derive(Debug, serde::Deserialize, Clone, Default)]
 #[serde(default)]
@@ -25,13 +27,13 @@ pub struct S3StorageConfig {
 
 impl S3StorageConfig {
     /// Validates the S3 file storage configuration, returning a description of the first problem.
-    pub fn validate(&self) -> Result<(), &'static str> {
+    pub fn validate(&self) -> Result<(), InvalidStorageConfig> {
         if self.region.trim().is_empty() {
-            return Err("aws s3 region must not be empty");
+            return Err(InvalidStorageConfig("aws s3 region must not be empty"));
         }
 
         if self.bucket_name.trim().is_empty() {
-            return Err("aws s3 bucket name must not be empty");
+            return Err(InvalidStorageConfig("aws s3 bucket name must not be empty"));
         }
 
         Ok(())
@@ -367,11 +369,11 @@ pub(crate) mod tests {
         assert_eq!(config("us-east-1", "bucket").validate(), Ok(()));
         assert_eq!(
             config(" ", "bucket").validate(),
-            Err("aws s3 region must not be empty")
+            Err(InvalidStorageConfig("aws s3 region must not be empty"))
         );
         assert_eq!(
             config("us-east-1", "").validate(),
-            Err("aws s3 bucket name must not be empty")
+            Err(InvalidStorageConfig("aws s3 bucket name must not be empty"))
         );
     }
 
