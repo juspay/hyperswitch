@@ -2,6 +2,7 @@ import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
 
 import { updateDefaultStatusCode } from "./Modifiers.js";
 
+import { connectorDetails as saferpayConnectorDetails } from "./Saferpay.js";
 import { connectorDetails as signifydConnectorDetails } from "../FRM/Signifyd.js";
 import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
@@ -171,6 +172,7 @@ const connectorDetails = {
   powertranz: powertranzConnectorDetails,
   prophetpay: prophetpayConnectorDetails,
   rapyd: rapydConnectorDetails,
+  saferpay: saferpayConnectorDetails,
   redsys: redsysConnectorDetails,
   shift4: shift4ConnectorDetails,
   signifyd: signifydConnectorDetails,
@@ -618,6 +620,7 @@ export const CONNECTOR_LISTS = {
       "fiservcommercehub",
       "givepayments",
       "ilixium",
+      "saferpay",
       "truelayer",
       "trustly",
     ],
