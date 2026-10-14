@@ -101,6 +101,27 @@ const ROUTER_LEVEL_VALIDATION_KEYS = new Set([
   "MissingRequiredParam",
 ]);
 
+// Keys whose Commons.js behavior doesn't depend on the connector at all —
+// e.g. SessionToken's empty-wallets request returns an empty session_token
+// array from the router itself, true for any connector. These also need
+// excluding from auto-skip for a second, sharper reason: their consuming
+// cy command doesn't check TRIGGER_SKIP before firing (unlike
+// confirmCallTest/citForMandatesCallTest), so an auto-skipped entry here
+// doesn't cleanly skip — it fires for real against the auto-skip
+// placeholder's generic error-shaped Response and crashes with a
+// TypeError reading a field (e.g. `session_token`) that shape doesn't
+// have, instead of a clean assertion mismatch.
+//
+// WebhookConfig has a second, structural reason to be excluded: it's a
+// nested object (`.Create`/`.Update` sub-keys, not Request/Response/Configs
+// directly), unlike every other scenario key here. Auto-skipping it as a
+// flat object would make `data["WebhookConfig"]["Create"]` resolve to
+// `undefined` instead of a usable config, breaking the spec structurally
+// rather than cleanly skipping it. It's also connector-agnostic for the
+// same reason as SessionToken: it only updates business-profile webhook
+// settings, no connector call involved.
+const CONNECTOR_AGNOSTIC_KEYS = new Set(["SessionToken", "WebhookConfig"]);
+
 // Keys this file defines explicitly below, with real behavior captured
 // from the PR's manual E2E evidence or this session's own live testing.
 // Everything else in Commons's card_pm gets auto-skipped instead of
@@ -143,7 +164,8 @@ const autoSkippedCardPm = Object.fromEntries(
     .filter(
       (key) =>
         !EXPLICITLY_VERIFIED_CARD_PM_KEYS.has(key) &&
-        !ROUTER_LEVEL_VALIDATION_KEYS.has(key)
+        !ROUTER_LEVEL_VALIDATION_KEYS.has(key) &&
+        !CONNECTOR_AGNOSTIC_KEYS.has(key)
     )
     .map((key) => [
       key,
