@@ -872,6 +872,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 RecurringDetails::CardWithLimitedData(_)
                 | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+                | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
+                | RecurringDetails::NetworkTokenWithVaultCardFallback(_)
                 | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
                     Some(mandates::MandateIds {
                         mandate_id: None,
@@ -2340,12 +2342,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to call authentication sync flow")?
                     } else {
-                        let resp = crate::core::unified_authentication_service::authentication_sync_core(
+                        let resp = Box::pin(crate::core::unified_authentication_service::authentication_sync_core(
                             state.clone(),
                             platform.clone(),
                             services::api::AuthFlow::Merchant,
                             sync_req,
-                        )
+                        ))
                         .await?
                         .get_json_body()
                         .change_context(errors::ApiErrorResponse::InternalServerError)

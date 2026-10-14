@@ -584,6 +584,10 @@ pub struct PaymentMethodUpdate {
     /// The acknowledgement status of the payment method update, this is used to determine the status of the payment method update
     #[schema(value_type = Option<AcknowledgementStatus>)]
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+
+    /// Customer's acceptance for vaulting a payment method.
+    #[schema(value_type = Option<CustomerAcceptance>)]
+    pub customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
 }
 
 #[cfg(feature = "v2")]
