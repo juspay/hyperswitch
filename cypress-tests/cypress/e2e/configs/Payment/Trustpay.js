@@ -708,27 +708,6 @@ export const connectorDetails = {
           },
         },
       },
-      PmListEnabled: {
-        payment_methods: [
-          {
-            payment_method: "card",
-            payment_method_types: [
-              {
-                payment_method_type: "credit",
-                card_networks: [
-                  {
-                    card_network: "Visa",
-                    eligible_connectors: ["trustpay"],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-      PmListDisabled: {
-        payment_methods: [],
-      },
     },
     PaymentIntentWithBillingDescriptor: {
       Request: {
