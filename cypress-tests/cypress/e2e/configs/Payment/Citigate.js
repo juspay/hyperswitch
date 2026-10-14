@@ -75,24 +75,24 @@ const citigateBillingAddress = () => {
 
 export const connectorDetails = {
   card_pm: {
-    // Shared by every spec that confirms in two steps (04-, 05-, 16-, ...).
-    // Routing to Citigate's 3DS MID (connector_2) has to happen here, at
-    // intent creation — the confirm step can't retroactively move an
-    // already-created intent to a different profile/MCA, so
-    // CONNECTOR_CREDENTIAL on "3DSAutoCapture"/"3DSManualCapture" alone
-    // isn't enough. Gate it by spec name so the non-3DS specs (which share
-    // this same "PaymentIntent" key) keep using the default connector_1
-    // (Dummy1) MID.
+    // Shared by every spec that confirms in two steps (04-, 05-, 06-, 07-,
+    // 08-, 09-, 16-, ...). Routing to Citigate's 3DS MID (connector_2) has
+    // to happen here, at intent creation — the confirm step can't
+    // retroactively move an already-created intent to a different
+    // profile/MCA, so CONNECTOR_CREDENTIAL on "3DSAutoCapture"/
+    // "3DSManualCapture" alone isn't enough.
     //
-    // matchesSpecName does a plain substring check, and
-    // "04-nothreedsautocapture.cy.js" literally contains "threedsautocapture"
-    // (NoThreeDSAutoCapture ⊃ ThreeDSAutoCapture) — a bare "threedsautocapture"
-    // pattern here would incorrectly match the non-3DS specs too. The "0N-"
-    // filename prefix disambiguates them.
+    // Routed by the actual `authentication_type` ("three_ds" vs
+    // "no_three_ds") the calling spec passes to createPaymentIntentTest,
+    // not by which spec file is running — a filename allowlist has to be
+    // kept in sync by hand every time a new spec exercises this same
+    // shared "PaymentIntent" key, and silently falls back to the wrong MID
+    // (connector_1) when it isn't (see #14656 CI failure in
+    // 09-RefundPayment.cy.js for exactly this).
     PaymentIntent: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["05-threedsautocapture", "16-threedsmanualcapture"],
+          byAuthenticationType: "three_ds",
           value: "connector_2",
         },
       },

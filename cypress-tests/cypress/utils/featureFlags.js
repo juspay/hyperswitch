@@ -162,7 +162,7 @@ function matchesSpecName(specName) {
   );
 }
 
-export function determineConnectorConfig(config) {
+export function determineConnectorConfig(config, context = {}) {
   const connectorCredential = config?.CONNECTOR_CREDENTIAL;
   const multipleConnectors = config?.multipleConnectors;
 
@@ -188,6 +188,31 @@ export function determineConnectorConfig(config) {
     return DEFAULT_CONNECTOR;
   }
 
+  // Handle byAuthenticationType cases: routes based on the actual
+  // authentication_type the caller requested for this specific call
+  // (e.g. "three_ds" vs "no_three_ds"), rather than which spec file is
+  // running. This is for connectors where 3DS is tied to a genuinely
+  // separate merchant account/MID rather than just a request attribute —
+  // a filename allowlist (specName) would need updating every time a new
+  // spec exercises the same shared config key, and silently falls back to
+  // the wrong connector when it isn't. Falls back to specName/DEFAULT_CONNECTOR
+  // when the caller doesn't pass authenticationType in context (e.g. steps
+  // like confirm/retrieve that resolve the connector from a different,
+  // dedicated config key instead).
+  if (
+    Object.prototype.hasOwnProperty.call(
+      connectorCredential,
+      "byAuthenticationType"
+    )
+  ) {
+    if (context.authenticationType !== undefined) {
+      return context.authenticationType ===
+        connectorCredential.byAuthenticationType
+        ? connectorCredential.value
+        : DEFAULT_CONNECTOR;
+    }
+  }
+
   // Handle specName cases
   if (Object.prototype.hasOwnProperty.call(connectorCredential, "specName")) {
     return matchesSpecName(connectorCredential.specName)
@@ -199,7 +224,7 @@ export function determineConnectorConfig(config) {
   return connectorCredential.value;
 }
 
-export function execConfig(configs) {
+export function execConfig(configs, context = {}) {
   if (configs?.DELAY?.STATUS && String(Cypress.env("MOCK_SERVER")) !== "true") {
     // Chunk the cooldown into 5s increments (instead of one silent block)
     // so progress is visible in the test log. Total wait time is unchanged.
@@ -224,7 +249,7 @@ export function execConfig(configs) {
     }
   }
 
-  const connectorType = determineConnectorConfig(configs);
+  const connectorType = determineConnectorConfig(configs, context);
   const { profileId, connectorId } = getProfileAndConnectorId(connectorType);
 
   return {
