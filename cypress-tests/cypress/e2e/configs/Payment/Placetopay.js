@@ -49,6 +49,49 @@ const manualCaptureConfirmRequest = {
 
 export const connectorDetails = {
   card_pm: {
+    // Auto fallback capture method flow (PR #14452) - placetopay does not
+    // support manual capture; with auto_fallback_capture_method enabled on the
+    // business profile, manual capture payments fall back to automatic capture.
+    AutoFallbackCaptureMethod: {
+      PaymentIntent: {
+        Request: {
+          currency: "COP",
+          description: "placetopay test",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+            capture_method_applied: null,
+          },
+        },
+      },
+      ConfirmDisabled: {
+        Request: manualCaptureConfirmRequest,
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              message: "Payment method type not supported",
+              code: "IR_19",
+              reason: "manual is not supported by placetopay",
+            },
+          },
+        },
+      },
+      ConfirmEnabled: {
+        Request: manualCaptureConfirmRequest,
+        Response: {
+          status: 200,
+          body: {
+            status: "succeeded",
+            capture_method: "manual",
+            capture_method_applied: "automatic",
+          },
+        },
+      },
+    },
     PaymentIntent: {
       Request: {
         currency: "COP",

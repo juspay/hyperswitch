@@ -68,6 +68,70 @@ export const connectorDetails = {
     },
   },
   card_pm: {
+    // Auto fallback capture method flow (PR #14452) - cryptopay does not support
+    // manual capture; with auto_fallback_capture_method enabled on the business
+    // profile, manual capture payments fall back to automatic capture.
+    AutoFallbackCaptureMethod: {
+      PaymentIntent: {
+        Request: {
+          currency: "USD",
+          customer_acceptance: null,
+          setup_future_usage: "on_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+            capture_method_applied: null,
+          },
+        },
+      },
+      ConfirmDisabled: {
+        Request: {
+          payment_method: "crypto",
+          payment_method_type: "crypto_currency",
+          payment_method_data: {
+            crypto: {
+              network: "bitcoin",
+              pay_currency: "BTC",
+            },
+          },
+          billing: standardBillingAddress,
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              message: "Payment method type not supported",
+              code: "IR_19",
+              reason: "manual is not supported by cryptopay",
+            },
+          },
+        },
+      },
+      ConfirmEnabled: {
+        Request: {
+          payment_method: "crypto",
+          payment_method_type: "crypto_currency",
+          payment_method_data: {
+            crypto: {
+              network: "bitcoin",
+              pay_currency: "BTC",
+            },
+          },
+          billing: standardBillingAddress,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+            capture_method: "manual",
+            capture_method_applied: "automatic",
+          },
+        },
+      },
+    },
     ZeroAuthMandate: {
       Request: {
         amount: 0,
