@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.14.0
+
+### Bug Fixes
+
+- **connector:** [WorldpayXML][Checkout] map issuer errors and allow optional return-code attributes ([#14778](https://github.com/juspay/hyperswitch/pull/14778)) ([`89cbccd`](https://github.com/juspay/hyperswitch/commit/89cbccdfbb7936bcf0e710f3b4ba42cb4246a3f0))
+
+### Refactors
+
+- **revenue_recovery:** Move the recovery payments create API under /v2/recovery ([#14776](https://github.com/juspay/hyperswitch/pull/14776)) ([`a61d6a6`](https://github.com/juspay/hyperswitch/commit/a61d6a68ef68a11082793cee340ef7053a7f5eec))
+
+**Full Changelog:** [`2026.10.13.0...2026.10.14.0`](https://github.com/juspay/hyperswitch/compare/2026.10.13.0...2026.10.14.0)
+
+- - -
+
 ## 2026.10.13.0
 
 ### Features
