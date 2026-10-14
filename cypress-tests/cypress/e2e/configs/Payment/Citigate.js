@@ -1,4 +1,5 @@
 import { getCustomExchange } from "./Modifiers";
+import { connectorDetails as commonsConnectorDetails } from "./Commons";
 
 // Citigate is a UCS-only connector (see PR #13704): the integration itself
 // lives in hyperswitch-prism, this repo only registers enum/auth/config
@@ -73,8 +74,89 @@ const citigateBillingAddress = () => {
   };
 };
 
+// Commons.js's generic `card_pm` has well over a hundred scenario keys
+// covering capabilities (capture, refund, mandates, zero-auth, card
+// blocking, payment-method listing, ...) far beyond this PR's stated scope.
+// mergeConnectorDetails (Utils.js) silently falls back to Commons's version
+// of any key this file doesn't define — which carries the *generic*
+// "not implemented" expectation most connectors share, not anything
+// verified against Citigate specifically. A request still fires for real
+// in that case (TRIGGER_SKIP only works when a connector config actually
+// sets it), so an undefined key is worse than an explicit skip: it asserts
+// an unverified guess against live connector behavior instead of skipping.
+//
+// Router-level input-validation keys (bad card number/CVC/expiry/currency/
+// payment method, missing params, bad publishable key) are excluded here:
+// those fail identically for every connector before the request ever
+// reaches Citigate, so Commons's generic expectation already holds and
+// doesn't need an override.
+const ROUTER_LEVEL_VALIDATION_KEYS = new Set([
+  "InvalidCardCvv",
+  "InvalidCardNumber",
+  "InvalidCurrency",
+  "InvalidExpiryMonth",
+  "InvalidExpiryYear",
+  "InvalidPaymentMethod",
+  "InvalidPublishableKey",
+  "MissingRequiredParam",
+]);
+
+// Keys this file defines explicitly below, with real behavior captured
+// from the PR's manual E2E evidence or this session's own live testing.
+// Everything else in Commons's card_pm gets auto-skipped instead of
+// silently inheriting a generic, unverified expectation.
+const EXPLICITLY_VERIFIED_CARD_PM_KEYS = new Set([
+  "PaymentIntent",
+  "PaymentIntentWithShippingCost",
+  "PaymentConfirmWithShippingCost",
+  "No3DSAutoCapture",
+  "No3DSManualCapture",
+  "No3DSFailPayment",
+  "3DSAutoCapture",
+  "3DSManualCapture",
+  "Capture",
+  "PartialCapture",
+  "Void",
+  "Refund",
+  "PartialRefund",
+  "SyncRefund",
+  "manualPaymentRefund",
+  "manualPaymentPartialRefund",
+  "MandateSingleUseNo3DSAutoCapture",
+  "MandateSingleUseNo3DSManualCapture",
+  "MandateMultiUseNo3DSAutoCapture",
+  "MandateMultiUseNo3DSManualCapture",
+  "MITAutoCapture",
+  "MITManualCapture",
+  "MITWithoutBillingAddress",
+  "PaymentMethodIdMandateNo3DSAutoCapture",
+  "PaymentMethodIdMandateNo3DSManualCapture",
+  "PaymentMethodIdMandate3DSAutoCapture",
+  "PaymentMethodIdMandate3DSManualCapture",
+  "SaveCardUseNo3DSAutoCapture",
+  "SaveCardUseNo3DSAutoCaptureOffSession",
+  "ZeroAuthMandate",
+]);
+
+const autoSkippedCardPm = Object.fromEntries(
+  Object.keys(commonsConnectorDetails.card_pm)
+    .filter(
+      (key) =>
+        !EXPLICITLY_VERIFIED_CARD_PM_KEYS.has(key) &&
+        !ROUTER_LEVEL_VALIDATION_KEYS.has(key)
+    )
+    .map((key) => [
+      key,
+      getCustomExchange({
+        Request: {},
+        Configs: { TRIGGER_SKIP: true },
+      }),
+    ])
+);
+
 export const connectorDetails = {
   card_pm: {
+    ...autoSkippedCardPm,
     // Shared by every spec that confirms in two steps (04-, 05-, 06-, 07-,
     // 08-, 09-, 16-, ...). Routing to Citigate's 3DS MID (connector_2) has
     // to happen here, at intent creation — the confirm step can't
@@ -186,6 +268,30 @@ export const connectorDetails = {
         },
         currency: "USD",
         customer_acceptance: null,
+        get billing() {
+          return citigateBillingAddress();
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    // This generic cross-connector scenario (23-Variations.cy.js) wasn't
+    // exercised against the Citigate sandbox in the PR's manual E2E
+    // evidence, and the default "not implemented" expectation most
+    // connectors share here doesn't hold for Citigate in any verified
+    // way (confirmCallTest would need a real billing.phone override just
+    // to reach the gateway at all — Citigate rejects every request
+    // missing it with its own validation error, before any connector-level
+    // behavior is exercised). Skip rather than guess.
+    No3DSFailPayment: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
         get billing() {
           return citigateBillingAddress();
         },
@@ -368,6 +474,25 @@ export const connectorDetails = {
     MandateMultiUseNo3DSManualCapture: getCustomExchange({
       Request: {
         amount: 6000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    // Missing from this file entirely, which is worse than TRIGGER_SKIP'd:
+    // getConnectorDetails merges in Commons.js's generic default for any key
+    // a connector doesn't override, so a request fired for real here with no
+    // override still carries the generic "not implemented" expectation
+    // instead of being skipped. Zero-auth/multi-use mandates are explicitly
+    // out of scope (same as the other Mandate*/MIT* keys above).
+    ZeroAuthMandate: getCustomExchange({
+      Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
