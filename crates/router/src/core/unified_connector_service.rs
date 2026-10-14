@@ -5004,3 +5004,73 @@ pub async fn call_unified_connector_service_for_notify_connector(
 
     Ok(notify_connector_response_data)
 }
+
+/// Validate an opaque staged-operation envelope before making another gateway call.
+/// Redirect and asynchronous wait never trigger an immediate retry.
+pub fn ucs_continuation_requires_repeat(
+    metadata: Option<&str>,
+    operation: &str,
+) -> CustomResult<bool, UnifiedConnectorServiceError> {
+    let Some(metadata) = metadata else {
+        return Ok(false);
+    };
+    let value: serde_json::Value = serde_json::from_str(metadata)
+        .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
+        .attach_printable("Invalid UCS continuation metadata")?;
+    if !value.is_object() {
+        return Err(UnifiedConnectorServiceError::RequestEncodingFailed.into());
+    }
+    let Some(envelope) = value.get("ucs_continuation") else {
+        return Ok(false);
+    };
+    if envelope.get("version").and_then(serde_json::Value::as_u64) != Some(1)
+        || envelope
+            .get("operation")
+            .and_then(serde_json::Value::as_str)
+            != Some(operation)
+    {
+        return Err(UnifiedConnectorServiceError::RequestEncodingFailed.into());
+    }
+    match envelope.get("action").and_then(serde_json::Value::as_str) {
+        Some("repeat") => Ok(true),
+        Some("redirect" | "wait") => Ok(false),
+        _ => Err(UnifiedConnectorServiceError::RequestEncodingFailed.into()),
+    }
+}
+
+/// Preserve opaque state siblings while replacing keys explicitly returned by UCS.
+pub fn merge_ucs_continuation_metadata(
+    previous: Option<&Secret<String>>,
+    returned: Option<Secret<String>>,
+) -> CustomResult<Option<Secret<String>>, UnifiedConnectorServiceError> {
+    let mut merged = serde_json::Map::new();
+    let mut present = false;
+    for metadata in [previous, returned.as_ref()].into_iter().flatten() {
+        let value: serde_json::Value = serde_json::from_str(metadata.peek())
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
+            .attach_printable("Invalid UCS continuation metadata")?;
+        let object = value
+            .as_object()
+            .ok_or(UnifiedConnectorServiceError::RequestEncodingFailed)?;
+        present = true;
+        merged.extend(object.clone());
+    }
+    if present {
+        Ok(Some(Secret::new(
+            serde_json::Value::Object(merged).to_string(),
+        )))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Only in-progress payment states may request another immediate operation.
+pub fn ucs_continuation_status_allows_repeat(status: payments_grpc::PaymentStatus) -> bool {
+    matches!(
+        status,
+        payments_grpc::PaymentStatus::Started
+            | payments_grpc::PaymentStatus::Pending
+            | payments_grpc::PaymentStatus::AuthenticationPending
+            | payments_grpc::PaymentStatus::AuthenticationSuccessful
+    )
+}

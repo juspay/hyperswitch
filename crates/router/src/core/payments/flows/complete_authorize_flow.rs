@@ -359,13 +359,17 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     where
         Self: Sized,
     {
-        if connector.connector.is_authentication_flow_required(
-            api_interface::CurrentFlowInfo::CompleteAuthorize {
-                auth_type: self.auth_type,
-                request_data: Box::new(self.request.clone()),
-                payment_method: Some(self.payment_method),
-            },
-        ) {
+        if connector
+            .connector
+            .is_authentication_flow_required_for_execution_path(
+                api_interface::CurrentFlowInfo::CompleteAuthorize {
+                    auth_type: self.auth_type,
+                    request_data: Box::new(self.request.clone()),
+                    payment_method: Some(self.payment_method),
+                },
+                gateway_context.execution_path,
+            )
+        {
             let router_data = self;
             logger::info!(
                 "Authentication flow is required for connector: {}",

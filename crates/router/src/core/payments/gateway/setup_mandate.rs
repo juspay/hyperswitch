@@ -10,6 +10,7 @@ use hyperswitch_interfaces::{
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
 };
+use hyperswitch_masking::PeekInterface;
 use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
@@ -117,21 +118,40 @@ where
             header_payload,
             rollout_settings,
             |mut router_data, payment_setup_recurring_request, grpc_headers| async move {
-                let response = match Box::pin(client.payment_setup_recurring(
-                    payment_setup_recurring_request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                ))
-                .await
-                {
-                    Ok(response) => response,
-                    // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
-                    Err(report) => {
-                        return Err(report.attach_printable("Failed to setup recurring payment"));
+                let mut staged_request = payment_setup_recurring_request;
+                let mut immediate_repeats = 0;
+                let setup_recurring_response = loop {
+                    // Validate a resumed envelope before dispatch; setup continuations must
+                    // never accidentally execute an Authorize RPC.
+                    unified_connector_service::ucs_continuation_requires_repeat(
+                        staged_request.connector_feature_data.as_ref().map(|data| data.peek().as_str()),
+                        "setup_recurring",
+                    )?;
+                    let mut response = Box::pin(client.payment_setup_recurring(
+                        staged_request.clone(),
+                        connector_auth_metadata.clone(),
+                        grpc_headers.clone(),
+                    )).await?.into_inner();
+                    response.connector_feature_data = unified_connector_service::merge_ucs_continuation_metadata(
+                        staged_request.connector_feature_data.as_ref(),
+                        response.connector_feature_data.take(),
+                    )?;
+                    let repeat = unified_connector_service::ucs_continuation_requires_repeat(
+                        response.connector_feature_data.as_ref().map(|data| data.peek().as_str()),
+                        "setup_recurring",
+                    )?;
+                    if response.error.is_some() || response.redirection_data.is_some() || !repeat
+                        || !unified_connector_service::ucs_continuation_status_allows_repeat(response.status()) {
+                        break response;
                     }
+                    if immediate_repeats >= 3 {
+                        return Err(hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError::RequestEncodingFailed.into());
+                    }
+                    immediate_repeats += 1;
+                    // Opaque connector sibling state is passed back byte-for-byte.
+                    staged_request.connector_feature_data = response.connector_feature_data;
+                    staged_request.state = response.state;
                 };
-
-                let setup_recurring_response = response.into_inner();
 
                 let ucs_data =
                     handle_unified_connector_service_response_for_payment_setup_recurring(

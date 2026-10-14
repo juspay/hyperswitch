@@ -192,7 +192,7 @@ pub struct GrpcHeaders {
 }
 
 /// Contains grpc headers for Ucs
-#[derive(Debug, TypedBuilder)]
+#[derive(Debug, Clone, TypedBuilder)]
 pub struct GrpcHeadersUcs {
     /// Tenant id
     tenant_id: String,

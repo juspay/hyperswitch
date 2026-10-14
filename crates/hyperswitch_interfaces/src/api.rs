@@ -467,6 +467,14 @@ pub trait ConnectorSpecifications {
     fn is_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
+    /// Select authentication without changing the legacy Direct or Shadow behavior.
+    fn is_authentication_flow_required_for_execution_path(
+        &self,
+        current_flow: CurrentFlowInfo,
+        _execution_path: common_enums::ExecutionPath,
+    ) -> bool {
+        self.is_authentication_flow_required(current_flow)
+    }
     /// Check if post-authentication flow is required
     fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false

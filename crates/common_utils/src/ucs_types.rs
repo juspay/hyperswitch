@@ -5,7 +5,7 @@ use crate::id_type;
 /// This enum can hold either a payment reference ID or a refund reference ID,
 /// allowing for a unified way to handle different types of transaction references
 /// when interacting with the UCS.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum UcsReferenceId {
     /// A payment reference ID.
     ///
@@ -43,7 +43,7 @@ impl UcsReferenceId {
 /// This enum can hold either a payment resource ID or a refund resource ID,
 /// allowing for a unified way to handle different types of transaction resources
 /// when interacting with the UCS.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum UcsResourceId {
     /// A payment resource ID.
     ///

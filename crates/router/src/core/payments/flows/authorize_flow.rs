@@ -631,12 +631,16 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     where
         Self: Sized,
     {
-        if connector.connector.is_authentication_flow_required(
-            api_interface::CurrentFlowInfo::Authorize {
-                auth_type: self.auth_type,
-                request_data: Box::new(self.request.clone()),
-            },
-        ) {
+        if connector
+            .connector
+            .is_authentication_flow_required_for_execution_path(
+                api_interface::CurrentFlowInfo::Authorize {
+                    auth_type: self.auth_type,
+                    request_data: Box::new(self.request.clone()),
+                },
+                gateway_context.execution_path,
+            )
+        {
             logger::info!(
                 "Authentication flow is required for connector: {}",
                 connector.connector_name
@@ -713,9 +717,15 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     ..
                 }) = &mut authorize_router_data.response
                 {
-                    *connector_metadata = Some(serde_json::json!({
-                        "authentication_data": auth_data
-                    }));
+                    let metadata = connector_metadata.get_or_insert_with(|| serde_json::json!({}));
+                    let object = metadata
+                        .as_object_mut()
+                        .ok_or(interface_errors::ConnectorError::ResponseHandlingFailed)
+                        .change_context(ApiErrorResponse::InternalServerError)?;
+                    object.insert(
+                        "authentication_data".to_string(),
+                        serde_json::json!(auth_data),
+                    );
                 }
             }
 

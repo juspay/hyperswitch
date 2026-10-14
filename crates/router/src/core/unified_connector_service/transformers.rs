@@ -3002,7 +3002,17 @@ impl
             payment_experience: None,
             state,
             order_id: None,
-            connector_feature_data: None,
+            connector_feature_data: match &router_data.response {
+                Ok(PaymentsResponseData::TransactionResponse {
+                    connector_metadata, ..
+                }) => connector_metadata
+                    .as_ref()
+                    .map(serde_json::to_string)
+                    .transpose()
+                    .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                    .map(Into::into),
+                _ => None,
+            },
             enable_partial_authorization: router_data
                 .request
                 .enable_partial_authorization
