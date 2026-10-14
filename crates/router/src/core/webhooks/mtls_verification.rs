@@ -1,16 +1,15 @@
-//! Source verification for incoming webhooks that the router performs itself, independent of
-//! the connector and of the execution path.
+//! mTLS verification for incoming webhooks for connectors that use mTLS for source verification
 //!
-//! A connector usually verifies the source of a webhook from its payload (signature, shared
-//! secret or a verification call). Connectors that rely on mTLS cannot do that: the client
-//! certificate is validated by the infrastructure layer, which marks such requests with a
-//! header. That transport-level verification is handled here.
+//! Validates the X_CLIENT_MTLS_VERIFIED header set by infra layer
 
 use actix_web::http::header::HeaderMap;
 use error_stack::report;
 
 use crate::{
-    core::errors::{self, RouterResult},
+    core::{
+        errors::{self, RouterResult},
+        metrics,
+    },
     headers,
     routes::SessionState,
     services::logger,
@@ -19,7 +18,7 @@ use crate::{
 /// Transport-level source verification for connectors that require mTLS.
 ///
 /// Fails with a webhook authentication error when the connector requires mTLS and the request
-/// does not carry the mTLS verification header. The header is set by the infrastructure layer
+/// does not carry the mTLS verification header. The header is set by the infras layer
 /// only for requests received on the mTLS endpoints; it is stripped from requests arriving on
 /// any other endpoint.
 ///
@@ -33,19 +32,23 @@ pub(super) fn verify_mtls(
     if is_mtls_required(state, connector_name)
         && !is_mtls_verification_header_present(request_headers)
     {
+        metrics::WEBHOOK_MTLS_VERIFICATION_FAILURE_COUNT.add(
+            1,
+            router_env::metric_attributes!(("connector", connector_name.to_string())),
+        );
         logger::warn!(
             connector = %connector_name,
             "Source Verification Failed: connector requires mTLS but the webhook was not received over a verified mTLS endpoint"
         );
 
-        return Err(
+        Err(
             report!(errors::ApiErrorResponse::WebhookAuthenticationFailed).attach_printable(
                 "Connector requires mTLS but the webhook was not received over a verified mTLS endpoint",
             ),
-        );
+        )
+    } else {
+        Ok(())
     }
-
-    Ok(())
 }
 
 /// Whether incoming webhooks of the connector must be received over a verified mTLS endpoint,
@@ -66,10 +69,10 @@ fn is_mtls_required(state: &SessionState, connector_name: &str) -> bool {
 /// as absent.
 fn is_mtls_verification_header_present(request_headers: &HeaderMap) -> bool {
     let mut header_values = request_headers.get_all(headers::X_CLIENT_MTLS_VERIFIED);
-    matches!(
-        (header_values.next(), header_values.next()),
-        (Some(value), None) if value.as_bytes() == b"true"
-    )
+    header_values
+        .next()
+        .is_some_and(|value| value.as_bytes() == b"true")
+        && header_values.next().is_none()
 }
 
 #[cfg(test)]

@@ -15,7 +15,7 @@ use hyperswitch_interfaces::webhooks::{IncomingWebhookRequestDetails, WebhookRes
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
-use super::{source_verification, types, utils, MERCHANT_ID};
+use super::{mtls_verification, types, utils, MERCHANT_ID};
 #[cfg(feature = "revenue_recovery")]
 use crate::core::webhooks::recovery_incoming;
 use crate::{
@@ -141,7 +141,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         )
         .await?;
 
-    source_verification::verify_mtls(&state, &connector_name, request_details.headers)?;
+    mtls_verification::verify_mtls(&state, &connector_name, request_details.headers)?;
 
     let decoded_body = connector
         .decode_webhook_body(

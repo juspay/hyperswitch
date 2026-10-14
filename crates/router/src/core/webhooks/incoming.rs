@@ -38,7 +38,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing::Instrument};
 use unified_connector_service_client::payments as payments_grpc;
 
-use super::{source_verification, types, MERCHANT_ID};
+use super::{mtls_verification, types, MERCHANT_ID};
 use crate::{
     consts,
     core::{
@@ -223,7 +223,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let (connector, connector_name, outcome) = match three_ds_execution_path {
         ThreeDsProcessingMode::UnifiedAuthenticationService(ref mca_data) => {
             let connector_name = mca_data.connector_name.clone();
-            source_verification::verify_mtls(&state, &connector_name, request_details.headers)?;
+            mtls_verification::verify_mtls(&state, &connector_name, request_details.headers)?;
 
             let (uas_connector, _) =
                 get_connector_by_connector_name(&state, UNIFIED_AUTHENTICATION_SERVICE, None)?;
@@ -243,7 +243,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         ThreeDsProcessingMode::Direct(ref mca_data) => {
             let connector = mca_data.connector.clone();
             let connector_name = mca_data.connector_name.clone();
-            source_verification::verify_mtls(&state, &connector_name, request_details.headers)?;
+            mtls_verification::verify_mtls(&state, &connector_name, request_details.headers)?;
 
             let mca_ref = mca_data.merchant_connector_account.as_ref();
 
