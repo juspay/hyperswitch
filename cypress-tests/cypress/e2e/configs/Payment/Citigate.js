@@ -99,6 +99,11 @@ const ROUTER_LEVEL_VALIDATION_KEYS = new Set([
   "InvalidPaymentMethod",
   "InvalidPublishableKey",
   "MissingRequiredParam",
+  // InvalidAmountToCapture/InvalidCaptureMethod reject the request for a
+  // malformed amount_to_capture/capture_method value before it ever reaches
+  // the connector, same as the other Invalid* keys above.
+  "InvalidAmountToCapture",
+  "InvalidCaptureMethod",
 ]);
 
 // Keys whose Commons.js behavior doesn't depend on the connector at all —
@@ -120,7 +125,51 @@ const ROUTER_LEVEL_VALIDATION_KEYS = new Set([
 // rather than cleanly skipping it. It's also connector-agnostic for the
 // same reason as SessionToken: it only updates business-profile webhook
 // settings, no connector call involved.
-const CONNECTOR_AGNOSTIC_KEYS = new Set(["SessionToken", "WebhookConfig"]);
+//
+// CaptureCapturedAmount: trying to manually capture a payment that's
+// already `succeeded` (auto-captured) fails with a router-level payment-
+// status validation error ("expected state is requires_capture, ...")
+// before the request ever reaches the connector — true for any connector,
+// confirmed live against Citigate's actual error text matching Commons's
+// definition exactly.
+//
+// ManualRetryPaymentDisabled/Enabled/CutoffExpired gate on business-profile
+// config (is_manual_retry_enabled / max_auto_retries / retry window), a
+// router-only feature flag checked before any connector call.
+//
+// DuplicatePaymentID/DuplicateRefundID reject a reused payment_id/refund_id
+// at the router's own uniqueness check, before any connector call.
+//
+// ManualPaymentUpdate/ManualPaymentUpdateStatusOnly and the
+// ManualRefundUpdate*/SyncRefundManualUpdate* family all go through the
+// admin "update status directly in our DB" API — there's no connector call
+// in the flow at all, so Commons's definition is correct for any connector.
+const CONNECTOR_AGNOSTIC_KEYS = new Set([
+  "SessionToken",
+  "WebhookConfig",
+  "CaptureCapturedAmount",
+  "ManualRetryPaymentCutoffExpired",
+  "ManualRetryPaymentDisabled",
+  "ManualRetryPaymentEnabled",
+  "DuplicatePaymentID",
+  "DuplicateRefundID",
+  "ManualPaymentUpdate",
+  "ManualPaymentUpdateStatusOnly",
+  "ManualRefundUpdate",
+  "ManualRefundUpdateConnectorRefundId",
+  "ManualRefundUpdateConnectorRefundIdWithStatus",
+  "ManualRefundUpdateErrorCode",
+  "ManualRefundUpdateIdempotency",
+  "ManualRefundUpdatePartialRefund",
+  "ManualRefundUpdateUnset",
+  "SyncRefundManualUpdateConnectorRefundId",
+  "SyncRefundManualUpdateConnectorRefundIdWithStatus",
+  "SyncRefundManualUpdateErrorCode",
+  "SyncRefundManualUpdateIdempotency",
+  "SyncRefundManualUpdatePartialRefund",
+  "SyncRefundManualUpdateSucceeded",
+  "SyncRefundManualUpdateUnset",
+]);
 
 // Keys this file defines explicitly below, with real behavior captured
 // from the PR's manual E2E evidence or this session's own live testing.
