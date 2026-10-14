@@ -1679,6 +1679,39 @@ fn is_default_fallback_connector_type(connector_type: api_enums::ConnectorType) 
     )
 }
 
+#[cfg(feature = "v1")]
+fn filter_non_routable_fallback_connectors(
+    connectors: &mut Vec<routing_types::RoutableConnectorChoice>,
+) -> bool {
+    use api_enums::RoutableConnectors as Connector;
+
+    let original_len = connectors.len();
+    // Service connectors cannot process routed payments or payouts.
+    connectors.retain(|choice| match choice.connector {
+        #[cfg(feature = "dummy_connector")]
+        Connector::DummyBillingConnector => false,
+        Connector::Signifyd
+        | Connector::Riskified
+        | Connector::Nsure
+        | Connector::Cybersourcedecisionmanager
+        | Connector::SanlamPayshield
+        | Connector::Chargebee
+        | Connector::Recurly
+        | Connector::Stripebilling
+        | Connector::Custombilling
+        | Connector::Juspaythreedsserver
+        | Connector::CtpMastercard
+        | Connector::CtpVisa
+        | Connector::Netcetera
+        | Connector::Cardinal
+        | Connector::Threedsecureio
+        | Connector::Vgs
+        | Connector::Interpayments => false,
+        _ => true,
+    });
+    connectors.len() != original_len
+}
+
 impl ConnectorTypeAndConnectorName<'_> {
     fn get_routable_connector(&self) -> RouterResult<Option<api_enums::RoutableConnectors>> {
         let mut routable_connector =
@@ -1776,6 +1809,8 @@ impl MerchantDefaultConfigUpdate<'_> {
             self.transaction_type,
         )
         .await?;
+        let merchant_fallback_filtered =
+            filter_non_routable_fallback_connectors(&mut default_routing_config);
 
         let mut default_routing_config_for_profile = routing::helpers::get_merchant_default_config(
             self.store,
@@ -1783,6 +1818,8 @@ impl MerchantDefaultConfigUpdate<'_> {
             self.transaction_type,
         )
         .await?;
+        let profile_fallback_filtered =
+            filter_non_routable_fallback_connectors(&mut default_routing_config_for_profile);
 
         if let Some(routable_connector_val) = self.routable_connector {
             let choice = routing_types::RoutableConnectorChoice {
@@ -1790,8 +1827,11 @@ impl MerchantDefaultConfigUpdate<'_> {
                 connector: *routable_connector_val,
                 merchant_connector_id: Some(self.merchant_connector_id.clone()),
             };
-            if !default_routing_config.contains(&choice) {
-                default_routing_config.push(choice.clone());
+            if merchant_fallback_filtered || !default_routing_config.contains(&choice) {
+                if !default_routing_config.contains(&choice) {
+                    default_routing_config.push(choice.clone());
+                }
+                filter_non_routable_fallback_connectors(&mut default_routing_config);
                 routing::helpers::update_merchant_default_config(
                     self.store,
                     self.merchant_id.get_string_repr(),
@@ -1800,8 +1840,13 @@ impl MerchantDefaultConfigUpdate<'_> {
                 )
                 .await?;
             }
-            if !default_routing_config_for_profile.contains(&choice.clone()) {
-                default_routing_config_for_profile.push(choice.clone());
+            if profile_fallback_filtered
+                || !default_routing_config_for_profile.contains(&choice.clone())
+            {
+                if !default_routing_config_for_profile.contains(&choice.clone()) {
+                    default_routing_config_for_profile.push(choice.clone());
+                }
+                filter_non_routable_fallback_connectors(&mut default_routing_config_for_profile);
                 routing::helpers::update_merchant_default_config(
                     self.store,
                     self.profile_id.get_string_repr(),
@@ -1825,8 +1870,13 @@ impl MerchantDefaultConfigUpdate<'_> {
             } else {
                 Vec::new()
             };
-            if !profile_fallback_config.contains(&choice) {
-                profile_fallback_config.push(choice);
+            let profile_column_filtered =
+                filter_non_routable_fallback_connectors(&mut profile_fallback_config);
+            if profile_column_filtered || !profile_fallback_config.contains(&choice) {
+                if !profile_fallback_config.contains(&choice) {
+                    profile_fallback_config.push(choice);
+                }
+                filter_non_routable_fallback_connectors(&mut profile_fallback_config);
                 let default_fallback_routing = Secret::from(
                     profile_fallback_config
                         .encode_to_value()
@@ -1861,6 +1911,8 @@ impl MerchantDefaultConfigUpdate<'_> {
             self.transaction_type,
         )
         .await?;
+        let merchant_fallback_filtered =
+            filter_non_routable_fallback_connectors(&mut default_routing_config);
 
         let mut default_routing_config_for_profile = routing::helpers::get_merchant_default_config(
             self.store,
@@ -1868,6 +1920,8 @@ impl MerchantDefaultConfigUpdate<'_> {
             self.transaction_type,
         )
         .await?;
+        let profile_fallback_filtered =
+            filter_non_routable_fallback_connectors(&mut default_routing_config_for_profile);
 
         if let Some(routable_connector_val) = self.routable_connector {
             let choice = routing_types::RoutableConnectorChoice {
@@ -1875,10 +1929,11 @@ impl MerchantDefaultConfigUpdate<'_> {
                 connector: *routable_connector_val,
                 merchant_connector_id: Some(self.merchant_connector_id.clone()),
             };
-            if default_routing_config.contains(&choice) {
+            if merchant_fallback_filtered || default_routing_config.contains(&choice) {
                 default_routing_config.retain(|mca| {
                     mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
                 });
+                filter_non_routable_fallback_connectors(&mut default_routing_config);
                 routing::helpers::update_merchant_default_config(
                     self.store,
                     self.merchant_id.get_string_repr(),
@@ -1887,10 +1942,13 @@ impl MerchantDefaultConfigUpdate<'_> {
                 )
                 .await?;
             }
-            if default_routing_config_for_profile.contains(&choice.clone()) {
+            if profile_fallback_filtered
+                || default_routing_config_for_profile.contains(&choice.clone())
+            {
                 default_routing_config_for_profile.retain(|mca| {
                     mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
                 });
+                filter_non_routable_fallback_connectors(&mut default_routing_config_for_profile);
                 routing::helpers::update_merchant_default_config(
                     self.store,
                     self.profile_id.get_string_repr(),
@@ -1914,10 +1972,13 @@ impl MerchantDefaultConfigUpdate<'_> {
             } else {
                 Vec::new()
             };
-            if profile_fallback_config.contains(&choice) {
+            let profile_column_filtered =
+                filter_non_routable_fallback_connectors(&mut profile_fallback_config);
+            if profile_column_filtered || profile_fallback_config.contains(&choice) {
                 profile_fallback_config.retain(|mca| {
                     mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
                 });
+                filter_non_routable_fallback_connectors(&mut profile_fallback_config);
                 let default_fallback_routing = Secret::from(
                     profile_fallback_config
                         .encode_to_value()
