@@ -857,3 +857,15 @@ mod tests {
         assert_eq!(deserialized_bad_data, TestEnum::Invalid);
     }
 }
+
+#[cfg(test)]
+mod expression_macro_tests {
+    #[test]
+    fn type_name_is_usable_as_an_expression() {
+        // `std::vec::Vec<u8>` prints as `alloc::vec::Vec<u8>`; the parent path
+        // segment is `vec`. A trailing semicolon in the macro body is denied in
+        // expression position (`semicolon_in_expressions_from_macros`).
+        let name = crate::type_name!(std::vec::Vec<u8>);
+        assert_eq!(name, "vec");
+    }
+}
