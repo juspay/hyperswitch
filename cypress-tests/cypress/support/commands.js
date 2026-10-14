@@ -3487,13 +3487,7 @@ Cypress.Commands.add(
       const offerQuoteId = globalState.get("offerQuoteId");
       expect(offerQuoteId, "offerQuoteId").to.not.be.undefined;
 
-      // Replace rather than mutate: offer_details is shared by reference with
-      // the connector config, so mutating it would bake this payment's quote id
-      // into the config and later payments would resend a stale id.
-      confirmBody.offer_details = {
-        ...confirmBody.offer_details,
-        offer_quote_ids: [offerQuoteId],
-      };
+      confirmBody.offer_details.offer_quote_ids = [offerQuoteId];
     }
 
     if (reqData?.split_payments && supportsSplitPayments(globalState)) {
@@ -4712,13 +4706,7 @@ Cypress.Commands.add(
       const offerQuoteId = globalState.get("offerQuoteId");
       expect(offerQuoteId, "offerQuoteId").to.not.be.undefined;
 
-      // Replace rather than mutate: offer_details is shared by reference with
-      // the connector config, so mutating it would bake this payment's quote id
-      // into the config and later payments would resend a stale id.
-      saveCardConfirmBody.offer_details = {
-        ...saveCardConfirmBody.offer_details,
-        offer_quote_ids: [offerQuoteId],
-      };
+      saveCardConfirmBody.offer_details.offer_quote_ids = [offerQuoteId];
     }
 
     cy.request({
@@ -8992,12 +8980,7 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
     cy.wrap(response).then(() => {
       if (response.status === 200) {
         expect(response.body).to.have.property("key").to.equal(key);
-        // DELETE returns whatever value the row actually held before removal,
-        // not the caller's `value` argument (which carries no meaning for a
-        // delete) — only CREATE/UPDATE echo back a value the caller set.
-        if (requestType !== "DELETE") {
-          expect(response.body).to.have.property("value").to.equal(value);
-        }
+        expect(response.body).to.have.property("value").to.equal(value);
       } else {
         Cypress.log({
           name: "setConfigs",
