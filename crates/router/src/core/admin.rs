@@ -1672,13 +1672,6 @@ struct ConnectorTypeAndConnectorName<'a> {
     connector_name: &'a api_enums::Connector,
 }
 
-fn is_default_fallback_connector_type(connector_type: api_enums::ConnectorType) -> bool {
-    matches!(
-        connector_type,
-        api_enums::ConnectorType::PaymentProcessor | api_enums::ConnectorType::PayoutProcessor
-    )
-}
-
 #[cfg(feature = "v1")]
 fn filter_non_routable_fallback_connectors(
     connectors: &mut Vec<routing_types::RoutableConnectorChoice>,
@@ -1691,6 +1684,7 @@ fn filter_non_routable_fallback_connectors(
         #[cfg(feature = "dummy_connector")]
         Connector::DummyBillingConnector => false,
         Connector::Signifyd
+        | Connector::Plaid
         | Connector::Riskified
         | Connector::Nsure
         | Connector::Cybersourcedecisionmanager
@@ -1784,7 +1778,7 @@ impl ConnectorTypeAndConnectorName<'_> {
                 })?;
             routable_connector = Some(routable_connector_option);
         };
-        Ok(routable_connector.filter(|_| is_default_fallback_connector_type(*self.connector_type)))
+        Ok(routable_connector)
     }
 }
 #[cfg(feature = "v1")]
@@ -3253,7 +3247,7 @@ pub async fn update_connector(
         merchant_config
             .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
             .await?;
-    } else if is_default_fallback_connector_type(mca.connector_type) {
+    } else {
         merchant_config
             .retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists()
             .await?;
