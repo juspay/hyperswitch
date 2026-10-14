@@ -508,9 +508,13 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
 
           const proxyHttp = globalState.get("proxyHttp");
           const proxyHttps = globalState.get("proxyHttps");
+
+          // Authorize covers the confirm call; PSync covers the force-sync
+          // retrieve - without its rollout key the router falls back to the
+          // legacy interface, which truelayer (UCS-only) does not implement.
           cy.createRolloutConfig(
             globalState,
-            "bank_redirect_open_banking_Authorize",
+            "bank_redirect_open_banking_Authorize,bank_redirect_open_banking_PSync",
             {
               rollout_percent: 1.0,
               execution_mode: "primary",
@@ -525,6 +529,48 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
             execution_mode: "primary",
             webhook_flows: ["Payout"],
           });
+        });
+
+        // The payout specs onboard only a payout_processor MCA (00002); the
+        // closed-loop source payment additionally needs a payment_processor
+        // MCA for bank_redirect/open_banking, otherwise payment routing finds
+        // no eligible connector (IR_39). This mirrors the merchant setup used
+        // in hyperswitch-cloud#23972. A distinct mcaPrefix keeps globalState
+        // "merchantConnectorId" pointing at the payout MCA.
+        it("create-truelayer-payment-connector-call-test", () => {
+          const paymentConnectorBody = Cypress._.cloneDeep(
+            fixtures.createConnectorBody
+          );
+          // The payout connector create (00002) shares this fixture and flips
+          // test_mode to false for truelayer; the payment MCA mirrors the
+          // payment-suite setup instead.
+          paymentConnectorBody.test_mode = true;
+
+          cy.createConnectorCallTest(
+            "payment_processor",
+            paymentConnectorBody,
+            [
+              {
+                payment_method: "bank_redirect",
+                payment_method_types: [
+                  {
+                    payment_method_type: "open_banking",
+                    payment_experience: null,
+                    card_networks: null,
+                    accepted_currencies: null,
+                    accepted_countries: null,
+                    minimum_amount: 1,
+                    maximum_amount: 68607706,
+                    recurring_enabled: true,
+                    installment_payment_enabled: true,
+                  },
+                ],
+              },
+            ],
+            globalState,
+            "profile",
+            "paymentProcessorMerchantConnector"
+          );
         });
 
         it("create customer", () => {
@@ -586,15 +632,28 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
         // case below (or other specs), and the live passthrough tokens must
         // not pollute the shared config object.
         it("confirm-payout-call-with-auto-fulfill-test", () => {
+          const pspToken = globalState.get("senderPaymentInstrumentId");
+          const pspCustomerId = globalState.get("connectorCustomerId");
+          // Fail fast with a clear message when the payment leg did not
+          // produce the closed-loop source details, instead of sending a
+          // payout create with missing passthrough tokens.
+          expect(
+            pspToken,
+            "senderPaymentInstrumentId must be set by retrieve-payment-and-save-payout-source-details-test"
+          ).to.be.a("string").and.to.not.be.empty;
+          expect(
+            pspCustomerId,
+            "connectorCustomerId must be set by retrieve-payment-and-save-payout-source-details-test"
+          ).to.be.a("string").and.to.not.be.empty;
+
           const data = Cypress._.cloneDeep(
             utils.getConnectorDetails(globalState.get("connectorId"))[
               "bank_transfer_pm"
             ]["open_banking"]["PassthroughBankPayout"]
           );
-          data.Request.payout_method_data.passthrough.psp_token =
-            globalState.get("senderPaymentInstrumentId");
+          data.Request.payout_method_data.passthrough.psp_token = pspToken;
           data.Request.payout_method_data.passthrough.psp_customer_id =
-            globalState.get("connectorCustomerId");
+            pspCustomerId;
 
           cy.createConfirmPayoutTest(
             Cypress._.cloneDeep(fixtures.createPayoutBody),
@@ -615,15 +674,25 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
         // billing_descriptor.reference - the exact error PR #14535 surfaced
         // in hyperswitch-cloud#23972.
         it("confirm-payout-without-billing-descriptor-test", () => {
+          const pspToken = globalState.get("senderPaymentInstrumentId");
+          const pspCustomerId = globalState.get("connectorCustomerId");
+          expect(
+            pspToken,
+            "senderPaymentInstrumentId must be set by retrieve-payment-and-save-payout-source-details-test"
+          ).to.be.a("string").and.to.not.be.empty;
+          expect(
+            pspCustomerId,
+            "connectorCustomerId must be set by retrieve-payment-and-save-payout-source-details-test"
+          ).to.be.a("string").and.to.not.be.empty;
+
           const data = Cypress._.cloneDeep(
             utils.getConnectorDetails(globalState.get("connectorId"))[
               "bank_transfer_pm"
             ]["open_banking"]["PassthroughBankPayoutWithoutBillingDescriptor"]
           );
-          data.Request.payout_method_data.passthrough.psp_token =
-            globalState.get("senderPaymentInstrumentId");
+          data.Request.payout_method_data.passthrough.psp_token = pspToken;
           data.Request.payout_method_data.passthrough.psp_customer_id =
-            globalState.get("connectorCustomerId");
+            pspCustomerId;
 
           cy.createConfirmPayoutTest(
             Cypress._.cloneDeep(fixtures.createPayoutBody),
