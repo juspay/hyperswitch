@@ -2426,6 +2426,49 @@ pub async fn get_fingerprint_id_for_payment_method(
     get_fingerprint_id_from_vault(state, &fingerprint_data, customer_id).await
 }
 
+#[cfg(feature = "v2")]
+pub type FingerprintTask = tokio::task::JoinHandle<RouterResult<Option<String>>>;
+
+/// Auxiliary and merchant fingerprints use the same data, scoped by a different key.
+#[cfg(feature = "v2")]
+pub fn spawn_fingerprint_task(
+    state: &routes::SessionState,
+    payment_method_data: &domain::PaymentMethodVaultingData,
+    key: hyperswitch_masking::Secret<String>,
+    kind: &'static str,
+) -> FingerprintTask {
+    use router_env::tracing::Instrument;
+
+    let state = state.clone();
+    let data = payment_method_data.to_auxiliary_fingerprint_data();
+    tokio::spawn(
+        async move {
+            data.as_ref()
+                .async_map(|data| get_fingerprint_id_from_vault(&state, data, key.expose()))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(format!("Failed to generate {kind} fingerprint"))
+        }
+        .in_current_span(),
+    )
+}
+
+/// Batched fingerprints are already available; non-batched ones are awaited at their use site.
+#[cfg(feature = "v2")]
+pub async fn resolve_fingerprint_task(
+    task: Option<FingerprintTask>,
+    fingerprint: Option<String>,
+) -> RouterResult<Option<String>> {
+    match task {
+        Some(task) => task
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to join fingerprint task")?,
+        None => Ok(fingerprint),
+    }
+}
+
 /// The fingerprints a single vaulting derives.
 #[cfg(feature = "v2")]
 pub struct PaymentMethodFingerprints {

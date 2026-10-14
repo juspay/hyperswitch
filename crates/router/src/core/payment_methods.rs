@@ -2399,23 +2399,70 @@ impl LockerOperations for GenericLocker {
     ) -> RouterResult<PaymentMethodResolver> {
         let db = &*state.store;
 
-        // Batched fingerprints: the merchant one is requested only when it is enabled.
         let merchant_fingerprint_secret =
             resolve_merchant_fingerprint_secret(state, platform, &payment_method_data).await;
+
+        let (fingerprints, auxiliary_fingerprint_task, merchant_fingerprint_task) =
+            match state.conf.locker.use_batched_fingerprint {
+                true => (
+                    vault::get_fingerprints_for_payment_method(
+                        state,
+                        &payment_method_data,
+                        customer_id.get_string_repr().to_owned(),
+                        merchant_fingerprint_secret,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to get fingerprints from vault using generic strategy",
+                    )?,
+                    None,
+                    None,
+                ),
+                false => {
+                    let auxiliary_fingerprint_task = vault::spawn_fingerprint_task(
+                        state,
+                        &payment_method_data,
+                        Secret::new(customer_id.get_string_repr().to_owned()),
+                        consts::AUXILIARY_FINGERPRINT_LABEL,
+                    );
+                    let merchant_fingerprint_task = merchant_fingerprint_secret.map(|key| {
+                        vault::spawn_fingerprint_task(
+                            state,
+                            &payment_method_data,
+                            key,
+                            consts::MERCHANT_FINGERPRINT_LABEL,
+                        )
+                    });
+
+                    let vault_fingerprint_id = vault::get_fingerprint_id_for_payment_method(
+                        state,
+                        &payment_method_data,
+                        customer_id.get_string_repr().to_owned(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to get fingerprint_id from vault using generic strategy",
+                    )?;
+
+                    (
+                        vault::PaymentMethodFingerprints {
+                            vault_fingerprint_id,
+                            auxiliary_fingerprint_id: None,
+                            merchant_fingerprint_id: None,
+                        },
+                        Some(auxiliary_fingerprint_task),
+                        merchant_fingerprint_task,
+                    )
+                }
+            };
 
         let vault::PaymentMethodFingerprints {
             vault_fingerprint_id: fingerprint_id,
             auxiliary_fingerprint_id,
             merchant_fingerprint_id,
-        } = vault::get_fingerprints_for_payment_method(
-            state,
-            &payment_method_data,
-            customer_id.get_string_repr().to_owned(),
-            merchant_fingerprint_secret,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get fingerprints from vault using generic strategy")?;
+        } = fingerprints;
 
         match db
             .find_payment_method_by_fingerprint_id(
@@ -2424,44 +2471,48 @@ impl LockerOperations for GenericLocker {
             )
             .await
         {
-            Ok(existing_pm) => match existing_pm.status {
-                enums::PaymentMethodStatus::New | enums::PaymentMethodStatus::Inactive => {
-                    logger::info!(
+            Ok(existing_pm) => {
+                let resolution = match existing_pm.status {
+                    enums::PaymentMethodStatus::New | enums::PaymentMethodStatus::Inactive => {
+                        logger::info!(
                         "Payment method is duplicated with update-eligible status, updating existing payment method"
                     );
-                    let payment_method_id = existing_pm.id.clone();
-                    Ok(PaymentMethodResolver {
-                        resolution: PaymentMethodResolution::Update {
+                        let payment_method_id = existing_pm.id.clone();
+                        Ok(PaymentMethodResolution::Update {
                             fingerprint_id: Some(fingerprint_id),
                             payment_method_id,
                             payment_method: Box::new(existing_pm),
                             source_payment_method_data: payment_method_data,
-                        },
-                        merchant_fingerprint_id,
-                    })
-                }
-                enums::PaymentMethodStatus::Active => {
-                    logger::info!(
-                        "Payment method is duplicated, returning existing payment method"
-                    );
-                    Ok(PaymentMethodResolver {
-                        resolution: PaymentMethodResolution::Get(Box::new(existing_pm)),
-                        merchant_fingerprint_id,
-                    })
-                }
-                enums::PaymentMethodStatus::AwaitingData
-                | enums::PaymentMethodStatus::Processing
-                | enums::PaymentMethodStatus::Redacted => {
-                    logger::info!(
+                        })
+                    }
+                    enums::PaymentMethodStatus::Active => {
+                        logger::info!(
+                            "Payment method is duplicated, returning existing payment method"
+                        );
+                        Ok(PaymentMethodResolution::Get(Box::new(existing_pm)))
+                    }
+                    enums::PaymentMethodStatus::AwaitingData
+                    | enums::PaymentMethodStatus::Processing
+                    | enums::PaymentMethodStatus::Redacted => {
+                        logger::info!(
                         "Payment method is in awaiting data or processing state, no existing payment method entry found with fingerprint id"
                     );
-                    Err(
-                        report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                            "Payment method is in invalid state, expected New or Inactive",
-                        ),
+                        Err(report!(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Payment method is in invalid state, expected New or Inactive",
+                            ))
+                    }
+                }?;
+
+                Ok(PaymentMethodResolver {
+                    resolution,
+                    merchant_fingerprint_id: vault::resolve_fingerprint_task(
+                        merchant_fingerprint_task,
+                        merchant_fingerprint_id,
                     )
-                }
-            },
+                    .await?,
+                })
+            }
             Err(err) => {
                 when(!err.current_context().is_db_not_found(), || {
                     Err(err)
@@ -2476,18 +2527,27 @@ impl LockerOperations for GenericLocker {
                     card_reference: None,
                 };
 
-                let fingerprint_details = FingerprintDetails {
-                    fingerprint_id: Some(fingerprint_id),
-                    auxiliary_fingerprint_id,
-                };
+                let (auxiliary_fingerprint_id, merchant_fingerprint_id) = tokio::join!(
+                    vault::resolve_fingerprint_task(
+                        auxiliary_fingerprint_task,
+                        auxiliary_fingerprint_id,
+                    ),
+                    vault::resolve_fingerprint_task(
+                        merchant_fingerprint_task,
+                        merchant_fingerprint_id,
+                    ),
+                );
 
                 Ok(PaymentMethodResolver {
                     resolution: PaymentMethodResolution::Create {
-                        fingerprint_details: Some(fingerprint_details),
+                        fingerprint_details: Some(FingerprintDetails {
+                            fingerprint_id: Some(fingerprint_id),
+                            auxiliary_fingerprint_id: auxiliary_fingerprint_id?,
+                        }),
                         payment_method_data,
                         locker_resolver,
                     },
-                    merchant_fingerprint_id,
+                    merchant_fingerprint_id: merchant_fingerprint_id?,
                 })
             }
         }
