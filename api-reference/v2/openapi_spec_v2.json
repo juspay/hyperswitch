@@ -31183,7 +31183,7 @@
           },
           "enable_partial_authorization": {
             "type": "boolean",
-            "description": "Allow partial authorization for this payment. When passed, this takes priority over the\nvalue configured on the billing connector account; otherwise the billing connector\naccount's value is used (default `false`).",
+            "description": "Allow partial authorization for this payment",
             "default": false,
             "nullable": true
           },
