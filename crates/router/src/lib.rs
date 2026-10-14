@@ -358,7 +358,7 @@ pub fn mk_app(
                 .service(routes::ProcessTrackerDeprecated::server(state.clone()))
                 .service(routes::ProcessTracker::server(state.clone()))
                 .service(routes::Gsm::server(state.clone()))
-                .service(routes::RecoveryDataBackfill::server(state.clone()))
+                .service(routes::RevenueRecovery::server(state.clone()))
                 .service(routes::Analytics::server(state.clone()));
         }
     }
@@ -409,6 +409,18 @@ pub async fn start_server(
         errors::ApplicationError::ApiClientError(error.current_context().clone())
     })?);
     let state = Box::pin(AppState::new(conf, tx, api_client, service_name)).await;
+
+    // Spawn a thread for collecting metrics at fixed intervals. It has to run against the
+    // caches the state built, not a set of its own.
+    routes::metrics::bg_metrics_collector::spawn_metrics_collector(
+        state
+            .conf
+            .log
+            .telemetry
+            .bg_metrics_collection_interval_in_secs,
+        std::sync::Arc::clone(&state.caches),
+    );
+
     let request_body_limit = server.request_body_limit;
 
     let server_builder =

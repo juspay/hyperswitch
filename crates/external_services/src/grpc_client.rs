@@ -24,6 +24,7 @@ pub mod semantic_boundary;
 
 use std::{fmt::Debug, sync::Arc};
 
+use common_enums::{PaymentMethod, PaymentMethodType};
 #[cfg(feature = "dynamic_routing")]
 use common_utils::consts;
 use common_utils::{id_type, ucs_types};
@@ -211,6 +212,12 @@ pub struct GrpcHeadersUcs {
     proxy_name: Option<&'static str>,
     /// Config override as JSON string to pass to UCS
     config_override: Option<String>,
+    /// Sent as `x-payment-method` / `x-payment-method-type` so UCS can attribute the call
+    /// (its rollout scope includes the payment method). `None` where the flow has no
+    /// payment method: access-token fetch, FRM notification, incoming webhooks, surcharge
+    /// calculation, notify-connector, account-updater refresh.
+    payment_method: Option<PaymentMethod>,
+    payment_method_type: Option<PaymentMethodType>,
 }
 
 /// Type aliase for GrpcHeaders builder in initial stage
@@ -224,6 +231,8 @@ pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<(
     (Option<bool>,),
     (Option<&'static str>,),
     (Option<String>,),
+    (),
+    (),
 )>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
@@ -236,6 +245,8 @@ pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (Option<bool>,),
     (Option<&'static str>,),
     (Option<String>,),
+    (Option<PaymentMethod>,),
+    (Option<PaymentMethodType>,),
 )>;
 
 /// struct to represent set of Lineage ids

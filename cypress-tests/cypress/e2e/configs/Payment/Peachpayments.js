@@ -695,5 +695,45 @@ export const connectorDetails = {
         },
       },
     },
+    ConnectorIntentMetadata: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        connector_metadata: {
+          peachpayments: {
+            rrn: "123456789012",
+            card_on_file_transaction_type: "merchant_initiated_transaction",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          connector_metadata: {
+            apple_pay: null,
+            airwallex: null,
+            noon: null,
+            braintree: null,
+            adyen: null,
+            peachpayments: {
+              rrn: "123456789012",
+              card_on_file_transaction_type: "merchant_initiated_transaction",
+            },
+            santander: null,
+            worldpayxml: null,
+            checkout: null,
+            stripe: null,
+          },
+        },
+      },
+    },
   },
 };

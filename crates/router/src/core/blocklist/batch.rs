@@ -344,15 +344,16 @@ pub async fn initiate_batch_blocklist_upload(
     file_name: Option<String>,
 ) -> RouterResult<api_blocklist::BatchBlocklistUploadResponse> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
         platform.get_processor(),
         profile_id.as_ref(),
         &*state.store,
-        true,
     )
-    .await?;
+    .await?
+    .get_id()
+    .to_owned();
     let created_by = platform
         .get_initiator()
         .and_then(|initiator| initiator.to_created_by())

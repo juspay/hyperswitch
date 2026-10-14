@@ -552,7 +552,6 @@ impl super::RedisConnectionWithContext {
         T: serde::de::DeserializeOwned,
     {
         let value_bytes = self.get_key::<Vec<u8>>(key).await?;
-
         fp_utils::when(value_bytes.is_empty(), || Err(errors::RedisError::NotFound))?;
 
         value_bytes
@@ -1043,6 +1042,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "increment_fields_in_hash",
+            codec = deja::codec::ResultCodec::<Vec<usize>, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -1467,6 +1467,8 @@ impl super::RedisConnectionWithContext {
         .change_context(errors::RedisError::DeleteHashFieldFailed)
     }
 
+    // Deja: no `on_miss`, unlike the redis-rs twin. A miss arm must answer with the
+    // member count, and this identity carries only the key.
     #[cfg_attr(
         feature = "deja",
         deja::redis(
@@ -1510,6 +1512,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "stream_append_entry",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -1561,6 +1564,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "stream_delete_entries",
+            codec = deja::codec::ResultCodec::<usize, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -1593,6 +1597,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "stream_trim_entries",
+            codec = deja::codec::ResultCodec::<usize, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -1627,6 +1632,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "stream_acknowledge_entries",
+            codec = deja::codec::ResultCodec::<usize, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -1849,6 +1855,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "append_elements_to_list",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -1943,6 +1950,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "lpop_list_elements",
+            codec = deja::codec::ResultCodec::<Vec<String>, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -1977,6 +1985,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "consumer_group_create",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -2021,6 +2030,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "consumer_group_destroy",
+            codec = deja::codec::ResultCodec::<crate::types::ConsumerGroupDestroyReply, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -2055,6 +2065,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "consumer_group_delete_consumer",
+            codec = deja::codec::ResultCodec::<usize, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -2091,6 +2102,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "consumer_group_set_last_id",
+            codec = deja::codec::ResultCodec::<String, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -2122,47 +2134,33 @@ impl super::RedisConnectionWithContext {
         Ok(id_str)
     }
 
+    // Records the raw wire reply; the public method converts it to `R`, so callers
+    // need no serde bounds.
+    #[cfg(feature = "deja")]
     #[instrument(level = "DEBUG", skip(self))]
-    #[cfg_attr(
-        feature = "deja",
-        deja::redis(
-            replay = Substitute,
-            operation = "consumer_group_set_message_owner",
-            args = {
-                serde_json::json!({
-                    "key": stream.as_str(),
-                    "command": "XCLAIM",
-                    "group": group,
-                    "consumer": consumer,
-                })
-            },
-            // Generic `R: FromRedis` is NOT `Debug`, so the default `result_debug`
-            // capture would not compile. Record only the ok/err verdict (record-only
-            // leaf — no replay reconstruction needed).
-            result = {
-                (
-                    match &__deja_result {
-                        Ok(_) => serde_json::json!({"ok": true}),
-                        Err(e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
-                    },
-                    __deja_result.is_err(),
-                )
-            },
-        )
+    #[deja::redis(
+        replay = Substitute,
+        operation = "consumer_group_set_message_owner",
+        codec = deja::codec::ResultCodec::<RedisWireValue, errors::RedisError>,
+        args = {
+            serde_json::json!({
+                "key": stream.as_str(),
+                "command": "XCLAIM",
+                "group": group,
+                "consumer": consumer,
+            })
+        },
     )]
-    pub async fn consumer_group_set_message_owner<R>(
+    async fn consumer_group_set_message_owner_raw(
         &self,
         stream: &RedisKey,
         group: &str,
         consumer: &str,
         min_idle_time: u64,
         ids: Vec<String>,
-    ) -> CustomResult<R, errors::RedisError>
-    where
-        R: FromRedis + Unpin + Send + 'static,
-    {
+    ) -> CustomResult<RedisWireValue, errors::RedisError> {
         let fred_ids: MultipleIDs = ids.into();
-        track_redis_call(
+        let value: RedisValue = track_redis_call(
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupSetMessageOwner,
@@ -2180,35 +2178,94 @@ impl super::RedisConnectionWithContext {
             ),
         )
         .await
-        .change_context(errors::RedisError::ConsumerGroupClaimFailed)
+        .change_context(errors::RedisError::ConsumerGroupClaimFailed)?;
+        Ok(value.into())
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    #[cfg_attr(
-        feature = "deja",
-        deja::redis(
-            replay = Substitute,
-            operation = "evaluate_redis_script",
-            args = {
-                serde_json::json!({
-                    "command": "EVAL",
-                    "key_count": key.len(),
-                })
-            },
-            // Generic `T` is NOT `Debug`, so the default `result_debug` capture
-            // would not compile. Record only the ok/err verdict (record-only leaf —
-            // an EVAL result is never reconstructed without an explicit override).
-            result = {
-                (
-                    match &__deja_result {
-                        Ok(_) => serde_json::json!({"ok": true}),
-                        Err(e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
-                    },
-                    __deja_result.is_err(),
-                )
-            },
-        )
+    pub async fn consumer_group_set_message_owner<R>(
+        &self,
+        stream: &RedisKey,
+        group: &str,
+        consumer: &str,
+        min_idle_time: u64,
+        ids: Vec<String>,
+    ) -> CustomResult<R, errors::RedisError>
+    where
+        R: FromRedis + Unpin + Send + 'static,
+    {
+        #[cfg(feature = "deja")]
+        {
+            let raw = self
+                .consumer_group_set_message_owner_raw(stream, group, consumer, min_idle_time, ids)
+                .await?;
+            let value: RedisValue = raw.try_into().map_err(|err: fred::error::RedisError| {
+                report!(err).change_context(errors::RedisError::ConsumerGroupClaimFailed)
+            })?;
+            R::from_value(value).change_context(errors::RedisError::ConsumerGroupClaimFailed)
+        }
+
+        #[cfg(not(feature = "deja"))]
+        {
+            let fred_ids: MultipleIDs = ids.into();
+            track_redis_call(
+                self.request_id.as_deref(),
+                self.redis_conn.event_emitter.as_ref(),
+                RedisOperation::ConsumerGroupSetMessageOwner,
+                self.redis_conn.pool.xclaim(
+                    stream.tenant_aware_key(&self.redis_conn),
+                    group,
+                    consumer,
+                    min_idle_time,
+                    fred_ids,
+                    None,
+                    None,
+                    None,
+                    false,
+                    false,
+                ),
+            )
+            .await
+            .change_context(errors::RedisError::ConsumerGroupClaimFailed)
+        }
+    }
+
+    // Records the raw wire reply; `T` is converted through fred after substitution.
+    #[cfg(feature = "deja")]
+    #[instrument(level = "DEBUG", skip(self))]
+    #[deja::redis(
+        replay = Substitute,
+        operation = "evaluate_redis_script",
+        codec = deja::codec::ResultCodec::<RedisWireValue, errors::RedisError>,
+        args = {
+            serde_json::json!({
+                "command": "EVAL",
+                "key_count": key.len(),
+            })
+        },
     )]
+    async fn evaluate_redis_script_raw<V>(
+        &self,
+        lua_script: &'static str,
+        key: Vec<String>,
+        values: V,
+    ) -> CustomResult<RedisWireValue, errors::RedisError>
+    where
+        V: TryInto<MultipleValues> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
+    {
+        let value: RedisValue = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::EvaluateRedisScript,
+            self.redis_conn.pool.eval(lua_script, key, values),
+        )
+        .await
+        .change_context(errors::RedisError::IncrementHashFieldFailed)?;
+        Ok(value.into())
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn evaluate_redis_script<V, T>(
         &self,
         lua_script: &'static str,
@@ -2220,15 +2277,29 @@ impl super::RedisConnectionWithContext {
         V::Error: Into<fred::error::RedisError> + Send + Sync,
         T: serde::de::DeserializeOwned + FromRedis,
     {
-        let val: T = track_redis_call(
-            self.request_id.as_deref(),
-            self.redis_conn.event_emitter.as_ref(),
-            RedisOperation::EvaluateRedisScript,
-            self.redis_conn.pool.eval(lua_script, key, values),
-        )
-        .await
-        .change_context(errors::RedisError::IncrementHashFieldFailed)?;
-        Ok(val)
+        #[cfg(feature = "deja")]
+        {
+            let raw = self
+                .evaluate_redis_script_raw(lua_script, key, values)
+                .await?;
+            let value: RedisValue = raw.try_into().map_err(|err: fred::error::RedisError| {
+                report!(err).change_context(errors::RedisError::IncrementHashFieldFailed)
+            })?;
+            T::from_value(value).change_context(errors::RedisError::IncrementHashFieldFailed)
+        }
+
+        #[cfg(not(feature = "deja"))]
+        {
+            let val: T = track_redis_call(
+                self.request_id.as_deref(),
+                self.redis_conn.event_emitter.as_ref(),
+                RedisOperation::EvaluateRedisScript,
+                self.redis_conn.pool.eval(lua_script, key, values),
+            )
+            .await
+            .change_context(errors::RedisError::IncrementHashFieldFailed)?;
+            Ok(val)
+        }
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -2355,5 +2426,109 @@ impl super::RedisConnectionWithContext {
             _ => Err(report!(errors::RedisError::SetFailed))
                 .attach_printable("Unexpected result from SET NX operation"),
         }
+    }
+
+    /// Increments `key` by one and returns the value after the increment.
+    ///
+    /// If the key does not exist, it is first created at 0 with `ttl_in_secs` as its expiry, so a key
+    /// written by this command always has an expiry. A key that already exists keeps the expiry it
+    /// has. The two commands run in one transaction on the single key, so the key cannot expire
+    /// between them and be recreated by the increment without an expiry.
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn increment_key_with_expiry(
+        &self,
+        key: &RedisKey,
+        ttl_in_secs: i64,
+    ) -> CustomResult<i64, errors::RedisError> {
+        let redis_key = key.tenant_aware_key(&self.redis_conn);
+        let trx = self.get_transaction();
+
+        trx.set::<(), _, _>(
+            &redis_key,
+            0,
+            Some(Expiration::EX(ttl_in_secs)),
+            Some(SetOptions::NX),
+            false,
+        )
+        .await
+        .change_context(errors::RedisError::IncrementKeyFailed)
+        .attach_printable("Failed to queue set command")?;
+
+        trx.incr::<(), _>(&redis_key)
+            .await
+            .change_context(errors::RedisError::IncrementKeyFailed)
+            .attach_printable("Failed to queue increment command")?;
+
+        let mut results: Vec<RedisValue> = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::IncrementKeyWithExpiry,
+            trx.exec(true),
+        )
+        .await
+        .change_context(errors::RedisError::IncrementKeyFailed)
+        .attach_printable("Failed to execute the redis transaction")?;
+
+        // The results are the SET reply followed by the INCR reply
+        let value_after_increment = results
+            .pop()
+            .ok_or(errors::RedisError::IncrementKeyFailed)
+            .attach_printable("Got unexpected number of results from transaction")?;
+
+        i64::from_value(value_after_increment)
+            .change_context(errors::RedisError::IncrementKeyFailed)
+            .attach_printable("Failed to convert from redis value")
+    }
+
+    /// Decrements `key` by one and returns the value after the decrement.
+    ///
+    /// If the key does not exist, it is first created at 0 with `ttl_in_secs` as its expiry, so a key
+    /// written by this command always has an expiry. A key that already exists keeps the expiry it
+    /// has. The two commands run in one transaction on the single key, so the key cannot expire
+    /// between them and be recreated by the decrement without an expiry.
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn decrement_key_with_expiry(
+        &self,
+        key: &RedisKey,
+        ttl_in_secs: i64,
+    ) -> CustomResult<i64, errors::RedisError> {
+        let redis_key = key.tenant_aware_key(&self.redis_conn);
+        let trx = self.get_transaction();
+
+        trx.set::<(), _, _>(
+            &redis_key,
+            0,
+            Some(Expiration::EX(ttl_in_secs)),
+            Some(SetOptions::NX),
+            false,
+        )
+        .await
+        .change_context(errors::RedisError::DecrementKeyFailed)
+        .attach_printable("Failed to queue set command")?;
+
+        trx.decr::<(), _>(&redis_key)
+            .await
+            .change_context(errors::RedisError::DecrementKeyFailed)
+            .attach_printable("Failed to queue decrement command")?;
+
+        let mut results: Vec<RedisValue> = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::DecrementKeyWithExpiry,
+            trx.exec(true),
+        )
+        .await
+        .change_context(errors::RedisError::DecrementKeyFailed)
+        .attach_printable("Failed to execute the redis transaction")?;
+
+        // The results are the SET reply followed by the DECR reply
+        let value_after_decrement = results
+            .pop()
+            .ok_or(errors::RedisError::DecrementKeyFailed)
+            .attach_printable("Got unexpected number of results from transaction")?;
+
+        i64::from_value(value_after_decrement)
+            .change_context(errors::RedisError::DecrementKeyFailed)
+            .attach_printable("Failed to convert from redis value")
     }
 }

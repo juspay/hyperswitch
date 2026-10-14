@@ -27,7 +27,8 @@ use super::types::redis_value_to_option_string;
 use crate::{
     constant::redis_rs_commands::{
         REDIS_ARG_COUNT, REDIS_ARG_EX, REDIS_ARG_MATCH, REDIS_ARG_NX, REDIS_ARG_TYPE,
-        REDIS_COMMAND_GET, REDIS_COMMAND_HSCAN, REDIS_COMMAND_SCAN, REDIS_COMMAND_SET,
+        REDIS_COMMAND_DECR, REDIS_COMMAND_GET, REDIS_COMMAND_HSCAN, REDIS_COMMAND_INCR,
+        REDIS_COMMAND_SCAN, REDIS_COMMAND_SET,
     },
     errors,
     metrics::{track_redis_call, RedisOperation},
@@ -513,6 +514,7 @@ impl super::RedisConnectionWithContext {
     {
         let value_bytes = self.get_key::<Vec<u8>>(key).await?;
         fp_utils::when(value_bytes.is_empty(), || Err(errors::RedisError::NotFound))?;
+
         value_bytes
             .parse_struct(type_name)
             .change_context(errors::RedisError::JsonDeserializationFailed)
@@ -1171,16 +1173,39 @@ impl super::RedisConnectionWithContext {
     #[cfg_attr(
         feature = "deja",
         deja::redis(
+            // Substitute: the reply is the collision verdict, and the seeded replay set
+            // starts empty, so re-running SADD would always report "no collision".
             replay = Substitute,
             operation = "sadd",
             codec = deja::codec::ResultCodec::<SaddReply, errors::RedisError>,
             state_write = key.tenant_aware_key(&self.redis_conn),
             args = {
+                // `members` decides the reply, so it is part of the identity. Sorted
+                // because SADD is a set but `args_hash` is order-dependent for arrays.
+                let mut members_captured: Vec<String> =
+                    redis::ToRedisArgs::to_redis_args(&members)
+                        .into_iter()
+                        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+                        .collect();
+                members_captured.sort();
                 serde_json::json!({
                     "key": key.as_str(),
                     "command": "SADD",
+                    "members": members_captured,
                 })
             },
+            // A novel SADD answers "every member was new". This can hide a real
+            // collision, but the miss is already reported as a divergence and a
+            // fail-stop would blind every later call.
+            on_miss = Ok(SaddReply::KeySet(
+                __deja_miss
+                    .args
+                    .get("members")
+                    .and_then(serde_json::Value::as_array)
+                    .map(Vec::len)
+                    .and_then(|count| i64::try_from(count).ok())
+                    .unwrap_or(0),
+            )),
         )
     )]
     #[instrument(level = "DEBUG", skip(self))]
@@ -1781,5 +1806,91 @@ impl super::RedisConnectionWithContext {
             SetnxReply::KeySet => SetGetReply::ValueSet(actual_value),
             SetnxReply::KeyNotSet => SetGetReply::ValueExists(actual_value),
         })
+    }
+
+    /// Increments `key` by one and returns the value after the increment.
+    ///
+    /// If the key does not exist, it is first created at 0 with `ttl_in_secs` as its expiry, so a key
+    /// written by this command always has an expiry. A key that already exists keeps the expiry it
+    /// has. The two commands run in one transaction on the single key, so the key cannot expire
+    /// between them and be recreated by the increment without an expiry.
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn increment_key_with_expiry(
+        &self,
+        key: &RedisKey,
+        ttl_in_secs: i64,
+    ) -> CustomResult<i64, errors::RedisError> {
+        let redis_key = key.tenant_aware_key(&self.redis_conn);
+        let mut conn = self.redis_conn.pool.clone();
+
+        // Build an atomic pipeline (MULTI/EXEC)
+        let mut pipe = redis::pipe();
+        pipe.atomic();
+
+        // SET key 0 EX ttl NX, its reply is left out of the results
+        pipe.cmd(REDIS_COMMAND_SET)
+            .arg(&redis_key)
+            .arg(0)
+            .arg(REDIS_ARG_EX)
+            .arg(ttl_in_secs)
+            .arg(REDIS_ARG_NX)
+            .ignore();
+
+        pipe.cmd(REDIS_COMMAND_INCR).arg(&redis_key);
+
+        let (value_after_increment,): (i64,) = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::IncrementKeyWithExpiry,
+            pipe.query_async(&mut conn),
+        )
+        .await
+        .change_context(errors::RedisError::IncrementKeyFailed)
+        .attach_printable("Failed to execute the redis transaction")?;
+
+        Ok(value_after_increment)
+    }
+
+    /// Decrements `key` by one and returns the value after the decrement.
+    ///
+    /// If the key does not exist, it is first created at 0 with `ttl_in_secs` as its expiry, so a key
+    /// written by this command always has an expiry. A key that already exists keeps the expiry it
+    /// has. The two commands run in one transaction on the single key, so the key cannot expire
+    /// between them and be recreated by the decrement without an expiry.
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn decrement_key_with_expiry(
+        &self,
+        key: &RedisKey,
+        ttl_in_secs: i64,
+    ) -> CustomResult<i64, errors::RedisError> {
+        let redis_key = key.tenant_aware_key(&self.redis_conn);
+        let mut conn = self.redis_conn.pool.clone();
+
+        // Build an atomic pipeline (MULTI/EXEC)
+        let mut pipe = redis::pipe();
+        pipe.atomic();
+
+        // SET key 0 EX ttl NX, its reply is left out of the results
+        pipe.cmd(REDIS_COMMAND_SET)
+            .arg(&redis_key)
+            .arg(0)
+            .arg(REDIS_ARG_EX)
+            .arg(ttl_in_secs)
+            .arg(REDIS_ARG_NX)
+            .ignore();
+
+        pipe.cmd(REDIS_COMMAND_DECR).arg(&redis_key);
+
+        let (value_after_decrement,): (i64,) = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::DecrementKeyWithExpiry,
+            pipe.query_async(&mut conn),
+        )
+        .await
+        .change_context(errors::RedisError::DecrementKeyFailed)
+        .attach_printable("Failed to execute the redis transaction")?;
+
+        Ok(value_after_decrement)
     }
 }

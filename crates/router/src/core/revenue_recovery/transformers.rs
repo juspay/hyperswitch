@@ -55,7 +55,7 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             billing_address: data.billing,
             retry_count: None,
             next_billing_at: None,
-            billing_started_at: data.billing_started_at,
+            billing_started_at: Some(data.billing_started_at),
             metadata: data.metadata,
             enable_partial_authorization: data.enable_partial_authorization,
         }
@@ -70,9 +70,9 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             amount: data.amount_details.order_amount().into(),
             currency: data.amount_details.currency(),
             merchant_reference_id: data.merchant_reference_id.to_owned(),
-            connector_transaction_id: data.connector_transaction_id.as_ref().map(|txn_id| {
-                common_utils::types::ConnectorTransactionId::TxnId(txn_id.peek().to_string())
-            }),
+            connector_transaction_id: Some(common_utils::types::ConnectorTransactionId::TxnId(
+                data.connector_transaction_id.to_owned(),
+            )),
             error_code: data.error.as_ref().map(|error| error.code.clone()),
             error_message: data.error.as_ref().map(|error| error.message.clone()),
             processor_payment_method_token: data
@@ -85,8 +85,8 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
                 .payment_merchant_connector_id
                 .get_string_repr()
                 .to_string(),
-            transaction_created_at: data.transaction_created_at.to_owned(),
-            status: data.transaction_status,
+            transaction_created_at: Some(data.transaction_created_at),
+            status: data.transaction_status.into(),
             payment_method_type: data.payment_method_type,
             payment_method_sub_type: data.payment_method_sub_type,
             network_advice_code: data
@@ -104,7 +104,7 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             // retry count will be updated whenever there is new attempt is created.
             retry_count: None,
             invoice_next_billing_time: None,
-            invoice_billing_started_at_time: data.billing_started_at,
+            invoice_billing_started_at_time: Some(data.billing_started_at),
             card_info: data.payment_method_data.payment_method_metadata.clone(),
             charge_id: None,
         }
