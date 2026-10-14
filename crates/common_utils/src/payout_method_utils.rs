@@ -7,7 +7,7 @@ use utoipa::ToSchema;
 
 use crate::new_type::{
     MaskedBankAccount, MaskedBic, MaskedEmail, MaskedIban, MaskedPhoneNumber, MaskedPspToken,
-    MaskedRoutingNumber, MaskedSortCode,
+    MaskedRoutingNumber, MaskedSortCode, MaskedValue,
 };
 
 /// Masked payout method details for storing in db
@@ -97,6 +97,8 @@ pub enum BankAdditionalData {
     Payshap(Box<PayshapBankTransferAdditionalData>),
     /// Additional data for PayShap proxy bank transfer payout method
     PayshapProxy(Box<PayshapProxyBankTransferAdditionalData>),
+    /// Additional data for TED bank transfer payout method
+    Ted(Box<TedBankTransferAdditionalData>),
 }
 
 crate::impl_to_sql_from_sql_json!(BankAdditionalData);
@@ -275,6 +277,41 @@ pub struct PayshapProxyBankTransferAdditionalData {
     pub shap_id: Option<MaskedBankAccount>,
 }
 
+/// Masked payout method details for TED bank transfer payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct TedBankTransferAdditionalData {
+    /// Partially masked bank account number
+    #[schema(value_type = Option<String>, example = "0001****3456")]
+    pub bank_account_number: MaskedBankAccount,
+
+    /// Bank name
+    #[schema(value_type = Option<BankNames>)]
+    pub bank_name: Option<common_enums::BankNames>,
+
+    /// The bank code (COMPE code)
+    #[schema(value_type = Option<String>, example = "033")]
+    pub bank_code: Option<String>,
+
+    /// An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution
+    #[schema(value_type = Option<String>, example = "90400888")]
+    pub ispb: Option<String>,
+
+    /// The branch code
+    #[schema(value_type = Option<String>, example = "0001")]
+    pub bank_branch: Option<String>,
+
+    /// The bank account type
+    #[schema(value_type = Option<BankType>)]
+    pub bank_account_type: Option<common_enums::BankType>,
+
+    /// Name of the account holder
+    #[schema(value_type = Option<String>, example = "João Silva")]
+    pub account_holder_name: Option<Secret<String>>,
+}
+
 /// Masked payout method details for Trustly bank transfer payout method
 #[derive(
     Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
@@ -306,10 +343,23 @@ pub enum WalletAdditionalData {
     ApplePayDecrypt(Box<ApplePayDecryptAdditionalData>),
     /// Additional data for Google pay decrypt wallet payout method
     GooglePayDecrypt(Box<GooglePayDecryptAdditionalData>),
+    /// Additional data for MiFinity wallet payout method
+    Mifinity(Box<MifinityAdditionalData>),
     /// Additional data for paypal wallet payout method
     Paypal(Box<PaypalAdditionalData>),
     /// Additional data for venmo wallet payout method
     Venmo(Box<VenmoAdditionalData>),
+}
+
+/// Masked payout method details for a MiFinity wallet payout.
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct MifinityAdditionalData {
+    /// Recipient email address or MiFinity account number.
+    #[schema(value_type = String, example = "john.doe@example.com")]
+    pub destination_account: MaskedValue,
 }
 
 /// Masked payout method details for paypal wallet payout method
@@ -469,12 +519,14 @@ impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
                 BankAdditionalData::OpenBanking(_) => Self::OpenBanking,
                 BankAdditionalData::Payshap(_) => Self::Payshap,
                 BankAdditionalData::PayshapProxy(_) => Self::PayshapProxy,
+                BankAdditionalData::Ted(_) => Self::Ted,
             },
             AdditionalPayoutMethodData::Wallet(wallet) => match **wallet {
                 WalletAdditionalData::ApplePayDecrypt(_) => Self::ApplePay,
                 WalletAdditionalData::Paypal(_) => Self::Paypal,
                 WalletAdditionalData::Venmo(_) => Self::Venmo,
                 WalletAdditionalData::GooglePayDecrypt(_) => Self::GooglePay,
+                WalletAdditionalData::Mifinity(_) => Self::Mifinity,
             },
             AdditionalPayoutMethodData::BankRedirect(bank_redirect) => match **bank_redirect {
                 BankRedirectAdditionalData::Interac(_) => Self::Interac,

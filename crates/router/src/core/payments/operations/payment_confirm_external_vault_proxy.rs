@@ -49,6 +49,19 @@ pub(crate) fn build_external_vault_payment_method_data(
 ) -> RouterResult<
     Option<hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData>,
 > {
+    // An MIT driven by `recurring_details` carries no `payment_method_data`: the card sits in the
+    // external vault behind an alias and authorizes on the network transaction ID.
+    let recurring_details_external_vault_pmd = || {
+        request
+            .recurring_details
+            .clone()
+            .map(hyperswitch_domain_models::payment_method_data::RecurringDetails::from)
+            .and_then(|recurring_details| {
+                recurring_details.get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow()
+            })
+            .map(|(_mandate_reference_id, external_vault_pmd)| external_vault_pmd)
+    };
+
     let external_vault_pmd = match request
         .payment_method_data
         .as_ref()
@@ -103,11 +116,12 @@ pub(crate) fn build_external_vault_payment_method_data(
                         ),
                     )
                 }
-                None => None,
+                None => recurring_details_external_vault_pmd(),
             }
         }
-        _ => None,
+        _ => recurring_details_external_vault_pmd(),
     };
+
     Ok(external_vault_pmd)
 }
 
@@ -226,7 +240,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             )?;
         }
 
-        let mut payment_attempt = db
+        let active_payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
                 &processor_merchant_id,
@@ -236,6 +250,52 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // The vault card arm of a fallback follows an earlier attempt on the same intent, so it
+        // needs its own attempt or that attempt's decline is overwritten. Only that case: a 3DS
+        // resume reaches this operation with its authentication on the active attempt, and a new
+        // attempt would drop `authentication_id` and authorize without the 3DS result.
+        let needs_new_attempt =
+            request
+                .recurring_details
+                .as_ref()
+                .is_some_and(|recurring_details| {
+                    matches!(
+                    recurring_details,
+                    api_models::mandates::RecurringDetails::NetworkTransactionIdAndVaultCardDetails(
+                        _
+                    )
+                )
+                })
+                && active_payment_attempt.status.is_terminal_status();
+
+        let (payment_intent, mut payment_attempt) = match needs_new_attempt {
+            true => {
+                let previous_connector = active_payment_attempt.connector.clone();
+                let previous_merchant_connector_id =
+                    active_payment_attempt.merchant_connector_id.clone();
+
+                let (payment_intent, mut payment_attempt) = Box::pin(
+                    helpers::AttemptType::New.modify_payment_intent_and_payment_attempt(
+                        request,
+                        payment_intent,
+                        active_payment_attempt,
+                        state,
+                        platform.get_processor().get_key_store(),
+                        storage_scheme,
+                    ),
+                )
+                .await?;
+
+                // The manual retry helper clears both, but the network transaction ID was issued
+                // by the connector that declined, so the fallback has to stay on it.
+                payment_attempt.connector = previous_connector;
+                payment_attempt.merchant_connector_id = previous_merchant_connector_id;
+
+                (payment_intent, payment_attempt)
+            }
+            false => (payment_intent, active_payment_attempt),
+        };
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.get_total_amount().into();
@@ -377,13 +437,31 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             })
             .transpose()?);
 
+        // A recurring payment against a vault-held card authorizes on the network transaction ID
+        // rather than on a connector mandate, so surface it as the mandate reference for the
+        // connector to issue a merchant initiated transaction.
+        let recurring_details = request.recurring_details.clone();
+
+        let mandate_id = recurring_details
+            .clone()
+            .map(hyperswitch_domain_models::payment_method_data::RecurringDetails::from)
+            .and_then(|details| {
+                details.get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow()
+            })
+            .map(|(mandate_reference_id, _external_vault_pmd)| {
+                hyperswitch_domain_models::mandates::MandateIds {
+                    mandate_id: None,
+                    mandate_reference_id: Some(mandate_reference_id),
+                }
+            });
+
         let payment_data = PaymentData {
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             currency,
             amount,
-            mandate_id: None,
+            mandate_id,
             mandate_connector: None,
             setup_mandate: None,
             customer_acceptance,
@@ -419,7 +497,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             incremental_authorization_details: None,
             authorizations: vec![],
             authentication: None,
-            recurring_details: None,
+            recurring_details,
             poll_config: None,
             tax_data: None,
             session_id: None,
@@ -628,6 +706,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                         .payment_attempt
                         .applied_offer_details
                         .clone(),
+                    applied_overrides: payment_data.payment_attempt.applied_overrides.clone(),
                     active_frm_id: payment_data
                         .frm_message
                         .as_ref()

@@ -93,7 +93,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             .update_value(request.amount_to_capture);
 
         let capture_method = payment_attempt
-            .capture_method
+            .get_effective_capture_method()
             .get_required_value("capture_method")?;
 
         helpers::validate_status_with_capture_method(payment_intent.status, capture_method)?;

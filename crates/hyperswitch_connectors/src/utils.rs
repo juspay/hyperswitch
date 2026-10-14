@@ -6846,6 +6846,7 @@ pub enum PaymentMethodDataType {
     SamsungPay,
     TwintRedirect,
     VippsRedirect,
+    WeroRedirect,
     TouchNGoRedirect,
     WeChatPayRedirect,
     WeChatPayQr,
@@ -7002,6 +7003,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::SamsungPay(_) => Self::SamsungPay,
                 payment_method_data::WalletData::TwintRedirect {} => Self::TwintRedirect,
                 payment_method_data::WalletData::VippsRedirect {} => Self::VippsRedirect,
+                payment_method_data::WalletData::WeroRedirect {} => Self::WeroRedirect,
                 payment_method_data::WalletData::TouchNGoRedirect(_) => Self::TouchNGoRedirect,
                 payment_method_data::WalletData::WeChatPayRedirect(_) => Self::WeChatPayRedirect,
                 payment_method_data::WalletData::WeChatPayQr(_) => Self::WeChatPayQr,
@@ -8338,6 +8340,42 @@ where
         }),
         _ => Ok(None),
     }
+}
+
+/// Parses an optional connector response value, logging and discarding one that isn't recognised
+/// so an unexpected value doesn't fail the whole response.
+pub fn parse_or_log_unrecognised<T: FromStr>(value: &str) -> Option<T> {
+    value
+        .parse::<T>()
+        .inspect_err(|_| {
+            logger::debug!(
+                value,
+                target_type = std::any::type_name::<T>(),
+                "Unrecognised value received from connector"
+            );
+        })
+        .ok()
+}
+
+/// Converts an ISO 3166 country code from a connector response, alpha-2 or numeric, to alpha-2.
+/// A value outside either table is logged and discarded.
+pub fn parse_country_code(code: &str) -> Option<enums::CountryAlpha2> {
+    code.parse::<enums::CountryAlpha2>()
+        .ok()
+        .or_else(|| {
+            code.parse::<u32>()
+                .ok()
+                .and_then(|numeric| common_enums::Country::from_numeric(numeric).ok())
+                .map(|country| country.to_alpha2())
+        })
+        .or_else(|| {
+            logger::debug!(
+                value = code,
+                target_type = std::any::type_name::<enums::CountryAlpha2>(),
+                "Unrecognised value received from connector"
+            );
+            None
+        })
 }
 
 #[macro_export]

@@ -354,13 +354,12 @@ impl RevenueRecoveryPaymentIntentStatus {
                 )
                 .await;
 
-                let reopened_standardised_error_code =
-                    retry_stats::events::resolve_standardised_error_code_from_attempt(
-                        state,
-                        &psync_response.payment_attempt,
-                        revenue_recovery_metadata.get_card_network(),
-                    )
-                    .await;
+                // Written with the failed status by the payments core.
+                let reopened_standardised_error_code = psync_response
+                    .payment_attempt
+                    .error
+                    .as_ref()
+                    .and_then(|error| error.standardised_code);
                 Box::pin(reopen_calculate_workflow_on_payment_failure(
                     state,
                     &process_tracker,
@@ -761,14 +760,13 @@ impl Action {
     )
     .await;
 
-                        // Reopen calculate workflow on payment failure
-                        let reopened_standardised_error_code =
-                            retry_stats::events::resolve_standardised_error_code_from_attempt(
-                                state,
-                                &payment_data.payment_attempt,
-                                revenue_recovery_metadata.get_card_network(),
-                            )
-                            .await;
+                        // Reopen calculate workflow on payment failure. The code was written with
+                        // the failed status by the payments core.
+                        let reopened_standardised_error_code = payment_data
+                            .payment_attempt
+                            .error
+                            .as_ref()
+                            .and_then(|error| error.standardised_code);
                         Box::pin(reopen_calculate_workflow_on_payment_failure(
                             state,
                             process,
@@ -1010,7 +1008,7 @@ impl Action {
         let used_token = get_payment_processor_token_id_from_payment_attempt(&payment_attempt);
 
         match response {
-            Ok(_payment_data) => match payment_intent.status.foreign_into() {
+            Ok(payment_data) => match payment_intent.status.foreign_into() {
                 RevenueRecoveryPaymentIntentStatus::Succeeded => {
                     let connector_customer_id = payment_intent
                         .extract_connector_customer_id_from_payment_intent()
@@ -1087,21 +1085,13 @@ impl Action {
                     .await;
 
                     // Reopen calculate workflow on payment failure
-                    let card_network = payment_intent
-                        .feature_metadata
+                    // The synced attempt, not the `payment_attempt` passed in: that copy predates
+                    // the sync, so it lacks the code written with the sync's status update.
+                    let reopened_standardised_error_code = payment_data
+                        .payment_attempt
+                        .error
                         .as_ref()
-                        .and_then(|feature_metadata| {
-                            feature_metadata.payment_revenue_recovery_metadata.clone()
-                        })
-                        .and_then(|metadata| metadata.convert_back().get_card_network());
-
-                    let reopened_standardised_error_code =
-                        retry_stats::events::resolve_standardised_error_code_from_attempt(
-                            state,
-                            &payment_attempt,
-                            card_network,
-                        )
-                        .await;
+                        .and_then(|error| error.standardised_code);
                     Box::pin(reopen_calculate_workflow_on_payment_failure(
                         state,
                         process,

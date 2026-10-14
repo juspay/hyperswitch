@@ -898,6 +898,13 @@ impl ConnectorResponseData {
                 card_network: None,
                 domestic_network: None,
                 auth_code: Some(auth_code),
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             },
         };
         Self {
@@ -955,6 +962,22 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         domestic_network: Option<String>,
         /// auth code returned by the processor
         auth_code: Option<String>,
+        /// The card's network, as returned by the connector, normalized to a `CardNetwork`. Distinct
+        /// from `card_network`, which carries a connector-specific spelling that a connector relays
+        /// to its own later call and need not match a `CardNetwork` variant.
+        processor_card_network: Option<common_enums::CardNetwork>,
+        /// The card's product/subtype, as returned by the connector
+        card_subtype: Option<String>,
+        /// The card's segment (e.g. consumer, commercial), as returned by the connector
+        card_segment_type: Option<common_enums::CardSegmentType>,
+        /// The card's funding source (e.g. credit, debit), as returned by the connector
+        funding_source: Option<common_enums::FundingSource>,
+        /// The card's type (e.g. credit, debit), as returned by the connector
+        card_type: Option<common_enums::CardType>,
+        /// The name of the card issuer, as returned by the connector
+        issuer_name: Option<String>,
+        /// The country of the card issuer, as returned by the connector
+        issuer_country: Option<common_enums::CountryAlpha2>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
@@ -1097,6 +1120,7 @@ pub trait TrackerPostUpdateObjects<Flow, FlowRequest, D> {
         &self,
         payment_data: &D,
         storage_scheme: common_enums::MerchantStorageScheme,
+        gsm_record: Option<&crate::gsm::GatewayStatusMap>,
     ) -> PaymentAttemptUpdate;
 
     /// Get the amount that can be captured for the payment
@@ -1197,6 +1221,7 @@ impl
         &self,
         payment_data: &payments::PaymentConfirmData<router_flow_types::Authorize>,
         storage_scheme: common_enums::MerchantStorageScheme,
+        gsm_record: Option<&crate::gsm::GatewayStatusMap>,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
         let amount_captured = self.get_captured_amount(payment_data);
@@ -1309,11 +1334,12 @@ impl
                     code,
                     message,
                     reason,
-                    unified_code: None,
-                    unified_message: None,
+                    unified_code: gsm_record.and_then(|gsm| gsm.unified_code.clone()),
+                    unified_message: gsm_record.and_then(|gsm| gsm.unified_message.clone()),
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    standardised_code: gsm_record.and_then(|gsm| gsm.standardised_code),
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -1566,6 +1592,7 @@ impl
         &self,
         payment_data: &payments::PaymentCaptureData<router_flow_types::Capture>,
         storage_scheme: common_enums::MerchantStorageScheme,
+        gsm_record: Option<&crate::gsm::GatewayStatusMap>,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
 
@@ -1636,11 +1663,12 @@ impl
                     code,
                     message,
                     reason,
-                    unified_code: None,
-                    unified_message: None,
+                    unified_code: gsm_record.and_then(|gsm| gsm.unified_code.clone()),
+                    unified_message: gsm_record.and_then(|gsm| gsm.unified_message.clone()),
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    standardised_code: gsm_record.and_then(|gsm| gsm.standardised_code),
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -1885,6 +1913,7 @@ impl
         &self,
         payment_data: &payments::PaymentStatusData<router_flow_types::PSync>,
         storage_scheme: common_enums::MerchantStorageScheme,
+        gsm_record: Option<&crate::gsm::GatewayStatusMap>,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
         let amount_captured = self.get_captured_amount(payment_data);
@@ -1973,11 +2002,12 @@ impl
                     code,
                     message,
                     reason,
-                    unified_code: None,
-                    unified_message: None,
+                    unified_code: gsm_record.and_then(|gsm| gsm.unified_code.clone()),
+                    unified_message: gsm_record.and_then(|gsm| gsm.unified_message.clone()),
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    standardised_code: gsm_record.and_then(|gsm| gsm.standardised_code),
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -2157,6 +2187,7 @@ impl
         &self,
         payment_data: &payments::PaymentConfirmData<router_flow_types::ExternalVaultProxy>,
         storage_scheme: common_enums::MerchantStorageScheme,
+        gsm_record: Option<&crate::gsm::GatewayStatusMap>,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
         let amount_captured = self.get_captured_amount(payment_data);
@@ -2269,11 +2300,12 @@ impl
                     code,
                     message,
                     reason,
-                    unified_code: None,
-                    unified_message: None,
+                    unified_code: gsm_record.and_then(|gsm| gsm.unified_code.clone()),
+                    unified_message: gsm_record.and_then(|gsm| gsm.unified_message.clone()),
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    standardised_code: gsm_record.and_then(|gsm| gsm.standardised_code),
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -2418,6 +2450,7 @@ impl
         &self,
         payment_data: &payments::PaymentConfirmData<router_flow_types::SetupMandate>,
         storage_scheme: common_enums::MerchantStorageScheme,
+        gsm_record: Option<&crate::gsm::GatewayStatusMap>,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
         let amount_captured = self.get_captured_amount(payment_data);
@@ -2521,11 +2554,12 @@ impl
                     code,
                     message,
                     reason,
-                    unified_code: None,
-                    unified_message: None,
+                    unified_code: gsm_record.and_then(|gsm| gsm.unified_code.clone()),
+                    unified_message: gsm_record.and_then(|gsm| gsm.unified_message.clone()),
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    standardised_code: gsm_record.and_then(|gsm| gsm.standardised_code),
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -2675,6 +2709,7 @@ impl
         &self,
         payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
         storage_scheme: common_enums::MerchantStorageScheme,
+        gsm_record: Option<&crate::gsm::GatewayStatusMap>,
     ) -> PaymentAttemptUpdate {
         match &self.response {
             Err(ref error_response) => {
@@ -2706,11 +2741,12 @@ impl
                     code,
                     message,
                     reason,
-                    unified_code: None,
-                    unified_message: None,
+                    unified_code: gsm_record.and_then(|gsm| gsm.unified_code.clone()),
+                    unified_message: gsm_record.and_then(|gsm| gsm.unified_message.clone()),
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    standardised_code: gsm_record.and_then(|gsm| gsm.standardised_code),
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {

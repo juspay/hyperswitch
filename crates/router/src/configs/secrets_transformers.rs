@@ -696,6 +696,7 @@ pub(crate) async fn fetch_raw_secrets(
         accounts_database,
         global_database,
         redis: conf.redis,
+        cache: conf.cache,
         log: conf.log,
         #[cfg(feature = "deja")]
         deja: conf.deja,
