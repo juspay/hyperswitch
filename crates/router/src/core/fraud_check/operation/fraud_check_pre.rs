@@ -256,7 +256,6 @@ where
                 gateway_metadata: router_data.request.gateway_metadata,
                 customer_name: router_data.request.customer_name,
                 payment_method_data_full: router_data.request.payment_method_data_full,
-                frm_id: router_data.request.frm_id,
             })),
             response: FrmResponse::Checkout(router_data.response),
         })

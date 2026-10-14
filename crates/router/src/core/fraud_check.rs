@@ -51,6 +51,7 @@ use crate::{
     },
     utils::ValueExt,
 };
+pub mod access_token;
 pub mod flows;
 #[cfg(feature = "v1")]
 pub mod gateway;
