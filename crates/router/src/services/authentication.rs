@@ -2560,23 +2560,21 @@ where
     }
 }
 
-/// Authenticates an inbound Twilio Generic Pay request.
+/// HTTP Basic carrying a Hyperswitch API key as the password, for a merchant named in the route.
+/// The counterpart to [`ApiKeyAuthWithMerchantIdFromRoute`], for callers that can only offer a
+/// username and a password — an inbound pay connector, say.
 ///
-/// A Twilio Generic Pay Connector only has a username and a password to offer, so credentials
-/// arrive as HTTP Basic auth: the username is the `merchant_id` and the password is an ordinary
-/// Hyperswitch API key. The API key by itself already identifies the merchant; the username is
-/// cross-checked against it so that a key cannot be presented under the wrong merchant id.
+/// The username is not read: the merchant comes from the route, so the only check that matters is
+/// that the key belongs to it. A caller that cannot set a username still authenticates.
 ///
-/// Authenticates the merchant only. The endpoint is merchant level, and the profile is resolved
-/// later from `parameters.profile_id` in the body — falling back to the merchant's default
-/// profile — because an API key is scoped to a merchant rather than to a profile.
+/// Authenticates the merchant only — an API key is scoped to a merchant, not to a profile.
 #[derive(Debug)]
 #[cfg(feature = "v1")]
-pub struct TwilioPayAuth;
+pub struct ApiKeyBasicAuthWithMerchantIdFromRoute(pub id_type::MerchantId);
 
 #[cfg(feature = "v1")]
 #[async_trait]
-impl<A> AuthenticateAndFetch<AuthenticationData, A> for TwilioPayAuth
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for ApiKeyBasicAuthWithMerchantIdFromRoute
 where
     A: SessionStateInfo + Sync,
 {
@@ -2585,11 +2583,10 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        let (username, api_key) = parse_basic_auth_credentials(request_headers)?;
+        // Username dropped: the merchant comes from the path.
+        let (_username, api_key) = parse_basic_auth_credentials(request_headers)?;
 
-        let merchant_id = id_type::MerchantId::try_from(std::borrow::Cow::Owned(username))
-            .change_context(errors::ApiErrorResponse::InvalidBasicAuth)
-            .attach_printable("Basic auth username is not a valid merchant id")?;
+        let merchant_id = &self.0;
 
         let api_key = api_keys::PlaintextApiKey::from(api_key.peek().as_str());
         let hash_key = {
@@ -2616,16 +2613,16 @@ where
                 .attach_printable("API key has expired");
         }
 
-        if stored_api_key.merchant_id != merchant_id {
+        if &stored_api_key.merchant_id != merchant_id {
             return Err(report!(errors::ApiErrorResponse::InvalidBasicAuth)).attach_printable(
-                "Basic auth username does not match the merchant the API key belongs to",
+                "The API key presented does not belong to the merchant named in the path",
             );
         }
 
         let key_store = state
             .store()
             .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
+                merchant_id,
                 &state.store().get_master_key().to_vec().into(),
             )
             .await
@@ -2633,7 +2630,7 @@ where
 
         let merchant = state
             .store()
-            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -2657,7 +2654,7 @@ where
         Ok((
             auth.clone(),
             AuthenticationType::ApiKey {
-                merchant_id,
+                merchant_id: merchant_id.clone(),
                 key_id: stored_api_key.key_id,
             },
         ))

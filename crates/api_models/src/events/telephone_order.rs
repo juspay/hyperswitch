@@ -1,6 +1,6 @@
 use common_utils::events::ApiEventMetric;
 
-use crate::twilio_generic_pay::{TwilioGenericPayRequest, TwilioGenericPayResponse};
+use crate::telephone_order::twilio::{TwilioGenericPayRequest, TwilioGenericPayResponse};
 
 impl ApiEventMetric for TwilioGenericPayRequest {}
 

@@ -1,16 +1,26 @@
+pub mod twilio;
+
 use std::collections::HashMap;
 
+use common_utils::events::ApiEventMetric;
 use hyperswitch_domain_models::payments::HeaderPayload;
 use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use crate::{
     core::{
+        api_locking,
         errors::{self, RouterResponse},
         payments, utils as core_utils,
     },
-    routes::{app::ReqState, SessionState},
-    services::{self, authentication::AuthenticationData, ApplicationResponse},
+    routes::{app::ReqState, lock_utils, SessionState},
+    services::{
+        self,
+        authentication::{
+            ApiKeyBasicAuthWithMerchantIdFromRoute, AuthenticateAndFetch, AuthenticationData,
+        },
+        ApplicationResponse,
+    },
     types::api,
 };
 
@@ -23,8 +33,9 @@ pub mod error_codes {
     pub const DUPLICATE_TRANSACTION: &str = "DUPLICATE_TRANSACTION";
 }
 
-/// Values the IVR attaches to the request. A caller-facing flow has no body of its own, so this is
-/// how Hyperswitch ids arrive; the merchant decides what else does, hence the masking.
+/// How this core reads Hyperswitch ids out of a provider's request: a flat map of masked values,
+/// which is the only extension point an IVR provider tends to offer. Declared here rather than in
+/// `api_models` because it is what the core reads, not a field every provider must send.
 pub type Parameters = HashMap<String, Secret<String>>;
 
 /// Why a charge is not reaching the connector, or did not end up paid, in terms the provider can
@@ -87,18 +98,39 @@ impl Context {
     }
 }
 
+/// The providers this endpoint serves, as they appear in the `{provider}` path segment. These are
+/// inbound providers that hand us a card to charge, not connectors we send it to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum TelephoneOrderProvider {
+    /// Twilio's `<Pay>` verb, through its Generic Pay Connector.
+    Twilio,
+}
+
 /// One provider's translation to and from Hyperswitch. An adapter implements the translation
-/// methods and nothing else; [`charge`](GenericPayAdapter::charge) is the same for all of them.
+/// methods and nothing else; [`charge`](TelephoneOrderAdapter::charge) is the same for all of them.
 #[async_trait::async_trait]
-pub trait GenericPayAdapter {
-    type Request: Send + Sync;
-    type Response: Send;
+pub trait TelephoneOrderAdapter {
+    /// The provider's request body. Deserialized in the route from the raw bytes, then serialized
+    /// into the `ApiEvent` log through `masked_serialize` — which is the reason every sensitive
+    /// field on it has to be a `Secret`.
+    type Request: serde::de::DeserializeOwned
+        + serde::Serialize
+        + std::fmt::Debug
+        + ApiEventMetric
+        + Send
+        + Sync;
+
+    /// What the provider expects back, on success and on failure alike.
+    type Response: serde::Serialize + std::fmt::Debug + ApiEventMetric + Send;
 
     /// The provider's identifier for the attempt. Logged to line our records up with theirs, not
     /// used as a key — providers do not agree on what makes one unique.
     fn transaction_reference(request: &Self::Request) -> String;
 
-    /// Where in the request the provider carries the IVR's [`Parameters`].
+    /// Where the provider carries the IVR's [`Parameters`]. Returning a reference means a provider
+    /// has to hold such a map; one carrying those ids as typed fields would need a `Cow` or a typed
+    /// getter instead.
     fn parameters(request: &Self::Request) -> Option<&Parameters>;
 
     /// Maps the provider's own fields — amount, payment method, descriptors — onto the payment.
@@ -110,6 +142,45 @@ pub trait GenericPayAdapter {
     fn success_response(payment: &api_models::payments::PaymentsResponse) -> Self::Response;
 
     fn failure_response(failure: Failure) -> Self::Response;
+
+    /// The credential check this provider's requests go through; HTTP Basic carrying a Hyperswitch
+    /// API key by default. Boxed rather than an associated type because stable Rust has no
+    /// associated-type defaults, so an associated type would cost every provider a declaration.
+    ///
+    /// Auth sees headers and state, never the body, so a provider that signs its payload needs a
+    /// source verification step after auth instead.
+    fn authenticator(
+        merchant_id: common_utils::id_type::MerchantId,
+    ) -> Box<dyn AuthenticateAndFetch<AuthenticationData, SessionState>> {
+        Box::new(ApiKeyBasicAuthWithMerchantIdFromRoute(merchant_id))
+    }
+
+    /// Locks the payment the IVR named, so a provider's retry waits for the charge already in
+    /// flight instead of racing it. Computed in the route, before the body is handed to
+    /// `server_wrap`, the same way `payments_create` does it.
+    ///
+    /// Without `parameters.payment_id` there is nothing to lock on: the id is then generated per
+    /// request, so a lock on it could never contend. Correctness there rests on the
+    /// `(payment_id, merchant_id)` key, which `PaymentCreate` hits before any connector call.
+    fn locking_action<F>(request: &Self::Request, flow: F) -> api_locking::LockAction
+    where
+        F: router_env::types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        extract_id::<common_utils::id_type::PaymentId>(Self::parameters(request), "payment_id")
+            // An unusable id is rejected with `INVALID_REQUEST` in `charge`; there is no key here.
+            .ok()
+            .flatten()
+            .map_or(api_locking::LockAction::NotApplicable, |payment_id| {
+                api_locking::LockAction::Hold {
+                    input: api_locking::LockingInput {
+                        unique_locking_key: payment_id.get_string_repr().to_owned(),
+                        api_identifier: lock_utils::ApiIdentifier::from(flow),
+                        override_lock_retries: None,
+                    },
+                }
+            })
+    }
 
     /// Answers the provider with a failure, leaving a log line behind to explain it.
     fn reject(
@@ -216,7 +287,7 @@ async fn build_context(
         customer_id: extract_id(parameters, "customer_id")
             .inspect_err(|failure| {
                 logger::warn!(
-                    "Ignoring unusable customer_id from generic pay parameters: {}",
+                    "Ignoring unusable customer_id from telephone order parameters: {}",
                     failure.message
                 )
             })
@@ -286,7 +357,7 @@ fn build_metadata(parameters: Option<&Parameters>) -> Option<serde_json::Value> 
 
     serde_json::to_value(parameters)
         .inspect_err(|error| {
-            logger::warn!("Could not serialize generic pay parameters into metadata: {error:?}")
+            logger::warn!("Could not serialize telephone order parameters into metadata: {error:?}")
         })
         .ok()
 }
@@ -333,7 +404,7 @@ fn classify_core_error(
         _ => {
             logger::error!(
                 transaction_reference = %transaction_reference,
-                "Payments core returned an error for a generic pay charge: {error:?}"
+                "Payments core returned an error for a telephone order charge: {error:?}"
             );
             Failure::processing_error()
         }

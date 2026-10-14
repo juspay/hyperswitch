@@ -31,8 +31,6 @@ pub mod external_service_auth;
 pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
-#[cfg(feature = "v1")]
-pub mod generic_pay;
 pub mod gsm;
 pub mod health_check;
 pub mod mandate;
@@ -72,10 +70,10 @@ pub mod superposition_proxy;
 #[cfg(feature = "v1")]
 pub mod superposition_sdk_config;
 pub mod surcharge_decision_config;
+#[cfg(feature = "v1")]
+pub mod telephone_order;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
-#[cfg(feature = "v1")]
-pub mod twilio_generic_pay;
 pub mod unified_authentication_service;
 pub mod unified_connector_service;
 #[cfg(feature = "olap")]

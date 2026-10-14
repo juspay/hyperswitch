@@ -1,12 +1,12 @@
-use api_models::twilio_generic_pay::{
+use api_models::telephone_order::twilio::{
     TwilioGenericPayRequest, TwilioGenericPayResponse, TwilioPayMethod,
 };
 use common_utils::types::{AmountConvertor, StringMajorUnitForConnector};
 
-use crate::core::generic_pay::{self, Context, Failure, GenericPayAdapter, Parameters};
+use crate::core::telephone_order::{self, Context, Failure, Parameters, TelephoneOrderAdapter};
 
 /// What Twilio can ask for that this endpoint does not do; the rest are shared, in
-/// [`generic_pay::error_codes`].
+/// [`telephone_order::error_codes`].
 mod error_codes {
     pub const TOKENIZE_UNSUPPORTED: &str = "TOKENIZE_UNSUPPORTED";
     pub const BANK_ACCOUNT_UNSUPPORTED: &str = "BANK_ACCOUNT_UNSUPPORTED";
@@ -20,11 +20,11 @@ struct TwilioCardDetails {
 }
 
 /// Twilio's Generic Pay Connector. Everything but the request and response shapes is shared with
-/// the other providers, in [`generic_pay`].
+/// the other providers, in [`telephone_order`].
 pub struct TwilioGenericPay;
 
 #[async_trait::async_trait]
-impl GenericPayAdapter for TwilioGenericPay {
+impl TelephoneOrderAdapter for TwilioGenericPay {
     type Request = TwilioGenericPayRequest;
     type Response = TwilioGenericPayResponse;
 
@@ -114,7 +114,7 @@ impl GenericPayAdapter for TwilioGenericPay {
 }
 
 fn invalid_request(message: impl Into<String>) -> Failure {
-    Failure::new(generic_pay::error_codes::INVALID_REQUEST, message)
+    Failure::new(telephone_order::error_codes::INVALID_REQUEST, message)
 }
 
 fn extract_card(request: &TwilioGenericPayRequest) -> Result<TwilioCardDetails, Failure> {

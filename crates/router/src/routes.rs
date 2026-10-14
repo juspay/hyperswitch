@@ -58,10 +58,10 @@ pub mod routing;
 pub mod subscription;
 pub mod superposition_proxy;
 pub mod superposition_sdk_config;
+#[cfg(feature = "v1")]
+pub mod telephone_order;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
-#[cfg(feature = "v1")]
-pub mod twilio_generic_pay;
 #[cfg(feature = "olap")]
 pub mod unified_connector_service;
 #[cfg(feature = "olap")]
@@ -102,8 +102,8 @@ pub use self::app::{
     FeatureMatrix, Files, Forex, Gsm, Health, Hypersense, Mandates, MerchantAccount,
     MerchantConnectorAccount, OfferEngine, Oidc, PaymentLink, PaymentMethods, Payments, Poll,
     ProcessTracker, ProcessTrackerDeprecated, Profile, ProfileAcquirer, ProfileNew, Refunds, Relay,
-    RelayWebhooks, SdkConfig, SessionState, SuperpositionProxy, ThreeDsDecisionRule,
-    TwilioGenericPay, User, UserDeprecated, Webhooks,
+    RelayWebhooks, SdkConfig, SessionState, SuperpositionProxy, TelephoneOrder,
+    ThreeDsDecisionRule, User, UserDeprecated, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{

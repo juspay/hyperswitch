@@ -78,7 +78,7 @@ use super::{
 };
 #[cfg(feature = "v1")]
 use super::{
-    apple_pay_certificates_migration, blocklist, payment_link, subscription, twilio_generic_pay,
+    apple_pay_certificates_migration, blocklist, payment_link, subscription, telephone_order,
     webhook_events,
 };
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -2862,16 +2862,18 @@ impl ThreeDsDecisionRule {
     }
 }
 
-pub struct TwilioGenericPay;
+/// `/telephone_order/{provider}/{merchant_id}` — one scope for every inbound telephone order provider.
+/// Adding one touches no routing: the handler matches the segment onto a `TelephoneOrderProvider`.
+pub struct TelephoneOrder;
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
-impl TwilioGenericPay {
+impl TelephoneOrder {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/twilio")
+        web::scope("/telephone_order")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/generic_pay")
-                    .route(web::post().to(twilio_generic_pay::twilio_generic_pay_charge)),
+                web::resource("/{provider}/{merchant_id}")
+                    .route(web::post().to(telephone_order::telephone_order_charge)),
             )
     }
 }
