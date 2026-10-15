@@ -21,7 +21,7 @@ env:
 jobs:
   migration_verify:
     name: Verify consistency of migrations with `schema.rs` file
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
 
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/hyperswitch_db
