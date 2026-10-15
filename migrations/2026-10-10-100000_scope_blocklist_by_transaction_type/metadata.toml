@@ -1,1 +1,1 @@
-run_in_transaction = false
+run_in_transaction = true
