@@ -159,6 +159,7 @@ pub struct PaymentIntent {
     pub is_account_funded_transaction: Option<bool>,
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
+    pub enable_avs_check: Option<bool>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1043,6 +1044,7 @@ pub struct PaymentIntent {
     /// The details of the party receiving the funds in an account funded transaction.
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -1255,6 +1257,7 @@ impl PaymentIntent {
             external_surcharge_applicable: None,
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: decrypted_payment_intent.recipient_details,
+            enable_avs_check: request.enable_avs_check,
         })
     }
 

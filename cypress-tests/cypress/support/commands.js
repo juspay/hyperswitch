@@ -2382,6 +2382,35 @@ Cypress.Commands.add("setFrmRoutingAlgorithm", (body, globalState) => {
   });
 });
 
+Cypress.Commands.add(
+  "setProfileFrmRoutingAlgorithm",
+  (frmRoutingAlgorithm, globalState) => {
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get("profileId");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      body: { frm_routing_algorithm: frmRoutingAlgorithm },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status, "business profile update status").to.equal(200);
+        expect(
+          response.body.frm_routing_algorithm,
+          "profile frm_routing_algorithm"
+        ).to.deep.equal(frmRoutingAlgorithm);
+      });
+    });
+  }
+);
 // Overwrites the FRM connector's account details with an invalid api_key, to
 // force the FRM connector itself to fail (4xx) - used to test
 // fail_open/fail_closed behavior when pre-FRM is unreachable.
@@ -5119,6 +5148,19 @@ Cypress.Commands.add(
                 response.body.payment_account_reference,
                 "payment_account_reference"
               ).to.be.a("string").and.to.not.be.empty;
+            }
+          }
+
+          if (
+            resData.body &&
+            Object.prototype.hasOwnProperty.call(resData.body, "frm_message")
+          ) {
+            if (resData.body.frm_message === null) {
+              expect(response.body.frm_message, "frm_message").to.not.exist;
+            } else {
+              expect(response.body.frm_message?.frm_name, "frm_name").to.equal(
+                resData.body.frm_message.frm_name
+              );
             }
           }
 
