@@ -2,10 +2,12 @@
 
 use actix_web::http::header::HeaderMap;
 use common_enums::connector_enums::Connector;
+use common_utils::errors::ErrorSwitch;
 use error_stack::{report, ResultExt};
 use hyperswitch_interfaces::api::{ConnectorCommon, ConnectorSpecifications};
 use router_env::logger;
 
+use super::ip_verification::validate_source_ip_against_allowed_ip_ranges;
 use crate::{
     configs::settings::IncomingWebhooksSettings,
     core::{
@@ -35,6 +37,15 @@ pub(super) enum NetworkVerification {
 }
 
 impl NetworkVerification {
+    /// A skipped requirement keeps the source unverified even when another check passes.
+    fn combine(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Skipped, _) | (_, Self::Skipped) => Self::Skipped,
+            (Self::Verified, _) | (_, Self::Verified) => Self::Verified,
+            (Self::NotRequired, Self::NotRequired) => Self::NotRequired,
+        }
+    }
+
     /// Use connector source verification only when network verification is not required.
     pub(super) fn resolve_source_verified(self, connector_source_verified: bool) -> bool {
         match self {
@@ -57,7 +68,50 @@ impl<'a> IncomingWebhookVerifier<'a> {
         connector: &ConnectorEnum,
         request_headers: &HeaderMap,
     ) -> RouterResult<NetworkVerification> {
-        self.verify_mtls(state, connector, request_headers).await
+        let mtls_verification = self.verify_mtls(state, connector, request_headers).await?;
+        let ip_verification = self
+            .verify_source_ip(state, connector, request_headers)
+            .await?;
+        Ok(mtls_verification.combine(ip_verification))
+    }
+
+    /// Read the incoming webhooks allowed IP ranges config and validate that the IP is allowed for
+    /// this connector.
+    ///
+    /// A missing policy defaults to an empty object, disabling IP checks for all connectors.
+    /// An invalid configured policy is a configuration error.
+    async fn verify_source_ip(
+        &self,
+        state: &SessionState,
+        connector: &ConnectorEnum,
+        request_headers: &HeaderMap,
+    ) -> RouterResult<NetworkVerification> {
+        let connector_name = connector.id();
+        let policy = dimension_state::Dimensions::new()
+            .get_incoming_webhook_allowed_ip_ranges(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                None,
+            )
+            .await;
+
+        validate_source_ip_against_allowed_ip_ranges(policy, connector_name, request_headers).map_err(|reason| {
+            let error: errors::ApiErrorResponse = reason.switch();
+            let reason: &'static str = reason.into();
+            metrics::WEBHOOK_IP_VERIFICATION_FAILURE_COUNT.add(
+                1,
+                router_env::metric_attributes!(
+                    ("connector", connector_name.to_string()),
+                    ("reason", reason)
+                ),
+            );
+            logger::warn!(
+                connector = %connector_name,
+                reason,
+                "Source verification failed: webhook source IP did not satisfy the configured policy"
+            );
+            report!(error).attach_printable(format!("Webhook source IP verification failed: {reason}"))
+        })
     }
 
     /// Enforce mTLS before processing when enabled in Superposition for the connector.
@@ -154,7 +208,9 @@ mod tests {
     use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
     use external_services::superposition::Config;
 
-    use super::{IncomingWebhookVerifier, NetworkVerification};
+    use super::{
+        validate_source_ip_against_allowed_ip_ranges, IncomingWebhookVerifier, NetworkVerification,
+    };
     use crate::{
         configs::settings::IncomingWebhooksSettings,
         core::{configs::dimension_config::IncomingWebhookMtlsVerificationEnabled, errors},
@@ -206,6 +262,51 @@ mod tests {
     fn connectors_without_network_verification_use_connector_result() {
         assert!(NetworkVerification::NotRequired.resolve_source_verified(true));
         assert!(!NetworkVerification::NotRequired.resolve_source_verified(false));
+    }
+
+    #[test]
+    fn ip_verification_preserves_mtls_requirements_and_establishes_source_verification() {
+        let mut request_headers = HeaderMap::new();
+        request_headers.insert(
+            HeaderName::from_static(crate::headers::TRUE_CLIENT_IP),
+            HeaderValue::from_static("198.51.100.10:46532"),
+        );
+        let ip_verification = validate_source_ip_against_allowed_ip_ranges(
+            serde_json::json!({"envoy": ["198.51.100.10"]}),
+            "envoy",
+            &request_headers,
+        )
+        .unwrap();
+
+        assert!(NetworkVerification::NotRequired
+            .combine(ip_verification)
+            .resolve_source_verified(false));
+        assert!(NetworkVerification::Verified
+            .combine(ip_verification)
+            .resolve_source_verified(false));
+        assert!(!NetworkVerification::Skipped
+            .combine(ip_verification)
+            .resolve_source_verified(true));
+    }
+
+    #[test]
+    fn absent_ip_config_preserves_mtls_and_connector_verification() {
+        let ip_verification = validate_source_ip_against_allowed_ip_ranges(
+            serde_json::json!({}),
+            "envoy",
+            &HeaderMap::new(),
+        )
+        .unwrap();
+
+        assert!(NetworkVerification::Verified
+            .combine(ip_verification)
+            .resolve_source_verified(false));
+        assert!(!NetworkVerification::Skipped
+            .combine(ip_verification)
+            .resolve_source_verified(true));
+        let combined = NetworkVerification::NotRequired.combine(ip_verification);
+        assert!(combined.resolve_source_verified(true));
+        assert!(!combined.resolve_source_verified(false));
     }
 
     #[test]
