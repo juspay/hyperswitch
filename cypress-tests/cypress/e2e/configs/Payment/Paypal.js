@@ -1040,10 +1040,38 @@ export const paypalUcsRolloutConfig = {
 // Device credentials are supplied at execution time, never checked into fixtures.
 // Keep all four rows visible even when device provisioning prevents a live run.
 export const paypalUcsWalletCases = [
-  { id: "apple_pay_psp", env: "PAYPAL_APPLE_PAY_PSP_PAYMENT_METHOD_DATA", expected_status: "succeeded", amount_received: 6000, verification_gap: "SANDBOX_NOT_PROVISIONED without an actual device-minted encrypted token" },
-  { id: "apple_pay_hyperswitch", env: "PAYPAL_APPLE_PAY_DECRYPTED_PAYMENT_METHOD_DATA", expected_status: "succeeded", amount_received: 6000, verification_gap: "OPERATOR_GAP without actual decrypted token and cryptogram" },
-  { id: "google_pay_psp", env: "PAYPAL_GOOGLE_PAY_PSP_PAYMENT_METHOD_DATA", expected_local_refusal: "NotSupported", vendor_schema: "https://developer.paypal.com/api/orders/v2/schema.json", unsupported_reason: "google_pay accepts name,email_address,phone_number,card,decrypted_token,assurance_details,experience_context; no encrypted token field" },
-  { id: "google_pay_hyperswitch", env: "PAYPAL_GOOGLE_PAY_DECRYPTED_PAYMENT_METHOD_DATA", expected_status: "succeeded", amount_received: 6000, verification_gap: "OPERATOR_GAP without actual signed-envelope authentication method and credential" },
+  {
+    id: "apple_pay_psp",
+    env: "PAYPAL_APPLE_PAY_PSP_PAYMENT_METHOD_DATA",
+    expected_status: "succeeded",
+    amount_received: 6000,
+    verification_gap:
+      "SANDBOX_NOT_PROVISIONED without an actual device-minted encrypted token",
+  },
+  {
+    id: "apple_pay_hyperswitch",
+    env: "PAYPAL_APPLE_PAY_DECRYPTED_PAYMENT_METHOD_DATA",
+    expected_status: "succeeded",
+    amount_received: 6000,
+    verification_gap:
+      "OPERATOR_GAP without actual decrypted token and cryptogram",
+  },
+  {
+    id: "google_pay_psp",
+    env: "PAYPAL_GOOGLE_PAY_PSP_PAYMENT_METHOD_DATA",
+    expected_local_refusal: "NotSupported",
+    vendor_schema: "https://developer.paypal.com/api/orders/v2/schema.json",
+    unsupported_reason:
+      "google_pay accepts name,email_address,phone_number,card,decrypted_token,assurance_details,experience_context; no encrypted token field",
+  },
+  {
+    id: "google_pay_hyperswitch",
+    env: "PAYPAL_GOOGLE_PAY_DECRYPTED_PAYMENT_METHOD_DATA",
+    expected_status: "succeeded",
+    amount_received: 6000,
+    verification_gap:
+      "OPERATOR_GAP without actual signed-envelope authentication method and credential",
+  },
 ];
 
 // GSM lifecycle for the E2E runner: POST /gsm/get with each exact key and save the
@@ -1055,13 +1083,25 @@ export const paypalUcsWalletCases = [
 // These documented gateway errors are fixtures, not claims of live observations.
 export const paypalUcsGsmCases = [
   {
-    key: { connector: "paypal", flow: "Authorize", sub_flow: "default", code: "INTERNAL_SERVER_ERROR", message: "An internal server error has occurred." },
+    key: {
+      connector: "paypal",
+      flow: "Authorize",
+      sub_flow: "default",
+      code: "INTERNAL_SERVER_ERROR",
+      message: "An internal server error has occurred.",
+    },
     decision: "retry",
     expected_retry_eligible: true,
     source: "https://developer.paypal.com/api/orders/v2/error-messages",
   },
   {
-    key: { connector: "paypal", flow: "Authorize", sub_flow: "default", code: "CARD_EXPIRED", message: "The card is expired." },
+    key: {
+      connector: "paypal",
+      flow: "Authorize",
+      sub_flow: "default",
+      code: "CARD_EXPIRED",
+      message: "The card is expired.",
+    },
     decision: "do_default",
     expected_retry_eligible: false,
     expected_connector_attempts: 1,
@@ -1078,5 +1118,6 @@ export const paypalUcsProcessorFieldCase = {
   processor_response: { response_code: "0500", payment_advice_code: "03" },
   expected_issuer_error_code: "0500",
   expected_network_advice_code: "03",
-  verification_gap: "OPERATOR_GAP unless an actual gateway response carries these fields",
+  verification_gap:
+    "OPERATOR_GAP unless an actual gateway response carries these fields",
 };
