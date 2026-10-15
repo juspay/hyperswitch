@@ -147,7 +147,7 @@ jobs:
 
       # !cancelled(), not always() — cache-on-failure, but skip on cancel.
       - name: Delete stale sccache cache entry
-        if: ${{ !cancelled() && github.event_name == 'push' }}
+        if: ${{ !cancelled() && github.event_name == 'merge_group' }}
         continue-on-error: true
         shell: bash
         env:
@@ -155,7 +155,7 @@ jobs:
         run: gh cache delete "sccache-local-check-msrv-${{ runner.os }}-${{ runner.arch }}" --repo "${{ github.repository }}"
 
       - name: Save sccache cache
-        if: ${{ !cancelled() && github.event_name == 'push' }}
+        if: ${{ !cancelled() && github.event_name == 'merge_group' }}
         uses: actions/cache/save@v6
         with:
           path: ${{ env.SCCACHE_DIR }}
@@ -246,13 +246,13 @@ jobs:
         shell: bash
         # Capped: uncapped + cold cache OOM'd a runner pod (git log).
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy
 
       - name: Run clippy (fred backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy fred
 
       - name: Show sccache stats
@@ -360,13 +360,13 @@ jobs:
       - name: Run cargo clippy with v2 features enabled (redis-rs backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy_v2
 
       - name: Run cargo clippy with v2 features enabled (fred backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy_v2 fred
 
       - name: Show sccache stats
