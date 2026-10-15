@@ -2065,6 +2065,18 @@ where
 
     // Get the trackers related to track the state of the payment
     let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
+    operation
+        .to_domain()?
+        .get_customer_details(
+            state,
+            &mut payment_data,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Failed while preparing customer details for proxy payment")?;
+
     // consume the req merchant_connector_id and set it in the payment_data
     let connector = operation
         .to_domain()?

@@ -197,8 +197,44 @@ impl From<api_models::payments::CustomerDetails> for CustomerData {
     }
 }
 
+#[cfg(feature = "v2")]
+impl TryFrom<&crate::customer::Customer> for CustomerData {
+    type Error = error_stack::Report<ParsingError>;
+
+    fn try_from(customer: &crate::customer::Customer) -> Result<Self, Self::Error> {
+        Ok(Self {
+            name: customer.name.clone().map(|value| value.into_inner()),
+            email: customer.email.clone().map(Email::from),
+            phone: customer.phone.clone().map(|value| value.into_inner()),
+            phone_country_code: customer.phone_country_code.clone(),
+            tax_registration_id: customer
+                .tax_registration_id
+                .clone()
+                .map(|value| value.into_inner()),
+            customer_document_details: customer
+                .document_details
+                .clone()
+                .map(|value| {
+                    value
+                        .into_inner()
+                        .expose()
+                        .parse_value("CustomerDocumentDetails")
+                })
+                .transpose()?,
+            date_of_birth: None,
+        })
+    }
+}
+
 impl CustomerData {
     pub fn fill_missing_fields(&mut self, other: &Self) {
+        #[cfg(feature = "v2")]
+        {
+            self.customer_document_details = self
+                .customer_document_details
+                .clone()
+                .or_else(|| other.customer_document_details.clone());
+        }
         self.name = self.name.clone().or_else(|| other.name.clone());
         self.email = self.email.clone().or_else(|| other.email.clone());
         self.phone = self.phone.clone().or_else(|| other.phone.clone());
@@ -427,6 +463,11 @@ impl PaymentIntentUpdate {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
+    /// Persist the customer snapshot after filling missing fields from a linked customer.
+    CustomerDetailsUpdate {
+        customer_details: Encryptable<Secret<serde_json::Value>>,
+        updated_by: String,
+    },
     /// PreUpdate tracker of ConfirmIntent
     ConfirmIntent {
         status: common_enums::IntentStatus,
@@ -560,6 +601,56 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
     type Error = error_stack::Report<ParsingError>;
     fn try_from(payment_intent_update: PaymentIntentUpdate) -> Result<Self, Self::Error> {
         match payment_intent_update {
+            PaymentIntentUpdate::CustomerDetailsUpdate {
+                customer_details,
+                updated_by,
+            } => Ok(Self {
+                status: None,
+                active_attempt_id: None,
+                active_attempt_id_type: None,
+                active_attempts_group_id: None,
+                prerouting_algorithm: None,
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                amount_captured: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                customer_details: Some(Encryption::from(customer_details)),
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: None,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
+                state_metadata: None,
+                profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
+            }),
             PaymentIntentUpdate::ConfirmIntent {
                 status,
                 active_attempt_id,
@@ -584,6 +675,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 capture_method: None,
                 authentication_type: None,
                 billing_address: None,
+                customer_details: None,
                 shipping_address: None,
                 customer_present: None,
                 description: None,
@@ -637,6 +729,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 capture_method: None,
                 authentication_type: None,
                 billing_address: None,
+                customer_details: None,
                 shipping_address: None,
                 customer_present: None,
                 description: None,
@@ -688,6 +781,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 capture_method: None,
                 authentication_type: None,
                 billing_address: None,
+                customer_details: None,
                 shipping_address: None,
                 customer_present: None,
                 description: None,
@@ -739,6 +833,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 capture_method: None,
                 authentication_type: None,
                 billing_address: None,
+                customer_details: None,
                 shipping_address: None,
                 customer_present: None,
                 description: None,
@@ -793,6 +888,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 capture_method: None,
                 authentication_type: None,
                 billing_address: None,
+                customer_details: None,
                 shipping_address: None,
                 customer_present: None,
                 description: None,
@@ -885,6 +981,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     capture_method,
                     authentication_type,
                     billing_address: billing_address.map(Encryption::from),
+                    customer_details: None,
                     shipping_address: shipping_address.map(Encryption::from),
                     customer_present: customer_present.map(|val| val.as_bool()),
                     description,
@@ -943,6 +1040,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 capture_method: None,
                 authentication_type: None,
                 billing_address: None,
+                customer_details: None,
                 shipping_address: None,
                 customer_present: None,
                 description: None,
@@ -992,6 +1090,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 capture_method: None,
                 authentication_type: None,
                 billing_address: None,
+                customer_details: None,
                 shipping_address: None,
                 customer_present: None,
                 description: None,
@@ -1043,6 +1142,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 capture_method: None,
                 authentication_type: None,
                 billing_address: None,
+                customer_details: None,
                 shipping_address: None,
                 customer_present: None,
                 description: None,
@@ -1090,6 +1190,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 capture_method: None,
                 authentication_type: None,
                 billing_address: None,
+                customer_details: None,
                 shipping_address: None,
                 customer_present: None,
                 description: None,

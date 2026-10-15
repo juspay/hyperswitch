@@ -433,17 +433,14 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedConfirmOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
-        match payment_data.payment_intent.customer_id.clone() {
-            Some(id) => {
-                let customer = state
-                    .store
-                    .find_customer_by_global_id(&id, merchant_key_store, storage_scheme)
-                    .await?;
-
-                Ok((Box::new(self), Some(customer)))
-            }
-            None => Ok((Box::new(self), None)),
-        }
+        let customer = helpers::populate_customer_details_from_customer(
+            state,
+            &mut payment_data.payment_intent,
+            merchant_key_store,
+            storage_scheme,
+        )
+        .await?;
+        Ok((Box::new(self), customer))
     }
 
     #[instrument(skip_all)]
