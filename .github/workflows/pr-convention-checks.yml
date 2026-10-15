@@ -1,12 +1,13 @@
 name: Pull Request Convention Checks
 
 on:
-  # TEMPORARY: swapped to pull_request (from pull_request_target) to verify
-  # the hypersage-runners migration on this branch — pull_request_target
-  # always resolves the workflow file from the base branch, so it can't see
-  # this branch's runner change until merged. Revert to pull_request_target
-  # before merging.
-  pull_request:
+  # This is a dangerous event trigger as it causes the workflow to run in the
+  # context of the target repository.
+  # Avoid checking out the head of the pull request or building code from the
+  # pull request whenever this trigger is used.
+  # Since we do not have a checkout step in this workflow, this is an
+  # acceptable use of this trigger.
+  pull_request_target:
     types:
       - opened
       - edited
