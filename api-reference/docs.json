@@ -857,7 +857,7 @@
     "primary": {
       "type": "button",
       "label": "Self-Deploy",
-      "href": "https://docs.hyperswitch.io/hyperswitch-open-source/overview"
+      "href": "https://docs.hyperswitch.io/self-hosting"
     }
   },
   "footer": {
