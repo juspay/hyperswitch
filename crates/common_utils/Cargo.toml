@@ -32,7 +32,7 @@ base64-serde = "0.8.0"
 blake3 = { version = "1.8.2", features = ["serde"] }
 bytes = { version = "1.10.1", features = ["serde"] }
 diesel = "2.3.12"
-deja = { git = "https://github.com/juspay/deja", rev = "b57c944afca0fac27949a8bdadae424606879ed2", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "6ace82f8d37c7c5703f9636a608dd8d85a8f6953", optional = true, default-features = false }
 error-stack = "0.4.1"
 futures = { version = "0.3.31", optional = true }
 globset = "0.4.16"
