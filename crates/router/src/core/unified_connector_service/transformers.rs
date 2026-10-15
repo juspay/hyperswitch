@@ -72,6 +72,34 @@ use crate::{
 const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
+const ELAVON_PG_CONNECTOR_ID: &str = "elavon_pg";
+const ELAVON_PG_PAYMENT_SESSIONS_SEGMENT: &str = "/payment-sessions/";
+
+fn build_elavon_pg_payment_session_payment_method(
+    connector: &str,
+    payment_session_reference: Option<&str>,
+) -> Option<payments_grpc::PaymentMethod> {
+    if connector != ELAVON_PG_CONNECTOR_ID {
+        return None;
+    }
+
+    payment_session_reference
+        .filter(|reference| {
+            (reference.starts_with("https://") || reference.starts_with("http://"))
+                && reference.contains(ELAVON_PG_PAYMENT_SESSIONS_SEGMENT)
+        })
+        .map(|payment_session| payments_grpc::PaymentMethod {
+            // UCS requires a payment method for every Authorize request. Elavon PG ignores
+            // this token on the hosted-page settle path and uses the same session href from
+            // `authentication_data` to build `{ "paymentSession": ... }`.
+            payment_method: Some(payments_grpc::payment_method::PaymentMethod::Token(
+                payments_grpc::TokenPaymentMethodType {
+                    token: Some(Secret::new(payment_session.to_string())),
+                    token_payment_method_type: None,
+                },
+            )),
+        })
+}
 
 impl ForeignFrom<&api_models::payments::ConnectorMetadata>
     for payments_grpc::AdditionalConnectorDetails
@@ -881,6 +909,53 @@ impl
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builds_token_payment_method_for_elavon_pg_payment_session() {
+        let payment_session_href =
+            "https://uat.api.converge.eu.elavonaws.com/payment-sessions/session_123";
+
+        let payment_method = build_elavon_pg_payment_session_payment_method(
+            ELAVON_PG_CONNECTOR_ID,
+            Some(payment_session_href),
+        )
+        .expect("Elavon PG payment session should produce a payment method");
+
+        match payment_method.payment_method {
+            Some(payments_grpc::payment_method::PaymentMethod::Token(token)) => {
+                assert_eq!(
+                    token.token.expect("token should be present").expose(),
+                    payment_session_href
+                );
+                assert_eq!(token.token_payment_method_type, None);
+            }
+            payment_method => panic!("expected token payment method, got {payment_method:?}"),
+        }
+    }
+
+    #[test]
+    fn does_not_build_payment_method_for_non_session_references() {
+        let session_href = "https://uat.api.converge.eu.elavonaws.com/payment-sessions/session_123";
+
+        assert!(
+            build_elavon_pg_payment_session_payment_method("stripe", Some(session_href)).is_none()
+        );
+        assert!(build_elavon_pg_payment_session_payment_method(
+            ELAVON_PG_CONNECTOR_ID,
+            Some("c6b4a755-5d4c-4b67-92bb-a340ec8fc61e"),
+        )
+        .is_none());
+        assert!(build_elavon_pg_payment_session_payment_method(
+            ELAVON_PG_CONNECTOR_ID,
+            Some("/payment-sessions/session_123"),
+        )
+        .is_none());
+    }
+}
+
 impl
     transformers::ForeignTryFrom<(
         &RouterData<
@@ -912,6 +987,22 @@ impl
             )
         });
 
+        // Prefer authentication data loaded from the authentication record, then fall back to
+        // connector metadata persisted by the redirect-producing Authorize flow.
+        let authentication_data = router_data.request.authentication_data.clone().or_else(|| {
+            router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .and_then(|metadata| metadata.get("authentication_data"))
+                .and_then(|value| {
+                    serde_json::from_value::<router_request_types::UcsAuthenticationData>(
+                        value.clone(),
+                    )
+                    .ok()
+                })
+        });
+
         let payment_method = payment_method_data
             .map(|payment_method_data| {
                 unified_connector_service::build_unified_connector_service_payment_method(
@@ -940,6 +1031,14 @@ impl
                             },
                         )),
                     })
+            })
+            .or_else(|| {
+                build_elavon_pg_payment_session_payment_method(
+                    router_data.connector.as_str(),
+                    authentication_data
+                        .as_ref()
+                        .and_then(|data| data.threeds_server_transaction_id.as_deref()),
+                )
             });
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
@@ -959,32 +1058,9 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-        // First try to get authentication_data from the request
-        let authentication_data = router_data
-            .request
-            .authentication_data
-            .clone()
+        let authentication_data = authentication_data
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
-
-        // If not in request, try to extract from connector_meta (stored during Authorize flow)
-        let authentication_data = if authentication_data.is_none() {
-            router_data
-                .request
-                .connector_meta
-                .as_ref()
-                .and_then(|metadata| metadata.get("authentication_data"))
-                .and_then(|value| {
-                    serde_json::from_value::<router_request_types::UcsAuthenticationData>(
-                        value.clone(),
-                    )
-                    .ok()
-                })
-                .map(payments_grpc::AuthenticationData::foreign_try_from)
-                .transpose()?
-        } else {
-            authentication_data
-        };
 
         let metadata = router_data
             .request

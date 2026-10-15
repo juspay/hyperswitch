@@ -51,6 +51,28 @@ use crate::{
     utils::OptionExt,
 };
 
+const UCS_AUTHENTICATION_DATA_METADATA_KEY: &str = "authentication_data";
+
+fn persist_ucs_authentication_data_in_connector_metadata(
+    connector_metadata: &mut Option<serde_json::Value>,
+    authentication_data: &router_request_types::UcsAuthenticationData,
+) -> RouterResult<()> {
+    let authentication_data = serde_json::to_value(authentication_data)
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize UCS authentication data")?;
+    let metadata = connector_metadata
+        .get_or_insert_with(|| serde_json::Value::Object(Default::default()))
+        .as_object_mut()
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("Connector metadata is not a JSON object")?;
+
+    metadata.insert(
+        UCS_AUTHENTICATION_DATA_METADATA_KEY.to_string(),
+        authentication_data,
+    );
+    Ok(())
+}
+
 #[cfg(feature = "v2")]
 #[async_trait]
 impl
@@ -532,9 +554,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .await?;
 
             // Convert back to CompleteAuthorize router data while preserving pre authentication response data
-            let pre_authenticate_response = pre_authenticate_router_data.response.clone();
+            let mut pre_authenticate_response = pre_authenticate_router_data.response.clone();
 
-            authorize_request_data.ucs_authentication_data =
+            let pre_authentication_data =
                 if let Ok(types::PaymentsResponseData::TransactionResponse {
                     ref authentication_data,
                     ..
@@ -544,6 +566,28 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 } else {
                     None
                 };
+            authorize_request_data.ucs_authentication_data = pre_authentication_data.clone();
+
+            // Elavon PG stops this flow after PreAuthenticate so the shopper can complete its
+            // hosted payment page. Persist the payment-session href returned in
+            // `authentication_data`; CompleteAuthorize is a separate request and otherwise has
+            // no way to build the session-only `POST /transactions` settle call.
+            if connector.connector_name == api_models::enums::Connector::ElavonPg {
+                if let (
+                    Some(authentication_data),
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        connector_metadata, ..
+                    }),
+                ) = (
+                    pre_authentication_data.as_ref(),
+                    &mut pre_authenticate_response,
+                ) {
+                    persist_ucs_authentication_data_in_connector_metadata(
+                        connector_metadata,
+                        authentication_data,
+                    )?;
+                }
+            }
 
             let mut authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
@@ -1883,4 +1927,71 @@ pub async fn call_unified_connector_service_pre_authenticate_proxy(
         .change_context(interface_errors::ConnectorError::ResponseHandlingFailed)?;
 
     Ok(updated_router_data)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn elavon_pg_authentication_data(
+        payment_session_href: &str,
+    ) -> router_request_types::UcsAuthenticationData {
+        router_request_types::UcsAuthenticationData {
+            eci: None,
+            cavv: None,
+            threeds_server_transaction_id: Some(payment_session_href.to_string()),
+            message_version: None,
+            ds_trans_id: None,
+            acs_trans_id: None,
+            trans_status: None,
+            transaction_id: None,
+            ucaf_collection_indicator: None,
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+        }
+    }
+
+    #[test]
+    fn persists_elavon_pg_ucs_authentication_data_without_discarding_connector_metadata() {
+        let payment_session_href =
+            "https://uat.api.converge.eu.elavonaws.com/payment-sessions/session_123";
+        let authentication_data = elavon_pg_authentication_data(payment_session_href);
+        let mut connector_metadata = Some(serde_json::json!({"existing": "value"}));
+
+        persist_ucs_authentication_data_in_connector_metadata(
+            &mut connector_metadata,
+            &authentication_data,
+        )
+        .expect("authentication data should be persisted");
+
+        let connector_metadata = connector_metadata.expect("connector metadata should exist");
+        assert_eq!(
+            connector_metadata
+                .pointer("/authentication_data/threeds_server_transaction_id")
+                .and_then(serde_json::Value::as_str),
+            Some(payment_session_href)
+        );
+        assert_eq!(
+            connector_metadata
+                .get("existing")
+                .and_then(serde_json::Value::as_str),
+            Some("value")
+        );
+    }
+
+    #[test]
+    fn rejects_non_object_elavon_pg_connector_metadata() {
+        let authentication_data = elavon_pg_authentication_data(
+            "https://uat.api.converge.eu.elavonaws.com/payment-sessions/session_123",
+        );
+        let mut connector_metadata = Some(serde_json::json!("unexpected"));
+
+        assert!(persist_ucs_authentication_data_in_connector_metadata(
+            &mut connector_metadata,
+            &authentication_data,
+        )
+        .is_err());
+    }
 }
