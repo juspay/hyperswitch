@@ -7656,6 +7656,7 @@ where
             rollout_scope: rollout_result.rollout_scope.clone(),
             execution_mode,
         };
+
         let call_connector_service_response = call_connector_service(
             &updated_state,
             req_state,
@@ -7893,14 +7894,17 @@ where
     };
 
     let (connector_request, should_continue_further) = if should_continue_further {
-        // Check if the actual flow specific request can be built with available data
-        router_data
-            .build_flow_specific_connector_request(
-                &updated_state,
-                &connector,
-                call_connector_action.clone(),
-            )
-            .await?
+        if gateway_context.execution_path.is_direct_gateway() {
+            router_data
+                .build_flow_specific_connector_request(
+                    &updated_state,
+                    &connector,
+                    call_connector_action.clone(),
+                )
+                .await?
+        } else {
+            (None, should_continue_further)
+        }
     } else {
         (None, false)
     };
@@ -8004,14 +8008,6 @@ where
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
-    let profile_id = payment_data.get_payment_intent().profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.get_processor().clone(),
-        merchant_connector_account.clone(),
-        payment_data.get_payment_intent().merchant_id.clone(),
-        profile_id,
-        payment_data.get_creds_identifier().map(|id| id.to_string()),
-    );
     operation
         .to_domain()?
         .populate_payment_data(
@@ -8035,13 +8031,41 @@ where
         )
         .await?;
 
+    // Every recovery attempt is routed from the rollout config alone; the gateway is not sticky
+    // across attempts, so there is no previous gateway to consider.
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
+        state,
+        platform.get_processor(),
+        &router_data,
+        None,
+        call_connector_action.clone(),
+        None,
+        common_enums::TransactionType::Payment,
+    )
+    .await?;
+
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    let gateway_context = gateway_context::RouterGatewayContext::from_rollout(
+        platform.get_processor().clone(),
+        header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account.clone(),
+        payment_data.get_creds_identifier().map(|id| id.to_string()),
+        execution_path,
+        rollout_result,
+    );
+
     let add_access_token_result = router_data
         .add_access_token(
-            state,
+            &updated_state,
             &connector,
             platform.get_processor(),
             payment_data.get_creds_identifier(),
-            &default_gateway_context,
+            &gateway_context,
         )
         .await?;
 
@@ -8052,13 +8076,21 @@ where
     );
 
     router_data
-        .add_session_token(state, &connector, &default_gateway_context)
+        .add_session_token(&updated_state, &connector, &gateway_context)
         .await?;
 
     let (connector_request, should_continue_further) = if should_continue_further {
-        router_data
-            .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
-            .await?
+        if gateway_context.execution_path.is_direct_gateway() {
+            router_data
+                .build_flow_specific_connector_request(
+                    &updated_state,
+                    &connector,
+                    call_connector_action.clone(),
+                )
+                .await?
+        } else {
+            (None, should_continue_further)
+        }
     } else {
         (None, false)
     };
@@ -8066,7 +8098,7 @@ where
     (_, *payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
-            state,
+            &updated_state,
             req_state,
             platform.get_processor(),
             payment_data.clone(),
@@ -8079,14 +8111,14 @@ where
     let router_data = if should_continue_further {
         router_data
             .decide_flows(
-                state,
+                &updated_state,
                 &connector,
                 call_connector_action,
                 connector_request,
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
-                default_gateway_context,
+                gateway_context,
             )
             .await
     } else {
