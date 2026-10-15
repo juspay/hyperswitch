@@ -9572,9 +9572,8 @@ pub async fn override_setup_future_usage_to_off_session<F, D>(
         .unwrap_or_else(|_| ShouldOverrideSetupFutureUsageToOffSession::default_value())
         {
             logger::debug!("Override setup_future_usage_applied to off_session based on Superposition configuration");
-            payment_data.set_setup_future_usage_applied_in_payment_attempt(
-                enums::FutureUsage::OffSession,
-            );
+            payment_data
+                .set_setup_future_usage_applied_in_payment_attempt(enums::FutureUsage::OffSession);
         }
     }
 }

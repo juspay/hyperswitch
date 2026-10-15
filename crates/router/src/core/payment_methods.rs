@@ -8345,9 +8345,9 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
 
     fn validate(&self) -> RouterResult<()> {
         let payment_method = &self.payment_method;
-        let is_paypal_payment_method =
-            payment_method.payment_method_type == Some(enums::PaymentMethod::Wallet)
-                && payment_method.payment_method_subtype == Some(enums::PaymentMethodType::Paypal);
+        let is_paypal_payment_method = payment_method.payment_method_type
+            == Some(enums::PaymentMethod::Wallet)
+            && payment_method.payment_method_subtype == Some(enums::PaymentMethodType::Paypal);
         if matches!(
             self.request.payment_method_data,
             Some(payment_methods::PaymentMethodUpdateData::Wallet(
