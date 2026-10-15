@@ -4866,7 +4866,7 @@
         ]
       }
     },
-    "/v2/payments/recovery": {
+    "/v2/recovery": {
       "post": {
         "tags": [
           "Revenue Recovery"
@@ -7472,16 +7472,16 @@
             "$ref": "#/components/schemas/SepaBankTransferAdditionalData"
           },
           {
-            "$ref": "#/components/schemas/PixBankTransferAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/OpenBankingAdditionalData"
-          },
-          {
             "$ref": "#/components/schemas/PayshapBankTransferAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PayshapProxyBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/OpenBankingAdditionalData"
           },
           {
             "$ref": "#/components/schemas/TedBankTransferAdditionalData"
@@ -20253,6 +20253,33 @@
           "PATCH"
         ]
       },
+      "Mifinity": {
+        "type": "object",
+        "required": [
+          "destination_account"
+        ],
+        "properties": {
+          "destination_account": {
+            "type": "string",
+            "description": "The recipient's MiFinity wallet identifier. This can be an email address\nor a MiFinity account number.",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
+      "MifinityAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for a MiFinity wallet payout.",
+        "required": [
+          "destination_account"
+        ],
+        "properties": {
+          "destination_account": {
+            "type": "string",
+            "description": "Recipient email address or MiFinity account number.",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
       "MifinityData": {
         "type": "object",
         "required": [
@@ -20476,6 +20503,81 @@
           "par": {
             "type": "string",
             "description": "The Payment Account Reference (PAR) for this card.",
+            "nullable": true
+          }
+        }
+      },
+      "NetworkTokenDetails": {
+        "type": "object",
+        "description": "Network token details for an MIT: no network transaction ID, and no cryptogram.",
+        "required": [
+          "network_token",
+          "token_exp_month",
+          "token_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "network_token": {
+            "type": "string",
+            "description": "The Network Token",
+            "example": "4604000460040787"
+          },
+          "token_exp_month": {
+            "type": "string",
+            "description": "The token's expiry month",
+            "example": "05"
+          },
+          "token_exp_year": {
+            "type": "string",
+            "description": "The token's expiry year",
+            "example": "24"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the card such as Credit, Debit",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "The country in which the card was issued",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code of the bank that issued the card",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
             "nullable": true
           }
         }
@@ -20747,6 +20849,32 @@
             "type": "string",
             "description": "The customer ID associated with the payment method",
             "example": "0a_cus_0195dc62bb8e7312a44484536da76aef"
+          }
+        }
+      },
+      "NetworkTokenWithVaultCardFallback": {
+        "type": "object",
+        "description": "Network token details for an MIT, with a vault card to fall back to on a clear-PAN eligible\ndecline. Both arms share one `network_transaction_id`.",
+        "required": [
+          "network_token",
+          "network_transaction_id",
+          "vault_card_data"
+        ],
+        "properties": {
+          "network_token": {
+            "$ref": "#/components/schemas/NetworkTokenDetails"
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated\nTransaction (CIT) when `setup_future_usage` is set to `off_session`. Shared by both arms."
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a\nCIT (Customer Initiated Transaction), when `setup_future_usage` is set to `off_session`.",
+            "nullable": true
+          },
+          "vault_card_data": {
+            "$ref": "#/components/schemas/VaultCardData"
           }
         }
       },
@@ -25698,6 +25826,13 @@
             "description": "The webhook endpoint URL to receive payment status notifications",
             "example": "https://merchant.example.com/webhooks/payment",
             "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -25922,6 +26057,13 @@
                 "$ref": "#/components/schemas/RecipientDetails"
               }
             ],
+            "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.",
+            "default": false,
+            "example": true,
             "nullable": true
           }
         },
@@ -26305,6 +26447,12 @@
                 "$ref": "#/components/schemas/MaskedRecipientDetails"
               }
             ],
+            "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Whether address verification was requested for this payment.",
+            "example": true,
             "nullable": true
           }
         },
@@ -26800,6 +26948,13 @@
               }
             ],
             "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -27023,6 +27178,12 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Whether address verification was requested for this payment.",
+            "example": true,
             "nullable": true
           }
         }
@@ -27308,6 +27469,13 @@
               }
             ],
             "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -27424,6 +27592,7 @@
           "gigadat",
           "gotyme_sanlam",
           "loonio",
+          "mifinity",
           "nomupay",
           "nuvei",
           "payone",
@@ -28798,7 +28967,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PayshapProxyBankTransfer": {
         "type": "object",
@@ -28833,7 +29003,8 @@
             "example": "**** 3123",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PazeSessionTokenResponse": {
         "type": "object",
@@ -31385,6 +31556,24 @@
               },
               "data": {
                 "$ref": "#/components/schemas/CardWithLimitedData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "network_token_with_vault_card_fallback"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/NetworkTokenWithVaultCardFallback"
               }
             }
           }
@@ -36094,6 +36283,17 @@
           {
             "type": "object",
             "required": [
+              "mifinity"
+            ],
+            "properties": {
+              "mifinity": {
+                "$ref": "#/components/schemas/Mifinity"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "paypal"
             ],
             "properties": {
@@ -36122,6 +36322,9 @@
           },
           {
             "$ref": "#/components/schemas/GooglePayDecryptAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/MifinityAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PaypalAdditionalData"

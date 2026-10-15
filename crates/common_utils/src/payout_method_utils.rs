@@ -7,7 +7,7 @@ use utoipa::ToSchema;
 
 use crate::new_type::{
     MaskedBankAccount, MaskedBic, MaskedEmail, MaskedIban, MaskedPhoneNumber, MaskedPspToken,
-    MaskedRoutingNumber, MaskedSortCode,
+    MaskedRoutingNumber, MaskedSortCode, MaskedValue,
 };
 
 /// Masked payout method details for storing in db
@@ -89,14 +89,14 @@ pub enum BankAdditionalData {
     Trustly(Box<TrustlyBankTransferAdditionalData>),
     /// Additional data for sepa bank transfer payout method
     Sepa(Box<SepaBankTransferAdditionalData>),
-    /// Additional data for pix bank transfer payout method
-    Pix(Box<PixBankTransferAdditionalData>),
-    /// Additional data for open banking payout method
-    OpenBanking(Box<OpenBankingAdditionalData>),
     /// Additional data for PayShap bank transfer payout method
     Payshap(Box<PayshapBankTransferAdditionalData>),
     /// Additional data for PayShap proxy bank transfer payout method
     PayshapProxy(Box<PayshapProxyBankTransferAdditionalData>),
+    /// Additional data for pix bank transfer payout method
+    Pix(Box<PixBankTransferAdditionalData>),
+    /// Additional data for open banking payout method
+    OpenBanking(Box<OpenBankingAdditionalData>),
     /// Additional data for TED bank transfer payout method
     Ted(Box<TedBankTransferAdditionalData>),
 }
@@ -248,6 +248,7 @@ pub struct PixBankTransferAdditionalData {
     Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
+#[serde(deny_unknown_fields)]
 pub struct PayshapBankTransferAdditionalData {
     /// Bank account number is a unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "**** 67890")]
@@ -267,6 +268,7 @@ pub struct PayshapBankTransferAdditionalData {
     Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
+#[serde(deny_unknown_fields)]
 pub struct PayshapProxyBankTransferAdditionalData {
     /// Cellphone proxy.
     #[schema(value_type = Option<String>, example = "******* 4567")]
@@ -343,10 +345,23 @@ pub enum WalletAdditionalData {
     ApplePayDecrypt(Box<ApplePayDecryptAdditionalData>),
     /// Additional data for Google pay decrypt wallet payout method
     GooglePayDecrypt(Box<GooglePayDecryptAdditionalData>),
+    /// Additional data for MiFinity wallet payout method
+    Mifinity(Box<MifinityAdditionalData>),
     /// Additional data for paypal wallet payout method
     Paypal(Box<PaypalAdditionalData>),
     /// Additional data for venmo wallet payout method
     Venmo(Box<VenmoAdditionalData>),
+}
+
+/// Masked payout method details for a MiFinity wallet payout.
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct MifinityAdditionalData {
+    /// Recipient email address or MiFinity account number.
+    #[schema(value_type = String, example = "john.doe@example.com")]
+    pub destination_account: MaskedValue,
 }
 
 /// Masked payout method details for paypal wallet payout method
@@ -513,6 +528,7 @@ impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
                 WalletAdditionalData::Paypal(_) => Self::Paypal,
                 WalletAdditionalData::Venmo(_) => Self::Venmo,
                 WalletAdditionalData::GooglePayDecrypt(_) => Self::GooglePay,
+                WalletAdditionalData::Mifinity(_) => Self::Mifinity,
             },
             AdditionalPayoutMethodData::BankRedirect(bank_redirect) => match **bank_redirect {
                 BankRedirectAdditionalData::Interac(_) => Self::Interac,
@@ -520,5 +536,49 @@ impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
             },
             AdditionalPayoutMethodData::Passthrough(passthrough) => passthrough.token_type,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{AdditionalPayoutMethodData, BankAdditionalData};
+
+    #[test]
+    fn stored_payshap_data_deserialize_as_payshap() {
+        let payshap = serde_json::from_value::<AdditionalPayoutMethodData>(json!({
+            "Bank": {"bank_account_number": "****67890"}
+        }));
+        assert!(matches!(
+            payshap,
+            Ok(AdditionalPayoutMethodData::Bank(bank)) if matches!(*bank, BankAdditionalData::Payshap(_))
+        ));
+    }
+
+    #[test]
+    fn stored_payshap_with_all_fields_deserializes_as_payshap() {
+        let payshap = serde_json::from_value::<AdditionalPayoutMethodData>(json!({
+            "Bank": {
+                "bank_account_number": "****67890",
+                "account_holder_name": "Test Holder",
+                "bank_name": "nedbank"
+            }
+        }));
+        assert!(matches!(
+            payshap,
+            Ok(AdditionalPayoutMethodData::Bank(bank)) if matches!(*bank, BankAdditionalData::Payshap(_))
+        ));
+    }
+
+    #[test]
+    fn stored_payshap_proxy_with_shap_id_deserializes_as_payshap_proxy() {
+        let payshap_proxy = serde_json::from_value::<AdditionalPayoutMethodData>(json!({
+            "Bank": {"shap_id": "****3123"}
+        }));
+        assert!(matches!(
+            payshap_proxy,
+            Ok(AdditionalPayoutMethodData::Bank(bank)) if matches!(*bank, BankAdditionalData::PayshapProxy(_))
+        ));
     }
 }
