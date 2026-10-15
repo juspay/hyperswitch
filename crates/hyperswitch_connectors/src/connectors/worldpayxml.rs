@@ -1388,8 +1388,8 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         >,
         _connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        // Source verification for Worldpay XML is MTLS which is handled at the transport layer. The router rejects webhooks that were
-        // not received over a verified mTLS endpoint when Worldpay XML is listed in `webhooks.mtls_required_connectors`
+        // Source verification uses mTLS. When enabled in Superposition, the router
+        // enforces mTLS before processing the webhook.
         Ok(true)
     }
 
@@ -1574,6 +1574,10 @@ static WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS: &[common_enums::EventClass] = &[
 ];
 
 impl ConnectorSpecifications for Worldpayxml {
+    fn is_webhook_mtls_required(&self) -> bool {
+        true
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&WORLDPAYXML_CONNECTOR_INFO)
     }

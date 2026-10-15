@@ -331,7 +331,6 @@ max_age = 365
 [webhooks]
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180             # 3 * 60 seconds
-mtls_required_connectors = "santander, worldpayxml" # List of connectors whose incoming webhooks must be received on the mTLS endpoints
 
 [merchant_id_auth]
 merchant_id_auth_enabled = false

@@ -522,6 +522,11 @@ pub trait ConnectorSpecifications {
         None
     }
 
+    /// Whether incoming webhooks must be received over a verified mTLS connection.
+    fn is_webhook_mtls_required(&self) -> bool {
+        false
+    }
+
     /// About the connector
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         None

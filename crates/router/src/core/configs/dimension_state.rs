@@ -648,6 +648,17 @@ pub type DimensionsGlobal = Dimensions<
     NoPaymentMethodType,
 >;
 
+pub type DimensionsWithConnector = Dimensions<
+    NoProviderMerchantId,
+    NoProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    HasConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+    NoPaymentMethodType,
+>;
+
 pub type DimensionsWithProviderMerchantId = Dimensions<
     HasProviderMerchantId,
     NoProcessorMerchantId,
