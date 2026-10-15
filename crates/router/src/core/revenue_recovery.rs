@@ -2000,12 +2000,12 @@ pub fn map_recovery_status(
         }
 
         // For all other intent statuses, return the mapped recovery status
-        IntentStatus::Succeeded => RecoveryStatus::Recovered,
+        IntentStatus::Succeeded => RecoveryStatus::Succeeded,
         IntentStatus::Processing | IntentStatus::PartiallyCapturedAndProcessing => {
             RecoveryStatus::Processing
         }
-        IntentStatus::Cancelled
-        | IntentStatus::CancelledPostCapture
+        IntentStatus::Cancelled => RecoveryStatus::Cancelled,
+        IntentStatus::CancelledPostCapture
         | IntentStatus::Conflicted
         | IntentStatus::Expired
         | IntentStatus::Review => RecoveryStatus::Terminated,
@@ -2063,12 +2063,12 @@ fn can_map_to_recovery_status(
                 | RecoveryStatus::Terminated
                 | RecoveryStatus::PartiallyRecovered
         ),
-        IntentStatus::Succeeded => recovery_status == RecoveryStatus::Recovered,
+        IntentStatus::Succeeded => recovery_status == RecoveryStatus::Succeeded,
         IntentStatus::Processing | IntentStatus::PartiallyCapturedAndProcessing => {
             recovery_status == RecoveryStatus::Processing
         }
-        IntentStatus::Cancelled
-        | IntentStatus::CancelledPostCapture
+        IntentStatus::Cancelled => recovery_status == RecoveryStatus::Cancelled,
+        IntentStatus::CancelledPostCapture
         | IntentStatus::Conflicted
         | IntentStatus::Expired
         | IntentStatus::Review => recovery_status == RecoveryStatus::Terminated,
@@ -2135,5 +2135,44 @@ pub fn map_to_recovery_payment_item(
             .and_then(|p| p.cancellation_reason.clone()),
         modified_at: payment_attempt.as_ref().map(|p| p.modified_at),
         last_attempt_at: payment_attempt.as_ref().map(|p| p.created_at),
+    }
+}
+
+#[cfg(test)]
+mod recovery_status_filter_tests {
+    use strum::IntoEnumIterator;
+
+    use super::*;
+
+    /// The candidate intent status mapping used to narrow the list query must agree with
+    /// `map_recovery_status` for every intent status, with and without workflow entries.
+    #[test]
+    fn candidate_mapping_agrees_with_map_recovery_status() {
+        for intent_status in IntentStatus::iter() {
+            for attempt_count in [0, 5] {
+                let derived = map_recovery_status(intent_status, None, None, attempt_count, 3);
+                assert!(
+                    can_map_to_recovery_status(intent_status, derived),
+                    "{intent_status:?} derived {derived:?} but is not a candidate for it"
+                );
+                assert!(
+                    candidate_intent_statuses_for_recovery_status(&[derived], None)
+                        .contains(&intent_status)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn every_recovery_status_except_recovered_has_a_candidate_intent_status() {
+        for recovery_status in RecoveryStatus::iter() {
+            let candidates =
+                candidate_intent_statuses_for_recovery_status(&[recovery_status], None);
+            if recovery_status == RecoveryStatus::Recovered {
+                assert!(candidates.is_empty());
+            } else {
+                assert!(!candidates.is_empty(), "{recovery_status:?}");
+            }
+        }
     }
 }

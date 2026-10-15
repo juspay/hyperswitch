@@ -2303,6 +2303,10 @@ pub enum RecoveryStatus {
     /// The payment is pending action from the customer, merchant, or requires additional information.
     /// This status is shown for payments that require customer action, merchant action, payment method, confirmation, or capture.
     Pending,
+    /// The payment has succeeded (for example outside of the recovery retries).
+    Succeeded,
+    /// The payment has been cancelled.
+    Cancelled,
 }
 
 /// Specifies how the payment method can be used for future payments.
