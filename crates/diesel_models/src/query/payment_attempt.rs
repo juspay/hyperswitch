@@ -477,8 +477,7 @@ impl PaymentAttempt {
         let start_time = std::time::Instant::now();
         router_env::logger::debug!("Executing count query start_time: {:?}", start_time);
         let result = db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             db_metrics::DatabaseOperation::Filter,
             filter.get_result_async::<i64>(conn.raw_connection()),
         )
@@ -542,8 +541,7 @@ impl PaymentAttempt {
         let start_time = std::time::Instant::now();
         router_env::logger::debug!("Executing count query start_time: {:?}", start_time);
         let result = db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             db_metrics::DatabaseOperation::Filter,
             filter.get_result_async::<i64>(conn.raw_connection()),
         )

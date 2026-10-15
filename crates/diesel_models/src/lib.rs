@@ -7,6 +7,7 @@ pub mod capture;
 pub mod card_issuer;
 pub mod cards_info;
 pub mod configs;
+pub mod connection_lease;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_retry_stats;
 
@@ -68,7 +69,13 @@ pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
 
-use std::sync::Arc;
+use std::{
+    sync::{
+        atomic::{self, AtomicU64},
+        Arc,
+    },
+    time::Duration,
+};
 
 use common_utils::external_service::ExternalServiceEventEmitter;
 use diesel_impl::{DieselArray, OptionalDieselArray};
@@ -101,6 +108,15 @@ pub struct DatabaseConnectionWithContext<'pool> {
     connection: bb8::PooledConnection<'pool, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     request_id: Option<String>,
     event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+    /// Which pool this lease came from, for `DATABASE_CONNECTION_LEASE_TIME_MS`.
+    lease_target: connection_lease::LeaseTarget,
+    /// How long leasing this connection took, in nanoseconds, until taken by the first
+    /// tracked query or by [`Drop`]. Zero means already taken — `new` floors the real
+    /// value at 1.
+    ///
+    /// Atomic rather than `Cell`: queries hold `&DatabaseConnectionWithContext` across
+    /// awaits in `Send` futures, which requires `Sync`.
+    lease_time_nanos: AtomicU64,
 }
 
 impl<'pool> DatabaseConnectionWithContext<'pool> {
@@ -111,11 +127,20 @@ impl<'pool> DatabaseConnectionWithContext<'pool> {
         >,
         request_id: Option<String>,
         event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+        lease_target: connection_lease::LeaseTarget,
+        lease_time: Duration,
     ) -> Self {
         Self {
             connection,
             request_id,
             event_emitter,
+            lease_target,
+            // Floored at 1ns so zero stays free as the "already recorded" marker.
+            lease_time_nanos: AtomicU64::new(
+                u64::try_from(lease_time.as_nanos())
+                    .unwrap_or(u64::MAX)
+                    .max(1),
+            ),
         }
     }
 
@@ -129,6 +154,32 @@ impl<'pool> DatabaseConnectionWithContext<'pool> {
 
     pub fn event_emitter(&self) -> &dyn ExternalServiceEventEmitter {
         self.event_emitter.as_ref()
+    }
+
+    pub fn lease_target(&self) -> connection_lease::LeaseTarget {
+        self.lease_target
+    }
+
+    /// Takes the lease duration — once. Later callers get `None`, so a lease serving
+    /// several queries isn't counted more than once.
+    pub fn take_lease_time(&self) -> Option<Duration> {
+        let nanos = self.lease_time_nanos.swap(0, atomic::Ordering::Relaxed);
+        (nanos != 0).then(|| Duration::from_nanos(nanos))
+    }
+}
+
+impl Drop for DatabaseConnectionWithContext<'_> {
+    /// Records a lease no query claimed — e.g. the KV path, which leases purely to
+    /// serialize a query.
+    fn drop(&mut self) {
+        if let Some(elapsed) = self.take_lease_time() {
+            connection_lease::record(
+                self.lease_target,
+                connection_lease::Outcome::Acquired,
+                "unattributed",
+                elapsed,
+            );
+        }
     }
 }
 
@@ -324,6 +375,26 @@ pub(crate) mod metrics {
 
     counter_metric!(DATABASE_CALLS_COUNT, GLOBAL_METER);
     histogram_metric_f64!(DATABASE_CALL_TIME, GLOBAL_METER);
+
+    // Time spent queued for a pool slot — invisible to `DATABASE_CALL_TIME` above, whose
+    // timer starts only once a connection is leased. See `crate::connection_lease`.
+    //
+    // Unit is MILLISECONDS, unlike `DATABASE_CALL_TIME` (seconds) — hence the `_MS` suffix.
+    // Comparing the two needs a factor of 1000.
+    histogram_metric_f64!(
+        DATABASE_CONNECTION_LEASE_TIME_MS,
+        GLOBAL_METER,
+        boundaries: lease_time_buckets(),
+    );
+
+    /// Boundaries for [`DATABASE_CONNECTION_LEASE_TIME_MS`], in ms: 0.01 to ~25_000, four
+    /// intervals per doubling — low end resolves an uncontended lease (tens of µs), high
+    /// end covers a full `connection_timeout` wait (10s default) without overflow clipping.
+    fn lease_time_buckets() -> Vec<f64> {
+        (0..86)
+            .map(|index| 0.01 * 2_f64.powf(f64::from(index) / 4.0))
+            .collect()
+    }
 }
 
 #[cfg(feature = "tokenization_v2")]

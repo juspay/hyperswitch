@@ -31,7 +31,7 @@ use crate::{
 };
 
 pub mod db_metrics {
-    use common_utils::external_service::{ExternalServiceCall, ExternalServiceEventEmitter};
+    use common_utils::external_service::ExternalServiceCall;
     use diesel::result::Error as DieselError;
 
     #[derive(Debug)]
@@ -67,8 +67,7 @@ pub mod db_metrics {
     }
 
     fn emit_database_call_event<U>(
-        request_id: Option<&str>,
-        event_emitter: &dyn ExternalServiceEventEmitter,
+        conn: &crate::DatabaseConnectionWithContext<'_>,
         table_name: &str,
         operation: &DatabaseOperation,
         time_elapsed: std::time::Duration,
@@ -76,20 +75,21 @@ pub mod db_metrics {
     ) where
         U: DatabaseCallStatus,
     {
-        if let Some(request_id) = request_id {
+        if let Some(request_id) = conn.request_id() {
             let success = output.is_success();
-            event_emitter.emit_external_service_call(ExternalServiceCall {
-                service_name: "database".to_string(),
-                endpoint: table_name.to_string(),
-                method: format!("{operation:?}"),
-                request_id: request_id.to_string(),
-                status_code: if success { 200 } else { 500 },
-                success,
-                latency_ms: time_elapsed.as_millis(),
-                created_at_timestamp: common_utils::date_time::now()
-                    .assume_utc()
-                    .unix_timestamp_nanos(),
-            });
+            conn.event_emitter()
+                .emit_external_service_call(ExternalServiceCall {
+                    service_name: "database".to_string(),
+                    endpoint: table_name.to_string(),
+                    method: format!("{operation:?}"),
+                    request_id: request_id.to_string(),
+                    status_code: if success { 200 } else { 500 },
+                    success,
+                    latency_ms: time_elapsed.as_millis(),
+                    created_at_timestamp: common_utils::date_time::now()
+                        .assume_utc()
+                        .unix_timestamp_nanos(),
+                });
         }
     }
 
@@ -100,8 +100,7 @@ pub mod db_metrics {
     /// correlator joins on `request_id` and cannot place request-less rows.
     #[inline]
     pub async fn track_database_call<T, Fut, U>(
-        request_id: Option<&str>,
-        event_emitter: &dyn ExternalServiceEventEmitter,
+        conn: &crate::DatabaseConnectionWithContext<'_>,
         operation: DatabaseOperation,
         future: Fut,
     ) -> U
@@ -115,6 +114,17 @@ pub mod db_metrics {
 
         let table_name = std::any::type_name::<T>().rsplit("::").nth(1);
 
+        // The first tracked query attributes the lease to its table. `take_lease_time`
+        // yields the duration once, so a multi-query connection isn't counted twice.
+        if let Some(lease_time) = conn.take_lease_time() {
+            crate::connection_lease::record(
+                conn.lease_target(),
+                crate::connection_lease::Outcome::Acquired,
+                table_name.unwrap_or("undefined"),
+                lease_time,
+            );
+        }
+
         let attributes = router_env::metric_attributes!(
             ("table", table_name.unwrap_or("undefined")),
             ("operation", format!("{:?}", operation))
@@ -124,8 +134,7 @@ pub mod db_metrics {
         crate::metrics::DATABASE_CALL_TIME.record(time_elapsed.as_secs_f64(), attributes);
 
         emit_database_call_event(
-            request_id,
-            event_emitter,
+            conn,
             table_name.unwrap_or("undefined"),
             &operation,
             time_elapsed,
@@ -693,15 +702,13 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::Insert,
         deja::db::get_result_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::Insert,
         query.get_result_async(conn.raw_connection()),
     );
@@ -747,8 +754,7 @@ where
 
     execute_generic_update(
         track_database_call::<T, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Update,
             query.execute_async(conn.raw_connection()),
         ),
@@ -796,15 +802,13 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::UpdateWithResults,
         deja::db::get_results_captured(conn.raw_connection(), query.to_owned()),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::UpdateWithResults,
         query.to_owned().get_results_async(conn.raw_connection()),
     );
@@ -896,15 +900,13 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::UpdateOne,
         deja::db::get_result_captured(conn.raw_connection(), query.to_owned()),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::UpdateOne,
         query.to_owned().get_result_async(conn.raw_connection()),
     );
@@ -945,8 +947,7 @@ where
 
     execute_generic_delete(
         track_database_call::<T, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Delete,
             query.execute_async(conn.raw_connection()),
         ),
@@ -982,15 +983,13 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::DeleteWithResult,
         deja::db::get_results_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::DeleteWithResult,
         query.get_results_async(conn.raw_connection()),
     );
@@ -1029,15 +1028,13 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::FindOne,
         deja::db::first_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::FindOne,
         query.first_async(conn.raw_connection()),
     );
@@ -1104,15 +1101,13 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::FindOne,
         deja::db::get_result_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::FindOne,
         query.get_result_async(conn.raw_connection()),
     );
@@ -1203,15 +1198,13 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::Filter,
         deja::db::get_results_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::Filter,
         query.get_results_async(conn.raw_connection()),
     );
@@ -1253,8 +1246,7 @@ where
 
     execute_generic_count(
         track_database_call::<T, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Count,
             query.get_result_async(conn.raw_connection()),
         ),

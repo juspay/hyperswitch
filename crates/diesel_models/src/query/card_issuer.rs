@@ -25,8 +25,7 @@ impl CardIssuer {
                 .limit(limit);
 
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
             query.get_results_async::<CardIssuerListItem>(conn.raw_connection()),
         )

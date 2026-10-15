@@ -151,8 +151,7 @@ impl Role {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             generics::db_metrics::DatabaseOperation::Filter,
             query.get_results_async(conn.raw_connection()),
         )
@@ -217,8 +216,7 @@ impl Role {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             generics::db_metrics::DatabaseOperation::Filter,
             query.get_results_async(conn.raw_connection()),
         )

@@ -1,6 +1,6 @@
 use common_utils::DbConnectionParams;
 use diesel_models::DejaPgConnection;
-use storage_impl::database::store::{DatabaseConnectionWithContext, PgPool};
+use storage_impl::database::store::{DatabaseConnectionWithContext, LeaseTarget, PgPool};
 
 use crate::{settings::Database, Settings};
 
@@ -37,13 +37,20 @@ pub async fn diesel_make_pg_pool(
 
 #[allow(clippy::expect_used)]
 pub async fn pg_connection<'a>(pool: &'a PgPool) -> DatabaseConnectionWithContext<'a> {
-    let connection = pool
-        .pg_pool
-        .get()
+    let target = LeaseTarget::DRAINER;
+    let (connection, lease_time) = pool
+        .lease(target)
         .await
         .expect("Couldn't retrieve PostgreSQL connection");
 
     // The drainer serves no API request, so its queries carry no request id and emit no external
-    // service call events.
-    DatabaseConnectionWithContext::new(connection, None, pool.event_emitter.clone())
+    // service call events. Lease time is still recorded — the drainer shares Postgres with the
+    // router, so its pool waits matter too.
+    DatabaseConnectionWithContext::new(
+        connection,
+        None,
+        pool.event_emitter.clone(),
+        target,
+        lease_time,
+    )
 }
