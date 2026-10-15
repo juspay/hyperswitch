@@ -1624,6 +1624,24 @@ def wallet_connector_event(event, mode, canary, source):
     return True
 
 
+def internal_api_ir19(payload):
+    # ApiLogs serializes the internal tagged ApiErrorResponse, not public ErrorResponse.
+    if (not isinstance(payload, dict) or type(payload.get('status_code')) is not int
+            or payload['status_code'] != 400 or 'response' not in payload or payload['response'] is not None):
+        return False
+    error = payload.get('error')
+    if not isinstance(error, dict) or set(error) != {'type', 'value'} or error['type'] != 'BadRequest':
+        return False
+    value = error['value']
+    return (isinstance(value, dict)
+        and set(value) == {'sub_code', 'error_identifier', 'error_message', 'extra'}
+        and value['sub_code'] == 'IR'
+        and type(value['error_identifier']) is int and value['error_identifier'] == 19
+        and isinstance(value['error_message'], str)
+        and isinstance(value['extra'], dict) and set(value['extra']) == {'reason'}
+        and isinstance(value['extra']['reason'], str))
+
+
 def applicable_wallet_mask_preflight(paths, source, config, historical_ucs_repo=None):
     states = {}
     for path in paths:
@@ -1716,11 +1734,7 @@ def applicable_wallet_mask_preflight(paths, source, config, historical_ucs_repo=
             if extra.get('event_type') == 'ApiLogs':
                 payload = extra.get('event')
                 payload = json.loads(payload) if isinstance(payload, str) and payload.lstrip().startswith('{') else tracing_json_value(payload)
-                candidates = [payload.get('error')]
-                if payload.get('response'):
-                    candidates.append(json.loads(payload['response']))
-                api_error |= payload.get('status_code') == 400 and any(isinstance(item, dict) and
-                    (item.get('error', item)).get('code') == 'IR_19' for item in candidates)
+                api_error |= internal_api_ir19(payload)
         if not boundary or not api_error:
             raise GsmUnavailable('actual HS→UCS unsupported boundary and typed IR_19 API error are not corroborated')
         source_proof = config.get('google_psp_emission_source_proof')
