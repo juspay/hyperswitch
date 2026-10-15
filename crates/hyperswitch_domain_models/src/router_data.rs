@@ -2702,7 +2702,10 @@ impl
         error
             .attempt_status
             .map(common_enums::IntentStatus::from)
-            .unwrap_or(common_enums::IntentStatus::Failed)
+            .unwrap_or_else(|| match error.status_code {
+                500..=511 => common_enums::IntentStatus::Processing,
+                _ => common_enums::IntentStatus::from(payment_data.payment_attempt.status),
+            })
     }
 
     fn get_payment_attempt_update(
@@ -2733,7 +2736,7 @@ impl
                     Some(status) => status,
                     None => match error_response.status_code {
                         500..=511 => common_enums::AttemptStatus::Pending,
-                        _ => common_enums::AttemptStatus::VoidFailed,
+                        _ => payment_data.payment_attempt.status,
                     },
                 };
 
@@ -2785,7 +2788,7 @@ impl
 
     fn get_attempt_status_for_db_update(
         &self,
-        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+        payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
     ) -> common_enums::AttemptStatus {
         // For void operations, determine status based on response
         match &self.response {
@@ -2793,7 +2796,7 @@ impl
                 Some(status) => status,
                 None => match error_response.status_code {
                     500..=511 => common_enums::AttemptStatus::Pending,
-                    _ => common_enums::AttemptStatus::VoidFailed,
+                    _ => payment_data.payment_attempt.status,
                 },
             },
             Ok(ref _response) => self.status,
