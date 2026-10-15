@@ -3612,12 +3612,12 @@ fn get_connector_response_with_payer_details(
     payment_method_type: Option<common_enums::PaymentMethodType>,
     payer: Option<&Payer>,
 ) -> Option<ConnectorResponseData> {
-    if payment_method_type != Some(common_enums::PaymentMethodType::Paypal) {
-        return None;
+    match payment_method_type {
+        Some(common_enums::PaymentMethodType::Paypal) => payer
+            .and_then(|payer| payer.get_wallet_additional_data())
+            .map(ConnectorResponseData::with_additional_payment_method_data),
+        _ => None,
     }
-    payer
-        .and_then(|payer| payer.get_wallet_additional_data())
-        .map(ConnectorResponseData::with_additional_payment_method_data)
 }
 
 fn get_payment_attempt_status(
