@@ -95,7 +95,11 @@ impl Feature<api::Void, types::PaymentsCancelData>
             router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
         );
 
-        Box::pin(payments::gateway::handle_gateway_call::<
+        let trigger = matches!(
+            call_connector_action,
+            payments::CallConnectorAction::Trigger
+        );
+        let mut data = Box::pin(payments::gateway::handle_gateway_call::<
             _,
             _,
             _,
@@ -110,7 +114,16 @@ impl Feature<api::Void, types::PaymentsCancelData>
             connector_request,
             return_raw_connector_response,
         ))
-        .await
+        .await?;
+        crate::core::unified_connector_service::mark_paypal_operation(
+            &mut data,
+            gateway_context.execution_path,
+            gateway_context.execution_mode,
+            trigger,
+            "Void",
+            None,
+        );
+        Ok(data)
     }
 
     async fn add_access_token<'a>(

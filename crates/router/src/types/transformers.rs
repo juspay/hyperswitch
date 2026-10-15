@@ -176,7 +176,9 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
     ) -> errors::RouterResult<Self> {
         match attempt_status {
             storage_enums::AttemptStatus::Charged
-            | storage_enums::AttemptStatus::PartialCharged | storage_enums::AttemptStatus::IntegrityFailure => Ok(Self::Charged),
+            | storage_enums::AttemptStatus::PartialCharged
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable
+            | storage_enums::AttemptStatus::IntegrityFailure => Ok(Self::Charged),
             storage_enums::AttemptStatus::Pending
             | storage_enums::AttemptStatus::CaptureInitiated => Ok(Self::Pending),
             storage_enums::AttemptStatus::Failure
@@ -201,10 +203,10 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
             | storage_enums::AttemptStatus::PartiallyAuthorized
-            | storage_enums::AttemptStatus::PartialChargedAndChargeable | storage_enums::AttemptStatus::Expired
+            | storage_enums::AttemptStatus::Expired
             | storage_enums::AttemptStatus::CaptureReview => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
+                    message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, PartialChargedAndChargeable, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
                 }.into())
             }
         }
@@ -488,6 +490,8 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for api_enums::R
         match value {
             api_models::webhooks::IncomingWebhookEvent::RefundSuccess => Ok(Self::Success),
             api_models::webhooks::IncomingWebhookEvent::RefundFailure => Ok(Self::Failure),
+            api_models::webhooks::IncomingWebhookEvent::RefundProcessing
+            | api_models::webhooks::IncomingWebhookEvent::RefundReview => Ok(Self::Pending),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "incoming_webhook_event_type".into(),
             }),

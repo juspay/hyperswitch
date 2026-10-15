@@ -620,6 +620,7 @@ async fn process_webhook_business_logic(
                 event_type,
                 &content,
                 webhook_resource_data,
+                &merchant_connector_account.get_id(),
             ))
             .await
             .attach_printable("Incoming webhook flow for payments failed"),
@@ -919,8 +920,22 @@ async fn payments_incoming_webhook_flow(
     event_type: webhooks::IncomingWebhookEvent,
     content: &super::gateway::WebhookContent,
     webhook_resource_data: Option<WebhookResourceData>,
+    verified_merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-    let consume_or_trigger_flow = if source_verified {
+    // Reuse the pre-fetched payment attempt when available; otherwise fetch now.
+    let payment_attempt =
+        if let Some(WebhookResourceData::Payment { payment_attempt }) = webhook_resource_data {
+            payment_attempt
+        } else {
+            get_payment_attempt_from_object_reference_id(
+                &state,
+                webhook_details.object_reference_id.clone(),
+                platform.get_processor(),
+            )
+            .await?
+        };
+
+    let mut consume_or_trigger_flow = if source_verified {
         let resource_object = webhook_details.resource_object.clone();
         match content {
             super::gateway::WebhookContent::Direct(_) => {
@@ -956,18 +971,82 @@ async fn payments_incoming_webhook_flow(
 
     let shadow_ucs_call_connector_action: Option<payments::CallConnectorAction> = None;
 
-    // Reuse the pre-fetched payment attempt when available; otherwise fetch now.
-    let payment_attempt =
-        if let Some(WebhookResourceData::Payment { payment_attempt }) = webhook_resource_data {
-            payment_attempt
-        } else {
-            get_payment_attempt_from_object_reference_id(
-                &state,
-                webhook_details.object_reference_id.clone(),
-                platform.get_processor(),
-            )
-            .await?
-        };
+    let mut authoritative_paypal_sync = false;
+    if source_verified
+        && connector.id() == "paypal"
+        && matches!(
+            content,
+            super::gateway::WebhookContent::UnifiedConnectorService(_)
+        )
+    {
+        let callback: serde_json::Value = serde_json::from_slice(request_details.body)
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
+        let raw_event = callback
+            .get("event_type")
+            .and_then(serde_json::Value::as_str);
+        if raw_event == Some("PAYMENT.AUTHORIZATION.VOIDED")
+            || raw_event.is_some_and(|event| event.starts_with("PAYMENT.CAPTURE."))
+        {
+            let order = callback
+                .pointer("/resource/supplementary_data/related_ids/order_id")
+                .and_then(serde_json::Value::as_str)
+                .filter(|id| !id.is_empty())
+                .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("Verified PayPal callback lacks its canonical order identity")?;
+            let stored_order = payment_attempt
+                .connector_metadata
+                .as_ref()
+                .and_then(|meta| meta.get("order_id"))
+                .and_then(serde_json::Value::as_str)
+                .or(payment_attempt.connector_transaction_id.as_deref());
+            let intent = state
+                .store
+                .find_payment_intent_by_payment_id_processor_merchant_id(
+                    &payment_attempt.payment_id,
+                    platform.get_processor().get_account().get_id(),
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            let previous_gateway = intent
+                .feature_metadata
+                .as_ref()
+                .and_then(|meta| {
+                    serde_json::from_value::<diesel_models::types::FeatureMetadata>(
+                        meta.peek().clone(),
+                    )
+                    .ok()
+                })
+                .and_then(|meta| meta.gateway_system);
+            let eligible = stored_order == Some(order)
+                && payment_attempt.merchant_connector_id.as_ref()
+                    == Some(verified_merchant_connector_id)
+                && payment_attempt.connector.as_deref() == Some("paypal")
+                && payment_attempt.processor_merchant_id
+                    == *platform.get_processor().get_account().get_id()
+                && payment_attempt.merchant_id == intent.merchant_id
+                && payment_attempt.profile_id == *business_profile.get_id()
+                && payment_attempt.attempt_id == *intent.active_attempt.get_id()
+                && unified_connector_service::primary_paypal_operation::<api::PSync>(
+                    &state,
+                    platform.get_processor(),
+                    &payment_attempt,
+                    previous_gateway,
+                )
+                .await?;
+            if !eligible {
+                return Err(report!(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable(
+                        "PayPal callback cannot reconcile this active Primary UCS order",
+                    ));
+            }
+            // Force current authoritative Order GET even for an old terminal
+            // attempt. A single callback capture is never global collected money.
+            consume_or_trigger_flow = payments::CallConnectorAction::Trigger;
+            authoritative_paypal_sync = true;
+        }
+    }
 
     let payments_response = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::PaymentId(ref id) => {
@@ -1012,7 +1091,7 @@ async fn payments_incoming_webhook_flow(
                     client_secret: None,
                     expand_attempts: None,
                     expand_captures: None,
-                    all_keys_required: None,
+                    all_keys_required: authoritative_paypal_sync.then_some(true),
                 },
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow.clone(),
@@ -1576,9 +1655,21 @@ async fn relay_refunds_incoming_webhook_flow(
     let relay_response = if source_verified {
         let relay_update = hyperswitch_domain_models::relay::RelayUpdate::StatusUpdate {
             connector_reference_id: None,
-            status: common_enums::RelayStatus::foreign_try_from(event_type)
-                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("failed relay refund status mapping from event type")?,
+            status: {
+                let observed = common_enums::RelayStatus::foreign_try_from(event_type)
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable("failed relay refund status mapping from event type")?;
+                if observed == common_enums::RelayStatus::Pending
+                    && matches!(
+                        relay_record.status,
+                        common_enums::RelayStatus::Success | common_enums::RelayStatus::Failure
+                    )
+                {
+                    relay_record.status
+                } else {
+                    observed
+                }
+            },
         };
         db.update_relay(
             platform.get_processor().get_key_store(),
@@ -3467,9 +3558,14 @@ async fn disputes_incoming_webhook_flow(
             super::gateway::WebhookContent::Direct(_) => connector
                 .get_dispute_details(request_details, Some(&WebhookContext::from(&resource_data)))
                 .switch()?,
-            super::gateway::WebhookContent::UnifiedConnectorService(bytes) => {
+            super::gateway::WebhookContent::UnifiedConnectorService(bytes)
+                if connector.id() == "paypal" =>
+            {
                 dispute_payload_from_ucs(bytes, &payment_attempt)?
             }
+            super::gateway::WebhookContent::UnifiedConnectorService(_) => connector
+                .get_dispute_details(request_details, Some(&WebhookContext::from(&resource_data)))
+                .switch()?,
         };
 
         let option_dispute = db

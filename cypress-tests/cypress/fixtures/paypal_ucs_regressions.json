@@ -1,0 +1,2097 @@
+{
+  "version": 1,
+  "evidence_policy": "All rows NOT_RUN until actual HS API, readback and required wire/source/notification oracle execute. production_fixture GRADED is distinct from provider_live VERIFIED. Cached writes are GET reconciled, never current verified. No original capture replay.",
+  "cases": [
+    {
+      "id": "cit_auto",
+      "group": "Authorize",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [
+        "received"
+      ],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cit_manual",
+      "group": "Authorize",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "requires_capture",
+            "/payment_id": "@payment_id",
+            "/amount_received": null,
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "requires_capture",
+            "/payment_id": "@payment_id",
+            "/amount_received": null,
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ]
+    },
+    {
+      "id": "zero_auth",
+      "group": "Authorize",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts",
+        "actual noncharging zero-value Vault/setup completion, not a monetary Order zero-amount request"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": null,
+            "/amount_capturable": 0
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": null,
+            "/amount_capturable": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "manual_partial",
+      "group": "Capture",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts",
+        "actual complete-history certificate checked from stored HS metadata before capture; immediate outcome oracle is invalid without this proof"
+      ],
+      "positive_money": [
+        "received"
+      ],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "partially_captured_and_capturable",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "partially_captured_and_capturable",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "precondition": {
+            "/connector_metadata/capture_context/capture_history_complete": true
+          }
+        }
+      ],
+      "proof": {
+        "capture_operation_money_corroborated": true,
+        "actual_capture_reference_owned_row": true
+      }
+    },
+    {
+      "id": "manual_closed_partial",
+      "group": "Capture",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts",
+        "actual complete-history certificate checked from stored HS metadata before capture; immediate outcome oracle is invalid without this proof"
+      ],
+      "positive_money": [
+        "received"
+      ],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "partially_captured",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": 0
+          },
+          "readback_expect": {
+            "/status": "partially_captured",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": 0
+          },
+          "precondition": {
+            "/connector_metadata/capture_context/capture_history_complete": true
+          }
+        }
+      ],
+      "proof": {
+        "capture_operation_money_corroborated": true,
+        "actual_capture_reference_owned_row": true
+      }
+    },
+    {
+      "id": "multi_capture_exact_ids",
+      "group": "Capture",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts",
+        "actual complete-history certificate checked from stored HS metadata before capture; immediate outcome oracle is invalid without this proof"
+      ],
+      "positive_money": [
+        "received"
+      ],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": 0
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": 0
+          },
+          "precondition": {
+            "/connector_metadata/capture_context/capture_history_complete": true
+          }
+        }
+      ],
+      "proof": {
+        "capture_ids": "@capture_ids",
+        "capture_amounts": "@capture_amounts",
+        "no_pending_reservation_counted": true,
+        "capture_operation_money_corroborated": true,
+        "actual_capture_reference_owned_row": true
+      }
+    },
+    {
+      "id": "ir16_original_get_only",
+      "group": "PSync",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [
+        "received"
+      ],
+      "steps": [
+        {
+          "method": "GET",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "partially_captured_and_capturable",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          },
+          "readback_expect": {
+            "/status": "partially_captured_and_capturable",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          }
+        }
+      ],
+      "proof": {
+        "provider_method": "GET",
+        "provider_order_id": "@provider_order_id",
+        "captured_gross": 3000,
+        "no_financial_post": true
+      },
+      "protected_readonly": true
+    },
+    {
+      "id": "uncaptured_void",
+      "group": "Void",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts",
+        "Void204 is interim; second request must force canonical full-owned Order GET"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": null,
+            "/amount_capturable": "@pre_void_capturable"
+          },
+          "readback_expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": null,
+            "/amount_capturable": "@pre_void_capturable"
+          },
+          "resume_readback_expect": {
+            "/status": "cancelled",
+            "/payment_id": "@payment_id",
+            "/amount_received": 0,
+            "/amount_capturable": 0
+          }
+        },
+        {
+          "method": "GET",
+          "require_force_sync": true,
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "cancelled",
+            "/payment_id": "@payment_id",
+            "/amount_received": 0,
+            "/amount_capturable": 0
+          },
+          "readback_expect": {
+            "/status": "cancelled",
+            "/payment_id": "@payment_id",
+            "/amount_received": 0,
+            "/amount_capturable": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "partial_void_retains_gross",
+      "group": "Void",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts",
+        "Void204 is interim; second request must force canonical full-owned Order GET"
+      ],
+      "positive_money": [
+        "received"
+      ],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@pre_void_capturable"
+          },
+          "readback_expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@pre_void_capturable"
+          },
+          "resume_readback_expect": {
+            "/status": "partially_captured",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": 0
+          }
+        },
+        {
+          "method": "GET",
+          "require_force_sync": true,
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "partially_captured",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": 0
+          },
+          "readback_expect": {
+            "/status": "partially_captured",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "open_partial_refund",
+      "group": "Refund",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [
+        "received"
+      ],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "@refund_status",
+            "/refund_id": "@refund_id",
+            "/amount": "@refund_amount"
+          },
+          "readback_expect": {
+            "/status": "pending",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ]
+    },
+    {
+      "id": "closed_partial_refund",
+      "group": "Refund",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [
+        "received"
+      ],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "@refund_status",
+            "/refund_id": "@refund_id",
+            "/amount": "@refund_amount"
+          },
+          "readback_expect": {
+            "/status": "pending",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "partial_refund_success",
+      "group": "Refund",
+      "requires": [
+        "actual stored terminal refund and ID",
+        "controlled UCS fault when applicable"
+      ],
+      "positive_money": [
+        "refund_amount"
+      ],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "succeeded",
+            "/refund_id": "@refund_id",
+            "/connector_refund_id": "@connector_refund_id",
+            "/amount": "@refund_amount"
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/refund_id": "@refund_id",
+            "/connector_refund_id": "@connector_refund_id",
+            "/amount": "@refund_amount"
+          }
+        }
+      ]
+    },
+    {
+      "id": "refund_terminal_pending",
+      "group": "RSync",
+      "requires": [
+        "actual stored terminal refund and ID",
+        "controlled UCS fault when applicable"
+      ],
+      "positive_money": [
+        "refund_amount"
+      ],
+      "steps": [
+        {
+          "method": "GET",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "succeeded",
+            "/refund_id": "@refund_id",
+            "/connector_refund_id": "@connector_refund_id",
+            "/amount": "@refund_amount"
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/refund_id": "@refund_id",
+            "/connector_refund_id": "@connector_refund_id",
+            "/amount": "@refund_amount"
+          }
+        }
+      ]
+    },
+    {
+      "id": "refund_terminal_review",
+      "group": "RSync",
+      "requires": [
+        "actual stored terminal refund and ID",
+        "controlled UCS fault when applicable"
+      ],
+      "positive_money": [
+        "refund_amount"
+      ],
+      "steps": [
+        {
+          "method": "GET",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "succeeded",
+            "/refund_id": "@refund_id",
+            "/connector_refund_id": "@connector_refund_id",
+            "/amount": "@refund_amount"
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/refund_id": "@refund_id",
+            "/connector_refund_id": "@connector_refund_id",
+            "/amount": "@refund_amount"
+          }
+        }
+      ]
+    },
+    {
+      "id": "refund_terminal_401",
+      "group": "RSync",
+      "requires": [
+        "actual stored terminal refund and ID",
+        "controlled UCS fault when applicable"
+      ],
+      "positive_money": [
+        "refund_amount"
+      ],
+      "steps": [
+        {
+          "method": "GET",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "succeeded",
+            "/refund_id": "@refund_id",
+            "/connector_refund_id": "@connector_refund_id",
+            "/amount": "@refund_amount",
+            "/error_code": "@provider_error_code",
+            "/error_message": "@provider_error_message"
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/refund_id": "@refund_id",
+            "/connector_refund_id": "@connector_refund_id",
+            "/amount": "@refund_amount"
+          }
+        }
+      ],
+      "proof": {
+        "fault_kind": "provider_http",
+        "provider_http_status": 401,
+        "rpc": "RefundService/Get"
+      }
+    },
+    {
+      "id": "refund_terminal_503",
+      "group": "RSync",
+      "requires": [
+        "actual stored terminal refund and ID",
+        "controlled UCS fault when applicable"
+      ],
+      "positive_money": [
+        "refund_amount"
+      ],
+      "steps": [
+        {
+          "method": "GET",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "succeeded",
+            "/refund_id": "@refund_id",
+            "/connector_refund_id": "@connector_refund_id",
+            "/amount": "@refund_amount",
+            "/error_code": "@provider_error_code",
+            "/error_message": "@provider_error_message"
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/refund_id": "@refund_id",
+            "/connector_refund_id": "@connector_refund_id",
+            "/amount": "@refund_amount"
+          }
+        }
+      ],
+      "proof": {
+        "fault_kind": "provider_http",
+        "provider_http_status": 503,
+        "rpc": "RefundService/Get"
+      }
+    },
+    {
+      "id": "refund_terminal_transport",
+      "group": "RSync",
+      "requires": [
+        "actual stored terminal refund and ID",
+        "controlled UCS fault when applicable"
+      ],
+      "positive_money": [
+        "refund_amount"
+      ],
+      "steps": [
+        {
+          "method": "GET",
+          "http_status": [
+            500
+          ],
+          "expect": {
+            "/error/type": "api",
+            "/error/code": "HE_00",
+            "/error/message": "Something went wrong"
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/refund_id": "@refund_id",
+            "/connector_refund_id": "@connector_refund_id",
+            "/amount": "@refund_amount"
+          }
+        }
+      ],
+      "proof": {
+        "fault_kind": "transport_connection_closed",
+        "http_response_generated": false,
+        "fault_injected": true
+      },
+      "transport_fault": true,
+      "retain_refund_state": true,
+      "separate_payment_money": true
+    },
+    {
+      "id": "refund_wrong_id",
+      "group": "RSync",
+      "requires": [
+        "actual stored terminal refund and ID",
+        "controlled UCS fault when applicable"
+      ],
+      "positive_money": [
+        "refund_amount"
+      ],
+      "steps": [
+        {
+          "method": "GET",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "succeeded",
+            "/refund_id": "@refund_id",
+            "/connector_refund_id": "@connector_refund_id",
+            "/amount": "@refund_amount"
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/refund_id": "@refund_id",
+            "/connector_refund_id": "@connector_refund_id",
+            "/amount": "@refund_amount"
+          }
+        }
+      ]
+    },
+    {
+      "id": "full_owned_order_sync",
+      "group": "PSync",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [
+        "received"
+      ],
+      "steps": [
+        {
+          "method": "GET",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "partially_captured_and_capturable",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "partially_captured_and_capturable",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "provider_method": "GET",
+        "complete_order_history": true,
+        "capture_ids": "@capture_ids"
+      }
+    },
+    {
+      "id": "setup_mandate",
+      "group": "SetupMandate",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts",
+        "actual noncharging zero-value Vault/setup completion, not a monetary Order zero-amount request"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": null,
+            "/amount_capturable": 0
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": null,
+            "/amount_capturable": 0
+          }
+        }
+      ],
+      "proof": {
+        "stored_connector_mandate_id": "@mandate_id"
+      }
+    },
+    {
+      "id": "repeat_ntid",
+      "group": "RepeatPayment",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [
+        "received"
+      ],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "actual_ntid_present": true,
+        "stored_credential_initiator": "MERCHANT"
+      }
+    },
+    {
+      "id": "native_3ds",
+      "group": "ThreeDS",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [
+        "received"
+      ],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "fresh_oauth_authenticate": true,
+        "fresh_oauth_post_authenticate": true,
+        "order_id": "@provider_order_id",
+        "native_authentication_corroborated": true
+      }
+    },
+    {
+      "id": "verified_capture",
+      "group": "IncomingWebhook",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [
+        "received"
+      ],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/": null
+          },
+          "readback_expect": {
+            "/status": "partially_captured",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": 0
+          }
+        }
+      ],
+      "proof": {
+        "source_verified": true,
+        "actual_provider_delivery": true,
+        "authoritative_order_get_after_verification": true,
+        "post_get_notification": true,
+        "notification_captured_gross": "@received",
+        "stored_order_lookup_succeeded": true,
+        "stored_attempt_connector_transaction_id": "@provider_order_id"
+      },
+      "ack_protocol": "HTTP200 empty body (WebhookResponse::StatusOk)"
+    },
+    {
+      "id": "verified_authorization_voided",
+      "group": "IncomingWebhook",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [
+        "received"
+      ],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/": null
+          },
+          "readback_expect": {
+            "/status": "partially_captured",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": 0
+          }
+        }
+      ],
+      "proof": {
+        "source_verified": true,
+        "actual_provider_delivery": true,
+        "authoritative_order_get_after_verification": true,
+        "post_get_notification": true,
+        "notification_captured_gross": "@received",
+        "stored_order_lookup_succeeded": true,
+        "stored_attempt_connector_transaction_id": "@provider_order_id"
+      },
+      "ack_protocol": "HTTP200 empty body (WebhookResponse::StatusOk)"
+    },
+    {
+      "id": "capture_unknown_money_prior_zero",
+      "group": "Capture",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": true,
+        "pending_reservation_counted": false,
+        "actual_received": "@received"
+      },
+      "retain_prior_money": true
+    },
+    {
+      "id": "capture_unknown_money_prior_partial",
+      "group": "Capture",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": true,
+        "pending_reservation_counted": false,
+        "actual_received": "@received"
+      },
+      "retain_prior_money": true
+    },
+    {
+      "id": "capture_http401",
+      "group": "Capture",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": true,
+        "pending_reservation_counted": false,
+        "actual_received": "@received",
+        "fault_kind": "provider_http",
+        "provider_http_status": 401
+      },
+      "retain_prior_money": true
+    },
+    {
+      "id": "capture_http503",
+      "group": "Capture",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": true,
+        "pending_reservation_counted": false,
+        "actual_received": "@received",
+        "fault_kind": "provider_http",
+        "provider_http_status": 503
+      },
+      "retain_prior_money": true
+    },
+    {
+      "id": "capture_transport",
+      "group": "Capture",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            500
+          ],
+          "expect": {
+            "/error/type": "api",
+            "/error/code": "HE_00",
+            "/error/message": "Something went wrong"
+          },
+          "readback_expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": true,
+        "pending_reservation_counted": false,
+        "actual_received": "@received",
+        "fault_kind": "transport_connection_closed",
+        "http_response_generated": false,
+        "fault_injected": true
+      },
+      "retain_prior_money": true,
+      "transport_fault": true
+    },
+    {
+      "id": "void_unknown_money_prior_zero",
+      "group": "Void",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": true,
+        "pending_reservation_counted": false,
+        "actual_received": "@received"
+      },
+      "retain_prior_money": true
+    },
+    {
+      "id": "void_unknown_money_prior_partial",
+      "group": "Void",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": true,
+        "pending_reservation_counted": false,
+        "actual_received": "@received"
+      },
+      "retain_prior_money": true
+    },
+    {
+      "id": "void_http401",
+      "group": "Void",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": true,
+        "pending_reservation_counted": false,
+        "actual_received": "@received",
+        "fault_kind": "provider_http",
+        "provider_http_status": 401
+      },
+      "retain_prior_money": true
+    },
+    {
+      "id": "void_http503",
+      "group": "Void",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": true,
+        "pending_reservation_counted": false,
+        "actual_received": "@received",
+        "fault_kind": "provider_http",
+        "provider_http_status": 503
+      },
+      "retain_prior_money": true
+    },
+    {
+      "id": "void_transport",
+      "group": "Void",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            500
+          ],
+          "expect": {
+            "/error/type": "api",
+            "/error/code": "HE_00",
+            "/error/message": "Something went wrong"
+          },
+          "readback_expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": true,
+        "pending_reservation_counted": false,
+        "actual_received": "@received",
+        "fault_kind": "transport_connection_closed",
+        "http_response_generated": false,
+        "fault_injected": true
+      },
+      "retain_prior_money": true,
+      "transport_fault": true
+    },
+    {
+      "id": "direct_scope_guard",
+      "group": "PSync",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "GET",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": false,
+        "private_scope_consumed": false,
+        "unchanged_native_behavior": true
+      }
+    },
+    {
+      "id": "shadow_scope_guard",
+      "group": "PSync",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "GET",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": false,
+        "private_scope_consumed": false,
+        "unchanged_native_behavior": true
+      }
+    },
+    {
+      "id": "nonpaypal_dispute_fallback",
+      "group": "IncomingWebhook",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts",
+        "Stripe native dispute control uses its actual default empty200 ACK; no other-provider financial calls"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/": null
+          },
+          "readback_expect": {
+            "/dispute_id": "@dispute_id",
+            "/payment_id": "@payment_id",
+            "/connector": "stripe",
+            "/connector_dispute_id": "@connector_dispute_id",
+            "/dispute_status": "@dispute_status"
+          }
+        }
+      ],
+      "proof": {
+        "connector": "stripe",
+        "native_dispute_extractor_used": true,
+        "stored_connector_dispute_id": "@dispute_id"
+      },
+      "ack_protocol": "HTTP200 empty body (WebhookResponse::StatusOk)"
+    },
+    {
+      "id": "wallet_log_canary",
+      "group": "Authorize",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "@retained_status",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "inert_wallet_canary_received": true,
+        "actual_primary_ucs": true
+      },
+      "log_canary": true
+    },
+    {
+      "id": "relay_terminal_pending",
+      "group": "RSync",
+      "requires": [
+        "actual HS payment/attempt IDs",
+        "actual request body environment when POST",
+        "owned readback API",
+        "committed HS and immutable UCS build/runtime receipts"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/": null
+          },
+          "readback_expect": {
+            "/id": "@relay_id",
+            "/status": "success",
+            "/connector_reference_id": "@connector_refund_id",
+            "/connector_resource_id": "@connector_resource_id"
+          }
+        }
+      ],
+      "proof": {
+        "relay_status": "success",
+        "pending_delivery_did_not_downgrade": true,
+        "source_verified": true
+      },
+      "ack_protocol": "HTTP200 empty body, then actual RelayRetrieve readback"
+    },
+    {
+      "id": "incomplete_capture_then_order_sync",
+      "group": "Capture",
+      "requires": [
+        "owned capture with actual Money but incomplete history",
+        "POST capture once then force full-owned Order GET"
+      ],
+      "positive_money": [
+        "received"
+      ],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@pre_capture_capturable"
+          },
+          "readback_expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@pre_capture_capturable"
+          },
+          "resume_readback_expect": {
+            "/status": "partially_captured_and_capturable",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "precondition": {
+            "/connector_metadata/capture_context/capture_history_complete": false
+          }
+        },
+        {
+          "method": "GET",
+          "require_force_sync": true,
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "partially_captured_and_capturable",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/status": "partially_captured_and_capturable",
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "complete_order_history": true,
+        "capture_ids": "@capture_ids"
+      },
+      "proof_after_step": 1
+    },
+    {
+      "requires": [
+        "fresh owned USD60 ManualMultiple authorization with actual complete-history certificate",
+        "two distinct once-only USD30 capture requests",
+        "real expanded local rows and provider wire proof"
+      ],
+      "positive_money": [],
+      "id": "two_distinct_usd30_captures",
+      "group": "Capture",
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "precondition": {
+            "/connector_metadata/capture_context/capture_history_complete": true,
+            "/amount_received": null,
+            "/amount_capturable": 6000
+          },
+          "expect": {
+            "/status": "partially_captured_and_capturable",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          },
+          "readback_expect": {
+            "/status": "partially_captured_and_capturable",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          },
+          "capture_rows_oracle": {
+            "amounts": [
+              3000
+            ],
+            "currency": "USD"
+          },
+          "resume_readback_expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": 6000,
+            "/amount_capturable": 0
+          }
+        },
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "precondition": {
+            "/connector_metadata/capture_context/capture_history_complete": true,
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          },
+          "expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": 6000,
+            "/amount_capturable": 0
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": 6000,
+            "/amount_capturable": 0
+          },
+          "capture_rows_oracle": {
+            "amounts": [
+              3000,
+              3000
+            ],
+            "currency": "USD"
+          }
+        },
+        {
+          "method": "GET",
+          "require_force_sync": true,
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": 6000,
+            "/amount_capturable": 0
+          },
+          "readback_expect": {
+            "/status": "succeeded",
+            "/payment_id": "@payment_id",
+            "/amount_received": 6000,
+            "/amount_capturable": 0
+          },
+          "capture_rows_oracle": {
+            "amounts": [
+              3000,
+              3000
+            ],
+            "currency": "USD"
+          }
+        }
+      ],
+      "proof": {
+        "two_distinct_capture_ids": true,
+        "captured_amounts": [
+          3000,
+          3000
+        ],
+        "aggregate_gross": 6000,
+        "capture_operation_money_corroborated": true
+      },
+      "proof_after_step": 2
+    },
+    {
+      "id": "capture_then_void_callback_before_any_sync",
+      "group": "IncomingWebhook",
+      "positive_money": [],
+      "requires": [
+        "fresh actual USD60 authorization",
+        "one USD30 capture then remainder void, no intervening Order sync",
+        "actual verified authorization-voided callback with real stored Order lookup"
+      ],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "precondition": {
+            "/connector_metadata/capture_context/capture_history_complete": true,
+            "/amount_received": null
+          },
+          "expect": {
+            "/status": "partially_captured_and_capturable",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          },
+          "readback_expect": {
+            "/status": "partially_captured_and_capturable",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          },
+          "capture_rows_oracle": {
+            "amounts": [
+              3000
+            ],
+            "currency": "USD"
+          },
+          "resume_readback_expect": {
+            "/status": "partially_captured",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 0
+          }
+        },
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          },
+          "readback_expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          },
+          "resume_readback_expect": {
+            "/status": "partially_captured",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 0
+          }
+        },
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/": null
+          },
+          "readback_expect": {
+            "/status": "partially_captured",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 0
+          },
+          "capture_rows_oracle": {
+            "amounts": [
+              3000
+            ],
+            "currency": "USD"
+          }
+        }
+      ],
+      "proof": {
+        "source_verified": true,
+        "actual_provider_delivery": true,
+        "stored_order_lookup_succeeded": true,
+        "no_order_get_between_capture_and_callback": true,
+        "authoritative_order_get_after_verification": true,
+        "post_get_notification": true,
+        "notification_captured_gross": 3000
+      },
+      "proof_after_step": 2
+    },
+    {
+      "id": "wrong_capture_request_reference",
+      "group": "Capture",
+      "requires": [
+        "controlled actual HS\u2192UCS fixture with named malformed capture observation",
+        "retained prior actual USD30, no guessed new row association"
+      ],
+      "positive_money": [],
+      "retain_prior_money": true,
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          },
+          "readback_expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": true,
+        "malformed_observation": "wrong_capture_request_reference",
+        "new_row_remains_unresolved": true,
+        "no_guessed_capture_id": true,
+        "prior_gross_retained": 3000
+      },
+      "execution_policy": "private_boundary_not_publicly_exercisable"
+    },
+    {
+      "id": "missing_capture_request_reference",
+      "group": "Capture",
+      "requires": [
+        "controlled actual HS\u2192UCS fixture with named malformed capture observation",
+        "retained prior actual USD30, no guessed new row association"
+      ],
+      "positive_money": [],
+      "retain_prior_money": true,
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          },
+          "readback_expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": true,
+        "malformed_observation": "missing_capture_request_reference",
+        "new_row_remains_unresolved": true,
+        "no_guessed_capture_id": true,
+        "prior_gross_retained": 3000
+      },
+      "execution_policy": "private_boundary_not_publicly_exercisable"
+    },
+    {
+      "id": "wrong_capture_operation_money",
+      "group": "Capture",
+      "requires": [
+        "controlled actual HS\u2192UCS fixture with named malformed capture observation",
+        "retained prior actual USD30, no guessed new row association"
+      ],
+      "positive_money": [],
+      "retain_prior_money": true,
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          },
+          "readback_expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": true,
+        "malformed_observation": "wrong_capture_operation_money",
+        "new_row_remains_unresolved": true,
+        "no_guessed_capture_id": true,
+        "prior_gross_retained": 3000
+      }
+    },
+    {
+      "id": "wrong_capture_response_id",
+      "group": "Capture",
+      "requires": [
+        "actual provider HTTP fixture returns prior already-owned captureID on a different newly generated request capture-reference; no rebind/doublecount",
+        "no forged private scope or proof-only expected JSON"
+      ],
+      "positive_money": [],
+      "retain_prior_money": true,
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          },
+          "readback_expect": {
+            "/status": "processing",
+            "/payment_id": "@payment_id",
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
+          }
+        }
+      ],
+      "proof": {
+        "current_primary_ucs": true,
+        "malformed_observation": "wrong_capture_response_id",
+        "new_row_remains_unresolved": true,
+        "no_guessed_capture_id": true,
+        "prior_gross_retained": 3000
+      }
+    },
+    {
+      "id": "refund_malformed_capture_map",
+      "group": "Refund",
+      "requires": [
+        "controlled owned active open-partial attempt with named metadata condition",
+        "read-only row/reservation counts before and after when rejected"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            400
+          ],
+          "expect": {
+            "/error/code": "IR_16",
+            "/error/type": "invalid_request",
+            "/error/message": "Open partial refunds require the owned active Primary UCS PayPal attempt"
+          },
+          "readback_expect": {
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "precreation_guard_case": "refund_malformed_capture_map",
+        "refund_rows_inserted": 0,
+        "blocked_money_changed": false
+      }
+    },
+    {
+      "id": "refund_null_capture_map",
+      "group": "Refund",
+      "requires": [
+        "controlled owned active open-partial attempt with named metadata condition",
+        "read-only row/reservation counts before and after when rejected"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            400
+          ],
+          "expect": {
+            "/error/code": "IR_16",
+            "/error/type": "invalid_request",
+            "/error/message": "Open partial refunds require the owned active Primary UCS PayPal attempt"
+          },
+          "readback_expect": {
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "precreation_guard_case": "refund_null_capture_map",
+        "refund_rows_inserted": 0,
+        "blocked_money_changed": false
+      }
+    },
+    {
+      "id": "refund_complete_missing_capture_map",
+      "group": "Refund",
+      "requires": [
+        "controlled owned active open-partial attempt with named metadata condition",
+        "read-only row/reservation counts before and after when rejected"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            400
+          ],
+          "expect": {
+            "/error/code": "IR_16",
+            "/error/type": "invalid_request",
+            "/error/message": "Open partial refunds require the owned active Primary UCS PayPal attempt"
+          },
+          "readback_expect": {
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "precreation_guard_case": "refund_complete_missing_capture_map",
+        "refund_rows_inserted": 0,
+        "blocked_money_changed": false
+      }
+    },
+    {
+      "id": "refund_wrong_capture_currency",
+      "group": "Refund",
+      "requires": [
+        "controlled owned active open-partial attempt with named metadata condition",
+        "read-only row/reservation counts before and after when rejected"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            400
+          ],
+          "expect": {
+            "/error/code": "IR_16",
+            "/error/type": "invalid_request",
+            "/error/message": "Open partial refunds require the owned active Primary UCS PayPal attempt"
+          },
+          "readback_expect": {
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "precreation_guard_case": "refund_wrong_capture_currency",
+        "refund_rows_inserted": 0,
+        "blocked_money_changed": false
+      }
+    },
+    {
+      "id": "refund_selected_second_capture",
+      "group": "Refund",
+      "requires": [
+        "controlled owned active open-partial attempt with named metadata condition",
+        "read-only row/reservation counts before and after when rejected"
+      ],
+      "positive_money": [],
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/refund_id": "@refund_id",
+            "/amount": "@refund_amount",
+            "/status": "@refund_status"
+          },
+          "readback_expect": {
+            "/payment_id": "@payment_id",
+            "/amount_received": "@received",
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "actual_selected_capture_id": "@second_capture_id",
+        "legacy_first_capture_overridden": false
+      }
+    },
+    {
+      "id": "qualified_zero_known_capture_id_refused",
+      "group": "PSync",
+      "positive_money": [],
+      "requires": [
+        "HS priorNone but known saved captureID",
+        "inert current UCS response commonSome0 plus empty complete closed ledger"
+      ],
+      "steps": [
+        {
+          "method": "GET",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/payment_id": "@payment_id",
+            "/status": "@retained_status",
+            "/amount_received": null,
+            "/amount_capturable": "@capturable"
+          },
+          "readback_expect": {
+            "/payment_id": "@payment_id",
+            "/status": "@retained_status",
+            "/amount_received": null,
+            "/amount_capturable": "@capturable"
+          }
+        }
+      ],
+      "proof": {
+        "known_capture_id_retained": true,
+        "qualified_zero_imported": false
+      }
+    }
+  ]
+}

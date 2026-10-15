@@ -953,11 +953,38 @@ pub async fn should_call_unified_connector_service<F: Clone, T, R>(
 where
     R: Send + Sync + Clone,
 {
+    resolve_ucs_execution::<F>(
+        state,
+        processor,
+        &router_data.connector,
+        router_data.payment_method,
+        router_data.payment_method_type,
+        previous_gateway,
+        call_connector_action,
+        shadow_ucs_call_connector_action,
+        transaction_type,
+    )
+    .await
+}
+
+// Same decision body as the public RouterData wrapper. Precreation checks must
+// not fabricate a financial record merely to resolve this read-only decision.
+#[allow(clippy::too_many_arguments)]
+async fn resolve_ucs_execution<F: Clone>(
+    state: &SessionState,
+    processor: &Processor,
+    connector_name: &str,
+    payment_method: common_enums::PaymentMethod,
+    payment_method_type: Option<PaymentMethodType>,
+    previous_gateway: Option<GatewaySystem>,
+    call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
+    transaction_type: common_enums::TransactionType,
+) -> RouterResult<(ExecutionPath, SessionState, RolloutExecutionResult)> {
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
     let org_id = processor.get_account().get_org_id().get_string_repr();
 
-    let connector_name = &router_data.connector;
     let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
         .attach_printable_lazy(|| format!("Failed to parse connector name: {connector_name}"))?;
@@ -976,14 +1003,14 @@ where
             merchant_id,
             connector_name,
             &flow_name,
-            router_data.payment_method,
-            router_data.payment_method_type,
+            payment_method,
+            payment_method_type,
         ),
         common_enums::TransactionType::Payout => build_rollout_keys_for_payouts(
             merchant_id,
             connector_name,
             &flow_name,
-            router_data.payment_method_type,
+            payment_method_type,
         ),
     };
 
@@ -1066,8 +1093,8 @@ where
             merchant_id,
             connector_name,
             &flow_name,
-            router_data.payment_method,
-            router_data.payment_method_type,
+            payment_method,
+            payment_method_type,
         );
 
         // This is the scope the decision is made under. Every connector call the decision
@@ -1089,8 +1116,8 @@ where
                 merchant_id = %merchant_id,
                 connector = %connector_name,
                 flow = %flow_name,
-                payment_method = ?router_data.payment_method,
-                payment_method_type = ?router_data.payment_method_type,
+                payment_method = ?payment_method,
+                payment_method_type = ?payment_method_type,
                 kill_switch_enabled = rollout_result.kill_switch_enabled,
                 threshold = rollout_result.kill_switch_threshold,
                 connector_decline_threshold = ?rollout_result.connector_decline_threshold,
@@ -1140,6 +1167,132 @@ where
     );
 
     Ok((execution_path, session_state, rollout_result))
+}
+
+/// Resolve the real current route before creating a PayPal partial-refund row
+/// or changing a partial payment's pre-void tracker. No financial call is made.
+#[cfg(feature = "v1")]
+pub(crate) async fn primary_paypal_operation<F: Clone>(
+    state: &SessionState,
+    processor: &Processor,
+    attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    previous_gateway: Option<GatewaySystem>,
+) -> RouterResult<bool> {
+    if attempt.connector.as_deref() != Some("paypal") {
+        return Ok(false);
+    }
+    if get_flow_name::<F>()?.as_str() == "PSync"
+        && state
+            .conf
+            .grpc_client
+            .unified_connector_service
+            .as_ref()
+            .is_some_and(|config| {
+                config
+                    .ucs_psync_disabled_connectors
+                    .contains(&Connector::Paypal)
+            })
+    {
+        return Ok(false);
+    }
+    let Some(method) = attempt.payment_method else {
+        return Ok(false);
+    };
+    let (path, _, _) = resolve_ucs_execution::<F>(
+        state,
+        processor,
+        "paypal",
+        method,
+        attempt.payment_method_type,
+        previous_gateway,
+        CallConnectorAction::Trigger,
+        None,
+        common_enums::TransactionType::Payment,
+    )
+    .await?;
+    Ok(path == ExecutionPath::UnifiedConnectorService)
+}
+
+const PAYPAL_CURRENT_SCOPE: &str = "_hs_paypal_order_reconciliation_v1";
+
+// Every flow boundary clears reserved input first, including Direct/shadow.
+// Only actual selected current Primary UCS may mint this ephemeral proof.
+pub(crate) fn mark_paypal_operation<F, T>(
+    data: &mut RouterData<F, T, PaymentsResponseData>,
+    path: ExecutionPath,
+    mode: ExecutionMode,
+    trigger: bool,
+    operation: &str,
+    capture_reference: Option<&str>,
+) {
+    let primary = data.connector == "paypal"
+        && path == ExecutionPath::UnifiedConnectorService
+        && mode == ExecutionMode::Primary
+        && trigger;
+    let update = |metadata: &mut Option<serde_json::Value>| {
+        if let Some(serde_json::Value::Object(fields)) = metadata {
+            fields.remove(PAYPAL_CURRENT_SCOPE);
+        }
+        if primary {
+            if !metadata.as_ref().is_some_and(serde_json::Value::is_object) {
+                *metadata = Some(serde_json::json!({"_hs_paypal_missing_metadata":true}));
+            }
+            if let Some(serde_json::Value::Object(fields)) = metadata {
+                fields.insert(
+                    PAYPAL_CURRENT_SCOPE.to_owned(),
+                    serde_json::json!({"version":1,"operation":operation,"capture_reference":capture_reference}),
+                );
+            }
+        }
+    };
+    match &mut data.response {
+        Ok(PaymentsResponseData::TransactionResponse {
+            connector_metadata, ..
+        }) => update(connector_metadata),
+        Err(error) => {
+            let mut metadata = error
+                .connector_metadata
+                .as_ref()
+                .map(|value| value.peek().clone());
+            update(&mut metadata);
+            error.connector_metadata = metadata.map(Secret::new);
+        }
+        _ => {}
+    }
+}
+
+pub(crate) fn take_paypal_operation<F, T>(
+    data: &mut RouterData<F, T, PaymentsResponseData>,
+) -> Option<(String, Option<String>)> {
+    let take = |metadata: &mut serde_json::Value| {
+        let value = metadata.as_object_mut()?.remove(PAYPAL_CURRENT_SCOPE)?;
+        if value.get("version").and_then(serde_json::Value::as_u64) != Some(1) {
+            return None;
+        }
+        Some((
+            value.get("operation")?.as_str()?.to_owned(),
+            value
+                .get("capture_reference")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned),
+        ))
+    };
+    match &mut data.response {
+        Ok(PaymentsResponseData::TransactionResponse {
+            connector_metadata: Some(metadata),
+            ..
+        }) => take(metadata),
+        Err(error) => {
+            let mut metadata = error
+                .connector_metadata
+                .as_ref()
+                .map(|value| value.peek().clone())?;
+            let operation = take(&mut metadata);
+            error.connector_metadata = Some(Secret::new(metadata));
+            operation
+        }
+        _ => None,
+    }
 }
 
 /// Creates a new SessionState with proxy configuration updated from the override
@@ -3707,6 +3860,26 @@ fn reconcile_ucs_refund_outcome<F>(
             &router_data.response,
         );
     }
+    if router_data.connector == "paypal" {
+        if let Ok(outcome) = &mut router_data.response {
+            if let Some(known_id) = router_data.request.connector_refund_id.as_ref() {
+                if outcome.connector_refund_id.trim().is_empty() {
+                    outcome.connector_refund_id = known_id.clone();
+                }
+            }
+            if matches!(
+                outcome.refund_status,
+                common_enums::RefundStatus::Pending | common_enums::RefundStatus::ManualReview
+            ) && matches!(
+                router_data.request.refund_status,
+                common_enums::RefundStatus::Success
+                    | common_enums::RefundStatus::Failure
+                    | common_enums::RefundStatus::TransactionFailure
+            ) {
+                outcome.refund_status = router_data.request.refund_status;
+            }
+        }
+    }
     if let Err(error) = &mut router_data.response {
         let status = if conflicting_id || invalid_money {
             common_enums::RefundStatus::ManualReview
@@ -3715,6 +3888,22 @@ fn reconcile_ucs_refund_outcome<F>(
                 response.status(),
                 common_enums::RefundStatus::Pending,
             ))?
+        };
+        // Retrieval errors carry an uncertainty status, not evidence that a
+        // previously completed refund changed state. Keep its terminal outcome
+        // while retaining the error details and known gateway resource identity.
+        let status = if matches!(
+            status,
+            common_enums::RefundStatus::Pending | common_enums::RefundStatus::ManualReview
+        ) && matches!(
+            router_data.request.refund_status,
+            common_enums::RefundStatus::Success
+                | common_enums::RefundStatus::Failure
+                | common_enums::RefundStatus::TransactionFailure
+        ) {
+            router_data.request.refund_status
+        } else {
+            status
         };
         let marker = serde_json::json!({"version":1,"status":status});
         let mut metadata = error
@@ -4096,6 +4285,10 @@ fn sanitize_ucs_log_value(value: &mut serde_json::Value) {
                         | "body"
                         | "webhookbody"
                         | "headers"
+                        | "encrypteddata"
+                        | "paymentdata"
+                        | "cryptogram"
+                        | "onlinepaymentcryptogram"
                 ) {
                     *value = serde_json::Value::String("***".to_owned());
                 } else {

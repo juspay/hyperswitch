@@ -14,7 +14,9 @@ use async_trait::async_trait;
 use common_enums::{AuthorizationStatus, ConnectorTokenStatus, TokenizationType};
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
-    types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
+    types::{
+        keymanager::KeyManagerState, ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit,
+    },
 };
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
@@ -2574,13 +2576,398 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     }
 }
 
+// A private current-call observation. Pending local capture amounts reserve
+// funds; they are never a substitute for actual collected money.
+#[cfg(feature = "v1")]
+struct PaypalOrderObservation {
+    captured: Option<MinorUnit>,
+    capturable: MinorUnit,
+    status: enums::AttemptStatus,
+    updates: Vec<(storage::Capture, storage::CaptureUpdate)>,
+}
+
+#[cfg(feature = "v1")]
+pub(crate) fn paypal_ledger_amount(
+    value: &serde_json::Value,
+    currency: enums::Currency,
+) -> Option<i64> {
+    if value.get("currency_code")?.as_str()? != currency.to_string() {
+        return None;
+    }
+    let raw = value.get("value")?.as_str()?;
+    let precision: usize = if currency.is_zero_decimal_currency() {
+        0
+    } else if currency.is_three_decimal_currency() {
+        3
+    } else {
+        2
+    };
+    let mut split = raw.split('.');
+    let whole = split.next()?;
+    let fraction = split.next().unwrap_or("");
+    if split.next().is_some()
+        || whole.is_empty()
+        || !whole.bytes().all(|v| v.is_ascii_digit())
+        || fraction.len() > precision
+        || !fraction.bytes().all(|v| v.is_ascii_digit())
+    {
+        return None;
+    }
+    let scale = 10_i64.checked_pow(u32::try_from(precision).ok()?)?;
+    let units = whole.parse::<i64>().ok()?.checked_mul(scale)?;
+    let fraction = if fraction.is_empty() {
+        0
+    } else {
+        fraction.parse::<i64>().ok()?.checked_mul(
+            10_i64.checked_pow(u32::try_from(precision.checked_sub(fraction.len())?).ok()?)?,
+        )?
+    };
+    units.checked_add(fraction)
+}
+
+#[cfg(feature = "v1")]
+fn preserve_owned_paypal_capture<F: Clone, T>(
+    data: &mut types::RouterData<F, T, types::PaymentsResponseData>,
+    payment: &PaymentData<F>,
+    captures: Option<&MultipleCaptureData>,
+    observation: &mut PaypalOrderObservation,
+    capture_reference: Option<&str>,
+) -> bool {
+    let Ok(types::PaymentsResponseData::TransactionResponse {
+        connector_metadata: Some(metadata),
+        resource_id: types::ResponseId::ConnectorTransactionId(resource),
+        connector_response_reference_id,
+        ..
+    }) = &mut data.response
+    else {
+        return false;
+    };
+    let saved = payment.payment_attempt.connector_metadata.as_ref();
+    let expected = saved
+        .and_then(|value| value.get("order_id"))
+        .and_then(serde_json::Value::as_str)
+        .or(payment.payment_attempt.connector_transaction_id.as_deref());
+    let Some(selected) = metadata
+        .get("capture_id")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned)
+    else {
+        return false;
+    };
+    if metadata.get("order_id").and_then(serde_json::Value::as_str) != expected
+        || expected.is_none()
+        || (Some(resource.as_str()) != expected && resource != &selected)
+        || selected.is_empty()
+        || selected
+            .bytes()
+            .any(|v| !(v.is_ascii_alphanumeric() || v == b'-' || v == b'_'))
+    {
+        return false;
+    }
+    for field in ["authorize_id", "reference_id"] {
+        if let Some(expected) = saved
+            .and_then(|v| v.get(field))
+            .and_then(serde_json::Value::as_str)
+        {
+            if metadata.get(field).and_then(serde_json::Value::as_str) != Some(expected) {
+                return false;
+            }
+        }
+    }
+    let Some(fields) = metadata.as_object_mut() else {
+        return false;
+    };
+    let mut context = saved
+        .and_then(|v| v.get("capture_context"))
+        .filter(|v| v.is_object())
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+    if let Some(fields) = context.as_object_mut() {
+        fields.insert(
+            "capture_history_complete".to_owned(),
+            serde_json::Value::Bool(false),
+        );
+        fields.remove("authorization_closed");
+    }
+    fields.insert("capture_context".to_owned(), context);
+    if let Some(captures) = captures {
+        let matching: Vec<_> = captures
+            .get_all_captures()
+            .into_iter()
+            .filter(|capture| {
+                capture.get_optional_connector_transaction_id().is_none()
+                    && capture_reference == Some(capture.capture_id.as_str())
+                    && capture.payment_id == payment.payment_attempt.payment_id
+                    && capture.merchant_id == payment.payment_attempt.merchant_id
+                    && capture.authorized_attempt_id == payment.payment_attempt.attempt_id
+                    && capture.currency == payment.payment_attempt.currency
+            })
+            .collect();
+        let already_bound_elsewhere = captures
+            .get_capture_by_connector_capture_id(&selected)
+            .is_some_and(|capture| capture_reference != Some(capture.capture_id.as_str()));
+        if matching.len() == 1 && !already_bound_elsewhere {
+            let capture = matching[0];
+            observation.updates.push((
+                capture.clone(),
+                storage::CaptureUpdate::ResponseUpdate {
+                    status: enums::CaptureStatus::Pending,
+                    connector_capture_id: Some(
+                        ConnectorTransactionId::form_id_and_data(selected.clone()).0,
+                    ),
+                    connector_response_reference_id: connector_response_reference_id.clone(),
+                    processor_capture_data: capture.processor_capture_data.clone(),
+                },
+            ));
+        }
+    }
+    true
+}
+
+#[cfg(feature = "v1")]
+fn paypal_order_observation<F: Clone, T>(
+    data: &mut types::RouterData<F, T, types::PaymentsResponseData>,
+    payment: &PaymentData<F>,
+    captures: Option<&MultipleCaptureData>,
+    operation: &str,
+    capture_reference: Option<&str>,
+) -> PaypalOrderObservation {
+    let prior = payment.payment_intent.amount_captured;
+    let previous_status = payment.payment_attempt.status;
+    let mut result = PaypalOrderObservation {
+        captured: prior,
+        capturable: payment.payment_attempt.amount_capturable,
+        status: if operation == "Capture" {
+            enums::AttemptStatus::CaptureInitiated
+        } else {
+            previous_status
+        },
+        updates: Vec::new(),
+    };
+    let validate = || -> Option<(i64, bool, bool, serde_json::Value, Vec<(storage::Capture,storage::CaptureUpdate)>)> {
+        let currency = payment.payment_attempt.currency?;
+        let authorized = payment.payment_attempt.authorized_amount.unwrap_or_else(|| payment.payment_attempt.get_total_amount()).get_amount_as_i64();
+        if authorized < 0 { return None; }
+        let (metadata, resource, _response_reference) = match &data.response {
+            Ok(types::PaymentsResponseData::TransactionResponse { connector_metadata: Some(metadata), resource_id, connector_response_reference_id, .. }) => (metadata, resource_id, connector_response_reference_id.as_deref()),
+            _ => return None,
+        };
+        let saved = payment.payment_attempt.connector_metadata.as_ref();
+        let order = metadata.get("order_id")?.as_str().filter(|v| !v.is_empty())?;
+        let expected_order = saved.and_then(|v| v.get("order_id")).and_then(serde_json::Value::as_str)
+            .or(payment.payment_attempt.connector_transaction_id.as_deref())?;
+        if order != expected_order { return None; }
+        for field in ["authorize_id", "reference_id"] {
+            if let Some(expected) = saved.and_then(|v| v.get(field)).and_then(serde_json::Value::as_str) {
+                if metadata.get(field).and_then(serde_json::Value::as_str) != Some(expected) { return None; }
+            }
+        }
+        let context = metadata.get("capture_context")?;
+        if paypal_ledger_amount(context.get("authorized_amount")?, currency)? != authorized { return None; }
+        let complete = context.get("capture_history_complete").and_then(serde_json::Value::as_bool) == Some(true);
+        let closed = context.get("authorization_closed").and_then(serde_json::Value::as_bool)?;
+        let amounts = context.get("capture_amounts")?.as_object()?;
+        let mut ledger = std::collections::BTreeMap::<String,i64>::new();
+        for (id,money) in amounts {
+            if id.is_empty() || id.bytes().any(|v| !(v.is_ascii_alphanumeric() || v == b'-' || v == b'_')) { return None; }
+            let amount = paypal_ledger_amount(money,currency)?;
+            if amount <= 0 { return None; }
+            ledger.insert(id.clone(),amount);
+        }
+        // Complete current provider history cannot erase any owned prior fact.
+        // Incomplete history retains a union of actual known resource IDs only.
+        if let Some(previous) = saved.and_then(|v| v.pointer("/capture_context/capture_amounts")).and_then(serde_json::Value::as_object) {
+            for (id,money) in previous {
+                let amount = paypal_ledger_amount(money,currency)?;
+                if ledger.get(id).is_some_and(|actual| *actual != amount) || (complete && !ledger.contains_key(id)) { return None; }
+                if amount > 0 { ledger.entry(id.clone()).or_insert(amount); }
+            }
+        }
+        let mut unknown_charged_floor = 0_i64;
+        if let Some(local) = captures {
+            for capture in local.get_all_captures() {
+                if capture.status == enums::CaptureStatus::Charged {
+                    let amount = capture.amount.get_amount_as_i64();
+                    let Some(id) = capture.get_optional_connector_transaction_id() else {
+                        if capture.currency.is_some_and(|actual| actual != currency) || amount < 0 { return None; }
+                        // An unidentified historical Charged row is unresolved.
+                        // It may duplicate any actual ledger resource, so never
+                        // add it. Each known positive fact independently forbids
+                        // a smaller aggregate (especially a certified zero).
+                        unknown_charged_floor = unknown_charged_floor.max(amount);
+                        continue;
+                    };
+                    if capture.currency != Some(currency) || amount <= 0 || ledger.get(id).is_some_and(|v| *v != amount)
+                        || (complete && !ledger.contains_key(id)) { return None; }
+                    ledger.entry(id.clone()).or_insert(amount);
+                }
+            }
+        }
+        let gross = ledger.values().try_fold(0_i64, |sum,amount| sum.checked_add(*amount))?;
+        if gross > authorized || gross < unknown_charged_floor
+            || prior.is_some_and(|known| known.get_amount_as_i64() > gross) { return None; }
+        if complete && gross == 0 && ledger.is_empty()
+            && [saved.and_then(|value| value.get("capture_id")), metadata.get("capture_id")]
+                .into_iter().flatten().filter_map(serde_json::Value::as_str).any(|id| !id.is_empty()) {
+            // A complete empty zero cannot erase an already known capture ID,
+            // regardless of whether common Money was None or explicitly zero.
+            return None;
+        }
+        if operation == "Capture" {
+            let selected = metadata.get("capture_id")?.as_str()?;
+            let amount = *ledger.get(selected)?;
+            match resource {
+                types::ResponseId::ConnectorTransactionId(observed) if observed == order || observed == selected => {},
+                _ => return None,
+            }
+            // Capture common Money is this operation's resource amount, while
+            // PSync common Money is the whole Order aggregate. Never compare a
+            // second USD30 Capture operation to a USD60 two-resource ledger.
+            if data.amount_captured != Some(amount) { return None; }
+            if let Some(local) = captures {
+                let reference = capture_reference?;
+                let matching: Vec<_> = local.get_all_captures().into_iter()
+                    .filter(|capture| capture.capture_id == reference).collect();
+                if matching.len() != 1 { return None; }
+                let capture = matching[0];
+                if capture.payment_id != payment.payment_attempt.payment_id
+                    || capture.merchant_id != payment.payment_attempt.merchant_id
+                    || capture.authorized_attempt_id != payment.payment_attempt.attempt_id
+                    || capture.currency != Some(currency) || capture.amount.get_amount_as_i64() != amount
+                    || capture.get_optional_connector_transaction_id().is_some_and(|id| id != selected)
+                    || local.get_capture_by_connector_capture_id(&selected.to_owned())
+                        .is_some_and(|existing| existing.capture_id != reference) { return None; }
+            }
+
+        } else if complete && data.amount_captured != Some(gross) {
+            let owned_empty_sync = operation == "PSync" && gross == 0 && ledger.is_empty()
+                && data.amount_captured.is_none()
+                && saved.and_then(|value| value.get("capture_id")).and_then(serde_json::Value::as_str)
+                    .map_or(true, str::is_empty);
+            let certified_closed = owned_empty_sync && closed && data.status == enums::AttemptStatus::Voided;
+            let proven_open_hold = owned_empty_sync && !closed && data.status == enums::AttemptStatus::Authorized;
+            if !certified_closed && !proven_open_hold { return None; }
+        }
+        // Qualified zero MUST NOT contradict actual HS funds even if legacy UCS
+        // metadata forgot the original capture ID/map.
+        if gross == 0 && prior.is_some_and(|known| known.get_amount_as_i64() > 0) { return None; }
+        let mut updates = Vec::new();
+        if let Some(local) = captures {
+            for (id,amount) in &ledger {
+                let exact = local.get_capture_by_connector_capture_id(id);
+                let by_reference = if exact.is_none() && operation == "Capture"
+                    && metadata.get("capture_id").and_then(serde_json::Value::as_str) == Some(id.as_str()) {
+                    let matches: Vec<_> = local.get_all_captures().into_iter()
+                        .filter(|capture| capture.get_optional_connector_transaction_id().is_none()
+                            && capture_reference == Some(capture.capture_id.as_str())).collect();
+                    if matches.len() == 1 { matches.first().copied() } else { None }
+                } else { None };
+                if let Some(capture) = exact.or(by_reference) {
+                    if capture.currency != Some(currency) || capture.amount.get_amount_as_i64() != *amount
+                        || capture.payment_id != payment.payment_attempt.payment_id
+                        || capture.merchant_id != payment.payment_attempt.merchant_id
+                        || capture.authorized_attempt_id != payment.payment_attempt.attempt_id { return None; }
+                    updates.push((capture.clone(),storage::CaptureUpdate::ResponseUpdate {
+                        status: enums::CaptureStatus::Charged,
+                        connector_capture_id: Some(ConnectorTransactionId::form_id_and_data(id.clone()).0),
+                        connector_response_reference_id: capture.connector_response_reference_id.clone(),
+                        processor_capture_data: capture.processor_capture_data.clone(),
+                    }));
+                }
+            }
+        }
+        Some((gross,complete,closed,metadata.clone(),updates))
+    };
+    if let Some((gross, complete, closed, _metadata, updates)) = validate() {
+        result.captured = if gross > 0
+            || (complete
+                && closed
+                && operation == "PSync"
+                && data.status == enums::AttemptStatus::Voided)
+        {
+            Some(MinorUnit::new(gross))
+        } else {
+            // Incomplete emptiness is not collected Money. An open Authorize
+            // can prove a usable hold while its absent captured Money remains
+            // absent; only current qualified closed-zero PSync certifies zero.
+            prior
+        };
+        result.updates = updates;
+        if complete {
+            let authorized = payment
+                .payment_attempt
+                .authorized_amount
+                .unwrap_or_else(|| payment.payment_attempt.get_total_amount())
+                .get_amount_as_i64();
+            result.capturable = MinorUnit::new(if closed { 0 } else { authorized - gross });
+            result.status = if gross == 0 {
+                if closed {
+                    enums::AttemptStatus::Voided
+                } else {
+                    enums::AttemptStatus::Authorized
+                }
+            } else if gross == authorized {
+                enums::AttemptStatus::Charged
+            } else if closed {
+                enums::AttemptStatus::PartialCharged
+            } else {
+                enums::AttemptStatus::PartialChargedAndChargeable
+            };
+        } else {
+            // Actual observed collected money is retained as a lower bound.
+            // Exact remaining/closure requires authoritative full order sync.
+            result.status = if operation == "PSync"
+                && data.status == enums::AttemptStatus::Authorized
+                && gross == 0
+            {
+                enums::AttemptStatus::Authorized
+            } else {
+                enums::AttemptStatus::Pending
+            };
+        }
+    } else if let Err(error) = &mut data.response {
+        error.attempt_status = Some(result.status);
+    } else if operation == "PSync"
+        && data.status == enums::AttemptStatus::Authorized
+        && prior.map_or(true, |amount| amount.get_amount_as_i64() == 0)
+        && payment.payment_attempt.capture_method != Some(enums::CaptureMethod::ManualMultiple)
+    {
+        // Legacy owned Authorization GET can still prove an open ordinary hold.
+        result.status = enums::AttemptStatus::Authorized;
+    } else if operation == "Capture"
+        && preserve_owned_paypal_capture(data, payment, captures, &mut result, capture_reference)
+    {
+        // A successful response can identify a real capture without carrying its
+        // collected Money. Retain that exact ID as Pending, never its reservation
+        // amount as received. Canonical order sync must recover actual gross.
+        result.status = enums::AttemptStatus::Pending;
+    } else {
+        data.response = Err(ErrorResponse {
+            code: "PAYPAL_ORDER_RECONCILIATION_REQUIRED".to_owned(),
+            message: "Current PayPal outcome is incomplete or contradicts stored financial facts"
+                .to_owned(),
+            reason: Some(
+                "Retain actual money and identifiers; reconcile the owned order".to_owned(),
+            ),
+            status_code: data.connector_http_status_code.unwrap_or(200),
+            attempt_status: Some(result.status),
+            ..Default::default()
+        });
+    }
+    data.status = result.status;
+    data.amount_captured = result.captured.map(MinorUnit::get_amount_as_i64);
+    data.minor_amount_captured = result.captured;
+    data.minor_amount_capturable = Some(result.capturable);
+    result
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     state: &SessionState,
     mut payment_data: PaymentData<F>,
-    router_data: types::RouterData<F, T, types::PaymentsResponseData>,
+    mut router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     processor: &domain::Processor,
     provider: &domain::Provider,
     customer: Option<&domain::Customer>,
@@ -2593,6 +2980,78 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<PaymentData<F>> {
     let key_manager_state = &state.into();
+    let scope = crate::core::unified_connector_service::take_paypal_operation(&mut router_data)
+        .filter(|(operation, _)| {
+            router_data.connector == "paypal"
+                && core_utils::get_flow_name::<F>().ok().as_deref() == Some(operation.as_str())
+        });
+    let capture_reference = scope.as_ref().and_then(|(_, reference)| reference.clone());
+    let operation = scope.map(|(operation, _)| operation);
+    let mut scoped_captures = if operation.is_some() {
+        payment_data.multiple_capture_data.take()
+    } else {
+        None
+    };
+    let paypal_observation = operation.as_ref().map(|operation| {
+        paypal_order_observation(
+            &mut router_data,
+            &payment_data,
+            scoped_captures.as_ref(),
+            operation,
+            capture_reference.as_deref(),
+        )
+    });
+    if let (Some(observation), Some(captures)) = (&paypal_observation, &mut scoped_captures) {
+        for (capture, update) in &observation.updates {
+            let updated = state
+                .store
+                .update_capture_with_capture_id(
+                    capture.clone(),
+                    update.clone(),
+                    processor.get_account().storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            captures.update_capture(updated);
+        }
+    }
+    if operation.as_deref() == Some("Capture") {
+        if let Ok(types::PaymentsResponseData::TransactionResponse {
+            resource_id,
+            connector_metadata: Some(metadata),
+            connector_response_reference_id,
+            ..
+        }) = &mut router_data.response
+        {
+            let stored = payment_data
+                .payment_attempt
+                .connector_metadata
+                .as_ref()
+                .and_then(|meta| meta.get("order_id"))
+                .and_then(serde_json::Value::as_str)
+                .or(payment_data
+                    .payment_attempt
+                    .connector_transaction_id
+                    .as_deref());
+            if let Some(order) = metadata
+                .get("order_id")
+                .and_then(serde_json::Value::as_str)
+                .filter(|order| Some(*order) == stored)
+            {
+                // The aggregate payment attempt remains indexed by its proven
+                // canonical Order. Individual capture IDs belong to exact local
+                // capture rows and genuine PayPal metadata, not this Order index.
+                *resource_id = types::ResponseId::ConnectorTransactionId(order.to_owned());
+                *connector_response_reference_id = payment_data
+                    .payment_attempt
+                    .connector_response_reference_id
+                    .clone();
+            }
+        }
+    }
+    // Scoped PayPal aggregate bypasses generic latest-capture matching and both
+    // blocked-reservation totals. Unmatched actual rows remain visible.
+
     // Update additional payment data with the payment method response that we received from connector
     // This is for details like whether 3ds was upgraded and which version of 3ds was used
     // also some connectors might send card network details in the response, which is captured and stored
@@ -3286,6 +3745,25 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         None => None,
     };
 
+    if let Some(observation) = &paypal_observation {
+        match &mut payment_attempt_update {
+            Some(storage::PaymentAttemptUpdate::ResponseUpdate {
+                status,
+                amount_capturable,
+                ..
+            })
+            | Some(storage::PaymentAttemptUpdate::ErrorUpdate {
+                status,
+                amount_capturable,
+                ..
+            }) => {
+                *status = observation.status;
+                *amount_capturable = Some(observation.capturable);
+            }
+            _ => {}
+        }
+    }
+
     // Stage 1
 
     let payment_attempt = payment_data.payment_attempt.clone();
@@ -3377,12 +3855,19 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         };
     }
 
-    let amount_captured = get_total_amount_captured(
-        &router_data.request,
-        router_data.amount_captured.map(MinorUnit::new),
-        router_data.status,
-        &payment_data,
-    );
+    let amount_captured = if let Some(observation) = &paypal_observation {
+        observation.captured
+    } else {
+        get_total_amount_captured(
+            &router_data.request,
+            router_data.amount_captured.map(MinorUnit::new),
+            router_data.status,
+            &payment_data,
+        )
+    };
+    if operation.is_some() {
+        payment_data.multiple_capture_data = scoped_captures;
+    }
 
     let payment_intent_update = get_payment_intent_update_data::<_, _>(
         payment_data.clone(),

@@ -107,9 +107,33 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
-        let capture_sync_method_result = connector_integration
-            .get_multiple_capture_sync_method()
-            .to_payment_failed_response();
+        let path = gateway_context.execution_path;
+        let mode = gateway_context.execution_mode;
+        let trigger = matches!(
+            call_connector_action,
+            payments::CallConnectorAction::Trigger
+        ) && !(self.connector == "paypal"
+            && state
+                .conf
+                .grpc_client
+                .unified_connector_service
+                .as_ref()
+                .is_some_and(|config| {
+                    config
+                        .ucs_psync_disabled_connectors
+                        .contains(&common_enums::connector_enums::Connector::Paypal)
+                }));
+        let primary_paypal = self.connector == "paypal"
+            && path == common_enums::ExecutionPath::UnifiedConnectorService
+            && mode == common_enums::ExecutionMode::Primary
+            && trigger;
+        let capture_sync_method_result = if primary_paypal {
+            Ok(services::CaptureSyncMethod::Bulk)
+        } else {
+            connector_integration
+                .get_multiple_capture_sync_method()
+                .to_payment_failed_response()
+        };
 
         // Read before the connector call: connectors on the V2 interface rebuild the returned
         // router data from `PaymentFlowData`, which does not carry this flag.
@@ -129,6 +153,14 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                         gateway_context,
                     )
                     .await?;
+                crate::core::unified_connector_service::mark_paypal_operation(
+                    &mut new_router_data,
+                    path,
+                    mode,
+                    trigger,
+                    "PSync",
+                    None,
+                );
                 // Initiating Integrity checks
                 let integrity_result = helpers::check_integrity_based_on_flow(
                     &new_router_data.request,
@@ -155,6 +187,14 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 .await
                 .to_payment_failed_response()?;
 
+                crate::core::unified_connector_service::mark_paypal_operation(
+                    &mut new_router_data,
+                    path,
+                    mode,
+                    trigger,
+                    "PSync",
+                    None,
+                );
                 // Initiating Integrity checks
                 let integrity_result = helpers::check_integrity_based_on_flow(
                     &new_router_data.request,

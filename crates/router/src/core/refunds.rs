@@ -399,8 +399,142 @@ pub async fn refund_create_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    // Admission for an open partial capture is private to the actual current
+    // Primary UCS route and its exact active attempt, before any refund row exists.
+    let open_partial_attempt = if payment_intent.status
+        == enums::IntentStatus::PartiallyCapturedAndCapturable
+    {
+        let attempt = db
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                &req.payment_id,
+                processor_merchant_id,
+                &payment_intent.active_attempt.get_id(),
+                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let owned_capture = (|| -> Option<bool> {
+            let currency = attempt.currency?;
+            if payment_intent.currency != Some(currency) {
+                return None;
+            }
+            let metadata = attempt.connector_metadata.as_ref()?;
+            let order = metadata
+                .get("order_id")?
+                .as_str()
+                .filter(|id| !id.is_empty())?;
+            if attempt.connector_transaction_id.as_deref() != Some(order) {
+                return None;
+            }
+            // Select only the already saved actual target. No first/latest
+            // ledger member or amount match may invent a refund target.
+            let selected = metadata
+                .get("capture_id")?
+                .as_str()
+                .filter(|id| !id.is_empty())?;
+            if selected == order
+                || selected
+                    .bytes()
+                    .any(|value| !(value.is_ascii_alphanumeric() || value == b'-' || value == b'_'))
+            {
+                return None;
+            }
+            let context = metadata.get("capture_context");
+            if context.is_some_and(|value| !value.is_object()) {
+                return None;
+            }
+            if context
+                .and_then(|value| value.get("capture_history_complete"))
+                .is_some_and(|value| !value.is_boolean())
+            {
+                return None;
+            }
+            let ledger_value = context.and_then(|value| value.get("capture_amounts"));
+            if ledger_value.is_some_and(|value| !value.is_object())
+                || (ledger_value.is_none()
+                    && context
+                        .and_then(|value| value.get("capture_history_complete"))
+                        .and_then(serde_json::Value::as_bool)
+                        == Some(true))
+            {
+                return None;
+            }
+            if let Some(authorized) = context.and_then(|value| value.get("authorized_amount")) {
+                let observed = payments::operations::payment_response::paypal_ledger_amount(
+                    authorized, currency,
+                )?;
+                if observed
+                    != attempt
+                        .authorized_amount
+                        .unwrap_or_else(|| attempt.get_total_amount())
+                        .get_amount_as_i64()
+                {
+                    return None;
+                }
+            }
+            if let Some(ledger) = context
+                .and_then(|value| value.get("capture_amounts"))
+                .and_then(serde_json::Value::as_object)
+            {
+                if let Some(actual) = ledger.get(selected) {
+                    let captured = payments::operations::payment_response::paypal_ledger_amount(
+                        actual, currency,
+                    )?;
+                    let received = payment_intent.amount_captured?.get_amount_as_i64();
+                    let requested = req
+                        .amount
+                        .unwrap_or(MinorUnit::new(received))
+                        .get_amount_as_i64();
+                    if captured <= 0 || captured > received || requested > captured {
+                        return None;
+                    }
+                } else if !ledger.is_empty()
+                    || context
+                        .and_then(|value| value.get("capture_history_complete"))
+                        .and_then(serde_json::Value::as_bool)
+                        == Some(true)
+                {
+                    return None;
+                }
+            }
+            // A legacy saved owned ID without new Money remains gateway
+            // validated; missing history is never fabricated as prior zero.
+            Some(true)
+        })()
+        .unwrap_or(false);
+        utils::when(
+            !owned_capture
+                || attempt.payment_id != payment_intent.payment_id
+                || attempt.processor_merchant_id != *processor_merchant_id
+                || attempt.merchant_id != payment_intent.merchant_id
+                || attempt.attempt_id != *payment_intent.active_attempt.get_id()
+                || payment_intent
+                    .amount_captured
+                    .map_or(true, |amount| amount <= MinorUnit::new(0))
+                || !unified_connector_service::primary_paypal_operation::<api::Execute>(
+                    &state,
+                    platform.get_processor(),
+                    &attempt,
+                    None,
+                )
+                .await?,
+            || {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "Open partial refunds require the owned active Primary UCS PayPal attempt"
+                            .into(),
+                }))
+            },
+        )?;
+        Some(attempt)
+    } else {
+        None
+    };
+
     utils::when(
-        !(payment_intent.status == enums::IntentStatus::Succeeded
+        !(open_partial_attempt.is_some()
+            || payment_intent.status == enums::IntentStatus::Succeeded
             || payment_intent.status == enums::IntentStatus::PartiallyCaptured),
         || {
             Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
@@ -438,14 +572,18 @@ pub async fn refund_create_core(
         .attach_printable("amount less than or equal to zero"))
     })?;
 
-    payment_attempt = db
+    payment_attempt = if let Some(attempt) = open_partial_attempt {
+        attempt
+    } else {
+        db
         .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
             &req.payment_id,
             processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store()
         ).await
-        .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?
+    };
 
     let creds_identifier = req
         .merchant_connector_details
@@ -555,6 +693,17 @@ pub async fn trigger_refund_to_gateway(
             common_enums::TransactionType::Payment,
         )
         .await?;
+
+    utils::when(
+        payment_intent.status == enums::IntentStatus::PartiallyCapturedAndCapturable
+            && (payment_attempt.connector.as_deref() != Some("paypal")
+                || execution_path != common_enums::ExecutionPath::UnifiedConnectorService),
+        || {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Partial refund execution no longer selects Primary UCS PayPal".into(),
+            }))
+        },
+    )?;
 
     router_env::logger::info!(
         refund_id = refund.refund_id,

@@ -259,19 +259,31 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelReques
         let storage_scheme = processor.get_account().storage_scheme;
         let key_store = processor.get_key_store();
 
+        let partial_primary_paypal = payment_data.payment_intent.status
+            == enums::IntentStatus::PartiallyCapturedAndCapturable
+            && crate::core::unified_connector_service::primary_paypal_operation::<api::Void>(
+                state,
+                processor,
+                &payment_data.payment_attempt,
+                crate::core::unified_connector_service::extract_gateway_system_from_payment_intent(
+                    &payment_data,
+                ),
+            )
+            .await?;
         let cancellation_reason = payment_data.payment_attempt.cancellation_reason.clone();
-        let (intent_status_update, attempt_status_update) =
-            if payment_data.payment_intent.status != enums::IntentStatus::RequiresCapture {
-                let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
-                    status: enums::IntentStatus::Cancelled,
-                    updated_by: storage_scheme.to_string(),
-                    incremental_authorization_allowed: None,
-                    feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
-                };
-                (Some(payment_intent_update), enums::AttemptStatus::Voided)
-            } else {
-                (None, enums::AttemptStatus::VoidInitiated)
+        let (intent_status_update, attempt_status_update) = if !partial_primary_paypal
+            && payment_data.payment_intent.status != enums::IntentStatus::RequiresCapture
+        {
+            let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
+                status: enums::IntentStatus::Cancelled,
+                updated_by: storage_scheme.to_string(),
+                incremental_authorization_allowed: None,
+                feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
             };
+            (Some(payment_intent_update), enums::AttemptStatus::Voided)
+        } else {
+            (None, enums::AttemptStatus::VoidInitiated)
+        };
 
         if let Some(payment_intent_update) = intent_status_update {
             payment_data.payment_intent = state
@@ -300,13 +312,15 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelReques
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        req_state
-            .event_context
-            .event(AuditEvent::new(AuditEventType::PaymentCancelled {
-                cancellation_reason,
-            }))
-            .with(payment_data.to_event())
-            .emit();
+        if !partial_primary_paypal {
+            req_state
+                .event_context
+                .event(AuditEvent::new(AuditEventType::PaymentCancelled {
+                    cancellation_reason,
+                }))
+                .with(payment_data.to_event())
+                .emit();
+        }
         Ok((Box::new(self), payment_data))
     }
 }

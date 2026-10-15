@@ -99,6 +99,20 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         // Read before the connector call: connectors on the V2 interface rebuild the returned
         // router data from `PaymentFlowData`, which does not carry this flag.
         let accept_amount_mismatch = self.accept_amount_mismatch;
+        let path = gateway_context.execution_path;
+        let mode = gateway_context.execution_mode;
+        let trigger = matches!(
+            call_connector_action,
+            payments::CallConnectorAction::Trigger
+        );
+        // This reference is the server-inserted current capture row's UUID,
+        // constructed by payment_capture.rs and PaymentsCaptureData conversion.
+        // It is not a client connector_metadata field or latest-row response guess.
+        let capture_reference = self
+            .request
+            .multiple_capture_data
+            .as_ref()
+            .map(|capture| capture.capture_reference.clone());
         let mut new_router_data =
             payments::gateway::handle_gateway_call::<_, _, _, PaymentFlowData, _>(
                 state,
@@ -110,6 +124,15 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
                 return_raw_connector_response,
             )
             .await?;
+
+        crate::core::unified_connector_service::mark_paypal_operation(
+            &mut new_router_data,
+            path,
+            mode,
+            trigger,
+            "Capture",
+            capture_reference.as_deref(),
+        );
 
         // Initiating Integrity check
         let integrity_result = helpers::check_integrity_based_on_flow(
