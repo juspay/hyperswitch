@@ -10,7 +10,16 @@ let globalState;
 const connectorId = process.env.CYPRESS_CONNECTOR || "service";
 const screenshotsFolderName = `screenshots/${connectorId}`;
 const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
-const retries = process.env.CYPRESS_MOCK_SERVER === "true" ? 0 : 2;
+// GRACE_RETRIES, not CYPRESS_RETRIES: Cypress auto-maps any CYPRESS_<X> onto
+// the matching top-level config key, and a top-level `retries` is shadowed by
+// the `e2e.retries` set below — so the CLI/env override never took effect.
+// An explicit 0 matters for connectors where each attempt moves real money.
+const retries =
+  process.env.GRACE_RETRIES !== undefined
+    ? Number(process.env.GRACE_RETRIES)
+    : process.env.CYPRESS_MOCK_SERVER === "true"
+      ? 0
+      : 2;
 
 // Cypress only auto-maps `CYPRESS_` prefixed variables onto `Cypress.env()`, so
 // these are forwarded explicitly and can be exported without the prefix. A
@@ -76,6 +85,26 @@ export default defineConfig({
           console.log("Logging console message from task");
           // eslint-disable-next-line no-console
           console.log(message);
+          return null;
+        },
+        // Appends one JSON line per executed flow command to the path in
+        // GRACE_RECORD. Without it a TRIGGER_SKIP pass is indistinguishable
+        // from a real execution in the mochawesome report.
+        grace_record: (entries) => {
+          const sink = process.env.GRACE_RECORD;
+          if (!sink) return null;
+          const rows = Array.isArray(entries) ? entries : [entries];
+          if (!rows.length) return null;
+          try {
+            fs.appendFileSync(
+              sink,
+              rows.map((row) => JSON.stringify(row)).join("\n") + "\n"
+            );
+          } catch (error) {
+            // Recording must never fail a test.
+            // eslint-disable-next-line no-console
+            console.warn(`grace_record: could not append to ${sink}`, error);
+          }
           return null;
         },
         computeHmac: ({ key, message, algorithm = "sha512" }) => {
