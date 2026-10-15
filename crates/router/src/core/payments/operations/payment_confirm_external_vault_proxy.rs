@@ -240,7 +240,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             )?;
         }
 
-        let mut payment_attempt = db
+        let active_payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
                 processor_merchant_id,
@@ -250,6 +250,52 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // The vault card arm of a fallback follows an earlier attempt on the same intent, so it
+        // needs its own attempt or that attempt's decline is overwritten. Only that case: a 3DS
+        // resume reaches this operation with its authentication on the active attempt, and a new
+        // attempt would drop `authentication_id` and authorize without the 3DS result.
+        let needs_new_attempt =
+            request
+                .recurring_details
+                .as_ref()
+                .is_some_and(|recurring_details| {
+                    matches!(
+                    recurring_details,
+                    api_models::mandates::RecurringDetails::NetworkTransactionIdAndVaultCardDetails(
+                        _
+                    )
+                )
+                })
+                && active_payment_attempt.status.is_terminal_status();
+
+        let (payment_intent, mut payment_attempt) = match needs_new_attempt {
+            true => {
+                let previous_connector = active_payment_attempt.connector.clone();
+                let previous_merchant_connector_id =
+                    active_payment_attempt.merchant_connector_id.clone();
+
+                let (payment_intent, mut payment_attempt) = Box::pin(
+                    helpers::AttemptType::New.modify_payment_intent_and_payment_attempt(
+                        request,
+                        payment_intent,
+                        active_payment_attempt,
+                        state,
+                        platform.get_processor().get_key_store(),
+                        storage_scheme,
+                    ),
+                )
+                .await?;
+
+                // The manual retry helper clears both, but the network transaction ID was issued
+                // by the connector that declined, so the fallback has to stay on it.
+                payment_attempt.connector = previous_connector;
+                payment_attempt.merchant_connector_id = previous_merchant_connector_id;
+
+                (payment_intent, payment_attempt)
+            }
+            false => (payment_intent, active_payment_attempt),
+        };
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.get_total_amount().into();

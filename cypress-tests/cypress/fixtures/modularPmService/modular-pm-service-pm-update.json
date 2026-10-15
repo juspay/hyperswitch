@@ -1,7 +1,8 @@
 {
   "payment_method_data": {
     "card": {
-      "card_cvc": "123"
+      "card_holder_name": "Gaurav Rawat",
+      "nick_name": "Primary Card"
     }
   }
 }
