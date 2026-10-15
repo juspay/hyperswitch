@@ -66,4 +66,25 @@ describe("Card - Fall back to billing name when cardholder name is absent", () =
       });
     }
   );
+
+  context(
+    "Card-NoThreeDS payment without card_holder_name and without a billing name to fall back to fails",
+    () => {
+      it("create-confirm-payment-without-any-cardholder-name", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["CardHolderNameMissingBoth"];
+
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        utils.should_continue_further(data);
+      });
+    }
+  );
 });
