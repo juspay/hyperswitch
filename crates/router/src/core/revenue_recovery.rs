@@ -737,22 +737,11 @@ fn record_grace_window_unresolved(reason: &'static str) {
 
 /// When the invoice's recovery grace window closes: its billing start plus the configured grace
 /// period.
-async fn get_recovery_grace_window_end(
-    state: &SessionState,
+fn get_recovery_grace_window_end(
     payment_intent: &PaymentIntent,
-    billing_connector: common_enums::connector_enums::Connector,
+    grace_period_days: u16,
 ) -> CustomResult<time::PrimitiveDateTime, errors::RecoveryError> {
-    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
-        .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-        .with_connector(billing_connector);
-
-    let grace_period_days = dimensions
-        .get_recovery_grace_period_days(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            None,
-        )
-        .await;
+    let grace_period_days = i64::from(grace_period_days);
 
     let grace_window_start = payment_intent
         .get_revenue_recovery_metadata()
@@ -883,14 +872,17 @@ pub async fn perform_calculate_workflow(
     let grace_window_end = if retry_budget_exhausted {
         None
     } else {
-        Some(
-            get_recovery_grace_window_end(
-                state,
-                payment_intent,
-                revenue_recovery_payment_data.billing_mca.connector_name,
-            )
-            .await?,
-        )
+        let grace_period_days = revenue_recovery_payment_data
+            .billing_mca
+            .get_grace_period_days()
+            .ok_or(errors::RecoveryError::ValueNotFound)
+            .attach_printable(
+                "Failed to get grace period days from billing merchant connector account",
+            )?;
+        Some(get_recovery_grace_window_end(
+            payment_intent,
+            grace_period_days,
+        )?)
     };
 
     let grace_window_elapsed = grace_window_end

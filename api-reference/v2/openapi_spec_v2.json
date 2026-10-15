@@ -32404,6 +32404,20 @@
             "example": "5",
             "minimum": 0
           },
+          "grace_period_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Grace period, in days from the invoice's billing start, within which retries are allowed\nfor invoices of this `billing connector`. Defaults to 30 days when not provided.",
+            "default": 30,
+            "example": "30",
+            "minimum": 0
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for payments recovered through this `billing connector`.\nA value passed in the recovery payments API request takes priority over this. Defaults to\n`false` when not provided.",
+            "default": false,
+            "example": false
+          },
           "billing_account_reference": {
             "type": "integer",
             "format": "int32",
