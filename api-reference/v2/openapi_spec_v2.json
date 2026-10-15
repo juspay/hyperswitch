@@ -25343,6 +25343,17 @@
                 "$ref": "#/components/schemas/BankDebitDetailUpdate"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletDetailUpdate"
+              }
+            }
           }
         ]
       },
@@ -36781,6 +36792,31 @@
           }
         ]
       },
+      "WalletDetailUpdate": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "pay_pal"
+            ],
+            "properties": {
+              "pay_pal": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "payer_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "WalletPaymentMethodData": {
         "oneOf": [
           {
@@ -36845,10 +36881,10 @@
           {
             "type": "object",
             "required": [
-              "Paypal"
+              "PayPal"
             ],
             "properties": {
-              "Paypal": {
+              "PayPal": {
                 "$ref": "#/components/schemas/PaypalWalletInfo"
               }
             }
