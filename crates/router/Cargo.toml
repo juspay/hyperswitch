@@ -252,8 +252,8 @@ rust_decimal = { version = "1.37.1", features = [
 ] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
 
-unified-connector-service-client = { git = "https://github.com/juspay/hyperswitch-prism", rev = "86c813db35116b5fc8aed96f7cafa8ef76b757e2", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/hyperswitch-prism", rev = "86c813db35116b5fc8aed96f7cafa8ef76b757e2", package = "ucs_cards" }
+unified-connector-service-client = { git = "https://github.com/juspay/hyperswitch-prism", rev = "307622c3cb065a91b7b0489cd3bdad25fb8c1a39", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/hyperswitch-prism", rev = "307622c3cb065a91b7b0489cd3bdad25fb8c1a39", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = { version = "0.23", default-features = false, features = [
     "aws-lc-rs",
