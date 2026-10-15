@@ -9,8 +9,27 @@ import {
 import getConnectorDetails from "../../configs/PaymentMethodList/Utils";
 
 let globalState;
+// Both contexts below create their own throwaway merchant (merchantCreateCallTest
+// overwrites "merchantId", apiKeyCreateTest overwrites "apiKey"/"apiKeyId" and
+// persists immediately via its own cy.task("setGlobalState", ...), and
+// createCustomerCallTest overwrites "customerId"). Without restoring these, every
+// later-running spec in the same suite — e.g. 54-RefundType.cy.js, which sorts
+// after this file alphabetically — inherits this throwaway merchant's credentials
+// instead of the suite's shared one, and fails outright since that merchant has
+// none of the setup (connectors, config) the rest of the suite assumes exists.
+let pristineGlobalStateData;
 
 describe("Payment Method List - customer_acceptance_support field", () => {
+  before("snapshot global state before creating throwaway merchants", () => {
+    cy.task("getGlobalState").then((state) => {
+      pristineGlobalStateData = JSON.parse(JSON.stringify(state));
+    });
+  });
+
+  after("restore global state for specs running after this one", () => {
+    cy.task("setGlobalState", pristineGlobalStateData);
+  });
+
   context(
     `
     MCA1 -> Stripe configured with credit = { country = "US" }\n
