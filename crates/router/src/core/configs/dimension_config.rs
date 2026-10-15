@@ -992,6 +992,19 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
     }
 }
 
+// IP verification is opt-in: an absent config defaults to no configured connectors.
+config! {
+    superposition_key = INCOMING_WEBHOOK_ALLOWED_IP_RANGES,
+    output = serde_json::Value,
+    default = serde_json::json!({}),
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for IncomingWebhookAllowedIpRanges {
+    const KEY: &'static str = "incoming_webhooks_allowed_ip_ranges";
+}
+
 config! {
     superposition_key = INCOMING_WEBHOOK_MTLS_VERIFICATION_ENABLED,
     output = bool,
