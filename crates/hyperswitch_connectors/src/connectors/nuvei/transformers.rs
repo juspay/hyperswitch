@@ -894,7 +894,7 @@ where
                         external_token_provider: ExternalTokenProvider::ApplePay,
                         mobile_token: {
                             let apple_pay: ApplePayCamelCase = ApplePayCamelCase {
-                                payment_data: encrypted_data.to_string().into(),
+                                payment_data: encrypted_data.clone(),
                                 payment_method: ApplePayPaymentMethodCamelCase {
                                     display_name: Secret::new(
                                         apple_pay_data.payment_method.display_name.clone(),

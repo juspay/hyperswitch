@@ -5487,7 +5487,7 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
     ) -> Result<Self, Self::Error> {
         match payment_data {
             common_types::payments::ApplePayPaymentData::Encrypted(encrypted_data) => {
-                Ok(Self::EncryptedData(encrypted_data.clone()))
+                Ok(Self::EncryptedData(encrypted_data.peek().clone()))
             }
             common_types::payments::ApplePayPaymentData::Decrypted(decrypted_data) => {
                 let application_primary_account_number = CardNumber::from_str(
@@ -5713,7 +5713,7 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
             common_types::payments::GpayTokenizationData::Encrypted(encrypted_data) => Ok(
                 Self::EncryptedData(payments_grpc::GooglePayEncryptedTokenizationData {
                     token_type: encrypted_data.token_type.clone(),
-                    token: encrypted_data.token.clone(),
+                    token: encrypted_data.token.peek().clone(),
                 }),
             ),
             common_types::payments::GpayTokenizationData::Decrypted(decrypted_data) => {

@@ -1326,7 +1326,7 @@ fn build_google_pay_payment_details(
         }
 
         GpayTokenizationData::Encrypted(ref token_string) => {
-            let parsed_token = serde_json::from_str::<GooglePayData>(&token_string.token)
+            let parsed_token = serde_json::from_str::<GooglePayData>(token_string.token.peek())
                 .change_context(errors::ConnectorError::ParsingFailed)?;
 
             PaymentMethod::PayWithGoogleSSL(GooglePayData {

@@ -76,7 +76,7 @@ async fn should_authorize_gpay_payment() {
                         tokenization_data: common_types::payments::GpayTokenizationData::Encrypted(
                             common_types::payments::GpayEcryptedTokenizationData {
                                 token_type: "worldpay".to_string(),
-                                token: "someToken".to_string(),
+                                token: "someToken".to_string().into(),
                                 auth_method: None,
                             },
                         ),
@@ -106,7 +106,7 @@ async fn should_authorize_applepay_payment() {
                 payment_method_data: domain::PaymentMethodData::Wallet(
                     domain::WalletData::ApplePay(domain::ApplePayWalletData {
                         payment_data: common_types::payments::ApplePayPaymentData::Encrypted(
-                            "someData".to_string(),
+                            "someData".to_string().into(),
                         ),
                         transaction_identifier: "someId".to_string(),
                         payment_method: domain::ApplepayPaymentMethod {

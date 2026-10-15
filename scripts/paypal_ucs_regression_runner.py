@@ -275,7 +275,7 @@ def resolve(value, bindings):
     return value
 
 
-def request(base, method, path, body, header_env, key_env, idempotency):
+def request(base, method, path, body, header_env, key_env, idempotency, response_identity=None):
     assert path.startswith('/') and not path.startswith('//') and '\n' not in path
     parsed = urllib.parse.urlsplit(base)
     assert parsed.scheme in {'http', 'https'} and parsed.hostname and not parsed.username
@@ -291,9 +291,16 @@ def request(base, method, path, body, header_env, key_env, idempotency):
     req = urllib.request.Request(base.rstrip('/') + path, data=raw, method=method, headers=headers)
     try:
         with opener.open(req, timeout=90) as response:
-            status, wire = response.status, response.read()
+            status, wire, response_headers = response.status, response.read(), response.headers
     except urllib.error.HTTPError as error:
-        status, wire = error.code, error.read()
+        status, wire, response_headers = error.code, error.read(), error.headers
+    if response_identity is not None:
+        # Ingress may replace the supplied x-request-id. Capture only the actual
+        # public response UUID; never persist arbitrary headers or response text.
+        identifiers = response_headers.get_all('x-request-id', [])
+        if len(identifiers) == 1 and re.fullmatch(
+                r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}', identifiers[0]):
+            response_identity.update(request_id=identifiers[0], source='response_header:x-request-id')
     return status, json.loads(wire) if wire else None, digest(wire)
 
 
@@ -332,32 +339,156 @@ def snapshot_log_sinks(operator, source):
     return snapshots
 
 
-def masked_wallet_field(value):
+def tracing_json_value(value):
+    """Decode serde_json::Value Debug without dropping object ancestry or eval."""
+    if len(value) > 1024 * 1024:
+        raise ValueError('bounded tracing value exceeded')
+    decoder = json.JSONDecoder()
+    cursor = 0
+
+    def consume(token):
+        nonlocal cursor
+        while cursor < len(value) and value[cursor].isspace():
+            cursor += 1
+        if not value.startswith(token, cursor):
+            raise ValueError('unexpected tracing structure')
+        cursor += len(token)
+
+    def literal():
+        nonlocal cursor
+        while cursor < len(value) and value[cursor].isspace():
+            cursor += 1
+        result, cursor = decoder.raw_decode(value, cursor)
+        return result
+
+    def parse(depth):
+        nonlocal cursor
+        if depth > 64:
+            raise ValueError('bounded tracing depth exceeded')
+        while cursor < len(value) and value[cursor].isspace():
+            cursor += 1
+        if value.startswith('Object', cursor):
+            consume('Object')
+            consume('{')
+            result = {}
+            while True:
+                while cursor < len(value) and value[cursor].isspace():
+                    cursor += 1
+                if value.startswith('}', cursor):
+                    consume('}')
+                    return result
+                if result:
+                    consume(',')
+                key = literal()
+                if not isinstance(key, str) or key in result:
+                    raise ValueError('ambiguous tracing key')
+                consume(':')
+                result[key] = parse(depth + 1)
+        if value.startswith('Array', cursor):
+            consume('Array')
+            consume('[')
+            result = []
+            while True:
+                while cursor < len(value) and value[cursor].isspace():
+                    cursor += 1
+                if value.startswith(']', cursor):
+                    consume(']')
+                    return result
+                if result:
+                    consume(',')
+                result.append(parse(depth + 1))
+        for wrapper, expected in [('String', str), ('Number', (int, float)), ('Bool', bool)]:
+            if value.startswith(wrapper + '(', cursor):
+                consume(wrapper + '(')
+                result = literal()
+                if not isinstance(result, expected) or (wrapper == 'Number' and isinstance(result, bool)):
+                    raise ValueError('unexpected tracing scalar')
+                consume(')')
+                return result
+        consume('Null')
+        return None
+
+    result = parse(0)
+    if value[cursor:].strip():
+        raise ValueError('trailing tracing structure')
+    return result
+
+
+def wallet_log_mode(body):
+    """Select the oracle from the actual submitted wallet, never an operator label."""
+    wallet = body['payment_method_data']['wallet']
+    assert isinstance(wallet, dict) and len(wallet) == 1
+    if 'apple_pay' in wallet:
+        data = wallet['apple_pay']['payment_data']
+        if isinstance(data, str) and data:
+            return 'apple_psp'
+        assert isinstance(data, dict) and data.get('application_primary_account_number')
+        assert isinstance(data.get('payment_data'), dict) and data['payment_data'].get('online_payment_cryptogram')
+        return 'apple_hs'
+    assert set(wallet) == {'google_pay'}
+    data = wallet['google_pay']['tokenization_data']
+    assert isinstance(data, dict)
+    if isinstance(data.get('token'), str) and data['token']:
+        assert not data.get('application_primary_account_number') and not data.get('cryptogram')
+        return 'google_psp'
+    assert data.get('application_primary_account_number') and data.get('cryptogram') and 'token' not in data
+    return 'google_hs'
+
+
+def masked_wallet_field(value, wallet_mode, ancestry=(), depth=0):
+    assert wallet_mode in {'apple_psp', 'apple_hs', 'google_psp', 'google_hs'}
+    if depth > 64:
+        return False
     if isinstance(value, str):
         try:
-            return masked_wallet_field(json.loads(value))
-        except (ValueError, TypeError):
-            # tracing's serde_json::Value Debug representation nests JSON in
-            # String("...") fields. Decode those actual string literals in
-            # memory; an unrelated masked API key is never a wallet oracle.
-            for match in re.finditer(r'String\(("(?:[^"\\]|\\.)*")\)', value):
-                try:
-                    if masked_wallet_field(json.loads(match.group(1))):
-                        return True
-                except (ValueError, TypeError):
-                    pass
-            return bool(re.search(r'"(?:encrypted_data|encryptedData|payment_data|paymentData|cryptogram|online_payment_cryptogram)"\s*:\s*String\("\*\*\*"\)', value))
+            decoded = json.loads(value)
+        except (ValueError, TypeError, RecursionError):
+            try:
+                decoded = tracing_json_value(value)
+            except (ValueError, TypeError, RecursionError):
+                return False
+        return masked_wallet_field(decoded, wallet_mode, ancestry, depth + 1)
     if isinstance(value, list):
-        return any(masked_wallet_field(item) for item in value)
+        return any(masked_wallet_field(item, wallet_mode, ancestry, depth + 1) for item in value)
     if isinstance(value, dict):
-        return any((''.join(c.lower() for c in key if c.isalnum()) in
-            {'encrypteddata', 'paymentdata', 'cryptogram', 'onlinepaymentcryptogram'} and item == '***')
-            or masked_wallet_field(item) for key, item in value.items())
+        for key, item in value.items():
+            normalized = ''.join(c.lower() for c in key if c.isalnum())
+            path = ancestry + (normalized,)
+            # ApiLogs uses the public wallet shape; ConnectorApiLogs uses the
+            # actual protobuf *_pay_sdk arm. Only that selected wallet's request
+            # secret counts, never another wallet or an unrelated masked field.
+            public_wallet = 'applepay' if wallet_mode.startswith('apple_') else 'googlepay'
+            proto_wallet = 'applepaysdk' if wallet_mode.startswith('apple_') else 'googlepaysdk'
+            prefixes = {('request', 'paymentmethoddata', 'wallet', public_wallet),
+                ('request', 'paymentmethod', 'paymentmethod', proto_wallet)}
+            expected = {
+                'apple_psp': {('paymentdata',), ('paymentdata', 'paymentdata', 'encrypteddata')},
+                # The actual sanitizer masks the entire payment_data subtree.
+                # The submitted body's mode proves whether this is decrypted.
+                'apple_hs': {('paymentdata',),
+                    ('paymentdata', 'paymentdata', 'onlinepaymentcryptogram'),
+                    ('paymentdata', 'paymentdata', 'decrypteddata', 'paymentdata', 'onlinepaymentcryptogram')},
+                'google_psp': {('tokenizationdata', 'token'),
+                    ('tokenizationdata', 'tokenizationdata', 'encrypteddata'),
+                    ('tokenizationdata', 'tokenizationdata', 'encrypteddata', 'token')},
+                'google_hs': {('tokenizationdata', 'cryptogram'),
+                    ('tokenizationdata', 'tokenizationdata', 'decrypteddata', 'cryptogram')},
+            }
+            if item == '***' and any(path == prefix + relative
+                    for prefix in prefixes for relative in expected[wallet_mode]):
+                return True
+            if masked_wallet_field(item, wallet_mode, path, depth + 1):
+                return True
     return False
 
 
-def verify_log_sinks(snapshots, operation, canary):
+def verify_log_sinks(snapshots, response_identity, subject, canary, wallet_mode):
     assert canary and len(canary) >= 16
+    if not response_identity.get('request_id'):
+        raise LogSinkUnavailable('public HS response lacks an unambiguous generated request ID')
+    request_id = response_identity['request_id']
+    assert isinstance(subject, str) and re.fullmatch(r'[A-Za-z0-9_-]{1,128}', subject)
+    correlation = [request_id.encode(), subject.encode()]
     observed = {}
     # HS may flush these asynchronously. Every read remains bounded and no raw
     # log line, credential or token is persisted or included in an exception.
@@ -368,22 +499,32 @@ def verify_log_sinks(snapshots, operation, canary):
             identity = (snapshot['device'], snapshot['inode'])
             assert (actual.st_dev, actual.st_ino) == identity == (selected.st_dev, selected.st_ino)
             assert selected.st_size >= snapshot['offset'], 'sink shrank or rotated'
+            if selected.st_size - snapshot['offset'] > 16 * 1024 * 1024:
+                raise LogSinkUnavailable('actual HS sink correlation window exceeded bounded read')
             with snapshot['path'].open('rb') as stream:
                 stream.seek(snapshot['offset'])
                 wire = stream.read()
             assert canary not in wire, 'public inert canary leaked; content withheld'
             for line in wire.splitlines():
-                if operation.encode() not in line:
+                if not all(value in line for value in correlation):
                     continue
                 try:
                     record = json.loads(line)
                 except (ValueError, UnicodeDecodeError):
                     continue
-                event = b'ConnectorApiLogs' in line
-                if (name == 'connector_event') != event or not masked_wallet_field(record):
+                if str(record.get('pid')) != str(snapshot['pid']):
+                    continue
+                extra = record.get('extra')
+                if record.get('target') != 'router::events::event_logger' or not isinstance(extra, dict):
+                    continue
+                expected_type = 'ConnectorApiLogs' if name == 'connector_event' else 'ApiLogs'
+                if extra.get('event_type') != expected_type or not masked_wallet_field(extra.get('event'), wallet_mode):
                     continue
                 observed[name] = {'device': snapshot['device'], 'inode': snapshot['inode'],
-                    'offset': snapshot['offset'], 'end': selected.st_size, 'correlated_masked_entry_sha256': digest(line)}
+                    'offset': snapshot['offset'], 'end': selected.st_size,
+                    'request_id': request_id, 'request_id_source': response_identity['source'],
+                    'subject': subject, 'pid': snapshot['pid'], 'wallet_mode': wallet_mode,
+                    'correlated_masked_entry_sha256': digest(line)}
         if len(observed) == 2:
             return observed
         time.sleep(.1)
@@ -454,6 +595,7 @@ def run_case(case, context, journal, journal_path, source, base):
             assert before['amount_received'] == bindings['received']
             assert before['amount_capturable'] == bindings['capturable']
             assert bindings['retained_status'] in {before['status'], 'processing', 'pending'}
+        log_mode = wallet_log_mode(body) if case.get('log_canary') else None
         log_snapshots = snapshot_log_sinks(operator, source) if case.get('log_canary') else None
         if step.get('precondition'):
             precondition_path = cfg['precondition_path']
@@ -465,11 +607,12 @@ def run_case(case, context, journal, journal_path, source, base):
         journal['operations'][operation] = {'identity': identity, 'idempotency': token, 'state': 'sending'}
         atomic(journal_path, journal)
         transport_proof = None
+        response_identity = {}
         if case.get('transport_fault'):
             fault_control(os.environ['PAYPAL_HS_TRANSPORT_CONTROL'], {'armed': True, 'operation': token})
         try:
             status, response, wire_sha = request(base, method, path, body, cfg.get('header_env'),
-                cfg.get('api_key_env', 'HYPERSWITCH_API_KEY'), token)
+                cfg.get('api_key_env', 'HYPERSWITCH_API_KEY'), token, response_identity)
         finally:
             if case.get('transport_fault'):
                 transport_proof = fault_control(os.environ['PAYPAL_HS_TRANSPORT_CONTROL'])
@@ -527,7 +670,8 @@ def run_case(case, context, journal, journal_path, source, base):
         log_evidence = None
         if log_snapshots is not None:
             assert operator['kind'] == 'production_fixture', 'log canary uses public inert fixture only'
-            log_evidence = verify_log_sinks(log_snapshots, token, os.environ['PAYPAL_HS_PUBLIC_CANARY'].encode())
+            log_evidence = verify_log_sinks(log_snapshots, response_identity, bindings['payment_id'],
+                os.environ['PAYPAL_HS_PUBLIC_CANARY'].encode(), log_mode)
             assert proof and proof['inert_wallet_canary_received'] is True
         result = {'operation': operation, 'state': 'ORACLE_PASSED_PENDING_RUNTIME_RECHECK',
                   'http_status': status, 'wire_sha256': wire_sha, 'readback_sha256': read_sha,

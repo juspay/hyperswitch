@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{ser::Serializer, Deserialize, Serialize};
 
 use crate::{
@@ -585,7 +585,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                             common_types::payments::ApplePayPaymentData::Encrypted(
                                 ref encrypted_str,
                             ) => BASE64_ENGINE
-                                .decode(encrypted_str)
+                                .decode(encrypted_str.peek())
                                 .change_context(errors::ConnectorError::ParsingFailed)?,
                             _ => {
                                 return Err(errors::ConnectorError::ParsingFailed.into());

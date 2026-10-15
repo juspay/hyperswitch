@@ -1046,7 +1046,7 @@ impl
                         }
                         ApplePayPaymentData::Encrypted(applepay_encrypt_data) => {
                             let decoded_data = base64::prelude::BASE64_STANDARD
-                                .decode(applepay_encrypt_data)
+                                .decode(applepay_encrypt_data.peek())
                                 .change_context(errors::ConnectorError::InvalidDataFormat {
                                     field_name: "apple_pay_encrypted_data".into(),
                                 })?;

@@ -7194,7 +7194,7 @@ impl GooglePay for payment_method_data::GooglePayWalletData {
                 wallet_name: "Google Pay".to_string(),
             })?;
 
-        Ok(Secret::new(encrypted_data.token.clone()))
+        Ok(encrypted_data.token.clone())
     }
 }
 pub trait ApplePay {

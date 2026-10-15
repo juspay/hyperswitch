@@ -349,7 +349,7 @@ impl
             {
                 return Ok(Self::AciGooglePayEncrypted(Box::new(
                     AciGooglePayEncryptedData {
-                        payment_token: Secret::new(encrypted_data.token.clone()),
+                        payment_token: encrypted_data.token.clone(),
                     },
                 )));
             }

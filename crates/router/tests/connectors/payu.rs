@@ -103,7 +103,7 @@ async fn should_authorize_gpay_payment() {
                         tokenization_data: common_types::payments::GpayTokenizationData::Encrypted(
                             common_types::payments::GpayEcryptedTokenizationData {
                                 token_type: "worldpay".to_string(),
-                                token: "someToken".to_string(),
+                                token: "someToken".to_string().into(),
                                 auth_method: None,
                             },
                         ),

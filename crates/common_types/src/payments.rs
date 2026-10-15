@@ -654,7 +654,8 @@ pub struct GpayEcryptedTokenizationData {
     pub token_type: String,
     /// Token generated for the wallet
     #[smithy(value_type = "String")]
-    pub token: String,
+    #[schema(value_type = String)]
+    pub token: Secret<String>,
     /// The authentication method used by Google Pay (PAN_ONLY or CRYPTOGRAM_3DS)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<GooglePayAuthMethod>)]
@@ -731,6 +732,7 @@ impl GpayTokenizationData {
         Ok(self
             .get_encrypted_google_pay_payment_data_mandatory()?
             .token
+            .peek()
             .clone())
     }
 
@@ -857,7 +859,8 @@ pub enum ApplePayPaymentData {
     Decrypted(ApplePayPredecryptData),
     /// This variant contains the encrypted Apple Pay payment data as a string.
     #[smithy(value_type = "String")]
-    Encrypted(String),
+    #[schema(value_type = String)]
+    Encrypted(Secret<String>),
 }
 
 #[derive(
@@ -927,7 +930,7 @@ impl ApplePayPaymentData {
     /// Get the encrypted Apple Pay payment data if it exists
     pub fn get_encrypted_apple_pay_payment_data_optional(&self) -> Option<&String> {
         match self {
-            Self::Encrypted(encrypted_data) => Some(encrypted_data),
+            Self::Encrypted(encrypted_data) => Some(encrypted_data.peek()),
             Self::Decrypted(_) => None,
         }
     }
