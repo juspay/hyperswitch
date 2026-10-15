@@ -807,7 +807,7 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                             );
                         })
                         .ok()
-                        .and_then(Option::<Network>::foreign_from)
+                        .and_then(convert_card_network)
                 }),
                 card_subtype: card_data.card_subtype,
                 card_segment_type: card_data.card_segment_type.and_then(|raw| {
@@ -1118,33 +1118,37 @@ impl ForeignTryFrom<payments_grpc::BankHolderType> for common_enums::BankHolderT
     }
 }
 
-impl ForeignFrom<payments_grpc::CardNetwork> for Option<Network> {
-    fn foreign_from(network: payments_grpc::CardNetwork) -> Self {
-        match network {
-            payments_grpc::CardNetwork::Visa => Some(Network::Visa),
-            payments_grpc::CardNetwork::Mastercard => Some(Network::Mastercard),
-            payments_grpc::CardNetwork::Amex => Some(Network::AmericanExpress),
-            payments_grpc::CardNetwork::Discover => Some(Network::Discover),
-            payments_grpc::CardNetwork::Jcb => Some(Network::JCB),
-            payments_grpc::CardNetwork::Diners => Some(Network::DinersClub),
-            payments_grpc::CardNetwork::Unionpay => Some(Network::UnionPay),
-            payments_grpc::CardNetwork::Maestro => Some(Network::Maestro),
-            payments_grpc::CardNetwork::CartesBancaires => Some(Network::CartesBancaires),
-            payments_grpc::CardNetwork::Rupay => Some(Network::RuPay),
-            payments_grpc::CardNetwork::InteracCard => Some(Network::Interac),
-            payments_grpc::CardNetwork::Star => Some(Network::Star),
-            payments_grpc::CardNetwork::Pulse => Some(Network::Pulse),
-            payments_grpc::CardNetwork::Accel => Some(Network::Accel),
-            payments_grpc::CardNetwork::Nyce => Some(Network::Nyce),
-            payments_grpc::CardNetwork::Prop => Some(Network::Prop),
-            payments_grpc::CardNetwork::PrivateLabel => Some(Network::PrivateLabel),
-            payments_grpc::CardNetwork::Dinacard => Some(Network::Dinacard),
-            payments_grpc::CardNetwork::AirPlus => Some(Network::AirPlus),
-            payments_grpc::CardNetwork::Aurore => Some(Network::Aurore),
-            payments_grpc::CardNetwork::EftposAustralia => Some(Network::EftposAustralia),
-            payments_grpc::CardNetwork::GeCapital => Some(Network::GeCapital),
-            payments_grpc::CardNetwork::Uatp => Some(Network::Uatp),
-            payments_grpc::CardNetwork::Unspecified => None,
+fn convert_card_network(network: payments_grpc::CardNetwork) -> Option<Network> {
+    match network {
+        payments_grpc::CardNetwork::Visa => Some(Network::Visa),
+        payments_grpc::CardNetwork::Mastercard => Some(Network::Mastercard),
+        payments_grpc::CardNetwork::Amex => Some(Network::AmericanExpress),
+        payments_grpc::CardNetwork::Discover => Some(Network::Discover),
+        payments_grpc::CardNetwork::Jcb => Some(Network::JCB),
+        payments_grpc::CardNetwork::Diners => Some(Network::DinersClub),
+        payments_grpc::CardNetwork::Unionpay => Some(Network::UnionPay),
+        payments_grpc::CardNetwork::Maestro => Some(Network::Maestro),
+        payments_grpc::CardNetwork::CartesBancaires => Some(Network::CartesBancaires),
+        payments_grpc::CardNetwork::Rupay => Some(Network::RuPay),
+        payments_grpc::CardNetwork::InteracCard => Some(Network::Interac),
+        payments_grpc::CardNetwork::Star => Some(Network::Star),
+        payments_grpc::CardNetwork::Pulse => Some(Network::Pulse),
+        payments_grpc::CardNetwork::Accel => Some(Network::Accel),
+        payments_grpc::CardNetwork::Nyce => Some(Network::Nyce),
+        payments_grpc::CardNetwork::Prop => Some(Network::Prop),
+        payments_grpc::CardNetwork::PrivateLabel => Some(Network::PrivateLabel),
+        payments_grpc::CardNetwork::Dinacard => Some(Network::Dinacard),
+        payments_grpc::CardNetwork::AirPlus => Some(Network::AirPlus),
+        payments_grpc::CardNetwork::Aurore => Some(Network::Aurore),
+        payments_grpc::CardNetwork::EftposAustralia => Some(Network::EftposAustralia),
+        payments_grpc::CardNetwork::GeCapital => Some(Network::GeCapital),
+        payments_grpc::CardNetwork::Uatp => Some(Network::Uatp),
+        payments_grpc::CardNetwork::Unspecified => {
+            router_env::logger::debug!(
+                ?network,
+                "Unspecified processor card network received from UCS"
+            );
+            None
         }
     }
 }
