@@ -11,13 +11,17 @@ use aws_sdk_s3::{
     Client,
 };
 use aws_sdk_sts::config::Region;
-use common_utils::{errors::CustomResult, ext_traits::ConfigExt};
+use common_utils::errors::CustomResult;
+#[cfg(feature = "aws_s3")]
+use common_utils::ext_traits::ConfigExt;
 use error_stack::ResultExt;
 
+#[cfg(feature = "aws_s3")]
 use super::InvalidFileStorageConfig;
 use crate::file_storage::{FileStorageError, FileStorageInterface};
 
 /// Configuration for AWS S3 file storage.
+#[cfg(feature = "aws_s3")]
 #[derive(Debug, serde::Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct AwsFileStorageConfig {
@@ -27,6 +31,7 @@ pub struct AwsFileStorageConfig {
     bucket_name: String,
 }
 
+#[cfg(feature = "aws_s3")]
 impl AwsFileStorageConfig {
     /// Validates the AWS S3 file storage configuration.
     pub(super) fn validate(&self) -> Result<(), InvalidFileStorageConfig> {
@@ -44,6 +49,30 @@ impl AwsFileStorageConfig {
     }
 }
 
+/// Where the S3 client sends requests, for S3-compatible stores other than AWS S3 itself.
+#[derive(Debug, Clone, Default)]
+pub(super) struct S3Endpoint {
+    /// Endpoint URL of the store. When unset, the endpoint is resolved from the region or
+    /// `AWS_ENDPOINT_URL_S3`, as for AWS S3.
+    pub(super) url: Option<String>,
+    /// Addresses buckets as `<endpoint>/<bucket>` rather than `<bucket>.<endpoint>`, for stores
+    /// whose TLS certificate does not cover bucket subdomains.
+    pub(super) force_path_style: bool,
+}
+
+/// Builds the S3 client, applying the endpoint overrides on top of the SDK config. With the
+/// default [`S3Endpoint`] this is the same client as `Client::new(sdk_config)`.
+pub(super) fn build_client(endpoint: &S3Endpoint, sdk_config: &aws_config::SdkConfig) -> Client {
+    let mut s3_config = aws_sdk_s3::config::Builder::from(sdk_config);
+    if let Some(url) = &endpoint.url {
+        s3_config = s3_config.endpoint_url(url);
+    }
+    if endpoint.force_path_style {
+        s3_config = s3_config.force_path_style(true);
+    }
+    Client::from_conf(s3_config.build())
+}
+
 /// AWS S3 file storage client.
 #[derive(Debug, Clone)]
 pub(super) struct AwsFileStorageClient {
@@ -55,12 +84,22 @@ pub(super) struct AwsFileStorageClient {
 
 impl AwsFileStorageClient {
     /// Creates a new AWS S3 file storage client.
+    #[cfg(feature = "aws_s3")]
     pub(super) async fn new(config: &AwsFileStorageConfig) -> Self {
-        let region_provider = RegionProviderChain::first_try(Region::new(config.region.clone()));
+        Self::with_endpoint(&config.region, &config.bucket_name, &S3Endpoint::default()).await
+    }
+
+    /// Creates a client for an S3-compatible store reached through `endpoint`.
+    pub(super) async fn with_endpoint(
+        region: &str,
+        bucket_name: &str,
+        endpoint: &S3Endpoint,
+    ) -> Self {
+        let region_provider = RegionProviderChain::first_try(Region::new(region.to_owned()));
         let sdk_config = aws_config::from_env().region(region_provider).load().await;
         Self {
-            inner_client: Client::new(&sdk_config),
-            bucket_name: config.bucket_name.clone(),
+            inner_client: build_client(endpoint, &sdk_config),
+            bucket_name: bucket_name.to_owned(),
         }
     }
 
@@ -381,4 +420,78 @@ enum AwsS3StorageError {
     /// Error indicating the presigned URI could not be parsed as a URL.
     #[error("Presigned URI is not a valid URL")]
     PresignedUrlParseFailure,
+}
+
+#[cfg(test)]
+pub(super) mod tests {
+    use std::time::Duration;
+
+    use aws_sdk_s3::config::{BehaviorVersion, Credentials, SharedCredentialsProvider};
+
+    use super::*;
+
+    fn sdk_config(endpoint_url: Option<&str>) -> aws_config::SdkConfig {
+        let builder = aws_config::SdkConfig::builder()
+            .behavior_version(BehaviorVersion::latest())
+            .region(Region::new("ap-hyderabad-1"))
+            .credentials_provider(SharedCredentialsProvider::new(Credentials::new(
+                "access_key",
+                "secret_key",
+                None,
+                None,
+                "test",
+            )));
+        match endpoint_url {
+            Some(endpoint_url) => builder.endpoint_url(endpoint_url).build(),
+            None => builder.build(),
+        }
+    }
+
+    /// Presigns a download of `files/file_key`, which shows where the client sends requests
+    /// without any network call.
+    pub(in crate::file_storage) async fn presigned_url(
+        endpoint: &S3Endpoint,
+        bucket_name: &str,
+        sdk_endpoint_url: Option<&str>,
+    ) -> String {
+        #[allow(clippy::expect_used)]
+        let presigning_config =
+            PresigningConfig::expires_in(Duration::from_secs(60)).expect("valid presigning config");
+
+        #[allow(clippy::expect_used)]
+        build_client(endpoint, &sdk_config(sdk_endpoint_url))
+            .get_object()
+            .bucket(bucket_name)
+            .key("files/file_key")
+            .presigned(presigning_config)
+            .await
+            .expect("presigning is local and should succeed")
+            .uri()
+            .to_owned()
+    }
+
+    #[tokio::test]
+    async fn aws_config_uses_virtual_hosted_aws_endpoint() {
+        let url = presigned_url(&S3Endpoint::default(), "bucket", None).await;
+
+        assert!(
+            url.starts_with("https://bucket.s3.ap-hyderabad-1.amazonaws.com/files/file_key?"),
+            "{url}"
+        );
+    }
+
+    #[tokio::test]
+    async fn endpoint_from_environment_is_kept_when_not_overridden() {
+        let endpoint = S3Endpoint {
+            url: None,
+            force_path_style: true,
+        };
+
+        let url = presigned_url(&endpoint, "bucket", Some("https://endpoint.from.env")).await;
+
+        assert!(
+            url.starts_with("https://endpoint.from.env/bucket/files/file_key?"),
+            "{url}"
+        );
+    }
 }

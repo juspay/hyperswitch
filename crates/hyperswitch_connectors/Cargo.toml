@@ -19,7 +19,7 @@ dummy_connector = [
 
 [dependencies]
 actix-web = "4.11.0"
-async-trait = "0.1.88"
+async-trait = "0.1.92"
 base64 = "0.22.1"
 bytes = "1.10.1"
 chrono = "0.4"
