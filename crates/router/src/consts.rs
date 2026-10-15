@@ -552,6 +552,9 @@ pub mod superposition {
     pub const PRE_FRM_FAILURE_MODE: &str = "frm.pre_frm_failure_mode";
     /// Payout FRM call configuration key
     pub const PAYOUT_FRM_CALL: &str = "payouts.payout_frm_call";
+    /// Whether to rerun payout FRM before automatic retries, overridable by connector
+    pub const RERUN_PAYOUT_FRM_BEFORE_AUTO_RETRY: &str =
+        "payouts.rerun_payout_frm_before_auto_retry";
     /// Maximum number of card issuers a list request reads
     pub const CARD_ISSUER_LIST_MAX_LIMIT: &str = "card_issuer.list_max_limit";
     /// Preferred-connector routing enablement configuration key per profile

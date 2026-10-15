@@ -221,13 +221,13 @@ jobs:
         shell: bash
         # Capped: uncapped + cold cache OOM'd a runner pod (git log).
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy
 
       - name: Run clippy (fred backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy fred
 
       - name: Check Cargo.lock changed
@@ -353,13 +353,13 @@ jobs:
       - name: Run cargo clippy with v2 features enabled (redis-rs backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy_v2
 
       - name: Run cargo clippy with v2 features enabled (fred backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy_v2 fred
 
       - name: Show sccache stats
