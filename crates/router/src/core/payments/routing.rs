@@ -3572,6 +3572,7 @@ pub async fn perform_dynamic_routing_with_open_router(
                     &payment_data.merchant_id,
                     &payment_data.payment_id,
                     common_enums::AttemptStatus::AuthenticationPending,
+                    None,
                 )
                 .await?
             }
@@ -3897,12 +3898,14 @@ pub async fn update_gateway_score_with_open_router(
     merchant_id: &common_utils::id_type::MerchantId,
     payment_id: &common_utils::id_type::PaymentId,
     payment_status: common_enums::AttemptStatus,
+    error_info: Option<or_types::GsmErrorInfo>,
 ) -> RoutingResult<()> {
     let open_router_req_body = or_types::UpdateScorePayload {
         merchant_id: profile_id.clone(),
         gateway: payment_connector.to_string(),
         status: payment_status.foreign_into(),
         payment_id: payment_id.clone(),
+        error_info,
     };
 
     let routing_events_wrapper = utils::RoutingEventsWrapper::new(

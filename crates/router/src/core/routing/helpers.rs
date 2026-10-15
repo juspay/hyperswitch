@@ -875,6 +875,7 @@ pub async fn update_gateway_score_helper_with_open_router(
         &payment_attempt.merchant_id,
         &payment_attempt.payment_id,
         payment_attempt.status,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
