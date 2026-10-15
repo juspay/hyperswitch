@@ -13942,16 +13942,16 @@
             "$ref": "#/components/schemas/SepaBankTransferAdditionalData"
           },
           {
-            "$ref": "#/components/schemas/PixBankTransferAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/OpenBankingAdditionalData"
-          },
-          {
             "$ref": "#/components/schemas/PayshapBankTransferAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PayshapProxyBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/OpenBankingAdditionalData"
           },
           {
             "$ref": "#/components/schemas/TedBankTransferAdditionalData"
@@ -41904,7 +41904,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PayshapProxyBankTransfer": {
         "type": "object",
@@ -41939,7 +41940,8 @@
             "example": "**** 3123",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PazeSessionTokenResponse": {
         "type": "object",
