@@ -387,6 +387,8 @@ pub const UCS_KILL_SWITCH_REDIS_PREFIX: &str = "ucs_kill_switch";
 pub const UCS_KILL_SWITCH_TTL_IN_SECONDS: i64 = 7 * 24 * 60 * 60;
 /// Global request-failure counter shared by all shadow traffic and pods.
 pub const UCS_SHADOW_KILL_SWITCH_REDIS_KEY: &str = "ucs_shadow_killed";
+/// Shadow failures expire 24 hours after the latest counter increment.
+pub const UCS_SHADOW_KILL_SWITCH_TTL_IN_SECONDS: i64 = 24 * 60 * 60;
 
 /// Header value indicating that signature-key-based authentication is used.
 pub const UCS_AUTH_SIGNATURE_KEY: &str = "signature-key";

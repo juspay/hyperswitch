@@ -32,7 +32,7 @@ pub async fn kill_switch_status(
 }
 
 /// Clears a UCS kill switch trip, returning the scope to whatever its rollout config says.
-/// Accepts a primary UCS rollout scope or its Redis key.
+/// Accepts a primary UCS rollout scope or its Redis key, or `ucs_shadow_killed` for shadow.
 #[instrument(skip_all, fields(flow = ?Flow::UnifiedConnectorServiceKillSwitchReset))]
 pub async fn reset_kill_switch(
     state: web::Data<AppState>,

@@ -491,6 +491,7 @@ async fn write_counter(
         &state.store.get_redis_conn()?,
         &counter_key(rollout_scope),
         failure_class.counter_field(),
+        consts::UCS_KILL_SWITCH_TTL_IN_SECONDS,
     )
     .await
 }
@@ -500,12 +501,13 @@ async fn write_hash_counter(
     conn: &redis_interface::RedisConnectionWithContext,
     key: &str,
     field: &str,
+    ttl_in_seconds: i64,
 ) -> error_stack::Result<Vec<usize>, storage_impl::errors::RedisError> {
     let redis_key = key.into();
     let result = conn
         .increment_fields_in_hash(&redis_key, &[(field, 1)])
         .await?;
-    conn.set_expiry(&redis_key, consts::UCS_KILL_SWITCH_TTL_IN_SECONDS)
+    conn.set_expiry(&redis_key, ttl_in_seconds)
         .await
         .inspect_err(|error| {
             logger::warn!(
@@ -540,13 +542,15 @@ impl common_utils::events::ApiEventMetric for KillSwitchStatusResponse {}
 /// Clears the counter, returning the scope to whatever its rollout config says.
 pub async fn reset(state: SessionState, listed_key: String) -> errors::RouterResponse<()> {
     let rollout_scope = rollout_scope_in(&listed_key);
-
-    let reply = state
-        .store
-        .get_redis_conn()
+    let (conn, key) = if listed_key == consts::UCS_SHADOW_KILL_SWITCH_REDIS_KEY {
+        (state.global_store.get_redis_conn(), listed_key.clone())
+    } else {
+        (state.store.get_redis_conn(), counter_key(rollout_scope))
+    };
+    let reply = conn
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get a redis connection to clear the UCS kill switch")?
-        .delete_key(&counter_key(rollout_scope).as_str().into())
+        .delete_key(&key.as_str().into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete the UCS kill switch counter")?;
@@ -870,7 +874,12 @@ pub mod shadow {
     use router_env::logger;
 
     use super::{exceeds_threshold, read_hash_counter, write_hash_counter, COUNTER_FIELD};
-    use crate::{consts::UCS_SHADOW_KILL_SWITCH_REDIS_KEY as COUNTER_KEY, routes::SessionState};
+    use crate::{
+        consts::{
+            UCS_SHADOW_KILL_SWITCH_REDIS_KEY as COUNTER_KEY, UCS_SHADOW_KILL_SWITCH_TTL_IN_SECONDS,
+        },
+        routes::SessionState,
+    };
 
     pub(super) async fn read_counter(
         state: &SessionState,
@@ -944,7 +953,13 @@ pub mod shadow {
         }
         let write = async {
             let conn = state.global_store.get_redis_conn()?;
-            write_hash_counter(&conn, COUNTER_KEY, COUNTER_FIELD).await
+            write_hash_counter(
+                &conn,
+                COUNTER_KEY,
+                COUNTER_FIELD,
+                UCS_SHADOW_KILL_SWITCH_TTL_IN_SECONDS,
+            )
+            .await
         }
         .await;
         match write {
