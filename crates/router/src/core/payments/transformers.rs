@@ -522,6 +522,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
         recipient_details,
         business_country: None,
+        enable_avs_check: payment_data.payment_intent.enable_avs_check,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1875,6 +1876,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
         recipient_details,
         business_country: None,
+        enable_avs_check: payment_data.payment_intent.enable_avs_check,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -3064,6 +3066,7 @@ where
                 enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
                 is_account_funded_transaction: payment_intent.is_account_funded_transaction,
                 recipient_details: masked_recipient_details,
+                enable_avs_check: payment_intent.enable_avs_check,
             },
             vec![],
         )))
@@ -3240,6 +3243,7 @@ where
                 .feature_metadata
                 .map(|feature_metadata| feature_metadata.convert_back()),
             metadata: payment_intent.metadata,
+            enable_avs_check: payment_intent.enable_avs_check,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -3396,6 +3400,7 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
                 .feature_metadata
                 .map(|feature_metadata| feature_metadata.convert_back()),
             metadata: payment_intent.metadata,
+            enable_avs_check: payment_intent.enable_avs_check,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -3522,6 +3527,7 @@ where
                 .feature_metadata
                 .map(|feature_metadata| feature_metadata.convert_back()),
             metadata: payment_intent.metadata,
+            enable_avs_check: payment_intent.enable_avs_check,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -4536,6 +4542,7 @@ where
             installment_data: payment_data.get_installment_details().cloned(),
             connector_response_metadata,
             sender_payment_instrument_id: payment_attempt.sender_payment_instrument_id.clone(),
+            enable_avs_check: payment_intent.enable_avs_check,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -5045,6 +5052,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             installment_options: pi.installment_options,
             installment_data: pa.installment_data,
             sender_payment_instrument_id: pa.sender_payment_instrument_id.clone(),
+            enable_avs_check: pi.enable_avs_check,
         }
     }
 }
@@ -5435,6 +5443,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .is_account_funded_transaction,
             recipient_details,
             business_country: None,
+            enable_avs_check: payment_data.payment_intent.enable_avs_check,
         })
     }
 }
@@ -5718,6 +5727,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .is_account_funded_transaction,
             recipient_details,
             business_country: payment_data.payment_intent.business_country,
+            enable_avs_check: payment_data.payment_intent.enable_avs_check,
         })
     }
 }
@@ -7386,6 +7396,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .is_account_funded_transaction,
             recipient_details,
             business_country: payment_data.payment_intent.business_country,
+            enable_avs_check: payment_data.payment_intent.enable_avs_check,
         })
     }
 }

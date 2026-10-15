@@ -17,7 +17,7 @@ common_utils = { version = "0.1.0", path = "../common_utils" }
 hyperswitch_masking = "0.0.1"
 router_env = { version = "0.1.0", path = "../router_env" }
 
-async-trait = { version = "0.1.88" }
+async-trait = { version = "0.1.92" }
 base64 = { version = "0.22.1" }
 error-stack = { version = "0.4.1" }
 nom = { version = "7.1.3" }
