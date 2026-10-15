@@ -98,6 +98,34 @@ impl RouterGatewayContext {
         }
     }
 
+    /// Context for a gated path: the execution mode is derived from the path the gate chose,
+    /// and the kill switch settings are carried over from the gate's result.
+    pub fn from_rollout(
+        processor: Processor,
+        header_payload: HeaderPayload,
+        lineage_ids: LineageIds,
+        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
+        creds_identifier: Option<String>,
+        execution_path: ExecutionPath,
+        rollout_result: helpers::RolloutExecutionResult,
+    ) -> Self {
+        Self {
+            creds_identifier,
+            processor,
+            header_payload,
+            lineage_ids,
+            merchant_connector_account,
+            execution_mode: execution_path.get_execution_mode(),
+            execution_path,
+            kill_switch_enabled: rollout_result.kill_switch_enabled,
+            kill_switch_threshold: rollout_result.kill_switch_threshold,
+            connector_decline_threshold: rollout_result.connector_decline_threshold,
+            rollout_scope: rollout_result.rollout_scope,
+        }
+    }
+
     /// Get the gateway system (Direct, UnifiedConnectorService, etc.)
     /// The kill switch settings this request resolved, for the UCS logging wrappers.
     pub fn rollout_settings(

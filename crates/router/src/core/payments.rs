@@ -8049,26 +8049,15 @@ where
         business_profile.get_id().clone(),
     );
 
-    let execution_mode = match execution_path {
-        ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
-        ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
-        // ExecutionMode is irrelevant for Direct path in this context
-        ExecutionPath::Direct => ExecutionMode::NotApplicable,
-    };
-
-    let gateway_context = gateway_context::RouterGatewayContext {
-        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-        processor: platform.get_processor().clone(),
-        header_payload: header_payload.clone(),
+    let gateway_context = gateway_context::RouterGatewayContext::from_rollout(
+        platform.get_processor().clone(),
+        header_payload.clone(),
         lineage_ids,
-        merchant_connector_account: merchant_connector_account.clone(),
+        merchant_connector_account.clone(),
+        payment_data.get_creds_identifier().map(|id| id.to_string()),
         execution_path,
-        kill_switch_enabled: rollout_result.kill_switch_enabled,
-        kill_switch_threshold: rollout_result.kill_switch_threshold,
-        connector_decline_threshold: rollout_result.connector_decline_threshold,
-        rollout_scope: rollout_result.rollout_scope.clone(),
-        execution_mode,
-    };
+        rollout_result,
+    );
 
     let add_access_token_result = router_data
         .add_access_token(
