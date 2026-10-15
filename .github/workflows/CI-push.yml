@@ -131,14 +131,8 @@ jobs:
         run: .github/scripts/install-jq.sh
 
       - name: Run cargo check
-        if: ${{ github.event_name == 'merge_group' }}
         shell: bash
         run: cargo check --features "release"
-
-      - name: Cargo hack
-        if: ${{ github.event_name == 'push' }}
-        shell: bash
-        run: just ci_hack
 
       - name: Show sccache stats
         if: always()
@@ -147,7 +141,7 @@ jobs:
 
       # !cancelled(), not always() — cache-on-failure, but skip on cancel.
       - name: Delete stale sccache cache entry
-        if: ${{ !cancelled() && github.event_name == 'merge_group' }}
+        if: ${{ !cancelled() && github.event_name == 'push' }}
         continue-on-error: true
         shell: bash
         env:
@@ -155,7 +149,7 @@ jobs:
         run: gh cache delete "sccache-local-check-msrv-${{ runner.os }}-${{ runner.arch }}" --repo "${{ github.repository }}"
 
       - name: Save sccache cache
-        if: ${{ !cancelled() && github.event_name == 'merge_group' }}
+        if: ${{ !cancelled() && github.event_name == 'push' }}
         uses: actions/cache/save@v6
         with:
           path: ${{ env.SCCACHE_DIR }}
