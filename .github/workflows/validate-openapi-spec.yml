@@ -14,7 +14,7 @@ concurrency:
 jobs:
   validate_json:
     name: Validate generated OpenAPI spec file
-    runs-on: hypersage-runners
+    runs-on: hyperswitch-runners
     steps:
       - name: Generate a token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
