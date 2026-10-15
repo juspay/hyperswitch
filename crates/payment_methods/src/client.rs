@@ -32,7 +32,7 @@ pub use session::{
 #[cfg(feature = "v1")]
 pub use update::{
     BankDebitDetailUpdate, CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethod,
-    UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
+    UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request, WalletDetailUpdate,
 };
 
 use crate::configs::ModularPaymentMethodServiceUrl;

@@ -3108,7 +3108,7 @@ pub(crate) fn get_paypal_wallet_info(
             card_exp_year: None,
             auth_code: None,
             email: email.clone(),
-            provider_details: Some(WalletProviderDetails::Paypal(PaypalWalletInfo {
+            provider_details: Some(WalletProviderDetails::PayPal(PaypalWalletInfo {
                 paypal_id: payer_id.clone(),
             })),
         }),
@@ -3140,7 +3140,7 @@ pub async fn prepare_saved_wallet_data_from_connector_response(
                         card_exp_year: None,
                         auth_code: None,
                         email: email.cloned(),
-                        provider_details: Some(WalletProviderDetails::Paypal(PaypalWalletInfo {
+                        provider_details: Some(WalletProviderDetails::PayPal(PaypalWalletInfo {
                             paypal_id: paypal_id.cloned(),
                         })),
                     };
@@ -6397,7 +6397,7 @@ fn get_saved_wallet_details_for_client(
         Some(domain::PaymentMethodsData::WalletDetails(info))
             if pm.get_payment_method_subtype() == Some(enums::PaymentMethodType::Paypal) =>
         {
-            Some(WalletPaymentMethodDataForClient::Paypal(Box::new(
+            Some(WalletPaymentMethodDataForClient::PayPal(Box::new(
                 info.into(),
             )))
         }

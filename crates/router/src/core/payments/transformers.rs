@@ -42,8 +42,11 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    mandates, mandates::ConnectorMandateReferenceId, payments::payment_intent::CustomerData,
-    router_request_types, sdk_auth::SdkAuthorization,
+    mandates,
+    mandates::{ConnectorMandateReferenceId, MandateIds},
+    payments::payment_intent::CustomerData,
+    router_request_types,
+    sdk_auth::SdkAuthorization,
 };
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
@@ -434,7 +437,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     });
 
     // v2 derives off_session purely from mandate presence (unchanged semantics).
-    let is_off_session = payment_data.mandate_data.as_ref().map(|_| true);
+    let is_off_session = get_off_session(payment_data.mandate_data.as_ref(), None);
 
     // Account funded transaction details are merchant supplied and are always read
     // from the payment intent, never from the confirm request.
@@ -5379,7 +5382,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
             mandate_id: payment_data.mandate_id.clone(),
             // v2 derives off_session purely from mandate presence (unchanged semantics).
-            off_session: payment_data.mandate_id.is_some().then_some(true),
+            off_session: get_off_session(payment_data.mandate_id.as_ref(), None),
             customer_acceptance: None,
             setup_mandate_details: None,
             browser_info,
@@ -5431,6 +5434,42 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             recipient_details,
             business_country: None,
         })
+    }
+}
+
+// Previous approach (reverted):
+// The request's `off_session` is passed to the connector verbatim; mandate
+// flows are validation-gated to carry `Some(true)` (see validate_recurring_mandate).
+// This failed because token-MIT routing attaches a mandate internally without requiring
+// an explicit off_session flag. Stripe rejected the resulting NTI MIT exemption with
+// off_session unset, and the retry then failed because the payment token was consumed.
+// Restore mandate-based inference while preserving explicit false and the saved-wallet
+// flag, since reusing a wallet credential can still be customer-initiated.
+#[cfg(feature = "v1")]
+fn get_off_session(
+    mandate_id: Option<&MandateIds>,
+    off_session_flag: Option<bool>,
+    token_data: Option<&storage::PaymentTokenData>,
+) -> Option<bool> {
+    match token_data {
+        Some(storage::PaymentTokenData::WalletToken(_)) => off_session_flag,
+        _ => match (mandate_id, off_session_flag) {
+            (_, Some(false)) => Some(false),
+            (Some(_), _) | (_, Some(true)) => Some(true),
+            (None, None) => None,
+        },
+    }
+}
+
+#[cfg(feature = "v2")]
+fn get_off_session(
+    mandate_id: Option<&MandateIds>,
+    off_session_flag: Option<bool>,
+) -> Option<bool> {
+    match (mandate_id, off_session_flag) {
+        (_, Some(false)) => Some(false),
+        (Some(_), _) | (_, Some(true)) => Some(true),
+        (None, None) => None,
     }
 }
 
@@ -5600,9 +5639,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             })
             .transpose()?
             .map(pii::SecretSerdeValue::new);
-        // The request's `off_session` is passed to the connector verbatim; mandate
-        // flows are validation-gated to carry `Some(true)` (see validate_recurring_mandate).
-        let is_off_session = payment_data.payment_intent.off_session;
+        let is_off_session = get_off_session(
+            payment_data.mandate_id.as_ref(),
+            payment_data.payment_intent.off_session,
+            payment_data.token_data.as_ref(),
+        );
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
 
@@ -7259,9 +7300,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             .transpose()?
             .map(pii::SecretSerdeValue::new);
 
-        // The request's `off_session` is passed to the connector verbatim; mandate
-        // flows are validation-gated to carry `Some(true)` (see validate_recurring_mandate).
-        let is_off_session = payment_data.payment_intent.off_session;
+        let is_off_session = get_off_session(
+            payment_data.mandate_id.as_ref(),
+            payment_data.payment_intent.off_session,
+            payment_data.token_data.as_ref(),
+        );
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
 
@@ -7475,9 +7518,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
         let merchant_config_currency =
             braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
 
-        // The request's `off_session` is passed to the connector verbatim; mandate
-        // flows are validation-gated to carry `Some(true)` (see validate_recurring_mandate).
-        let is_off_session = payment_data.payment_intent.off_session;
+        let is_off_session = get_off_session(
+            payment_data.mandate_id.as_ref(),
+            payment_data.payment_intent.off_session,
+            payment_data.token_data.as_ref(),
+        );
 
         let router_return_url = Some(helpers::create_redirect_url(
             &additional_data.router_base_url.to_string(),

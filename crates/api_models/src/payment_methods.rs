@@ -597,6 +597,120 @@ pub struct PaymentMethodUpdate {
 pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
     BankDebit(BankDebitDetailUpdate),
+    Wallet(WalletDetailUpdate),
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum WalletDetailUpdate {
+    PayPal {
+        #[schema(value_type = Option<String>)]
+        email: Option<pii::Email>,
+        #[schema(value_type = Option<String>)]
+        payer_id: Option<hyperswitch_masking::Secret<String>>,
+    },
+}
+
+#[cfg(feature = "v2")]
+impl WalletDetailUpdate {
+    pub fn is_metadata_update(&self) -> bool {
+        match self {
+            Self::PayPal { email, payer_id } => email.is_some() || payer_id.is_some(),
+        }
+    }
+
+    /// Preserve stored wallet fields omitted from the update.
+    pub fn apply_to(self, mut saved: PaymentMethodDataWalletInfo) -> PaymentMethodDataWalletInfo {
+        match self {
+            Self::PayPal { email, payer_id } => {
+                saved.email = email.or(saved.email);
+                if let Some(paypal_id) = payer_id {
+                    saved.provider_details =
+                        Some(WalletProviderDetails::PayPal(PaypalWalletInfo {
+                            paypal_id: Some(paypal_id),
+                        }));
+                }
+            }
+        }
+        saved
+    }
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod wallet_update_tests {
+    use super::*;
+
+    #[test]
+    fn accepts_paypal_saved_payment_method_update() {
+        let request: PaymentMethodUpdate = serde_json::from_value(serde_json::json!({
+            "payment_method_data": {"wallet": {"pay_pal": {
+                "email": "new@example.com", "payer_id": "new_payer"
+            }}}
+        }))
+        .expect("PayPal wallet update should deserialize");
+        assert!(matches!(
+            request.payment_method_data,
+            Some(PaymentMethodUpdateData::Wallet(
+                WalletDetailUpdate::PayPal { .. }
+            ))
+        ));
+    }
+
+    #[test]
+    fn partial_paypal_updates_preserve_saved_fields() {
+        let saved: PaymentMethodDataWalletInfo = serde_json::from_value(serde_json::json!({
+            "last4": "1234", "email": "saved@example.com",
+            "provider_details": {"PayPal": {"paypal_id": "saved_payer"}}
+        }))
+        .expect("saved wallet should deserialize");
+        for (payload, expected_email, expected_id, changed) in [
+            (
+                serde_json::json!({"email": "new@example.com"}),
+                "new@example.com",
+                "saved_payer",
+                true,
+            ),
+            (
+                serde_json::json!({"payer_id": "new_payer"}),
+                "saved@example.com",
+                "new_payer",
+                true,
+            ),
+            (
+                serde_json::json!({"email": "new@example.com", "payer_id": "new_payer"}),
+                "new@example.com",
+                "new_payer",
+                true,
+            ),
+            (
+                serde_json::json!({}),
+                "saved@example.com",
+                "saved_payer",
+                false,
+            ),
+            (
+                serde_json::json!({"email": null, "payer_id": null}),
+                "saved@example.com",
+                "saved_payer",
+                false,
+            ),
+        ] {
+            let update: WalletDetailUpdate = serde_json::from_value(serde_json::json!({
+                "pay_pal": payload
+            }))
+            .expect("partial update should deserialize");
+            assert_eq!(update.is_metadata_update(), changed);
+            let merged = serde_json::to_value(update.apply_to(saved.clone()))
+                .expect("merged wallet should serialize");
+            assert_eq!(merged["email"], expected_email);
+            assert_eq!(
+                merged["provider_details"]["PayPal"]["paypal_id"],
+                expected_id
+            );
+            assert_eq!(merged["last4"], "1234");
+        }
+    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
@@ -1897,15 +2011,15 @@ pub struct PaymentMethodDataWalletInfo {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub enum WalletProviderDetails {
-    Paypal(PaypalWalletInfo),
+    PayPal(PaypalWalletInfo),
 }
 
 impl WalletProviderDetails {
     /// Merge provider details without erasing a saved identifier omitted by the response.
     pub fn merge(incoming: Option<Self>, saved: Option<Self>) -> Option<Self> {
         match (incoming, saved) {
-            (Some(Self::Paypal(incoming)), Some(Self::Paypal(saved))) => {
-                Some(Self::Paypal(PaypalWalletInfo {
+            (Some(Self::PayPal(incoming)), Some(Self::PayPal(saved))) => {
+                Some(Self::PayPal(PaypalWalletInfo {
                     paypal_id: incoming.paypal_id.or(saved.paypal_id),
                 }))
             }
@@ -3237,7 +3351,7 @@ pub struct ResponsePaymentMethodsEnabledForClient {
 pub enum WalletPaymentMethodDataForClient {
     ApplePay(Box<PaymentMethodDataWalletInfo>),
     GooglePay(Box<PaymentMethodDataWalletInfo>),
-    Paypal(Box<PaypalWalletDetailsForClient>),
+    PayPal(Box<PaypalWalletDetailsForClient>),
 }
 
 /// PayPal account details returned for a saved wallet.
@@ -3255,7 +3369,7 @@ impl From<PaymentMethodDataWalletInfo> for PaypalWalletDetailsForClient {
         Self {
             email: info.email,
             paypal_id: info.provider_details.and_then(|details| match details {
-                WalletProviderDetails::Paypal(info) => info.paypal_id,
+                WalletProviderDetails::PayPal(info) => info.paypal_id,
             }),
         }
     }
@@ -4851,6 +4965,9 @@ impl PaymentMethodSessionUpdateSavedPaymentMethod {
                         bank_account_holder_name,
                     } => bank_account_holder_name.is_some(),
                 }
+            }
+            Some(PaymentMethodUpdateData::Wallet(wallet_update)) => {
+                wallet_update.is_metadata_update()
             }
             None => false,
         }

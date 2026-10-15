@@ -12283,11 +12283,20 @@ where
         }
         _ => {
             // Saved wallets require a connector mandate even when off_session is not set.
-            if matches!(
+            // Modular PayPal uses the fetched PM's mandate details without legacy token data.
+            let is_saved_paypal_payment = payment_data.get_token().is_some()
+                && payment_data.get_payment_attempt().payment_method
+                    == Some(storage_enums::PaymentMethod::Wallet)
+                && payment_data.get_payment_attempt().payment_method_type
+                    == Some(storage_enums::PaymentMethodType::Paypal);
+            let is_legacy_saved_wallet = matches!(
                 payment_data.get_token_data(),
                 Some(storage::PaymentTokenData::WalletToken(_))
-            ) {
-                logger::debug!("euclid_routing: modular fallback token-MIT path selected for saved wallet supporting customer initated payment flows");
+            );
+            if is_saved_paypal_payment || is_legacy_saved_wallet {
+                logger::debug!(
+                    "euclid_routing: connector mandate routing selected for saved wallet payment"
+                );
                 route_token_based_mandate_payment(
                     state,
                     payment_data,

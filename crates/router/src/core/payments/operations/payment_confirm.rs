@@ -699,7 +699,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             )
         });
         let (token_data, payment_method_info) = if is_modular_payment_method_flow {
-            (None, payment_method_info)
+            // Saved wallets still need their token context for connector mandate routing.
+            // Card tokens continue to be handled using the modular raw payment data.
+            (
+                prefetched_token_data
+                    .filter(|data| matches!(data, storage::PaymentTokenData::WalletToken(_))),
+                payment_method_info,
+            )
         } else {
             self.resolve_legacy_token_payment_method_context(
                 state,
@@ -1355,6 +1361,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             )?;
 
             if let Some(payment_method_ref) = self.get_payment_method_reference(req) {
+                let mut wallet_token_data = None;
                 let payment_method_ref_to_use = match req.payment_token.as_deref() {
                     Some(payment_token) if payment_token == payment_method_ref => {
                         // Best-effort: resolve the token to its stored payment_method_id. A
@@ -1377,6 +1384,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 .as_deref()
                                 .unwrap_or(payment_method_ref)
                                 .to_owned(),
+                            Ok(storage::PaymentTokenData::WalletToken(data)) => {
+                                let payment_method_id = data.payment_method_id.clone();
+                                wallet_token_data =
+                                    Some(storage::PaymentTokenData::WalletToken(data));
+                                payment_method_id
+                            }
                             Ok(_) => payment_method_ref.to_owned(),
                             Err(err) => {
                                 logger::warn!(
@@ -1394,14 +1407,19 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 logger::debug!(
                         "Organization is enabled for modular service, fetching payment method from PM Modular Service"
                     );
-                self.fetch_payment_method_from_modular_service(
-                    state,
-                    req,
-                    platform,
-                    profile_id,
-                    &payment_method_ref_to_use,
-                )
-                .await?
+                let mut fetch_data = self
+                    .fetch_payment_method_from_modular_service(
+                        state,
+                        req,
+                        platform,
+                        profile_id,
+                        &payment_method_ref_to_use,
+                    )
+                    .await?;
+                // Keep saved-wallet context so pre-routing cannot bypass connector mandate
+                // selection. PayPal's vault token is stored on the fetched payment method.
+                fetch_data.token_data = wallet_token_data;
+                fetch_data
             } else {
                 operations::PaymentMethodFetchData::default()
             }
@@ -1453,14 +1471,18 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     logger::debug!(
                         "Payment method version is V2, fetching payment method from PM Modular Service"
                     );
-                    self.fetch_payment_method_from_modular_service(
-                        state,
-                        req,
-                        platform,
-                        profile_id,
-                        payment_method.get_id(),
-                    )
-                    .await?
+                    let mut fetch_data = self
+                        .fetch_payment_method_from_modular_service(
+                            state,
+                            req,
+                            platform,
+                            profile_id,
+                            payment_method.get_id(),
+                        )
+                        .await?;
+                    fetch_data.token_data = token_data
+                        .filter(|data| matches!(data, storage::PaymentTokenData::WalletToken(_)));
+                    fetch_data
                 }
                 Some(payment_method) => {
                     // Reached when the modular flag is off OR the payment method's timestamps

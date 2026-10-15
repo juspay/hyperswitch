@@ -293,9 +293,13 @@ where
                         (None, None)
                     };
 
-                    // #2 - Fill payment method data for cards
-                    let payment_method_data =
-                        request_payment_method_data.and_then(|method_data| match method_data {
+                    // #2 - Fill request details, falling back to connector-disclosed PayPal data.
+                    let wallet_update = resp
+                        .connector_returned_payment_method_details
+                        .as_ref()
+                        .and_then(PaymentMethodUpdateData::from_connector_details);
+                    let payment_method_data = request_payment_method_data
+                        .and_then(|method_data| match method_data {
                             domain::PaymentMethodData::CardToken(card) => {
                                 Some(PaymentMethodUpdateData::Card(CardDetailUpdate {
                                     card_holder_name: card.card_holder_name.clone(),
@@ -314,7 +318,8 @@ where
                                 },
                             )),
                             _ => None,
-                        });
+                        })
+                        .or(wallet_update);
                     let acknowledgement_status =
                         Some(common_enums::AcknowledgementStatus::Authenticated);
 

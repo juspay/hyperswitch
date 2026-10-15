@@ -401,6 +401,9 @@ impl PaymentMethodUpdate {
                     } => bank_account_holder_name.is_some(),
                 }
             }
+            Some(payment_methods::PaymentMethodUpdateData::Wallet(wallet_update)) => {
+                wallet_update.is_metadata_update()
+            }
             None => false,
         }
     }
