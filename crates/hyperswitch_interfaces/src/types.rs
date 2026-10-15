@@ -601,4 +601,11 @@ pub struct ComparisonServiceConfig {
     pub http_url: String,
     /// Override HTTPS proxy URL used for UCS rollout proxy switching
     pub https_url: String,
+    /// Shared shadow failure threshold; override with ROUTER__COMPARISON_SERVICE__SHADOW_KILL_SWITCH_THRESHOLD.
+    #[serde(default = "default_shadow_kill_switch_threshold")]
+    pub shadow_kill_switch_threshold: u64,
+}
+
+fn default_shadow_kill_switch_threshold() -> u64 {
+    1
 }

@@ -1,9 +1,6 @@
-//! Returns a rollout scope to the shadow connector integration when a Unified Connector Service
-//! call fails more than a configurable threshold number of times.
-//!
-//! Failures are counted in Redis via HINCRBY on a hash key scoped to the rollout scope. The read
-//! path (`is_kill_switched`) compares the counter against the threshold from the RolloutConfig.
-//! When the counter exceeds the threshold, the scope falls back to shadow mode.
+//! Shared Redis kill switches for primary UCS calls and shadow proxy traffic.
+//! Primary UCS failures divert their rollout scope to shadow; qualifying HS proxy failures
+//! divert shadow traffic to Direct. Both use atomic counters with configurable thresholds.
 
 use std::str::FromStr;
 
@@ -178,15 +175,24 @@ async fn read_counter(
     rollout_scope: &str,
     failure_class: UcsFailureClass,
 ) -> error_stack::Result<u64, storage_impl::errors::RedisError> {
-    let key: redis_interface::RedisKey = counter_key(rollout_scope).as_str().into();
-    let count: u64 = state
-        .store
-        .get_redis_conn()?
-        .get_hash_field::<Option<u64>>(&key, failure_class.counter_field())
-        .await?
-        .unwrap_or(0);
+    read_hash_counter(
+        &state.store.get_redis_conn()?,
+        &counter_key(rollout_scope),
+        failure_class.counter_field(),
+    )
+    .await
+}
 
-    Ok(count)
+/// Shared counter read for tenant-scoped UCS and global shadow proxy switches.
+async fn read_hash_counter(
+    conn: &redis_interface::RedisConnectionWithContext,
+    key: &str,
+    field: &str,
+) -> error_stack::Result<u64, storage_impl::errors::RedisError> {
+    Ok(conn
+        .get_hash_field::<Option<u64>>(&key.into(), field)
+        .await?
+        .unwrap_or(0))
 }
 
 /// The scope's kill switch settings, resolved once by the gate and carried to the failure
@@ -481,24 +487,34 @@ async fn write_counter(
     rollout_scope: &str,
     failure_class: UcsFailureClass,
 ) -> error_stack::Result<Vec<usize>, storage_impl::errors::RedisError> {
-    let conn = state.store.get_redis_conn()?;
-    let key: redis_interface::RedisKey = counter_key(rollout_scope).as_str().into();
+    write_hash_counter(
+        &state.store.get_redis_conn()?,
+        &counter_key(rollout_scope),
+        failure_class.counter_field(),
+    )
+    .await
+}
 
+/// Atomic HINCRBY, with a best-effort expiry refresh shared by both switches.
+async fn write_hash_counter(
+    conn: &redis_interface::RedisConnectionWithContext,
+    key: &str,
+    field: &str,
+) -> error_stack::Result<Vec<usize>, storage_impl::errors::RedisError> {
+    let redis_key = key.into();
     let result = conn
-        .increment_fields_in_hash(&key, &[(failure_class.counter_field(), 1)])
+        .increment_fields_in_hash(&redis_key, &[(field, 1)])
         .await?;
-
-    conn.set_expiry(&key, consts::UCS_KILL_SWITCH_TTL_IN_SECONDS)
+    conn.set_expiry(&redis_key, consts::UCS_KILL_SWITCH_TTL_IN_SECONDS)
         .await
         .inspect_err(|error| {
             logger::warn!(
                 ?error,
-                rollout_scope = %rollout_scope,
+                key,
                 "ucs_kill_switch: failed to refresh counter TTL"
             );
         })
         .ok();
-
     Ok(result)
 }
 
@@ -507,7 +523,7 @@ async fn write_counter(
 pub struct KillSwitchStatusResponse {
     pub rollout_scope: String,
     pub counter: u64,
-    /// `None` when no `RolloutConfig` exists for this scope — falls back to trip-on-first-failure.
+    /// Shadow uses its configured threshold. For primary UCS, `None` means no rollout config.
     pub threshold: Option<u64>,
     /// Connector declines, counted separately from `counter` and measured against
     /// `connector_decline_threshold`.
@@ -558,6 +574,24 @@ pub async fn trip_status(
     state: SessionState,
     key_or_scope: String,
 ) -> errors::RouterResponse<KillSwitchStatusResponse> {
+    if key_or_scope == consts::UCS_SHADOW_KILL_SWITCH_REDIS_KEY {
+        let counter = shadow::read_counter(&state)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to read the shadow kill switch counter")?;
+        let threshold = shadow::threshold(&state);
+        return Ok(crate::services::ApplicationResponse::Json(
+            KillSwitchStatusResponse {
+                rollout_scope: key_or_scope,
+                counter,
+                threshold: Some(threshold),
+                decline_counter: 0,
+                connector_decline_threshold: None,
+                tripped: exceeds_threshold(counter, threshold),
+            },
+        ));
+    }
+
     let rollout_scope = rollout_scope_in(&key_or_scope);
 
     let counter_value: u64 =
@@ -823,5 +857,125 @@ mod tests {
         let unique: std::collections::HashSet<_> = tags.iter().collect();
 
         assert_eq!(unique.len(), tags.len());
+    }
+}
+
+/// Disable shadow proxying after qualifying HS request failures reach a shared threshold.
+pub mod shadow {
+    use std::error::Error;
+
+    use common_enums::ApiClientError;
+    use hyperswitch_domain_models::router_data::ErrorResponse;
+    use hyperswitch_interfaces::{api::gateway::GetRouterData, errors::ConnectorError};
+    use router_env::logger;
+
+    use super::{exceeds_threshold, read_hash_counter, write_hash_counter, COUNTER_FIELD};
+    use crate::{consts::UCS_SHADOW_KILL_SWITCH_REDIS_KEY as COUNTER_KEY, routes::SessionState};
+
+    pub(super) async fn read_counter(
+        state: &SessionState,
+    ) -> error_stack::Result<u64, storage_impl::errors::RedisError> {
+        read_hash_counter(
+            &state.global_store.get_redis_conn()?,
+            COUNTER_KEY,
+            COUNTER_FIELD,
+        )
+        .await
+    }
+
+    pub(super) fn threshold(state: &SessionState) -> u64 {
+        state
+            .conf
+            .comparison_service
+            .as_ref()
+            .map_or(1, |config| config.shadow_kill_switch_threshold)
+    }
+
+    // Check typed transport errors rather than treating every processing/decoding error
+    // or connector HTTP 5xx as a proxy failure. Transport errors cannot always identify
+    // whether the proxy or the upstream connector caused the failure.
+    fn is_transport_error(error: &error_stack::Report<ConnectorError>) -> bool {
+        error.downcast_ref::<ApiClientError>().is_some_and(|error| {
+            error.is_upstream_timeout()
+                || error.is_connection_closed_before_message_could_complete()
+        }) || error.current_context().is_connector_timeout()
+            || error.downcast_ref::<reqwest::Error>().is_some_and(|error| {
+                !error.is_builder()
+                    && (error.is_connect()
+                        || error.is_timeout()
+                        || error.is_body()
+                        || std::iter::successors(error.source(), |source| (*source).source())
+                            .any(|source| source.is::<std::io::Error>()))
+            })
+            || error.downcast_ref::<http::StatusCode>()
+                == Some(&http::StatusCode::PROXY_AUTHENTICATION_REQUIRED)
+    }
+
+    fn is_proxy_or_timeout_response(error: &ErrorResponse) -> bool {
+        error.status_code == 407
+            || (error.status_code == 504
+                && error.code == hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_CODE
+                && error.message == hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_MESSAGE)
+    }
+
+    /// Called only on the shadow path; record HS transport/proxy failures.
+    /// Redis commands use the application's existing configured timeout.
+    pub async fn record_failure<F, Req, Resp, Output>(
+        state: &SessionState,
+        payment_id: &str,
+        result: &common_utils::errors::CustomResult<Output, ConnectorError>,
+    ) where
+        Output: GetRouterData<F, Req, Resp>,
+    {
+        let qualifying = match result {
+            Err(error) => is_transport_error(error),
+            Ok(output) => {
+                let router_data = output.get_router_data();
+                router_data.connector_http_status_code == Some(407)
+                    || router_data
+                        .response
+                        .as_ref()
+                        .err()
+                        .is_some_and(is_proxy_or_timeout_response)
+            }
+        };
+        if !qualifying {
+            return;
+        }
+        let write = async {
+            let conn = state.global_store.get_redis_conn()?;
+            write_hash_counter(&conn, COUNTER_KEY, COUNTER_FIELD).await
+        }
+        .await;
+        match write {
+            Ok(counts) => logger::warn!(
+                payment_id,
+                request_id = ?state.request_id,
+                count = ?counts.first(),
+                "SHADOW_KILL_SWITCH_COUNTER_INCREMENTED"
+            ),
+            Err(error) => logger::warn!(
+                payment_id,
+                request_id = ?state.request_id,
+                ?error,
+                "Shadow kill switch counter increment failed"
+            ),
+        }
+    }
+
+    /// Read only for a resultant shadow path, before changing any proxy settings.
+    /// An unreadable Redis counter routes shadow to Direct.
+    pub async fn is_kill_switched(state: &SessionState) -> bool {
+        match read_counter(state).await {
+            Ok(count) => exceeds_threshold(count, threshold(state)),
+            Err(error) => {
+                logger::warn!(
+                    ?error,
+                    key = COUNTER_KEY,
+                    "Shadow kill switch counter unavailable; routing to Direct"
+                );
+                true
+            }
+        }
     }
 }

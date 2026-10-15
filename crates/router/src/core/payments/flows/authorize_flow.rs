@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
     router_flow_types, router_request_types, router_response_types,
 };
 use hyperswitch_interfaces::{
-    api::{self as api_interface, gateway, ConnectorSpecifications},
+    api::{self as api_interface, ConnectorSpecifications},
     consts as interface_consts, errors as interface_errors,
     unified_connector_service::transformers as ucs_transformers,
 };
@@ -39,8 +39,9 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, flows::gateway_context, gateway as payments_gateway,
-            helpers, session_token, tokenization, transformers, PaymentData,
+            self, access_token, customers, flows::gateway_context, gateway,
+            gateway as payments_gateway, helpers, session_token, tokenization, transformers,
+            PaymentData,
         },
         unified_connector_service,
     },

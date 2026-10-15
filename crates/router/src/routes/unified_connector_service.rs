@@ -10,6 +10,7 @@ use crate::{
 /// Reports whether the UCS kill switch has tripped a scope, and what tripped it.
 ///
 /// `scope` is the `rollout_scope` the trip logs, or the whole redis key.
+/// Use `ucs_shadow_killed` to inspect the global shadow counter and its configured threshold.
 #[instrument(skip_all, fields(flow = ?Flow::UnifiedConnectorServiceKillSwitchStatus))]
 pub async fn kill_switch_status(
     state: web::Data<AppState>,
@@ -31,7 +32,7 @@ pub async fn kill_switch_status(
 }
 
 /// Clears a UCS kill switch trip, returning the scope to whatever its rollout config says.
-/// Takes the same `scope` as the status endpoint.
+/// Accepts a primary UCS rollout scope or its Redis key.
 #[instrument(skip_all, fields(flow = ?Flow::UnifiedConnectorServiceKillSwitchReset))]
 pub async fn reset_kill_switch(
     state: web::Data<AppState>,

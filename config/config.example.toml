@@ -1702,3 +1702,6 @@ refresh_timeout_in_secs = 5                 # Optional, defaults to 5. Per-call 
 # (e.g., payment-methods, customers, routing, etc.)
 payment_methods_base_url = "http://localhost:8082"
 use_legacy_locker = false           # Boolean to enable legacy locker
+
+# Set shadow_kill_switch_threshold = 1 under the existing [comparison_service] section.
+# Override using ROUTER__COMPARISON_SERVICE__SHADOW_KILL_SWITCH_THRESHOLD.
