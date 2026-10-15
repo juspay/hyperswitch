@@ -524,6 +524,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
             })
             .unwrap_or(Ok(payment_intent.request_incremental_authorization))?;
+        payment_intent.enable_avs_check =
+            request.enable_avs_check.or(payment_intent.enable_avs_check);
         payment_intent.enable_partial_authorization = request
             .enable_partial_authorization
             .or(payment_intent.enable_partial_authorization);
@@ -878,6 +880,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
+                | RecurringDetails::NetworkTokenWithVaultCardFallback(_)
                 | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
                     Some(mandates::MandateIds {
                         mandate_id: None,
@@ -3162,6 +3165,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         external_surcharge_applicable: payment_data
                             .payment_intent
                             .external_surcharge_applicable,
+                        enable_avs_check: payment_data.payment_intent.enable_avs_check,
                     })),
                     &m_key_store,
                     storage_scheme,

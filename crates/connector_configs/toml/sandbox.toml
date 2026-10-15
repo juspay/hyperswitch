@@ -9680,3 +9680,17 @@ key1="Secret API Key"
   payment_method_type = "DinersClub"
 [[elavon_pg.debit]]
   payment_method_type = "UnionPay"
+
+[mifinity_payout]
+[[mifinity_payout.wallet]]
+payment_method_type = "mifinity"
+[[mifinity_payout.bank_transfer]]
+payment_method_type = "sepa_bank_transfer"
+[mifinity_payout.connector_auth.HeaderKey]
+api_key = "key"
+[mifinity_payout.metadata.destination_account_number]
+name = "destination_account_number"
+label = "Source Account Number"
+placeholder = "Enter Source Account Number"
+required = true
+type = "Text"

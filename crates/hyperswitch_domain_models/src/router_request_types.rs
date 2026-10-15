@@ -178,6 +178,7 @@ pub struct PaymentsAuthorizeData {
     /// The merchant's business country for this payment. Connectors use it for requirements that
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
+    pub enable_avs_check: Option<bool>,
 }
 
 impl PaymentsAuthorizeData {
@@ -1928,6 +1929,7 @@ pub struct SetupMandateRequestData {
     /// The merchant's business country for this payment. Connectors use it for requirements that
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
+    pub enable_avs_check: Option<bool>,
 }
 
 impl SetupMandateRequestData {

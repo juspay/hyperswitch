@@ -1204,6 +1204,18 @@ impl DatabaseBackedConfig for PayoutFrmCall {
 }
 
 config! {
+    superposition_key = RERUN_PAYOUT_FRM_BEFORE_AUTO_RETRY,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for RerunPayoutFrmBeforeAutoRetry {
+    const KEY: &'static str = "rerun_payout_frm_before_auto_retry";
+}
+
+config! {
     superposition_key = CARD_ISSUER_LIST_MAX_LIMIT,
     output = i64,
     default = 18_000,
