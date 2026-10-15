@@ -401,7 +401,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         // requests use the same applied-usage fallback helper; this lets decisions made
         // before the connector call, such as connector customer creation, see the same value.
         payment_attempt.setup_future_usage_applied =
-            helpers::get_setup_future_usage_with_fallback(&payment_attempt, &payment_intent);
+            payment_attempt.get_setup_future_usage_with_fallback(&payment_intent);
 
         payment_intent.psd2_sca_exemption_type = request
             .psd2_sca_exemption_type
@@ -1361,9 +1361,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             )?;
 
             if let Some(payment_method_ref) = self.get_payment_method_reference(req) {
-                let mut wallet_token_data = None;
-                let payment_method_ref_to_use = match req.payment_token.as_deref() {
-                    Some(payment_token) if payment_token == payment_method_ref => {
+                let (payment_method_ref_to_use, wallet_token_data) = match req
+                    .payment_token
+                    .as_deref()
+                    .filter(|payment_token| *payment_token == payment_method_ref)
+                {
+                    Some(payment_token) => {
                         // Best-effort: resolve the token to its stored payment_method_id. A
                         // self-hosted vault token minted by the modular PM service is not present in
                         // the legacy redis token store (different key), so a miss/error here is not
@@ -1371,7 +1374,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         // resolve it, instead of failing the payment with "token invalid or expired".
                         match helpers::retrieve_payment_token_data(
                             state,
-                            payment_method_ref.to_string(),
+                            payment_token.to_string(),
                             req.payment_method,
                         )
                         .await
@@ -1379,35 +1382,42 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             Ok(
                                 storage::PaymentTokenData::Permanent(card_token_data)
                                 | storage::PaymentTokenData::PermanentCard(card_token_data),
-                            ) => card_token_data
-                                .payment_method_id
-                                .as_deref()
-                                .unwrap_or(payment_method_ref)
-                                .to_owned(),
-                            Ok(storage::PaymentTokenData::WalletToken(data)) => {
-                                let payment_method_id = data.payment_method_id.clone();
-                                wallet_token_data =
-                                    Some(storage::PaymentTokenData::WalletToken(data));
-                                payment_method_id
-                            }
-                            Ok(_) => payment_method_ref.to_owned(),
+                            ) => (
+                                card_token_data
+                                    .payment_method_id
+                                    .as_deref()
+                                    .unwrap_or(payment_method_ref)
+                                    .to_owned(),
+                                None,
+                            ),
+                            Ok(storage::PaymentTokenData::WalletToken(data)) => (
+                                data.payment_method_id.clone(),
+                                Some(storage::PaymentTokenData::WalletToken(data)),
+                            ),
+                            Ok(
+                                storage::PaymentTokenData::Temporary(..)
+                                | storage::PaymentTokenData::TemporaryGeneric(..)
+                                | storage::PaymentTokenData::AuthBankDebit(..)
+                                | storage::PaymentTokenData::BankDebit(..)
+                                | storage::PaymentTokenData::BankRedirect(..),
+                            ) => (payment_method_ref.to_owned(), None),
                             Err(err) => {
                                 logger::warn!(
                                     ?err,
                                     payment_method_ref,
                                     "Failed to fetch payment token from payment server; falling back to PM Modular Service"
                                 );
-                                payment_method_ref.to_owned()
+                                (payment_method_ref.to_owned(), None)
                             }
                         }
                     }
-                    _ => payment_method_ref.to_owned(),
+                    None => (payment_method_ref.to_owned(), None),
                 };
 
                 logger::debug!(
                         "Organization is enabled for modular service, fetching payment method from PM Modular Service"
                     );
-                let mut fetch_data = self
+                let fetch_data = self
                     .fetch_payment_method_from_modular_service(
                         state,
                         req,
@@ -1418,8 +1428,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .await?;
                 // Keep saved-wallet context so pre-routing cannot bypass connector mandate
                 // selection. PayPal's vault token is stored on the fetched payment method.
-                fetch_data.token_data = wallet_token_data;
-                fetch_data
+                operations::PaymentMethodFetchData {
+                    token_data: wallet_token_data,
+                    ..fetch_data
+                }
             } else {
                 operations::PaymentMethodFetchData::default()
             }

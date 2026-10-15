@@ -8345,11 +8345,15 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
 
     fn validate(&self) -> RouterResult<()> {
         let payment_method = &self.payment_method;
+        let is_paypal_payment_method =
+            payment_method.payment_method_type == Some(enums::PaymentMethod::Wallet)
+                && payment_method.payment_method_subtype == Some(enums::PaymentMethodType::Paypal);
         if matches!(
             self.request.payment_method_data,
-            Some(payment_methods::PaymentMethodUpdateData::Wallet(_))
-        ) && (payment_method.payment_method_type != Some(enums::PaymentMethod::Wallet)
-            || payment_method.payment_method_subtype != Some(enums::PaymentMethodType::Paypal))
+            Some(payment_methods::PaymentMethodUpdateData::Wallet(
+                payment_methods::WalletDetailUpdate::PayPal { .. }
+            ))
+        ) && !is_paypal_payment_method
         {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "PayPal wallet updates require a saved PayPal payment method".to_string(),
@@ -8366,7 +8370,6 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
         )?;
         Ok(())
     }
-
     fn is_pm_metadata_changed_for_same_fingerprint(
         &self,
         vault_request_data: &domain::PaymentMethodVaultingData,
@@ -8441,60 +8444,73 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
         Option<domain::PaymentMethodVaultingData>,
         Option<pm_types::AddVaultResponse>,
     )> {
-        if !self.request.is_payment_method_metadata_update()
-            || matches!(
-                self.request.payment_method_data,
-                Some(payment_methods::PaymentMethodUpdateData::Wallet(_))
+        match (
+            self.request.is_payment_method_metadata_update(),
+            &self.request.payment_method_data,
+        ) {
+            // Wallet metadata is updated directly in the database without vault operations.
+            (
+                true | false,
+                Some(payment_methods::PaymentMethodUpdateData::Wallet(
+                    payment_methods::WalletDetailUpdate::PayPal { .. },
+                )),
+            ) => Ok((None, None)),
+            (true, Some(payment_methods::PaymentMethodUpdateData::Card(..)))
+            | (true, Some(payment_methods::PaymentMethodUpdateData::BankDebit(..))) => {
+                let pmd: domain::PaymentMethodVaultingData =
+                    Box::pin(vault::retrieve_payment_method_from_vault(
+                        self.state,
+                        self.platform,
+                        self.profile,
+                        &self.payment_method,
+                    ))
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve payment method from vault")?
+                    .data;
+
+                let vault_request_data = self
+                    .request
+                    .payment_method_data
+                    .clone()
+                    .map(|payment_method_data| {
+                        pm_transforms::generate_pm_vaulting_req_from_update_request(
+                            pmd,
+                            payment_method_data,
+                        )
+                    })
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::NotSupported {
+                        message: "Payment method type not supported for update".to_string(),
+                    })?
+                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "payment_method_data".into(),
+                    })?;
+
+                let is_metadata_changed_for_same_fingerprint =
+                    self.is_pm_metadata_changed_for_same_fingerprint(&vault_request_data);
+
+                let locker =
+                    LockerType::from_micro_services_config(&self.state.conf.micro_services);
+
+                locker
+                    .validate_locker_operations_for_update(
+                        self.state,
+                        self.platform,
+                        self.profile,
+                        &self.payment_method,
+                        &vault_request_data,
+                        is_metadata_changed_for_same_fingerprint,
+                    )
+                    .await
+            }
+            (
+                false,
+                Some(payment_methods::PaymentMethodUpdateData::Card(..))
+                | Some(payment_methods::PaymentMethodUpdateData::BankDebit(..)),
             )
-        {
-            return Ok((None, None));
+            | (true | false, None) => Ok((None, None)),
         }
-
-        let pmd: domain::PaymentMethodVaultingData =
-            Box::pin(vault::retrieve_payment_method_from_vault(
-                self.state,
-                self.platform,
-                self.profile,
-                &self.payment_method,
-            ))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to retrieve payment method from vault")?
-            .data;
-
-        let vault_request_data = self
-            .request
-            .payment_method_data
-            .clone()
-            .map(|payment_method_data| {
-                pm_transforms::generate_pm_vaulting_req_from_update_request(
-                    pmd,
-                    payment_method_data,
-                )
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::NotSupported {
-                message: "Payment method type not supported for update".to_string(),
-            })?
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_data".into(),
-            })?;
-
-        let is_metadata_changed_for_same_fingerprint =
-            self.is_pm_metadata_changed_for_same_fingerprint(&vault_request_data);
-
-        let locker = LockerType::from_micro_services_config(&self.state.conf.micro_services);
-
-        locker
-            .validate_locker_operations_for_update(
-                self.state,
-                self.platform,
-                self.profile,
-                &self.payment_method,
-                &vault_request_data,
-                is_metadata_changed_for_same_fingerprint,
-            )
-            .await
     }
 
     pub async fn update_payment_method_if_required(

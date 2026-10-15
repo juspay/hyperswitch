@@ -9539,17 +9539,6 @@ where
     )
 }
 
-/// Uses the attempt's applied future usage, falling back to the intent only when absent.
-#[cfg(feature = "v1")]
-pub fn get_setup_future_usage_with_fallback(
-    payment_attempt: &PaymentAttempt,
-    payment_intent: &PaymentIntent,
-) -> Option<enums::FutureUsage> {
-    payment_attempt
-        .setup_future_usage_applied
-        .or(payment_intent.setup_future_usage)
-}
-
 /// Override the attempt's applied future usage during routing, preserving the intent's usage.
 /// Missing or unavailable configuration
 /// leaves the usage unchanged. Direct connector mandate support checks still run afterward.
@@ -9649,10 +9638,10 @@ where
     F: Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
-    if get_setup_future_usage_with_fallback(
-        payment_data.get_payment_attempt(),
-        payment_data.get_payment_intent(),
-    ) == Some(enums::FutureUsage::OffSession)
+    if payment_data
+        .get_payment_attempt()
+        .get_setup_future_usage_with_fallback(payment_data.get_payment_intent())
+        == Some(enums::FutureUsage::OffSession)
     {
         let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(
             db,

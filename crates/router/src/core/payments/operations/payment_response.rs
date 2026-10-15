@@ -516,7 +516,7 @@ where
             .and_then(|record| record.connector_mandate_status);
 
         let is_off_session = matches!(
-            payments_helpers::get_setup_future_usage_with_fallback(payment_attempt, payment_intent),
+            payment_attempt.get_setup_future_usage_with_fallback(payment_intent),
             Some(common_enums::FutureUsage::OffSession)
         );
 

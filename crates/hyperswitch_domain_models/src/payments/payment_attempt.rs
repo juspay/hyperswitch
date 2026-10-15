@@ -48,7 +48,7 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 use url::Url;
 
-#[cfg(all(feature = "v1", feature = "olap"))]
+#[cfg(feature = "v1")]
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
 use crate::{
@@ -1818,6 +1818,17 @@ impl PaymentAttempt {
 
 #[cfg(feature = "v1")]
 impl PaymentAttempt {
+    /// Uses the attempt's applied future usage, falling back to the intent only when absent.
+    pub fn get_setup_future_usage_with_fallback(
+        &self,
+        payment_intent: &PaymentIntent,
+    ) -> Option<storage_enums::FutureUsage> {
+        match self.setup_future_usage_applied {
+            Some(setup_future_usage) => Some(setup_future_usage),
+            None => payment_intent.setup_future_usage,
+        }
+    }
+
     /// Capture method actually used with the connector for this attempt.
     ///
     /// `capture_method` keeps what the payment requested; when the profile's
