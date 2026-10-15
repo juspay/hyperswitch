@@ -122,7 +122,13 @@ impl<F: Send + Clone + Sync>
                     hyperswitch_domain_models::payments::FromRequestEncryptablePaymentIntent {
                         shipping_address: request.shipping.clone().map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode shipping address")?.map(hyperswitch_masking::Secret::new),
                         billing_address: request.billing.clone().map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode billing address")?.map(hyperswitch_masking::Secret::new),
-                        customer_details: None,
+                        customer_details: request.customer_details.clone()
+                            .map(hyperswitch_domain_models::payments::payment_intent::CustomerData::from)
+                            .map(|customer| customer.encode_to_value())
+                            .transpose()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to encode customer details")?
+                            .map(hyperswitch_masking::Secret::new),
                         recipient_details: request.recipient_details.clone().map(|recipient| recipient.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode recipient details")?.map(hyperswitch_masking::Secret::new),
                     },
                 ),
@@ -222,9 +228,26 @@ impl<F: Send + Clone>
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        _request: &PaymentsCreateIntentRequest,
+        request: &PaymentsCreateIntentRequest,
         platform: &'a domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
+        if let Some(document) = request
+            .customer_details
+            .as_ref()
+            .and_then(|customer| customer.document_details.as_ref())
+        {
+            document
+                .validate()
+                .map_err(|err| errors::ApiErrorResponse::PreconditionFailed {
+                    message: err.to_string(),
+                })?;
+            if document.document_number.peek().trim().is_empty() {
+                return Err(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "customer_details.document_details.document_number".into(),
+                }
+                .into());
+            }
+        }
         Ok(operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),
             storage_scheme: platform.get_processor().get_account().storage_scheme,

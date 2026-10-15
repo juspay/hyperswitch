@@ -1,3 +1,43 @@
 ---
 openapi: post /v2/recovery
 ---
+
+For dLocal saved-card recovery, supply the payer's email and identification document
+in `customer_details`, and the first name and country in `billing.address`:
+
+```json
+{
+  "customer_details": {
+    "email": "payer@example.com",
+    "document_details": {
+      "document_type": "cpf",
+      "document_number": "<actual payer CPF>"
+    }
+  },
+  "billing": {
+    "address": {
+      "first_name": "Example",
+      "country": "BR"
+    }
+  }
+}
+```
+
+These fields supplement the other required recovery request fields. Customer details
+are optional for flows that do not require them. Supplied documents are validated
+using their document type, and document numbers must not be blank.
+
+Customer details are encrypted in the payment intent's existing customer-details
+field and read back when constructing the UCS/Prism request. This object is an
+invoice-level payer snapshot: it does not create or attach a customer, and its `id`
+is not used. A linked customer record is not required.
+
+Retry email comes only from the stored customer details. Missing customer details
+or email produces no email; billing email is never used as a fallback. dLocal card
+retry scheduling rejects missing customer email or document details before creating
+the invoice or scheduling the retry.
+
+Supply these values on the first request for the invoice. Repeated requests for
+an existing invoice reuse its payment intent; they do not backfill or replace its
+stored payer details. This payer-data support does not add MIT network-reference
+propagation or change billing record-back behavior.
