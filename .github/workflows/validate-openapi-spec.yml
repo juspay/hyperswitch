@@ -52,10 +52,14 @@ jobs:
 
       - name: Generate the OpenAPI spec file for V1
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 5
         run: cargo run -p openapi --features v1
 
       - name: Generate the OpenAPI spec file for V2
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 5
         run: cargo run -p openapi --features v2
 
       - name: Install `swagger-cli`
