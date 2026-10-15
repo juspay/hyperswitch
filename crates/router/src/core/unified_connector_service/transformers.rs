@@ -194,6 +194,292 @@ pub(super) fn frm_status_from_ucs_decision(
     }
 }
 
+fn serialize_ucs_feature_data(
+    value: Option<&serde_json::Value>,
+) -> Result<Option<String>, error_stack::Report<UnifiedConnectorServiceError>> {
+    value
+        .map(serde_json::to_string)
+        .transpose()
+        .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
+}
+
+fn build_authentication_order_feature_data(
+    router_data: &RouterData<
+        uas_flows::Authenticate,
+        router_request_types::PaymentsAuthenticateData,
+        PaymentsResponseData,
+    >,
+) -> Result<Option<String>, error_stack::Report<UnifiedConnectorServiceError>> {
+    if router_data.connector_meta_data.is_none()
+        && router_data.request.original_order_context.is_none()
+    {
+        return Ok(None);
+    }
+    let mut metadata = router_data
+        .connector_meta_data
+        .as_ref()
+        .map(|value| value.peek().clone())
+        .unwrap_or_else(|| serde_json::json!({}));
+    let object = metadata
+        .as_object_mut()
+        .ok_or(UnifiedConnectorServiceError::RequestEncodingFailed)
+        .attach_printable("Connector feature data must be a JSON object")?;
+    if let Some(existing) = object.get("authentication_order_context") {
+        if existing.get("version").and_then(serde_json::Value::as_u64) != Some(1)
+            || !existing
+                .get("request")
+                .is_some_and(serde_json::Value::is_object)
+        {
+            return Err(UnifiedConnectorServiceError::RequestEncodingFailed)
+                .attach_printable("Unsupported authentication order context version or shape");
+        }
+    } else if let Some(original) = router_data.request.original_order_context.as_ref() {
+        let original = original.peek();
+        let safe_request = payments_grpc::PaymentServiceAuthorizeRequest {
+            merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
+            merchant_order_id: original.merchant_order_reference_id.clone(),
+            order_tax_amount: original
+                .order_tax_amount
+                .map(|amount| amount.get_amount_as_i64()),
+            shipping_cost: original
+                .shipping_cost
+                .map(|amount| amount.get_amount_as_i64()),
+            order_details: build_ucs_order_details(original.order_details.as_deref()),
+            setup_future_usage: original
+                .setup_future_usage
+                .map(<payments_grpc::FutureUsage as transformers::ForeignTryFrom<_>>::foreign_try_from)
+                .transpose()?
+                .map(Into::into),
+            billing_descriptor: original
+                .billing_descriptor
+                .as_ref()
+                .map(payments_grpc::BillingDescriptor::foreign_from),
+            statement_descriptor_name: original
+                .billing_descriptor
+                .as_ref()
+                .and_then(|d| d.statement_descriptor.clone()),
+            statement_descriptor_suffix: original
+                .billing_descriptor
+                .as_ref()
+                .and_then(|d| d.statement_descriptor_suffix.clone()),
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
+            description: router_data.description.clone(),
+            customer: Some(payments_grpc::Customer {
+                email: router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|email| email.expose().expose().into()),
+                connector_customer_id: router_data.connector_customer.clone(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let mut request = serde_json::to_value(safe_request)
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?;
+        let request_object = request
+            .as_object_mut()
+            .ok_or(UnifiedConnectorServiceError::RequestEncodingFailed)?;
+        request_object.retain(|key, _| {
+            matches!(
+                key.as_str(),
+                "merchant_transaction_id"
+                    | "merchant_order_id"
+                    | "order_tax_amount"
+                    | "shipping_cost"
+                    | "order_details"
+                    | "setup_future_usage"
+                    | "billing_descriptor"
+                    | "statement_descriptor_name"
+                    | "statement_descriptor_suffix"
+                    | "l2_l3_data"
+                    | "description"
+                    | "customer"
+            )
+        });
+        object.insert(
+            "authentication_order_context".to_owned(),
+            serde_json::json!({"version":1,"request":request}),
+        );
+    }
+    serialize_ucs_feature_data(Some(&metadata))
+}
+
+const AUTHENTICATION_ORDER_FIELDS: &[&str] = &[
+    "merchant_transaction_id",
+    "merchant_order_id",
+    "order_tax_amount",
+    "shipping_cost",
+    "order_details",
+    "setup_future_usage",
+    "billing_descriptor",
+    "statement_descriptor_name",
+    "statement_descriptor_suffix",
+    "l2_l3_data",
+    "description",
+    "customer",
+];
+
+// This is an internal continuation reference, not a device-minted wallet token.
+// PayPal consumes the saved order/setup ID from metadata; its final money call is
+// an empty existing-order POST, and its vault exchange uses the approved setup ID.
+fn hosted_payment_continuation_method(
+    connector: &str,
+    payment_type: Option<common_enums::PaymentMethodType>,
+    metadata: Option<&serde_json::Value>,
+) -> Result<Option<payments_grpc::PaymentMethod>, error_stack::Report<UnifiedConnectorServiceError>>
+{
+    if connector != "paypal" {
+        return Ok(None);
+    }
+    if let Some(order) = metadata
+        .and_then(|v| v.get("order_id"))
+        .and_then(serde_json::Value::as_str)
+        .filter(|v| !v.trim().is_empty())
+    {
+        match payment_type {
+            Some(
+                common_enums::PaymentMethodType::Credit | common_enums::PaymentMethodType::Debit,
+            ) => {
+                return Ok(Some(payments_grpc::PaymentMethod {
+                    payment_method: Some(payments_grpc::payment_method::PaymentMethod::Token(
+                        payments_grpc::TokenPaymentMethodType {
+                            token: Some(Secret::new(order.to_owned())),
+                            token_payment_method_type: None,
+                        },
+                    )),
+                }))
+            }
+            Some(common_enums::PaymentMethodType::Paypal) => {
+                return Ok(Some(payments_grpc::PaymentMethod {
+                    payment_method: Some(
+                        payments_grpc::payment_method::PaymentMethod::PaypalRedirect(
+                            payments_grpc::PaypalRedirectWallet { email: None },
+                        ),
+                    ),
+                }))
+            }
+            _ => {}
+        }
+    }
+    let kind = match payment_type {
+        Some(common_enums::PaymentMethodType::ApplePay) => {
+            payments_grpc::token_payment_method_type::TokenPaymentMethod::ApplePay
+        }
+        Some(common_enums::PaymentMethodType::GooglePay) => {
+            payments_grpc::token_payment_method_type::TokenPaymentMethod::GooglePay
+        }
+        _ => return Ok(None),
+    };
+    let Some(metadata) = metadata else {
+        return Ok(None);
+    };
+    let nonblank = |value: Option<&serde_json::Value>| {
+        value
+            .and_then(serde_json::Value::as_str)
+            .filter(|v| !v.trim().is_empty())
+            .map(str::to_owned)
+    };
+    let reference = if let Some(order) = nonblank(metadata.get("order_id")) {
+        Some(order)
+    } else if kind == payments_grpc::token_payment_method_type::TokenPaymentMethod::ApplePay {
+        metadata.get("continuation").and_then(|continuation| {
+            match continuation
+                .get("stage")
+                .and_then(serde_json::Value::as_str)
+            {
+                Some("setup_approved") => nonblank(continuation.get("setup_token_id")),
+                Some("payment_token_created") => nonblank(continuation.get("payment_token_id")),
+                _ => None,
+            }
+        })
+    } else {
+        None
+    };
+    Ok(reference.map(|reference| payments_grpc::PaymentMethod {
+        payment_method: Some(payments_grpc::payment_method::PaymentMethod::Token(
+            payments_grpc::TokenPaymentMethodType {
+                token: Some(Secret::new(reference)),
+                token_payment_method_type: Some(kind.into()),
+            },
+        )),
+    }))
+}
+
+// PayPal's ordinary Authorize may first vault an encrypted Apple token and return
+// a redirect. Opt in only this connector to the existing safe C01 context; never
+// serialize payment credentials, authentication data or an encrypted wallet token.
+fn hosted_authorize_context(
+    connector: &str,
+    mut request: payments_grpc::PaymentServiceAuthorizeRequest,
+    restore: bool,
+) -> Result<
+    payments_grpc::PaymentServiceAuthorizeRequest,
+    error_stack::Report<UnifiedConnectorServiceError>,
+> {
+    if connector != "paypal" {
+        return Ok(request);
+    }
+    let fail = || {
+        error_stack::Report::new(UnifiedConnectorServiceError::RequestEncodingFailed)
+            .attach_printable("Invalid versioned hosted authorization context")
+    };
+    let mut metadata: serde_json::Value = request
+        .connector_feature_data
+        .as_ref()
+        .map(|v| serde_json::from_str(v.peek()))
+        .transpose()
+        .map_err(|_| fail())?
+        .unwrap_or_else(|| serde_json::json!({}));
+    let object = metadata.as_object_mut().ok_or_else(fail)?;
+    if let Some(context) = object.get("authentication_order_context") {
+        if context.get("version").and_then(serde_json::Value::as_u64) != Some(1) {
+            return Err(fail());
+        }
+        let saved = context
+            .get("request")
+            .and_then(serde_json::Value::as_object)
+            .ok_or_else(fail)?;
+        if saved
+            .keys()
+            .any(|key| !AUTHENTICATION_ORDER_FIELDS.contains(&key.as_str()))
+        {
+            return Err(fail());
+        }
+        if restore {
+            let mut generated = serde_json::to_value(&request).map_err(|_| fail())?;
+            let generated_object = generated.as_object_mut().ok_or_else(fail)?;
+            for (key, value) in saved {
+                generated_object.insert(key.clone(), value.clone());
+            }
+            request = serde_json::from_value(generated).map_err(|_| fail())?;
+        }
+    } else if !restore {
+        let mut safe = request.clone();
+        safe.customer = request
+            .customer
+            .as_ref()
+            .map(|customer| payments_grpc::Customer {
+                email: customer.email.clone(),
+                connector_customer_id: customer.connector_customer_id.clone(),
+                ..Default::default()
+            });
+        let mut generated = serde_json::to_value(safe).map_err(|_| fail())?;
+        generated
+            .as_object_mut()
+            .ok_or_else(fail)?
+            .retain(|key, _| AUTHENTICATION_ORDER_FIELDS.contains(&key.as_str()));
+        object.insert(
+            "authentication_order_context".to_owned(),
+            serde_json::json!({"version":1,"request":generated}),
+        );
+    }
+    request.connector_feature_data = Some(Secret::new(
+        serde_json::to_string(&metadata).map_err(|_| fail())?,
+    ));
+    Ok(request)
+}
+
 pub(super) fn build_ucs_order_details(
     order_details: Option<&[OrderDetailsWithAmount]>,
 ) -> Vec<payments_grpc::OrderDetailsWithAmount> {
@@ -710,7 +996,7 @@ impl
             .map(ConnectorState::foreign_from);
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
-        Ok(Self {
+        let request = Self {
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -830,7 +1116,13 @@ impl
                 .map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
-            connector_feature_data: None,
+            connector_feature_data: serialize_ucs_feature_data(
+                router_data
+                    .connector_meta_data
+                    .as_ref()
+                    .map(|value| value.peek()),
+            )?
+            .map(Into::into),
             locale: router_data.request.locale.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             redirection_response: None,
@@ -877,7 +1169,8 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
-        })
+        };
+        hosted_authorize_context(&router_data.connector, request, false)
     }
 }
 
@@ -912,35 +1205,49 @@ impl
             )
         });
 
-        let payment_method = payment_method_data
-            .map(|payment_method_data| {
-                unified_connector_service::build_unified_connector_service_payment_method(
-                    payment_method_data,
-                    router_data.request.payment_method_type,
-                    router_data.payment_method_token.as_ref(),
-                    router_data.connector_meta_data.as_ref(),
-                )
-            })
-            .transpose()?
-            // Post-3DS settle: card data is not persisted through the redirect, so pay by the
-            // handle token the authenticate leg returned in connector metadata (stored on the
-            // request as connector_meta, same channel as authentication_data below).
-            .or_else(|| {
-                router_data
-                    .request
-                    .connector_meta
-                    .as_ref()
-                    .and_then(|metadata| metadata.get("payment_handle_token"))
-                    .and_then(|token| token.as_str())
-                    .map(|handle_token| payments_grpc::PaymentMethod {
-                        payment_method: Some(payments_grpc::payment_method::PaymentMethod::Token(
-                            payments_grpc::TokenPaymentMethodType {
-                                token: Some(Secret::new(handle_token.to_string())),
-                                token_payment_method_type: None,
-                            },
-                        )),
-                    })
-            });
+        let payment_method = if let Some(method) = hosted_payment_continuation_method(
+            &router_data.connector,
+            router_data.request.payment_method_type,
+            router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .or_else(|| router_data.connector_meta_data.as_ref().map(|v| v.peek())),
+        )? {
+            Some(method)
+        } else {
+            payment_method_data
+                .map(|payment_method_data| {
+                    unified_connector_service::build_unified_connector_service_payment_method(
+                        payment_method_data,
+                        router_data.request.payment_method_type,
+                        router_data.payment_method_token.as_ref(),
+                        router_data.connector_meta_data.as_ref(),
+                    )
+                })
+                .transpose()?
+                // Post-3DS settle: card data is not persisted through the redirect, so pay by the
+                // handle token the authenticate leg returned in connector metadata (stored on the
+                // request as connector_meta, same channel as authentication_data below).
+                .or_else(|| {
+                    router_data
+                        .request
+                        .connector_meta
+                        .as_ref()
+                        .and_then(|metadata| metadata.get("payment_handle_token"))
+                        .and_then(|token| token.as_str())
+                        .map(|handle_token| payments_grpc::PaymentMethod {
+                            payment_method: Some(
+                                payments_grpc::payment_method::PaymentMethod::Token(
+                                    payments_grpc::TokenPaymentMethodType {
+                                        token: Some(Secret::new(handle_token.to_string())),
+                                        token_payment_method_type: None,
+                                    },
+                                ),
+                            ),
+                        })
+                })
+        };
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -1012,7 +1319,7 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
 
-        Ok(Self {
+        let request = Self {
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -1138,7 +1445,8 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
-        })
+        };
+        hosted_authorize_context(&router_data.connector, request, true)
     }
 }
 
@@ -1579,7 +1887,7 @@ impl
             address: Some(address),
             authentication_data,
             metadata: None,
-            return_url: None,
+            return_url: router_data.request.return_url.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             state: None,
             redirection_response: router_data
@@ -1596,7 +1904,8 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
-            connector_feature_data: None,
+            connector_feature_data: build_authentication_order_feature_data(router_data)?
+                .map(Into::into),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
@@ -1703,7 +2012,7 @@ impl
                 .attach_printable("Failed to serialize device_channel/sdk_information metadata")?
                 .into(),
             ),
-            return_url: None,
+            return_url: router_data.request.return_url.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             state: None,
             redirection_response: router_data
@@ -1720,7 +2029,8 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
-            connector_feature_data: None,
+            connector_feature_data: build_authentication_order_feature_data(router_data)?
+                .map(Into::into),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
@@ -1751,19 +2061,33 @@ impl
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_data
-            .clone()
-            .map(|payment_method_data| {
-                unified_connector_service::build_unified_connector_service_payment_method(
-                    payment_method_data,
-                    router_data.request.payment_method_type,
-                    router_data.payment_method_token.as_ref(),
-                    router_data.connector_meta_data.as_ref(),
-                )
-            })
-            .transpose()?;
+        let payment_method = if let Some(method) = hosted_payment_continuation_method(
+            &router_data.connector,
+            router_data.request.payment_method_type,
+            router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(|v| v.peek())
+                .or_else(|| router_data.connector_meta_data.as_ref().map(|v| v.peek())),
+        )? {
+            Some(method)
+        } else {
+            router_data
+                .request
+                .payment_method_data
+                .clone()
+                .map(|payment_method_data| {
+                    unified_connector_service::build_unified_connector_service_payment_method(
+                        payment_method_data,
+                        router_data.request.payment_method_type,
+                        router_data.payment_method_token.as_ref(),
+                        router_data.connector_meta_data.as_ref(),
+                    )
+                })
+                .transpose()?
+        };
+
         let capture_method = router_data
             .request
             .capture_method
@@ -1826,7 +2150,20 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
-            connector_feature_data: None,
+            connector_feature_data: serialize_ucs_feature_data(
+                router_data
+                    .request
+                    .metadata
+                    .as_ref()
+                    .map(|value| value.peek())
+                    .or_else(|| {
+                        router_data
+                            .connector_meta_data
+                            .as_ref()
+                            .map(|value| value.peek())
+                    }),
+            )?
+            .map(Into::into),
             connector_order_reference_id: router_data
                 .request
                 .order_id
@@ -1867,11 +2204,23 @@ impl
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
-        let payment_method =
+        let payment_method = if let Some(method) = hosted_payment_continuation_method(
+            &router_data.connector,
+            router_data.request.payment_method_type,
+            router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(|v| v.peek())
+                .or_else(|| router_data.connector_meta_data.as_ref().map(|v| v.peek())),
+        )? {
+            method
+        } else {
             unified_connector_service::build_unified_connector_service_payment_method_for_external_proxy(
                 external_vault_pmd.clone(),
                 router_data.request.payment_method_type,
-            )?;
+            )?
+        };
 
         let capture_method = router_data
             .request
@@ -1933,7 +2282,20 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
-            connector_feature_data: None,
+            connector_feature_data: serialize_ucs_feature_data(
+                router_data
+                    .request
+                    .metadata
+                    .as_ref()
+                    .map(|value| value.peek())
+                    .or_else(|| {
+                        router_data
+                            .connector_meta_data
+                            .as_ref()
+                            .map(|value| value.peek())
+                    }),
+            )?
+            .map(Into::into),
             connector_order_reference_id: router_data
                 .request
                 .order_id
@@ -2261,19 +2623,31 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_data
-            .clone()
-            .map(|payment_method_data| {
-                unified_connector_service::build_unified_connector_service_payment_method(
-                    payment_method_data,
-                    router_data.request.payment_method_type,
-                    router_data.payment_method_token.as_ref(),
-                    router_data.connector_meta_data.as_ref(),
-                )
-            })
-            .transpose()?;
+        let payment_method = if let Some(method) = hosted_payment_continuation_method(
+            &router_data.connector,
+            router_data.request.payment_method_type,
+            router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .or_else(|| router_data.connector_meta_data.as_ref().map(|v| v.peek())),
+        )? {
+            Some(method)
+        } else {
+            router_data
+                .request
+                .payment_method_data
+                .clone()
+                .map(|payment_method_data| {
+                    unified_connector_service::build_unified_connector_service_payment_method(
+                        payment_method_data,
+                        router_data.request.payment_method_type,
+                        router_data.payment_method_token.as_ref(),
+                        router_data.connector_meta_data.as_ref(),
+                    )
+                })
+                .transpose()?
+        };
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -2308,7 +2682,7 @@ impl
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
 
-        Ok(Self {
+        let request = Self {
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -2381,7 +2755,15 @@ impl
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
             order_details: vec![],
-            connector_feature_data: None,
+            connector_feature_data: serialize_ucs_feature_data(
+                router_data.request.connector_meta.as_ref().or_else(|| {
+                    router_data
+                        .connector_meta_data
+                        .as_ref()
+                        .map(|value| value.peek())
+                }),
+            )?
+            .map(Into::into),
             enable_partial_authorization: None,
             payment_channel: None,
             tokenization_strategy: router_data
@@ -2416,7 +2798,8 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
-        })
+        };
+        hosted_authorize_context(&router_data.connector, request, true)
     }
 }
 
@@ -2490,7 +2873,7 @@ impl
             .map(ConnectorState::foreign_from);
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
-        Ok(Self {
+        let request = Self {
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2587,7 +2970,13 @@ impl
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
             order_details,
-            connector_feature_data: None,
+            connector_feature_data: serialize_ucs_feature_data(
+                router_data
+                    .connector_meta_data
+                    .as_ref()
+                    .map(|value| value.peek()),
+            )?
+            .map(Into::into),
             enable_partial_authorization: router_data
                 .request
                 .enable_partial_authorization
@@ -2633,7 +3022,8 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
-        })
+        };
+        hosted_authorize_context(&router_data.connector, request, false)
     }
 }
 
@@ -2804,7 +3194,13 @@ impl
             statement_descriptor_name: router_data.request.statement_descriptor.clone(),
             statement_descriptor_suffix: router_data.request.statement_descriptor_suffix.clone(),
             order_details: vec![],
-            connector_feature_data: None,
+            connector_feature_data: serialize_ucs_feature_data(
+                router_data
+                    .connector_meta_data
+                    .as_ref()
+                    .map(|value| value.peek()),
+            )?
+            .map(Into::into),
             enable_partial_authorization: None,
             payment_channel: None,
             tokenization_strategy: None,
@@ -3002,7 +3398,13 @@ impl
             payment_experience: None,
             state,
             order_id: None,
-            connector_feature_data: None,
+            connector_feature_data: serialize_ucs_feature_data(
+                router_data
+                    .connector_meta_data
+                    .as_ref()
+                    .map(|value| value.peek()),
+            )?
+            .map(Into::into),
             enable_partial_authorization: router_data
                 .request
                 .enable_partial_authorization
@@ -3276,7 +3678,13 @@ impl
             enable_partial_authorization: None,
             billing_descriptor: None,
             mit_category: None,
-            connector_feature_data: None,
+            connector_feature_data: serialize_ucs_feature_data(
+                router_data
+                    .connector_meta_data
+                    .as_ref()
+                    .map(|value| value.peek()),
+            )?
+            .map(Into::into),
             locale: None,
             l2_l3_data: None,
             partner_merchant_identifier_details: None,
@@ -3510,7 +3918,13 @@ impl
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
             authentication_data,
-            connector_feature_data: None,
+            connector_feature_data: serialize_ucs_feature_data(
+                router_data
+                    .connector_meta_data
+                    .as_ref()
+                    .map(|value| value.peek()),
+            )?
+            .map(Into::into),
             locale: router_data.request.locale.clone(),
             connector_testing_data: router_data
                 .request
@@ -5314,6 +5728,14 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
                     ),
                 )?;
                 Ok(Self::DecryptedData(payments_grpc::GooglePayDecryptedData {
+                    message_expiration: decrypted_data.message_expiration.clone(),
+                    message_id: decrypted_data.message_id.clone(),
+                    auth_method: decrypted_data.auth_method.map(|method| match method {
+                        common_enums::GooglePayAuthMethod::PanOnly => "PAN_ONLY".to_owned(),
+                        common_enums::GooglePayAuthMethod::Cryptogram => {
+                            "CRYPTOGRAM_3DS".to_owned()
+                        }
+                    }),
                     card_exp_month: Some(decrypted_data.card_exp_month.clone().expose().into()),
                     card_exp_year: Some(decrypted_data.card_exp_year.clone().expose().into()),
                     application_primary_account_number: Some(application_primary_account_number),
@@ -6593,7 +7015,7 @@ impl
             .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.clone()))
             .unwrap_or(router_request_types::ResponseId::NoResponseId);
 
-        let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
+        let (mut connector_metadata, redirection_data) = match response.redirection_data.clone() {
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
@@ -6636,6 +7058,23 @@ impl
                 None,
             ),
         };
+
+        if let Some(feature) = response.connector_feature_data.as_ref() {
+            let mut saved: serde_json::Value = serde_json::from_str(feature.peek())
+                .change_context(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                .attach_printable("Invalid UCS post-authentication feature metadata")?;
+            if let Some(extra) = connector_metadata.take() {
+                if let (Some(saved), Some(extra)) = (saved.as_object_mut(), extra.as_object()) {
+                    saved.extend(extra.clone());
+                } else {
+                    return Err(error_stack::Report::new(
+                        UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                    ))
+                    .attach_printable("Post-authentication metadata must be an object");
+                }
+            }
+            connector_metadata = Some(saved);
+        }
 
         let authentication_data = response
             .authentication_data
@@ -6704,13 +7143,22 @@ impl
         } else {
             let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
+            let (mandate_reference, observed_network) =
+                native_observed_references(connector_metadata.as_ref())?;
+            if matches!((&observed_network, &response.network_transaction_id), (Some(a),Some(b)) if a!=b)
+            {
+                return Err(error_stack::Report::new(
+                    UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                ))
+                .attach_printable("Native observed network reference conflicts with response");
+            }
             Ok((
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(redirection_data),
-                    mandate_reference: Box::new(None),
+                    mandate_reference,
                     connector_metadata,
-                    network_txn_id: response.network_transaction_id.clone(),
+                    network_txn_id: response.network_transaction_id.clone().or(observed_network),
                     network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_order_id.clone(),
                     payment_account_reference: None,
@@ -7837,6 +8285,70 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayTransactionInfo> for GpayTr
     }
 }
 
+fn native_observed_references(
+    metadata: Option<&serde_json::Value>,
+) -> Result<
+    (
+        Box<Option<hyperswitch_domain_models::router_response_types::MandateReference>>,
+        Option<String>,
+    ),
+    error_stack::Report<UnifiedConnectorServiceError>,
+> {
+    let fail = || {
+        error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+            .attach_printable("Invalid versioned native payment reference metadata")
+    };
+    let mut mandate = None;
+    let mut network = None;
+    if let Some(value) = metadata.and_then(|v| v.get("paypal_mandate_reference")) {
+        if value.get("version").and_then(serde_json::Value::as_u64) != Some(1) {
+            return Err(fail());
+        }
+        let id = value
+            .get("connector_mandate_id")
+            .and_then(serde_json::Value::as_str)
+            .filter(|v| !v.trim().is_empty())
+            .ok_or_else(fail)?;
+        let optional =
+            |key| -> Result<Option<String>, error_stack::Report<UnifiedConnectorServiceError>> {
+                match value.get(key) {
+                    None | Some(serde_json::Value::Null) => Ok(None),
+                    Some(serde_json::Value::String(s)) => Ok(Some(s.clone())),
+                    _ => Err(fail()),
+                }
+            };
+        mandate = Some(
+            hyperswitch_domain_models::router_response_types::MandateReference {
+                connector_mandate_id: Some(id.to_owned()),
+                payment_method_id: optional("payment_method_id")?,
+                connector_mandate_request_reference_id: optional(
+                    "connector_mandate_request_reference_id",
+                )?,
+                mandate_metadata: value
+                    .get("mandate_metadata")
+                    .filter(|v| !v.is_null())
+                    .cloned()
+                    .map(Secret::new),
+            },
+        );
+    }
+    if let Some(value) = metadata.and_then(|v| v.get("paypal_network_reference")) {
+        if value.get("version").and_then(serde_json::Value::as_u64) != Some(1) {
+            return Err(fail());
+        }
+        network = Some(
+            value
+                .get("reference")
+                .and_then(|v| v.get("id"))
+                .and_then(serde_json::Value::as_str)
+                .filter(|v| !v.trim().is_empty())
+                .ok_or_else(fail)?
+                .to_owned(),
+        );
+    }
+    Ok((Box::new(mandate), network))
+}
+
 impl
     transformers::ForeignTryFrom<(
         payments_grpc::PaymentMethodAuthenticationServiceAuthenticateResponse,
@@ -7968,13 +8480,22 @@ impl
         } else {
             let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
+            let (mandate_reference, observed_network) =
+                native_observed_references(connector_metadata.as_ref())?;
+            if matches!((&observed_network, &response.network_transaction_id), (Some(a),Some(b)) if a!=b)
+            {
+                return Err(error_stack::Report::new(
+                    UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                ))
+                .attach_printable("Native observed network reference conflicts with response");
+            }
             Ok((
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(redirection_data),
-                    mandate_reference: Box::new(None),
+                    mandate_reference,
                     connector_metadata,
-                    network_txn_id: response.network_transaction_id.clone(),
+                    network_txn_id: response.network_transaction_id.clone().or(observed_network),
                     network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_order_id.clone(),
                     payment_account_reference: None,

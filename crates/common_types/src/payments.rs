@@ -669,6 +669,12 @@ pub struct GpayEcryptedTokenizationData {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// This struct represents the decrypted Google Pay payment data
 pub struct GPayPredecryptData {
+    /// Original signed Google Pay envelope expiry, when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message_expiration: Option<String>,
+    /// Original signed Google Pay envelope identifier, when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message_id: Option<String>,
     /// Indicates whether Google Pay supplied a funding PAN or a tokenized device PAN.
     #[schema(value_type = Option<GooglePayAuthMethod>)]
     #[smithy(value_type = "Option<GooglePayAuthMethod>")]

@@ -665,6 +665,21 @@ pub async fn trigger_refund_to_gateway(
 
     let refund_update = match router_data_res.response {
         Err(err) => {
+            let ucs_status = unified_connector_service::ucs_refund_error_status(&err);
+            let (observed_refund_id, observed_processor_data) = if ucs_status.is_some() {
+                router_data_res
+                    .request
+                    .connector_refund_id
+                    .clone()
+                    .filter(|id| !id.trim().is_empty())
+                    .map_or((None, None), |id| {
+                        let (id, data) = ConnectorTransactionId::form_id_and_data(id);
+                        (Some(id), data)
+                    })
+            } else {
+                (None, None)
+            };
+
             let option_gsm = helpers::get_gsm_record(
                 state,
                 connector.connector_name.to_string(),
@@ -710,12 +725,12 @@ pub async fn trigger_refund_to_gateway(
                 )
             };
 
-            let refund_status = match err.status_code {
+            let refund_status = ucs_status.or_else(|| match err.status_code {
                 // If status code is 5xx, we do not change the refund status here
                 500..=511 => None,
                 // For other errors, we mark the refund as Failure, since these are definite failures
                 _ => Some(enums::RefundStatus::Failure),
-            };
+            });
 
             let (refund_error_message, refund_error_code) =
                 if err.code == interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE {
@@ -731,8 +746,8 @@ pub async fn trigger_refund_to_gateway(
                 refund_error_message,
                 refund_error_code,
                 updated_by: storage_scheme.to_string(),
-                connector_refund_id: None,
-                processor_refund_data: None,
+                connector_refund_id: observed_refund_id,
+                processor_refund_data: observed_processor_data,
                 unified_code: Some(unified_code),
                 unified_message: Some(unified_message),
                 issuer_error_code: err.network_decline_code,
@@ -1348,11 +1363,26 @@ pub async fn sync_refund_with_gateway(
 
     let refund_update = match router_data_res.response {
         Err(error_message) => {
-            let refund_status = match error_message.status_code {
+            let ucs_status = unified_connector_service::ucs_refund_error_status(&error_message);
+            let (observed_refund_id, observed_processor_data) = if ucs_status.is_some() {
+                router_data_res
+                    .request
+                    .connector_refund_id
+                    .clone()
+                    .filter(|id| !id.trim().is_empty())
+                    .map_or((None, None), |id| {
+                        let (id, data) = ConnectorTransactionId::form_id_and_data(id);
+                        (Some(id), data)
+                    })
+            } else {
+                (None, None)
+            };
+
+            let refund_status = ucs_status.or_else(|| match error_message.status_code {
                 // marking failure for 2xx because this is genuine refund failure
                 200..=299 => Some(enums::RefundStatus::Failure),
                 _ => None,
-            };
+            });
             let (refund_error_message, refund_error_code) =
                 if error_message.code == interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE {
                     // In case of timeout, we don't have specific error code/message from connector
@@ -1369,8 +1399,8 @@ pub async fn sync_refund_with_gateway(
                 refund_error_message,
                 refund_error_code,
                 updated_by: storage_scheme.to_string(),
-                connector_refund_id: None,
-                processor_refund_data: None,
+                connector_refund_id: observed_refund_id,
+                processor_refund_data: observed_processor_data,
                 unified_code: None,
                 unified_message: None,
                 issuer_error_code: error_message.network_decline_code,

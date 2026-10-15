@@ -22,7 +22,7 @@ use hyperswitch_interfaces::{
     consts as interface_consts, errors as interface_errors,
     unified_connector_service::transformers as ucs_transformers,
 };
-use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use unified_connector_service_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
@@ -631,12 +631,16 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     where
         Self: Sized,
     {
-        if connector.connector.is_authentication_flow_required(
-            api_interface::CurrentFlowInfo::Authorize {
-                auth_type: self.auth_type,
-                request_data: Box::new(self.request.clone()),
-            },
-        ) {
+        if connector
+            .connector
+            .is_authentication_flow_required_for_execution(
+                api_interface::CurrentFlowInfo::Authorize {
+                    auth_type: self.auth_type,
+                    request_data: Box::new(self.request.clone()),
+                },
+                gateway_context.execution_path,
+            )
+        {
             logger::info!(
                 "Authentication flow is required for connector: {}",
                 connector.connector_name
@@ -713,48 +717,195 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     ..
                 }) = &mut authorize_router_data.response
                 {
-                    *connector_metadata = Some(serde_json::json!({
-                        "authentication_data": auth_data
-                    }));
+                    let metadata = connector_metadata.get_or_insert_with(|| serde_json::json!({}));
+                    let object = metadata
+                        .as_object_mut()
+                        .ok_or(ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Connector authentication metadata must be a JSON object",
+                        )?;
+                    object.insert(
+                        "authentication_data".to_owned(),
+                        serde_json::to_value(auth_data)
+                            .change_context(ApiErrorResponse::InternalServerError)?,
+                    );
                 }
             }
 
-            let should_continue_after_authenticate = match &authorize_router_data.response {
-                Ok(types::PaymentsResponseData::TransactionResponse {
-                    connector_metadata,
-                    redirection_data,
-                    ..
-                }) => match connector.connector_name {
-                    api_models::enums::Connector::Redsys => {
-                        // For UCS Redsys: if redirection_data is present (3DS challenge), don't continue
-                        // For hyperswitch native: check connector_metadata for PaymentsConnectorThreeDsInvokeData
-                        let has_ucs_redirection = redirection_data.is_some();
+            if let Ok(types::PaymentsResponseData::TransactionResponse {
+                connector_metadata: Some(metadata),
+                ..
+            }) = &authorize_router_data.response
+            {
+                authorize_router_data.connector_meta_data = Some(Secret::new(metadata.clone()));
+            }
 
-                        let has_hyperswitch_three_ds_invoke_data: bool =
+            let can_continue_native = matches!(
+                &authorize_router_data.response,
+                Ok(types::PaymentsResponseData::TransactionResponse { redirection_data, .. }) if redirection_data.is_none()
+            ) && !matches!(
+                authorize_router_data.status,
+                common_enums::AttemptStatus::AuthenticationFailed
+                    | common_enums::AttemptStatus::Failure
+                    | common_enums::AttemptStatus::Charged
+                    | common_enums::AttemptStatus::Authorized
+                    | common_enums::AttemptStatus::PartialCharged
+                    | common_enums::AttemptStatus::PartialChargedAndChargeable
+                    | common_enums::AttemptStatus::Voided
+            );
+            let needs_native_post = can_continue_native
+                && connector
+                    .connector
+                    .is_post_authentication_flow_required_for_execution(
+                        api_interface::CurrentFlowInfo::Authorize {
+                            auth_type: authorize_router_data.auth_type,
+                            request_data: Box::new(authorize_router_data.request.clone()),
+                        },
+                        gateway_context.execution_path,
+                    );
+            if needs_native_post {
+                let request = &authorize_router_data.request;
+                let id = match &authorize_router_data.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id, ..
+                    }) => resource_id.get_optional_response_id(),
+                    _ => None,
+                };
+                let post_request = types::PaymentsPostAuthenticateData {
+                    payment_method_data: Some(request.payment_method_data.clone()),
+                    payment_method_type: request.payment_method_type,
+                    amount: Some(request.amount),
+                    minor_amount: Some(request.minor_amount),
+                    email: request.email.clone(),
+                    currency: Some(request.currency),
+                    capture_method: request.capture_method,
+                    browser_info: request.browser_info.clone(),
+                    connector_transaction_id: id,
+                    redirect_response: None,
+                    metadata: request.metadata.clone().map(Secret::new),
+                    complete_authorize_url: request.complete_authorize_url.clone(),
+                    order_id: request.order_id.clone(),
+                };
+                let post_data =
+                    helpers::router_data_type_conversion::<_, api::PostAuthenticate, _, _, _, _>(
+                        authorize_router_data.clone(),
+                        post_request,
+                        Err(types::ErrorResponse::default()),
+                    );
+                let post_data = Box::pin(payments_gateway::handle_gateway_call::<
+                    _,
+                    _,
+                    _,
+                    PaymentFlowData,
+                    _,
+                >(
+                    state,
+                    post_data,
+                    connector,
+                    gateway_context,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    None,
+                ))
+                .await?;
+                let mut request = authorize_router_data.request.clone();
+                if let Ok(types::PaymentsResponseData::TransactionResponse {
+                    connector_metadata,
+                    authentication_data,
+                    ..
+                }) = &post_data.response
+                {
+                    request.metadata = connector_metadata.clone();
+                    request.ucs_authentication_data = authentication_data.clone().map(|data| *data);
+                }
+                let response = post_data.response.clone();
+                authorize_router_data =
+                    helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
+                        post_data, request, response,
+                    );
+                if let Ok(types::PaymentsResponseData::TransactionResponse {
+                    connector_metadata: Some(metadata),
+                    ..
+                }) = &authorize_router_data.response
+                {
+                    authorize_router_data.connector_meta_data = Some(Secret::new(metadata.clone()));
+                }
+            }
+            let observed_integrity =
+                if let Some(amount) = authorize_router_data.minor_amount_captured {
+                    Some(router_request_types::AuthoriseIntegrityObject {
+                        amount,
+                        currency: authorize_router_data.request.currency,
+                    })
+                } else if authorize_router_data.status == common_enums::AttemptStatus::Authorized {
+                    unified_connector_service::native_authorized_integrity(
+                        authorize_router_data
+                            .connector_meta_data
+                            .as_ref()
+                            .map(|v| v.peek()),
+                    )
+                    .change_context(ApiErrorResponse::InternalServerError)?
+                } else {
+                    None
+                };
+            if let Some(actual) = observed_integrity {
+                authorize_router_data.request.integrity_object = Some(actual);
+                authorize_router_data.integrity_check = helpers::check_integrity_based_on_flow(
+                    &authorize_router_data.request,
+                    &authorize_router_data.response,
+                    authorize_router_data.accept_amount_mismatch,
+                );
+            }
+            let should_continue_after_authenticate = if needs_native_post {
+                matches!(&authorize_router_data.response, Ok(types::PaymentsResponseData::TransactionResponse { redirection_data, .. }) if redirection_data.is_none())
+                    && !matches!(
+                        authorize_router_data.status,
+                        common_enums::AttemptStatus::AuthenticationFailed
+                            | common_enums::AttemptStatus::Failure
+                            | common_enums::AttemptStatus::Charged
+                            | common_enums::AttemptStatus::Authorized
+                            | common_enums::AttemptStatus::PartialCharged
+                            | common_enums::AttemptStatus::PartialChargedAndChargeable
+                            | common_enums::AttemptStatus::Voided
+                    )
+            } else {
+                match &authorize_router_data.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        connector_metadata,
+                        redirection_data,
+                        ..
+                    }) => match connector.connector_name {
+                        api_models::enums::Connector::Redsys => {
+                            // For UCS Redsys: if redirection_data is present (3DS challenge), don't continue
+                            // For hyperswitch native: check connector_metadata for PaymentsConnectorThreeDsInvokeData
+                            let has_ucs_redirection = redirection_data.is_some();
+
+                            let has_hyperswitch_three_ds_invoke_data: bool =
                             connector_metadata.clone().and_then(|metadata| {
                                 metadata
                                     .parse_value::<api_models::payments::PaymentsConnectorThreeDsInvokeData>("PaymentsConnectorThreeDsInvokeData")
                                     .ok()
                             }).is_some();
 
-                        let payment_status = !matches!(
-                            authorize_router_data.status,
-                            common_enums::AttemptStatus::AuthenticationFailed
-                                | common_enums::AttemptStatus::Failure
-                                | common_enums::AttemptStatus::Charged
-                                | common_enums::AttemptStatus::PartialCharged
-                                | common_enums::AttemptStatus::Authorized
-                        );
+                            let payment_status = !matches!(
+                                authorize_router_data.status,
+                                common_enums::AttemptStatus::AuthenticationFailed
+                                    | common_enums::AttemptStatus::Failure
+                                    | common_enums::AttemptStatus::Charged
+                                    | common_enums::AttemptStatus::PartialCharged
+                                    | common_enums::AttemptStatus::Authorized
+                            );
 
-                        // On the direct gateway the Authenticate leg already sent the authorization, so never continue.
-                        !has_ucs_redirection
-                            && !has_hyperswitch_three_ds_invoke_data
-                            && payment_status
-                            && !gateway_context.execution_path.is_direct_gateway()
-                    }
+                            // On the direct gateway the Authenticate leg already sent the authorization, so never continue.
+                            !has_ucs_redirection
+                                && !has_hyperswitch_three_ds_invoke_data
+                                && payment_status
+                                && !gateway_context.execution_path.is_direct_gateway()
+                        }
+                        _ => false,
+                    },
                     _ => false,
-                },
-                _ => false,
+                }
             };
             Ok((authorize_router_data, should_continue_after_authenticate))
         } else {

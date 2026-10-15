@@ -3382,6 +3382,72 @@ pub fn handle_unified_connector_service_response_for_payment_incremental_authori
     Ok((router_data_response, status_code))
 }
 
+pub(crate) fn native_authorized_integrity(
+    metadata: Option<&serde_json::Value>,
+) -> Result<
+    Option<hyperswitch_domain_models::router_request_types::AuthoriseIntegrityObject>,
+    error_stack::Report<UnifiedConnectorServiceError>,
+> {
+    let actual = metadata
+        .and_then(|v| v.get("capture_context"))
+        .and_then(|v| v.get("authorized_amount"));
+    let Some(actual) = actual else {
+        return Ok(None);
+    };
+    let fail = || {
+        error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+            .attach_printable("Invalid observed native authorization money")
+    };
+    let currency: common_enums::Currency =
+        serde_json::from_value(actual.get("currency_code").cloned().ok_or_else(fail)?)
+            .map_err(|_| fail())?;
+    let major: common_utils::types::StringMajorUnit =
+        serde_json::from_value(actual.get("value").cloned().ok_or_else(fail)?)
+            .map_err(|_| fail())?;
+    let amount = common_utils::types::AmountConvertor::convert_back(
+        &common_utils::types::StringMajorUnitForConnector,
+        major,
+        currency,
+    )
+    .map_err(|_| fail())?;
+    if amount.get_amount_as_i64() < 0 {
+        return Err(fail());
+    }
+    Ok(Some(
+        hyperswitch_domain_models::router_request_types::AuthoriseIntegrityObject {
+            amount,
+            currency,
+        },
+    ))
+}
+
+pub fn apply_ucs_authenticate_observations(
+    router_data: &mut RouterData<
+        crate::types::api::Authenticate,
+        crate::types::PaymentsAuthenticateData,
+        PaymentsResponseData,
+    >,
+    response: &payments_grpc::PaymentMethodAuthenticationServiceAuthenticateResponse,
+) -> Result<(), error_stack::Report<UnifiedConnectorServiceError>> {
+    router_data.connector_response =
+        extract_connector_response_from_ucs(response.connector_response.as_ref());
+    if let Some(money) = response.captured_amount.as_ref() {
+        let currency = common_enums::Currency::foreign_try_from(money.currency())?;
+        if money.minor_amount < 0 || router_data.request.currency != Some(currency) {
+            return Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            ))
+            .attach_printable(
+                "Observed native capture amount/currency does not match the payment",
+            );
+        }
+        router_data.amount_captured = Some(money.minor_amount);
+        router_data.minor_amount_captured =
+            Some(common_utils::types::MinorUnit::new(money.minor_amount));
+    }
+    Ok(())
+}
+
 pub fn handle_unified_connector_service_response_for_payment_authenticate(
     response: payments_grpc::PaymentMethodAuthenticationServiceAuthenticateResponse,
     prev_status: AttemptStatus,
@@ -3527,6 +3593,148 @@ pub fn extract_connector_response_from_ucs(
             })
             .ok()
     })
+}
+
+/// Versioned local outcome, attached only by the primary UCS refund bridge.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct UcsRefundErrorOutcome {
+    version: u8,
+    status: String,
+}
+
+pub(crate) fn ucs_refund_error_status(error: &ErrorResponse) -> Option<common_enums::RefundStatus> {
+    let value = error
+        .connector_metadata
+        .as_ref()?
+        .peek()
+        .get("ucs_refund_outcome")?;
+    let outcome: UcsRefundErrorOutcome = serde_json::from_value(value.clone()).ok()?;
+    if outcome.version != 1 {
+        return None;
+    }
+    match outcome.status.as_str() {
+        "success" => Some(common_enums::RefundStatus::Success),
+        "failure" => Some(common_enums::RefundStatus::Failure),
+        "pending" => Some(common_enums::RefundStatus::Pending),
+        "manual_review" => Some(common_enums::RefundStatus::ManualReview),
+        "transaction_failure" => Some(common_enums::RefundStatus::TransactionFailure),
+        _ => None,
+    }
+}
+
+fn reconcile_ucs_refund_outcome<F>(
+    router_data: &mut RouterData<F, RefundsData, RefundsResponseData>,
+    response: &payments_grpc::RefundResponse,
+) -> Result<(), error_stack::Report<UnifiedConnectorServiceError>> {
+    // Other connectors keep their historical absent-carrier behavior. Actual money
+    // opts into integrity; PayPal also needs explicit status for amount-less errors.
+    if router_data.connector != "paypal" && response.refund_amount.is_none() {
+        return Ok(());
+    }
+    let actual_id =
+        (!response.connector_refund_id.trim().is_empty()).then_some(&response.connector_refund_id);
+    let prior_id = router_data
+        .request
+        .connector_refund_id
+        .as_ref()
+        .filter(|id| !id.trim().is_empty());
+    let conflicting_id = prior_id
+        .zip(actual_id)
+        .is_some_and(|(prior, actual)| prior != actual);
+    if !conflicting_id {
+        if let Some(id) = actual_id {
+            router_data.request.connector_refund_id = Some(id.clone());
+        }
+    }
+    let money = response
+        .refund_amount
+        .as_ref()
+        .map(|amount| {
+            if amount.minor_amount < 0 {
+                return Err(error_stack::Report::new(
+                    UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                ));
+            }
+            let currency =
+                common_enums::Currency::foreign_try_from(parse_grpc_enum::<
+                    payments_grpc::Currency,
+                >(amount.currency)?)?;
+            Ok(
+                hyperswitch_domain_models::router_request_types::RefundIntegrityObject {
+                    refund_amount: common_utils::types::MinorUnit::new(amount.minor_amount),
+                    currency,
+                },
+            )
+        })
+        .transpose();
+    let invalid_money = money.is_err();
+    // An ID mismatch cannot bind a different resource's money to this refund.
+    router_data.request.integrity_object = if conflicting_id {
+        None
+    } else {
+        money.ok().flatten()
+    };
+    if conflicting_id || invalid_money {
+        router_data.integrity_check = Err(common_utils::errors::IntegrityCheckError {
+            field_names: if conflicting_id {
+                "connector_refund_id"
+            } else {
+                "refund_amount.currency"
+            }
+            .to_owned(),
+            connector_transaction_id: router_data.request.connector_refund_id.clone(),
+            amount: None,
+        });
+        if router_data.response.is_ok() {
+            router_data.response = Err(ErrorResponse {
+                code: "REFUND_OUTCOME_INTEGRITY_MISMATCH".to_owned(),
+                message: "UCS refund resource identity or amount could not be corroborated"
+                    .to_owned(),
+                reason: Some(
+                    "Retain the known refund ID and reconcile the actual gateway resource"
+                        .to_owned(),
+                ),
+                status_code: transformers::convert_connector_service_status_code(
+                    response.status_code,
+                )?,
+                ..Default::default()
+            });
+        }
+    } else if router_data.response.is_ok() {
+        router_data.integrity_check = crate::core::refunds::check_refund_integrity(
+            &router_data.request,
+            &router_data.response,
+        );
+    }
+    if let Err(error) = &mut router_data.response {
+        let status = if conflicting_id || invalid_money {
+            common_enums::RefundStatus::ManualReview
+        } else {
+            common_enums::RefundStatus::foreign_try_from((
+                response.status(),
+                common_enums::RefundStatus::Pending,
+            ))?
+        };
+        let marker = serde_json::json!({"version":1,"status":status});
+        let mut metadata = error
+            .connector_metadata
+            .as_ref()
+            .map(|value| value.peek().clone())
+            .unwrap_or_else(|| serde_json::json!({}));
+        if let serde_json::Value::Object(fields) = &mut metadata {
+            fields.insert("ucs_refund_outcome".to_owned(), marker);
+            error.connector_metadata = Some(Secret::new(metadata));
+        } else {
+            return Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable(
+                "UCS refund error metadata must be an object to preserve outcome context",
+            ));
+        }
+    }
+    Ok(())
 }
 
 pub fn handle_unified_connector_service_response_for_payment_refund(
@@ -3858,6 +4066,57 @@ impl
     }
 }
 
+fn sanitize_ucs_log_value(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, value) in map {
+                let normalized = key.replace(['_', '-'], "").to_ascii_lowercase();
+                if matches!(
+                    normalized.as_str(),
+                    "cavv"
+                        | "secret"
+                        | "additionalsecret"
+                        | "authorization"
+                        | "proxyauthorization"
+                        | "cookie"
+                        | "setcookie"
+                        | "apikey"
+                        | "xapikey"
+                        | "xconnectorconfig"
+                        | "clientid"
+                        | "clientsecret"
+                        | "webhookid"
+                        | "webhooksecret"
+                        | "token"
+                        | "accesstoken"
+                        | "signature"
+                        | "sig"
+                        | "transmissionsig"
+                        | "paypaltransmissionsig"
+                        | "body"
+                        | "webhookbody"
+                        | "headers"
+                ) {
+                    *value = serde_json::Value::String("***".to_owned());
+                } else {
+                    sanitize_ucs_log_value(value);
+                }
+            }
+        }
+        serde_json::Value::Array(values) => values.iter_mut().for_each(sanitize_ucs_log_value),
+        _ => {}
+    }
+}
+
+fn masked_ucs_log_value<T: serde::Serialize>(value: &T) -> Result<serde_json::Value, ()> {
+    hyperswitch_masking::masked_serialize(value)
+        .map(|mut value| {
+            sanitize_ucs_log_value(&mut value);
+            value
+        })
+        .map_err(|_| ())
+}
+
 pub fn build_webhook_secrets_from_merchant_connector_account(
     #[cfg(feature = "v1")] merchant_connector_account: &MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: &MerchantConnectorAccountTypeDetails,
@@ -3996,7 +4255,7 @@ where
     let router_data_clone = router_data.clone();
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
-    let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
+    let grpc_request_body = masked_ucs_log_value(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
 
     // Update connector call count metrics for UCS operations
@@ -4050,10 +4309,9 @@ where
             }
 
             // Log the actual gRPC response with masking
-            let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
-                .unwrap_or_else(
-                    |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
-                );
+            let grpc_response_body = masked_ucs_log_value(&grpc_response).unwrap_or_else(
+                |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
+            );
 
             (
                 status,
@@ -4233,7 +4491,7 @@ where
     let payment_method_type = router_data.payment_method_type;
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
-    let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
+    let grpc_request_body = masked_ucs_log_value(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
 
     // Update connector call count metrics for UCS operations
@@ -4291,10 +4549,9 @@ where
             }
 
             // Log the actual gRPC response
-            let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
-                .unwrap_or_else(
-                    |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
-                );
+            let grpc_response_body = masked_ucs_log_value(&grpc_response).unwrap_or_else(
+                |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
+            );
 
             (
                 status,
@@ -4453,14 +4710,10 @@ where
     tracing::Span::current().record("flow_type", flow);
 
     let grpc_header = grpc_header_builder.build();
-    let grpc_request_body =
-        hyperswitch_masking::masked_serialize(&grpc_request).unwrap_or_else(|error| {
-            logger::warn!(
-                ?error,
-                "Failed to mask-serialize UCS webhook gRPC request for logging"
-            );
-            serde_json::json!({"error": "failed_to_serialize_grpc_request"})
-        });
+    let grpc_request_body = masked_ucs_log_value(&grpc_request).unwrap_or_else(|_| {
+        logger::warn!("Failed to mask-serialize UCS webhook gRPC request for logging");
+        serde_json::json!({"error": "failed_to_serialize_grpc_request"})
+    });
     logger::info!(
         flow,
         ucs_webhook_grpc_request = ?grpc_request_body,
@@ -4473,14 +4726,10 @@ where
 
     match result {
         Ok(grpc_response) => {
-            let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
-                .unwrap_or_else(|error| {
-                    logger::warn!(
-                        ?error,
-                        "Failed to mask-serialize UCS webhook gRPC response for logging"
-                    );
-                    serde_json::json!({"error": "failed_to_serialize_grpc_response"})
-                });
+            let grpc_response_body = masked_ucs_log_value(&grpc_response).unwrap_or_else(|_| {
+                logger::warn!("Failed to mask-serialize UCS webhook gRPC response for logging");
+                serde_json::json!({"error": "failed_to_serialize_grpc_response"})
+            });
             logger::info!(
                 flow,
                 external_latency,
@@ -4594,6 +4843,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
 
             router_data.response = refund_response_data;
             router_data.connector_http_status_code = Some(status_code);
+            reconcile_ucs_refund_outcome(&mut router_data, &grpc_response)?;
 
             Ok((router_data, (), grpc_response))
         },
@@ -4692,6 +4942,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
 
             router_data.response = refund_response_data;
             router_data.connector_http_status_code = Some(status_code);
+            reconcile_ucs_refund_outcome(&mut router_data, &grpc_response)?;
 
             Ok((router_data, (), grpc_response))
         },

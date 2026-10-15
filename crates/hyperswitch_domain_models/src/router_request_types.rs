@@ -861,7 +861,17 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
         let device_channel = Some(BrowserInformation::resolve_device_channel(
             data.browser_info.as_ref(),
         ));
+        let original_order_context = Some(Secret::new(PaymentsAuthenticationOrderContext {
+            order_tax_amount: data.order_tax_amount,
+            shipping_cost: data.shipping_cost,
+            order_details: data.order_details.clone(),
+            merchant_order_reference_id: data.merchant_order_reference_id.clone(),
+            setup_future_usage: data.setup_future_usage,
+            billing_descriptor: data.billing_descriptor.clone(),
+        }));
         Ok(Self {
+            original_order_context,
+            return_url: data.router_return_url.clone(),
             payment_method_data: Some(data.payment_method_data),
             payment_method_type: data.payment_method_type,
             amount: Some(data.amount),
@@ -884,7 +894,21 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct PaymentsAuthenticationOrderContext {
+    pub order_tax_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub merchant_order_reference_id: Option<String>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub billing_descriptor: Option<common_payments_types::BillingDescriptor>,
+}
+
+impl hyperswitch_masking::SerializableSecret for PaymentsAuthenticationOrderContext {}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentsAuthenticateData {
+    pub original_order_context: Option<Secret<PaymentsAuthenticationOrderContext>>,
+    pub return_url: Option<String>,
     pub payment_method_data: Option<PaymentMethodData>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub amount: Option<i64>,
@@ -910,6 +934,8 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             data.browser_info.as_ref(),
         ));
         Ok(Self {
+            original_order_context: None,
+            return_url: data.router_return_url.clone(),
             payment_method_data: data.payment_method_data,
             payment_method_type: data.payment_method_type,
             amount: Some(data.amount),

@@ -442,6 +442,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                             "UCS ParseEvent produced no object reference for a non-filtered event",
                         )
                 })?;
+                let reference = resolve_dispute_locator(ctx, reference).await?;
                 let mca = resolve_mca(ctx, &reference).await?;
                 #[cfg(feature = "v1")]
                 let webhook_secrets = build_webhook_secrets_from_merchant_connector_account(
@@ -492,6 +493,12 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                 )
                 .await?;
 
+                if !handle_response.source_verified {
+                    return Err(error_stack::report!(
+                        errors::ApiErrorResponse::WebhookAuthenticationFailed
+                    ))
+                    .attach_printable("UCS webhook source verification did not succeed");
+                }
                 let event_content = handle_response.event_content.ok_or_else(|| {
                     error_stack::report!(errors::ApiErrorResponse::WebhookProcessingFailure)
                         .attach_printable(
@@ -949,15 +956,23 @@ fn event_reference_to_object_ref(
                 })
             }
         }
-        Resource::Dispute(dispute) => dispute
-            .connector_transaction_id
-            .as_ref()
-            .or(dispute.connector_dispute_id.as_ref())
-            .map(|id| {
-                ObjectReferenceId::PaymentId(api_payments::PaymentIdType::ConnectorTransactionId(
-                    id.clone(),
+        Resource::Dispute(dispute) => {
+            if let Some(merchant_id) = dispute.merchant_transaction_id.as_ref() {
+                Some(ObjectReferenceId::PaymentId(
+                    api_payments::PaymentIdType::PaymentAttemptId(merchant_id.clone()),
                 ))
-            }),
+            } else {
+                dispute
+                    .connector_transaction_id
+                    .as_ref()
+                    .or(dispute.connector_dispute_id.as_ref())
+                    .map(|id| {
+                        ObjectReferenceId::PaymentId(
+                            api_payments::PaymentIdType::ConnectorTransactionId(id.clone()),
+                        )
+                    })
+            }
+        }
         Resource::Mandate(mandate) => mandate.connector_mandate_id.as_ref().map(|id| {
             ObjectReferenceId::MandateId(api_webhooks::MandateIdType::ConnectorMandateId(
                 id.clone(),
@@ -984,6 +999,92 @@ fn event_reference_to_object_ref(
     Ok(out)
 }
 
+// Resolve the actual merchant invoice locator, then corroborate the seller resource
+// using only saved payment state before selecting the merchant connector account.
+async fn resolve_dispute_locator(
+    ctx: &WebhookGatewayContext,
+    reference: ObjectReferenceId,
+) -> RouterResult<ObjectReferenceId> {
+    let dispute = match ctx.ucs_reference.as_ref().and_then(|v| v.resource.as_ref()) {
+        Some(payments_grpc::event_reference::Resource::Dispute(dispute))
+            if dispute.merchant_transaction_id.is_some() =>
+        {
+            dispute
+        }
+        _ => return Ok(reference),
+    };
+    let locator = dispute
+        .merchant_transaction_id
+        .as_ref()
+        .filter(|v| !v.trim().is_empty())
+        .ok_or(errors::ApiErrorResponse::WebhookResourceNotFound)?;
+    let attempt_result = get_payment_attempt_from_object_reference_id(
+        &ctx.state,
+        reference.clone(),
+        ctx.platform.get_processor(),
+    )
+    .await;
+    let attempt = match attempt_result {
+        Ok(attempt) => attempt,
+        Err(error) => {
+            #[cfg(feature = "v1")]
+            {
+                let payment_id = common_utils::id_type::PaymentId::try_from(
+                    std::borrow::Cow::Owned(locator.clone()),
+                )
+                .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)?;
+                let intent = crate::utils::find_payment_intent_from_payment_id_type(
+                    &ctx.state,
+                    api_models::payments::PaymentIdType::PaymentIntentId(payment_id),
+                    &ctx.platform,
+                )
+                .await?;
+                ctx.state
+                    .store
+                    .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                        &intent.payment_id,
+                        ctx.platform.get_processor().get_account().get_id(),
+                        &intent.active_attempt.get_id(),
+                        ctx.platform.get_processor().get_account().storage_scheme,
+                        ctx.platform.get_processor().get_key_store(),
+                    )
+                    .await
+                    .map_err(|_| error)?
+            }
+            #[cfg(not(feature = "v1"))]
+            {
+                return Err(error);
+            }
+        }
+    };
+    let seller = dispute
+        .connector_transaction_id
+        .as_ref()
+        .filter(|v| !v.trim().is_empty())
+        .ok_or(errors::ApiErrorResponse::WebhookResourceNotFound)?;
+    let canonical_matches = attempt.connector_transaction_id.as_ref() == Some(seller);
+    let saved_matches = attempt.connector_metadata.as_ref().is_some_and(|metadata| {
+        ["capture_id", "authorize_id"].iter().any(|key| {
+            metadata.get(key).and_then(serde_json::Value::as_str) == Some(seller.as_str())
+        }) || metadata
+            .get("capture_context")
+            .and_then(|v| v.get("capture_amounts"))
+            .and_then(serde_json::Value::as_object)
+            .is_some_and(|amounts| amounts.contains_key(seller))
+    });
+    if !canonical_matches && !saved_matches {
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::WebhookResourceNotFound
+        ))
+        .attach_printable(
+            "Dispute seller transaction does not match the located merchant payment",
+        );
+    }
+    Ok(ObjectReferenceId::PaymentId(
+        api_models::payments::PaymentIdType::PaymentAttemptId(attempt.attempt_id),
+    ))
+}
+
 async fn build_event_context(
     ctx: &WebhookGatewayContext,
     reference: &ObjectReferenceId,
@@ -1006,10 +1107,50 @@ async fn build_event_context(
         .and_then(|cm| payments_grpc::CaptureMethod::foreign_try_from(cm).ok())
         .map(i32::from);
 
+    let canonical = payment_attempt.connector_transaction_id.clone();
+    let mut related = std::collections::BTreeSet::new();
+    if ctx.connector_name == "paypal" {
+        if let Some(metadata) = payment_attempt.connector_metadata.as_ref() {
+            let metadata = metadata.as_object()?;
+            for key in ["capture_id", "authorize_id"] {
+                if let Some(value) = metadata.get(key).filter(|v| !v.is_null()) {
+                    let id = value.as_str().filter(|v| !v.trim().is_empty())?;
+                    related.insert(id.to_owned());
+                }
+            }
+            if let Some(context) = metadata.get("capture_context").filter(|v| !v.is_null()) {
+                let context = context.as_object()?;
+                if let Some(amounts) = context.get("capture_amounts").filter(|v| !v.is_null()) {
+                    for (id, amount) in amounts.as_object()? {
+                        if id.trim().is_empty() || !amount.is_object() {
+                            return None;
+                        }
+                        related.insert(id.clone());
+                    }
+                }
+            }
+        }
+    }
+    let related: Vec<String> = related.into_iter().collect();
+    let dispute = ctx
+        .ucs_reference
+        .as_ref()
+        .and_then(|v| v.resource.as_ref())
+        .is_some_and(|v| matches!(v, payments_grpc::event_reference::Resource::Dispute(_)));
+    let context = if dispute {
+        payments_grpc::event_context::EventContext::Dispute(payments_grpc::DisputeEventContext {
+            connector_transaction_id: canonical,
+            related_connector_transaction_ids: related,
+        })
+    } else {
+        payments_grpc::event_context::EventContext::Payment(payments_grpc::PaymentEventContext {
+            capture_method,
+            connector_transaction_id: canonical,
+            related_connector_transaction_ids: related,
+        })
+    };
     Some(payments_grpc::EventContext {
-        event_context: Some(payments_grpc::event_context::EventContext::Payment(
-            payments_grpc::PaymentEventContext { capture_method },
-        )),
+        event_context: Some(context),
     })
 }
 

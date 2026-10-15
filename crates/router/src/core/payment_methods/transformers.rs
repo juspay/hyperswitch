@@ -1903,6 +1903,8 @@ impl
                         },
                         tokenization_data: common_types::payments::GpayTokenizationData::Decrypted(
                             common_types::payments::GPayPredecryptData {
+                                message_expiration: None,
+                                message_id: None,
                                 auth_method: None,
                                 card_exp_month: expiry_month,
                                 card_exp_year: expiry_year,

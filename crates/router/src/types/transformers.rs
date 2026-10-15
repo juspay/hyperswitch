@@ -471,6 +471,7 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
             api_models::webhooks::IncomingWebhookEvent::RefundSuccess => Ok(Self::Success),
             api_models::webhooks::IncomingWebhookEvent::RefundFailure => Ok(Self::Failure),
             api_models::webhooks::IncomingWebhookEvent::RefundReview => Ok(Self::ManualReview),
+            api_models::webhooks::IncomingWebhookEvent::RefundProcessing => Ok(Self::Pending),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "incoming_webhook_event_type".into(),
             }),
