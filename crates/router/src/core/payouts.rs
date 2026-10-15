@@ -3773,6 +3773,24 @@ pub async fn make_payout_data(
 }
 
 #[cfg(feature = "v1")]
+fn authenticate_payout_client_secret(
+    request_client_secret: Option<&str>,
+    stored_client_secret: Option<&str>,
+) -> Result<(), errors::ApiErrorResponse> {
+    match request_client_secret {
+        Some(request_client_secret)
+            if stored_client_secret.is_some_and(|secret| secret == request_client_secret) =>
+        {
+            Ok(())
+        }
+        Some(_) => Err(errors::ApiErrorResponse::ClientSecretInvalid),
+        // Merchant-authenticated requests do not carry a client secret. Client-authenticated
+        // requests are required to provide one before reaching this validation.
+        None => Ok(()),
+    }
+}
+
+#[cfg(feature = "v1")]
 pub async fn make_payout_data(
     state: &SessionState,
     platform: &domain::Platform,
@@ -3832,6 +3850,14 @@ pub async fn make_payout_data(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+
+    if let payouts::PayoutRequest::PayoutCreateRequest(request) = req {
+        authenticate_payout_client_secret(
+            request.client_secret.as_deref(),
+            payouts.client_secret.as_deref(),
+        )?;
+    }
+
     core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &payouts)?;
 
     let payout_attempt_id =
