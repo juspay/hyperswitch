@@ -278,6 +278,23 @@ impl MerchantConnectorAccount {
             .map(|recovery| recovery.max_retry_count)
     }
 
+    /// Grace period, in days, configured on the billing connector account.
+    pub fn get_grace_period_days(&self) -> Option<u16> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.revenue_recovery.as_ref())
+            .map(|recovery| recovery.grace_period_days)
+    }
+
+    /// Whether partial authorization is enabled on the billing connector account. Defaults to
+    /// `false` when the account has no revenue recovery metadata.
+    pub fn is_partial_authorization_enabled(&self) -> bool {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.revenue_recovery.as_ref())
+            .is_some_and(|recovery| recovery.enable_partial_authorization)
+    }
+
     /// Positions on the cascading ladder available to an invoice under the hybrid scheme.
     pub fn get_max_hybrid_cascading_retry_count(&self) -> Option<u16> {
         self.feature_metadata
@@ -375,6 +392,11 @@ pub struct MerchantConnectorAccountFeatureMetadata {
 }
 
 #[cfg(feature = "v2")]
+fn default_grace_period_days() -> u16 {
+    30
+}
+
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RevenueRecoveryMetadata {
     pub max_retry_count: u16,
@@ -383,6 +405,10 @@ pub struct RevenueRecoveryMetadata {
     /// hybrid static + adaptive scheme.
     #[serde(default)]
     pub max_hybrid_cascading_retry_count: u16,
+    #[serde(default = "default_grace_period_days")]
+    pub grace_period_days: u16,
+    #[serde(default)]
+    pub enable_partial_authorization: bool,
     pub mca_reference: AccountReferenceMap,
 }
 
@@ -836,6 +862,8 @@ impl From<MerchantConnectorAccountFeatureMetadata>
                     .billing_connector_retry_threshold,
                 max_hybrid_cascading_retry_count: recovery_metadata
                     .max_hybrid_cascading_retry_count,
+                grace_period_days: recovery_metadata.grace_period_days,
+                enable_partial_authorization: recovery_metadata.enable_partial_authorization,
                 billing_account_reference: DieselBillingAccountReference(
                     recovery_metadata.mca_reference.recovery_to_billing,
                 ),
@@ -861,6 +889,8 @@ impl From<DieselMerchantConnectorAccountFeatureMetadata>
                     .billing_connector_retry_threshold,
                 max_hybrid_cascading_retry_count: recovery_metadata
                     .max_hybrid_cascading_retry_count,
+                grace_period_days: recovery_metadata.grace_period_days,
+                enable_partial_authorization: recovery_metadata.enable_partial_authorization,
                 mca_reference: AccountReferenceMap {
                     recovery_to_billing: recovery_metadata.billing_account_reference.0,
                     billing_to_recovery,
