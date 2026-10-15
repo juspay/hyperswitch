@@ -176,7 +176,7 @@ impl VaultingInterface for VaultDelete {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct EntityCreate;
 
 impl VaultingInterface for EntityCreate {
