@@ -53,19 +53,19 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
 
   context("card_bin - unchanged 6-digit-exact validation", () => {
     it("should accept a 6 digit card_bin (regression)", () => {
-      cy.blocklistCreateRuleRaw("card_bin", "424242", globalState);
+      cy.blocklistCreateRule({}, "424242", globalState, "card_bin");
     });
 
     it("cleanup: delete the 6 digit card_bin entry", () => {
-      cy.blocklistDeleteRuleRaw("card_bin", "424242", globalState);
+      cy.blocklistDeleteRule("card_bin", "424242", globalState);
     });
 
     it("should reject a 5 digit card_bin", () => {
-      cy.blocklistCreateRuleRaw("card_bin", "42424", globalState, false);
+      cy.blocklistCreateRule({}, "42424", globalState, "card_bin", false);
     });
 
     it("should reject a 7 digit card_bin (still not widened)", () => {
-      cy.blocklistCreateRuleRaw("card_bin", "4242424", globalState, false);
+      cy.blocklistCreateRule({}, "4242424", globalState, "card_bin", false);
     });
   });
 
@@ -73,18 +73,24 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
     "extended_card_bin - unchanged 8-digit-exact validation (deprecated, kept for backward compat)",
     () => {
       it("should still accept an 8 digit extended_card_bin", () => {
-        cy.blocklistCreateRuleRaw("extended_card_bin", "42424242", globalState);
+        cy.blocklistCreateRule(
+          {},
+          "42424242",
+          globalState,
+          "extended_card_bin"
+        );
       });
 
       it("cleanup: delete the extended_card_bin entry", () => {
-        cy.blocklistDeleteRuleRaw("extended_card_bin", "42424242", globalState);
+        cy.blocklistDeleteRule("extended_card_bin", "42424242", globalState);
       });
 
       it("should reject a 6 digit extended_card_bin", () => {
-        cy.blocklistCreateRuleRaw(
-          "extended_card_bin",
+        cy.blocklistCreateRule(
+          {},
           "424242",
           globalState,
+          "extended_card_bin",
           false
         );
       });
@@ -93,43 +99,45 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
 
   context("generic_card_bin - new 6 to 10 digit range", () => {
     it("should accept a 6 digit generic_card_bin", () => {
-      cy.blocklistCreateRuleRaw("generic_card_bin", "424242", globalState);
+      cy.blocklistCreateRule({}, "424242", globalState, "generic_card_bin");
     });
 
     it("cleanup: delete the 6 digit generic_card_bin entry", () => {
-      cy.blocklistDeleteRuleRaw("generic_card_bin", "424242", globalState);
+      cy.blocklistDeleteRule("generic_card_bin", "424242", globalState);
     });
 
     it("should accept an 8 digit generic_card_bin (previously only valid as extended_card_bin)", () => {
-      cy.blocklistCreateRuleRaw("generic_card_bin", "42424242", globalState);
+      cy.blocklistCreateRule({}, "42424242", globalState, "generic_card_bin");
     });
 
     it("cleanup: delete the 8 digit generic_card_bin entry", () => {
-      cy.blocklistDeleteRuleRaw("generic_card_bin", "42424242", globalState);
+      cy.blocklistDeleteRule("generic_card_bin", "42424242", globalState);
     });
 
     it("should accept a 10 digit generic_card_bin (new upper bound)", () => {
-      cy.blocklistCreateRuleRaw("generic_card_bin", "4242424242", globalState);
+      cy.blocklistCreateRule({}, "4242424242", globalState, "generic_card_bin");
     });
 
     it("cleanup: delete the 10 digit generic_card_bin entry", () => {
-      cy.blocklistDeleteRuleRaw("generic_card_bin", "4242424242", globalState);
+      cy.blocklistDeleteRule("generic_card_bin", "4242424242", globalState);
     });
 
     it("should reject a 5 digit generic_card_bin (below minimum)", () => {
-      cy.blocklistCreateRuleRaw(
-        "generic_card_bin",
+      cy.blocklistCreateRule(
+        {},
         "42424",
         globalState,
+        "generic_card_bin",
         false
       );
     });
 
     it("should reject an 11 digit generic_card_bin (above maximum)", () => {
-      cy.blocklistCreateRuleRaw(
-        "generic_card_bin",
+      cy.blocklistCreateRule(
+        {},
         "42424242424",
         globalState,
+        "generic_card_bin",
         false
       );
     });
@@ -141,7 +149,7 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
     // "42424242" here raced a blocklist cache that hadn't picked up the
     // fresh create yet, causing a consistent (not flaky) false "allow".
     it("should create a generic_card_bin blocklist rule for 40000000", () => {
-      cy.blocklistCreateRuleRaw("generic_card_bin", "40000000", globalState);
+      cy.blocklistCreateRule({}, "40000000", globalState, "generic_card_bin");
     });
 
     it("should enable blocklist functionality using Superposition", () => {
@@ -170,7 +178,7 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
     });
 
     it("cleanup: delete the generic_card_bin rule", () => {
-      cy.blocklistDeleteRuleRaw("generic_card_bin", "40000000", globalState);
+      cy.blocklistDeleteRule("generic_card_bin", "40000000", globalState);
     });
 
     it("should disable blocklist functionality using Superposition", () => {

@@ -9070,7 +9070,13 @@ Cypress.Commands.add(
 // Blocklist and Eligibility API Commands
 Cypress.Commands.add(
   "blocklistCreateRule",
-  (requestBody, cardBin, globalState, type = "card_bin") => {
+  (
+    requestBody,
+    cardBin,
+    globalState,
+    type = "card_bin",
+    expectSuccess = true
+  ) => {
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
     const profileId = globalState.get("profileId");
@@ -9082,21 +9088,23 @@ Cypress.Commands.add(
       data: cardBin,
     };
 
-    cy.request({
-      method: "POST",
-      url: url,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-        "X-Profile-Id": profileId,
-      },
-      body: body,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+    return cy
+      .request({
+        method: "POST",
+        url: url,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+          "X-Profile-Id": profileId,
+        },
+        body: body,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
 
-      cy.wrap(response).then(() => {
-        if (response.status === 200) {
+        if (expectSuccess) {
+          expect(response.status).to.equal(200);
           expect(response.body)
             .to.have.property("fingerprint_id")
             .to.equal(cardBin);
@@ -9104,81 +9112,13 @@ Cypress.Commands.add(
           expect(response.body).to.have.property("created_at").to.not.be.null;
           globalState.set("blocklistRuleId", response.body.fingerprint_id);
         } else {
-          throw new Error(
-            `Blocklist create rule failed with status: ${response.status} and message: ${response.body?.error?.message}`
+          // the only client-side validation failure this API returns for a
+          // bad card_bin/generic_card_bin length is a 400
+          expect(response.status).to.equal(400);
+          expect(response.body).to.have.nested.property(
+            "error.type",
+            "invalid_request"
           );
-        }
-      });
-    });
-  }
-);
-
-Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
-  const apiKey = globalState.get("apiKey");
-  const baseUrl = globalState.get("baseUrl");
-  const profileId = globalState.get("profileId");
-  const url = `${baseUrl}/blocklist`;
-
-  const body = {
-    type: type,
-    data: data,
-  };
-
-  cy.request({
-    method: "DELETE",
-    url: url,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": apiKey,
-      "X-Profile-Id": profileId,
-    },
-    body: body,
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-
-    cy.wrap(response).then(() => {
-      if (response.status === 200) {
-        cy.log(`Blocklist rule deleted for ${type}: ${data}`);
-      } else {
-        throw new Error(
-          `Blocklist delete failed with status: ${response.status} and message: ${response.body?.error?.message}`
-        );
-      }
-    });
-  });
-});
-
-// Unlike blocklistCreateRule/blocklistDeleteRule, these accept an
-// `expectSuccess` flag so callers can assert both the success and the
-// expected-rejection boundary cases through the same command, with the
-// assertions living here instead of in the spec file.
-Cypress.Commands.add(
-  "blocklistCreateRuleRaw",
-  (type, data, globalState, expectSuccess = true) => {
-    const apiKey = globalState.get("apiKey");
-    const baseUrl = globalState.get("baseUrl");
-    const profileId = globalState.get("profileId");
-
-    return cy
-      .request({
-        method: "POST",
-        url: `${baseUrl}/blocklist`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": apiKey,
-          "X-Profile-Id": profileId,
-        },
-        body: { type, data },
-        failOnStatusCode: false,
-      })
-      .then((response) => {
-        if (expectSuccess) {
-          expect(response.status).to.equal(200);
-          expect(response.body).to.have.property("data_kind", type);
-          expect(response.body).to.have.property("fingerprint_id", data);
-        } else {
-          expect(response.status).to.not.equal(200);
         }
         return response;
       });
@@ -9186,29 +9126,42 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
-  "blocklistDeleteRuleRaw",
+  "blocklistDeleteRule",
   (type, data, globalState, expectSuccess = true) => {
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
     const profileId = globalState.get("profileId");
+    const url = `${baseUrl}/blocklist`;
+
+    const body = {
+      type: type,
+      data: data,
+    };
 
     return cy
       .request({
         method: "DELETE",
-        url: `${baseUrl}/blocklist`,
+        url: url,
         headers: {
           "Content-Type": "application/json",
           "api-key": apiKey,
           "X-Profile-Id": profileId,
         },
-        body: { type, data },
+        body: body,
         failOnStatusCode: false,
       })
       .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
         if (expectSuccess) {
           expect(response.status).to.equal(200);
+          cy.log(`Blocklist rule deleted for ${type}: ${data}`);
         } else {
-          expect(response.status).to.not.equal(200);
+          expect(response.status).to.equal(400);
+          expect(response.body).to.have.nested.property(
+            "error.type",
+            "invalid_request"
+          );
         }
         return response;
       });
