@@ -519,13 +519,6 @@ impl CustomerDocumentDetails {
     }
 
     pub fn validate(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
-        self.document_type.validate(self.document_number.peek())?;
-        if self.document_number.peek().trim().is_empty() {
-            return Err(ValidationError::InvalidValue {
-                message: "Document number must not be blank".to_string(),
-            }
-            .into());
-        }
-        Ok(())
+        self.document_type.validate(self.document_number.peek())
     }
 }

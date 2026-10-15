@@ -3,7 +3,6 @@ use api_models::{payments as payments_api, payments as api_payments};
 use common_utils::id_type;
 use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::{payments as payments_domain, platform::Platform};
-use hyperswitch_masking::PeekInterface;
 
 use crate::{
     core::{
@@ -281,6 +280,17 @@ pub async fn custom_revenue_recovery_core(
                 .to_string(),
         })?;
 
+    utils::when(
+        &payment_merchant_connector_account.profile_id != profile_id,
+        || {
+            Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: payment_merchant_connector_account_id
+                    .clone()
+                    .get_string_repr()
+                    .to_string(),
+            })
+        },
+    )?;
     let billing_connector_account = store
         .find_merchant_connector_account_by_id(
             &request.billing_merchant_connector_id.clone(),
@@ -294,12 +304,21 @@ pub async fn custom_revenue_recovery_core(
                 .get_string_repr()
                 .to_string(),
         })?;
-    validate_recovery_request(
-        &request,
-        &payment_merchant_connector_account,
-        &billing_connector_account,
-        profile_id,
-    )?;
+    utils::when(&billing_connector_account.profile_id != profile_id, || {
+        Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: request
+                .billing_merchant_connector_id
+                .clone()
+                .get_string_repr()
+                .to_string(),
+        })
+    })?;
+
+    if payment_merchant_connector_account.connector_name
+        == common_enums::connector_enums::Connector::Dlocal
+    {
+        validate_dlocal_request(&request)?;
+    }
 
     let recovery_intent =
         recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
@@ -432,12 +451,8 @@ pub async fn cancel_revenue_recovery_core(
     ))
 }
 
-/// Validate request data and connector ownership before creating recovery trackers.
-fn validate_recovery_request(
+fn validate_dlocal_request(
     request: &api_models::payments::RecoveryPaymentsCreate,
-    payment_connector: &domain::MerchantConnectorAccount,
-    billing_connector: &domain::MerchantConnectorAccount,
-    profile_id: &id_type::ProfileId,
 ) -> RouterResult<()> {
     if let Some(document) = request
         .customer_details
@@ -451,53 +466,5 @@ fn validate_recovery_request(
             })?;
     }
 
-    for connector in [payment_connector, billing_connector] {
-        utils::when(&connector.profile_id != profile_id, || {
-            Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: connector.get_id().get_string_repr().to_string(),
-            })
-        })?;
-    }
-
-    let requires_dlocal_payer = payment_connector.connector_name
-        == common_enums::connector_enums::Connector::Dlocal
-        && request.payment_method_type == common_enums::PaymentMethod::Card
-        && matches!(
-            request.action,
-            common_types::payments::RecoveryPaymentsAction::ScheduleFailedPayment
-        );
-    if !requires_dlocal_payer {
-        return Ok(());
-    }
-
-    let missing = |field_name: &'static str| errors::ApiErrorResponse::MissingRequiredField {
-        field_name: field_name.into(),
-    };
-    let customer = request
-        .customer_details
-        .as_ref()
-        .ok_or_else(|| missing("customer_details"))?;
-    customer
-        .document_details
-        .as_ref()
-        .ok_or_else(|| missing("customer_details.document_details"))?;
-    customer
-        .email
-        .as_ref()
-        .ok_or_else(|| missing("customer_details.email"))?;
-    let billing = request.billing.as_ref().ok_or_else(|| missing("billing"))?;
-    let address = billing
-        .address
-        .as_ref()
-        .ok_or_else(|| missing("billing.address"))?;
-    address
-        .country
-        .as_ref()
-        .ok_or_else(|| missing("billing.address.country"))?;
-    address
-        .first_name
-        .as_ref()
-        .filter(|name| !name.peek().trim().is_empty())
-        .ok_or_else(|| missing("billing.address.first_name"))?;
     Ok(())
 }
