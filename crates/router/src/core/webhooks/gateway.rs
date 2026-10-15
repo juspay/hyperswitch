@@ -949,6 +949,9 @@ fn event_reference_to_object_ref(
                 })
             }
         }
+        // The dispute flow resolves the reference as the parent payment
+        // (`ConnectorTransactionId`), so prefer the parent payment id; the
+        // dispute id is only a fallback for connectors that send nothing else.
         Resource::Dispute(dispute) => dispute
             .connector_transaction_id
             .as_ref()
