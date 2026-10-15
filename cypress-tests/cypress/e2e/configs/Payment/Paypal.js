@@ -145,6 +145,7 @@ export const connectorDetails = {
     }),
     No3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -157,11 +158,15 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          amount: 6000,
+          amount_received: 0,
+          amount_capturable: 6000,
         },
       },
     },
     No3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -174,6 +179,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          amount: 6000,
+          amount_received: 6000,
+          amount_capturable: 0,
         },
       },
     },
@@ -1018,4 +1026,98 @@ export const connectorDetails = {
       type: "string",
     },
   },
+};
+
+// Primary UCS configuration uses RolloutConfig's actual required fields. The E2E
+// caller must additionally assert its request id appears in the UCS trace.
+export const paypalUcsRolloutConfig = {
+  rollout_percent: 1.0,
+  execution_mode: "primary",
+  kill_switch_enabled: false,
+  shadow_rollout_percent: 0.0,
+};
+
+// Device credentials are supplied at execution time, never checked into fixtures.
+// Keep all four rows visible even when device provisioning prevents a live run.
+export const paypalUcsWalletCases = [
+  {
+    id: "apple_pay_psp",
+    env: "PAYPAL_APPLE_PAY_PSP_PAYMENT_METHOD_DATA",
+    expected_status: "succeeded",
+    amount_received: 6000,
+    verification_gap:
+      "SANDBOX_NOT_PROVISIONED without an actual device-minted encrypted token",
+  },
+  {
+    id: "apple_pay_hyperswitch",
+    env: "PAYPAL_APPLE_PAY_DECRYPTED_PAYMENT_METHOD_DATA",
+    expected_status: "succeeded",
+    amount_received: 6000,
+    verification_gap:
+      "OPERATOR_GAP without actual decrypted token and cryptogram",
+  },
+  {
+    id: "google_pay_psp",
+    env: "PAYPAL_GOOGLE_PAY_PSP_PAYMENT_METHOD_DATA",
+    expected_local_refusal: "NotSupported",
+    vendor_schema: "https://developer.paypal.com/api/orders/v2/schema.json",
+    unsupported_reason:
+      "google_pay accepts name,email_address,phone_number,card,decrypted_token,assurance_details,experience_context; no encrypted token field",
+  },
+  {
+    id: "google_pay_hyperswitch",
+    env: "PAYPAL_GOOGLE_PAY_DECRYPTED_PAYMENT_METHOD_DATA",
+    expected_status: "succeeded",
+    amount_received: 6000,
+    verification_gap:
+      "OPERATOR_GAP without actual signed-envelope authentication method and credential",
+  },
+];
+
+// GSM lifecycle for the E2E runner: POST /gsm/get with each exact key and save the
+// prior record in memory; POST /gsm (absent) or /gsm/update (present); run the
+// observed error case, assert actual connector-call count; restore the old rule or
+// POST /gsm/delete for newly created keys; retrieve again to verify restoration.
+// The shared Cypress updateGsmConfig command hardcodes Stripe, so it is unsuitable
+// for these PayPal records. Admin credentials are resolved at call time only.
+// These documented gateway errors are fixtures, not claims of live observations.
+export const paypalUcsGsmCases = [
+  {
+    key: {
+      connector: "paypal",
+      flow: "Authorize",
+      sub_flow: "default",
+      code: "INTERNAL_SERVER_ERROR",
+      message: "An internal server error has occurred.",
+    },
+    decision: "retry",
+    expected_retry_eligible: true,
+    source: "https://developer.paypal.com/api/orders/v2/error-messages",
+  },
+  {
+    key: {
+      connector: "paypal",
+      flow: "Authorize",
+      sub_flow: "default",
+      code: "CARD_EXPIRED",
+      message: "The card is expired.",
+    },
+    decision: "do_default",
+    expected_retry_eligible: false,
+    expected_connector_attempts: 1,
+    source: "https://developer.paypal.com/api/orders/v2/error-messages",
+  },
+];
+
+// Schema fixtures for separate issuer/advice passthrough assertions. These enum
+// values are documented, not an invented live decline. A live row must receive
+// the fields from PayPal and keep its observed issue/message as the GSM lookup
+// key; never substitute advice for issuer code or mark fixture parsing verified.
+export const paypalUcsProcessorFieldCase = {
+  source: "https://developer.paypal.com/api/payments/v2/schema.json",
+  processor_response: { response_code: "0500", payment_advice_code: "03" },
+  expected_issuer_error_code: "0500",
+  expected_network_advice_code: "03",
+  verification_gap:
+    "OPERATOR_GAP unless an actual gateway response carries these fields",
 };

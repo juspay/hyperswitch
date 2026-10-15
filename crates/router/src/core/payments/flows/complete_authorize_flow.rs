@@ -359,13 +359,17 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     where
         Self: Sized,
     {
-        if connector.connector.is_authentication_flow_required(
-            api_interface::CurrentFlowInfo::CompleteAuthorize {
-                auth_type: self.auth_type,
-                request_data: Box::new(self.request.clone()),
-                payment_method: Some(self.payment_method),
-            },
-        ) {
+        if connector
+            .connector
+            .is_authentication_flow_required_for_execution(
+                api_interface::CurrentFlowInfo::CompleteAuthorize {
+                    auth_type: self.auth_type,
+                    request_data: Box::new(self.request.clone()),
+                    payment_method: Some(self.payment_method),
+                },
+                gateway_context.execution_path,
+            )
+        {
             let router_data = self;
             logger::info!(
                 "Authentication flow is required for connector: {}",
@@ -429,8 +433,16 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     ref redirection_data,
                     ..
                 }) if redirection_data.is_none()
-            ) && complete_authorize_router_data.status
-                != common_enums::AttemptStatus::AuthenticationFailed);
+            ) && !matches!(
+                complete_authorize_router_data.status,
+                common_enums::AttemptStatus::AuthenticationFailed
+                    | common_enums::AttemptStatus::Failure
+                    | common_enums::AttemptStatus::Charged
+                    | common_enums::AttemptStatus::Authorized
+                    | common_enums::AttemptStatus::PartialCharged
+                    | common_enums::AttemptStatus::PartialChargedAndChargeable
+                    | common_enums::AttemptStatus::Voided
+            ));
             Ok((complete_authorize_router_data, should_continue))
         } else {
             Ok((self, true))
@@ -446,13 +458,17 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     where
         Self: Sized,
     {
-        if connector.connector.is_post_authentication_flow_required(
-            api_interface::CurrentFlowInfo::CompleteAuthorize {
-                auth_type: self.auth_type,
-                request_data: Box::new(self.request.clone()),
-                payment_method: Some(self.payment_method),
-            },
-        ) {
+        if connector
+            .connector
+            .is_post_authentication_flow_required_for_execution(
+                api_interface::CurrentFlowInfo::CompleteAuthorize {
+                    auth_type: self.auth_type,
+                    request_data: Box::new(self.request.clone()),
+                    payment_method: Some(self.payment_method),
+                },
+                gateway_context.execution_path,
+            )
+        {
             let router_data = self;
             logger::info!(
                 "Post-authentication flow is required for connector: {}",
@@ -524,6 +540,10 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 common_enums::AttemptStatus::AuthenticationFailed
                     | common_enums::AttemptStatus::Failure
                     | common_enums::AttemptStatus::Charged
+                    | common_enums::AttemptStatus::Authorized
+                    | common_enums::AttemptStatus::PartialCharged
+                    | common_enums::AttemptStatus::PartialChargedAndChargeable
+                    | common_enums::AttemptStatus::Voided
             );
             Ok((complete_authorize_router_data, should_continue))
         } else {
@@ -835,6 +855,10 @@ pub async fn call_unified_connector_service_authenticate(
             .attach_printable("Failed to authenticate payment")?;
 
             let payment_authenticate_response = response.into_inner();
+            ucs_core::apply_ucs_authenticate_observations(
+                &mut router_data,
+                &payment_authenticate_response,
+            )?;
 
             let (router_data_response, status_code) =
                 ucs_core::handle_unified_connector_service_response_for_payment_authenticate(
@@ -997,6 +1021,10 @@ pub async fn call_unified_connector_service_authenticate_proxy(
             .attach_printable("Failed to authenticate payment")?;
 
             let payment_authenticate_response = response.into_inner();
+            ucs_core::apply_ucs_authenticate_observations(
+                &mut router_data,
+                &payment_authenticate_response,
+            )?;
 
             let (router_data_response, status_code) =
                 ucs_core::handle_unified_connector_service_response_for_payment_authenticate(

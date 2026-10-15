@@ -1333,6 +1333,8 @@ async fn call_ucs_authenticate_proxy(
         })?;
 
     let authenticate_request_data = core_types::PaymentsAuthenticateData {
+        original_order_context: None,
+        return_url: None,
         payment_method_data: None,
         payment_method_type: payment_attempt.payment_method_type,
         amount: Some(amount.get_amount_as_i64()),

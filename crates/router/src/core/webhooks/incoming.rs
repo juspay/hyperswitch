@@ -12,7 +12,10 @@ use common_utils::{
     errors::ReportSwitchExt,
     events::ApiEventsType,
     ext_traits::{AsyncExt, ByteSliceExt},
-    types::{AmountConvertor, StringMinorUnitForConnector},
+    types::{
+        AmountConvertor, ConnectorTransactionId, ConnectorTransactionIdTrait,
+        StringMinorUnitForConnector,
+    },
 };
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
@@ -630,6 +633,7 @@ async fn process_webhook_business_logic(
                 source_verified,
                 event_type,
                 webhook_resource_data,
+                &content,
             ))
             .await
             .attach_printable("Incoming webhook flow for refunds failed"),
@@ -644,6 +648,7 @@ async fn process_webhook_business_logic(
                 request_details,
                 event_type,
                 webhook_resource_data,
+                &content,
             ))
             .await
             .attach_printable("Incoming webhook flow for disputes failed"),
@@ -924,8 +929,25 @@ async fn payments_incoming_webhook_flow(
                     event_type: Some(event_type.into()),
                 }
             }
-            super::gateway::WebhookContent::UnifiedConnectorService(_) => {
-                payments::CallConnectorAction::UCSConsumeResponse(resource_object)
+            super::gateway::WebhookContent::UnifiedConnectorService(bytes) => {
+                let content: payments_grpc::EventContent = serde_json::from_slice(bytes)
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable("Invalid verified UCS payment content")?;
+                let payment = get_payments_response_from_ucs_webhook_content(content)
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
+                // A terminal status without observed money must not let HS default
+                // a partial capture to the original requested amount. Read the order.
+                if matches!(
+                    payment.status(),
+                    payments_grpc::PaymentStatus::Charged
+                        | payments_grpc::PaymentStatus::PartialCharged
+                        | payments_grpc::PaymentStatus::PartialChargedAndChargeable
+                ) && payment.captured_amount.is_none()
+                {
+                    payments::CallConnectorAction::Trigger
+                } else {
+                    payments::CallConnectorAction::UCSConsumeResponse(resource_object)
+                }
             }
         }
     } else {
@@ -1598,6 +1620,88 @@ async fn relay_refunds_incoming_webhook_flow(
     })
 }
 
+fn refund_update_from_ucs(
+    bytes: &[u8],
+    refund: &diesel_refund::Refund,
+    event_type: webhooks::IncomingWebhookEvent,
+    updated_by: String,
+) -> CustomResult<Option<diesel_refund::RefundUpdate>, errors::ApiErrorResponse> {
+    let fail = || {
+        error_stack::report!(errors::ApiErrorResponse::WebhookProcessingFailure).attach_printable(
+            "Verified UCS refund does not corroborate its saved resource, status or money",
+        )
+    };
+    let content: payments_grpc::EventContent = serde_json::from_slice(bytes).map_err(|_| fail())?;
+    let response = match content.content {
+        Some(payments_grpc::event_content::Content::RefundsResponse(response)) => response,
+        _ => return Err(fail()),
+    };
+    if response.connector_refund_id.trim().is_empty()
+        || refund
+            .get_optional_connector_refund_id()
+            .is_some_and(|id| id != &response.connector_refund_id)
+    {
+        return Err(fail());
+    }
+    let status =
+        common_enums::RefundStatus::foreign_try_from((response.status(), refund.refund_status))
+            .map_err(|_| fail())?;
+    if status != common_enums::RefundStatus::foreign_try_from(event_type).map_err(|_| fail())? {
+        return Err(fail());
+    }
+    if let Some(money) = response.refund_amount.as_ref() {
+        let currency =
+            common_enums::Currency::foreign_try_from(money.currency()).map_err(|_| fail())?;
+        if money.minor_amount < 0
+            || money.minor_amount != refund.refund_amount.get_amount_as_i64()
+            || currency != refund.currency
+        {
+            return Err(fail());
+        }
+    }
+    // Stored terminal outcome dominates a delayed authenticated pending delivery.
+    // Ignore it before updating the DB or emitting another merchant notification.
+    if (refund.refund_status == common_enums::RefundStatus::Success
+        && status != common_enums::RefundStatus::Success)
+        || (matches!(
+            refund.refund_status,
+            common_enums::RefundStatus::Failure | common_enums::RefundStatus::TransactionFailure
+        ) && status == common_enums::RefundStatus::Pending)
+    {
+        return Ok(None);
+    }
+    let (id, processor_refund_data) =
+        ConnectorTransactionId::form_id_and_data(response.connector_refund_id.clone());
+    Ok(Some(if let Some(error) = response.error.as_ref() {
+        let details = error.connector_details.as_ref();
+        let network = error
+            .issuer_details
+            .as_ref()
+            .and_then(|issuer| issuer.network_details.as_ref());
+        diesel_refund::RefundUpdate::ErrorUpdate {
+            refund_status: Some(status),
+            refund_error_message: details
+                .and_then(|v| v.reason.clone().or_else(|| v.message.clone())),
+            refund_error_code: details.and_then(|v| v.code.clone()),
+            updated_by,
+            connector_refund_id: Some(id),
+            processor_refund_data,
+            unified_code: None,
+            unified_message: None,
+            issuer_error_code: network.and_then(|v| v.decline_code.clone()),
+            issuer_error_message: network.and_then(|v| v.error_message.clone()),
+        }
+    } else {
+        diesel_refund::RefundUpdate::StatusUpdate {
+            connector_refund_id: Some(id),
+            sent_to_gateway: true,
+            refund_status: status,
+            updated_by,
+            processor_refund_data,
+        }
+    }))
+}
+
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 async fn refunds_incoming_webhook_flow(
@@ -1609,6 +1713,7 @@ async fn refunds_incoming_webhook_flow(
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
     webhook_resource_data: Option<WebhookResourceData>,
+    content: &super::gateway::WebhookContent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let db = &*state.store;
     //find refund by connector refund id
@@ -1653,6 +1758,30 @@ async fn refunds_incoming_webhook_flow(
                 .to_string(),
             processor_refund_data: None,
         };
+        let refund_update = match content {
+            super::gateway::WebhookContent::Direct(_) => refund_update,
+            super::gateway::WebhookContent::UnifiedConnectorService(bytes) => {
+                let update = refund_update_from_ucs(
+                    bytes,
+                    &refund,
+                    event_type,
+                    platform
+                        .get_processor()
+                        .get_account()
+                        .storage_scheme
+                        .to_string(),
+                )?;
+                let Some(update) = update else {
+                    return Ok(WebhookResponseTracker::Refund {
+                        payment_id: refund.payment_id.clone(),
+                        refund_id: refund.refund_id.clone(),
+                        status: refund.refund_status,
+                    });
+                };
+                update
+            }
+        };
+
         db.update_refund(
             refund.to_owned(),
             refund_update,
@@ -3222,6 +3351,86 @@ async fn frm_incoming_webhook_flow(
     }
 }
 
+fn dispute_payload_from_ucs(
+    bytes: &[u8],
+    attempt: &PaymentAttempt,
+) -> CustomResult<api::disputes::DisputePayload, errors::ApiErrorResponse> {
+    let fail = || {
+        error_stack::report!(errors::ApiErrorResponse::WebhookProcessingFailure).attach_printable(
+            "Verified UCS dispute lacks valid actual payment identity or dispute fields",
+        )
+    };
+    let content: payments_grpc::EventContent = serde_json::from_slice(bytes).map_err(|_| fail())?;
+    let response = match content.content {
+        Some(payments_grpc::event_content::Content::DisputesResponse(response)) => response,
+        _ => return Err(fail()),
+    };
+    let seller = response
+        .connector_transaction_id
+        .as_deref()
+        .filter(|v| !v.trim().is_empty())
+        .ok_or_else(fail)?;
+    let matches_saved = attempt.connector_transaction_id.as_deref() == Some(seller)
+        || attempt.connector_metadata.as_ref().is_some_and(|metadata| {
+            ["capture_id", "authorize_id"]
+                .iter()
+                .any(|key| metadata.get(key).and_then(serde_json::Value::as_str) == Some(seller))
+                || metadata
+                    .get("capture_context")
+                    .and_then(|v| v.get("capture_amounts"))
+                    .and_then(serde_json::Value::as_object)
+                    .is_some_and(|v| v.contains_key(seller))
+        });
+    if response.error.is_some() || !matches_saved {
+        return Err(fail());
+    }
+    let money = response.dispute_amount.as_ref().ok_or_else(fail)?;
+    if money.minor_amount < 0 {
+        return Err(fail());
+    }
+    let currency =
+        common_enums::Currency::foreign_try_from(money.currency()).map_err(|_| fail())?;
+    let amount = AmountConvertor::convert(
+        &StringMinorUnitForConnector,
+        common_utils::types::MinorUnit::new(money.minor_amount),
+        currency,
+    )
+    .map_err(|_| fail())?;
+    let dispute_stage = match response.dispute_stage() {
+        payments_grpc::DisputeStage::PreDispute => common_enums::DisputeStage::PreDispute,
+        payments_grpc::DisputeStage::ActiveDispute => common_enums::DisputeStage::Dispute,
+        payments_grpc::DisputeStage::PreArbitration => common_enums::DisputeStage::PreArbitration,
+        _ => return Err(fail()),
+    };
+    let timestamp = |value: Option<i64>| -> CustomResult<Option<time::PrimitiveDateTime>, errors::ApiErrorResponse> {
+        value.map(|n| time::OffsetDateTime::from_unix_timestamp(n)
+            .map(|date| time::PrimitiveDateTime::new(date.date(),date.time())).map_err(|_| fail())).transpose()
+    };
+    let id = response
+        .connector_dispute_id
+        .clone()
+        .filter(|v| !v.trim().is_empty())
+        .ok_or_else(fail)?;
+    let status = response
+        .connector_status_code
+        .clone()
+        .filter(|v| !v.trim().is_empty())
+        .ok_or_else(fail)?;
+    Ok(api::disputes::DisputePayload {
+        amount,
+        currency,
+        dispute_stage,
+        connector_status: status,
+        connector_dispute_id: id,
+        connector_reason: response.dispute_message.clone(),
+        connector_reason_code: response.dispute_reason.clone(),
+        challenge_required_by: timestamp(response.due_date)?,
+        created_at: timestamp(response.dispute_date)?,
+        updated_at: None,
+        additional_details: None,
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 async fn disputes_incoming_webhook_flow(
@@ -3234,6 +3443,7 @@ async fn disputes_incoming_webhook_flow(
     request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
     webhook_resource_data: Option<WebhookResourceData>,
+    content: &super::gateway::WebhookContent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(1, &[]);
     if source_verified {
@@ -3253,9 +3463,14 @@ async fn disputes_incoming_webhook_flow(
         let resource_data = WebhookResourceData::Payment {
             payment_attempt: payment_attempt.clone(),
         };
-        let dispute_details = connector
-            .get_dispute_details(request_details, Some(&WebhookContext::from(&resource_data)))
-            .switch()?;
+        let dispute_details = match content {
+            super::gateway::WebhookContent::Direct(_) => connector
+                .get_dispute_details(request_details, Some(&WebhookContext::from(&resource_data)))
+                .switch()?,
+            super::gateway::WebhookContent::UnifiedConnectorService(bytes) => {
+                dispute_payload_from_ucs(bytes, &payment_attempt)?
+            }
+        };
 
         let option_dispute = db
             .find_by_processor_merchant_id_payment_id_connector_dispute_id(

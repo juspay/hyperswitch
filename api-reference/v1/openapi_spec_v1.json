@@ -25566,6 +25566,16 @@
           "eci_indicator"
         ],
         "properties": {
+          "message_expiration": {
+            "type": "string",
+            "description": "Original signed Google Pay envelope expiry, when available.",
+            "nullable": true
+          },
+          "message_id": {
+            "type": "string",
+            "description": "Original signed Google Pay envelope identifier, when available.",
+            "nullable": true
+          },
           "auth_method": {
             "allOf": [
               {

@@ -708,6 +708,8 @@ impl TryFrom<ApplePayPredecryptDataInternal> for common_payment_types::ApplePayP
 impl From<GooglePayPredecryptDataInternal> for common_payment_types::GPayPredecryptData {
     fn from(data: GooglePayPredecryptDataInternal) -> Self {
         Self {
+            message_expiration: Some(data.message_expiration),
+            message_id: Some(data.message_id),
             auth_method: Some(data.payment_method_details.auth_method),
             card_exp_month: Secret::new(data.payment_method_details.expiration_month.two_digits()),
             card_exp_year: Secret::new(data.payment_method_details.expiration_year.four_digits()),

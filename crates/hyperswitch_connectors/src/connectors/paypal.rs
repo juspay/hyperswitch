@@ -2727,6 +2727,52 @@ static PAYPAL_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
 ];
 
 impl ConnectorSpecifications for Paypal {
+    // PayPal Orders has no separate device bootstrap call. The native Authenticate
+    // order is selected only on primary UCS; Direct keeps its existing Authorize flow.
+    fn is_authentication_flow_required_for_execution(
+        &self,
+        current_flow: api::CurrentFlowInfo,
+        execution_path: common_enums::ExecutionPath,
+    ) -> bool {
+        if execution_path != common_enums::ExecutionPath::UnifiedConnectorService {
+            return self.is_authentication_flow_required(current_flow);
+        }
+        matches!(current_flow, api::CurrentFlowInfo::Authorize { auth_type: enums::AuthenticationType::ThreeDs, request_data }
+            if matches!(request_data.payment_method_data, PaymentMethodData::Card(_)))
+    }
+
+    fn is_post_authentication_flow_required_for_execution(
+        &self,
+        current_flow: api::CurrentFlowInfo,
+        execution_path: common_enums::ExecutionPath,
+    ) -> bool {
+        if execution_path != common_enums::ExecutionPath::UnifiedConnectorService {
+            return self.is_post_authentication_flow_required(current_flow);
+        }
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { request_data, .. } => {
+                request_data.metadata.as_ref().is_some_and(|metadata| {
+                    metadata.get("native_3ds").is_some()
+                        || metadata.get("authentication_order_context").is_some()
+                })
+            }
+            api::CurrentFlowInfo::CompleteAuthorize {
+                request_data,
+                payment_method,
+                ..
+            } => {
+                payment_method == Some(enums::PaymentMethod::Card)
+                    || request_data.connector_meta.as_ref().is_some_and(|meta| {
+                        meta.get("continuation")
+                            .is_some_and(serde_json::Value::is_object)
+                            || meta
+                                .get("order_id")
+                                .is_some_and(serde_json::Value::is_string)
+                    })
+            }
+            _ => false,
+        }
+    }
     fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => false,
