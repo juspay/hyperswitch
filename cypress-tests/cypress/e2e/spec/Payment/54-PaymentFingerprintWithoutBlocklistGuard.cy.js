@@ -4,6 +4,12 @@ import getConnectorDetails from "../../configs/Payment/Utils";
 
 let globalState;
 
+// PR #14510's fix lives in the `Domain::populate_payment_fingerprint` override on the
+// `PaymentConfirm` operation, which only runs through the separate POST
+// /payments/{id}/confirm step (`cy.confirmCallTest`) — not through a combined
+// create-and-confirm POST /payments call, which uses the `PaymentCreate` operation and
+// never reaches that override. Using create-then-confirm here is required for this test
+// to actually exercise the fix, not incidental styling.
 describe("Payment fingerprint is generated regardless of the blocklist guard", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -18,18 +24,26 @@ describe("Payment fingerprint is generated regardless of the blocklist guard", (
   context(
     "Card payment with the blocklist guard disabled (the default) still gets a fingerprint",
     () => {
-      it("create-confirm-payment", () => {
+      it("create-payment-intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["No3DSAutoCapture"];
+        ]["PaymentIntent"];
 
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
         );
+      });
+
+      it("confirm-payment", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
       });
 
       it("retrieve-payment-and-check-fingerprint", () => {
