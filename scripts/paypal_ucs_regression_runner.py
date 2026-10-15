@@ -893,6 +893,8 @@ def emission_source_proof(proof, source, ucs_repo, connector_absent=True):
         assert review_data['repository'] == name and review_data['source_commit'] == source[name.lower()]['source_commit']
         assert review_data['causal_explanation'] == item['causal_explanation']
         assert review_data['anchors'] == item['anchors']
+        if connector_absent:
+            assert review_data.get('connector_event_absence_allowed') is True, 'source review does not authorize connector-event absence'
         roles = {'unsupported_return', 'provider_http_dispatch'} if name == 'UCS' else {'unsupported_return'}
         if connector_absent:
             roles.add('connector_event_emission')
@@ -906,6 +908,46 @@ def emission_source_proof(proof, source, ucs_repo, connector_absent=True):
             assert 1 <= anchor['line_start'] <= anchor['line_end'] <= len(lines)
             excerpt = b''.join(lines[anchor['line_start'] - 1:anchor['line_end']])
             assert digest(excerpt) == anchor['excerpt_sha256']
+    return True
+
+
+def wallet_connector_event(event, mode, canary, source):
+    """Only the source-bound no-wallet access-token event is auxiliary proof."""
+    payload = json.loads(event) if isinstance(event, str) and event.lstrip().startswith('{') else tracing_json_value(event) if isinstance(event, str) else event
+    assert isinstance(payload, dict)
+    assert canary not in canonical(payload), 'public inert canary leaked; content withheld'
+    flow = payload.get('flow')
+    if flow == 'AccessTokenAuth':
+        request_value = payload.get('request')
+        request_value = json.loads(request_value) if isinstance(request_value, str) else request_value
+        if not isinstance(request_value, dict) or set(request_value) != {'merchant_access_token_id', 'connector', 'test_mode'}:
+            raise AssertionError('access-token auxiliary request schema differs from reviewed source')
+        sensitive = {'wallet', 'apple_pay', 'google_pay', 'apple_pay_sdk', 'google_pay_sdk',
+            'payment_method_data', 'payment_data', 'tokenization_data', 'cryptogram', 'online_payment_cryptogram'}
+        def contains_wallet(value):
+            if isinstance(value, dict):
+                return bool(set(value) & sensitive) or any(contains_wallet(item) for item in value.values())
+            if isinstance(value, list):
+                return any(contains_wallet(item) for item in value)
+            if isinstance(value, str) and value.lstrip().startswith(('{', '[')):
+                try:
+                    return contains_wallet(json.loads(value))
+                except ValueError:
+                    return False
+            return False
+        assert not contains_wallet(payload), 'wallet-bearing auxiliary event cannot be excluded'
+        # Bind this exact request/flow exemption to the actual running HS source.
+        anchors = {
+            'crates/router/src/core/payments/gateway/access_token_gateway.rs': 'f3bee70e329e57fc512505bc2abf97300145b654c7adf4b00dce44b102d04c34',
+            'crates/router/src/core/unified_connector_service.rs': '090df9d99d7d93ce5784411e73d234348f235641d1c89e5ebed151f93c783abc',
+        }
+        for path, sha in anchors.items():
+            if digest(git(ROOT, 'show', source['hs']['source_commit'] + ':' + path)) != sha:
+                raise GsmUnavailable('access-token auxiliary schema needs current source review')
+        return False  # Never satisfies required Authorize wallet proof.
+    if flow != 'Authorize':
+        raise GsmUnavailable('unknown connector flow cannot certify the wallet mask')
+    assert masked_wallet_field(payload, mode, 'ConnectorApiLogs'), 'observed Authorize wallet event is not correctly masked'
     return True
 
 
@@ -946,7 +988,10 @@ def applicable_wallet_mask_preflight(paths, source, config):
                     continue
                 if wanted == 'ConnectorApiLogs':
                     connector_seen = True
-                assert masked_wallet_field(extra.get('event'), mode, wanted, require_typed_marker=(mode == 'google_psp' and wanted == 'ApiLogs')), 'observed wallet event is not correctly masked'
+                    if not wallet_connector_event(extra.get('event'), mode, canary, source):
+                        continue
+                else:
+                    assert masked_wallet_field(extra.get('event'), mode, wanted, require_typed_marker=(mode == 'google_psp')), 'observed wallet event is not correctly masked'
                 if subject.encode() not in line:
                     raise GsmUnavailable('observed connector/API event cannot be correlated to the actual payment subject')
                 if wanted == 'ApiLogs':
@@ -957,6 +1002,8 @@ def applicable_wallet_mask_preflight(paths, source, config):
                 matched[sink] = digest(line)
         if 'application' not in matched:
             raise GsmUnavailable('current correlated exact wallet API mask is absent')
+        if connector_seen and 'connector_event' not in matched:
+            raise GsmUnavailable('auxiliary events cannot replace the required Authorize wallet mask')
         provider = observation['provider_http_window']
         if not isinstance(provider, dict) or not {'before', 'after'} <= set(provider):
             raise GsmUnavailable('actual BEFORE/AFTER owned provider proof observations are unavailable')
