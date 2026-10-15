@@ -72,7 +72,13 @@ impl NonceSequence {
         deja::id(
             component = "common_utils::crypto",
             operation = "GcmAes256::nonce",
+            // Ok-only: `ring::error::Unspecified` is not serializable, and a
+            // recorded `Err` fail-stops replay.
             codec = ResultOkCodec,
+            // Exactly `NONCE_LEN` bytes, matching the low 96 bits `current` reads.
+            on_miss = Ok(Self::from_bytes(deja::synth::bytes::<{ aead::NONCE_LEN }>(
+                &__deja_miss,
+            ))),
         )
     )]
     fn new() -> Result<Self, ring::error::Unspecified> {
@@ -653,6 +659,8 @@ impl EncodeMessage for TripleDesEde3CBC {
     deja::id(
         component = "common_utils::crypto",
         operation = "generate_cryptographically_secure_random_string",
+        // Same `[A-Za-z0-9]` alphabet as `rand::distributions::Alphanumeric`.
+        on_miss = { use crate::synth_shape::Synthesize as _; __deja_miss.alphanumeric(length) },
         codec = SerdeCodec,
     )
 )]
@@ -920,6 +928,8 @@ pub fn extract_rsa_public_key_components(
     deja::id(
         component = "common_utils::crypto",
         operation = "secure_random_bytes",
+        // Exactly `length` bytes: `SeamedOsRng` turns a short vector into zeros.
+        on_miss = { use crate::synth_shape::Synthesize as _; __deja_miss.byte_vec(length) },
         codec = SerdeCodec,
     )
 )]
@@ -1457,5 +1467,25 @@ mod crypto_tests {
             .expect("Right signature verification result");
 
         assert!(right_verified);
+    }
+}
+
+#[cfg(all(test, feature = "deja"))]
+mod deja_tests {
+    /// The nonce seam captures the `Ok` side only, read from its declaration
+    /// since the codec is not observable at run time.
+    #[test]
+    fn the_seam_selects_the_ok_only_codec() {
+        let source = include_str!("crypto.rs");
+        let (_, after_operation) = source
+            .split_once("operation = \"GcmAes256::nonce\",")
+            .expect("the seam must declare its operation");
+        let (declaration, _) = after_operation
+            .split_once(")]")
+            .expect("the seam's attribute must be closed");
+        assert!(
+            declaration.contains("codec = ResultOkCodec"),
+            "the nonce seam captures the Ok side only: {declaration}"
+        );
     }
 }
