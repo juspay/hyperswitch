@@ -10168,6 +10168,38 @@ where
     }
 }
 
+/// Resolve gateway-specific advice without changing the generic network lookup.
+/// PayPal's payment advice 02 is advisory guidance, never GSM retry permission.
+pub fn get_connector_merchant_advice(
+    config: &MerchantAdviceCodeLookupConfig,
+    connector: &str,
+    off_session: Option<bool>,
+    network: Option<common_enums::CardNetwork>,
+    advice_code: Option<String>,
+) -> Option<MerchantAdviceCodeConfig> {
+    if connector == "paypal" && off_session == Some(true) && advice_code.as_deref() == Some("02") {
+        let (recommended_action, description) = match network {
+            Some(common_enums::CardNetwork::Visa) => (
+                common_enums::RecommendedAction::DoNotRetry,
+                "Do not retry this same recurring transaction. A payment in the next billing period may continue; this does not stop the recurring agreement.",
+            ),
+            Some(common_enums::CardNetwork::Mastercard) => (
+                common_enums::RecommendedAction::RetryLater,
+                "Retry no earlier than 72 hours after this decline. This is advisory only; Hyperswitch does not schedule or enforce this delay.",
+            ),
+            _ => (
+                common_enums::RecommendedAction::DoNotRetry,
+                "Do not retry automatically: a trusted Visa or Mastercard network is required to interpret PayPal payment advice 02.",
+            ),
+        };
+        return Some(MerchantAdviceCodeConfig {
+            recommended_action,
+            description: description.to_owned(),
+        });
+    }
+    get_merchant_advice_code_config(config, off_session, network, advice_code).cloned()
+}
+
 /// Lookup merchant advice code configuration for MIT transactions.
 pub fn get_merchant_advice_code_config(
     config: &MerchantAdviceCodeLookupConfig,

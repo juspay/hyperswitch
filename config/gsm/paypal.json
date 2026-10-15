@@ -3,7 +3,8 @@
   "vendor_documentation": "https://developer.paypal.com/sandbox-testing/card-testing/",
   "scope": "GLOBAL five-part key; explicit operator import only; no automatic migration or merchant scope",
   "lookup": "Issuer-first Network:Visa|IssuerCode:<processor_code> as BOTH code and message; exact connector fallback code/message; only proven Visa network.",
-  "positive_smart_retry": "SPEC_GAP: no documented positive retry permission; no Retry rule authored.",
+  "positive_smart_retry": "Documented Mastercard payment advice 02 permits retry no earlier than 72 hours after decline; Visa 02 forbids resubmitting the same recurring transaction. SPEC_GAP: HS v1 immediate GSM does not consume network advice or enforce delays; no positive Retry rule authored. HS v2 wait_time bridge remains unproven.",
+  "positive_policy_sources": ["https://developer.paypal.com/api/orders/v2/schema.json", "https://raw.githubusercontent.com/paypal/PayPal-Java-Server-SDK/main/doc/models/payment-advice-code.md"],
   "rules": [
     {
       "connector": "paypal",

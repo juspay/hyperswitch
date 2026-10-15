@@ -723,9 +723,10 @@ where
                 None
             };
 
-            // For MIT transactions, lookup recommended action and description from merchant_advice_codes config
-            let merchant_advice = payments_helpers::get_merchant_advice_code_config(
+            // Resolve connector-aware MIT advice; this guidance does not authorize an immediate retry.
+            let merchant_advice = payments_helpers::get_connector_merchant_advice(
                 &state.conf.merchant_advice_codes,
+                &router_data.connector,
                 payment_data.get_payment_intent().off_session,
                 card_network.clone(),
                 error_response.network_advice_code.clone(),
@@ -755,8 +756,8 @@ where
                 issuer_error_message: Some(error_response.network_error_message.clone()),
                 network_details: Some(Some(ForeignFrom::foreign_from(error_response))),
                 network_error_message: Some(error_response.network_error_message.clone()),
-                advice_message: Some(merchant_advice.map(|m| m.description.clone())),
-                recommended_action: Some(merchant_advice.map(|m| m.recommended_action)),
+                advice_message: Some(merchant_advice.as_ref().map(|m| m.description.clone())),
+                recommended_action: Some(merchant_advice.as_ref().map(|m| m.recommended_action)),
                 card_network: payment_data.get_payment_attempt().extract_card_network(),
             };
 

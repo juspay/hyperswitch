@@ -791,6 +791,240 @@ def first_authorize_config_preflight(operator, source, base, token, body):
         'source_sha256': digest(canonical(source)), 'observed_at_ns': time.time_ns()}
 
 
+PHASE_BASE_URL_KEY = 'CS__CONNECTORS__PAYPAL__BASE_URL'
+PHASE_VENDOR_URL = 'https://api-m.sandbox.paypal.com/'
+
+
+def _phase_environment(pid):
+    pairs = [entry.split(b'=', 1) for entry in Path(f'/proc/{pid}/environ').read_bytes().split(b'\0') if b'=' in entry]
+    environment = dict(pairs)
+    assert len(environment) == len(pairs), 'duplicate environment keys cannot establish identity'
+    key = PHASE_BASE_URL_KEY.encode()
+    return {'base_url': environment[key].decode(),
+        'keyset_sha256': digest(b'\0'.join(sorted(environment))),
+        'except_base_url_sha256': digest(b'\0'.join(k + b'=' + v for k, v in sorted(environment.items()) if k != key))}
+
+
+def _phase_runtime(config):
+    assert set(config) == {'hs_build_receipt', 'ucs_build_receipt', 'ucs_repo', 'ucs_endpoint', 'env_producer'}
+    source = {'hs': runtime(ROOT, Path(config['hs_build_receipt']), 'router', os.environ['HYPERSWITCH_BASE_URL']),
+        'ucs': runtime(Path(config['ucs_repo']), Path(config['ucs_build_receipt']), 'grpc-server', config['ucs_endpoint']),
+        'runner_sha256': digest(Path(__file__).read_bytes()), 'fixtures_sha256': digest(FIXTURES.read_bytes())}
+    actual_route(source, config['ucs_endpoint'])
+    assert Path(f'/proc/{source["ucs"]["pid"]}/cwd').resolve(strict=True) == Path(config['ucs_repo']).resolve(strict=True)
+    return source
+
+
+def _phase_producer(config):
+    # The standalone ENV command calls these committed consumer helpers. Its
+    # actual script, not this imported module, owns the stop/start provenance.
+    import sys
+    expected = config['env_producer']
+    assert set(expected) == {'path', 'sha256'}
+    script = Path(sys.argv[0]).resolve(strict=True)
+    assert script == Path(expected['path']).resolve(strict=True)
+    command = Path('/proc/self/cmdline').read_bytes().split(b'\0')
+    assert [Path(arg.decode()).resolve() for arg in command if arg.endswith(b'.py')] == [script]
+    assert digest(script.read_bytes()) == expected['sha256']
+    return {'kind': 'ENV_owned_runtime_transition', 'producer_source_path': str(script),
+        'producer_source_sha256': expected['sha256'], 'recorded_at_ns': time.time_ns()}
+
+
+def _phase_kernel_start_ns(binding):
+    tick_ns = 1_000_000_000 // os.sysconf('SC_CLK_TCK')
+    return time.time_ns() - time.clock_gettime_ns(time.CLOCK_BOOTTIME) + int(binding['process_start_ticks']) * tick_ns
+
+
+def _phase_hs_identity(source, operator):
+    snapshots = snapshot_log_sinks(operator, source)
+    return {'endpoint': os.environ['HYPERSWITCH_BASE_URL'], 'pid': source['hs']['pid'],
+        'process_start_ticks': source['hs']['process_start_ticks'],
+        'sinks': {name: {key: str(value) if key == 'path' else value for key, value in snapshot.items()
+            if key in {'path', 'fd', 'pid', 'device', 'inode'}} for name, snapshot in snapshots.items()}}
+
+
+def _phase_pid_still_same(binding):
+    try:
+        fields = Path(f'/proc/{binding["pid"]}/stat').read_text().split(') ', 1)[1].split()
+    except FileNotFoundError:
+        return False
+    return fields[0] != 'Z' and fields[19] == binding['process_start_ticks']
+
+
+def _phase_fixture_prefix(binding):
+    required = {'pid', 'process_start_ticks', 'executable_sha256', 'source_path', 'source_sha256',
+        'canary_sha256', 'observed_ucs_pid', 'endpoint', 'observation_prefix_count', 'observation_prefix_sha256', 'operation_sha256'}
+    assert set(binding) == required and _phase_pid_still_same(binding)
+    assert digest(Path(f'/proc/{binding["pid"]}/exe').read_bytes()) == binding['executable_sha256']
+    script = Path(binding['source_path']).resolve(strict=True)
+    assert digest(script.read_bytes()) == binding['source_sha256'] == INERT_PROVIDER_OBSERVER_SHA256
+    assert str(script).encode() in Path(f'/proc/{binding["pid"]}/cmdline').read_bytes().split(b'\0')
+    url = urllib.parse.urlsplit(binding['endpoint'])
+    assert url.scheme == 'http' and url.hostname in {'127.0.0.1', 'localhost'} and url.port and not url.username
+    assert url.path in {'', '/'} and not url.query and not url.fragment
+    assert listener(binding['endpoint'], Path(f'/proc/{binding["pid"]}/exe').resolve()) == binding['pid']
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *_args, **_kwargs):
+            return None
+    with urllib.request.build_opener(NoRedirect()).open(binding['endpoint'].rstrip('/') + '/proof', timeout=10) as response:
+        assert response.status == 200
+        wire = response.read(16 * 1024 * 1024 + 1)
+        assert len(wire) <= 16 * 1024 * 1024
+    value = json.loads(wire)
+    assert set(value) == {'operation', 'inert_wallet_canary_received', 'actual_primary_ucs', 'observations'}
+    assert digest(canonical(value['operation'])) == binding['operation_sha256'], 'fixture was rearmed after the gate'
+    count = binding['observation_prefix_count']
+    assert type(count) is int and count >= 0 and len(value['observations']) >= count
+    assert digest(canonical(value['observations'][:count])) == binding['observation_prefix_sha256']
+    return value['observations'][:count]
+
+
+def begin_mask_phase_handoff(path, source, operator, runtime_config, report_paths, gate_result_path):
+    """ENV calls before stopping its owned UCS. No process mutation occurs here."""
+    assert source == _phase_runtime(runtime_config)
+    env = _phase_environment(source['ucs']['pid'])
+    snapshot = provider_observation_snapshot(source)
+    assert env['base_url'] == snapshot['binding']['endpoint']
+    states = applicable_wallet_mask_preflight(report_paths, source, operator['provider']['wallet_mask_config'])
+    completed = time.time_ns()
+    gate = {'schema': 'paypal-local-mask-gate/1', 'source': source, 'states': states,
+        'completed_at_ns': completed, 'consumer_sha256': digest(Path(__file__).read_bytes())}
+    assert not Path(path).exists() and not Path(gate_result_path).exists()
+    atomic(Path(gate_result_path), gate)
+    prefix = snapshot['actual_response']['observations']
+    fixture = {**snapshot['binding'], 'observation_prefix_count': len(prefix), 'observation_prefix_sha256': digest(canonical(prefix)),
+        'operation_sha256': digest(canonical(snapshot['actual_response']['operation']))}
+    _phase_fixture_prefix(fixture)
+    value = {'schema': 'paypal-local-vendor-mask-handoff/1',
+        'producer': _phase_producer(runtime_config),
+        'local_mask_gate': {'report_paths': [str(Path(p).resolve()) for p in report_paths],
+            'report_sha256': [digest(Path(p).read_bytes()) for p in report_paths],
+            'gate_result_path': str(Path(gate_result_path).resolve()), 'gate_result_sha256': digest(Path(gate_result_path).read_bytes()),
+            'completed_at_ns': completed, 'source': source},
+        'before': {'source': source, 'hs_listener_log_fds': _phase_hs_identity(source, operator),
+            'ucs_endpoint': runtime_config['ucs_endpoint'], 'observed_at_ns': time.time_ns()},
+        'transition': {'old_ucs_stopped_at_ns': None, 'new_ucs_started_at_ns': None,
+            'old_ucs_pid_start_ticks': {'pid': source['ucs']['pid'], 'process_start_ticks': source['ucs']['process_start_ticks']},
+            'new_ucs_pid_start_ticks': None, 'base_url_env_key': PHASE_BASE_URL_KEY,
+            'base_url_before': env['base_url'], 'base_url_after': None,
+            'environment_keyset_sha256_before': env['keyset_sha256'], 'environment_keyset_sha256_after': None,
+            'environment_except_base_url_sha256_before': env['except_base_url_sha256'],
+            'environment_except_base_url_sha256_after': None, 'changed_environment_keys': None,
+            'fixture_binding': fixture}, 'after': None}
+    atomic(Path(path), value)
+    return value
+
+
+def observe_mask_phase_old_stop(path):
+    """ENV calls after the owned stop and before starting a replacement UCS."""
+    value = json.loads(Path(path).read_text())
+    assert value['after'] is None and not _phase_pid_still_same(value['before']['source']['ucs'])
+    if value['transition']['old_ucs_stopped_at_ns'] is None:
+        value['transition']['old_ucs_stopped_at_ns'] = time.time_ns()
+        atomic(Path(path), value)
+    return value['transition']['old_ucs_stopped_at_ns']
+
+
+def finish_mask_phase_handoff(path, source, operator, runtime_config):
+    """ENV calls after actual replacement startup; environment hashes stay aggregate."""
+    assert source == _phase_runtime(runtime_config)
+    value = json.loads(Path(path).read_text())
+    assert value['after'] is None and value['transition']['old_ucs_stopped_at_ns'] is not None
+    env = _phase_environment(source['ucs']['pid'])
+    # Kernel process start ticks use CLOCK_BOOTTIME. Floor to its tick precision;
+    # ENV must not start a replacement in the same tick as the stop observation.
+    started = _phase_kernel_start_ns(source['ucs'])
+    transition = value['transition']
+    assert transition['old_ucs_stopped_at_ns'] <= started
+    transition.update(new_ucs_started_at_ns=started,
+        new_ucs_pid_start_ticks={'pid': source['ucs']['pid'], 'process_start_ticks': source['ucs']['process_start_ticks']},
+        base_url_after=env['base_url'], environment_keyset_sha256_after=env['keyset_sha256'],
+        environment_except_base_url_sha256_after=env['except_base_url_sha256'],
+        changed_environment_keys=[PHASE_BASE_URL_KEY] if transition['base_url_before'] != env['base_url']
+            and transition['environment_keyset_sha256_before'] == env['keyset_sha256']
+            and transition['environment_except_base_url_sha256_before'] == env['except_base_url_sha256'] else [])
+    value['after'] = {'source': source, 'hs_listener_log_fds': _phase_hs_identity(source, operator),
+        'ucs_endpoint': runtime_config['ucs_endpoint'], 'observed_at_ns': time.time_ns()}
+    producer = _phase_producer(runtime_config)
+    assert {k: value['producer'][k] for k in producer if k != 'recorded_at_ns'} == {k: producer[k] for k in producer if k != 'recorded_at_ns'}
+    value['producer'] = producer
+    # Validate fully before publishing a completed transition.
+    _validate_mask_phase_handoff(value, source, operator, runtime_config)
+    atomic(Path(path), value)
+    return value
+
+
+def _validate_mask_phase_handoff(value, source, operator, runtime_config):
+    assert set(value) == {'schema', 'producer', 'local_mask_gate', 'before', 'transition', 'after'}
+    assert value['schema'] == 'paypal-local-vendor-mask-handoff/1'
+    producer, local, before, transition, after = (value[k] for k in ['producer', 'local_mask_gate', 'before', 'transition', 'after'])
+    assert set(producer) == {'kind', 'producer_source_path', 'producer_source_sha256', 'recorded_at_ns'}
+    assert producer['kind'] == 'ENV_owned_runtime_transition'
+    expected_producer = runtime_config['env_producer']
+    assert set(expected_producer) == {'path', 'sha256'}
+    assert Path(producer['producer_source_path']).resolve(strict=True) == Path(expected_producer['path']).resolve(strict=True)
+    assert producer['producer_source_sha256'] == expected_producer['sha256'] == digest(Path(expected_producer['path']).read_bytes())
+    assert source['runner_sha256'] == digest(Path(__file__).read_bytes())
+    assert set(local) == {'report_paths', 'report_sha256', 'gate_result_path', 'gate_result_sha256', 'completed_at_ns', 'source'}
+    assert all(set(item) == {'source', 'hs_listener_log_fds', 'ucs_endpoint', 'observed_at_ns'} for item in [before, after])
+    keys = {'old_ucs_stopped_at_ns', 'new_ucs_started_at_ns', 'old_ucs_pid_start_ticks', 'new_ucs_pid_start_ticks',
+        'base_url_env_key', 'base_url_before', 'base_url_after', 'environment_keyset_sha256_before',
+        'environment_keyset_sha256_after', 'environment_except_base_url_sha256_before',
+        'environment_except_base_url_sha256_after', 'changed_environment_keys', 'fixture_binding'}
+    assert set(transition) == keys
+    old = before['source']
+    assert local['source'] == old and after['source'] == source == _phase_runtime(runtime_config)
+    assert set(old) == set(source) and set(old['ucs']) == set(source['ucs'])
+    assert all(old[key] == source[key] for key in source if key != 'ucs')
+    assert {k: v for k, v in old['ucs'].items() if k not in {'pid', 'process_start_ticks'}} == {k: v for k, v in source['ucs'].items() if k not in {'pid', 'process_start_ticks'}}
+    assert old['ucs']['pid'] != source['ucs']['pid'] and not _phase_pid_still_same(old['ucs'])
+    assert before['hs_listener_log_fds'] == after['hs_listener_log_fds'] == _phase_hs_identity(source, operator)
+    assert transition['old_ucs_pid_start_ticks'] == {k: old['ucs'][k] for k in ['pid', 'process_start_ticks']}
+    assert transition['new_ucs_pid_start_ticks'] == {k: source['ucs'][k] for k in ['pid', 'process_start_ticks']}
+    assert before['ucs_endpoint'] == after['ucs_endpoint'] == runtime_config['ucs_endpoint']
+    actual_start = _phase_kernel_start_ns(source['ucs'])
+    assert abs(transition['new_ucs_started_at_ns'] - actual_start) <= 2 * (1_000_000_000 // os.sysconf('SC_CLK_TCK'))
+    assert transition['old_ucs_stopped_at_ns'] <= actual_start
+    env = _phase_environment(source['ucs']['pid'])
+    assert transition['base_url_env_key'] == PHASE_BASE_URL_KEY
+    assert transition['base_url_after'] == env['base_url'] == PHASE_VENDOR_URL
+    fixture = transition['fixture_binding']
+    assert transition['base_url_before'] == fixture['endpoint'] and fixture['observed_ucs_pid'] == old['ucs']['pid']
+    assert transition['changed_environment_keys'] == [PHASE_BASE_URL_KEY]
+    for prefix, actual in [('environment_keyset_sha256', env['keyset_sha256']), ('environment_except_base_url_sha256', env['except_base_url_sha256'])]:
+        assert transition[prefix + '_before'] == transition[prefix + '_after'] == actual
+    _phase_fixture_prefix(fixture)
+    times = [local['completed_at_ns'], before['observed_at_ns'], transition['old_ucs_stopped_at_ns'], transition['new_ucs_started_at_ns'], after['observed_at_ns'], producer['recorded_at_ns'], time.time_ns()]
+    assert all(type(t) is int and t > 0 for t in times) and times == sorted(times)
+    assert len(local['report_paths']) == len(local['report_sha256']) > 0
+    assert [digest(Path(p).read_bytes()) for p in local['report_paths']] == local['report_sha256']
+    # Each report retains its own actual before/after observation window. /arm
+    # legitimately resets between canaries; only the gate-time live fixture
+    # prefix must persist through the transition. Its operation is a reset
+    # detector, never evidence that a wallet request reached the provider.
+    gate_path = Path(local['gate_result_path'])
+    assert digest(gate_path.read_bytes()) == local['gate_result_sha256']
+    gate = json.loads(gate_path.read_text())
+    assert set(gate) == {'schema', 'source', 'states', 'completed_at_ns', 'consumer_sha256'}
+    assert gate['schema'] == 'paypal-local-mask-gate/1' and gate['source'] == old
+    assert gate['completed_at_ns'] == local['completed_at_ns'] and gate['consumer_sha256'] == source['runner_sha256']
+    states = applicable_wallet_mask_preflight(local['report_paths'], old, operator['provider']['wallet_mask_config'], historical_ucs_repo=runtime_config['ucs_repo'])
+    assert gate['states'] == states
+    return {'state': 'PRIOR_LOCAL_HS_MASK_GATE_REVALIDATED', 'states': states,
+        'current_vendor_wire_mask_verified': False, 'current_provider_outcome_verified': False}
+
+
+def provider_wallet_mask_preflight(operator, source):
+    cfg = operator['provider']
+    if 'mask_phase_handoff' not in cfg:
+        return applicable_wallet_mask_preflight(cfg['wallet_mask_receipts'], source, cfg['wallet_mask_config'])
+    assert operator['kind'] == 'provider_live', 'LOCAL/GSM cannot use a vendor phase handoff'
+    if 'phase_runtime' not in cfg:
+        raise GsmUnavailable('actual phase runtime/build receipt configuration is missing')
+    value = json.loads(Path(cfg['mask_phase_handoff']).read_text())
+    return _validate_mask_phase_handoff(value, source, operator, cfg['phase_runtime'])
+
+
 def provider_preflight(operator, source, base, token, first_body=None):
     cfg = operator.get('provider')
     if not cfg:
@@ -798,7 +1032,7 @@ def provider_preflight(operator, source, base, token, first_body=None):
     environment = dict(item.split(b'=', 1) for item in Path(f'/proc/{source["ucs"]["pid"]}/environ').read_bytes().split(b'\0') if b'=' in item)
     assert environment.get(b'CS__CONNECTORS__PAYPAL__BASE_URL') == b'https://api-m.sandbox.paypal.com/'
     # The mask precondition applies to financial cases independently of GSM.
-    applicable_wallet_mask_preflight(cfg['wallet_mask_receipts'], source, cfg['wallet_mask_config'])
+    mask_preflight = provider_wallet_mask_preflight(operator, source)
     merchant, mca = cfg['merchant_id'], cfg['merchant_connector_id']
     assert all(re.fullmatch(r'[A-Za-z0-9_-]{1,128}', item) for item in [merchant, mca])
     status, account, _ = request(base, 'GET', '/account/' + merchant + '/connectors/' + mca,
@@ -812,7 +1046,8 @@ def provider_preflight(operator, source, base, token, first_body=None):
     assert credentials.get('key1') == os.environ[cfg['client_id_env']]
     assert credentials.get('api_key') == os.environ[cfg['client_secret_env']]
     if first_body is not None:
-        return first_authorize_config_preflight(operator, source, base, token, first_body)
+        result = first_authorize_config_preflight(operator, source, base, token, first_body)
+        return {**result, 'wallet_mask_preflight': mask_preflight}
     pre_path = cfg['route_preflight_path']
     query = urllib.parse.parse_qs(urllib.parse.urlsplit(pre_path).query)
     assert query.get('force_sync') == ['true'] and query.get('expand_attempts') == ['true']
@@ -824,7 +1059,68 @@ def provider_preflight(operator, source, base, token, first_body=None):
     assert payment['payment_id'] == cfg['route_preflight_payment_id']
     pre_operator = {**operator, 'provider': {**cfg, 'expected': cfg['pre_expected']}}
     evidence = provider_state_observation(pre_operator, payment, source, snapshots, identity, 'PSync')
-    return evidence
+    return {**evidence, 'wallet_mask_preflight': mask_preflight}
+
+
+def mac_fixture_preflight(case, operator, source):
+    """Inspect the actual inert producer, never an expected-result proof endpoint."""
+    if operator['kind'] != 'production_fixture':
+        raise GsmUnavailable('MAC advisory probes require an owned inert connector fixture')
+    if case['mac_advice']['stage'] == 'retry':
+        raise GsmUnavailable('actual retry-stage persistence producer is not provisioned; helper guidance is not runtime evidence')
+    cfg = operator.get('mac_fixture')
+    if not cfg:
+        raise GsmUnavailable('actual vendor-schema MAC02 fixture response is not provisioned')
+    applicable_wallet_mask_preflight(cfg['wallet_mask_receipts'], source, cfg['wallet_mask_config'])
+    environment = dict(item.split(b'=', 1) for item in Path(f'/proc/{source["ucs"]["pid"]}/environ').read_bytes().split(b'\0') if b'=' in item)
+    url = urllib.parse.urlsplit(environment.get(b'CS__CONNECTORS__PAYPAL__BASE_URL', b'').decode())
+    assert url.scheme == 'http' and url.hostname in {'127.0.0.1', 'localhost'} and url.port and not url.username
+    listeners = subprocess.check_output(['ss', '-H', '-ltnp', 'sport = :' + str(url.port)], stderr=subprocess.DEVNULL).decode()
+    pids = {int(pid) for pid in re.findall(r'pid=(\d+)', listeners)}
+    assert pids == {cfg['fixture_pid']}
+    pid = pids.pop()
+    scripts = [Path(arg.decode()).resolve() for arg in Path(f'/proc/{pid}/cmdline').read_bytes().split(b'\0') if arg.endswith(b'.py')]
+    if len(scripts) != 1:
+        raise GsmUnavailable('actual structured HTTP fixture source cannot be inspected')
+    content = scripts[0].read_bytes()
+    responses = []
+    for node in ast.walk(ast.parse(content)):
+        if not isinstance(node, ast.Dict):
+            continue
+        try:
+            value = ast.literal_eval(node)
+        except (ValueError, TypeError, SyntaxError):
+            continue
+        processor = value.get('processor_response') if isinstance(value, dict) else None
+        if isinstance(processor, dict) and processor.get('payment_advice_code') == '02' and processor.get('response_code') == case['mac_advice']['decline_code']:
+            responses.append(digest(canonical(value)))
+    if not responses:
+        raise GsmUnavailable('existing producer has no actual vendor-schema payment_advice_code02 response')
+    return {'fixture_pid': pid, 'source_sha256': digest(content), 'response_schema_sha256': sorted(set(responses)),
+        'provider_live_verification': False, 'literal_wire_observed': False}
+
+
+def check_mac_advice(value, spec):
+    assert at(value, '/network_details/network_advice_code') == '02'
+    assert at(value, '/issuer_error_code') == spec['decline_code'] and spec['decline_code'] != '02'
+    action = at(value, '/error_details/unified_details/recommended_action')
+    message = at(value, '/error_details/issuer_details/network_details/advice_message')
+    if spec['off_session'] is not True:
+        assert action is None and message is None
+    elif spec['connector'] == 'paypal':
+        if spec['network'] == 'Mastercard':
+            assert action == 'retry_later' and message == 'Retry no earlier than 72 hours after this decline. This is advisory only; Hyperswitch does not schedule or enforce this delay.'
+        elif spec['network'] == 'Visa':
+            assert action == 'do_not_retry' and message == 'Do not retry this same recurring transaction. A payment in the next billing period may continue; this does not stop the recurring agreement.'
+        else:
+            assert action == 'do_not_retry' and message == 'Do not retry automatically: a trusted Visa or Mastercard network is required to interpret PayPal payment advice 02.'
+    else:
+        # The generic configuration is the immutable operator-supplied expected
+        # value, not a value copied from the response being graded.
+        check(value, spec['generic_expected'])
+    return {'raw_advice_preserved': True, 'distinct_decline_preserved': True,
+        'recommended_action': action, 'advice_message_sha256': digest(canonical(message)),
+        'timer_enforced': False, 'provider_live_verification': False}
 
 
 def run_case(case, context, journal, journal_path, source, base):
@@ -921,6 +1217,23 @@ def run_case(case, context, journal, journal_path, source, base):
             provider_before_state = provider_preflight(operator, source, base, token,
                 first_body=body if method == 'POST' and path == '/payments' else None)
         route_snapshots = snapshot_log_sinks(operator, source) if operator['kind'] == 'provider_live' else None
+        if case.get('mac_advice'):
+            assert body.get('off_session') is case['mac_advice']['off_session']
+            if case['mac_advice']['connector'] != 'paypal':
+                raise GsmUnavailable('actual non-PayPal generic-advice fixture is not provisioned')
+            arm = case['mac_advice'].get('payment_method_arm', 'card')
+            if arm.startswith(('apple_', 'google_')):
+                if arm == 'google_psp':
+                    raise GsmUnavailable('Google PSP encrypted API carrier is NOT_APPLICABLE_API_CARRIER_UNAVAILABLE; no advice delivery can be verified')
+                assert wallet_log_mode(body) == arm
+            elif arm == 'card_no_cvc':
+                raise GsmUnavailable('public missing CVC alone does not prove the internal CardNoCvc arm; actual stored-card construction is required')
+            elif arm == 'card':
+                assert body['payment_method'] == 'card' and 'card' in body['payment_method_data']
+            else:
+                raise GsmUnavailable('trusted public NetworkToken construction needs an actual provisioned token source')
+        mac_origin = mac_fixture_preflight(case, operator, source) if case.get('mac_advice') else None
+        mac_snapshots = snapshot_log_sinks(operator, source) if mac_origin else None
         log_mode = wallet_log_mode(body) if case.get('log_canary') else None
         log_snapshots = snapshot_log_sinks(operator, source) if case.get('log_canary') else None
         provider_before = provider_observation_snapshot(source) if case.get('log_canary') else None
@@ -1001,6 +1314,20 @@ def run_case(case, context, journal, journal_path, source, base):
             assert len(set(ids)) == len(ids)
             assert all(row['status'] == 'charged' and row['currency'] == expected_rows['currency']
                 and row['authorized_attempt_id'] == bindings['attempt_id'] for row in rows)
+        mac_evidence = None
+        if mac_origin:
+            assert response['payment_id'] == bindings['payment_id'] and state['payment_id'] == bindings['payment_id']
+            check_mac_advice(response, case['mac_advice'])
+            mac_evidence = check_mac_advice(state, case['mac_advice'])
+            attempt, attempt_origin = owned_active_attempt(state, {'provider': operator['mac_fixture']}, source)
+            assert at(attempt, '/error_details/issuer_details/network_details/name') == case['mac_advice']['network']
+            persisted = {'network_details': {'network_advice_code': at(attempt, '/error_details/issuer_details/network_details/advice_code')},
+                'issuer_error_code': at(attempt, '/error_details/issuer_details/code'), 'error_details': attempt['error_details']}
+            check_mac_advice(persisted, case['mac_advice'])
+            mac_evidence.update(active_attempt_id=attempt['attempt_id'], active_attempt_origin=attempt_origin)
+            route = primary_route_observation(mac_snapshots, source, response_identity, bindings['payment_id'],
+                operator['mac_fixture']['merchant_id'], 'Authorize')
+            mac_evidence.update(origin=mac_origin, route=route, stage='initial')
         proof = None
         provider_evidence = None
         if operator['kind'] == 'provider_live':
@@ -1051,7 +1378,7 @@ def run_case(case, context, journal, journal_path, source, base):
                   'provider_verification': False, 'requested_evidence_kind': operator['kind'],
                   'current_mapping_verified': False, 'vendor_wire_verified': vendor_wire_verified,
                   'provider_state_verified': bool(provider_evidence), 'provider_state_observation': provider_evidence,
-                  'log_sink_evidence': log_evidence,
+                  'log_sink_evidence': log_evidence, 'mac_advice_observation': mac_evidence,
                   'unresolved_capture_rows': [{'capture_id': row.get('capture_id'), 'preserved_status': row.get('status')}
                       for row in (state.get('captures') or []) if not row.get('connector_capture_id')
                         or row.get('connector_capture_id') not in (((state.get('connector_metadata') or {}).get('capture_context') or {}).get('capture_amounts') or {})] if isinstance(state, dict) else [],
@@ -1297,7 +1624,7 @@ def wallet_connector_event(event, mode, canary, source):
     return True
 
 
-def applicable_wallet_mask_preflight(paths, source, config):
+def applicable_wallet_mask_preflight(paths, source, config, historical_ucs_repo=None):
     states = {}
     for path in paths:
         report = json.loads(Path(path).read_text())
@@ -1403,7 +1730,7 @@ def applicable_wallet_mask_preflight(paths, source, config):
         if absent:
             assert not connector_seen
         emission_source_proof(source_proof, source,
-            Path(f'/proc/{source["ucs"]["pid"]}/cwd').resolve(strict=True), connector_absent=absent)
+            Path(historical_ucs_repo).resolve(strict=True) if historical_ucs_repo else Path(f'/proc/{source["ucs"]["pid"]}/cwd').resolve(strict=True), connector_absent=absent)
         connector_state = 'NOT_APPLICABLE_API_CARRIER_UNAVAILABLE' if absent else 'OBSERVED_MASKED'
         exception = observation['vendor_exception']
         assert exception == {'url': 'https://developer.paypal.com/api/orders/v2/schema.json',

@@ -2579,6 +2579,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
 // A private current-call observation. Pending local capture amounts reserve
 // funds; they are never a substitute for actual collected money.
 #[cfg(feature = "v1")]
+type PaypalValidatedOrderObservation = (
+    i64,
+    bool,
+    bool,
+    serde_json::Value,
+    Vec<(storage::Capture, storage::CaptureUpdate)>,
+);
+
+#[cfg(feature = "v1")]
 struct PaypalOrderObservation {
     captured: Option<MinorUnit>,
     capturable: MinorUnit,
@@ -2706,8 +2715,11 @@ fn preserve_owned_paypal_capture<F: Clone, T>(
         let already_bound_elsewhere = captures
             .get_capture_by_connector_capture_id(&selected)
             .is_some_and(|capture| capture_reference != Some(capture.capture_id.as_str()));
-        if matching.len() == 1 && !already_bound_elsewhere {
-            let capture = matching[0];
+        let capture = matching
+            .first()
+            .copied()
+            .filter(|_| matching.len() == 1 && !already_bound_elsewhere);
+        if let Some(capture) = capture {
             observation.updates.push((
                 capture.clone(),
                 storage::CaptureUpdate::ResponseUpdate {
@@ -2744,43 +2756,94 @@ fn paypal_order_observation<F: Clone, T>(
         },
         updates: Vec::new(),
     };
-    let validate = || -> Option<(i64, bool, bool, serde_json::Value, Vec<(storage::Capture,storage::CaptureUpdate)>)> {
+    let validate = || -> Option<PaypalValidatedOrderObservation> {
         let currency = payment.payment_attempt.currency?;
-        let authorized = payment.payment_attempt.authorized_amount.unwrap_or_else(|| payment.payment_attempt.get_total_amount()).get_amount_as_i64();
-        if authorized < 0 { return None; }
+        let authorized = payment
+            .payment_attempt
+            .authorized_amount
+            .unwrap_or_else(|| payment.payment_attempt.get_total_amount())
+            .get_amount_as_i64();
+        if authorized < 0 {
+            return None;
+        }
         let (metadata, resource, _response_reference) = match &data.response {
-            Ok(types::PaymentsResponseData::TransactionResponse { connector_metadata: Some(metadata), resource_id, connector_response_reference_id, .. }) => (metadata, resource_id, connector_response_reference_id.as_deref()),
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                connector_metadata: Some(metadata),
+                resource_id,
+                connector_response_reference_id,
+                ..
+            }) => (
+                metadata,
+                resource_id,
+                connector_response_reference_id.as_deref(),
+            ),
             _ => return None,
         };
         let saved = payment.payment_attempt.connector_metadata.as_ref();
-        let order = metadata.get("order_id")?.as_str().filter(|v| !v.is_empty())?;
-        let expected_order = saved.and_then(|v| v.get("order_id")).and_then(serde_json::Value::as_str)
+        let order = metadata
+            .get("order_id")?
+            .as_str()
+            .filter(|v| !v.is_empty())?;
+        let expected_order = saved
+            .and_then(|v| v.get("order_id"))
+            .and_then(serde_json::Value::as_str)
             .or(payment.payment_attempt.connector_transaction_id.as_deref())?;
-        if order != expected_order { return None; }
+        if order != expected_order {
+            return None;
+        }
         for field in ["authorize_id", "reference_id"] {
-            if let Some(expected) = saved.and_then(|v| v.get(field)).and_then(serde_json::Value::as_str) {
-                if metadata.get(field).and_then(serde_json::Value::as_str) != Some(expected) { return None; }
+            if let Some(expected) = saved
+                .and_then(|v| v.get(field))
+                .and_then(serde_json::Value::as_str)
+            {
+                if metadata.get(field).and_then(serde_json::Value::as_str) != Some(expected) {
+                    return None;
+                }
             }
         }
         let context = metadata.get("capture_context")?;
-        if paypal_ledger_amount(context.get("authorized_amount")?, currency)? != authorized { return None; }
-        let complete = context.get("capture_history_complete").and_then(serde_json::Value::as_bool) == Some(true);
-        let closed = context.get("authorization_closed").and_then(serde_json::Value::as_bool)?;
+        if paypal_ledger_amount(context.get("authorized_amount")?, currency)? != authorized {
+            return None;
+        }
+        let complete = context
+            .get("capture_history_complete")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true);
+        let closed = context
+            .get("authorization_closed")
+            .and_then(serde_json::Value::as_bool)?;
         let amounts = context.get("capture_amounts")?.as_object()?;
-        let mut ledger = std::collections::BTreeMap::<String,i64>::new();
-        for (id,money) in amounts {
-            if id.is_empty() || id.bytes().any(|v| !(v.is_ascii_alphanumeric() || v == b'-' || v == b'_')) { return None; }
-            let amount = paypal_ledger_amount(money,currency)?;
-            if amount <= 0 { return None; }
-            ledger.insert(id.clone(),amount);
+        let mut ledger = std::collections::BTreeMap::<String, i64>::new();
+        for (id, money) in amounts {
+            if id.is_empty()
+                || id
+                    .bytes()
+                    .any(|v| !(v.is_ascii_alphanumeric() || v == b'-' || v == b'_'))
+            {
+                return None;
+            }
+            let amount = paypal_ledger_amount(money, currency)?;
+            if amount <= 0 {
+                return None;
+            }
+            ledger.insert(id.clone(), amount);
         }
         // Complete current provider history cannot erase any owned prior fact.
         // Incomplete history retains a union of actual known resource IDs only.
-        if let Some(previous) = saved.and_then(|v| v.pointer("/capture_context/capture_amounts")).and_then(serde_json::Value::as_object) {
-            for (id,money) in previous {
-                let amount = paypal_ledger_amount(money,currency)?;
-                if ledger.get(id).is_some_and(|actual| *actual != amount) || (complete && !ledger.contains_key(id)) { return None; }
-                if amount > 0 { ledger.entry(id.clone()).or_insert(amount); }
+        if let Some(previous) = saved
+            .and_then(|v| v.pointer("/capture_context/capture_amounts"))
+            .and_then(serde_json::Value::as_object)
+        {
+            for (id, money) in previous {
+                let amount = paypal_ledger_amount(money, currency)?;
+                if ledger.get(id).is_some_and(|actual| *actual != amount)
+                    || (complete && !ledger.contains_key(id))
+                {
+                    return None;
+                }
+                if amount > 0 {
+                    ledger.entry(id.clone()).or_insert(amount);
+                }
             }
         }
         let mut unknown_charged_floor = 0_i64;
@@ -2789,7 +2852,9 @@ fn paypal_order_observation<F: Clone, T>(
                 if capture.status == enums::CaptureStatus::Charged {
                     let amount = capture.amount.get_amount_as_i64();
                     let Some(id) = capture.get_optional_connector_transaction_id() else {
-                        if capture.currency.is_some_and(|actual| actual != currency) || amount < 0 { return None; }
+                        if capture.currency.is_some_and(|actual| actual != currency) || amount < 0 {
+                            return None;
+                        }
                         // An unidentified historical Charged row is unresolved.
                         // It may duplicate any actual ledger resource, so never
                         // add it. Each known positive fact independently forbids
@@ -2797,18 +2862,38 @@ fn paypal_order_observation<F: Clone, T>(
                         unknown_charged_floor = unknown_charged_floor.max(amount);
                         continue;
                     };
-                    if capture.currency != Some(currency) || amount <= 0 || ledger.get(id).is_some_and(|v| *v != amount)
-                        || (complete && !ledger.contains_key(id)) { return None; }
+                    if capture.currency != Some(currency)
+                        || amount <= 0
+                        || ledger.get(id).is_some_and(|v| *v != amount)
+                        || (complete && !ledger.contains_key(id))
+                    {
+                        return None;
+                    }
                     ledger.entry(id.clone()).or_insert(amount);
                 }
             }
         }
-        let gross = ledger.values().try_fold(0_i64, |sum,amount| sum.checked_add(*amount))?;
-        if gross > authorized || gross < unknown_charged_floor
-            || prior.is_some_and(|known| known.get_amount_as_i64() > gross) { return None; }
-        if complete && gross == 0 && ledger.is_empty()
-            && [saved.and_then(|value| value.get("capture_id")), metadata.get("capture_id")]
-                .into_iter().flatten().filter_map(serde_json::Value::as_str).any(|id| !id.is_empty()) {
+        let gross = ledger
+            .values()
+            .try_fold(0_i64, |sum, amount| sum.checked_add(*amount))?;
+        if gross > authorized
+            || gross < unknown_charged_floor
+            || prior.is_some_and(|known| known.get_amount_as_i64() > gross)
+        {
+            return None;
+        }
+        if complete
+            && gross == 0
+            && ledger.is_empty()
+            && [
+                saved.and_then(|value| value.get("capture_id")),
+                metadata.get("capture_id"),
+            ]
+            .into_iter()
+            .flatten()
+            .filter_map(serde_json::Value::as_str)
+            .any(|id| !id.is_empty())
+        {
             // A complete empty zero cannot erase an already known capture ID,
             // regardless of whether common Money was None or explicitly zero.
             return None;
@@ -2817,66 +2902,117 @@ fn paypal_order_observation<F: Clone, T>(
             let selected = metadata.get("capture_id")?.as_str()?;
             let amount = *ledger.get(selected)?;
             match resource {
-                types::ResponseId::ConnectorTransactionId(observed) if observed == order || observed == selected => {},
+                types::ResponseId::ConnectorTransactionId(observed)
+                    if observed == order || observed == selected => {}
                 _ => return None,
             }
             // Capture common Money is this operation's resource amount, while
             // PSync common Money is the whole Order aggregate. Never compare a
             // second USD30 Capture operation to a USD60 two-resource ledger.
-            if data.amount_captured != Some(amount) { return None; }
+            if data.amount_captured != Some(amount) {
+                return None;
+            }
             if let Some(local) = captures {
                 let reference = capture_reference?;
-                let matching: Vec<_> = local.get_all_captures().into_iter()
-                    .filter(|capture| capture.capture_id == reference).collect();
-                if matching.len() != 1 { return None; }
-                let capture = matching[0];
+                let matching: Vec<_> = local
+                    .get_all_captures()
+                    .into_iter()
+                    .filter(|capture| capture.capture_id == reference)
+                    .collect();
+                if matching.len() != 1 {
+                    return None;
+                }
+                let capture = matching.first().copied()?;
                 if capture.payment_id != payment.payment_attempt.payment_id
                     || capture.merchant_id != payment.payment_attempt.merchant_id
                     || capture.authorized_attempt_id != payment.payment_attempt.attempt_id
-                    || capture.currency != Some(currency) || capture.amount.get_amount_as_i64() != amount
-                    || capture.get_optional_connector_transaction_id().is_some_and(|id| id != selected)
-                    || local.get_capture_by_connector_capture_id(&selected.to_owned())
-                        .is_some_and(|existing| existing.capture_id != reference) { return None; }
+                    || capture.currency != Some(currency)
+                    || capture.amount.get_amount_as_i64() != amount
+                    || capture
+                        .get_optional_connector_transaction_id()
+                        .is_some_and(|id| id != selected)
+                    || local
+                        .get_capture_by_connector_capture_id(&selected.to_owned())
+                        .is_some_and(|existing| existing.capture_id != reference)
+                {
+                    return None;
+                }
             }
-
         } else if complete && data.amount_captured != Some(gross) {
-            let owned_empty_sync = operation == "PSync" && gross == 0 && ledger.is_empty()
+            let owned_empty_sync = operation == "PSync"
+                && gross == 0
+                && ledger.is_empty()
                 && data.amount_captured.is_none()
-                && saved.and_then(|value| value.get("capture_id")).and_then(serde_json::Value::as_str)
-                    .map_or(true, str::is_empty);
-            let certified_closed = owned_empty_sync && closed && data.status == enums::AttemptStatus::Voided;
-            let proven_open_hold = owned_empty_sync && !closed && data.status == enums::AttemptStatus::Authorized;
-            if !certified_closed && !proven_open_hold { return None; }
+                && saved
+                    .and_then(|value| value.get("capture_id"))
+                    .and_then(serde_json::Value::as_str)
+                    .is_none_or(str::is_empty);
+            let certified_closed =
+                owned_empty_sync && closed && data.status == enums::AttemptStatus::Voided;
+            let proven_open_hold =
+                owned_empty_sync && !closed && data.status == enums::AttemptStatus::Authorized;
+            if !certified_closed && !proven_open_hold {
+                return None;
+            }
         }
         // Qualified zero MUST NOT contradict actual HS funds even if legacy UCS
         // metadata forgot the original capture ID/map.
-        if gross == 0 && prior.is_some_and(|known| known.get_amount_as_i64() > 0) { return None; }
+        if gross == 0 && prior.is_some_and(|known| known.get_amount_as_i64() > 0) {
+            return None;
+        }
         let mut updates = Vec::new();
         if let Some(local) = captures {
-            for (id,amount) in &ledger {
+            for (id, amount) in &ledger {
                 let exact = local.get_capture_by_connector_capture_id(id);
-                let by_reference = if exact.is_none() && operation == "Capture"
-                    && metadata.get("capture_id").and_then(serde_json::Value::as_str) == Some(id.as_str()) {
-                    let matches: Vec<_> = local.get_all_captures().into_iter()
-                        .filter(|capture| capture.get_optional_connector_transaction_id().is_none()
-                            && capture_reference == Some(capture.capture_id.as_str())).collect();
-                    if matches.len() == 1 { matches.first().copied() } else { None }
-                } else { None };
+                let by_reference = if exact.is_none()
+                    && operation == "Capture"
+                    && metadata
+                        .get("capture_id")
+                        .and_then(serde_json::Value::as_str)
+                        == Some(id.as_str())
+                {
+                    let matches: Vec<_> = local
+                        .get_all_captures()
+                        .into_iter()
+                        .filter(|capture| {
+                            capture.get_optional_connector_transaction_id().is_none()
+                                && capture_reference == Some(capture.capture_id.as_str())
+                        })
+                        .collect();
+                    if matches.len() == 1 {
+                        matches.first().copied()
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
                 if let Some(capture) = exact.or(by_reference) {
-                    if capture.currency != Some(currency) || capture.amount.get_amount_as_i64() != *amount
+                    if capture.currency != Some(currency)
+                        || capture.amount.get_amount_as_i64() != *amount
                         || capture.payment_id != payment.payment_attempt.payment_id
                         || capture.merchant_id != payment.payment_attempt.merchant_id
-                        || capture.authorized_attempt_id != payment.payment_attempt.attempt_id { return None; }
-                    updates.push((capture.clone(),storage::CaptureUpdate::ResponseUpdate {
-                        status: enums::CaptureStatus::Charged,
-                        connector_capture_id: Some(ConnectorTransactionId::form_id_and_data(id.clone()).0),
-                        connector_response_reference_id: capture.connector_response_reference_id.clone(),
-                        processor_capture_data: capture.processor_capture_data.clone(),
-                    }));
+                        || capture.authorized_attempt_id != payment.payment_attempt.attempt_id
+                    {
+                        return None;
+                    }
+                    updates.push((
+                        capture.clone(),
+                        storage::CaptureUpdate::ResponseUpdate {
+                            status: enums::CaptureStatus::Charged,
+                            connector_capture_id: Some(
+                                ConnectorTransactionId::form_id_and_data(id.clone()).0,
+                            ),
+                            connector_response_reference_id: capture
+                                .connector_response_reference_id
+                                .clone(),
+                            processor_capture_data: capture.processor_capture_data.clone(),
+                        },
+                    ));
                 }
             }
         }
-        Some((gross,complete,closed,metadata.clone(),updates))
+        Some((gross, complete, closed, metadata.clone(), updates))
     };
     if let Some((gross, complete, closed, _metadata, updates)) = validate() {
         result.captured = if gross > 0
@@ -2929,7 +3065,7 @@ fn paypal_order_observation<F: Clone, T>(
         error.attempt_status = Some(result.status);
     } else if operation == "PSync"
         && data.status == enums::AttemptStatus::Authorized
-        && prior.map_or(true, |amount| amount.get_amount_as_i64() == 0)
+        && prior.is_none_or(|amount| amount.get_amount_as_i64() == 0)
         && payment.payment_attempt.capture_method != Some(enums::CaptureMethod::ManualMultiple)
     {
         // Legacy owned Authorization GET can still prove an open ordinary hold.
@@ -3170,13 +3306,17 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         .as_ref()
                         .and_then(|gsm| gsm.user_guidance_message.clone());
 
-                    // For MIT transactions, lookup recommended action and description from merchant_advice_codes config
-                    let merchant_advice = payments_helpers::get_merchant_advice_code_config(
+                    // Resolve connector-aware MIT advice; this guidance does not authorize an immediate retry.
+                    let merchant_advice = payments_helpers::get_connector_merchant_advice(
                         &state.conf.merchant_advice_codes,
+                        &router_data.connector,
                         payment_data.payment_intent.off_session,
                         card_network.clone(),
                         err.network_advice_code.clone(),
                     );
+
+                    let advice_message = merchant_advice.as_ref().map(|m| m.description.clone());
+                    let recommended_action = merchant_advice.as_ref().map(|m| m.recommended_action);
 
                     let (unified_code, unified_message) = if let Some((code, message)) =
                         gsm_unified_code.as_ref().zip(gsm_unified_message.as_ref())
@@ -3263,11 +3403,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             issuer_error_message: Some(err.network_error_message.clone()),
                             network_details: Some(Some(ForeignFrom::foreign_from(&err))),
                             network_error_message: Some(err.network_error_message.clone()),
-                            advice_message: Some(merchant_advice.map(|m| m.description.clone())),
+                            advice_message: Some(advice_message),
                             connector_response_reference_id: err
                                 .connector_response_reference_id
                                 .clone(),
-                            recommended_action: Some(merchant_advice.map(|m| m.recommended_action)),
+                            recommended_action: Some(recommended_action),
                             card_network: payment_data.payment_attempt.extract_card_network(),
                         }),
                         option_gsm.and_then(|option_gsm| option_gsm.error_category),

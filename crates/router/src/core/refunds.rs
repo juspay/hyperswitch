@@ -511,7 +511,7 @@ pub async fn refund_create_core(
                 || attempt.attempt_id != *payment_intent.active_attempt.get_id()
                 || payment_intent
                     .amount_captured
-                    .map_or(true, |amount| amount <= MinorUnit::new(0))
+                    .is_none_or(|amount| amount <= MinorUnit::new(0))
                 || !unified_connector_service::primary_paypal_operation::<api::Execute>(
                     &state,
                     platform.get_processor(),
@@ -874,7 +874,7 @@ pub async fn trigger_refund_to_gateway(
                 )
             };
 
-            let refund_status = ucs_status.or_else(|| match err.status_code {
+            let refund_status = ucs_status.or(match err.status_code {
                 // If status code is 5xx, we do not change the refund status here
                 500..=511 => None,
                 // For other errors, we mark the refund as Failure, since these are definite failures
@@ -1527,7 +1527,7 @@ pub async fn sync_refund_with_gateway(
                 (None, None)
             };
 
-            let refund_status = ucs_status.or_else(|| match error_message.status_code {
+            let refund_status = ucs_status.or(match error_message.status_code {
                 // marking failure for 2xx because this is genuine refund failure
                 200..=299 => Some(enums::RefundStatus::Failure),
                 _ => None,

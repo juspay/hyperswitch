@@ -8285,15 +8285,14 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayTransactionInfo> for GpayTr
     }
 }
 
+type NativeObservedReferences = (
+    Box<Option<hyperswitch_domain_models::router_response_types::MandateReference>>,
+    Option<String>,
+);
+
 fn native_observed_references(
     metadata: Option<&serde_json::Value>,
-) -> Result<
-    (
-        Box<Option<hyperswitch_domain_models::router_response_types::MandateReference>>,
-        Option<String>,
-    ),
-    error_stack::Report<UnifiedConnectorServiceError>,
-> {
+) -> Result<NativeObservedReferences, error_stack::Report<UnifiedConnectorServiceError>> {
     let fail = || {
         error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
             .attach_printable("Invalid versioned native payment reference metadata")

@@ -2302,6 +2302,1160 @@
         "provider_policy": "do_not_retry_same_card",
         "full_positive_smart_retry": "SPEC_GAP_NOT_RUN"
       }
+    },
+    {
+      "id": "mac02_initial_visa_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Visa",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_mastercard_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Mastercard",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_unknown_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": null,
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_visa_cit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Visa",
+        "off_session": false,
+        "connector": "paypal",
+        "decline_code": "0500"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_visa_unspecified",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Visa",
+        "off_session": null,
+        "connector": "paypal",
+        "decline_code": "0500"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_nonpaypal_generic",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Visa",
+        "off_session": true,
+        "connector": "stripe",
+        "decline_code": "0500",
+        "generic_expected": {
+          "/error_details/unified_details/recommended_action": "retry_later",
+          "/error_details/issuer_details/network_details/advice_message": "The issuer cannot approve at this time (limit the reattempts with the same card to a maximum of 20 times within 30 days)"
+        }
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_retry_visa_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "retry",
+        "network": "Visa",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_retry_mastercard_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "retry",
+        "network": "Mastercard",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_retry_unknown_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "retry",
+        "network": null,
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_retry_visa_cit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "retry",
+        "network": "Visa",
+        "off_session": false,
+        "connector": "paypal",
+        "decline_code": "0500"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_retry_visa_unspecified",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "retry",
+        "network": "Visa",
+        "off_session": null,
+        "connector": "paypal",
+        "decline_code": "0500"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_retry_nonpaypal_generic",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "retry",
+        "network": "Visa",
+        "off_session": true,
+        "connector": "stripe",
+        "decline_code": "0500",
+        "generic_expected": {
+          "/error_details/unified_details/recommended_action": "retry_later",
+          "/error_details/issuer_details/network_details/advice_message": "The issuer cannot approve at this time (limit the reattempts with the same card to a maximum of 20 times within 30 days)"
+        }
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_card_no_cvc_visa_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual card_no_cvc request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Visa",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "card_no_cvc"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_network_token_visa_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual network_token request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Visa",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "network_token"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_apple_hs_visa_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual apple_hs request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Visa",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "apple_hs"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_apple_psp_visa_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual apple_psp request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Visa",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "apple_psp"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_google_hs_visa_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual google_hs request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Visa",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "google_hs"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_google_psp_visa_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual google_psp request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Visa",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "google_psp"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_card_no_cvc_mastercard_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual card_no_cvc request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Mastercard",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "card_no_cvc"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_card_no_cvc_unknown_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual card_no_cvc request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": null,
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "card_no_cvc"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_network_token_mastercard_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual network_token request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Mastercard",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "network_token"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_network_token_unknown_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual network_token request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": null,
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "network_token"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_apple_hs_mastercard_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual apple_hs request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Mastercard",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "apple_hs"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_apple_hs_unknown_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual apple_hs request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": null,
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "apple_hs"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_apple_psp_mastercard_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual apple_psp request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Mastercard",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "apple_psp"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_apple_psp_unknown_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual apple_psp request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": null,
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "apple_psp"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_google_hs_mastercard_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual google_hs request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Mastercard",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "google_hs"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_google_hs_unknown_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual google_hs request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": null,
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "google_hs"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_google_psp_mastercard_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual google_psp request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": "Mastercard",
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "google_psp"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mac02_initial_google_psp_unknown_mit",
+      "group": "Authorize",
+      "requires": [
+        "owned inert vendor-schema processor_response.payment_advice_code=02 with distinct response_code=0500; current committed HS/UCS primary route and both mask sinks",
+        "actual trusted attempt card_network, off_session and failed connector; exact persisted error_details readback",
+        "actual initial/retry stage observation; missing producer is NOT_RUN, never helper-only runtime PASS",
+        "actual google_psp request and trusted stored network; Google PSP unavailable API carrier remains NOT_APPLICABLE, no fabricated advice delivery"
+      ],
+      "positive_money": [],
+      "mac_advice": {
+        "stage": "initial",
+        "network": null,
+        "off_session": true,
+        "connector": "paypal",
+        "decline_code": "0500",
+        "payment_method_arm": "google_psp"
+      },
+      "steps": [
+        {
+          "method": "POST",
+          "http_status": [
+            200
+          ],
+          "expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          },
+          "readback_expect": {
+            "/status": "failed",
+            "/payment_id": "@payment_id",
+            "/network_details/network_advice_code": "02",
+            "/issuer_error_code": "0500"
+          }
+        }
+      ]
     }
   ]
 }
