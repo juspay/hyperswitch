@@ -248,6 +248,21 @@ impl ConnectorValidation for Stripe {
             ),
         }
     }
+
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: common_enums::enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> CustomResult<(), ConnectorError> {
+        match data.connector_transaction_id.get_connector_transaction_id() {
+            Ok(_) => Ok(()),
+            // When the connector transaction id is missing, sync is done using the
+            // connector_request_reference_id sent as metadata[order_id] in the payment intent
+            Err(_) => Ok(()),
+        }
+    }
 }
 
 impl api::Payment for Stripe {}
@@ -883,7 +898,14 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
                 x,
                 "?expand[0]=latest_charge" //updated payment_id(if present) reside inside latest_charge field
             )),
-            x => x.change_context(ConnectorError::MissingConnectorTransactionID),
+            // If the connector transaction id is missing, sync the payment using the
+            // connector_request_reference_id which is sent as metadata[order_id] in the payment intent
+            Err(_) => Ok(format!(
+                "{}{}?query=metadata['order_id']:'{}'",
+                self.base_url(connectors),
+                "v1/payment_intents/search",
+                req.connector_request_reference_id,
+            )),
         }
     }
 
@@ -968,7 +990,56 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
                     router_data
                 })
             }
-            Err(err) => Err(err).change_context(ConnectorError::MissingConnectorTransactionID),
+            // Sync is done using the connector_request_reference_id sent as metadata[order_id]
+            // in the payment intent, the search api responds with a list of matching payment intents
+            Err(_) => {
+                let response: stripe::StripePaymentIntentSearchResponse = res
+                    .response
+                    .parse_struct("StripePaymentIntentSearchResponse")
+                    .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                match response.data.into_iter().next() {
+                    Some(response) => {
+                        let response_integrity_object = get_sync_integrity_object(
+                            self.amount_converter,
+                            response.amount,
+                            response.currency.clone(),
+                        )?;
+
+                        let new_router_data = RouterData::try_from(ResponseRouterData {
+                            response,
+                            data: data.clone(),
+                            http_code: res.status_code,
+                        });
+                        new_router_data.map(|mut router_data| {
+                            router_data.request.integrity_object = Some(response_integrity_object);
+                            router_data
+                        })
+                    }
+                    None => {
+                        let mut router_data = data.clone();
+                        router_data.response = Err(ErrorResponse {
+                            status_code: 404,
+                            code: NO_ERROR_CODE.to_string(),
+                            message:
+                                "No payment found at the processor for the given metadata order_id"
+                                    .to_string(),
+                            reason: None,
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                            connector_response_reference_id: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
+                            connector_metadata: None,
+                        });
+                        Ok(router_data)
+                    }
+                }
+            }
         }
     }
 

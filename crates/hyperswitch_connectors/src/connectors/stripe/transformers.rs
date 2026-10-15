@@ -3255,6 +3255,14 @@ impl Deref for PaymentIntentSyncResponse {
     }
 }
 
+/// Response struct for stripe's payment intents search api (v1/payment_intents/search),
+/// used in PSync when the connector transaction id is missing, where the payment intent
+/// is retrieved by searching on metadata[order_id] (connector_request_reference_id)
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StripePaymentIntentSearchResponse {
+    pub data: Vec<PaymentIntentSyncResponse>,
+}
+
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct StripeAdditionalCardDetails {
     checks: Option<Value>,
