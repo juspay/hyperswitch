@@ -11,7 +11,7 @@ index b35e809a0..749a5dd47 100644
  
 -    blocklist_fingerprint (id) {
 -        id -> Int4,
-+    blocklist (merchant_id, fingerprint_id, profile_id, transaction_type) {
++    blocklist (merchant_id, fingerprint_id) {
 +        #[max_length = 64]
 +        merchant_id -> Varchar,
 +        #[max_length = 64]

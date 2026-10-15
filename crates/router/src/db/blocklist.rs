@@ -205,7 +205,7 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         match transaction_type {
             Some(common_enums::BlocklistTransactionType::Payment) => {
-                storage::Blocklist::list_payment_by_processor_merchant_id_profile_id_fingerprint_id(
+                storage::Blocklist::list_by_processor_merchant_id_profile_id_fingerprint_id_for_payment(
                     &conn,
                     processor_merchant_id,
                     profile_id,
@@ -214,7 +214,7 @@ impl BlocklistInterface for Store {
                 .await
             }
             Some(common_enums::BlocklistTransactionType::Payout) => {
-                storage::Blocklist::list_payout_by_processor_merchant_id_profile_id_fingerprint_id(
+                storage::Blocklist::list_by_processor_merchant_id_profile_id_fingerprint_id_for_payout(
                     &conn,
                     processor_merchant_id,
                     profile_id,
@@ -247,7 +247,7 @@ impl BlocklistInterface for Store {
         // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
         let result = match transaction_type {
             common_enums::BlocklistTransactionType::Payment => {
-                storage::Blocklist::find_payment_by_processor_merchant_id_fingerprint_id(
+                storage::Blocklist::find_by_processor_merchant_id_fingerprint_id_for_payment(
                     &conn,
                     processor_merchant_id,
                     fingerprint_id,
@@ -255,7 +255,7 @@ impl BlocklistInterface for Store {
                 .await
             }
             common_enums::BlocklistTransactionType::Payout => {
-                storage::Blocklist::find_payout_by_processor_merchant_id_fingerprint_id(
+                storage::Blocklist::find_by_processor_merchant_id_fingerprint_id_for_payout(
                     &conn,
                     processor_merchant_id,
                     fingerprint_id,
@@ -273,7 +273,7 @@ impl BlocklistInterface for Store {
                 ) {
                     match transaction_type {
                         common_enums::BlocklistTransactionType::Payment => {
-                            storage::Blocklist::find_payment_by_merchant_id_fingerprint_id(
+                            storage::Blocklist::find_by_merchant_id_fingerprint_id_for_payment(
                                 &conn,
                                 processor_merchant_id,
                                 fingerprint_id,
@@ -281,7 +281,7 @@ impl BlocklistInterface for Store {
                             .await
                         }
                         common_enums::BlocklistTransactionType::Payout => {
-                            storage::Blocklist::find_payout_by_merchant_id_fingerprint_id(
+                            storage::Blocklist::find_by_merchant_id_fingerprint_id_for_payout(
                                 &conn,
                                 processor_merchant_id,
                                 fingerprint_id,
@@ -308,7 +308,7 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         let result = match transaction_type {
             common_enums::BlocklistTransactionType::Payment => {
-                storage::Blocklist::find_payment_by_processor_merchant_id_profile_id_fingerprint_id(
+                storage::Blocklist::find_by_processor_merchant_id_profile_id_fingerprint_id_for_payment(
                     &conn,
                     processor_merchant_id,
                     profile_id,
@@ -317,7 +317,7 @@ impl BlocklistInterface for Store {
                 .await
             }
             common_enums::BlocklistTransactionType::Payout => {
-                storage::Blocklist::find_payout_by_processor_merchant_id_profile_id_fingerprint_id(
+                storage::Blocklist::find_by_processor_merchant_id_profile_id_fingerprint_id_for_payout(
                     &conn,
                     processor_merchant_id,
                     profile_id,
@@ -336,7 +336,7 @@ impl BlocklistInterface for Store {
                 ) {
                     match transaction_type {
                                 common_enums::BlocklistTransactionType::Payment => {
-                                    storage::Blocklist::find_payment_by_merchant_id_profile_id_fingerprint_id(
+                                    storage::Blocklist::find_by_merchant_id_profile_id_fingerprint_id_for_payment(
                                         &conn,
                                         processor_merchant_id,
                                         profile_id,
@@ -344,7 +344,7 @@ impl BlocklistInterface for Store {
                                     ).await
                                 }
                                 common_enums::BlocklistTransactionType::Payout => {
-                                    storage::Blocklist::find_payout_by_merchant_id_profile_id_fingerprint_id(
+                                    storage::Blocklist::find_by_merchant_id_profile_id_fingerprint_id_for_payout(
                                         &conn,
                                         processor_merchant_id,
                                         profile_id,
@@ -371,7 +371,7 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         match transaction_type {
                     common_enums::BlocklistTransactionType::Payment => {
-                        storage::Blocklist::find_payment_by_processor_merchant_id_profile_id_fingerprint_ids(
+                        storage::Blocklist::find_by_processor_merchant_id_profile_id_fingerprint_ids_for_payment(
                             &conn,
                             processor_merchant_id,
                             profile_id,
@@ -379,7 +379,7 @@ impl BlocklistInterface for Store {
                         ).await
                     }
                     common_enums::BlocklistTransactionType::Payout => {
-                        storage::Blocklist::find_payout_by_processor_merchant_id_profile_id_fingerprint_ids(
+                        storage::Blocklist::find_by_processor_merchant_id_profile_id_fingerprint_ids_for_payout(
                             &conn,
                             processor_merchant_id,
                             profile_id,
@@ -401,7 +401,7 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         match transaction_type {
             common_enums::BlocklistTransactionType::Payment => {
-                storage::Blocklist::find_payment_by_processor_merchant_id_profile_id_card_bins(
+                storage::Blocklist::find_by_processor_merchant_id_profile_id_card_bins_for_payment(
                     &conn,
                     processor_merchant_id,
                     profile_id,
@@ -410,7 +410,7 @@ impl BlocklistInterface for Store {
                 .await
             }
             common_enums::BlocklistTransactionType::Payout => {
-                storage::Blocklist::find_payout_by_processor_merchant_id_profile_id_card_bins(
+                storage::Blocklist::find_by_processor_merchant_id_profile_id_card_bins_for_payout(
                     &conn,
                     processor_merchant_id,
                     profile_id,
@@ -431,14 +431,14 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         match transaction_type {
             common_enums::BlocklistTransactionType::Payment => {
-                storage::Blocklist::list_payment_by_processor_merchant_id(
+                storage::Blocklist::list_by_processor_merchant_id_for_payment(
                     &conn,
                     processor_merchant_id,
                 )
                 .await
             }
             common_enums::BlocklistTransactionType::Payout => {
-                storage::Blocklist::list_payout_by_processor_merchant_id(
+                storage::Blocklist::list_by_processor_merchant_id_for_payout(
                     &conn,
                     processor_merchant_id,
                 )
@@ -460,7 +460,7 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         match transaction_type {
             common_enums::BlocklistTransactionType::Payment => {
-                storage::Blocklist::list_payment_by_processor_merchant_id_data_kind(
+                storage::Blocklist::list_by_processor_merchant_id_data_kind_for_payment(
                     &conn,
                     processor_merchant_id,
                     data_kind,
@@ -470,7 +470,7 @@ impl BlocklistInterface for Store {
                 .await
             }
             common_enums::BlocklistTransactionType::Payout => {
-                storage::Blocklist::list_payout_by_processor_merchant_id_data_kind(
+                storage::Blocklist::list_by_processor_merchant_id_data_kind_for_payout(
                     &conn,
                     processor_merchant_id,
                     data_kind,
@@ -495,7 +495,7 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         match transaction_type {
             common_enums::BlocklistTransactionType::Payment => {
-                storage::Blocklist::get_payment_count_by_processor_merchant_id_data_kind(
+                storage::Blocklist::get_count_by_processor_merchant_id_data_kind_for_payment(
                     &conn,
                     processor_merchant_id,
                     data_kind,
@@ -503,7 +503,7 @@ impl BlocklistInterface for Store {
                 .await
             }
             common_enums::BlocklistTransactionType::Payout => {
-                storage::Blocklist::get_payout_count_by_processor_merchant_id_data_kind(
+                storage::Blocklist::get_count_by_processor_merchant_id_data_kind_for_payout(
                     &conn,
                     processor_merchant_id,
                     data_kind,
@@ -528,7 +528,7 @@ impl BlocklistInterface for Store {
         // For old records processor_merchant_id is NULL, so we delete by merchant_id (which has the same value)
         let result = match transaction_type {
             common_enums::BlocklistTransactionType::Payment => {
-                storage::Blocklist::delete_payment_by_processor_merchant_id_fingerprint_id(
+                storage::Blocklist::delete_by_processor_merchant_id_fingerprint_id_for_payment(
                     &conn,
                     processor_merchant_id,
                     fingerprint_id,
@@ -536,7 +536,7 @@ impl BlocklistInterface for Store {
                 .await
             }
             common_enums::BlocklistTransactionType::Payout => {
-                storage::Blocklist::delete_payout_by_processor_merchant_id_fingerprint_id(
+                storage::Blocklist::delete_by_processor_merchant_id_fingerprint_id_for_payout(
                     &conn,
                     processor_merchant_id,
                     fingerprint_id,
@@ -554,7 +554,7 @@ impl BlocklistInterface for Store {
                 ) {
                     match transaction_type {
                         common_enums::BlocklistTransactionType::Payment => {
-                            storage::Blocklist::delete_payment_by_merchant_id_fingerprint_id(
+                            storage::Blocklist::delete_by_merchant_id_fingerprint_id_for_payment(
                                 &conn,
                                 processor_merchant_id,
                                 fingerprint_id,
@@ -562,7 +562,7 @@ impl BlocklistInterface for Store {
                             .await
                         }
                         common_enums::BlocklistTransactionType::Payout => {
-                            storage::Blocklist::delete_payout_by_merchant_id_fingerprint_id(
+                            storage::Blocklist::delete_by_merchant_id_fingerprint_id_for_payout(
                                 &conn,
                                 processor_merchant_id,
                                 fingerprint_id,
@@ -589,7 +589,7 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         let result = match transaction_type {
                     common_enums::BlocklistTransactionType::Payment => {
-                        storage::Blocklist::delete_payment_by_processor_merchant_id_profile_id_fingerprint_id(
+                        storage::Blocklist::delete_by_processor_merchant_id_profile_id_fingerprint_id_for_payment(
                             &conn,
                             processor_merchant_id,
                             profile_id,
@@ -597,7 +597,7 @@ impl BlocklistInterface for Store {
                         ).await
                     }
                     common_enums::BlocklistTransactionType::Payout => {
-                        storage::Blocklist::delete_payout_by_processor_merchant_id_profile_id_fingerprint_id(
+                        storage::Blocklist::delete_by_processor_merchant_id_profile_id_fingerprint_id_for_payout(
                             &conn,
                             processor_merchant_id,
                             profile_id,
@@ -615,7 +615,7 @@ impl BlocklistInterface for Store {
                 ) {
                     match transaction_type {
                                 common_enums::BlocklistTransactionType::Payment => {
-                                    storage::Blocklist::delete_payment_by_merchant_id_profile_id_fingerprint_id(
+                                    storage::Blocklist::delete_by_merchant_id_profile_id_fingerprint_id_for_payment(
                                         &conn,
                                         processor_merchant_id,
                                         profile_id,
@@ -623,7 +623,7 @@ impl BlocklistInterface for Store {
                                     ).await
                                 }
                                 common_enums::BlocklistTransactionType::Payout => {
-                                    storage::Blocklist::delete_payout_by_merchant_id_profile_id_fingerprint_id(
+                                    storage::Blocklist::delete_by_merchant_id_profile_id_fingerprint_id_for_payout(
                                         &conn,
                                         processor_merchant_id,
                                         profile_id,
@@ -653,7 +653,7 @@ impl BlocklistInterface for Store {
         match profile_id {
             Some(profile_id) => match transaction_type {
                 common_enums::BlocklistTransactionType::Payment => {
-                    storage::Blocklist::list_payment_by_processor_merchant_id_profile_id_data_kind(
+                    storage::Blocklist::list_by_processor_merchant_id_profile_id_data_kind_for_payment(
                         &conn,
                         processor_merchant_id,
                         profile_id,
@@ -664,7 +664,7 @@ impl BlocklistInterface for Store {
                     .await
                 }
                 common_enums::BlocklistTransactionType::Payout => {
-                    storage::Blocklist::list_payout_by_processor_merchant_id_profile_id_data_kind(
+                    storage::Blocklist::list_by_processor_merchant_id_profile_id_data_kind_for_payout(
                         &conn,
                         processor_merchant_id,
                         profile_id,
@@ -677,7 +677,7 @@ impl BlocklistInterface for Store {
             },
             None => match transaction_type {
                 common_enums::BlocklistTransactionType::Payment => {
-                    storage::Blocklist::list_payment_by_processor_merchant_id_data_kind(
+                    storage::Blocklist::list_by_processor_merchant_id_data_kind_for_payment(
                         &conn,
                         processor_merchant_id,
                         data_kind,
@@ -687,7 +687,7 @@ impl BlocklistInterface for Store {
                     .await
                 }
                 common_enums::BlocklistTransactionType::Payout => {
-                    storage::Blocklist::list_payout_by_processor_merchant_id_data_kind(
+                    storage::Blocklist::list_by_processor_merchant_id_data_kind_for_payout(
                         &conn,
                         processor_merchant_id,
                         data_kind,
@@ -716,7 +716,7 @@ impl BlocklistInterface for Store {
         let conn = pg_connection_read_replica(self).await?;
         match transaction_type {
                     common_enums::BlocklistTransactionType::Payment => {
-                        storage::Blocklist::list_payment_after_fingerprint_by_processor_merchant_id_profile_id(
+                        storage::Blocklist::list_after_fingerprint_by_processor_merchant_id_profile_id_for_payment(
                             &conn,
                             processor_merchant_id,
                             profile_id,
@@ -726,7 +726,7 @@ impl BlocklistInterface for Store {
                         ).await
                     }
                     common_enums::BlocklistTransactionType::Payout => {
-                        storage::Blocklist::list_payout_after_fingerprint_by_processor_merchant_id_profile_id(
+                        storage::Blocklist::list_after_fingerprint_by_processor_merchant_id_profile_id_for_payout(
                             &conn,
                             processor_merchant_id,
                             profile_id,
@@ -752,7 +752,7 @@ impl BlocklistInterface for Store {
         let conn = pg_connection_read_replica(self).await?;
         match transaction_type {
             common_enums::BlocklistTransactionType::Payment => {
-                storage::Blocklist::list_payment_after_fingerprint_by_legacy_merchant_id_profile_id(
+                storage::Blocklist::list_after_fingerprint_by_legacy_merchant_id_profile_id_for_payment(
                     &conn,
                     merchant_id,
                     profile_id,
@@ -763,7 +763,7 @@ impl BlocklistInterface for Store {
                 .await
             }
             common_enums::BlocklistTransactionType::Payout => {
-                storage::Blocklist::list_payout_after_fingerprint_by_legacy_merchant_id_profile_id(
+                storage::Blocklist::list_after_fingerprint_by_legacy_merchant_id_profile_id_for_payout(
                     &conn,
                     merchant_id,
                     profile_id,
@@ -832,7 +832,7 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         match (profile_id, transaction_type) {
             (Some(profile_id), Some(common_enums::BlocklistTransactionType::Payment)) => {
-                storage::Blocklist::get_payment_count_by_processor_merchant_id_profile_id_data_kind(
+                storage::Blocklist::get_count_by_processor_merchant_id_profile_id_data_kind_for_payment(
                     &conn,
                     processor_merchant_id,
                     profile_id,
@@ -841,7 +841,7 @@ impl BlocklistInterface for Store {
                 .await
             }
             (Some(profile_id), Some(common_enums::BlocklistTransactionType::Payout)) => {
-                storage::Blocklist::get_payout_count_by_processor_merchant_id_profile_id_data_kind(
+                storage::Blocklist::get_count_by_processor_merchant_id_profile_id_data_kind_for_payout(
                     &conn,
                     processor_merchant_id,
                     profile_id,
@@ -859,7 +859,7 @@ impl BlocklistInterface for Store {
                 .await
             }
             (None, Some(common_enums::BlocklistTransactionType::Payment)) => {
-                storage::Blocklist::get_payment_count_by_processor_merchant_id_data_kind(
+                storage::Blocklist::get_count_by_processor_merchant_id_data_kind_for_payment(
                     &conn,
                     processor_merchant_id,
                     data_kind,
@@ -867,7 +867,7 @@ impl BlocklistInterface for Store {
                 .await
             }
             (None, Some(common_enums::BlocklistTransactionType::Payout)) => {
-                storage::Blocklist::get_payout_count_by_processor_merchant_id_data_kind(
+                storage::Blocklist::get_count_by_processor_merchant_id_data_kind_for_payout(
                     &conn,
                     processor_merchant_id,
                     data_kind,
@@ -899,12 +899,12 @@ impl BlocklistInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         match transaction_type {
             Some(common_enums::BlocklistTransactionType::Payment) => {
-                storage::Blocklist::count_payment_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+                storage::Blocklist::count_by_fingerprint_length_processor_merchant_id_profile_id_data_kind_for_payment(
                     &conn, processor_merchant_id, profile_id, data_kind,
                 ).await
             }
             Some(common_enums::BlocklistTransactionType::Payout) => {
-                storage::Blocklist::count_payout_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+                storage::Blocklist::count_by_fingerprint_length_processor_merchant_id_profile_id_data_kind_for_payout(
                     &conn, processor_merchant_id, profile_id, data_kind,
                 ).await
             }
