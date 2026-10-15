@@ -8,15 +8,16 @@ The languages supported by locale.js are:
  6) Japanese (ja)
  7) German (de)
  8) Belgian French (fr-be)
- 9) Spanish (es)
- 10) Catalan (ca)
- 11) Portuguese (pt)
- 12) Italian (it)
- 13) Polish (pl)
- 14) Dutch (nl)
- 15) Swedish (sv)
- 16) Russian (ru)
- 17) Chinese (zh)
+ 9) Canadian French (fr-ca)
+ 10) Spanish (es)
+ 11) Catalan (ca)
+ 12) Portuguese (pt)
+ 13) Italian (it)
+ 14) Polish (pl)
+ 15) Dutch (nl)
+ 16) Swedish (sv)
+ 17) Russian (ru)
+ 18) Chinese (zh)
  19) Traditional Chinese (zh-hant)
 */
 const locales = {
@@ -24,6 +25,8 @@ const locales = {
       expiresOn: "Link expires on: ",
       refId: "Ref Id: ",
       requestedBy: "Requested by ",
+      paymentLinkTitle: "Payment requested by {merchantName}",
+      paymentStatusTitle: "Payment Status",
       payNow: "Pay now",
       addPaymentMethod: "Add Payment Method",
       authorizePayment: "Authorize Payment",
@@ -57,6 +60,8 @@ const locales = {
       expiresOn: "הקישור יפוג ב: ",
       refId: "מזהה הפניה: ",
       requestedBy: "ביקש על ידי ",
+      paymentLinkTitle: "התשלום התבקש על ידי {merchantName}",
+      paymentStatusTitle: "סטטוס התשלום",
       payNow: "שלם עכשיו",
       addPaymentMethod: "הוסף אמצעי תשלום",
       authorizePayment: "אשר תשלום",
@@ -90,6 +95,8 @@ const locales = {
       expiresOn: "Le lien expire le: ",
       refId: "ID de référence: ",
       requestedBy: "Demandé par ",
+      paymentLinkTitle: "Paiement demandé par {merchantName}",
+      paymentStatusTitle: "Statut du paiement",
       payNow: "Payer maintenant",
       addPaymentMethod: "Ajouter un mode de paiement",
       authorizePayment: "Autoriser le paiement",
@@ -123,6 +130,8 @@ const locales = {
       expiresOn: "Link expires on: ",
       refId: "Ref Id: ",
       requestedBy: "Requested by ",
+      paymentLinkTitle: "Payment requested by {merchantName}",
+      paymentStatusTitle: "Payment Status",
       payNow: "Pay now",
       addPaymentMethod: "Add Payment Method",
       authorizePayment: "Authorise Payment",
@@ -156,6 +165,8 @@ const locales = {
       expiresOn: "الرابط ينتهي في: ",
       refId: "معرف المرجع: ",
       requestedBy: "طلب بواسطة ",
+      paymentLinkTitle: "طلب الدفع من {merchantName}",
+      paymentStatusTitle: "حالة الدفع",
       payNow: "ادفع الآن",
       addPaymentMethod: "إضافة طريقة دفع",
       authorizePayment: "تفويض الدفع",
@@ -189,6 +200,8 @@ const locales = {
       expiresOn: "リンクの有効期限は: ",
       refId: "参照 ID: ",
       requestedBy: "リクエスト者 ",
+      paymentLinkTitle: "{merchantName} からの支払いリクエスト",
+      paymentStatusTitle: "支払い状況",
       payNow: "今すぐ支払う",
       addPaymentMethod: "支払い方法を追加",
       authorizePayment: "支払いを承認する",
@@ -222,6 +235,8 @@ const locales = {
       expiresOn: "Link läuft ab am: ",
       refId: "Referenz-ID: ",
       requestedBy: "Angefordert von ",
+      paymentLinkTitle: "Zahlungsanforderung von {merchantName}",
+      paymentStatusTitle: "Zahlungsstatus",
       payNow: "Jetzt bezahlen",
       addPaymentMethod: "Zahlungsmethode hinzufügen",
       authorizePayment: "Zahlung autorisieren",
@@ -255,6 +270,8 @@ const locales = {
       expiresOn: "Le lien expire le: ",
       refId: "ID de référence: ",
       requestedBy: "Demandé par ",
+      paymentLinkTitle: "Paiement demandé par {merchantName}",
+      paymentStatusTitle: "Statut du paiement",
       payNow: "Payer maintenant",
       addPaymentMethod: "Ajouter un mode de paiement",
       authorizePayment: "Autoriser le paiement",
@@ -284,10 +301,47 @@ const locales = {
       errorCode: "Code d'erreur",
       errorMessage: "Message d'erreur"
     },
+    "fr-ca": {
+      expiresOn: "Le lien expire le : ",
+      refId: "ID de référence : ",
+      requestedBy: "Demandé par ",
+      paymentLinkTitle: "Paiement demandé par {merchantName}",
+      paymentStatusTitle: "État du paiement",
+      payNow: "Payer maintenant",
+      addPaymentMethod: "Ajouter un mode de paiement",
+      authorizePayment: "Autoriser le paiement",
+      yourCart: "Votre panier",
+      quantity: "Quantité",
+      showLess: "Afficher moins",
+      showMore: "Afficher plus",
+      miscellaneousCharges: "Frais divers",
+      miscellaneousChargesDetail: "(comprend les taxes, les frais d’expédition, les rabais, les offres, etc.)",
+      paymentTakingLonger: "Désolé ! Votre paiement prend plus de temps que prévu. Veuillez réessayer plus tard.",
+      paymentLinkExpired: "Lien de paiement expiré",
+      paymentReceived: "Nous avons bien reçu votre paiement",
+      paymentLinkExpiredMessage: "Désolé, ce lien de paiement a expiré. Veuillez utiliser la référence ci-dessous pour obtenir de plus amples renseignements.",
+      paidSuccessfully: "Paiement effectué avec succès",
+      paymentPending: "Paiement en attente",
+      paymentFailed: "Échec du paiement !",
+      paymentCancelled: "Paiement annulé",
+      paymentUnderReview: "Paiement en cours d’examen",
+      paymentSuccess: "Paiement réussi",
+      partialPaymentCaptured: "Paiement partiel capturé.",
+      somethingWentWrong: "Une erreur s’est produite",
+      redirecting: "Redirection...",
+      redirectingIn: "Redirection dans ",
+      seconds: " secondes...",
+      unexpectedError: "Une erreur inattendue s’est produite.",
+      notAllowed: "Vous n’êtes pas autorisé à consulter ce contenu.",
+      errorCode: "Code d’erreur",
+      errorMessage: "Message d’erreur"
+    },
     es: {
       expiresOn: "El enlace expira el: ",
       refId: "ID de referencia: ",
       requestedBy: "Solicitado por ",
+      paymentLinkTitle: "Solicitud de pago de {merchantName}",
+      paymentStatusTitle: "Estado del pago",
       payNow: "Pagar ahora",
       addPaymentMethod: "Agregar método de pago",
       authorizePayment: "Autorizar pago",
@@ -321,6 +375,8 @@ const locales = {
       expiresOn: "L'enllaç caduca el: ",
       refId: "ID de referència: ",
       requestedBy: "Sol·licitat per ",
+      paymentLinkTitle: "Sol·licitud de pagament de {merchantName}",
+      paymentStatusTitle: "Estat del pagament",
       payNow: "Paga ara",
       addPaymentMethod: "Afegir mètode de pagament",
       authorizePayment: "Autoritza el pagament",
@@ -354,6 +410,8 @@ const locales = {
       expiresOn: "Link expira em: ",
       refId: "ID de referência: ",
       requestedBy: "Solicitado por ",
+      paymentLinkTitle: "Solicitação de pagamento de {merchantName}",
+      paymentStatusTitle: "Status do pagamento",
       payNow: "Pagar agora",
       addPaymentMethod: "Adicionar método de pagamento",
       authorizePayment: "Autorizar pagamento",
@@ -387,6 +445,8 @@ const locales = {
       expiresOn: "Link scade il: ",
       refId: "ID di riferimento: ",
       requestedBy: "Richiesto da ",
+      paymentLinkTitle: "Richiesta di pagamento da {merchantName}",
+      paymentStatusTitle: "Stato del pagamento",
       payNow: "Paga ora",
       addPaymentMethod: "Aggiungi metodo di pagamento",
       authorizePayment: "Autorizza il pagamento",
@@ -420,6 +480,8 @@ const locales = {
       expiresOn: "Link wygasa w dniu: ",
       refId: "Identyfikator referencyjny: ",
       requestedBy: "Zażądane przez ",
+      paymentLinkTitle: "Prośba o płatność od {merchantName}",
+      paymentStatusTitle: "Status płatności",
       payNow: "Zapłać teraz",
       addPaymentMethod: "Dodaj metodę płatności",
       authorizePayment: "Autoryzuj płatność",
@@ -453,6 +515,8 @@ const locales = {
       expiresOn: "Link verloopt op: ",
       refId: "Ref Id: ",
       requestedBy: "Aangevraagd door ",
+      paymentLinkTitle: "Betalingsverzoek van {merchantName}",
+      paymentStatusTitle: "Betalingsstatus",
       payNow: "Nu betalen",
       addPaymentMethod: "Betaalmethode toevoegen",
       authorizePayment: "Betaling autoriseren",
@@ -486,6 +550,8 @@ const locales = {
       expiresOn: "Länken upphör att gälla den: ",
       refId: "Referens-ID: ",
       requestedBy: "Begärd av ",
+      paymentLinkTitle: "Betalningsbegäran från {merchantName}",
+      paymentStatusTitle: "Betalningsstatus",
       payNow: "Betala nu",
       addPaymentMethod: "Lägg till betalningsmetod",
       authorizePayment: "Auktorisera betalning",
@@ -519,6 +585,8 @@ const locales = {
       expiresOn: "Ссылка истекает: ",
       refId: "ID ссылки: ",
       requestedBy: "Запрошено ",
+      paymentLinkTitle: "Запрос на оплату от {merchantName}",
+      paymentStatusTitle: "Статус платежа",
       payNow: "Оплатить сейчас",
       addPaymentMethod: "Добавить способ оплаты",
       authorizePayment: "Авторизовать платеж",
@@ -552,6 +620,8 @@ const locales = {
       expiresOn: "链接将于以下时间过期: ",
       refId: "参考编号: ",
       requestedBy: "请求者: ",
+      paymentLinkTitle: "来自 {merchantName} 的付款请求",
+      paymentStatusTitle: "支付状态",
       payNow: "立即付款",
       addPaymentMethod: "添加支付方式",
       authorizePayment: "授权付款",
@@ -585,6 +655,8 @@ const locales = {
       expiresOn: "連結到期日期：",
       refId: "參考編號：",
       requestedBy: "請求者 ",
+      paymentLinkTitle: "來自 {merchantName} 的付款請求",
+      paymentStatusTitle: "付款狀態",
       payNow: "立即付款",
       addPaymentMethod: "新增付款方式",
       authorizePayment: "授權付款",
@@ -618,7 +690,13 @@ const locales = {
 
 function getLanguage(localeStr) {
   var fallback_locale = 'en';
-  var primaryLocale = (localeStr.toLowerCase() || fallback_locale).split(',')[0].trim();
+  var primaryLocale = typeof localeStr === 'string'
+    ? localeStr.toLowerCase().split(',')[0].trim()
+    : '';
+
+  if (!primaryLocale) {
+    return fallback_locale;
+  }
   
   // Split into language and country parts
   var parts = primaryLocale.split('-');
@@ -630,6 +708,7 @@ function getLanguage(localeStr) {
     case 'en-gb': return 'en-gb';
     case 'fr-be': return 'fr-be';
     case 'zh-hant': return 'zh-hant';
+    case 'fr-ca': return 'fr-ca';
     default: return language;
   }
 }

@@ -193,6 +193,11 @@ var hyper = null;
 
 // @ts-ignore
 const translations = getTranslations(paymentDetails.locale);
+document.documentElement.lang = getLanguage(paymentDetails.locale);
+document.title = formatPaymentLinkTitle(
+  translations.paymentLinkTitle,
+  paymentDetails.merchant_name
+);
 
 var isFramed = false;
 try {
@@ -254,10 +259,6 @@ function boot() {
         "quantity": null
       });
     }
-  }
-
-  if (paymentDetails.merchant_name) {
-    document.title = "Payment requested by " + paymentDetails.merchant_name;
   }
 
   if (paymentDetails.merchant_logo) {
@@ -604,65 +605,46 @@ function removeClass(id, className) {
   }
 }
 
+function formatPaymentLinkTitle(title, merchantName) {
+  return title.replace("{merchantName}", () => merchantName || "");
+}
+
 /**
- * Use - format date in "hh:mm AM/PM timezone MM DD, YYYY"
+ * Format the expiry date and time using the selected payment-link locale.
+ * The browser's local timezone is preserved.
  * @param {Date} date
- **/
-function formatDate(date) {
-  var months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
+ * @param {string} locale
+ */
+function formatDate(date, locale) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return "";
+  }
 
-  var hours = date.getHours();
-  var minutes = date.getMinutes();
-  // @ts-ignore
-  minutes = minutes < 10 ? "0" + minutes : minutes;
-  var suffix = hours > 11 ? "PM" : "AM";
-  hours = hours % 12;
-  hours = hours ? hours : 12;
-  var day = date.getDate();
-  var month = months[date.getMonth()];
-  var year = date.getUTCFullYear();
+  var selectedLocale = typeof locale === "string"
+    ? locale.split(",")[0].trim()
+    : "en";
+  selectedLocale = selectedLocale || "en";
 
-  // @ts-ignore
-  var locale = navigator.language || navigator.userLanguage;
-  var timezoneShorthand = date
-    .toLocaleDateString(locale, {
-      day: "2-digit",
-      timeZoneName: "long",
-    })
-    .substring(4)
-    .split(" ")
-    .reduce(function (tz, c) {
-      return tz + c.charAt(0).toUpperCase();
-    }, "");
-
-  var formatted =
-    hours +
-    ":" +
-    minutes +
-    " " +
-    suffix +
-    " " +
-    timezoneShorthand +
-    "  " +
-    month +
-    " " +
-    day +
-    ", " +
-    year;
-  return formatted;
+  try {
+    return new Intl.DateTimeFormat(selectedLocale, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    }).format(date);
+  } catch (e) {
+    // Fall back to English if the supplied locale is invalid.
+    return new Intl.DateTimeFormat("en", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    }).format(date);
+  }
 }
 
 /**
@@ -698,8 +680,12 @@ function renderPaymentDetails(paymentDetails) {
   // Create expiry node
   var paymentExpiryNode = document.createElement("div");
   paymentExpiryNode.className = "hyper-checkout-payment-footer-expiry";
-  var expiryDate = new Date(paymentDetails.session_expiry);
-  var formattedDate = formatDate(expiryDate);
+  var expiryDate =
+    paymentDetails.session_expiry === null ||
+    paymentDetails.session_expiry === undefined
+      ? null
+      : new Date(paymentDetails.session_expiry);
+  var formattedDate = formatDate(expiryDate, paymentDetails.locale);
   paymentExpiryNode.innerText = translations.expiresOn + formattedDate;
 
   // Append information to DOM

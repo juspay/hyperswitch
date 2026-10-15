@@ -102,6 +102,8 @@ var paymentDetails = decodeUri(encodedPaymentDetails);
 
 // @ts-ignore
 const translations = getTranslations(paymentDetails.locale);
+document.documentElement.lang = getLanguage(paymentDetails.locale);
+document.title = translations.paymentStatusTitle;
 
 var isFramed = false;
 try {
@@ -213,9 +215,14 @@ function renderStatusDetails(paymentDetails) {
       statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/success.png";
       statusDetails.message = translations.paymentReceived;
       statusDetails.status = translations.paidSuccessfully;
-      statusDetails.amountText = new Date(
-        paymentDetails.created
-      ).toTimeString();
+      var createdDate =
+        paymentDetails.created === null || paymentDetails.created === undefined
+          ? null
+          : new Date(paymentDetails.created);
+      statusDetails.amountText = formatStatusDate(
+        createdDate,
+        paymentDetails.locale
+      );
       break;
 
     case "requires_customer_action":
@@ -375,6 +382,33 @@ function renderStatusDetails(paymentDetails) {
         }
       }
     }
+  }
+}
+
+function formatStatusDate(date, locale) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  var selectedLocale = typeof locale === "string"
+    ? locale.split(",")[0].trim()
+    : "en";
+  selectedLocale = selectedLocale || "en";
+
+  try {
+    return new Intl.DateTimeFormat(selectedLocale, {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      timeZoneName: "short",
+    }).format(date);
+  } catch (e) {
+    return new Intl.DateTimeFormat("en", {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      timeZoneName: "short",
+    }).format(date);
   }
 }
 
