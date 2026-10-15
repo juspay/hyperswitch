@@ -9192,7 +9192,25 @@ Cypress.Commands.add(
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
 
-        if (response.status === 200) {
+        if (resData?.status === 400) {
+          // Expected-error cases (malformed card_bin deserialization → 400 IR_06)
+          expect(response.status, "status").to.equal(resData.status);
+          expect(response.body, "error").to.have.property("error");
+          expect(response.body.error, "error.code")
+            .to.have.property("code")
+            .to.equal(resData.body.error.code);
+          if (resData.body.error.error_type) {
+            expect(response.body.error, "error.error_type")
+              .to.have.property("error_type")
+              .to.equal(resData.body.error.error_type);
+          }
+          if (resData.body.error.message) {
+            // column number shifts with client_secret; match the stable prefix
+            expect(response.body.error, "error.message")
+              .to.have.property("message")
+              .to.include(resData.body.error.message);
+          }
+        } else if (response.status === 200) {
           expect(response.body)
             .to.have.property("payment_id")
             .to.equal(paymentId);
@@ -9332,25 +9350,7 @@ Cypress.Commands.add(
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
 
-        if (resData?.status === 400) {
-          // Expected-error cases (malformed card_bin deserialization → 400 IR_06)
-          expect(response.status, "status").to.equal(resData.status);
-          expect(response.body, "error").to.have.property("error");
-          expect(response.body.error, "error.code")
-            .to.have.property("code")
-            .to.equal(resData.body.error.code);
-          if (resData.body.error.error_type) {
-            expect(response.body.error, "error.error_type")
-              .to.have.property("error_type")
-              .to.equal(resData.body.error.error_type);
-          }
-          if (resData.body.error.message) {
-            // column number shifts with client_secret; match the stable prefix
-            expect(response.body.error, "error.message")
-              .to.have.property("message")
-              .to.include(resData.body.error.message);
-          }
-        } else if (response.status === 200) {
+        if (response.status === 200) {
           expect(response.body)
             .to.have.property("payment_id")
             .to.equal(paymentId);
