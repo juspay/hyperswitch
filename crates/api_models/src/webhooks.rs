@@ -210,6 +210,9 @@ pub enum WebhookResponseTracker {
     PaymentMethod {
         payment_method_id: String,
         status: common_enums::PaymentMethodStatus,
+        /// Original setup payment associated with a connector-managed mandate.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        payment_id: Option<common_utils::id_type::PaymentId>,
     },
     NoEffect,
     Relay {
@@ -225,7 +228,8 @@ impl WebhookResponseTracker {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
             | Self::Dispute { payment_id, .. } => Some(payment_id.to_owned()),
-            Self::NoEffect | Self::Mandate { .. } | Self::PaymentMethod { .. } => None,
+            Self::PaymentMethod { payment_id, .. } => payment_id.clone(),
+            Self::NoEffect | Self::Mandate { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
             Self::Relay { .. } => None,
