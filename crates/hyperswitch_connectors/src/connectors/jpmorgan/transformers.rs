@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use common_enums::enums::CaptureMethod;
 use common_utils::{pii::SecretSerdeValue, types::MinorUnit};
 use error_stack::ResultExt;
@@ -56,6 +58,7 @@ pub struct JpmorganAuthUpdateResponse {
 pub struct JpmorganConnectorMetadataObject {
     pub company_name: Secret<String>,
     pub product_name: Secret<String>,
+    pub merchant_id: HashMap<common_enums::Currency, Secret<String>>,
 }
 
 impl TryFrom<&Option<SecretSerdeValue>> for JpmorganConnectorMetadataObject {
