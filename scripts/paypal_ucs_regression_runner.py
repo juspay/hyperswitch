@@ -20,6 +20,10 @@ import subprocess
 import socket
 import socketserver
 import threading
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 import select
 import stat
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -552,20 +556,107 @@ def selected_active_attempt(payment, active_id, merchant_id, payment_id):
     return matches[0]
 
 
+def effective_hs_database(source):
+    """Explicit current-process config only; credentials never leave memory."""
+    hs = source['hs']
+    proc = Path(f'/proc/{hs["pid"]}')
+    assert proc.joinpath('stat').read_text().split(') ', 1)[1].split()[19] == hs['process_start_ticks']
+    assert proc.joinpath('cwd').resolve(strict=True) == ROOT.resolve(strict=True)
+    assert digest(proc.joinpath('exe').read_bytes()) == hs['binary_sha256']
+    assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT).decode().strip() == hs['source_commit']
+    argv = proc.joinpath('cmdline').read_bytes().split(b'\0')
+    argv = [item.decode() for item in argv if item]
+    if len(argv) == 3 and argv[1] in {'-f', '--config-path'}:
+        selected = argv[2]
+    elif len(argv) == 2 and argv[1].startswith('--config-path='):
+        selected = argv[1].split('=', 1)[1]
+    else:
+        raise GsmUnavailable('explicit unambiguous current HS config path is required; defaults are unproven')
+    path = (ROOT / selected).resolve(strict=True)
+    assert path.is_relative_to(ROOT.resolve(strict=True)) and path.is_file()
+    anchors = ['crates/router/src/bin/router.rs', 'crates/router/src/configs/settings.rs',
+        'crates/router/src/configs/defaults.rs', 'crates/router_env/src/env.rs',
+        'crates/router_env/src/logger/config.rs']
+    hashes = {}
+    for name in anchors:
+        wire = (ROOT / name).read_bytes()
+        assert wire == subprocess.check_output(['git', 'show', hs['source_commit'] + ':' + name], cwd=ROOT)
+        hashes[name] = digest(wire)
+    config = path.read_bytes()
+    relative = str(path.relative_to(ROOT.resolve(strict=True)))
+    assert config == subprocess.check_output(['git', 'show', hs['source_commit'] + ':' + relative], cwd=ROOT)
+    config_blob = subprocess.check_output(['git', 'rev-parse', hs['source_commit'] + ':' + relative], cwd=ROOT).decode().strip()
+    environment = dict(item.split(b'=', 1) for item in proc.joinpath('environ').read_bytes().split(b'\0') if b'=' in item)
+    table = tomllib.loads(config.decode()).get('master_database')
+    if not isinstance(table, dict):
+        raise GsmUnavailable('selected TOML master_database is required; default-only database is unproven')
+    values, origins = {}, {}
+    mapping = {'PGHOST': 'host', 'PGPORT': 'port', 'PGDATABASE': 'dbname', 'PGUSER': 'username', 'PGPASSWORD': 'password'}
+    for pg, field in mapping.items():
+        key = ('ROUTER__MASTER_DATABASE__' + field.upper()).encode()
+        if key in environment:
+            value, origin = environment[key].decode(), 'process_environment'
+        elif field in table:
+            value, origin = table[field], 'selected_TOML'
+        else:
+            raise GsmUnavailable('required database field lacks proven effective value')
+        if field == 'port':
+            assert type(value) is int or isinstance(value, str) and re.fullmatch(r'[0-9]+', value)
+            assert 1 <= int(value) <= 65535
+            value = str(int(value))
+        else:
+            assert isinstance(value, str) and value and '\x00' not in value
+        values[pg], origins[field] = value, origin
+    # Only whole-environment digest, never an individual credential hash.
+    private_binding = digest(proc.joinpath('cmdline').read_bytes() + proc.joinpath('environ').read_bytes())
+    proof = {'hs_pid': hs['pid'], 'process_start_ticks': hs['process_start_ticks'],
+        'source_commit': hs['source_commit'], 'config_path': str(path), 'config_sha256': digest(config),
+        'source_sha256': hashes, 'config_git_blob': config_blob, 'field_sources': origins}
+    return values, proof, private_binding
+
+
+def owned_database_connection(operator, source):
+    cfg = operator['provider']
+    database = cfg.get('owned_database', operator.get('gsm', {}).get('owned_database'))
+    if not database:
+        raise GsmUnavailable('current run owned PostgreSQL metadata is required')
+    assert database['fresh_isolated'] is True
+    marker = database['run_id'].rsplit('-', 1)[-1]
+    assert len(marker) >= 6 and marker in database['container_name']
+    template = '{"id":"{{.Id}}","name":"{{.Name}}","created":"{{.Created}}","running":{{.State.Running}},"ports":{{json .NetworkSettings.Ports}},"networks":{{json .NetworkSettings.Networks}},"labels":{{json .Config.Labels}}}'
+    actual = json.loads(subprocess.check_output(['docker', 'inspect', '--format', template, database['container_id']], stderr=subprocess.DEVNULL))
+    assert actual['id'] == database['container_id'] and actual['name'] == '/' + database['container_name'] and actual['running'] is True
+    assert datetime.datetime.fromisoformat(re.sub(r'(\.\d{6})\d+', r'\1', actual['created']).replace('Z', '+00:00')) >= datetime.datetime.fromisoformat(database['created_after'].replace('Z', '+00:00'))
+    assert database['run_id'] in (actual['labels'] or {}).values()
+    ports = actual['ports']['5432/tcp']
+    assert len(ports) == 1 and ports[0]['HostIp'] == '127.0.0.1'
+    values, proof, binding = effective_hs_database(source)
+    assert values['PGHOST'] in {'127.0.0.1', 'localhost'} and values['PGPORT'] == ports[0]['HostPort']
+    assert values['PGDATABASE'] == database['database_name']
+    names = cfg.get('readonly_database_env')
+    if names:
+        assert set(names) == set(values)
+        assert all(os.environ[names[key]] == value for key, value in values.items())
+    environment = {**os.environ, **values, 'PGOPTIONS': '-c default_transaction_read_only=on'}
+    wire = subprocess.check_output(['psql', '--no-psqlrc', '-XAt', '-v', 'ON_ERROR_STOP=1', '-c',
+        "SELECT json_build_object('database',current_database(),'username',current_user,'server',host(inet_server_addr()),'port',inet_server_port(),'readonly',current_setting('transaction_read_only'))"], env=environment, stderr=subprocess.DEVNULL)
+    identity = json.loads(wire)
+    assert identity['database'] == values['PGDATABASE'] and identity['username'] == values['PGUSER']
+    assert identity['port'] == 5432 and identity['readonly'] == 'on'
+    assert identity['server'] in {network['IPAddress'] for network in actual['networks'].values()}
+    again, after, after_binding = effective_hs_database(source)
+    assert again == values and after == proof and after_binding == binding
+    proof.update(container_id=actual['id'], database_identity_sha256=digest(canonical(identity)), read_only=True)
+    return environment, proof, binding
+
+
 def owned_active_attempt(payment, operator, source):
     cfg = operator['provider']
     merchant, payment_id = cfg['merchant_id'], payment['payment_id']
     active_id = payment.get('active_attempt_id')
     receipt = None
     if active_id is None:
-        # Credentials stay in the subprocess environment, never argv or artifacts.
-        names = cfg.get('readonly_database_env')
-        if not names or set(names) != {'PGHOST', 'PGPORT', 'PGDATABASE', 'PGUSER', 'PGPASSWORD'}:
-            raise GsmUnavailable('public active-attempt pointer absent; owned read-only DB lookup is required')
-        environment = {**os.environ, **{key: os.environ[name] for key, name in names.items()}}
-        actual = dict(item.split(b'=', 1) for item in Path(f'/proc/{source["hs"]["pid"]}/environ').read_bytes().split(b'\0') if b'=' in item)
-        for pg, hs in [('PGHOST', 'HOST'), ('PGPORT', 'PORT'), ('PGDATABASE', 'DBNAME'), ('PGUSER', 'USERNAME')]:
-            assert environment[pg].encode() == actual[b'ROUTER__MASTER_DATABASE__' + hs.encode()]
+        environment, config_proof, config_binding = owned_database_connection(operator, source)
         assert all(re.fullmatch(r'[A-Za-z0-9_-]{1,128}', item) for item in [merchant, payment_id])
         query = ("SELECT json_build_object('merchant_id',i.merchant_id,'payment_id',i.payment_id,"
             "'active_attempt_id',i.active_attempt_id,'merchant_connector_id',a.merchant_connector_id,"
@@ -579,10 +670,14 @@ def owned_active_attempt(payment, operator, source):
         assert len(rows) == 1
         row = rows[0]
         assert row['merchant_id'] == merchant and row['payment_id'] == payment_id and row['merchant_connector_id'] == cfg['merchant_connector_id']
+        _, after_config, after_binding = effective_hs_database(source)
+        assert after_binding == config_binding
+        assert all(after_config[key] == value for key, value in config_proof.items() if key in after_config)
         active_id = row['active_attempt_id']
         receipt = {'query_sha256': digest(query.encode()), 'response_sha256': digest(wire),
             'database_identity_sha256': digest(canonical([row['database'], row['server']])),
-            'observed_at_ns': time.time_ns(), 'hs_pid': source['hs']['pid'], 'source_commit': source['hs']['source_commit']}
+            'observed_at_ns': time.time_ns(), 'hs_pid': source['hs']['pid'], 'source_commit': source['hs']['source_commit'],
+            'effective_database': config_proof}
     return selected_active_attempt(payment, active_id, merchant, payment_id), receipt
 
 
@@ -1031,6 +1126,8 @@ def provider_preflight(operator, source, base, token, first_body=None):
         raise GsmUnavailable('genuine owned provider state/route configuration is required')
     environment = dict(item.split(b'=', 1) for item in Path(f'/proc/{source["ucs"]["pid"]}/environ').read_bytes().split(b'\0') if b'=' in item)
     assert environment.get(b'CS__CONNECTORS__PAYPAL__BASE_URL') == b'https://api-m.sandbox.paypal.com/'
+    # Resolve and read-only verify the owned effective database before any financial write.
+    owned_database_connection(operator, source)
     # The mask precondition applies to financial cases independently of GSM.
     mask_preflight = provider_wallet_mask_preflight(operator, source)
     merchant, mca = cfg['merchant_id'], cfg['merchant_connector_id']
