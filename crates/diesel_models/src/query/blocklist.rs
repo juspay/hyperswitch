@@ -76,7 +76,7 @@ impl BlocklistNew {
 impl Blocklist {
     // Legacy NULL transaction namespaces match payment, never payout.
 
-    pub async fn find_payment_by_processor_merchant_id_fingerprint_id(
+    pub async fn find_by_processor_merchant_id_fingerprint_id_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
@@ -94,7 +94,7 @@ impl Blocklist {
         )
         .await
     }
-    pub async fn find_payout_by_processor_merchant_id_fingerprint_id(
+    pub async fn find_by_processor_merchant_id_fingerprint_id_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
@@ -110,7 +110,7 @@ impl Blocklist {
     }
     /// Returns payment and legacy NULL-namespace fingerprint rows for the resolved profile
     /// and merchant-wide entries.
-    pub async fn list_payment_by_processor_merchant_id_profile_id_fingerprint_id(
+    pub async fn list_by_processor_merchant_id_profile_id_fingerprint_id_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -140,7 +140,7 @@ impl Blocklist {
         )
         .await
     }
-    pub async fn list_payout_by_processor_merchant_id_profile_id_fingerprint_id(
+    pub async fn list_by_processor_merchant_id_profile_id_fingerprint_id_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -194,7 +194,7 @@ impl Blocklist {
     // Rows written before profile scoping have a NULL profile_id and block the whole merchant,
     // so they must keep matching every profile.
 
-    pub async fn find_payment_by_processor_merchant_id_profile_id_fingerprint_id(
+    pub async fn find_by_processor_merchant_id_profile_id_fingerprint_id_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -219,7 +219,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn find_payout_by_processor_merchant_id_profile_id_fingerprint_id(
+    pub async fn find_by_processor_merchant_id_profile_id_fingerprint_id_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -240,7 +240,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn find_payment_by_processor_merchant_id_profile_id_fingerprint_ids(
+    pub async fn find_by_processor_merchant_id_profile_id_fingerprint_ids_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -268,7 +268,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn find_payout_by_processor_merchant_id_profile_id_fingerprint_ids(
+    pub async fn find_by_processor_merchant_id_profile_id_fingerprint_ids_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -296,7 +296,7 @@ impl Blocklist {
     /// excluded — they hold vault HMACs of full card numbers, which cannot be matched from a
     /// BIN. Uses the same processor-merchant-with-legacy-fallback and profile-or-merchant-wide
     /// predicates as the single-entry lookups.
-    pub async fn find_payment_by_processor_merchant_id_profile_id_card_bins(
+    pub async fn find_by_processor_merchant_id_profile_id_card_bins_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -330,7 +330,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn find_payout_by_processor_merchant_id_profile_id_card_bins(
+    pub async fn find_by_processor_merchant_id_profile_id_card_bins_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -361,7 +361,7 @@ impl Blocklist {
     }
     // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
 
-    pub async fn find_payment_by_merchant_id_fingerprint_id(
+    pub async fn find_by_merchant_id_fingerprint_id_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
@@ -380,7 +380,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn find_payout_by_merchant_id_fingerprint_id(
+    pub async fn find_by_merchant_id_fingerprint_id_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
@@ -395,7 +395,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn find_payment_by_merchant_id_profile_id_fingerprint_id(
+    pub async fn find_by_merchant_id_profile_id_fingerprint_id_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -420,7 +420,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn find_payout_by_merchant_id_profile_id_fingerprint_id(
+    pub async fn find_by_merchant_id_profile_id_fingerprint_id_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -441,7 +441,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn list_payment_by_processor_merchant_id_data_kind(
+    pub async fn list_by_processor_merchant_id_data_kind_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         data_kind: common_enums::BlocklistDataKind,
@@ -469,7 +469,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn list_payout_by_processor_merchant_id_data_kind(
+    pub async fn list_by_processor_merchant_id_data_kind_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         data_kind: common_enums::BlocklistDataKind,
@@ -493,7 +493,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn list_payment_by_processor_merchant_id_profile_id_data_kind(
+    pub async fn list_by_processor_merchant_id_profile_id_data_kind_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -527,7 +527,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn list_payout_by_processor_merchant_id_profile_id_data_kind(
+    pub async fn list_by_processor_merchant_id_profile_id_data_kind_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -557,7 +557,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn get_payment_count_by_processor_merchant_id_data_kind(
+    pub async fn get_count_by_processor_merchant_id_data_kind_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         data_kind: common_enums::BlocklistDataKind,
@@ -580,7 +580,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn get_payout_count_by_processor_merchant_id_data_kind(
+    pub async fn get_count_by_processor_merchant_id_data_kind_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         data_kind: common_enums::BlocklistDataKind,
@@ -639,7 +639,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn get_payment_count_by_processor_merchant_id_profile_id_data_kind(
+    pub async fn get_count_by_processor_merchant_id_profile_id_data_kind_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -668,7 +668,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn get_payout_count_by_processor_merchant_id_profile_id_data_kind(
+    pub async fn get_count_by_processor_merchant_id_profile_id_data_kind_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -693,7 +693,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn count_payment_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+    pub async fn count_by_fingerprint_length_processor_merchant_id_profile_id_data_kind_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -736,7 +736,7 @@ impl Blocklist {
             .attach_printable("Failed to count blocklist entries by fingerprint length")
     }
 
-    pub async fn count_payout_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+    pub async fn count_by_fingerprint_length_processor_merchant_id_profile_id_data_kind_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -809,7 +809,7 @@ impl Blocklist {
         .attach_printable("Failed to count blocklist entries by fingerprint length")
     }
 
-    pub async fn list_payment_by_processor_merchant_id(
+    pub async fn list_by_processor_merchant_id_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
@@ -832,7 +832,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn list_payout_by_processor_merchant_id(
+    pub async fn list_by_processor_merchant_id_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
@@ -851,7 +851,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn list_payment_after_fingerprint_by_processor_merchant_id_profile_id(
+    pub async fn list_after_fingerprint_by_processor_merchant_id_profile_id_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -882,7 +882,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn list_payout_after_fingerprint_by_processor_merchant_id_profile_id(
+    pub async fn list_after_fingerprint_by_processor_merchant_id_profile_id_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -936,7 +936,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn list_payment_after_fingerprint_by_legacy_merchant_id_profile_id(
+    pub async fn list_after_fingerprint_by_legacy_merchant_id_profile_id_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -968,7 +968,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn list_payout_after_fingerprint_by_legacy_merchant_id_profile_id(
+    pub async fn list_after_fingerprint_by_legacy_merchant_id_profile_id_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -1024,7 +1024,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn delete_payment_by_processor_merchant_id_fingerprint_id(
+    pub async fn delete_by_processor_merchant_id_fingerprint_id_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
@@ -1043,7 +1043,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn delete_payout_by_processor_merchant_id_fingerprint_id(
+    pub async fn delete_by_processor_merchant_id_fingerprint_id_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
@@ -1058,7 +1058,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn delete_payment_by_processor_merchant_id_profile_id_fingerprint_id(
+    pub async fn delete_by_processor_merchant_id_profile_id_fingerprint_id_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -1083,7 +1083,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn delete_payout_by_processor_merchant_id_profile_id_fingerprint_id(
+    pub async fn delete_by_processor_merchant_id_profile_id_fingerprint_id_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -1105,7 +1105,7 @@ impl Blocklist {
     }
     // Fallback function for stagger release - deletes by merchant_id when processor_merchant_id is NULL
 
-    pub async fn delete_payment_by_merchant_id_fingerprint_id(
+    pub async fn delete_by_merchant_id_fingerprint_id_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
@@ -1124,7 +1124,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn delete_payout_by_merchant_id_fingerprint_id(
+    pub async fn delete_by_merchant_id_fingerprint_id_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
@@ -1139,7 +1139,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn delete_payment_by_merchant_id_profile_id_fingerprint_id(
+    pub async fn delete_by_merchant_id_profile_id_fingerprint_id_for_payment(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -1164,7 +1164,7 @@ impl Blocklist {
         .await
     }
 
-    pub async fn delete_payout_by_merchant_id_profile_id_fingerprint_id(
+    pub async fn delete_by_merchant_id_profile_id_fingerprint_id_for_payout(
         conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
