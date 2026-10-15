@@ -3466,23 +3466,6 @@ pub fn extract_connector_response_from_ucs(
     })
 }
 
-/// Splits the amount UCS reports for the integrity check into its minor amount and currency.
-pub fn get_minor_amount_and_currency_from_ucs_money(
-    money: &payments_grpc::Money,
-) -> CustomResult<
-    (common_utils::types::MinorUnit, common_enums::Currency),
-    UnifiedConnectorServiceError,
-> {
-    let grpc_currency = parse_grpc_enum::<payments_grpc::Currency>(money.currency)
-        .attach_printable("Invalid currency received from UCS response")?;
-    let currency = common_enums::Currency::foreign_try_from(grpc_currency)?;
-
-    Ok((
-        common_utils::types::MinorUnit::new(money.minor_amount),
-        currency,
-    ))
-}
-
 pub fn handle_unified_connector_service_response_for_payment_refund(
     response: payments_grpc::RefundResponse,
     prev_status: common_enums::RefundStatus,

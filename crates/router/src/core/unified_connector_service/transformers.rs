@@ -73,6 +73,43 @@ const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
 
+impl transformers::ForeignTryFrom<&payments_grpc::Money>
+    for router_request_types::AuthoriseIntegrityObject
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(money: &payments_grpc::Money) -> Result<Self, Self::Error> {
+        let grpc_currency = super::parse_grpc_enum::<payments_grpc::Currency>(money.currency)
+            .attach_printable("Invalid currency received from UCS response")?;
+        let currency = <common_enums::Currency as transformers::ForeignTryFrom<
+            payments_grpc::Currency,
+        >>::foreign_try_from(grpc_currency)?;
+
+        Ok(Self {
+            amount: MinorUnit::new(money.minor_amount),
+            currency,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<&payments_grpc::Money>
+    for router_request_types::SyncIntegrityObject
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(money: &payments_grpc::Money) -> Result<Self, Self::Error> {
+        let integrity_object =
+            <router_request_types::AuthoriseIntegrityObject as transformers::ForeignTryFrom<
+                &payments_grpc::Money,
+            >>::foreign_try_from(money)?;
+
+        Ok(Self {
+            amount: Some(integrity_object.amount),
+            currency: Some(integrity_object.currency),
+        })
+    }
+}
+
 impl ForeignFrom<&api_models::payments::ConnectorMetadata>
     for payments_grpc::AdditionalConnectorDetails
 {

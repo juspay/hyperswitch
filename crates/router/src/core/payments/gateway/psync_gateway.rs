@@ -111,13 +111,9 @@ where
                 router_data.request.integrity_object = payment_get_response
                     .authorized_money
                     .as_ref()
-                    .map(unified_connector_service::get_minor_amount_and_currency_from_ucs_money)
+                    .map(SyncIntegrityObject::foreign_try_from)
                     .transpose()
-                    .change_context(ConnectorError::ResponseHandlingFailed)?
-                    .map(|(amount, currency)| SyncIntegrityObject {
-                        amount: Some(amount),
-                        currency: Some(currency),
-                    });
+                    .change_context(ConnectorError::ResponseHandlingFailed)?;
                 // Only override `amount_captured` when UCS actually reports a captured
                 // amount on sync. Connectors that don't return an amount on psync (e.g.
                 // cybersource TSS) leave this `None` .
@@ -274,14 +270,8 @@ where
                         router_data.request.integrity_object = payment_get_response
                             .authorized_money
                             .as_ref()
-                            .map(
-                                unified_connector_service::get_minor_amount_and_currency_from_ucs_money,
-                            )
-                            .transpose()?
-                            .map(|(amount, currency)| SyncIntegrityObject {
-                                amount: Some(amount),
-                                currency: Some(currency),
-                            });
+                            .map(SyncIntegrityObject::foreign_try_from)
+                            .transpose()?;
                         // Only override `amount_captured` when UCS actually reports a
                         // captured amount on sync. Connectors that don't return an amount
                         // on psync (e.g. cybersource TSS) leave this `None`;

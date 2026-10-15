@@ -180,11 +180,8 @@ where
                     router_data.request.integrity_object = recurring_payment_charge_response
                         .authorized_money
                         .as_ref()
-                        .map(
-                            unified_connector_service::get_minor_amount_and_currency_from_ucs_money,
-                        )
-                        .transpose()?
-                        .map(|(amount, currency)| AuthoriseIntegrityObject { amount, currency });
+                        .map(AuthoriseIntegrityObject::foreign_try_from)
+                        .transpose()?;
 
                     router_data.amount_captured = recurring_payment_charge_response.captured_amount;
                     router_data.minor_amount_captured = recurring_payment_charge_response
@@ -273,11 +270,8 @@ where
                     router_data.request.integrity_object = payment_authorize_response
                         .authorized_money
                         .as_ref()
-                        .map(
-                            unified_connector_service::get_minor_amount_and_currency_from_ucs_money,
-                        )
-                        .transpose()?
-                        .map(|(amount, currency)| AuthoriseIntegrityObject { amount, currency });
+                        .map(AuthoriseIntegrityObject::foreign_try_from)
+                        .transpose()?;
 
                     router_data.amount_captured = payment_authorize_response.captured_amount;
                     router_data.minor_amount_captured = payment_authorize_response
