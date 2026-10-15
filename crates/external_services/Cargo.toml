@@ -54,7 +54,7 @@ dynamic_routing = [
 ]
 
 [dependencies]
-async-trait = "0.1.88"
+async-trait = "0.1.92"
 aws-config = { version = "1.5.10", optional = true, features = [
     "behavior-version-latest",
 ] }

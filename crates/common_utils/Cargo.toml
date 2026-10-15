@@ -26,7 +26,7 @@ tokenization_v2 = []
 deja = ["dep:deja"]
 
 [dependencies]
-async-trait = { version = "0.1.88", optional = true }
+async-trait = { version = "0.1.92", optional = true }
 base64 = "0.22.1"
 base64-serde = "0.8.0"
 blake3 = { version = "1.8.2", features = ["serde"] }
