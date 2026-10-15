@@ -2363,7 +2363,7 @@ pub async fn payments_list_for_platform_filters(
 pub async fn revenue_recovery_invoices_list(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Query<payment_types::PaymentListConstraints>,
+    payload: web::Query<payment_types::RecoveryPaymentListConstraints>,
 ) -> impl Responder {
     let flow = Flow::PaymentsList;
     let payload = payload.into_inner();

@@ -2020,6 +2020,69 @@ pub fn map_recovery_status(
     }
 }
 
+/// Returns the intent statuses that can resolve to any of the given recovery statuses (see
+/// [`map_recovery_status`]), optionally narrowed to the `allowed` intent statuses. This is a
+/// superset used to narrow the database query, the derived recovery status is still checked
+/// on the result.
+pub fn candidate_intent_statuses_for_recovery_status(
+    recovery_statuses: &[RecoveryStatus],
+    allowed: Option<&[IntentStatus]>,
+) -> Vec<IntentStatus> {
+    use strum::IntoEnumIterator;
+
+    IntentStatus::iter()
+        .filter(|intent_status| allowed.map_or(true, |allowed| allowed.contains(intent_status)))
+        .filter(|intent_status| {
+            recovery_statuses
+                .iter()
+                .any(|recovery_status| can_map_to_recovery_status(*intent_status, *recovery_status))
+        })
+        .collect()
+}
+
+fn can_map_to_recovery_status(
+    intent_status: IntentStatus,
+    recovery_status: RecoveryStatus,
+) -> bool {
+    match intent_status {
+        // Workflow driven statuses, `determine_recovery_status_from_workflows`
+        IntentStatus::Failed => matches!(
+            recovery_status,
+            RecoveryStatus::Queued
+                | RecoveryStatus::Scheduled
+                | RecoveryStatus::Processing
+                | RecoveryStatus::Terminated
+                | RecoveryStatus::NoPicked
+                | RecoveryStatus::Monitoring
+        ),
+        IntentStatus::PartiallyCaptured | IntentStatus::PartiallyCapturedAndCapturable => matches!(
+            recovery_status,
+            RecoveryStatus::Queued
+                | RecoveryStatus::Scheduled
+                | RecoveryStatus::Processing
+                | RecoveryStatus::Terminated
+                | RecoveryStatus::PartiallyRecovered
+        ),
+        IntentStatus::Succeeded => recovery_status == RecoveryStatus::Recovered,
+        IntentStatus::Processing | IntentStatus::PartiallyCapturedAndProcessing => {
+            recovery_status == RecoveryStatus::Processing
+        }
+        IntentStatus::Cancelled
+        | IntentStatus::CancelledPostCapture
+        | IntentStatus::Conflicted
+        | IntentStatus::Expired
+        | IntentStatus::Review => recovery_status == RecoveryStatus::Terminated,
+        IntentStatus::RequiresCustomerAction
+        | IntentStatus::RequiresMerchantAction
+        | IntentStatus::RequiresPaymentMethod
+        | IntentStatus::RequiresConfirmation
+        | IntentStatus::RequiresCapture
+        | IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
+            recovery_status == RecoveryStatus::Pending
+        }
+    }
+}
+
 pub fn map_to_recovery_payment_item(
     payment_intent: PaymentIntent,
     payment_attempt: Option<PaymentAttempt>,

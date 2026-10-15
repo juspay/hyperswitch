@@ -6,8 +6,8 @@ use common_utils::id_type::GlobalPaymentMethodId;
 use super::{
     PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentStartRedirectionRequest,
     PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
-    RecoveryPaymentListResponse, RecoveryPaymentsCreate, RecoveryPaymentsResponse,
-    RevenueRecoveryGetIntentResponse,
+    RecoveryPaymentListConstraints, RecoveryPaymentListResponse, RecoveryPaymentsCreate,
+    RecoveryPaymentsResponse, RevenueRecoveryGetIntentResponse,
 };
 #[cfg(feature = "v2")]
 use crate::payment_methods::{
@@ -562,6 +562,13 @@ impl ApiEventMetric for PaymentListFiltersV2 {
 }
 
 impl ApiEventMetric for PaymentListConstraints {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for RecoveryPaymentListConstraints {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::ResourceListAPI)
     }

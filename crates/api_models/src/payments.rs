@@ -9337,6 +9337,205 @@ impl PaymentListConstraints {
     }
 }
 
+/// Query constraints for the revenue recovery invoices list. Same as
+/// [`PaymentListConstraints`] plus an optional `recovery_status` filter.
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, utoipa::IntoParams)]
+#[serde(deny_unknown_fields)]
+pub struct RecoveryPaymentListConstraints {
+    /// The identifier for payment
+    #[param(example = "pay_fafa124123", value_type = Option<String>)]
+    pub payment_id: Option<id_type::GlobalPaymentId>,
+
+    /// The identifier for business profile
+    #[param(example = "pay_fafa124123", value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
+
+    /// The identifier for customer
+    #[param(
+        max_length = 64,
+        min_length = 1,
+        example = "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+        value_type = Option<String>,
+    )]
+    pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    /// A cursor for use in pagination, fetch the next list after some object
+    #[param(example = "pay_fafa124123", value_type = Option<String>)]
+    pub starting_after: Option<id_type::GlobalPaymentId>,
+
+    /// A cursor for use in pagination, fetch the previous list before some object
+    #[param(example = "pay_fafa124123", value_type = Option<String>)]
+    pub ending_before: Option<id_type::GlobalPaymentId>,
+
+    /// limit on the number of objects to return
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
+
+    /// The starting point within a list of objects
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
+
+    /// The time at which payment is created
+    #[param(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created: Option<PrimitiveDateTime>,
+
+    /// Time less than the payment created time
+    #[param(example = "2022-09-10T10:11:12Z")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.lt"
+    )]
+    pub created_lt: Option<PrimitiveDateTime>,
+
+    /// Time greater than the payment created time
+    #[param(example = "2022-09-10T10:11:12Z")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.gt"
+    )]
+    pub created_gt: Option<PrimitiveDateTime>,
+
+    /// Time less than or equals to the payment created time
+    #[param(example = "2022-09-10T10:11:12Z")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.lte"
+    )]
+    pub created_lte: Option<PrimitiveDateTime>,
+
+    /// Time greater than or equals to the payment created time
+    #[param(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(rename = "created.gte")]
+    pub created_gte: Option<PrimitiveDateTime>,
+
+    /// The start amount to filter list of transactions which are greater than or equal to the start amount
+    pub start_amount: Option<i64>,
+    /// The end amount to filter list of transactions which are less than or equal to the end amount
+    pub end_amount: Option<i64>,
+    /// The connector to filter payments list
+    #[param(value_type = Option<Vec<Connector>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub connector: Option<Vec<api_enums::Connector>>,
+    /// The currency to filter payments list
+    #[param(value_type = Option<Vec<Currency>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub currency: Option<Vec<enums::Currency>>,
+    /// The payment status to filter payments list
+    #[param(value_type = Option<Vec<IntentStatus>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub status: Option<Vec<enums::IntentStatus>>,
+    /// The payment method type to filter payments list
+    #[param(value_type = Option<Vec<PaymentMethod>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub payment_method_type: Option<Vec<enums::PaymentMethod>>,
+    /// The payment method subtype to filter payments list
+    #[param(value_type = Option<Vec<PaymentMethodType>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub payment_method_subtype: Option<Vec<enums::PaymentMethodType>>,
+    /// The authentication type to filter payments list
+    #[param(value_type = Option<Vec<AuthenticationType>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub authentication_type: Option<Vec<enums::AuthenticationType>>,
+    /// The merchant connector id to filter payments list
+    #[param(value_type = Option<Vec<String>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+    /// The field on which the payments list should be sorted
+    #[serde(default)]
+    pub order_on: SortOn,
+    /// The order in which payments list should be sorted
+    #[serde(default)]
+    pub order_by: SortBy,
+    /// The card networks to filter payments list
+    #[param(value_type = Option<Vec<CardNetwork>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub card_network: Option<Vec<enums::CardNetwork>>,
+    /// The identifier for merchant order reference id
+    pub merchant_order_reference_id: Option<String>,
+    /// The recovery status to filter the recovery invoices list. Comma separated values are
+    /// supported. Recovery status is derived from the payment intent status and the recovery
+    /// workflows, so it is applied after the workflow lookup and before pagination.
+    #[param(value_type = Option<Vec<RecoveryStatus>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub recovery_status: Option<Vec<api_enums::RecoveryStatus>>,
+}
+
+#[cfg(feature = "v2")]
+impl RecoveryPaymentListConstraints {
+    /// Splits the constraints into the regular payment list constraints and the recovery status filter.
+    pub fn into_parts(
+        self,
+    ) -> (
+        PaymentListConstraints,
+        Option<Vec<api_enums::RecoveryStatus>>,
+    ) {
+        let Self {
+            payment_id,
+            profile_id,
+            customer_id,
+            starting_after,
+            ending_before,
+            limit,
+            offset,
+            created,
+            created_lt,
+            created_gt,
+            created_lte,
+            created_gte,
+            start_amount,
+            end_amount,
+            connector,
+            currency,
+            status,
+            payment_method_type,
+            payment_method_subtype,
+            authentication_type,
+            merchant_connector_id,
+            order_on,
+            order_by,
+            card_network,
+            merchant_order_reference_id,
+            recovery_status,
+        } = self;
+        (
+            PaymentListConstraints {
+                payment_id,
+                profile_id,
+                customer_id,
+                starting_after,
+                ending_before,
+                limit,
+                offset,
+                created,
+                created_lt,
+                created_gt,
+                created_lte,
+                created_gte,
+                start_amount,
+                end_amount,
+                connector,
+                currency,
+                status,
+                payment_method_type,
+                payment_method_subtype,
+                authentication_type,
+                merchant_connector_id,
+                order_on,
+                order_by,
+                card_network,
+                merchant_order_reference_id,
+            },
+            recovery_status,
+        )
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PaymentListResponse {

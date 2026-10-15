@@ -2,7 +2,7 @@
 pub use api_models::payments::{
     PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentsConfirmIntentRequest,
     PaymentsCreateIntentRequest, PaymentsIntentResponse, PaymentsUpdateIntentRequest,
-    RecoveryPaymentsCreate,
+    RecoveryPaymentListConstraints, RecoveryPaymentsCreate,
 };
 #[cfg(feature = "v1")]
 pub use api_models::payments::{
