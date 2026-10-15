@@ -449,12 +449,6 @@ fn validate_recovery_request(
             .map_err(|err| errors::ApiErrorResponse::PreconditionFailed {
                 message: err.to_string(),
             })?;
-        if document.document_number.peek().trim().is_empty() {
-            return Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "customer_details.document_details.document_number".into(),
-            }
-            .into());
-        }
     }
 
     for connector in [payment_connector, billing_connector] {
