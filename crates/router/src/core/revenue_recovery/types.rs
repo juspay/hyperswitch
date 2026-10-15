@@ -1773,7 +1773,7 @@ impl RevenueRecoveryOutgoingWebhook {
                 .change_context(errors::RecoveryError::InvalidTask)
                 .attach_printable("Failed to resolve webhook recipient for revenue recovery")?;
 
-                create_event_and_trigger_outgoing_webhook(
+                Box::pin(create_event_and_trigger_outgoing_webhook(
                     state.clone(),
                     platform.clone(),
                     event_status,
@@ -1783,7 +1783,7 @@ impl RevenueRecoveryOutgoingWebhook {
                     outgoing_webhook_content,
                     payment_intent.created_at,
                     webhook_recipient,
-                )
+                ))
                 .await
                 .change_context(errors::RecoveryError::InvalidTask)
                 .attach_printable("Failed to send out going webhook")?;
