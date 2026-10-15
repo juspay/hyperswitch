@@ -30,7 +30,7 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / 'cypress-tests/cypress/fixtures/paypal_ucs_regressions.json'
-PROTECTED = ('2K728570VG9010042', '0SG65781FC8888712')
+PROTECTED = ('2K728570VG9010042', '0SG65781FC8888712', '8HH928939S447812G', '29P14441XM896945V')
 FORBIDDEN = {'creds.json', 'creds_dummy.json'}
 SUFFIXES = {'.rs', '.toml', '.lock', '.proto', '.py', '.json', '.yaml', '.yml', '.sh'}
 
@@ -538,6 +538,295 @@ def verify_log_sinks(snapshots, response_identity, subject, canary, wallet_mode)
     raise LogSinkUnavailable('correlated masked wallet entry missing from an actual HS sink')
 
 
+def selected_active_attempt(payment, active_id, merchant_id, payment_id):
+    assert payment['payment_id'] == payment_id and payment['merchant_id'] == merchant_id
+    public_id = payment.get('active_attempt_id')
+    if public_id is not None:
+        assert isinstance(public_id, str) and public_id == active_id
+    assert isinstance(active_id, str) and active_id
+    rows = payment.get('attempts')
+    if not isinstance(rows, list):
+        raise GsmUnavailable('expanded public attempts are required for exact active-attempt selection')
+    matches = [row for row in rows if row.get('attempt_id') == active_id]
+    assert len(matches) == 1 and matches[0]['connector'] == 'paypal'
+    return matches[0]
+
+
+def owned_active_attempt(payment, operator, source):
+    cfg = operator['provider']
+    merchant, payment_id = cfg['merchant_id'], payment['payment_id']
+    active_id = payment.get('active_attempt_id')
+    receipt = None
+    if active_id is None:
+        # Credentials stay in the subprocess environment, never argv or artifacts.
+        names = cfg.get('readonly_database_env')
+        if not names or set(names) != {'PGHOST', 'PGPORT', 'PGDATABASE', 'PGUSER', 'PGPASSWORD'}:
+            raise GsmUnavailable('public active-attempt pointer absent; owned read-only DB lookup is required')
+        environment = {**os.environ, **{key: os.environ[name] for key, name in names.items()}}
+        actual = dict(item.split(b'=', 1) for item in Path(f'/proc/{source["hs"]["pid"]}/environ').read_bytes().split(b'\0') if b'=' in item)
+        for pg, hs in [('PGHOST', 'HOST'), ('PGPORT', 'PORT'), ('PGDATABASE', 'DBNAME'), ('PGUSER', 'USERNAME')]:
+            assert environment[pg].encode() == actual[b'ROUTER__MASTER_DATABASE__' + hs.encode()]
+        assert all(re.fullmatch(r'[A-Za-z0-9_-]{1,128}', item) for item in [merchant, payment_id])
+        query = ("SELECT json_build_object('merchant_id',i.merchant_id,'payment_id',i.payment_id,"
+            "'active_attempt_id',i.active_attempt_id,'merchant_connector_id',a.merchant_connector_id,"
+            "'database',current_database(),'server',inet_server_addr()::text) "
+            "FROM payment_intent i JOIN payment_attempt a ON a.attempt_id=i.active_attempt_id "
+            "AND a.payment_id=i.payment_id AND a.merchant_id=i.merchant_id "
+            "WHERE i.merchant_id='" + merchant + "' AND i.payment_id='" + payment_id + "'")
+        environment['PGOPTIONS'] = '-c default_transaction_read_only=on'
+        wire = subprocess.check_output(['psql', '--no-psqlrc', '-XAt', '-v', 'ON_ERROR_STOP=1', '-c', query], env=environment, stderr=subprocess.DEVNULL)
+        rows = [json.loads(line) for line in wire.splitlines() if line]
+        assert len(rows) == 1
+        row = rows[0]
+        assert row['merchant_id'] == merchant and row['payment_id'] == payment_id and row['merchant_connector_id'] == cfg['merchant_connector_id']
+        active_id = row['active_attempt_id']
+        receipt = {'query_sha256': digest(query.encode()), 'response_sha256': digest(wire),
+            'database_identity_sha256': digest(canonical([row['database'], row['server']])),
+            'observed_at_ns': time.time_ns(), 'hs_pid': source['hs']['pid'], 'source_commit': source['hs']['source_commit']}
+    return selected_active_attempt(payment, active_id, merchant, payment_id), receipt
+
+
+def provider_get(cfg, kind, resource_id):
+    # No redirects, arbitrary paths or financial POSTs. OAuth alone uses POST.
+    assert re.fullmatch(r'[A-Za-z0-9_-]{1,128}', resource_id)
+    paths = {'order': '/v2/checkout/orders/', 'capture': '/v2/payments/captures/',
+        'refund': '/v2/payments/refunds/', 'authorization': '/v2/payments/authorizations/'}
+    assert kind in paths
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *_args, **_kwargs):
+            return None
+    opener = urllib.request.build_opener(NoRedirect())
+    import base64
+    credentials = (os.environ[cfg['client_id_env']] + ':' + os.environ[cfg['client_secret_env']]).encode()
+    authorization = 'Basic ' + base64.b64encode(credentials).decode()
+    auth = urllib.request.Request('https://api-m.sandbox.paypal.com/v1/oauth2/token', data=b'grant_type=client_credentials',
+        headers={'Authorization': authorization, 'Content-Type': 'application/x-www-form-urlencoded'}, method='POST')
+    with opener.open(auth, timeout=30) as response:
+        assert response.status == 200
+        token = json.load(response)['access_token']
+    req = urllib.request.Request('https://api-m.sandbox.paypal.com' + paths[kind] + resource_id,
+        headers={'Authorization': 'Bearer ' + token}, method='GET')
+    with opener.open(req, timeout=30) as response:
+        assert response.status == 200
+        wire = response.read(2 * 1024 * 1024 + 1)
+        assert len(wire) <= 2 * 1024 * 1024
+    value = json.loads(wire)
+    assert value['id'] == resource_id
+    return value, digest(wire)
+
+
+def provider_money(amount):
+    from decimal import Decimal
+    assert amount['currency_code'] == 'USD' and re.fullmatch(r'[0-9]+\.[0-9]{2}', amount['value'])
+    return int(Decimal(amount['value']) * 100)
+
+
+def _primary_route_observation_once(snapshots, source, identity, subject, merchant_id, flow):
+    if not identity.get('request_id'):
+        raise GsmUnavailable('actual generated HS request UUID is missing')
+    for snapshot in snapshots.values():
+        descriptor = Path(f'/proc/{snapshot["pid"]}/fd/{snapshot["fd"]}').stat()
+        selected = snapshot['path'].stat()
+        assert (descriptor.st_dev, descriptor.st_ino) == (selected.st_dev, selected.st_ino) == (snapshot['device'], snapshot['inode'])
+        assert 0 <= selected.st_size - snapshot['offset'] <= 16 * 1024 * 1024
+        with snapshot['path'].open('rb') as stream:
+            stream.seek(snapshot['offset']);wire = stream.read(selected.st_size - snapshot['offset'])
+        for line in wire.splitlines():
+            record = json.loads(line)
+            if str(record.get('pid')) != str(source['hs']['pid']) or record.get('target') != 'router::events::event_logger':
+                continue
+            extra = record.get('extra', {})
+            if extra.get('event_type') != 'ConnectorApiLogs':
+                continue
+            event = extra.get('event')
+            event = json.loads(event) if isinstance(event, str) and event.lstrip().startswith('{') else tracing_json_value(event)
+            if event.get('request_id') != identity['request_id'] or event.get('flow') != flow:
+                continue
+            assert event.get('payment_id') == subject and event.get('merchant_id') == merchant_id
+            assert event.get('destination') == 'unified_connector_service' and event.get('execution_mode') == 'primary'
+            assert event.get('url') == 'grpc://unified-connector-service' and event.get('connector_name') == 'paypal'
+            return {'request_id': identity['request_id'], 'flow': flow, 'record_sha256': digest(line),
+                'hs_pid': source['hs']['pid'], 'source_sha256': digest(canonical(source))}
+    raise GsmUnavailable('current subject/UUID-correlated primary UCS route is not observable')
+
+
+def primary_route_observation(snapshots, source, identity, subject, merchant_id, flow):
+    # Event emission is asynchronous. Retry only bounded read-only sink reads;
+    # a wrong/Direct event remains an immediate failure, never a payment retry.
+    deadline = time.monotonic() + 2
+    while True:
+        try:
+            return _primary_route_observation_once(snapshots, source, identity, subject, merchant_id, flow)
+        except GsmUnavailable:
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(.05)
+
+
+def provider_state_observation(operator, payment, source, snapshots, identity, flow, refund_state=None):
+    cfg = operator['provider']
+    route = primary_route_observation(snapshots, source, identity, payment['payment_id'], cfg['merchant_id'], flow)
+    attempt, db_receipt = owned_active_attempt(payment, operator, source)
+    meta = attempt.get('connector_metadata')
+    assert isinstance(meta, dict) and meta.get('order_id')
+    order_id = meta['order_id']
+    order, order_sha = provider_get(cfg, 'order', order_id)
+    units = order.get('purchase_units', [])
+    assert len(units) == 1
+    unit = units[0]
+    expected = cfg['expected']
+    payments = unit.get('payments')
+    inventory_present = isinstance(payments, dict) and 'captures' in payments
+    if inventory_present and not isinstance(payments['captures'], list):
+        raise GsmUnavailable('provider capture inventory is null or malformed, not a complete empty list')
+    inventory_known = inventory_present
+    captures = payments['captures'] if inventory_known else []
+    authorizations = payments.get('authorizations', []) if isinstance(payments, dict) else []
+    if not inventory_known and (not expected.get('authorization_status')
+            or expected['capture_amounts'] or expected['final_capture_flags']):
+        raise GsmUnavailable('provider omitted capture inventory; an authorization hold cannot certify complete history')
+    capture_ids = [row['id'] for row in captures]
+    assert len(capture_ids) == len(set(capture_ids))
+    amounts = [provider_money(row['amount']) for row in captures]
+    for row in captures:
+        captured, _ = provider_get(cfg, 'capture', row['id'])
+        assert captured['status'] == row['status'] and captured['amount'] == row['amount']
+        assert captured.get('supplementary_data', {}).get('related_ids', {}).get('order_id') == order_id
+    assert provider_money(unit['amount']) == expected['order_amount']
+    assert order['status'] == expected['order_status']
+    assert sorted(amounts) == sorted(expected['capture_amounts'])
+    assert all(row['status'] == 'COMPLETED' for row in captures)
+    assert [row['final_capture'] for row in captures] == expected['final_capture_flags']
+    public_rows = payment.get('captures') or []
+    assert isinstance(public_rows, list)
+    # Public CaptureResponse fields come from the owned payment's stored capture
+    # row (types/transformers.rs CaptureResponse conversion). Only explicit
+    # current-attempt, charged, exact-ID/currency/Money matches certify a row.
+    # Unrelated/pending reservations are neither summed nor rejected as captures.
+    matched_ids = []
+    for cid, amount in zip(capture_ids, amounts):
+        matches = [row for row in public_rows if row.get('connector_capture_id') == cid
+            and row.get('status') == 'charged' and row.get('authorized_attempt_id') == attempt['attempt_id']
+            and row.get('currency') == 'USD' and type(row.get('amount')) is int and row['amount'] == amount]
+        assert len(matches) <= 1, 'duplicate local rows cannot corroborate one provider capture'
+        if matches:
+            matched_ids.append(cid)
+    rows_corroborated = bool(capture_ids) and set(matched_ids) == set(capture_ids)
+    evidence = {'route': route, 'active_attempt_id': attempt['attempt_id'], 'active_lookup': db_receipt,
+        'order_id': order_id, 'order_response_sha256': order_sha,
+        'capture_inventory': 'PRESENT_LIST' if inventory_known else 'ABSENT_AUTHORIZATION_HOLD_ONLY',
+        'capture_ids': capture_ids if inventory_known else None,
+        'capture_amounts': amounts if inventory_known else None,
+        'captured_gross': sum(amounts) if inventory_known else None, 'provider_method': 'GET',
+        'complete_order_history': inventory_known, 'no_pending_reservation_counted': inventory_known,
+        'matched_charged_owned_capture_ids': matched_ids,
+        'capture_operation_money_corroborated': rows_corroborated,
+        'actual_capture_reference_owned_row': rows_corroborated,
+        'two_distinct_capture_ids': inventory_known and len(capture_ids) == 2 and len(set(capture_ids)) == 2,
+        'captured_amounts': amounts if inventory_known else None,
+        'aggregate_gross': sum(amounts) if inventory_known else None, 'provider_state_verified': True,
+        'vendor_wire_verified': False}
+    if expected.get('authorization_status'):
+        assert len(authorizations) == 1 and authorizations[0]['id'] == meta['authorize_id']
+        auth, sha = provider_get(cfg, 'authorization', meta['authorize_id'])
+        assert auth['status'] == expected['authorization_status'] and provider_money(auth['amount']) == expected['order_amount']
+        evidence['authorization_response_sha256'] = sha
+    if expected.get('refund'):
+        refund_spec = expected['refund']
+        assert refund_state and refund_state['payment_id'] == payment['payment_id']
+        refund_id = refund_state.get('connector_refund_id')
+        assert refund_id == refund_spec['id']
+        refund, sha = provider_get(cfg, 'refund', refund_id)
+        assert refund['status'] == refund_spec['status'] and provider_money(refund['amount']) == refund_spec['amount']
+        parent_links = [link['href'] for link in refund.get('links', []) if link.get('rel') == 'up']
+        assert parent_links == ['https://api-m.sandbox.paypal.com/v2/payments/captures/' + refund_spec['capture_id']]
+        assert refund_spec['capture_id'] in capture_ids
+        evidence['refund_response_sha256'] = sha
+    return evidence
+
+
+def first_authorize_config_preflight(operator, source, base, token, body):
+    """Source/config evidence before creation; never claim an actual route trace."""
+    cfg = operator['provider']
+    subject = operator['bindings']['payment_id']
+    assert re.fullmatch(r'[A-Za-z0-9_-]{1,128}', subject)
+    assert body['payment_id'] == subject and body['merchant_id'] == cfg['merchant_id']
+    assert body['profile_id'] == cfg['profile_id'] and body['currency'] == 'USD'
+    assert type(body['amount']) is int and body['amount'] == cfg['expected']['order_amount']
+    assert body['capture_method'] == cfg['capture_method'] and body['capture_method'] in {'automatic', 'manual', 'manual_multiple'}
+    assert body['confirm'] is True and body['payment_method'] == 'card'
+    assert body['routing'] == {'type': 'single', 'data': {'connector': 'paypal', 'merchant_connector_id': cfg['merchant_connector_id']}}
+    merchant = cfg['merchant_id']
+    status, account, _ = request(base, 'GET', '/accounts/' + merchant, None, None, cfg['admin_key_env'], token)
+    assert status == 200 and account['merchant_id'] == merchant
+    org = account['organization_id']
+    assert re.fullmatch(r'[A-Za-z0-9_-]{1,128}', org)
+    status, enabled, _ = request(base, 'GET', '/configs/ucs_enabled', None, None, cfg['admin_key_env'], token)
+    assert status == 200 and enabled['key'] == 'ucs_enabled' and enabled['value'] == 'true'
+    # Exact highest-to-lowest precedence from build_rollout_keys_by_precedence.
+    scope = merchant + '_paypal_card_Authorize'
+    keys = ['ucs_rollout_config_' + scope, 'ucs_rollout_config_' + org + '_' + scope,
+        'ucs_rollout_config_' + org + '_' + merchant, 'ucs_rollout_config_' + org]
+    effective = None
+    for key in keys:
+        status, value, _ = request(base, 'GET', '/configs/' + key, None, None, cfg['admin_key_env'], token)
+        if status == 404:
+            continue
+        assert status == 200 and value['key'] == key
+        effective = json.loads(value['value'])
+        assert effective['execution_mode'] == 'primary' and effective['rollout_percent'] == 1.0
+        assert effective.get('kill_switch_enabled', False) is False
+        break
+    if effective is None:
+        raise GsmUnavailable('effective deterministic Primary Authorize config is absent')
+    # Source-backed config may still differ from a live cached decision. The
+    # actual post-call ConnectorApiLogs Primary event is mandatory independently.
+    status, _, absence_sha = request(base, 'GET', '/payments/' + subject, None, None,
+        operator.get('api_key_env', 'HYPERSWITCH_API_KEY'), token)
+    assert status == 404, 'first Authorize subject already exists or absence is unproven'
+    return {'phase': 'NEW_SUBJECT_CONFIG_PREFLIGHT_ONLY', 'actual_route_verified': False,
+        'subject': subject, 'merchant_id': merchant, 'profile_id': cfg['profile_id'],
+        'merchant_connector_id': cfg['merchant_connector_id'], 'body_sha256': digest(canonical(body)),
+        'effective_config_sha256': digest(canonical(effective)), 'absence_response_sha256': absence_sha,
+        'source_sha256': digest(canonical(source)), 'observed_at_ns': time.time_ns()}
+
+
+def provider_preflight(operator, source, base, token, first_body=None):
+    cfg = operator.get('provider')
+    if not cfg:
+        raise GsmUnavailable('genuine owned provider state/route configuration is required')
+    environment = dict(item.split(b'=', 1) for item in Path(f'/proc/{source["ucs"]["pid"]}/environ').read_bytes().split(b'\0') if b'=' in item)
+    assert environment.get(b'CS__CONNECTORS__PAYPAL__BASE_URL') == b'https://api-m.sandbox.paypal.com/'
+    # The mask precondition applies to financial cases independently of GSM.
+    applicable_wallet_mask_preflight(cfg['wallet_mask_receipts'], source, cfg['wallet_mask_config'])
+    merchant, mca = cfg['merchant_id'], cfg['merchant_connector_id']
+    assert all(re.fullmatch(r'[A-Za-z0-9_-]{1,128}', item) for item in [merchant, mca])
+    status, account, _ = request(base, 'GET', '/account/' + merchant + '/connectors/' + mca,
+        None, None, cfg['admin_key_env'], token)
+    assert status == 200 and account['merchant_connector_id'] == mca and account['connector_name'] == 'paypal'
+    assert account['test_mode'] is True and account.get('disabled') is not True
+    assert account['profile_id'] == cfg['profile_id']
+    credentials = account.get('connector_account_details')
+    if not isinstance(credentials, dict) or credentials.get('auth_type') != 'BodyKey':
+        raise GsmUnavailable('owned standard PayPal MCA credentials cannot be corroborated in memory')
+    assert credentials.get('key1') == os.environ[cfg['client_id_env']]
+    assert credentials.get('api_key') == os.environ[cfg['client_secret_env']]
+    if first_body is not None:
+        return first_authorize_config_preflight(operator, source, base, token, first_body)
+    pre_path = cfg['route_preflight_path']
+    query = urllib.parse.parse_qs(urllib.parse.urlsplit(pre_path).query)
+    assert query.get('force_sync') == ['true'] and query.get('expand_attempts') == ['true']
+    snapshots = snapshot_log_sinks(operator, source)
+    identity = {}
+    status, payment, _ = request(base, 'GET', pre_path, None, None,
+        operator.get('api_key_env', 'HYPERSWITCH_API_KEY'), token, identity)
+    assert status == 200
+    assert payment['payment_id'] == cfg['route_preflight_payment_id']
+    pre_operator = {**operator, 'provider': {**cfg, 'expected': cfg['pre_expected']}}
+    evidence = provider_state_observation(pre_operator, payment, source, snapshots, identity, 'PSync')
+    return evidence
+
+
 def run_case(case, context, journal, journal_path, source, base):
     operator = context['cases'][case['id']]
     bindings = operator['bindings']
@@ -550,6 +839,13 @@ def run_case(case, context, journal, journal_path, source, base):
     results = []
     for index, step in enumerate(case['steps']):
         cfg = operator['steps'][index]
+        if operator['kind'] == 'provider_live':
+            original_provider = context['cases'][case['id']].get('provider')
+            if not original_provider:
+                raise GsmUnavailable('genuine owned provider configuration is absent')
+            operator = {**operator, 'provider': {**original_provider,
+                'expected': cfg.get('provider_expected', original_provider['expected']),
+                'pre_expected': cfg.get('provider_pre_expected', original_provider.get('pre_expected'))}}
         method = step['method']
         path = cfg['path']
         body = json.loads(os.environ[cfg['body_env']]) if cfg.get('body_env') else None
@@ -568,7 +864,7 @@ def run_case(case, context, journal, journal_path, source, base):
         operation = case['id'] + ':' + str(index)
         saved = journal['operations'].get(operation)
         if saved:
-            assert saved['identity'] == identity, 'journal request or source identity changed'
+            assert {key: value for key, value in saved['identity'].items() if key != 'source'} == {key: value for key, value in identity.items() if key != 'source'}, 'journal request identity changed'
             # Any response-lost or completed write is irreversible from this runner.
             # Reconcile by GET below; no second financial request is allowed.
             if method != 'GET':
@@ -579,7 +875,18 @@ def run_case(case, context, journal, journal_path, source, base):
                     check(state, resolve(step['readback_expect'], bindings))
                 except AssertionError:
                     check(state, resolve(step['resume_readback_expect'], bindings))
+                reconcile_evidence = None
+                if operator['kind'] == 'provider_live':
+                    read_path = cfg.get('payment_reconcile_path', cfg['reconcile_path'])
+                    parts = urllib.parse.urlsplit(read_path)
+                    query = urllib.parse.parse_qs(parts.query)
+                    query.update(force_sync=['true'], expand_attempts=['true'], expand_captures=['true'])
+                    route_path = parts.path + '?' + urllib.parse.urlencode(query, doseq=True)
+                    provider_cfg = {**operator['provider'], 'route_preflight_path': route_path,
+                        'route_preflight_payment_id': bindings['payment_id'], 'pre_expected': operator['provider']['expected']}
+                    reconcile_evidence = provider_preflight({**operator, 'provider': provider_cfg}, source, base, saved['idempotency'])
                 results.append({'state': 'READ_ONLY_RECONCILED', 'operation': operation,
+                                'reconciled_provider_state': reconcile_evidence,
                                 'wire_sha256': wire_sha, 'cached_not_current_verification': True, 'current_mapping_verified': False,
                                 'provider_verification': False, 'original_provenance': saved.get('result', {}),
                                 'original_identity_sha256': digest(canonical(saved['identity']))})
@@ -602,6 +909,18 @@ def run_case(case, context, journal, journal_path, source, base):
             assert before['amount_received'] == bindings['received']
             assert before['amount_capturable'] == bindings['capturable']
             assert bindings['retained_status'] in {before['status'], 'processing', 'pending'}
+        provider_before_state = None
+        if operator['kind'] == 'provider_live':
+            if case['id'] == 'zero_auth':
+                raise GsmUnavailable('Vault availability requires a distinct nonpayment oracle; Orders state cannot verify zero authorization')
+            supported_proof = {'capture_ids', 'capture_amounts', 'no_pending_reservation_counted',
+                'capture_operation_money_corroborated', 'actual_capture_reference_owned_row',
+                'provider_method', 'complete_order_history', 'two_distinct_capture_ids', 'captured_amounts', 'aggregate_gross'}
+            if case.get('proof') and not set(case['proof']) <= supported_proof:
+                raise GsmUnavailable('this scenario requires genuine additional device/buyer/webhook/fault observations before a new payment write')
+            provider_before_state = provider_preflight(operator, source, base, token,
+                first_body=body if method == 'POST' and path == '/payments' else None)
+        route_snapshots = snapshot_log_sinks(operator, source) if operator['kind'] == 'provider_live' else None
         log_mode = wallet_log_mode(body) if case.get('log_canary') else None
         log_snapshots = snapshot_log_sinks(operator, source) if case.get('log_canary') else None
         provider_before = provider_observation_snapshot(source) if case.get('log_canary') else None
@@ -611,8 +930,22 @@ def run_case(case, context, journal, journal_path, source, base):
             pre_status, pre_state, _ = request(base, 'GET', precondition_path, None, None,
                 cfg.get('api_key_env', 'HYPERSWITCH_API_KEY'), token)
             assert pre_status == 200
-            check(pre_state, resolve(step['precondition'], bindings))
-        journal['operations'][operation] = {'identity': identity, 'idempotency': token, 'state': 'sending'}
+            if step.get('precondition_scope') == 'selected_active_attempt':
+                pre_attempt, _ = owned_active_attempt(pre_state, operator, source)
+                assert provider_before_state is None or pre_attempt['attempt_id'] == provider_before_state['active_attempt_id']
+                resolved_precondition = resolve(step['precondition'], bindings)
+                check(pre_attempt, {key: value for key, value in resolved_precondition.items() if key.startswith('/connector_metadata/')})
+                public_conditions = {key: value for key, value in resolved_precondition.items() if not key.startswith('/connector_metadata/')}
+                if public_conditions:
+                    check(pre_state, public_conditions)
+            else:
+                check(pre_state, resolve(step['precondition'], bindings))
+        if provider_before_state and method != 'GET' and path != '/payments':
+            assert provider_before_state['order_id'] == operator['provider']['expected_order_id']
+            assert operator['provider']['route_preflight_payment_id'] == bindings['payment_id']
+        journal['operations'][operation] = {'identity': identity, 'idempotency': token, 'state': 'sending',
+            'provider_before': provider_before_state,
+            'subject': bindings['payment_id'], 'active_attempt_id': provider_before_state.get('active_attempt_id') if provider_before_state else None}
         atomic(journal_path, journal)
         transport_proof = None
         response_identity = {}
@@ -628,10 +961,10 @@ def run_case(case, context, journal, journal_path, source, base):
                 assert transport_proof['fault_injected'] and transport_proof['operation'] == token
 
         observation_unavailable = False
+        journal['operations'][operation]['http_response_observed'] = {
+            'status': status, 'wire_sha256': wire_sha, 'request_id': response_identity.get('request_id')}
+        atomic(journal_path, journal)
         if log_snapshots is not None:
-            journal['operations'][operation]['http_response_observed'] = {
-                'status': status, 'wire_sha256': wire_sha, 'request_id': response_identity.get('request_id')}
-            atomic(journal_path, journal)
             try:
                 # Only unavailable observation proof is deferred. Security/mask
                 # assertions remain immediate failures; no raw error is retained.
@@ -669,30 +1002,42 @@ def run_case(case, context, journal, journal_path, source, base):
             assert all(row['status'] == 'charged' and row['currency'] == expected_rows['currency']
                 and row['authorized_attempt_id'] == bindings['attempt_id'] for row in rows)
         proof = None
+        provider_evidence = None
+        if operator['kind'] == 'provider_live':
+            cfg_provider = operator['provider']
+            provider_payment = state
+            if case['group'] in {'Refund', 'RSync'}:
+                payment_status, provider_payment, _ = request(base, 'GET', cfg['payment_reconcile_path'], None, None,
+                    cfg.get('api_key_env', 'HYPERSWITCH_API_KEY'), token)
+                assert payment_status == 200
+            flow = 'PSync' if method == 'GET' and case['group'] not in {'Refund', 'RSync'} else {'Refund': 'Execute'}.get(case['group'], case['group'])
+            provider_evidence = provider_state_observation(operator, provider_payment, source, route_snapshots,
+                response_identity, flow, refund_state=state if case['group'] in {'Refund', 'RSync'} else None)
         if case.get('proof') and index == case.get('proof_after_step', index):
             # Local fixture/notification collector supplies actual wire observations,
             # not an authored expected-result file. Proof endpoint is read-only.
-            if transport_proof is None:
+            if operator['kind'] == 'provider_live':
+                proof = provider_evidence
+                needed = resolve(case['proof'], bindings)
+                if needed.get('complete_order_history') is True and proof.get('complete_order_history') is not True:
+                    raise GsmUnavailable('provider capture-history completeness is not established')
+                if not set(needed) <= set(proof):
+                    raise GsmUnavailable('this scenario needs additional genuine device/buyer/webhook or fault observations')
+                check(proof, needed)
+            elif transport_proof is None:
                 proof_url = urllib.parse.urlsplit(os.environ['PAYPAL_HS_PROOF_BASE'])
                 assert proof_url.hostname in {'127.0.0.1', 'localhost', '::1'}
-            if transport_proof is not None:
+            if operator['kind'] == 'provider_live':
+                pass
+            elif transport_proof is not None:
                 proof = transport_proof
             else:
                 _, proof, _ = request(os.environ['PAYPAL_HS_PROOF_BASE'], 'GET', cfg['proof_path'],
                     None, None, cfg.get('api_key_env', 'HYPERSWITCH_API_KEY'), token)
             check(proof, resolve(case['proof'], bindings))
-            assert proof['operation'] == token
+            if operator['kind'] != 'provider_live':
+                assert proof['operation'] == token
         vendor_wire_verified = False
-        if operator['kind'] == 'provider_live':
-            proof_url = urllib.parse.urlsplit(os.environ['PAYPAL_HS_PROOF_BASE'])
-            assert proof_url.hostname in {'127.0.0.1', 'localhost', '::1'}
-            _, wire_proof, _ = request(os.environ['PAYPAL_HS_PROOF_BASE'], 'GET', cfg['vendor_proof_path'],
-                None, None, cfg.get('api_key_env', 'HYPERSWITCH_API_KEY'), token)
-            check(wire_proof, {'operation': token, 'provider_hostname': 'api-m.sandbox.paypal.com',
-                'actual_wire_observed': True, 'fixture_response': False,
-                'hs_binary_sha256': source['hs']['binary_sha256'],
-                'ucs_binary_sha256': source['ucs']['binary_sha256']})
-            vendor_wire_verified = True
         log_evidence = None
         if log_snapshots is not None:
             assert operator['kind'] == 'production_fixture', 'log canary uses public inert fixture only'
@@ -705,6 +1050,7 @@ def run_case(case, context, journal, journal_path, source, base):
                   'http_status': status, 'wire_sha256': wire_sha, 'readback_sha256': read_sha,
                   'provider_verification': False, 'requested_evidence_kind': operator['kind'],
                   'current_mapping_verified': False, 'vendor_wire_verified': vendor_wire_verified,
+                  'provider_state_verified': bool(provider_evidence), 'provider_state_observation': provider_evidence,
                   'log_sink_evidence': log_evidence,
                   'unresolved_capture_rows': [{'capture_id': row.get('capture_id'), 'preserved_status': row.get('status')}
                       for row in (state.get('captures') or []) if not row.get('connector_capture_id')
@@ -1429,15 +1775,15 @@ def main():
                 fresh = binding_valid and all(step.get('state') == 'ORACLE_PASSED_PENDING_RUNTIME_RECHECK'
                     for step in result['steps'])
                 result['current_mapping_verified'] = fresh
-                result['provider_verification'] = fresh and all(step.get('vendor_wire_verified') is True
+                result['provider_verification'] = fresh and all(step.get('provider_state_verified') is True
                     for step in result['steps'])
                 if not fresh:
                     result['state'] = 'READ_ONLY_RECONCILED' if binding_valid else 'RUNTIME_BINDING_INVALIDATED'
                 for step in result['steps']:
                     if step.get('state') == 'ORACLE_PASSED_PENDING_RUNTIME_RECHECK':
-                        step['state'] = ('VERIFIED' if step.get('vendor_wire_verified') is True else 'GRADED') if binding_valid else 'RUNTIME_BINDING_INVALIDATED'
+                        step['state'] = ('VERIFIED' if step.get('provider_state_verified') is True else 'GRADED') if binding_valid else 'RUNTIME_BINDING_INVALIDATED'
                         step['current_mapping_verified'] = bool(binding_valid)
-                        step['provider_verification'] = bool(binding_valid and step.get('vendor_wire_verified') is True)
+                        step['provider_verification'] = bool(binding_valid and step.get('provider_state_verified') is True)
         atomic(args.out, {'source': source, 'cases': results, 'created_at_epoch': int(time.time())})
         print(json.dumps({'cases': len(results), 'failed': sum(r['state'] == 'FAILED' for r in results),
                           'not_run': sum(r['state'] == 'NOT_RUN' for r in results)}))

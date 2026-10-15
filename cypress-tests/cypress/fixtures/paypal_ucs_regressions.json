@@ -42,7 +42,8 @@
         "actual HS payment/attempt IDs",
         "actual request body environment when POST",
         "owned readback API",
-        "committed HS and immutable UCS build/runtime receipts"
+        "committed HS and immutable UCS build/runtime receipts",
+        "USD60 IR_16 control: capturable=6000; amount_received remains literal null before capture"
       ],
       "positive_money": [],
       "steps": [
@@ -106,7 +107,8 @@
         "actual request body environment when POST",
         "owned readback API",
         "committed HS and immutable UCS build/runtime receipts",
-        "actual complete-history certificate checked from stored HS metadata before capture; immediate outcome oracle is invalid without this proof"
+        "actual complete-history certificate checked from stored HS metadata before capture; immediate outcome oracle is invalid without this proof",
+        "USD60 manual authorization; immutable first capture USD30, remaining USD30; exact owned active-attempt connector_metadata from expanded attempts"
       ],
       "positive_money": [
         "received"
@@ -120,18 +122,21 @@
           "expect": {
             "/status": "partially_captured_and_capturable",
             "/payment_id": "@payment_id",
-            "/amount_received": "@received",
-            "/amount_capturable": "@capturable"
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
           },
           "readback_expect": {
             "/status": "partially_captured_and_capturable",
             "/payment_id": "@payment_id",
-            "/amount_received": "@received",
-            "/amount_capturable": "@capturable"
+            "/amount_received": 3000,
+            "/amount_capturable": 3000
           },
           "precondition": {
-            "/connector_metadata/capture_context/capture_history_complete": true
-          }
+            "/connector_metadata/capture_context/capture_history_complete": true,
+            "/amount_received": null,
+            "/amount_capturable": 6000
+          },
+          "precondition_scope": "selected_active_attempt"
         }
       ],
       "proof": {
@@ -172,7 +177,8 @@
           },
           "precondition": {
             "/connector_metadata/capture_context/capture_history_complete": true
-          }
+          },
+          "precondition_scope": "selected_active_attempt"
         }
       ],
       "proof": {
@@ -213,7 +219,8 @@
           },
           "precondition": {
             "/connector_metadata/capture_context/capture_history_complete": true
-          }
+          },
+          "precondition_scope": "selected_active_attempt"
         }
       ],
       "proof": {
@@ -1509,7 +1516,8 @@
           },
           "precondition": {
             "/connector_metadata/capture_context/capture_history_complete": false
-          }
+          },
+          "precondition_scope": "selected_active_attempt"
         },
         {
           "method": "GET",
@@ -1580,7 +1588,8 @@
             "/payment_id": "@payment_id",
             "/amount_received": 6000,
             "/amount_capturable": 0
-          }
+          },
+          "precondition_scope": "selected_active_attempt"
         },
         {
           "method": "POST",
@@ -1610,7 +1619,8 @@
               3000
             ],
             "currency": "USD"
-          }
+          },
+          "precondition_scope": "selected_active_attempt"
         },
         {
           "method": "GET",
@@ -1692,7 +1702,8 @@
             "/payment_id": "@payment_id",
             "/amount_received": 3000,
             "/amount_capturable": 0
-          }
+          },
+          "precondition_scope": "selected_active_attempt"
         },
         {
           "method": "POST",
