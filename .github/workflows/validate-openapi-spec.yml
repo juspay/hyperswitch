@@ -62,6 +62,11 @@ jobs:
           CARGO_BUILD_JOBS: 5
         run: cargo run -p openapi --features v2
 
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
       - name: Install `swagger-cli`
         shell: bash
         run: npm install -g @apidevtools/swagger-cli
