@@ -455,10 +455,10 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentIn
     #[instrument(skip_all)]
     async fn get_customer_details<'a>(
         &'a self,
-        state: &SessionState,
-        payment_data: &mut payments::PaymentIntentData<F>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        _state: &SessionState,
+        _payment_data: &mut payments::PaymentIntentData<F>,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, PaymentsUpdateIntentRequest, payments::PaymentIntentData<F>>,
@@ -466,14 +466,7 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentIn
         ),
         errors::StorageError,
     > {
-        let customer = helpers::populate_customer_details_from_customer(
-            state,
-            &mut payment_data.payment_intent,
-            merchant_key_store,
-            storage_scheme,
-        )
-        .await?;
-        Ok((Box::new(self), customer))
+        Ok((Box::new(self), None))
     }
 
     #[instrument(skip_all)]

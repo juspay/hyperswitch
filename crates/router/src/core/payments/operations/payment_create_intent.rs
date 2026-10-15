@@ -114,28 +114,6 @@ impl<F: Send + Clone + Sync>
 
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
-        let customer = match request.customer_id.as_ref() {
-            Some(id) => Some(
-                db.find_customer_by_global_id(
-                    id,
-                    platform.get_processor().get_key_store(),
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?,
-            ),
-            None => None,
-        };
-        let customer_details = helpers::merge_customer_details(
-            request
-                .customer_details
-                .clone()
-                .map(hyperswitch_domain_models::payments::payment_intent::CustomerData::from),
-            customer.as_ref(),
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to prepare customer details")?;
-
         let batch_encrypted_data = domain_types::crypto_operation(
             key_manager_state,
             common_utils::type_name!(hyperswitch_domain_models::payments::PaymentIntent),
@@ -144,7 +122,8 @@ impl<F: Send + Clone + Sync>
                     hyperswitch_domain_models::payments::FromRequestEncryptablePaymentIntent {
                         shipping_address: request.shipping.clone().map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode shipping address")?.map(hyperswitch_masking::Secret::new),
                         billing_address: request.billing.clone().map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode billing address")?.map(hyperswitch_masking::Secret::new),
-                        customer_details: customer_details
+                        customer_details: request.customer_details.clone()
+                            .map(hyperswitch_domain_models::payments::payment_intent::CustomerData::from)
                             .map(|customer| customer.encode_to_value())
                             .transpose()
                             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -267,10 +246,10 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsCreateIntentRequest, payments::Pa
     #[instrument(skip_all)]
     async fn get_customer_details<'a>(
         &'a self,
-        _state: &SessionState,
-        _payment_data: &mut payments::PaymentIntentData<F>,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _storage_scheme: enums::MerchantStorageScheme,
+        state: &SessionState,
+        payment_data: &mut payments::PaymentIntentData<F>,
+        merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, PaymentsCreateIntentRequest, payments::PaymentIntentData<F>>,
@@ -278,7 +257,13 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsCreateIntentRequest, payments::Pa
         ),
         errors::StorageError,
     > {
-        // The customer is validated and merged before the intent is inserted in get_trackers.
+        // validate customer_id if sent in the request
+        if let Some(id) = payment_data.payment_intent.customer_id.clone() {
+            state
+                .store
+                .find_customer_by_global_id(&id, merchant_key_store, storage_scheme)
+                .await?;
+        }
         Ok((Box::new(self), None))
     }
 

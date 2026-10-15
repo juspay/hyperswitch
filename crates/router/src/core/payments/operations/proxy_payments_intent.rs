@@ -286,20 +286,13 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
 {
     async fn get_customer_details<'a>(
         &'a self,
-        state: &SessionState,
-        payment_data: &mut PaymentConfirmData<F>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        _state: &SessionState,
+        _payment_data: &mut PaymentConfirmData<F>,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedConfirmOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
-        let customer = crate::core::payments::helpers::populate_customer_details_from_customer(
-            state,
-            &mut payment_data.payment_intent,
-            merchant_key_store,
-            storage_scheme,
-        )
-        .await?;
-        Ok((Box::new(self), customer))
+        Ok((Box::new(self), None))
     }
 
     #[instrument(skip_all)]

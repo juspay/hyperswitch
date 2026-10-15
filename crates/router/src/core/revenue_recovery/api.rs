@@ -439,7 +439,23 @@ fn validate_recovery_request(
     billing_connector: &domain::MerchantConnectorAccount,
     profile_id: &id_type::ProfileId,
 ) -> RouterResult<()> {
-    payments::helpers::validate_customer_document_details(request.customer_details.as_ref())?;
+    if let Some(document) = request
+        .customer_details
+        .as_ref()
+        .and_then(|customer| customer.document_details.as_ref())
+    {
+        document
+            .validate()
+            .map_err(|err| errors::ApiErrorResponse::PreconditionFailed {
+                message: err.to_string(),
+            })?;
+        if document.document_number.peek().trim().is_empty() {
+            return Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "customer_details.document_details.document_number".into(),
+            }
+            .into());
+        }
+    }
 
     for connector in [payment_connector, billing_connector] {
         utils::when(&connector.profile_id != profile_id, || {

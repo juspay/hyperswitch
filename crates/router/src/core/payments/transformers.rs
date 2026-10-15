@@ -417,7 +417,13 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .attach_printable("Failed to extract customer details from payment_intent")?;
     let email = customer_details
         .as_ref()
-        .and_then(|details| details.email.clone());
+        .and_then(|details| details.email.clone())
+        .or_else(|| {
+            customer
+                .as_ref()
+                .and_then(|customer| customer.email.clone())
+                .map(pii::Email::from)
+        });
     let customer_document_details =
         customer_details.and_then(|details| details.customer_document_details);
 

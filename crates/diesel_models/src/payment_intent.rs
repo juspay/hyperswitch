@@ -770,7 +770,6 @@ pub struct PaymentIntentUpdateInternal {
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub authentication_type: Option<common_enums::AuthenticationType>,
     pub billing_address: Option<Encryption>,
-    pub customer_details: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
     pub customer_present: Option<bool>,
     pub description: Option<common_utils::types::Description>,
