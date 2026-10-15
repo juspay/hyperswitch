@@ -861,8 +861,9 @@ pub async fn payments_retrieve(
         },
         auth::auth_type(
             &*auth_type,
-            &auth::JWTAuth {
-                permission: Permission::ProfilePaymentRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: None,
+                permission: Some(Permission::ProfilePaymentRead),
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -1400,8 +1401,9 @@ pub async fn payments_capture(
                 allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
-            &auth::JWTAuth {
-                permission: Permission::ProfilePaymentWrite,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: None,
+                permission: Some(Permission::ProfilePaymentWrite),
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -2077,8 +2079,9 @@ pub async fn payments_cancel(
                 allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
-            &auth::JWTAuth {
-                permission: Permission::ProfilePaymentWrite,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: None,
+                permission: Some(Permission::ProfilePaymentWrite),
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -2510,8 +2513,9 @@ pub async fn profile_payments_list_by_filter(
                 req,
             )
         },
-        &auth::JWTAuth {
-            permission: Permission::ProfilePaymentRead,
+        &auth::JWTAndEmbeddedAuth {
+            merchant_id_from_route: None,
+            permission: Some(Permission::ProfilePaymentRead),
             allow_connected: true,
             allow_platform: false,
         },
@@ -2620,8 +2624,9 @@ pub async fn get_payment_filters_profile(
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
             )
         },
-        &auth::JWTAuth {
-            permission: Permission::ProfilePaymentRead,
+        &auth::JWTAndEmbeddedAuth {
+            merchant_id_from_route: None,
+            permission: Some(Permission::ProfilePaymentRead),
             allow_connected: true,
             allow_platform: false,
         },
@@ -2855,10 +2860,31 @@ where
     // the operation are flow agnostic, and the flow is only required in the post_update_tracker
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
+    // A network-token-with-vault-card-fallback request is not a single payment: it names a network
+    // token arm and a vault-aliased card arm sharing one network transaction ID, and the two arms
+    // run on different cores. Its wrapper owns that sequencing, so it is checked ahead of both
+    // single-core gates.
+    let network_token_with_vault_card_fallback =
+        helpers::network_token_with_vault_card_fallback_details(&req);
+
     let should_call_proxy_for_payments_core =
         helpers::should_call_proxy_for_payments_core(req.clone());
 
-    if should_call_proxy_for_payments_core {
+    if let Some(fallback) = network_token_with_vault_card_fallback {
+        logger::debug!("Authorize call for NTI with network token and vault card fallback flow");
+        Box::pin(payments::network_token_with_vault_card_fallback_core(
+            state,
+            req_state,
+            platform,
+            profile_id,
+            operation,
+            req,
+            fallback,
+            auth_flow,
+            header_payload,
+        ))
+        .await
+    } else if should_call_proxy_for_payments_core {
         // no list of eligible connectors will be passed in the confirm call
         logger::debug!("Authorize call for NTI and Card Details flow");
         payments::proxy_for_payments_core::<
@@ -3356,7 +3382,7 @@ pub async fn payments_manual_update(
 }
 
 #[cfg(all(feature = "olap", feature = "v1"))]
-/// Manually update payment status from Review to Succeeded or Failed (Dashboard API with JWT auth)
+/// Manually resolve a Review or Conflicted payment using dashboard or embedded authentication.
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsManualStatusUpdate, payment_id))]
 pub async fn payments_manual_status_update(
     state: web::Data<app::AppState>,
@@ -3376,10 +3402,17 @@ pub async fn payments_manual_status_update(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _req_state| {
-            payments::payments_manual_status_update(state, auth.platform, payment_id.clone(), req)
+            payments::payments_manual_status_update(
+                state,
+                auth.platform,
+                auth.profile.map(|profile| profile.get_id().clone()),
+                payment_id.clone(),
+                req,
+            )
         },
-        &auth::JWTAuth {
-            permission: Permission::ProfilePaymentWrite,
+        &auth::JWTAndEmbeddedAuth {
+            merchant_id_from_route: None,
+            permission: Some(Permission::ProfilePaymentWrite),
             allow_connected: true,
             allow_platform: true,
         },
@@ -3390,7 +3423,7 @@ pub async fn payments_manual_status_update(
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 /// List the statuses a conflicted payment is currently eligible for a manual status update to
-/// (Dashboard or API-key auth, mirroring the payment retrieve endpoint's auth).
+/// (Dashboard, embedded or API-key auth, mirroring the payment retrieve endpoint's auth).
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsManualStatusUpdateEligibleStatuses, payment_id))]
 pub async fn payments_manual_status_update_eligible_statuses(
     state: web::Data<app::AppState>,
@@ -3425,13 +3458,15 @@ pub async fn payments_manual_status_update_eligible_statuses(
             payments::payments_manual_status_update_eligible_statuses(
                 state,
                 auth.platform,
+                auth.profile.map(|profile| profile.get_id().clone()),
                 payment_id.clone(),
             )
         },
         auth::auth_type(
             &*auth_type,
-            &auth::JWTAuth {
-                permission: Permission::ProfilePaymentRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: None,
+                permission: Some(Permission::ProfilePaymentRead),
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -4007,8 +4042,9 @@ pub async fn get_payments_aggregates_profile(
                 req,
             )
         },
-        &auth::JWTAuth {
-            permission: Permission::ProfilePaymentRead,
+        &auth::JWTAndEmbeddedAuth {
+            merchant_id_from_route: None,
+            permission: Some(Permission::ProfilePaymentRead),
             allow_connected: true,
             allow_platform: false,
         },

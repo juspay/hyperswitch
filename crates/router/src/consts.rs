@@ -529,6 +529,21 @@ pub mod superposition {
     pub const THREEDS_ROUTING_REGION_UAS: &str = "routing.threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "webhooks.incoming_webhook_disabled_events";
+    /// Whether unverified webhook rate limiting is enabled, defaults to `false`
+    pub const UNVERIFIED_WEBHOOK_RATE_LIMIT_ENABLED: &str =
+        "webhooks.unverified_webhook_rate_limit_enabled";
+    /// Fixed window, in seconds, over which unverified webhooks are counted
+    pub const UNVERIFIED_WEBHOOK_RATE_LIMIT_WINDOW_IN_SECS: &str =
+        "webhooks.unverified_webhook_rate_limit_window_in_secs";
+    /// Maximum unverified webhooks per merchant per window, defaults to 60, `0` disables the merchant level
+    pub const UNVERIFIED_WEBHOOK_MERCHANT_RATE_LIMIT: &str =
+        "webhooks.unverified_webhook_merchant_rate_limit";
+    /// Maximum unverified webhooks per profile per window, `0` disables the profile level
+    pub const UNVERIFIED_WEBHOOK_PROFILE_RATE_LIMIT: &str =
+        "webhooks.unverified_webhook_profile_rate_limit";
+    /// Maximum unverified webhooks per merchant connector account per window, `0` disables the merchant connector account level
+    pub const UNVERIFIED_WEBHOOK_MERCHANT_CONNECTOR_ACCOUNT_RATE_LIMIT: &str =
+        "webhooks.unverified_webhook_merchant_connector_account_rate_limit";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
     /// checkout sdk configuration
@@ -537,6 +552,9 @@ pub mod superposition {
     pub const PRE_FRM_FAILURE_MODE: &str = "frm.pre_frm_failure_mode";
     /// Payout FRM call configuration key
     pub const PAYOUT_FRM_CALL: &str = "payouts.payout_frm_call";
+    /// Whether to rerun payout FRM before automatic retries, overridable by connector
+    pub const RERUN_PAYOUT_FRM_BEFORE_AUTO_RETRY: &str =
+        "payouts.rerun_payout_frm_before_auto_retry";
     /// Maximum number of card issuers a list request reads
     pub const CARD_ISSUER_LIST_MAX_LIMIT: &str = "card_issuer.list_max_limit";
     /// Preferred-connector routing enablement configuration key per profile

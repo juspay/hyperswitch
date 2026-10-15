@@ -18,7 +18,7 @@ ext_services_latency = []
 
 [dependencies]
 actix-web = "4.11.0"
-async-trait = "0.1.88"
+async-trait = "0.1.92"
 bytes = "1.10.1"
 dyn-clone = "1.0.19"
 error-stack = "0.4.1"
@@ -35,7 +35,7 @@ time = "0.3.41"
 tonic = "0.14"
 url = { version = "2.5.4", features = ["serde"] }
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.10.08.0", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.10.09.0", package = "rust-grpc-client" }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
 # First party crates
