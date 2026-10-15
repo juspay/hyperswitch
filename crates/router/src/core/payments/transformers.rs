@@ -410,10 +410,16 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("connector_request_reference_id not found in payment_attempt")?;
 
-    let email = customer
+    let customer_details = payment_data
+        .payment_intent
+        .get_customer_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to extract customer details from payment_intent")?;
+    let email = customer_details
         .as_ref()
-        .and_then(|customer| customer.email.clone())
-        .map(pii::Email::from);
+        .and_then(|details| details.email.clone());
+    let customer_document_details =
+        customer_details.and_then(|details| details.customer_document_details);
 
     let browser_info = payment_data
         .payment_attempt
@@ -617,7 +623,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        customer_document_details: None,
+        customer_document_details,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,

@@ -53,6 +53,7 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             currency: data.amount_details.currency(),
             merchant_reference_id: data.merchant_reference_id,
             billing_address: data.billing,
+            customer_details: data.customer_details,
             retry_count: None,
             next_billing_at: None,
             billing_started_at: Some(data.billing_started_at),

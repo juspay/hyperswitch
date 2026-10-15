@@ -1089,6 +1089,7 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
             currency: item.content.invoice.currency_code,
             merchant_reference_id,
             billing_address: Some(api_models::payments::Address::from(item.content.invoice)),
+            customer_details: None,
             retry_count,
             next_billing_at: invoice_next_billing_time,
             billing_started_at,

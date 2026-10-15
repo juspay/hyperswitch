@@ -3,6 +3,7 @@ use api_models::{payments as payments_api, payments as api_payments};
 use common_utils::id_type;
 use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::{payments as payments_domain, platform::Platform};
+use hyperswitch_masking::PeekInterface;
 
 use crate::{
     core::{
@@ -263,6 +264,23 @@ pub async fn custom_revenue_recovery_core(
     profile: domain::Profile,
     request: api_models::payments::RecoveryPaymentsCreate,
 ) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
+    if let Some(document) = request
+        .customer_details
+        .as_ref()
+        .and_then(|customer| customer.document_details.as_ref())
+    {
+        document
+            .validate()
+            .map_err(|err| errors::ApiErrorResponse::PreconditionFailed {
+                message: err.to_string(),
+            })?;
+        if document.document_number.peek().trim().is_empty() {
+            return Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "customer_details.document_details.document_number".into(),
+            }
+            .into());
+        }
+    }
     let store = state.store.as_ref();
     let payment_merchant_connector_account_id = request.payment_merchant_connector_id.to_owned();
     let profile_id = profile.get_id();
@@ -313,6 +331,17 @@ pub async fn custom_revenue_recovery_core(
                 .to_string(),
         })
     })?;
+
+    if payment_merchant_connector_account.connector_name
+        == common_enums::connector_enums::Connector::Dlocal
+        && request.payment_method_type == common_enums::PaymentMethod::Card
+        && matches!(
+            request.action,
+            common_types::payments::RecoveryPaymentsAction::ScheduleFailedPayment
+        )
+    {
+        validate_dlocal_recovery_payer(&request)?;
+    }
 
     let recovery_intent =
         recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
@@ -396,4 +425,134 @@ pub async fn custom_revenue_recovery_core(
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))
+}
+
+/// Validate the payer before creating trackers or scheduling a dLocal recovery charge.
+fn validate_dlocal_recovery_payer(
+    request: &api_models::payments::RecoveryPaymentsCreate,
+) -> RouterResult<()> {
+    let missing = |field_name: &'static str| errors::ApiErrorResponse::MissingRequiredField {
+        field_name: field_name.into(),
+    };
+    let customer = request
+        .customer_details
+        .as_ref()
+        .ok_or_else(|| missing("customer_details"))?;
+    customer
+        .document_details
+        .as_ref()
+        .ok_or_else(|| missing("customer_details.document_details"))?;
+    customer
+        .email
+        .as_ref()
+        .ok_or_else(|| missing("customer_details.email"))?;
+    let billing = request.billing.as_ref().ok_or_else(|| missing("billing"))?;
+    let address = billing
+        .address
+        .as_ref()
+        .ok_or_else(|| missing("billing.address"))?;
+    address
+        .country
+        .as_ref()
+        .ok_or_else(|| missing("billing.address.country"))?;
+    address
+        .first_name
+        .as_ref()
+        .filter(|name| !name.peek().trim().is_empty())
+        .ok_or_else(|| missing("billing.address.first_name"))?;
+    Ok(())
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod payer_tests {
+    use super::*;
+
+    fn request() -> payments_api::RecoveryPaymentsCreate {
+        let mut value: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../hyperswitch_domain_models/tests/fixtures/recovery_payment.json"
+        )))
+        .unwrap();
+        value.as_object_mut().unwrap().insert(
+            "customer_details".to_string(),
+            serde_json::json!({
+                "email": "customer@example.com",
+                "document_details": {"document_type": "cpf", "document_number": "12345678909"}
+            }),
+        );
+        serde_json::from_value(value).unwrap()
+    }
+
+    #[test]
+    fn recovery_api_conversion_preserves_payer_document_and_email() {
+        let request = request();
+        validate_dlocal_recovery_payer(&request).unwrap();
+        let invoice =
+            hyperswitch_domain_models::revenue_recovery::RevenueRecoveryInvoiceData::foreign_from(
+                request,
+            );
+        let intent = payments_api::PaymentsCreateIntentRequest::from(&invoice);
+        assert_eq!(
+            intent
+                .customer_details
+                .as_ref()
+                .unwrap()
+                .document_details
+                .as_ref()
+                .unwrap()
+                .document_number
+                .peek(),
+            "12345678909"
+        );
+        assert_eq!(
+            intent.customer_details.unwrap().email.unwrap().peek(),
+            "customer@example.com"
+        );
+        assert!(intent.customer_id.is_none());
+    }
+
+    #[test]
+    fn dlocal_recovery_rejects_missing_payer_fields_before_scheduling() {
+        for field in [
+            "customer_details",
+            "customer_details.document_details",
+            "customer_details.email",
+            "billing.address.country",
+            "billing.address.first_name",
+        ] {
+            let mut request = request();
+            match field {
+                "customer_details" => request.customer_details = None,
+                "customer_details.document_details" => {
+                    request.customer_details.as_mut().unwrap().document_details = None
+                }
+                "customer_details.email" => request.customer_details.as_mut().unwrap().email = None,
+                "billing.address.country" => {
+                    request
+                        .billing
+                        .as_mut()
+                        .unwrap()
+                        .address
+                        .as_mut()
+                        .unwrap()
+                        .country = None
+                }
+                _ => {
+                    request
+                        .billing
+                        .as_mut()
+                        .unwrap()
+                        .address
+                        .as_mut()
+                        .unwrap()
+                        .first_name = Some(hyperswitch_masking::Secret::new("  ".to_string()))
+                }
+            }
+            let error = validate_dlocal_recovery_payer(&request).unwrap_err();
+            assert!(
+                matches!(error.current_context(), errors::ApiErrorResponse::MissingRequiredField { field_name } if field_name.as_ref() == field)
+            );
+        }
+    }
 }

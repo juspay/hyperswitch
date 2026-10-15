@@ -422,6 +422,7 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
                 .object
                 .customer_address
                 .map(api_models::payments::Address::from),
+            customer_details: None,
             retry_count: Some(item.data.object.attempt_count),
             next_billing_at,
             billing_started_at,

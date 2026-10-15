@@ -501,6 +501,23 @@ impl PaymentIntent {
         }
     }
 
+    /// Read the payer snapshot stored on this intent without looking up a customer record.
+    #[cfg(feature = "v2")]
+    pub fn get_customer_details(
+        &self,
+    ) -> Result<Option<CustomerData>, common_utils::errors::ParsingError> {
+        self.customer_details
+            .as_ref()
+            .map(|details| {
+                ValueExt::parse_value::<CustomerData>(
+                    details.clone().into_inner().expose(),
+                    "CustomerData",
+                )
+            })
+            .transpose()
+            .map_err(|report| (*report.current_context()).clone())
+    }
+
     pub fn get_customer_document_details(
         &self,
     ) -> Result<Option<CustomerDocumentDetails>, common_utils::errors::ParsingError> {
@@ -1201,7 +1218,7 @@ impl PaymentIntent {
                 .unwrap_or_default(),
             split_txns_enabled: profile.split_txns_enabled,
             frm_metadata: request.frm_metadata,
-            customer_details: None,
+            customer_details: decrypted_payment_intent.customer_details.clone(),
             merchant_reference_id: request.merchant_reference_id,
             billing_address: decrypted_payment_intent
                 .billing_address
