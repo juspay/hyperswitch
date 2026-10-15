@@ -3195,6 +3195,7 @@ async fn execute_payment_method_create(
                 external_vault_source,
                 Some(enums::PaymentMethodStatus::New),
                 platform.get_initiator(),
+                None,
             )
             .await
             .attach_printable("unable to create payment method data")?;
@@ -3900,6 +3901,7 @@ pub async fn generate_network_token_for_payment_method(
                     .get_initiator()
                     .and_then(|initiator| initiator.to_created_by())
                     .map(|last_modified_by| last_modified_by.to_string()),
+                last_used_at: None,
             };
 
             db.update_payment_method(
@@ -5146,6 +5148,7 @@ pub async fn create_pm_additional_data_update(
     external_vault_source: Option<id_type::MerchantConnectorAccountId>,
     status: Option<storage_enums::PaymentMethodStatus>,
     initiator: Option<&domain::Initiator>,
+    last_used_at: Option<time::PrimitiveDateTime>,
 ) -> RouterResult<storage::PaymentMethodUpdate> {
     let encrypted_payment_method_data = pmd
         .map(|payment_method_vaulting_data| payment_method_vaulting_data.get_payment_methods_data())
@@ -5201,6 +5204,7 @@ pub async fn create_pm_additional_data_update(
         last_modified_by: initiator
             .and_then(|initiator| initiator.to_created_by())
             .map(|last_modified_by| last_modified_by.to_string()),
+        last_used_at,
     };
 
     Ok(pm_update)
@@ -8614,6 +8618,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                         .clone()
                         .map(|network_transaction_id| network_transaction_id.expose())
                         .or_else(|| self.payment_method.network_transaction_id.clone()),
+                    last_used_at: common_utils::date_time::now(),
                     ..self.payment_method.clone()
                 };
 
@@ -8650,6 +8655,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                     None,
                     pm_status,
                     self.platform.get_initiator(),
+                    Some(common_utils::date_time::now()),
                 )
                 .await
                 .attach_printable("Unable to create Payment method data")?;

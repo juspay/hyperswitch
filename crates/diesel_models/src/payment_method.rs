@@ -418,6 +418,7 @@ pub enum PaymentMethodUpdate {
         network_transaction_id: Option<Secret<String>>,
         network_transaction_link_id: Option<Secret<String>>,
         last_modified_by: Option<String>,
+        last_used_at: Option<PrimitiveDateTime>,
     },
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<CommonMandateReference>,
@@ -1233,9 +1234,10 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_transaction_id,
                 network_transaction_link_id,
                 last_modified_by,
+                last_used_at,
             } => Self {
                 payment_method_data,
-                last_used_at: None,
+                last_used_at,
                 status,
                 locker_id,
                 payment_method: None,
