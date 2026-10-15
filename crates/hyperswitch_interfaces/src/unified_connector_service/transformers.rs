@@ -909,11 +909,61 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 Ok(Self::BankRedirect { interac })
 
             }
+            Some(
+                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Paypal(
+                    paypal_data,
+                ),
+            ) => Ok(Self::Paypal {
+                email: paypal_data.email.and_then(|secret| {
+                    common_utils::pii::Email::from_str(&secret.expose())
+                        .inspect_err(|error| {
+                            router_env::logger::warn!(
+                                email_parse_error=?error,
+                                "Failed to parse payer email from UCS PayPal connector response"
+                            );
+                        })
+                        .ok()
+                }),
+                payer_id: paypal_data.payer_id,
+            }),
             None => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("Unexpected error: payment_method_data is None in UCS connector response")),
         }
+    }
+}
+
+#[cfg(test)]
+mod connector_response_tests {
+    use super::*;
+
+    #[test]
+    fn paypal_connector_response_preserves_payer_details() {
+        let proto = payments_grpc::AdditionalPaymentMethodConnectorResponse {
+            payment_method_data: Some(
+                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Paypal(
+                    payments_grpc::PaypalConnectorResponse {
+                        email: Some(hyperswitch_masking::Secret::new(
+                            "payer@example.com".to_string(),
+                        )),
+                        payer_id: Some(hyperswitch_masking::Secret::new(
+                            "payer_test".to_string(),
+                        )),
+                    },
+                ),
+            ),
+        };
+
+        let connector_response = AdditionalPaymentMethodConnectorResponse::foreign_try_from(proto);
+
+        assert!(matches!(
+            connector_response,
+            Ok(AdditionalPaymentMethodConnectorResponse::Paypal {
+                email: Some(_),
+                payer_id: Some(payer_id),
+            }) if payer_id.clone().expose() == "payer_test"
+        ));
     }
 }
 

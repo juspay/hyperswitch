@@ -626,6 +626,10 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                         router_data.minor_amount_captured = recurring_payment_charge_response
                             .captured_amount
                             .map(common_utils::types::MinorUnit::new);
+                        router_data.sender_payment_instrument_id =
+                            recurring_payment_charge_response
+                                .sender_payment_instrument_id
+                                .clone();
                         router_data.raw_connector_response = recurring_payment_charge_response
                             .raw_connector_response
                             .clone()
