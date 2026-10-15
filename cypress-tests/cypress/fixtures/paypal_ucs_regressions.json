@@ -2092,6 +2092,205 @@
         "known_capture_id_retained": true,
         "qualified_zero_imported": false
       }
+    },
+    {
+      "id": "gsm_hard_decline_9500",
+      "group": "GSM",
+      "requires": [
+        "fresh uniquely owned isolated DB identity verified against bound HS process",
+        "committed HS/UCS runtime receipts",
+        "current Apple PSP/Apple HS/Google HS BOTH actual masked sinks plus inert wire; Google PSP exact typed ApiLogs mask and all-sink raw-canary absence, actual HS-to-UCS typed unsupported and owned actual provider HTTP POST append-delta with zero wallet-token forwarding, OAuth explicitly counted and GET unobserved, plus source-proven preHTTP refusal; absent Connector requires BOTH current HS/UCS emission-source proof and exact NOT_APPLICABLE_API_CARRIER_UNAVAILABLE, never PASS/VERIFIED",
+        "automatic retries enabled, budget >0, eligible alternate owned inert fixture MCA",
+        "actual engine selected-key evidence and zero alternate calls"
+      ],
+      "positive_money": [],
+      "steps": [],
+      "gsm": {
+        "processor_code": "9500",
+        "network": "Visa",
+        "lookup": "issuer",
+        "expected_decision": "do_default",
+        "expected_status": "failed",
+        "positive_retry_permission": false,
+        "processor_message": "SUSPECTED_FRAUD. Try using another card. Do not retry the same card.",
+        "minimum_retry_budget": 1,
+        "minimum_eligible_mcas": 2,
+        "provider_policy": "do_not_retry_same_card",
+        "full_positive_smart_retry": "SPEC_GAP_NOT_RUN"
+      }
+    },
+    {
+      "id": "gsm_hard_decline_5180",
+      "group": "GSM",
+      "requires": [
+        "fresh uniquely owned isolated DB identity verified against bound HS process",
+        "committed HS/UCS runtime receipts",
+        "current Apple PSP/Apple HS/Google HS BOTH actual masked sinks plus inert wire; Google PSP exact typed ApiLogs mask and all-sink raw-canary absence, actual HS-to-UCS typed unsupported and owned actual provider HTTP POST append-delta with zero wallet-token forwarding, OAuth explicitly counted and GET unobserved, plus source-proven preHTTP refusal; absent Connector requires BOTH current HS/UCS emission-source proof and exact NOT_APPLICABLE_API_CARRIER_UNAVAILABLE, never PASS/VERIFIED",
+        "automatic retries enabled, budget >0, eligible alternate owned inert fixture MCA",
+        "actual engine selected-key evidence and zero alternate calls"
+      ],
+      "positive_money": [],
+      "steps": [],
+      "gsm": {
+        "processor_code": "5180",
+        "network": "Visa",
+        "lookup": "issuer",
+        "expected_decision": "do_default",
+        "expected_status": "failed",
+        "positive_retry_permission": false,
+        "processor_message": "INVALID_OR_RESTRICTED_CARD. Try using another card. Do not retry the same card.",
+        "minimum_retry_budget": 1,
+        "minimum_eligible_mcas": 2,
+        "provider_policy": "do_not_retry_same_card",
+        "full_positive_smart_retry": "SPEC_GAP_NOT_RUN"
+      }
+    },
+    {
+      "id": "gsm_hard_decline_9520",
+      "group": "GSM",
+      "requires": [
+        "fresh uniquely owned isolated DB identity verified against bound HS process",
+        "committed HS/UCS runtime receipts",
+        "current Apple PSP/Apple HS/Google HS BOTH actual masked sinks plus inert wire; Google PSP exact typed ApiLogs mask and all-sink raw-canary absence, actual HS-to-UCS typed unsupported and owned actual provider HTTP POST append-delta with zero wallet-token forwarding, OAuth explicitly counted and GET unobserved, plus source-proven preHTTP refusal; absent Connector requires BOTH current HS/UCS emission-source proof and exact NOT_APPLICABLE_API_CARRIER_UNAVAILABLE, never PASS/VERIFIED",
+        "automatic retries enabled, budget >0, eligible alternate owned inert fixture MCA",
+        "actual engine selected-key evidence and zero alternate calls"
+      ],
+      "positive_money": [],
+      "steps": [],
+      "gsm": {
+        "processor_code": "9520",
+        "network": "Visa",
+        "lookup": "issuer",
+        "expected_decision": "do_default",
+        "expected_status": "failed",
+        "positive_retry_permission": false,
+        "processor_message": "LOST_OR_STOLEN. Try using another card. Do not retry the same card.",
+        "minimum_retry_budget": 1,
+        "minimum_eligible_mcas": 2,
+        "provider_policy": "do_not_retry_same_card",
+        "full_positive_smart_retry": "SPEC_GAP_NOT_RUN"
+      }
+    },
+    {
+      "id": "gsm_unknown_no_rule",
+      "group": "GSM",
+      "requires": [
+        "owned isolated DB, current receipts and current Apple PSP/Apple HS/Google HS BOTH actual masked sinks plus inert wire; Google PSP exact typed ApiLogs mask and all-sink raw-canary absence, actual HS-to-UCS typed unsupported and owned actual provider HTTP POST append-delta with zero wallet-token forwarding, OAuth explicitly counted and GET unobserved, plus source-proven preHTTP refusal; absent Connector requires BOTH current HS/UCS emission-source proof and exact NOT_APPLICABLE_API_CARRIER_UNAVAILABLE, never PASS/VERIFIED",
+        "actual automatic retry budget and eligible alternate inert route",
+        "keyed rule absence/readback plus actual engine matched-key identity, not CRUD alone"
+      ],
+      "positive_money": [],
+      "steps": [],
+      "gsm": {
+        "processor_code": "9999",
+        "network": "Visa",
+        "lookup": "unknown_no_rule",
+        "expected_decision": "do_default",
+        "expected_status": "failed",
+        "positive_retry_permission": false,
+        "processor_message": "No error message",
+        "minimum_retry_budget": 1,
+        "minimum_eligible_mcas": 2,
+        "provider_policy": "do_not_retry_same_card",
+        "full_positive_smart_retry": "SPEC_GAP_NOT_RUN",
+        "code_provenance": "Synthetic unmapped four-digit inert fixture control; no PayPal policy or live outcome claimed"
+      }
+    },
+    {
+      "id": "gsm_issuer_first",
+      "group": "GSM",
+      "requires": [
+        "owned isolated DB, current receipts and current Apple PSP/Apple HS/Google HS BOTH actual masked sinks plus inert wire; Google PSP exact typed ApiLogs mask and all-sink raw-canary absence, actual HS-to-UCS typed unsupported and owned actual provider HTTP POST append-delta with zero wallet-token forwarding, OAuth explicitly counted and GET unobserved, plus source-proven preHTTP refusal; absent Connector requires BOTH current HS/UCS emission-source proof and exact NOT_APPLICABLE_API_CARRIER_UNAVAILABLE, never PASS/VERIFIED",
+        "actual automatic retry budget and eligible alternate inert route",
+        "keyed rule absence/readback plus actual engine matched-key identity, not CRUD alone"
+      ],
+      "positive_money": [],
+      "steps": [],
+      "gsm": {
+        "processor_code": "9500",
+        "network": "Visa",
+        "lookup": "issuer_first",
+        "expected_decision": "do_default",
+        "expected_status": "failed",
+        "positive_retry_permission": false,
+        "processor_message": "SUSPECTED_FRAUD. Try using another card. Do not retry the same card.",
+        "minimum_retry_budget": 1,
+        "minimum_eligible_mcas": 2,
+        "provider_policy": "do_not_retry_same_card",
+        "full_positive_smart_retry": "SPEC_GAP_NOT_RUN"
+      }
+    },
+    {
+      "id": "gsm_wrong_flow",
+      "group": "GSM",
+      "requires": [
+        "owned isolated DB, current receipts and current Apple PSP/Apple HS/Google HS BOTH actual masked sinks plus inert wire; Google PSP exact typed ApiLogs mask and all-sink raw-canary absence, actual HS-to-UCS typed unsupported and owned actual provider HTTP POST append-delta with zero wallet-token forwarding, OAuth explicitly counted and GET unobserved, plus source-proven preHTTP refusal; absent Connector requires BOTH current HS/UCS emission-source proof and exact NOT_APPLICABLE_API_CARRIER_UNAVAILABLE, never PASS/VERIFIED",
+        "actual automatic retry budget and eligible alternate inert route",
+        "keyed rule absence/readback plus actual engine matched-key identity, not CRUD alone"
+      ],
+      "positive_money": [],
+      "steps": [],
+      "gsm": {
+        "processor_code": "9500",
+        "network": "Visa",
+        "lookup": "wrong_flow",
+        "expected_decision": "do_default",
+        "expected_status": "failed",
+        "positive_retry_permission": false,
+        "processor_message": "SUSPECTED_FRAUD. Try using another card. Do not retry the same card.",
+        "minimum_retry_budget": 1,
+        "minimum_eligible_mcas": 2,
+        "provider_policy": "do_not_retry_same_card",
+        "full_positive_smart_retry": "SPEC_GAP_NOT_RUN"
+      }
+    },
+    {
+      "id": "gsm_wrong_subflow",
+      "group": "GSM",
+      "requires": [
+        "owned isolated DB, current receipts and current Apple PSP/Apple HS/Google HS BOTH actual masked sinks plus inert wire; Google PSP exact typed ApiLogs mask and all-sink raw-canary absence, actual HS-to-UCS typed unsupported and owned actual provider HTTP POST append-delta with zero wallet-token forwarding, OAuth explicitly counted and GET unobserved, plus source-proven preHTTP refusal; absent Connector requires BOTH current HS/UCS emission-source proof and exact NOT_APPLICABLE_API_CARRIER_UNAVAILABLE, never PASS/VERIFIED",
+        "actual automatic retry budget and eligible alternate inert route",
+        "keyed rule absence/readback plus actual engine matched-key identity, not CRUD alone"
+      ],
+      "positive_money": [],
+      "steps": [],
+      "gsm": {
+        "processor_code": "9500",
+        "network": "Visa",
+        "lookup": "wrong_subflow",
+        "expected_decision": "do_default",
+        "expected_status": "failed",
+        "positive_retry_permission": false,
+        "processor_message": "SUSPECTED_FRAUD. Try using another card. Do not retry the same card.",
+        "minimum_retry_budget": 1,
+        "minimum_eligible_mcas": 2,
+        "provider_policy": "do_not_retry_same_card",
+        "full_positive_smart_retry": "SPEC_GAP_NOT_RUN"
+      }
+    },
+    {
+      "id": "gsm_unmatched_message",
+      "group": "GSM",
+      "requires": [
+        "owned isolated DB, current receipts and current Apple PSP/Apple HS/Google HS BOTH actual masked sinks plus inert wire; Google PSP exact typed ApiLogs mask and all-sink raw-canary absence, actual HS-to-UCS typed unsupported and owned actual provider HTTP POST append-delta with zero wallet-token forwarding, OAuth explicitly counted and GET unobserved, plus source-proven preHTTP refusal; absent Connector requires BOTH current HS/UCS emission-source proof and exact NOT_APPLICABLE_API_CARRIER_UNAVAILABLE, never PASS/VERIFIED",
+        "actual automatic retry budget and eligible alternate inert route",
+        "keyed rule absence/readback plus actual engine matched-key identity, not CRUD alone"
+      ],
+      "positive_money": [],
+      "steps": [],
+      "gsm": {
+        "processor_code": "9500",
+        "network": "Visa",
+        "lookup": "unmatched_message",
+        "expected_decision": "do_default",
+        "expected_status": "failed",
+        "positive_retry_permission": false,
+        "processor_message": "SUSPECTED_FRAUD. Try using another card. Do not retry the same card.",
+        "minimum_retry_budget": 1,
+        "minimum_eligible_mcas": 2,
+        "provider_policy": "do_not_retry_same_card",
+        "full_positive_smart_retry": "SPEC_GAP_NOT_RUN"
+      }
     }
   ]
 }

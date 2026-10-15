@@ -7,6 +7,8 @@ journal operation is reconciled by GET, never replayed. Final mode requires both
 committed runtimes, not merely binaries left in a target directory.
 """
 import argparse
+import ast
+import datetime
 import importlib.util
 import re
 import fcntl
@@ -435,8 +437,13 @@ def wallet_log_mode(body):
     return 'google_hs'
 
 
-def masked_wallet_field(value, wallet_mode, ancestry=(), depth=0):
+def masked_wallet_field(value, wallet_mode, sink_type, ancestry=(), depth=0, require_typed_marker=False):
     assert wallet_mode in {'apple_psp', 'apple_hs', 'google_psp', 'google_hs'}
+    assert sink_type in {'ApiLogs', 'ConnectorApiLogs'}
+    markers = ('***', '*** alloc::string::String ***') if sink_type == 'ApiLogs' else ('***',)
+    if require_typed_marker:
+        assert sink_type == 'ApiLogs'
+        markers = ('*** alloc::string::String ***',)
     if depth > 64:
         return False
     if isinstance(value, str):
@@ -447,9 +454,9 @@ def masked_wallet_field(value, wallet_mode, ancestry=(), depth=0):
                 decoded = tracing_json_value(value)
             except (ValueError, TypeError, RecursionError):
                 return False
-        return masked_wallet_field(decoded, wallet_mode, ancestry, depth + 1)
+        return masked_wallet_field(decoded, wallet_mode, sink_type, ancestry, depth + 1, require_typed_marker)
     if isinstance(value, list):
-        return any(masked_wallet_field(item, wallet_mode, ancestry, depth + 1) for item in value)
+        return any(masked_wallet_field(item, wallet_mode, sink_type, ancestry, depth + 1, require_typed_marker) for item in value)
     if isinstance(value, dict):
         for key, item in value.items():
             normalized = ''.join(c.lower() for c in key if c.isalnum())
@@ -474,10 +481,10 @@ def masked_wallet_field(value, wallet_mode, ancestry=(), depth=0):
                 'google_hs': {('tokenizationdata', 'cryptogram'),
                     ('tokenizationdata', 'tokenizationdata', 'decrypteddata', 'cryptogram')},
             }
-            if item == '***' and any(path == prefix + relative
+            if isinstance(item, str) and item in markers and any(path == prefix + relative
                     for prefix in prefixes for relative in expected[wallet_mode]):
                 return True
-            if masked_wallet_field(item, wallet_mode, path, depth + 1):
+            if masked_wallet_field(item, wallet_mode, sink_type, path, depth + 1, require_typed_marker):
                 return True
     return False
 
@@ -518,7 +525,7 @@ def verify_log_sinks(snapshots, response_identity, subject, canary, wallet_mode)
                 if record.get('target') != 'router::events::event_logger' or not isinstance(extra, dict):
                     continue
                 expected_type = 'ConnectorApiLogs' if name == 'connector_event' else 'ApiLogs'
-                if extra.get('event_type') != expected_type or not masked_wallet_field(extra.get('event'), wallet_mode):
+                if extra.get('event_type') != expected_type or not masked_wallet_field(extra.get('event'), wallet_mode, expected_type):
                     continue
                 observed[name] = {'device': snapshot['device'], 'inode': snapshot['inode'],
                     'offset': snapshot['offset'], 'end': selected.st_size,
@@ -597,6 +604,7 @@ def run_case(case, context, journal, journal_path, source, base):
             assert bindings['retained_status'] in {before['status'], 'processing', 'pending'}
         log_mode = wallet_log_mode(body) if case.get('log_canary') else None
         log_snapshots = snapshot_log_sinks(operator, source) if case.get('log_canary') else None
+        provider_before = provider_observation_snapshot(source) if case.get('log_canary') else None
         if step.get('precondition'):
             precondition_path = cfg['precondition_path']
             assert urllib.parse.parse_qs(urllib.parse.urlsplit(precondition_path).query).get('force_sync') != ['true']
@@ -619,6 +627,24 @@ def run_case(case, context, journal, journal_path, source, base):
                 fault_control(os.environ['PAYPAL_HS_TRANSPORT_CONTROL'], {'armed': False, 'operation': token})
                 assert transport_proof['fault_injected'] and transport_proof['operation'] == token
 
+        observation_unavailable = False
+        if log_snapshots is not None:
+            journal['operations'][operation]['http_response_observed'] = {
+                'status': status, 'wire_sha256': wire_sha, 'request_id': response_identity.get('request_id')}
+            atomic(journal_path, journal)
+            try:
+                # Only unavailable observation proof is deferred. Security/mask
+                # assertions remain immediate failures; no raw error is retained.
+                time.sleep(.2)
+                observation = collect_wallet_preflight_observation(log_snapshots, source, log_mode,
+                    bindings['payment_id'], response_identity, provider_before, 'PAYPAL_HS_PUBLIC_CANARY')
+                observation_path = journal_path.with_name(journal_path.stem + '.' + digest(operation.encode())[:16] + '.wallet-observation.json')
+                atomic(observation_path, observation)
+                journal['operations'][operation]['wallet_preflight_observation'] = str(observation_path)
+            except GsmUnavailable:
+                observation_unavailable = True
+                journal['operations'][operation]['wallet_preflight_observation_state'] = 'MISSING_SOURCE_PROOF'
+            atomic(journal_path, journal)
         assert status in step['http_status'], 'unexpected HTTP result; body withheld'
         if step['expect'] == {'/': None}:
             assert wire_sha == digest(b''), 'expected actual empty webhook ACK body'
@@ -673,6 +699,8 @@ def run_case(case, context, journal, journal_path, source, base):
             log_evidence = verify_log_sinks(log_snapshots, response_identity, bindings['payment_id'],
                 os.environ['PAYPAL_HS_PUBLIC_CANARY'].encode(), log_mode)
             assert proof and proof['inert_wallet_canary_received'] is True
+        if observation_unavailable:
+            raise GsmUnavailable('payment oracles passed, but current wallet source observation proof is unavailable')
         result = {'operation': operation, 'state': 'ORACLE_PASSED_PENDING_RUNTIME_RECHECK',
                   'http_status': status, 'wire_sha256': wire_sha, 'readback_sha256': read_sha,
                   'provider_verification': False, 'requested_evidence_kind': operator['kind'],
@@ -686,6 +714,496 @@ def run_case(case, context, journal, journal_path, source, base):
         atomic(journal_path, journal)
         results.append(result)
     return results
+
+
+class GsmUnavailable(Exception):
+    """A required real-engine/owned-database precondition is absent: NOT_RUN."""
+
+
+GSM_KEY_FIELDS = ('connector', 'flow', 'sub_flow', 'code', 'message')
+GSM_MESSAGES = {
+    '9500': 'SUSPECTED_FRAUD. Try using another card. Do not retry the same card.',
+    '5180': 'INVALID_OR_RESTRICTED_CARD. Try using another card. Do not retry the same card.',
+    '9520': 'LOST_OR_STOLEN. Try using another card. Do not retry the same card.',
+}
+
+
+def gsm_key(row):
+    return {field: row[field] for field in GSM_KEY_FIELDS}
+
+
+def gsm_policy():
+    asset = json.loads((ROOT / 'config/gsm/paypal.json').read_text())
+    rows = asset['rules']
+    assert len(rows) == 6 and len({digest(canonical(gsm_key(row))) for row in rows}) == 6
+    fields = set(GSM_KEY_FIELDS) | {'status', 'router_error', 'decision', 'step_up_possible',
+        'unified_code', 'unified_message', 'error_category', 'clear_pan_possible', 'feature',
+        'feature_data', 'standardised_code', 'description', 'user_guidance_message'}
+    for row in rows:
+        assert set(row) == fields and row['status'] == 'failure'
+        assert all(isinstance(row[field], str) and row[field] for field in GSM_KEY_FIELDS)
+        assert all(row[field] is None or isinstance(row[field], str) for field in
+            ['router_error', 'unified_code', 'unified_message', 'description', 'user_guidance_message'])
+        assert row['error_category'] is None and row['standardised_code'] is None
+        assert row['connector'] == 'paypal' and row['flow'] == 'Payment' and row['sub_flow'] == 'Authorize'
+        code = row['code'].removeprefix('Network:Visa|IssuerCode:')
+        assert code in GSM_MESSAGES
+        issuer = row['code'].startswith('Network:Visa|IssuerCode:')
+        assert row['message'] == (row['code'] if issuer else GSM_MESSAGES[code])
+        assert row['decision'] == 'do_default' and row['step_up_possible'] is False and row['clear_pan_possible'] is False
+        assert row['feature'] == 'retry' and row['feature_data'] == {'retry': {
+            'decision': 'do_default', 'step_up_possible': False,
+            'clear_pan_possible': False, 'alternate_network_possible': False}}
+    return rows
+
+
+def observed_window(window, pid):
+    """Re-read actual owned descriptor bytes; result labels cannot replace origin."""
+    if not isinstance(window, dict) or not {'pid', 'fd', 'path', 'device', 'inode', 'offset', 'end', 'sha256'} <= set(window):
+        raise GsmUnavailable('direct owned origin descriptor/window observations are unavailable')
+    assert window['pid'] == pid and type(window['fd']) is int
+    descriptor = Path(f'/proc/{pid}/fd/{window["fd"]}')
+    path = Path(window['path']).resolve(strict=True)
+    actual, selected = descriptor.stat(), path.stat()
+    identity = (window['device'], window['inode'])
+    assert stat.S_ISREG(actual.st_mode) and (actual.st_dev, actual.st_ino) == identity == (selected.st_dev, selected.st_ino)
+    assert type(window['offset']) is int and type(window['end']) is int
+    assert 0 <= window['offset'] < window['end'] <= selected.st_size
+    assert window['end'] - window['offset'] <= 16 * 1024 * 1024
+    with path.open('rb') as stream:
+        stream.seek(window['offset'])
+        wire = stream.read(window['end'] - window['offset'])
+    assert digest(wire) == window['sha256']
+    return wire, [json.loads(line) for line in wire.splitlines() if line]
+
+
+# Exact already-inspected existing inert HTTP handler implementation. No new
+# producer is introduced; another implementation needs its own source review.
+INERT_PROVIDER_OBSERVER_SHA256 = 'a48a197f512a2a569ae7612c2ad864fb5689a02ad0d040dbb143648c9d6d554f'
+
+
+def provider_observation_snapshot(source):
+    base = urllib.parse.urlsplit(os.environ['PAYPAL_HS_PROOF_BASE'])
+    assert base.scheme == 'http' and base.hostname in {'127.0.0.1', 'localhost'} and base.port
+    assert base.username is None and base.password is None and not base.query and not base.fragment and base.path in {'', '/'}
+    environment = Path(f'/proc/{source["ucs"]["pid"]}/environ').read_bytes().split(b'\0')
+    prefix = b'CS__CONNECTORS__PAYPAL__BASE_URL='
+    actual_url = next((entry[len(prefix):].decode() for entry in environment if entry.startswith(prefix)), '')
+    actual = urllib.parse.urlsplit(actual_url)
+    assert (actual.scheme, actual.hostname, actual.port) == (base.scheme, base.hostname, base.port)
+    listeners = subprocess.check_output(['ss', '-H', '-ltnp', 'sport = :' + str(base.port)], stderr=subprocess.DEVNULL).decode()
+    pids = {int(pid) for pid in re.findall(r'pid=(\d+)', listeners)}
+    assert len(pids) == 1
+    pid = pids.pop()
+    command = Path(f'/proc/{pid}/cmdline').read_bytes().split(b'\0')
+    scripts = [Path(arg.decode()).resolve() for arg in command if arg.endswith(b'.py')]
+    trusted = [path for path in scripts if path.is_file() and digest(path.read_bytes()) == INERT_PROVIDER_OBSERVER_SHA256]
+    if len(trusted) != 1:
+        raise GsmUnavailable('actual provider HTTP observer source has not been reviewed for this existing format')
+    # The pinned implementation's literal is an inert public canary, not a
+    # credential. Compare hashes only; never persist or print its value.
+    tree = ast.parse(trusted[0].read_text())
+    canary_node = next(node.value for node in tree.body if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == 'CANARY' for target in node.targets))
+    assert isinstance(canary_node, ast.Constant) and isinstance(canary_node.value, str)
+    canary_sha = digest(canary_node.value.encode())
+    assert canary_sha == digest(os.environ['PAYPAL_HS_PUBLIC_CANARY'].encode())
+    observer_env = json.loads((trusted[0].parent.parent / 'env/env.json').read_text())
+    assert observer_env['ucs']['pid'] == source['ucs']['pid']
+    binding = {'pid': pid, 'process_start_ticks': Path(f'/proc/{pid}/stat').read_text().split(') ', 1)[1].split()[19],
+        'executable_sha256': digest(Path(f'/proc/{pid}/exe').read_bytes()),
+        'source_path': str(trusted[0]), 'source_sha256': INERT_PROVIDER_OBSERVER_SHA256,
+        'canary_sha256': canary_sha, 'observed_ucs_pid': source['ucs']['pid'],
+        'endpoint': base.geturl()}
+    start_wall, start_mono = time.time_ns(), time.monotonic_ns()
+    with urllib.request.urlopen(base.geturl().rstrip('/') + '/proof', timeout=10) as response:
+        assert response.status == 200
+        wire = response.read(16 * 1024 * 1024 + 1)
+        if len(wire) > 16 * 1024 * 1024:
+            raise GsmUnavailable('actual provider observation response exceeded bounded read')
+    finish_wall, finish_mono = time.time_ns(), time.monotonic_ns()
+    value = json.loads(wire)
+    assert set(value) == {'operation', 'inert_wallet_canary_received', 'actual_primary_ucs', 'observations'}
+    for observation in value['observations']:
+        assert set(observation) == {'path', 'body_sha256', 'inert_wallet_canary_received', 'actual_owned_ucs_peer', 'peer_port'}
+        assert isinstance(observation['path'], str) and observation['path'].startswith('/')
+        assert re.fullmatch(r'[0-9a-f]{64}', observation['body_sha256'])
+        assert type(observation['inert_wallet_canary_received']) is bool and type(observation['actual_owned_ucs_peer']) is bool
+    assert Path(f'/proc/{pid}/stat').read_text().split(') ', 1)[1].split()[19] == binding['process_start_ticks']
+    assert digest(trusted[0].read_bytes()) == binding['source_sha256']
+    return {'binding': binding, 'started_wall_ns': start_wall, 'completed_wall_ns': finish_wall,
+        'started_monotonic_ns': start_mono, 'completed_monotonic_ns': finish_mono,
+        'wire_sha256': digest(wire), 'actual_response': value}
+
+
+def provider_post_delta(before, after):
+    assert before['binding'] == after['binding']
+    assert before['completed_monotonic_ns'] < after['started_monotonic_ns']
+    assert 0 < after['completed_monotonic_ns'] - before['started_monotonic_ns'] <= 120_000_000_000
+    initial, final = before['actual_response'], after['actual_response']
+    assert initial['operation'] == final['operation'], 'provider observer reset during actual request'
+    previous = initial['observations']
+    assert len(final['observations']) >= len(previous) and final['observations'][:len(previous)] == previous
+    calls = final['observations'][len(previous):]
+    assert all(event['actual_owned_ucs_peer'] is True for event in calls)
+    return calls, list(range(len(previous) + 1, len(final['observations']) + 1))
+
+
+def collect_wallet_preflight_observation(snapshots, source, mode, subject, response_identity, before, canary_env):
+    # Called immediately after the actual request, before any strict payment
+    # state/readback assertion. Capturing evidence never makes those assertions pass.
+    canary = os.environ[canary_env].encode()
+    assert len(canary) >= 16 and response_identity.get('request_id')
+    sink_windows = {}
+    for name, snapshot in snapshots.items():
+        actual = Path(f'/proc/{snapshot["pid"]}/fd/{snapshot["fd"]}').stat()
+        selected = snapshot['path'].stat()
+        assert (actual.st_dev, actual.st_ino) == (selected.st_dev, selected.st_ino) == (snapshot['device'], snapshot['inode'])
+        assert selected.st_size >= snapshot['offset'] and selected.st_size - snapshot['offset'] <= 16 * 1024 * 1024
+        with snapshot['path'].open('rb') as stream:
+            stream.seek(snapshot['offset'])
+            wire = stream.read(selected.st_size - snapshot['offset'])
+        assert canary not in wire, 'public inert canary leaked; content withheld'
+        sink_windows[name] = {**snapshot, 'path': str(snapshot['path']), 'end': selected.st_size, 'sha256': digest(wire)}
+    after = provider_observation_snapshot(source)
+    calls, indices = provider_post_delta(before, after)
+    return {'source': source, 'wallet_preflight_observation': {'wallet_mode': mode,
+        'subject': subject, 'request_id': response_identity['request_id'],
+        'canary_env': canary_env, 'canary_sha256': digest(canary), 'sink_windows': sink_windows,
+        'provider_http_window': {'before': before, 'after': after,
+            'derived_POST_request_indices': indices, 'derived_POST_count': len(calls), 'GET': 'UNOBSERVED'},
+        'vendor_exception': {'url': 'https://developer.paypal.com/api/orders/v2/schema.json',
+            'request_type': 'google_pay_request', 'fields': ['name', 'email_address', 'phone_number', 'card',
+                'decrypted_token', 'assurance_details', 'experience_context']}}}
+
+
+def emission_source_proof(proof, source, ucs_repo, connector_absent=True):
+    # This is reviewed control-flow evidence, not an operator's absence label.
+    # Bind every quoted branch/emission excerpt to the actual running commits.
+    assert set(proof) == ({'HS', 'UCS'} if connector_absent else {'UCS'})
+    for name, repo in [('HS', ROOT), ('UCS', Path(ucs_repo))]:
+        if name not in proof:
+            continue
+        item = proof[name]
+        assert item['causal_explanation'].strip() and item['review_artifact_sha256']
+        review = Path(item['review_artifact'])
+        assert digest(review.read_bytes()) == item['review_artifact_sha256']
+        review_data = json.loads(review.read_text())
+        assert review_data['review_kind'] == 'google_psp_unsupported_connector_event_control_flow'
+        assert review_data['repository'] == name and review_data['source_commit'] == source[name.lower()]['source_commit']
+        assert review_data['causal_explanation'] == item['causal_explanation']
+        assert review_data['anchors'] == item['anchors']
+        roles = {'unsupported_return', 'provider_http_dispatch'} if name == 'UCS' else {'unsupported_return'}
+        if connector_absent:
+            roles.add('connector_event_emission')
+        assert len(item['anchors']) >= 2 and {entry['role'] for entry in item['anchors']} >= roles
+        for anchor in item['anchors']:
+            path = Path(anchor['file'])
+            assert not path.is_absolute() and '..' not in path.parts and path.parts[0] == 'crates' and path.suffix == '.rs'
+            content = git(repo, 'show', source[name.lower()]['source_commit'] + ':' + str(path))
+            assert digest(content) == anchor['file_sha256']
+            lines = content.splitlines(keepends=True)
+            assert 1 <= anchor['line_start'] <= anchor['line_end'] <= len(lines)
+            excerpt = b''.join(lines[anchor['line_start'] - 1:anchor['line_end']])
+            assert digest(excerpt) == anchor['excerpt_sha256']
+    return True
+
+
+def applicable_wallet_mask_preflight(paths, source, config):
+    states = {}
+    for path in paths:
+        report = json.loads(Path(path).read_text())
+        if report.get('source') != source or 'wallet_preflight_observation' not in report:
+            raise GsmUnavailable('current source-bound wallet origin observations are missing')
+        observation = report['wallet_preflight_observation']
+        if not {'wallet_mode', 'subject', 'request_id', 'canary_env', 'canary_sha256', 'sink_windows', 'provider_http_window'} <= set(observation):
+            raise GsmUnavailable('current direct wallet sink/provider origin observations are unavailable')
+        mode = observation['wallet_mode']
+        assert mode in {'apple_psp', 'apple_hs', 'google_psp', 'google_hs'} and mode not in states
+        subject, request_id = observation['subject'], observation['request_id']
+        assert re.fullmatch(r'[A-Za-z0-9_-]{1,128}', subject)
+        assert re.fullmatch(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}', request_id)
+        canary = os.environ[observation['canary_env']].encode()
+        assert len(canary) >= 16 and digest(canary) == observation['canary_sha256']
+        windows = observation['sink_windows']
+        assert set(windows) == {'application', 'connector_event'}
+        matched = {}
+        correlated = []
+        api_created_ns = None
+        connector_seen = False
+        for sink, window in windows.items():
+            wire, records = observed_window(window, source['hs']['pid'])
+            assert canary not in wire, 'inert token leaked in an actual observable HS sink'
+            wanted = 'ApiLogs' if sink == 'application' else 'ConnectorApiLogs'
+            for line, record in zip([line for line in wire.splitlines() if line], records):
+                if request_id.encode() not in line:
+                    continue
+                if str(record.get('pid')) != str(source['hs']['pid']):
+                    continue
+                correlated.append(record)
+                extra = record.get('extra', {})
+                if record.get('target') != 'router::events::event_logger' or extra.get('event_type') != wanted:
+                    continue
+                if wanted == 'ConnectorApiLogs':
+                    connector_seen = True
+                assert masked_wallet_field(extra.get('event'), mode, wanted, require_typed_marker=(mode == 'google_psp' and wanted == 'ApiLogs')), 'observed wallet event is not correctly masked'
+                if subject.encode() not in line:
+                    raise GsmUnavailable('observed connector/API event cannot be correlated to the actual payment subject')
+                if wanted == 'ApiLogs':
+                    event = extra['event']
+                    event = json.loads(event) if isinstance(event, str) and event.lstrip().startswith('{') else tracing_json_value(event)
+                    assert type(event['created_at_timestamp']) is int
+                    api_created_ns = event['created_at_timestamp'] * 1_000_000
+                matched[sink] = digest(line)
+        if 'application' not in matched:
+            raise GsmUnavailable('current correlated exact wallet API mask is absent')
+        provider = observation['provider_http_window']
+        if not isinstance(provider, dict) or not {'before', 'after'} <= set(provider):
+            raise GsmUnavailable('actual BEFORE/AFTER owned provider proof observations are unavailable')
+        before, after = provider['before'], provider['after']
+        assert before['binding'] == after['binding']
+        origin = after['binding']
+        assert origin['pid'] == config['fixture_pid']
+        assert origin['source_sha256'] == INERT_PROVIDER_OBSERVER_SHA256
+        assert origin['canary_sha256'] == digest(canary) and origin['observed_ucs_pid'] == source['ucs']['pid']
+        assert digest(Path(f'/proc/{origin["pid"]}/exe').read_bytes()) == origin['executable_sha256']
+        assert Path(f'/proc/{origin["pid"]}/stat').read_text().split(') ', 1)[1].split()[19] == origin['process_start_ticks']
+        producer_source = Path(origin['source_path']).resolve(strict=True)
+        assert str(producer_source).encode() in Path(f'/proc/{origin["pid"]}/cmdline').read_bytes().split(b'\0')
+        assert digest(producer_source.read_bytes()) == origin['source_sha256']
+        calls, indices = provider_post_delta(before, after)
+        assert provider['derived_POST_request_indices'] == indices and provider['derived_POST_count'] == len(calls)
+        assert provider['GET'] == 'UNOBSERVED'
+        assert before['started_wall_ns'] // 1_000_000 <= api_created_ns // 1_000_000 <= after['completed_wall_ns'] // 1_000_000
+        canary_calls = [event for event in calls if event['inert_wallet_canary_received'] is True]
+        if mode != 'google_psp':
+            if set(matched) != {'application', 'connector_event'} or not any(
+                    event['inert_wallet_canary_received'] is True for event in calls):
+                raise GsmUnavailable('supported wallet needs both current masked sinks and actual inert provider wire observation')
+            states[mode] = {'state': 'OBSERVED_BOTH_MASKED_WITH_INERT_WIRE', 'provider_verification': False}
+            continue
+        # HS→UCS gRPC token transport is legitimate. This counter measures only
+        # actual owned UCS→provider HTTP handlers, never inferred gRPC absence.
+        assert not canary_calls
+        oauth_calls = [event for event in calls if event['path'] == '/v1/oauth2/token' and not event['inert_wallet_canary_received']]
+        assert len(oauth_calls) == len(calls), 'non-OAuth provider POST observed on unsupported wallet path'
+        boundary = False
+        api_error = False
+        for record in correlated:
+            extra = record.get('extra', {})
+            if record.get('target') == 'external_services::grpc_client::unified_connector_service' and extra.get('method') == 'payment_authorize':
+                boundary |= 'PayPal REST does not accept an encrypted Google Pay token' in str(extra.get('grpc_error', ''))
+            if extra.get('event_type') == 'ApiLogs':
+                payload = extra.get('event')
+                payload = json.loads(payload) if isinstance(payload, str) and payload.lstrip().startswith('{') else tracing_json_value(payload)
+                candidates = [payload.get('error')]
+                if payload.get('response'):
+                    candidates.append(json.loads(payload['response']))
+                api_error |= payload.get('status_code') == 400 and any(isinstance(item, dict) and
+                    (item.get('error', item)).get('code') == 'IR_19' for item in candidates)
+        if not boundary or not api_error:
+            raise GsmUnavailable('actual HS→UCS unsupported boundary and typed IR_19 API error are not corroborated')
+        source_proof = config.get('google_psp_emission_source_proof')
+        if not source_proof:
+            raise GsmUnavailable('current source-proven preHTTP refusal/emission proof is unavailable')
+        absent = 'connector_event' not in matched
+        if absent:
+            assert not connector_seen
+        emission_source_proof(source_proof, source,
+            Path(f'/proc/{source["ucs"]["pid"]}/cwd').resolve(strict=True), connector_absent=absent)
+        connector_state = 'NOT_APPLICABLE_API_CARRIER_UNAVAILABLE' if absent else 'OBSERVED_MASKED'
+        exception = observation['vendor_exception']
+        assert exception == {'url': 'https://developer.paypal.com/api/orders/v2/schema.json',
+            'request_type': 'google_pay_request', 'fields': ['name', 'email_address', 'phone_number', 'card',
+                'decrypted_token', 'assurance_details', 'experience_context']}
+        states[mode] = {'state': 'APPLICABLE_MASK_PREFLIGHT_ONLY', 'connector_state': connector_state,
+            'HS_to_UCS_gRPC_token_transport': 'PERMITTED', 'provider_HTTP_POSTs_observed': len(calls), 'provider_OAuth_POSTs_observed': len(oauth_calls),
+            'provider_wallet_TOKEN_POSTs_observed': 0, 'provider_GETs': 'UNOBSERVED',
+            'provider_verification': False, 'wallet_implementation_verified': False}
+    if set(states) != {'apple_psp', 'apple_hs', 'google_psp', 'google_hs'}:
+        raise GsmUnavailable('applicable wallet preflight observations are incomplete')
+    return states
+
+
+def gsm_preflight(operator, source, require_wallet_masks=True):
+    cfg = operator.get('gsm', {})
+    if not {'wallet_mask_receipts', 'owned_database', 'admin_key_env', 'engine_preflight_path'} <= set(cfg):
+        raise GsmUnavailable('current GSM context lacks isolated-DB, wallet-mask or actual-engine preconditions')
+    if operator['kind'] != 'production_fixture':
+        raise GsmUnavailable('GSM controls require an owned inert production fixture')
+    wallet_states = applicable_wallet_mask_preflight(cfg['wallet_mask_receipts'], source, cfg) if require_wallet_masks else {}
+    if require_wallet_masks:
+        ucs_environment = dict(item.split(b'=', 1) for item in Path(f'/proc/{source["ucs"]["pid"]}/environ').read_bytes().split(b'\0') if b'=' in item)
+        endpoint = urllib.parse.urlsplit(ucs_environment.get(b'CS__CONNECTORS__PAYPAL__BASE_URL', b'').decode())
+        if endpoint.scheme != 'http' or endpoint.hostname not in {'127.0.0.1', 'localhost'} or not endpoint.port or endpoint.username:
+            raise GsmUnavailable('actual UCS PayPal outbound endpoint is not the isolated inert loopback fixture')
+        fixture_pid = cfg.get('fixture_pid')
+        if not isinstance(fixture_pid, int) or isinstance(fixture_pid, bool) or fixture_pid <= 0:
+            raise GsmUnavailable('actual owned inert fixture PID is required before payment write')
+        listeners = subprocess.check_output(['ss', '-H', '-ltnp', 'sport = :' + str(endpoint.port)], stderr=subprocess.DEVNULL).decode()
+        assert {int(pid) for pid in re.findall(r'pid=(\d+)', listeners)} == {fixture_pid}
+    database = cfg['owned_database']
+    assert database['fresh_isolated'] is True
+    marker = database['run_id'].rsplit('-', 1)[-1]
+    assert len(marker) >= 6 and marker in database['container_name']
+    template = '{"id":"{{.Id}}","name":"{{.Name}}","created":"{{.Created}}","running":{{.State.Running}},"ports":{{json .NetworkSettings.Ports}}}'
+    actual = json.loads(subprocess.check_output(['docker', 'inspect', '--format', template,
+        database['container_id']], stderr=subprocess.DEVNULL))
+    assert actual['id'] == database['container_id'] and actual['name'] == '/' + database['container_name'] and actual['running'] is True
+    assert datetime.datetime.fromisoformat(actual['created'].replace('Z', '+00:00')) >= datetime.datetime.fromisoformat(database['created_after'].replace('Z', '+00:00'))
+    ports = actual['ports']['5432/tcp']
+    assert len(ports) == 1 and ports[0]['HostIp'] == '127.0.0.1'
+    # Read only the bound HS process environment in memory. Never retain the
+    # environment, database password, admin key or request body in evidence.
+    environment = dict(item.split(b'=', 1) for item in Path(f'/proc/{source["hs"]["pid"]}/environ').read_bytes().split(b'\0') if b'=' in item)
+    prefix = b'ROUTER__MASTER_DATABASE__'
+    assert environment[prefix + b'HOST'] in {b'127.0.0.1', b'localhost'}
+    assert environment[prefix + b'PORT'].decode() == ports[0]['HostPort']
+    assert environment[prefix + b'DBNAME'].decode() == database['database_name']
+    return {'container_id': actual['id'], 'container_name': database['container_name'],
+        'hs_pid': source['hs']['pid'], 'applicable_wallet_mask_states': wallet_states}
+
+
+def run_gsm_case(case, context, journal, journal_path, source, base):
+    operator = context['cases'][case['id']]
+    guard = gsm_preflight(operator, source, require_wallet_masks=False)
+    config = operator['gsm']
+    assert urllib.parse.urlsplit(base).hostname in {'127.0.0.1', 'localhost'}
+    admin_env = config['admin_key_env']
+    token = 'paypal-gsm-' + digest(canonical({'case': case['id'], 'source': source}))[:32]
+
+    def retrieve(key):
+        status, value, _ = request(base, 'POST', '/gsm/get', key, None, admin_env, token)
+        if status == 404:
+            return None
+        assert status == 200 and gsm_key(value) == key
+        return value
+
+    def mutate(phase, action, key, before, after):
+        identity = phase + ':' + digest(canonical(key))
+        writes = lifecycle.setdefault('writes', {})
+        current = retrieve(key)
+        if identity in writes and writes[identity]['state'] == 'sending':
+            assert writes[identity]['before_sha256'] == digest(canonical(before)) and writes[identity]['after_sha256'] == digest(canonical(after))
+            if current == after:
+                writes[identity]['state'] = 'read_only_reconciled_applied'
+                atomic(journal_path, journal)
+                return
+            assert current == before, 'GSM response-lost mutation differs from both known states'
+        elif identity in writes:
+            assert current == after, 'completed GSM mutation unexpectedly changed'
+            return
+        assert current == before, 'GSM rule changed after its exact snapshot'
+        writes[identity] = {'state': 'sending', 'action': action, 'key': key,
+            'before_sha256': digest(canonical(before)), 'after_sha256': digest(canonical(after))}
+        atomic(journal_path, journal)
+        endpoint = {'create': '/gsm', 'update': '/gsm/update', 'delete': '/gsm/delete'}[action]
+        status, _, _ = request(base, 'POST', endpoint, key if action == 'delete' else after, None, admin_env, token)
+        assert status == 200
+        assert retrieve(key) == after, 'actual keyed readback differs from desired GSM record'
+        writes[identity]['state'] = 'readback_verified'
+        atomic(journal_path, journal)
+
+    rows = gsm_policy()
+    spec = case['gsm']
+    code = spec['processor_code']
+    message = spec['processor_message']
+    issuer_key = {'connector': 'paypal', 'flow': 'Payment', 'sub_flow': 'Authorize',
+        'code': 'Network:Visa|IssuerCode:' + code, 'message': 'Network:Visa|IssuerCode:' + code}
+    connector_key = {**issuer_key, 'code': code, 'message': message}
+    selected = [row for row in rows if row['code'] in {code, issuer_key['code']}]
+    mode = spec['lookup']
+    if mode in {'wrong_flow', 'wrong_subflow', 'unmatched_message'}:
+        row = next(row.copy() for row in selected if row['code'] == code)
+        field, replacement = {'wrong_flow': ('flow', 'Authorize'),
+            'wrong_subflow': ('sub_flow', 'Capture'), 'unmatched_message': ('message', message + ' (unmatched control)')}[mode]
+        row[field] = replacement
+        row['unified_code'] += '_' + mode.upper()
+        selected = [row]
+    if mode == 'unknown_no_rule':
+        selected = []
+    lifecycles = journal.setdefault('gsm_lifecycles', {})
+    lifecycle = lifecycles.get(case['id'])
+    if lifecycle and lifecycle.get('state') in {'cleaned', 'aborted_cleaned'}:
+        for snapshot in lifecycle['snapshots']:
+            assert retrieve(snapshot['key']) == snapshot['value']
+        return [{'state': 'READ_ONLY_RECONCILED', 'cached_not_current_verification': True,
+            'provider_verification': False, 'current_mapping_verified': False}]
+    if lifecycle is None:
+        snapshots = [{'key': gsm_key(row), 'value': retrieve(gsm_key(row))} for row in selected]
+        for item, desired in zip(snapshots, selected):
+            existing = item['value']
+            if existing is not None and (existing['unified_code'] != desired['unified_code'] or existing['decision'] != 'do_default'
+                    or existing['feature'] != 'retry' or existing['feature_data'] != desired['feature_data']
+                    or existing['clear_pan_possible'] is not False or existing['step_up_possible'] is not False):
+                raise GsmUnavailable('an unrelated existing global rule would be overwritten')
+        if mode in {'unknown_no_rule', 'wrong_flow', 'wrong_subflow', 'unmatched_message'} and any(retrieve(key) is not None for key in [issuer_key, connector_key]):
+            raise GsmUnavailable('negative/no-rule control already has a matching issuer or connector rule')
+        lifecycle = {'source_sha256': digest(canonical(source)), 'state': 'snapshotted', 'snapshots': snapshots, 'writes': {}}
+        lifecycles[case['id']] = lifecycle
+        atomic(journal_path, journal)
+    assert lifecycle['source_sha256'] == digest(canonical(source)), 'GSM lifecycle source changed; reconcile with original committed source'
+    result = None
+    succeeded = False
+    try:
+        for snapshot, row in zip(lifecycle['snapshots'], selected):
+            mutate('install', 'create' if snapshot['value'] is None else 'update', snapshot['key'], snapshot['value'], row)
+            mutate('update_readback', 'update', snapshot['key'], row, row)
+        lifecycle['admin_requests_readback_graded'] = True
+        atomic(journal_path, journal)
+        # Admin CRUD is nonfinancial. All wallet mask guards are mandatory before
+        # the NEW payment write; a blocked engine still cleans up every rule.
+        guard = gsm_preflight(operator, source)
+        # This is a real producer endpoint, never an authored expected-result
+        # file. It must prove live HS retry configuration and routing eligibility.
+        assert urllib.parse.urlsplit(os.environ['PAYPAL_HS_PROOF_BASE']).hostname in {'127.0.0.1', 'localhost', '::1'}
+        preflight_status, preflight, _ = request(os.environ['PAYPAL_HS_PROOF_BASE'], 'GET', config['engine_preflight_path'], None, None,
+            operator.get('api_key_env', 'HYPERSWITCH_API_KEY'), token)
+        assert preflight_status == 200
+        check(preflight, {'actual_engine_observed': True, 'fixture_only': True,
+            'hs_pid': source['hs']['pid'], 'hs_binary_sha256': source['hs']['binary_sha256'],
+            'ucs_binary_sha256': source['ucs']['binary_sha256'], 'automatic_retries_enabled': True,
+            'eligible_alternate_owned_fixture': True, 'external_provider_calls': 0,
+            'eligible_connector_names': ['paypal', 'paypal'], 'fixture_pid': config['fixture_pid']})
+        assert isinstance(preflight['retry_budget'], int) and not isinstance(preflight['retry_budget'], bool) and preflight['retry_budget'] > 0
+        assert len(set(preflight['eligible_mca_ids'])) >= 2
+        positive = mode in {'issuer', 'issuer_first'}
+        matched = issuer_key if positive else None
+        row = next((row for row in selected if gsm_key(row) == matched), None)
+        expected = {'/status': 'failed', '/payment_id': '@payment_id', '/error_code': code, '/error_message': message}
+        if row:
+            expected['/unified_code'] = row['unified_code']
+        engine_case = {**case, 'steps': [{'method': 'POST', 'http_status': [200],
+            'expect': expected, 'readback_expect': expected}], 'proof': {
+                'actual_engine_observed': True, 'fixture_only': True, 'matched_key': matched,
+                'decision': 'do_default', 'initial_fixture_calls': 1, 'alternate_fixture_calls': 0,
+                'external_provider_calls': 0, 'retry_budget_before': preflight['retry_budget'],
+                'eligible_mca_ids': preflight['eligible_mca_ids'],
+                'hs_pid': source['hs']['pid'], 'hs_binary_sha256': source['hs']['binary_sha256'],
+                'ucs_binary_sha256': source['ucs']['binary_sha256']}}
+        result = run_case(engine_case, context, journal, journal_path, source, base)
+        succeeded = True
+        return result
+    finally:
+        failures = []
+        for snapshot in reversed(lifecycle['snapshots']):
+            try:
+                current = retrieve(snapshot['key'])
+                if current != snapshot['value']:
+                    installed = next(row for row in selected if gsm_key(row) == snapshot['key'])
+                    assert current is None or current == installed, 'unrelated concurrent GSM change; cleanup must not clobber it'
+                    if current is not None:
+                        mutate('restore_delete', 'delete', snapshot['key'], current, None)
+                    if snapshot['value'] is not None:
+                        mutate('restore_create', 'create', snapshot['key'], None, snapshot['value'])
+                assert retrieve(snapshot['key']) == snapshot['value']
+            except Exception:
+                failures.append(digest(canonical(snapshot['key'])))
+        lifecycle['state'] = ('cleaned' if succeeded else 'aborted_cleaned') if not failures else 'cleanup_failed'
+        lifecycle['cleanup_failures'] = failures
+        lifecycle['guard'] = guard
+        atomic(journal_path, journal)
+        assert not failures, 'GSM cleanup failed; keyed reconciliation required before further execution'
 
 
 def fault_control(base, value=None):
@@ -844,8 +1362,13 @@ def main():
                     results.append({'id': case['id'], 'group': case['group'], 'state': 'NOT_RUN',
                                     'requires': case['requires']})
                     continue
-                actual = run_case(case, context, journal, args.journal, source, os.environ['HYPERSWITCH_BASE_URL'])
+                actual = (run_gsm_case if case.get('gsm') else run_case)(
+                    case, context, journal, args.journal, source, os.environ['HYPERSWITCH_BASE_URL'])
                 results.append({'id': case['id'], 'group': case['group'], 'state': 'COMPLETED', 'steps': actual})
+            except GsmUnavailable as error:
+                results.append({'id': case['id'], 'group': case['group'], 'state': 'NOT_RUN',
+                    'requires': [str(error)], 'evidence_state': 'IMPLEMENTED', 'provider_verification': False,
+                    'gsm_lifecycle': journal.get('gsm_lifecycles', {}).get(case['id'])})
             except LogSinkUnavailable:
                 results.append({'id': case['id'], 'group': case['group'], 'state': 'NOT_RUN',
                     'requires': ['Both actual bound HS regular-file JSON sinks with correlated masked wallet entries; Kafka/pipe-only/filtered collector cannot prove this oracle']})

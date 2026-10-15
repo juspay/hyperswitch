@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "vendor_documentation": "https://developer.paypal.com/sandbox-testing/card-testing/",
+  "scope": "GLOBAL five-part key; explicit operator import only; no automatic migration or merchant scope",
+  "lookup": "Issuer-first Network:Visa|IssuerCode:<processor_code> as BOTH code and message; exact connector fallback code/message; only proven Visa network.",
+  "positive_smart_retry": "SPEC_GAP: no documented positive retry permission; no Retry rule authored.",
+  "rules": [
+    {
+      "connector": "paypal",
+      "flow": "Payment",
+      "sub_flow": "Authorize",
+      "code": "9500",
+      "message": "SUSPECTED_FRAUD. Try using another card. Do not retry the same card.",
+      "status": "failure",
+      "router_error": null,
+      "decision": "do_default",
+      "step_up_possible": false,
+      "clear_pan_possible": false,
+      "unified_code": "PAYPAL_GSM_9500_CONNECTOR",
+      "unified_message": "Use a different card. Do not retry the same card.",
+      "error_category": null,
+      "feature": "retry",
+      "feature_data": {
+        "retry": {
+          "decision": "do_default",
+          "step_up_possible": false,
+          "clear_pan_possible": false,
+          "alternate_network_possible": false
+        }
+      },
+      "standardised_code": null,
+      "description": null,
+      "user_guidance_message": null
+    },
+    {
+      "connector": "paypal",
+      "flow": "Payment",
+      "sub_flow": "Authorize",
+      "code": "Network:Visa|IssuerCode:9500",
+      "message": "Network:Visa|IssuerCode:9500",
+      "status": "failure",
+      "router_error": null,
+      "decision": "do_default",
+      "step_up_possible": false,
+      "clear_pan_possible": false,
+      "unified_code": "PAYPAL_GSM_9500_VISA_ISSUER",
+      "unified_message": "Use a different card. Do not retry the same card.",
+      "error_category": null,
+      "feature": "retry",
+      "feature_data": {
+        "retry": {
+          "decision": "do_default",
+          "step_up_possible": false,
+          "clear_pan_possible": false,
+          "alternate_network_possible": false
+        }
+      },
+      "standardised_code": null,
+      "description": null,
+      "user_guidance_message": null
+    },
+    {
+      "connector": "paypal",
+      "flow": "Payment",
+      "sub_flow": "Authorize",
+      "code": "5180",
+      "message": "INVALID_OR_RESTRICTED_CARD. Try using another card. Do not retry the same card.",
+      "status": "failure",
+      "router_error": null,
+      "decision": "do_default",
+      "step_up_possible": false,
+      "clear_pan_possible": false,
+      "unified_code": "PAYPAL_GSM_5180_CONNECTOR",
+      "unified_message": "Use a different card. Do not retry the same card.",
+      "error_category": null,
+      "feature": "retry",
+      "feature_data": {
+        "retry": {
+          "decision": "do_default",
+          "step_up_possible": false,
+          "clear_pan_possible": false,
+          "alternate_network_possible": false
+        }
+      },
+      "standardised_code": null,
+      "description": null,
+      "user_guidance_message": null
+    },
+    {
+      "connector": "paypal",
+      "flow": "Payment",
+      "sub_flow": "Authorize",
+      "code": "Network:Visa|IssuerCode:5180",
+      "message": "Network:Visa|IssuerCode:5180",
+      "status": "failure",
+      "router_error": null,
+      "decision": "do_default",
+      "step_up_possible": false,
+      "clear_pan_possible": false,
+      "unified_code": "PAYPAL_GSM_5180_VISA_ISSUER",
+      "unified_message": "Use a different card. Do not retry the same card.",
+      "error_category": null,
+      "feature": "retry",
+      "feature_data": {
+        "retry": {
+          "decision": "do_default",
+          "step_up_possible": false,
+          "clear_pan_possible": false,
+          "alternate_network_possible": false
+        }
+      },
+      "standardised_code": null,
+      "description": null,
+      "user_guidance_message": null
+    },
+    {
+      "connector": "paypal",
+      "flow": "Payment",
+      "sub_flow": "Authorize",
+      "code": "9520",
+      "message": "LOST_OR_STOLEN. Try using another card. Do not retry the same card.",
+      "status": "failure",
+      "router_error": null,
+      "decision": "do_default",
+      "step_up_possible": false,
+      "clear_pan_possible": false,
+      "unified_code": "PAYPAL_GSM_9520_CONNECTOR",
+      "unified_message": "Use a different card. Do not retry the same card.",
+      "error_category": null,
+      "feature": "retry",
+      "feature_data": {
+        "retry": {
+          "decision": "do_default",
+          "step_up_possible": false,
+          "clear_pan_possible": false,
+          "alternate_network_possible": false
+        }
+      },
+      "standardised_code": null,
+      "description": null,
+      "user_guidance_message": null
+    },
+    {
+      "connector": "paypal",
+      "flow": "Payment",
+      "sub_flow": "Authorize",
+      "code": "Network:Visa|IssuerCode:9520",
+      "message": "Network:Visa|IssuerCode:9520",
+      "status": "failure",
+      "router_error": null,
+      "decision": "do_default",
+      "step_up_possible": false,
+      "clear_pan_possible": false,
+      "unified_code": "PAYPAL_GSM_9520_VISA_ISSUER",
+      "unified_message": "Use a different card. Do not retry the same card.",
+      "error_category": null,
+      "feature": "retry",
+      "feature_data": {
+        "retry": {
+          "decision": "do_default",
+          "step_up_possible": false,
+          "clear_pan_possible": false,
+          "alternate_network_possible": false
+        }
+      },
+      "standardised_code": null,
+      "description": null,
+      "user_guidance_message": null
+    }
+  ]
+}
