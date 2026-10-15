@@ -21,6 +21,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Install jq
+        shell: bash
+        run: .github/scripts/install-jq.sh
+
       - name: Get hotfix pull request body
         shell: bash
         env:
