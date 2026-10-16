@@ -49,6 +49,8 @@ pub mod profile_acquirer;
 pub mod profiles;
 pub mod refunds;
 #[cfg(feature = "v2")]
+pub mod revenue_recovery;
+#[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_redis;

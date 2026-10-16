@@ -103,3 +103,44 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
     security(("api_key" = []))
 )]
 pub async fn revenue_recovery_payments_create() {}
+
+#[cfg(feature = "v2")]
+/// Revenue Recovery - Cancel
+///
+/// Cancel the revenue recovery workflow of an invoice that is still in recovery: its scheduled
+/// retries are stopped and no further recovery attempts are made. A `failed` payment moves to
+/// `cancelled`, and a partially captured payment moves to `cancelled_post_capture`. The request
+/// is refused with `400` when the payment is in any other state, when a retry is in progress,
+/// or when recovery already reached a terminal status. The invoice is looked up by its merchant
+/// reference id within the business profile given in the `X-Profile-Id` header.
+#[utoipa::path(
+    post,
+    path = "/v2/recovery/{merchant_reference_id}/cancel",
+    params(
+        ("merchant_reference_id" = String, Path, description = "Merchant reference id of the invoice whose revenue recovery workflow should be cancelled"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Unique identifier of the business profile under which the invoice is processed.",
+            example = "pro_abcdefghijklmnop"
+        ),
+    ),
+    responses(
+        (
+            status = 200,
+            description = "Revenue Recovery workflow cancelled successfully",
+            body = RecoveryPaymentsResponse,
+            example = json!({
+                "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                "intent_status": "cancelled",
+                "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+            })
+        ),
+        (status = 400, description = "The invoice cannot be cancelled: its payment is not failed or partially captured, a retry is in progress, or recovery already reached a terminal status", body = GenericErrorResponseOpenApi),
+        (status = 404, description = "Invoice not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Revenue Recovery",
+    operation_id = "Cancel a Revenue Recovery Workflow",
+    security(("api_key" = []))
+)]
+pub async fn revenue_recovery_cancel() {}
