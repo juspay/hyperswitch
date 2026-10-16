@@ -314,11 +314,7 @@ pub async fn custom_revenue_recovery_core(
         })
     })?;
 
-    if payment_merchant_connector_account.connector_name
-        == common_enums::connector_enums::Connector::Dlocal
-    {
-        validate_dlocal_request(&request)?;
-    }
+    validate_customer_information(&request)?;
 
     let recovery_intent =
         recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
@@ -451,7 +447,7 @@ pub async fn cancel_revenue_recovery_core(
     ))
 }
 
-fn validate_dlocal_request(
+fn validate_customer_information(
     request: &api_models::payments::RecoveryPaymentsCreate,
 ) -> RouterResult<()> {
     if let Some(document) = request
