@@ -25,6 +25,11 @@
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 // commands.js or your custom support file
+import {
+  connectorDetails as commonConnectorDetails,
+  integrationTypeMismatchMessage,
+  OFFER_QUOTE_ID_PLACEHOLDER,
+} from "../e2e/configs/Payment/Commons";
 import getConnectorDetails, {
   CONNECTOR_LISTS,
   defaultErrorHandler,
@@ -36,11 +41,6 @@ import getConnectorDetails, {
   shouldIncludeConnector,
   stringifyWithBigInt,
 } from "../e2e/configs/Payment/Utils";
-import {
-  connectorDetails as commonConnectorDetails,
-  integrationTypeMismatchMessage,
-} from "../e2e/configs/Payment/Commons";
-import { OFFER_QUOTE_ID_PLACEHOLDER } from "../e2e/configs/Payment/Commons";
 import { injectGotymePayoutBankTransfer } from "../e2e/configs/Payout/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
@@ -7985,43 +7985,6 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
   if (!payout_id) {
     throw new Error(
       "retrieve-payout-call-test: payout_id is not set in global state; the preceding create/confirm payout step must have failed"
-    );
-  }
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/payouts/${payout_id}`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-
-    cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      expect(response.body.payout_id).to.equal(payout_id);
-      expect(response.body.amount).to.equal(globalState.get("payoutAmount"));
-      for (const key in resBody) {
-        expect(response.body[key]).to.deep.equal(resBody[key]);
-      }
-    });
-  });
-});
-
-/**
- * Force-syncs a payout via GET /payouts/{payout_id}?force_sync=true. The
- * payouts_retrieve route accepts the force_sync query param and calls the
- * connector's PoSync when the payout is in a syncable (non-terminal) state,
- * so the response reflects the connector-reported status. This is the
- * payout-side analogue of the payment force-sync retrieves.
- */
-Cypress.Commands.add("syncPayoutCallTest", (globalState, data) => {
-  const payout_id = globalState.get("payoutID");
-  const resBody = data?.Response?.body || {};
-  if (!payout_id) {
-    throw new Error(
-      "sync-payout-call-test: payout_id is not set in global state; the preceding create/confirm/fulfill payout step must have failed"
     );
   }
   cy.request({

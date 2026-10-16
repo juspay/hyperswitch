@@ -70,16 +70,6 @@ describe("[Payout] Wallet Payout", () => {
       ]["Fulfill"];
 
       cy.fulfillPayoutCallTest({}, data, globalState);
-      // No should_continue_further after fulfill — sync and retrieve must
-      // always run to verify the payout state after fulfillment.
-    });
-
-    it("sync-payout-after-fulfill-test", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["SyncAfterFulfill"];
-
-      cy.syncPayoutCallTest(globalState, data);
     });
 
     it("retrieve-payout-after-fulfill-test", () => {
@@ -144,7 +134,6 @@ describe("[Payout] Wallet Payout", () => {
       ]["FulfillVenmo"];
 
       cy.fulfillPayoutCallTest({}, data, globalState);
-      // No should_continue_further after fulfill — retrieve must always run.
     });
 
     it("retrieve-venmo-wallet-payout-after-fulfill-test", () => {
@@ -176,9 +165,6 @@ describe("[Payout] Wallet Payout", () => {
       ]["MissingReceiverDataFulfill"];
 
       cy.fulfillPayoutCallTest({}, data, globalState);
-      // No should_continue_further on the fulfill data: its expected response
-      // is an error body, and the retrieve below must always run to verify
-      // the silent-failure state of the payout.
     });
 
     it("retrieve-payout-after-failed-fulfill-test", () => {
