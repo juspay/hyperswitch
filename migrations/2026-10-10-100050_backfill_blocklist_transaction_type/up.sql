@@ -25,7 +25,7 @@ BEGIN
         RAISE NOTICE 'Updated % rows', rows_updated;
         EXIT WHEN rows_updated = 0;
 
-        PERFORM pg_sleep(0.1);
+        PERFORM pg_sleep(1);
     END LOOP;
 END;
 $$;
