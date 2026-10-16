@@ -460,6 +460,15 @@ jobs:
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
           PLATFORM_CONNECTORS: "${{ matrix.batch.platform_connectors }}"
+          # Superposition demo service container. Org/workspace must match the
+          # Seed Superposition step and the router's [superposition] config.
+          # Auth values come from GitHub secrets — the demo container runs with
+          # auth disabled, but cypress skips superposition setup unless set.
+          SUPERPOSITION_BASE_URL: "http://localhost:8081"
+          SUPERPOSITION_ORG_ID: "localorg"
+          SUPERPOSITION_WORKSPACE_ID: "dev"
+          SUPERPOSITION_SECRET: ${{ secrets.SUPERPOSITION_SECRET }}
+          SUPERPOSITION_AUTH_TOKEN: ${{ secrets.SUPERPOSITION_AUTH_TOKEN }}
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
@@ -719,6 +728,15 @@ jobs:
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: "${{ matrix.batch.payments_connectors }}"
           PAYOUTS_CONNECTORS: "${{ matrix.batch.payouts_connectors }}"
+          # Superposition demo service container. Org/workspace must match the
+          # Seed Superposition step and the router's [superposition] config.
+          # Auth values come from GitHub secrets — the demo container runs with
+          # auth disabled, but cypress skips superposition setup unless set.
+          SUPERPOSITION_BASE_URL: "http://localhost:8081"
+          SUPERPOSITION_ORG_ID: "localorg"
+          SUPERPOSITION_WORKSPACE_ID: "dev"
+          SUPERPOSITION_SECRET: ${{ secrets.SUPERPOSITION_SECRET }}
+          SUPERPOSITION_AUTH_TOKEN: ${{ secrets.SUPERPOSITION_AUTH_TOKEN }}
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
@@ -1163,6 +1181,15 @@ jobs:
           # in the replay log alongside cassette hits/misses (logging only).
           CYPRESS_PROXY_ADMIN_URL: "http://127.0.0.1:8001"
           CYPRESS_CAPTURE_DIR: "${{ github.workspace }}/cypress-tests/mitm-proxy/captures"
+          # Superposition demo service container. Org/workspace must match the
+          # Seed Superposition step and the router's [superposition] config.
+          # Auth values come from GitHub secrets — the demo container runs with
+          # auth disabled, but cypress skips superposition setup unless set.
+          SUPERPOSITION_BASE_URL: "http://localhost:8081"
+          SUPERPOSITION_ORG_ID: "localorg"
+          SUPERPOSITION_WORKSPACE_ID: "dev"
+          SUPERPOSITION_SECRET: ${{ secrets.SUPERPOSITION_SECRET }}
+          SUPERPOSITION_AUTH_TOKEN: ${{ secrets.SUPERPOSITION_AUTH_TOKEN }}
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
@@ -1436,6 +1463,15 @@ jobs:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
+          # Superposition demo service container. Org/workspace must match the
+          # Seed Superposition step and the router's [superposition] config.
+          # Auth values come from GitHub secrets — the demo container runs with
+          # auth disabled, but cypress skips superposition setup unless set.
+          SUPERPOSITION_BASE_URL: "http://localhost:8081"
+          SUPERPOSITION_ORG_ID: "localorg"
+          SUPERPOSITION_WORKSPACE_ID: "dev"
+          SUPERPOSITION_SECRET: ${{ secrets.SUPERPOSITION_SECRET }}
+          SUPERPOSITION_AUTH_TOKEN: ${{ secrets.SUPERPOSITION_AUTH_TOKEN }}
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
@@ -1660,6 +1696,15 @@ jobs:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: ${{ env.ALPHA_PAYMENTS_CONNECTORS }}
+          # Superposition demo service container. Org/workspace must match the
+          # Seed Superposition step and the router's [superposition] config.
+          # Auth values come from GitHub secrets — the demo container runs with
+          # auth disabled, but cypress skips superposition setup unless set.
+          SUPERPOSITION_BASE_URL: "http://localhost:8081"
+          SUPERPOSITION_ORG_ID: "localorg"
+          SUPERPOSITION_WORKSPACE_ID: "dev"
+          SUPERPOSITION_SECRET: ${{ secrets.SUPERPOSITION_SECRET }}
+          SUPERPOSITION_AUTH_TOKEN: ${{ secrets.SUPERPOSITION_AUTH_TOKEN }}
         shell: bash -leuo pipefail {0}
         run: |
           # Run tests for alpha connectors
