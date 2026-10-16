@@ -4154,7 +4154,7 @@ where
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
-pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
+pub async fn proxy_for_payments_core<F, Req, Op, FData, D>(
     state: SessionState,
     req_state: ReqState,
     platform: domain::Platform,
@@ -4165,7 +4165,7 @@ pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-) -> RouterResponse<Res>
+) -> RouterResponse<api_models::payments::PaymentsResponse>
 where
     F: Send + Clone + Sync,
     Req: Send + Sync + Authenticate,
@@ -4174,7 +4174,7 @@ where
     Req: Debug,
     D: OperationSessionGetters<F>
         + OperationSessionSetters<F>
-        + transformers::GenerateResponse<Res>
+        + transformers::GenerateResponse<api_models::payments::PaymentsResponse>
         + Send
         + Sync
         + Clone,
@@ -4220,7 +4220,8 @@ where
         )
         .await?;
 
-    payment_data.generate_response(
+    let cloned_payment_data = payment_data.clone();
+    let payments_response = payment_data.generate_response(
         &state,
         connector_http_status_code,
         external_latency,
@@ -4228,7 +4229,20 @@ where
         &platform,
         &profile,
         None,
+    )?;
+
+    utils::trigger_payments_webhook(
+        &platform,
+        profile,
+        cloned_payment_data,
+        &payments_response,
+        &state,
     )
+    .await
+    .map_err(|error| logger::warn!(payments_outgoing_webhook_error = ?error))
+    .ok();
+
+    Ok(payments_response)
 }
 
 #[cfg(feature = "v2")]
