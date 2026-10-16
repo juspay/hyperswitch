@@ -2024,7 +2024,7 @@ fn determine_recovery_status_from_workflows(
         execute_business_status,
         execute_process_tracker_status,
     ) {
-        // Waiting in the calculate workflow to be scheduled, which is still a scheduled retry
+        // Queued status conditions
         (Some(cal_biz_status), Some(cal_pt_status), _, _)
             if (cal_biz_status == business_status::PENDING
                 && (cal_pt_status
@@ -2032,7 +2032,7 @@ fn determine_recovery_status_from_workflows(
                     || cal_pt_status
                         == ProcessTrackerStatus::Pending.to_string().to_uppercase())) =>
         {
-            RecoveryStatus::Scheduled
+            RecoveryStatus::Queued
         }
 
         // Scheduled status conditions
@@ -2172,14 +2172,16 @@ fn can_map_to_recovery_status(
         // Workflow driven statuses, `determine_recovery_status_from_workflows`
         IntentStatus::Failed => matches!(
             recovery_status,
-            RecoveryStatus::Scheduled
+            RecoveryStatus::Queued
+                | RecoveryStatus::Scheduled
                 | RecoveryStatus::Processing
                 | RecoveryStatus::Terminated
                 | RecoveryStatus::Monitoring
         ),
         IntentStatus::PartiallyCaptured | IntentStatus::PartiallyCapturedAndCapturable => matches!(
             recovery_status,
-            RecoveryStatus::Scheduled
+            RecoveryStatus::Queued
+                | RecoveryStatus::Scheduled
                 | RecoveryStatus::Processing
                 | RecoveryStatus::Terminated
                 | RecoveryStatus::PartiallyRecovered

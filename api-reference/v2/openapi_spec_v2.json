@@ -32345,6 +32345,7 @@
           "partially_captured_and_processing",
           "terminated",
           "monitoring",
+          "queued",
           "partially_recovered",
           "succeeded",
           "cancelled"

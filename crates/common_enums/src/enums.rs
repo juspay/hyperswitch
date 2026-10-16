@@ -2293,6 +2293,9 @@ pub enum RecoveryStatus {
     /// confirmation or capture.
     #[default]
     Monitoring,
+    /// The payment is queued in the calculate workflow but has not yet been scheduled for execution.
+    /// This status indicates the payment is in the initial queuing phase of the recovery process.
+    Queued,
     /// The payment has been partially recovered through retry mechanisms.
     /// This indicates that a partially captured payment has been processed.
     PartiallyRecovered,
