@@ -2392,8 +2392,7 @@ pub async fn revenue_recovery_invoices_list(
     .await
 }
 
-/// Profile scoped variant of [`revenue_recovery_invoices_list`]: the profile comes from the
-/// authenticated session and overrides any `profile_id` query param.
+/// Profile scoped [`revenue_recovery_invoices_list`]; the profile comes from auth.
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(all(feature = "olap", feature = "v2"))]
 pub async fn revenue_recovery_invoices_list_profile(

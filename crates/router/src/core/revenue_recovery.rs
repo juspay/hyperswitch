@@ -2105,7 +2105,6 @@ pub fn map_recovery_status(
             execute_process_tracker_status,
             || {
                 if attempt_count > max_retry_threshold {
-                    // Past the retry threshold without ever being picked up for retry
                     RecoveryStatus::Terminated
                 } else {
                     RecoveryStatus::Monitoring
@@ -2134,7 +2133,6 @@ pub fn map_recovery_status(
         | IntentStatus::Expired
         | IntentStatus::Review => RecoveryStatus::Terminated,
 
-        // Waiting on an action outside of the recovery workflows, so just keep monitoring
         IntentStatus::RequiresCustomerAction
         | IntentStatus::RequiresMerchantAction
         | IntentStatus::RequiresPaymentMethod
@@ -2144,10 +2142,8 @@ pub fn map_recovery_status(
     }
 }
 
-/// Returns the intent statuses that can resolve to any of the given recovery statuses (see
-/// [`map_recovery_status`]), optionally narrowed to the `allowed` intent statuses. This is a
-/// superset used to narrow the database query, the derived recovery status is still checked
-/// on the result.
+/// Intent statuses that can resolve to any of the given recovery statuses (see
+/// [`map_recovery_status`]), a superset used to narrow the database query.
 pub fn candidate_intent_statuses_for_recovery_status(
     recovery_statuses: &[RecoveryStatus],
     allowed: Option<&[IntentStatus]>,
@@ -2169,7 +2165,6 @@ fn can_map_to_recovery_status(
     recovery_status: RecoveryStatus,
 ) -> bool {
     match intent_status {
-        // Workflow driven statuses, `determine_recovery_status_from_workflows`
         IntentStatus::Failed => matches!(
             recovery_status,
             RecoveryStatus::Queued
@@ -2409,7 +2404,7 @@ mod recovery_status_mapping_tests {
         }
     }
 
-    /// Every (calculate, execute) workflow shape the derivation distinguishes, plus an unrelated one.
+    /// Every workflow shape the derivation distinguishes, plus an unrelated one.
     fn workflow_shapes() -> Vec<Option<ProcessTrackerStorage>> {
         let business_statuses = [
             business_status::PENDING,
@@ -2438,15 +2433,13 @@ mod recovery_status_mapping_tests {
         shapes
     }
 
-    /// Brute-forces `map_recovery_status` over every intent status, workflow shape and retry
-    /// threshold side, and returns the intent statuses that can resolve to each recovery status.
+    /// Intent statuses that `map_recovery_status` can resolve to the given recovery status.
     fn reachable_intent_statuses(recovery_status: RecoveryStatus) -> BTreeSet<String> {
         let shapes = workflow_shapes();
         let mut reachable = BTreeSet::new();
         for intent_status in IntentStatus::iter() {
             for calculate in &shapes {
                 for execute in &shapes {
-                    // attempt_count above and below the threshold
                     for attempt_count in [0, 5] {
                         let derived = map_recovery_status(
                             intent_status,

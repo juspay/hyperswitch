@@ -9463,14 +9463,12 @@ pub struct RecoveryPaymentListConstraints {
     pub card_network: Option<Vec<enums::CardNetwork>>,
     /// The identifier for merchant order reference id
     pub merchant_order_reference_id: Option<String>,
-    /// The recovery status to filter the recovery invoices list. Comma separated values are
-    /// supported. Recovery status is derived from the payment intent status and the recovery
-    /// workflows, so it is applied after the workflow lookup and before pagination.
+    /// Comma separated recovery statuses to filter by
     #[param(value_type = Option<Vec<RecoveryStatus>>)]
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub recovery_status: Option<Vec<api_enums::RecoveryStatus>>,
 
-    /// Exact, case-sensitive match against the payment id or the merchant reference id. Combined with the other filters using AND.
+    /// Exact match on the payment id or the merchant reference id
     #[param(example = "12345_pay_01926c58bc6e77c09e809964e72af8c8", value_type = Option<String>)]
     pub search: Option<String>,
 }
@@ -9485,7 +9483,7 @@ pub struct RecoveryListFilters {
 
 #[cfg(feature = "v2")]
 impl RecoveryPaymentListConstraints {
-    /// Splits the constraints into the regular payment list constraints and the recovery status filter.
+    /// Splits into the regular payment list constraints and the recovery specific filters.
     pub fn into_parts(self) -> (PaymentListConstraints, RecoveryListFilters) {
         let Self {
             payment_id,

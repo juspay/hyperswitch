@@ -243,8 +243,7 @@ pub async fn list_payments(
     .await
 }
 
-/// Enriches the fetched payment intents with the recovery workflow entries and the billing
-/// connector retry threshold, and maps them to the recovery list items.
+/// Maps intents to recovery list items using their workflow entries and billing retry threshold.
 #[cfg(all(feature = "v2", feature = "olap"))]
 async fn build_recovery_list_items(
     state: &SessionState,
@@ -253,13 +252,11 @@ async fn build_recovery_list_items(
 ) -> Vec<payments_api::RecoveryPaymentsListResponseItem> {
     let db: &dyn StorageInterface = state.store.as_ref();
 
-    // Get all billing connector account IDs
     let billing_connector_ids: Vec<_> = list
         .iter()
         .map(|(payment_intent, _)| payment_intent.get_billing_merchant_connector_account_id())
         .collect();
 
-    // Create futures for workflow lookups
     let workflow_futures: Vec<_> = list
         .iter()
         .map(|(payment_intent, _)| get_workflow_entries(state, &payment_intent.id))
@@ -295,13 +292,11 @@ async fn build_recovery_list_items(
                 let (calculate_workflow, execute_workflow) =
                     workflow_result.unwrap_or((None, None));
 
-                // Get retry threshold from billing connector account
                 let max_retry_threshold = billing_connector_account
                     .as_ref()
                     .and_then(|mca| mca.get_retry_threshold())
                     .unwrap_or(0); // Default fallback
 
-                // Use custom mapping function
                 map_to_recovery_payment_item(
                     payment_intent,
                     payment_attempt,
@@ -326,7 +321,7 @@ pub async fn revenue_recovery_list_payments(
         recovery_status,
         search,
     } = filters;
-    // A profile resolved from auth always wins over a caller supplied `profile_id`.
+    // The auth profile overrides a caller supplied `profile_id`.
     if profile_id.is_some() {
         constraints.profile_id = profile_id;
     }
@@ -412,14 +407,10 @@ pub async fn revenue_recovery_list_payments(
     .await
 }
 
-/// Lists the recovery invoices filtered by the derived recovery status.
+/// Lists recovery invoices filtered by the derived recovery status.
 ///
-/// The recovery status is not a database column: it is derived from the intent status, the
-/// process tracker workflows and the billing connector retry threshold. So the intents are
-/// narrowed in the database to the intent statuses that can map to the requested recovery
-/// statuses, the recovery status is derived for those candidates, and the requested
-/// `limit` / `offset` are applied on the filtered set. `total_count` is the size of the
-/// filtered set.
+/// The status is derived per row, so intents are narrowed by candidate intent status in the
+/// database, then filtered, then paginated. `total_count` is the filtered size.
 #[cfg(all(feature = "v2", feature = "olap"))]
 async fn list_recovery_payments_by_recovery_status(
     state: &SessionState,
@@ -459,7 +450,7 @@ async fn list_recovery_payments_by_recovery_status(
         let page_offset = common_utils::types::list::PageOffset::from(
             u32::try_from(scan_offset).unwrap_or(u32::MAX),
         );
-        // `PageOffset` clamps at its maximum, so past it the same page would be read again forever.
+        // `PageOffset` clamps at its maximum; stop rather than re-read the same page.
         if page_offset.as_usize() != scan_offset {
             break;
         }

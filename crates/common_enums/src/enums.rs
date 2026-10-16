@@ -2289,8 +2289,7 @@ pub enum RecoveryStatus {
     Terminated,
     /// The payment is being monitored for potential recovery.
     /// This status is shown when the attempt count is below the threshold and the system is waiting to pick it up,
-    /// and for payments that are still waiting on customer action, merchant action, a payment method,
-    /// confirmation or capture.
+    /// or the payment is waiting on customer or merchant action.
     #[default]
     Monitoring,
     /// The payment is queued in the calculate workflow but has not yet been scheduled for execution.

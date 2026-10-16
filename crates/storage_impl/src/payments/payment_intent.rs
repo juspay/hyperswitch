@@ -1621,7 +1621,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::attempt_count.desc()),
                 };
-                // Stable secondary key so rows with equal sort keys keep their position across pages.
+                // Tie-break on id so paging is stable.
                 query = match params.order.by {
                     SortBy::Asc => query.then_order_by(pi_dsl::id.asc()),
                     SortBy::Desc => query.then_order_by(pi_dsl::id.desc()),
@@ -1741,7 +1741,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 }
 
                 if let Some(search) = &params.search {
-                    // Exact match on the payment id or merchant reference id; the term is always bound, never inlined.
                     query = query.filter(
                         diesel::dsl::sql::<diesel::sql_types::Bool>("(payment_intent.id = ")
                             .bind::<diesel::sql_types::Text, _>(search.clone())
@@ -1829,9 +1828,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     query = query.filter(pi_dsl::profile_id.eq(profile_id.clone()));
                 }
 
-                // Mirror the page query: an explicit time bound wins over a cursor. The cursor's
-                // timestamp is resolved in SQL because the count path has no key store to decrypt
-                // the intent with.
+                // Same precedence as the page query. The cursor timestamp is resolved in SQL because
+                // the count path has no key store.
                 query = match (params.starting_at, &params.starting_after_id) {
                     (Some(starting_at), _) => query.filter(pi_dsl::created_at.ge(starting_at)),
                     (None, Some(starting_after_id)) => query.filter(
@@ -1887,7 +1885,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 }
 
                 if let Some(search) = &params.search {
-                    // Exact match on the payment id or merchant reference id; the term is always bound, never inlined.
                     query = query.filter(
                         diesel::dsl::sql::<diesel::sql_types::Bool>("(payment_intent.id = ")
                             .bind::<diesel::sql_types::Text, _>(search.clone())
