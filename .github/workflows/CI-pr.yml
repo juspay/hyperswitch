@@ -143,11 +143,10 @@ jobs:
         shell: bash
         run: sccache --show-stats
 
-      # TEMPORARY: force this run to populate the shared "check-msrv" S3 cache,
-      # since no cache has ever been saved under that key. Revert once this PR
-      # has run and the cache is warm — normal behaviour is restored below.
+      # Only for PRs that changed Cargo.lock (see the scope step). Writes a PR-scoped
+      # key, never clobbering the shared cache. `!cancelled()`: cache on failure, skip on cancel.
       - name: Save sccache cache to S3
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.cache_scope.outputs.scope != '' }}
         continue-on-error: true
         shell: bash
         run: .github/scripts/sccache-save-s3.sh check-msrv "${{ steps.cache_scope.outputs.scope }}"
