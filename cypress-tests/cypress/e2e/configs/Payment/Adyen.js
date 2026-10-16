@@ -1396,9 +1396,7 @@ export const connectorDetails = {
         payment_method_type: "open_banking_uk",
         payment_method_data: {
           bank_redirect: {
-            open_banking_uk: {
-              issuer: "lloyds",
-            },
+            open_banking_uk: {},
           },
         },
         currency: "GBP",
@@ -1431,9 +1429,7 @@ export const connectorDetails = {
           payment_method_type: "open_banking_uk",
           payment_method_data: {
             bank_redirect: {
-              open_banking_uk: {
-                issuer: "lloyds",
-              },
+              open_banking_uk: {},
             },
           },
           browser_info: mandateBrowserInfo,

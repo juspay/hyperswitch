@@ -3614,12 +3614,56 @@ function threeDsRedirection(
             });
           break;
         case "adyen":
-          cy.get("iframe")
-            .its("0.contentDocument.body")
-            .within(() => {
-              cy.get('input[type="password"]').click();
-              cy.get('input[type="password"]').type("password");
-              cy.get("#buttonSubmit").click();
+          // Suppress uncaught exceptions from Adyen's own page: their test
+          // 3DS2 page telemetry (palauthentication .../client/v1/logs)
+          // currently returns 401 and surfaces as unhandled FetchError
+          // rejections. Global handlers don't apply inside secondary
+          // origins, so this must be registered here.
+          Cypress.on("uncaught:exception", (err) => {
+            if (
+              err.message.includes("Fetch to") ||
+              err.message.includes("/logs") ||
+              err.message.includes("Response status: 401")
+            ) {
+              return false;
+            }
+            return true;
+          });
+          // Adyen's 3DS2 page may render multiple iframes (e.g. hidden
+          // telemetry frames); retry until some iframe contains the
+          // password challenge input, then drive that iframe instead of
+          // assuming the first one.
+          cy.get("iframe", { timeout: constants.TIMEOUT })
+            .should(($iframes) => {
+              const hasChallengeIframe = $iframes
+                .toArray()
+                .some(
+                  (iframe) =>
+                    iframe.contentDocument &&
+                    iframe.contentDocument.querySelector(
+                      'input[type="password"]'
+                    )
+                );
+              expect(
+                hasChallengeIframe,
+                "expected an iframe with a 3DS password challenge input to be present"
+              ).to.be.true;
+            })
+            .then(($iframes) => {
+              const challengeIframe = $iframes
+                .toArray()
+                .find(
+                  (iframe) =>
+                    iframe.contentDocument &&
+                    iframe.contentDocument.querySelector(
+                      'input[type="password"]'
+                    )
+                );
+              cy.wrap(challengeIframe.contentDocument.body).within(() => {
+                cy.get('input[type="password"]').click();
+                cy.get('input[type="password"]').type("password");
+                cy.get("#buttonSubmit").click();
+              });
             });
           break;
 
