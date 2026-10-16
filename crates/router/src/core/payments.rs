@@ -4154,7 +4154,7 @@ where
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
-pub async fn proxy_for_payments_core<F, Req, Op, FData, D>(
+pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     state: SessionState,
     req_state: ReqState,
     platform: domain::Platform,
@@ -4165,16 +4165,17 @@ pub async fn proxy_for_payments_core<F, Req, Op, FData, D>(
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-) -> RouterResponse<api_models::payments::PaymentsResponse>
+) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
+    Res: Clone + Into<api_models::payments::PaymentsResponse>,
     Req: Send + Sync + Authenticate,
     FData: Send + Sync + Clone,
     Op: Operation<F, Req, Data = D> + ValidateStatusForOperation + Send + Sync + Clone,
     Req: Debug,
     D: OperationSessionGetters<F>
         + OperationSessionSetters<F>
-        + transformers::GenerateResponse<api_models::payments::PaymentsResponse>
+        + transformers::GenerateResponse<Res>
         + Send
         + Sync
         + Clone,

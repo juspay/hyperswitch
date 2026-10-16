@@ -1160,16 +1160,17 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
 }
 
 #[cfg(feature = "v2")]
-pub async fn trigger_payments_webhook<F, D>(
+pub async fn trigger_payments_webhook<F, D, Res>(
     platform: &domain::Platform,
     business_profile: domain::Profile,
     payment_data: D,
-    payments_response: &services::ApplicationResponse<api_models::payments::PaymentsResponse>,
+    payments_response: &services::ApplicationResponse<Res>,
     state: &SessionState,
 ) -> RouterResult<()>
 where
     F: Send + Clone + Sync,
     D: payments_core::OperationSessionGetters<F>,
+    Res: Clone + Into<api_models::payments::PaymentsResponse>,
 {
     let status = payment_data.get_payment_intent().status;
 
@@ -1211,7 +1212,7 @@ where
 
     let cloned_state = state.clone();
     let cloned_platform = platform.clone();
-    let payments_response = payments_response.clone();
+    let payments_response = payments_response.clone().into();
     let primary_object_created_at = payments_response.created;
 
     // Persisting and delivering the webhook should not add latency to the payment API response.

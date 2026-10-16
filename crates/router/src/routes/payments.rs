@@ -4347,6 +4347,7 @@ pub async fn proxy_confirm_intent(
             // Call the core proxy logic
             Box::pin(payments::proxy_for_payments_core::<
                 api_types::Authorize,
+                api_models::payments::PaymentsResponse,
                 _,
                 _,
                 _,
