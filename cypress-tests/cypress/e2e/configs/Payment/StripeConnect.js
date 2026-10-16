@@ -71,6 +71,19 @@ const stripeSplitRefundData = {
   },
 };
 
+// PR #14575 fixed a routing bug that only manifests when
+// `payment_attempt.charges` is NULL at refund time — the charge id is then
+// unresolvable, and the old code silently fell back to a non-Connect refund
+// request against the wrong (platform) account instead of using
+// `transfer_account_id`/`charge_type` to route to the connected account.
+// `charges` is populated from the connector's own Authorize/Capture response,
+// so this spec's normal payment-then-refund flow never actually produces a
+// NULL value to exercise that path — there's no API-level way to force it.
+// The Refund/PartialRefund/manualPaymentRefund scenarios below still assert
+// `status: "succeeded"` as a plain regression guard (a full break in split
+// refund routing would fail them), but they don't independently prove this
+// specific fix; that's covered at the Rust unit-test level in the PR itself.
+
 const payment_method_data_3ds = {
   card: {
     last4: "3155",
