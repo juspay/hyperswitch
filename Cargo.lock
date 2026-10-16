@@ -8560,7 +8560,6 @@ name = "router_derive"
 version = "0.1.0"
 dependencies = [
  "common_utils",
- "diesel",
  "error-stack 0.4.1",
  "indexmap 2.9.0",
  "proc-macro2",
