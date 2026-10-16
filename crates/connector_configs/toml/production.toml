@@ -2762,9 +2762,11 @@ payment_method_type = "Discover"
 payment_method_type = "UnionPay"
 [[jpmorgan.debit]]
 payment_method_type = "Visa"
-[jpmorgan.connector_auth.BodyKey]
-api_key = "Access Token"
-key1 = "Client Secret"
+[jpmorgan.connector_auth.MultiAuthKey]
+api_key = "Client ID"
+key1 = "Certificate Thumbprint"
+api_secret = "Private Key (Base64 encoded)"
+key2 = "Resource ID"
 [jpmorgan.metadata.company_name]
 name = "company_name"
 label = "Company Name"
