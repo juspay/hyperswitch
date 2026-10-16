@@ -60,6 +60,7 @@ frm = [
 stripe = []
 gcp_kms = ["external_services/gcp_kms"]
 oci_kms = ["external_services/oci_kms"]
+oci_object_storage = ["external_services/oci_object_storage"]
 release = [
     "stripe",
     "email",
@@ -70,6 +71,7 @@ release = [
     "gcp_kms",
     "oci_kms",
     "external_services/aws_s3",
+    "oci_object_storage",
     "keymanager_mtls",
     "keymanager_create",
     "encryption_service",
@@ -195,7 +197,7 @@ actix-rt = "2.10.0"
 actix-web = "4.11.0"
 argon2 = { version = "0.5.3", features = ["std"] }
 async-bb8-diesel = "0.2.1"
-async-trait = "0.1.88"
+async-trait = "0.1.92"
 base64 = "0.22.1"
 bb8 = "0.8"
 heck = "0.5.0"

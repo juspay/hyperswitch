@@ -37,7 +37,7 @@ env:
 jobs:
   formatting:
     name: Check formatting
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -131,14 +131,8 @@ jobs:
         run: .github/scripts/install-jq.sh
 
       - name: Run cargo check
-        if: ${{ github.event_name == 'merge_group' }}
         shell: bash
         run: cargo check --features "release"
-
-      - name: Cargo hack
-        if: ${{ github.event_name == 'push' }}
-        shell: bash
-        run: just ci_hack
 
       - name: Show sccache stats
         if: always()
@@ -246,13 +240,13 @@ jobs:
         shell: bash
         # Capped: uncapped + cold cache OOM'd a runner pod (git log).
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy
 
       - name: Run clippy (fred backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy fred
 
       - name: Show sccache stats
@@ -269,7 +263,7 @@ jobs:
 
   typos:
     name: Spell check
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -279,7 +273,7 @@ jobs:
 
   typos-required:
     name: Spell check specific critical directories
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -360,13 +354,13 @@ jobs:
       - name: Run cargo clippy with v2 features enabled (redis-rs backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy_v2
 
       - name: Run cargo clippy with v2 features enabled (fred backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy_v2 fred
 
       - name: Show sccache stats

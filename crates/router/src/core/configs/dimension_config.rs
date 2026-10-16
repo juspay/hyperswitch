@@ -537,6 +537,18 @@ impl DatabaseBackedConfig for ShouldTriggerFingerprintMigration {
 }
 
 config! {
+    superposition_key = SHOULD_GENERATE_MERCHANT_SCOPED_PAYMENT_METHOD_FINGERPRINT,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldGenerateMerchantScopedPaymentMethodFingerprint {
+    const KEY: &'static str = "should_generate_merchant_scoped_payment_method_fingerprint";
+}
+
+config! {
     superposition_key = NETWORK_TOKEN_FETCH_TIMEOUT_IN_SECS,
     output = u32,
     default = 4,
@@ -1187,6 +1199,18 @@ impl DatabaseBackedConfig for PayoutFrmCall {
             .get_profile_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
+}
+
+config! {
+    superposition_key = RERUN_PAYOUT_FRM_BEFORE_AUTO_RETRY,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for RerunPayoutFrmBeforeAutoRetry {
+    const KEY: &'static str = "rerun_payout_frm_before_auto_retry";
 }
 
 config! {

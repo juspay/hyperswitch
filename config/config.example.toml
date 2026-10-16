@@ -58,6 +58,10 @@ connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
 max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+keepalives_idle = 5       # Idle seconds before the OS sends TCP keepalive probes
+keepalives_interval = 2   # Seconds between keepalive probes
+keepalives_count = 3      # Unanswered probes before the OS declares the connection dead
+tcp_user_timeout_ms = 5000 # Unacked-data timeout (ms); keep below connection_timeout
 
 # Replica SQL data store credentials
 [replica_database]
@@ -72,6 +76,10 @@ connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
 max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+keepalives_idle = 5       # Idle seconds before the OS sends TCP keepalive probes
+keepalives_interval = 2   # Seconds between keepalive probes
+keepalives_count = 3      # Unanswered probes before the OS declares the connection dead
+tcp_user_timeout_ms = 5000 # Unacked-data timeout (ms); keep below connection_timeout
 
 # Accounts schema SQL data store credentials (merchant accounts, profiles, MCAs, key stores)
 [accounts_database]
@@ -86,6 +94,10 @@ connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
 max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+keepalives_idle = 5       # Idle seconds before the OS sends TCP keepalive probes
+keepalives_interval = 2   # Seconds between keepalive probes
+keepalives_count = 3      # Unanswered probes before the OS declares the connection dead
+tcp_user_timeout_ms = 5000 # Unacked-data timeout (ms); keep below connection_timeout
 
 # Global tenant (users, roles) SQL data store credentials
 [global_database]
@@ -100,6 +112,10 @@ connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
 max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+keepalives_idle = 5       # Idle seconds before the OS sends TCP keepalive probes
+keepalives_interval = 2   # Seconds between keepalive probes
+keepalives_count = 3      # Unanswered probes before the OS declares the connection dead
+tcp_user_timeout_ms = 5000 # Unacked-data timeout (ms); keep below connection_timeout
 
 # Redis credentials
 [redis]
@@ -275,6 +291,7 @@ locker_enabled = true               # Boolean to enable or disable saving cards 
 ttl_for_storage_in_secs = 220752000 # Time to live for storage entries in locker
 create_entity_on_merchant_create = false # Boolean to call the locker's entity-create API during merchant account creation, aborting creation on locker failure
 plain_fingerprint_response = true   # Ask the vault for plain (unencrypted) fingerprint responses; honoured only if the vault has opted in (v2)
+use_batched_fingerprint = false     # Derive a vaulting's fingerprints in one call to the vault's batch fingerprint API instead of one call each; the vault must support it (v2)
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response
@@ -373,16 +390,16 @@ finix.base_url = "https://finix.sandbox-payments-api.com"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
-fiuu.base_url = "https://sandbox.merchant.razer.com/"
+fiuu.base_url = "https://sandbox-payment.fiuu.com/"
 flexiti.base_url = "https://onlineapi.flexiti.fi/flexiti/online-api/"
-fiuu.secondary_base_url="https://sandbox.merchant.razer.com/"
-fiuu.third_base_url="https://api.merchant.razer.com/"
+fiuu.secondary_base_url="https://sandbox-api.fiuu.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 getnet.base_url = "https://api-test.getneteurope.com/engine/rest"
 gigadat.base_url = "https://interac.express-connect.com/"
 givepayments.base_url = "https://api-sandbox.givepayments.com"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globalpayments_heartland.base_url = "https://cert.api2.heartlandportico.com/Hps.Exchange.PosGateway/PosGatewayService.asmx"
+globalpayments_realex.base_url = "https://api.sandbox.realexpayments.com/"
 globepay.base_url = "https://pay.globepay.co/"
 gocardless.base_url = "https://api-sandbox.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
@@ -701,6 +718,7 @@ stripe = { payment_method = "bank_transfer" }
 nuvei = { payment_method = "card" }
 shift4 = { payment_method = "card" }
 barclaycard = { payment_method = "card" }
+globalpayments_realex = { payment_method = "card" }
 bluesnap = { payment_method = "card" }
 bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
@@ -1402,11 +1420,19 @@ account_updater_topic = "topic"         # Kafka topic to be used for account upd
 
 # File storage configuration
 [file_storage]
-file_storage_backend = "aws_s3" # File storage backend to be used
+file_storage_backend = "aws_s3" # File storage backend to be used (file_system | aws_s3 | oci_object_storage)
 
 [file_storage.aws_s3]
 region = "us-east-1"    # The AWS region used by the AWS S3 for file storage
 bucket_name = "bucket1" # The AWS S3 bucket name for file storage
+
+# Used when file_storage_backend = "oci_object_storage" (requires the `oci_object_storage` feature,
+# included in release builds). Files go through OCI's S3 Compatibility API;
+# authenticate with an OCI Customer Secret Key in AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
+# [file_storage.oci_object_storage]
+# namespace = "namespace"    # The Object Storage namespace of the tenancy
+# region = "us-ashburn-1"    # The OCI region identifier of the bucket
+# bucket_name = "bucket1"    # The OCI Object Storage bucket name for file storage
 
 [secrets_management]
 secrets_manager = "aws_kms" # Secrets manager client to be used (no_encryption | aws_kms | hashicorp_vault | gcp_kms | oci_kms)
@@ -1568,7 +1594,7 @@ request_timeout = 35                    # Per-RPC Request Timeout in Seconds
 keep_alive_interval = 30                # HTTP/2 PING keepalive interval in Seconds on the shared channel
 keep_alive_timeout = 20                 # Time in Seconds to wait for a keepalive PING acknowledgement before the connection is treated as dead
 tcp_keepalive = 60                      # TCP keepalive idle time in Seconds on the shared channel
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer, globalpayments_realex"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url

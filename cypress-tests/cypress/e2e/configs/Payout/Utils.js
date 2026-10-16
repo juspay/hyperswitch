@@ -103,10 +103,11 @@ export const CONNECTOR_LISTS = {
     // gotyme_sanlam only supports bank transfer payouts (payshap /
     // payshap_proxy) and has no card payout method, so it is skipped for
     // the card payout tests in 00003-CardTest.cy.js.
-    // trustly only supports open-banking bank transfer payouts and paypal
-    // only supports wallet payouts (see configs/Payout/Paypal.js), so they
-    // have no card payout method either and are skipped for the same reason.
-    CARD_TEST: ["gotyme_sanlam", "trustly", "paypal"],
+    // trustly only supports open-banking bank transfer payouts, paypal only
+    // supports wallet payouts (see configs/Payout/Paypal.js), and truelayer
+    // does not implement card payout eligibility over UCS, so they have no
+    // card payout method either and are skipped for the same reason.
+    CARD_TEST: ["gotyme_sanlam", "trustly", "paypal", "truelayer"],
     VENMO_WALLET_FULFILL: ["paypal"],
   },
   INCLUDE: {
@@ -125,6 +126,9 @@ export const CONNECTOR_LISTS = {
     BANK_TRANSFER_OPEN_BANKING_NO_BILLING: ["trustly"],
     BANK_TRANSFER_PAYSHAP: ["gotyme_sanlam"],
     BANK_TRANSFER_PAYSHAP_PROXY: ["gotyme_sanlam"],
+    // Payout FRM (sanlam_payshield pre-FRM gating gotyme_sanlam payouts) -
+    // only verified connector pairing
+    PAYOUT_FRM: ["gotyme_sanlam"],
     BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_CARD: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],

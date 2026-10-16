@@ -56,10 +56,7 @@ use diesel_models::{fraud_check::FraudCheck, refund as diesel_refund};
 use error_stack::{report, ResultExt};
 use euclid::backend::inputs as dsl_inputs;
 use events::EventInfo;
-use futures::{
-    future::{join_all, BoxFuture},
-    FutureExt,
-};
+use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
@@ -3927,6 +3924,234 @@ where
     )
 }
 
+/// Whether the profile that ran the network token arm has clear-PAN retries enabled. An
+/// unreadable profile counts as disabled.
+#[cfg(feature = "v1")]
+async fn is_clear_pan_retry_enabled_for_profile(
+    state: &SessionState,
+    platform: &domain::Platform,
+    network_token_response: &payments_api::PaymentsResponse,
+) -> bool {
+    match network_token_response.profile_id.as_ref() {
+        Some(profile_id) => state
+            .store
+            .find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                profile_id,
+            )
+            .await
+            .map(|business_profile| business_profile.is_clear_pan_retries_enabled)
+            .inspect_err(|error| {
+                logger::error!(
+                    ?error,
+                    "could not read the profile to check is_clear_pan_retries_enabled; treating the vault card fallback as disabled"
+                );
+            })
+            .unwrap_or(false),
+        None => false,
+    }
+}
+
+/// Whether a declined network-token arm may be re-run against the vault card. Mirrors the
+/// clear-PAN rule in `retry.rs`: profile switch on, GSM decides `Retry` and sets
+/// `clear_pan_possible`.
+#[cfg(feature = "v1")]
+async fn is_vault_card_fallback_eligible(
+    state: &SessionState,
+    platform: &domain::Platform,
+    network_token_response: &payments_api::PaymentsResponse,
+) -> bool {
+    let issuer_details = network_token_response
+        .error_details
+        .as_ref()
+        .and_then(|error_details| error_details.issuer_details.as_ref());
+    // The response's `error_message` is `error_reason.or(error_message)`, while `retry.rs` keys
+    // the GSM row on the raw connector message. Prefer the raw one so both look up the same row.
+    let error_message = network_token_response
+        .error_details
+        .as_ref()
+        .and_then(|error_details| error_details.connector_details.as_ref())
+        .and_then(|connector_details| connector_details.message.clone())
+        .or_else(|| network_token_response.error_message.clone());
+
+    match (
+        network_token_response.status,
+        network_token_response.connector.clone(),
+    ) {
+        // The merchant-level switch gates this exactly as it gates the clear-PAN auto retry in
+        // `retry.rs`, so a merchant that turned clear-PAN retries off does not get the fallback
+        // either. Checked first, so a disabled profile costs no GSM lookup.
+        (enums::IntentStatus::Failed, Some(connector)) => {
+            // The vault card arm inherits arm one's gateway, and the external vault proxy has no
+            // Direct implementation — a fallback that would land on Direct cannot authorize, so it
+            // is not worth creating an attempt for.
+            crate::core::unified_connector_service::is_ucs_execution_path_for_external_vault_proxy(
+                state,
+                platform.get_processor(),
+                &connector,
+                network_token_response
+                    .payment_method
+                    .unwrap_or(common_enums::PaymentMethod::Card),
+                network_token_response.payment_method_type,
+            )
+            .await
+            .unwrap_or(false)
+                && is_clear_pan_retry_enabled_for_profile(state, platform, network_token_response)
+                    .await
+                && helpers::get_gsm_record(
+                    state,
+                    connector.clone(),
+                    consts::PAYMENT_FLOW_STR,
+                    &core_utils::get_flow_name::<api::Authorize>().unwrap_or_default(),
+                    network_token_response.error_code.clone(),
+                    error_message,
+                    issuer_details.and_then(|details| details.code.clone()),
+                    issuer_details
+                        .and_then(|details| details.network_details.as_ref())
+                        .and_then(|network_details| network_details.name.clone()),
+                )
+                .await
+                .and_then(|gsm| gsm.feature_data.get_retry_feature_data())
+                .map(|retry_feature_data| {
+                    // Auto retries require the decision as well as the flag, so a row that permits a
+                    // clear-PAN retry but decides `DoDefault` must not trigger the fallback either.
+                    retry_feature_data.get_decision() == common_enums::GsmDecision::Retry
+                        && retry_feature_data.is_clear_pan_possible()
+                })
+                .unwrap_or(false)
+        }
+        _ => false,
+    }
+}
+
+/// Recovers the payment response carried by an [`ApplicationResponse`], if it carries one.
+#[cfg(feature = "v1")]
+fn payment_response_from_application_response(
+    application_response: &services::ApplicationResponse<payments_api::PaymentsResponse>,
+) -> Option<&payments_api::PaymentsResponse> {
+    match application_response {
+        services::ApplicationResponse::Json(response) => Some(response),
+        services::ApplicationResponse::JsonWithHeaders((response, _)) => Some(response),
+        _ => None,
+    }
+}
+
+/// Runs a network-token MIT and, on a clear-PAN eligible decline, re-runs it against the vault
+/// card under the same network transaction ID.
+///
+/// The arms run on different cores (`PaymentData<Authorize>` vs `PaymentData<ExternalVaultProxy>`),
+/// so they are composed at the response level. The fallback runs at most once.
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn network_token_with_vault_card_fallback_core<Op>(
+    state: SessionState,
+    req_state: ReqState,
+    platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
+    operation: Op,
+    req: payments_api::PaymentsRequest,
+    fallback: Box<api_models::mandates::NetworkTokenWithVaultCardFallback>,
+    auth_flow: services::AuthFlow,
+    header_payload: HeaderPayload,
+) -> RouterResponse<payments_api::PaymentsResponse>
+where
+    Op: Debug
+        + Sync
+        + Clone
+        + Operation<api::Authorize, payments_api::PaymentsRequest, Data = PaymentData<api::Authorize>>,
+{
+    let all_keys_required = req.all_keys_required;
+
+    let network_token_request = payments_api::PaymentsRequest {
+        recurring_details: Some(fallback.to_network_token_arm()),
+        ..req.clone()
+    };
+
+    let network_token_outcome = Box::pin(proxy_for_payments_core::<
+        api::Authorize,
+        payments_api::PaymentsResponse,
+        _,
+        _,
+        _,
+        PaymentData<api::Authorize>,
+    >(
+        state.clone(),
+        req_state.clone(),
+        platform.clone(),
+        profile_id.clone(),
+        operation,
+        network_token_request,
+        auth_flow,
+        CallConnectorAction::Trigger,
+        header_payload.clone(),
+        req.all_keys_required,
+    ))
+    .await?;
+
+    let network_token_response = payment_response_from_application_response(&network_token_outcome);
+
+    let fallback_target = match network_token_response {
+        Some(response) => {
+            match is_vault_card_fallback_eligible(&state, &platform, response).await {
+                true => Some((
+                    response.payment_id.clone(),
+                    response.payment_method,
+                    response.payment_method_type,
+                )),
+                false => None,
+            }
+        }
+        None => None,
+    };
+
+    match fallback_target {
+        None => Ok(network_token_outcome),
+        Some((payment_id, payment_method, payment_method_type)) => {
+            logger::info!(
+                payment_id = ?payment_id,
+                "network token arm declined as clear-pan eligible, falling back to the vault card arm"
+            );
+
+            let vault_card_request = payments_api::PaymentsRequest {
+                payment_id: Some(payments_api::PaymentIdType::PaymentIntentId(payment_id)),
+                recurring_details: Some(fallback.to_vault_card_arm()),
+                // A confirm call may omit these, having supplied them at create. Arm two creates a
+                // fresh attempt, which needs them, so carry arm one's resolved values forward
+                // rather than relying on the request repeating them.
+                payment_method: payment_method.or(req.payment_method),
+                payment_method_type: payment_method_type.or(req.payment_method_type),
+                ..req
+            };
+
+            // No attempt bookkeeping here: the external vault proxy confirm operation always
+            // advances the attempt count, so the vault card arm lands on its own attempt and arm
+            // one's decline survives.
+            Box::pin(external_vault_proxy_for_payments_core::<
+                api::ExternalVaultProxy,
+                payments_api::PaymentsResponse,
+                _,
+                _,
+                _,
+                PaymentData<api::ExternalVaultProxy>,
+            >(
+                state.clone(),
+                req_state,
+                platform.clone(),
+                profile_id,
+                // Always the confirm operation, for both endpoints: arm one has already persisted
+                // the intent, including on a single-call create+confirm.
+                PaymentExternalVaultProxyConfirm,
+                vault_card_request,
+                auth_flow,
+                CallConnectorAction::Trigger,
+                header_payload,
+                all_keys_required,
+            ))
+            .await
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
@@ -7428,6 +7653,7 @@ where
             rollout_scope: rollout_result.rollout_scope.clone(),
             execution_mode,
         };
+
         let call_connector_service_response = call_connector_service(
             &updated_state,
             req_state,
@@ -7665,14 +7891,17 @@ where
     };
 
     let (connector_request, should_continue_further) = if should_continue_further {
-        // Check if the actual flow specific request can be built with available data
-        router_data
-            .build_flow_specific_connector_request(
-                &updated_state,
-                &connector,
-                call_connector_action.clone(),
-            )
-            .await?
+        if gateway_context.execution_path.is_direct_gateway() {
+            router_data
+                .build_flow_specific_connector_request(
+                    &updated_state,
+                    &connector,
+                    call_connector_action.clone(),
+                )
+                .await?
+        } else {
+            (None, should_continue_further)
+        }
     } else {
         (None, false)
     };
@@ -7776,14 +8005,6 @@ where
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
-    let profile_id = payment_data.get_payment_intent().profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.get_processor().clone(),
-        merchant_connector_account.clone(),
-        payment_data.get_payment_intent().merchant_id.clone(),
-        profile_id,
-        payment_data.get_creds_identifier().map(|id| id.to_string()),
-    );
     operation
         .to_domain()?
         .populate_payment_data(
@@ -7807,13 +8028,41 @@ where
         )
         .await?;
 
+    // Every recovery attempt is routed from the rollout config alone; the gateway is not sticky
+    // across attempts, so there is no previous gateway to consider.
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
+        state,
+        platform.get_processor(),
+        &router_data,
+        None,
+        call_connector_action.clone(),
+        None,
+        common_enums::TransactionType::Payment,
+    )
+    .await?;
+
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    let gateway_context = gateway_context::RouterGatewayContext::from_rollout(
+        platform.get_processor().clone(),
+        header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account.clone(),
+        payment_data.get_creds_identifier().map(|id| id.to_string()),
+        execution_path,
+        rollout_result,
+    );
+
     let add_access_token_result = router_data
         .add_access_token(
-            state,
+            &updated_state,
             &connector,
             platform.get_processor(),
             payment_data.get_creds_identifier(),
-            &default_gateway_context,
+            &gateway_context,
         )
         .await?;
 
@@ -7824,13 +8073,21 @@ where
     );
 
     router_data
-        .add_session_token(state, &connector, &default_gateway_context)
+        .add_session_token(&updated_state, &connector, &gateway_context)
         .await?;
 
     let (connector_request, should_continue_further) = if should_continue_further {
-        router_data
-            .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
-            .await?
+        if gateway_context.execution_path.is_direct_gateway() {
+            router_data
+                .build_flow_specific_connector_request(
+                    &updated_state,
+                    &connector,
+                    call_connector_action.clone(),
+                )
+                .await?
+        } else {
+            (None, should_continue_further)
+        }
     } else {
         (None, false)
     };
@@ -7838,7 +8095,7 @@ where
     (_, *payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
-            state,
+            &updated_state,
             req_state,
             platform.get_processor(),
             payment_data.clone(),
@@ -7851,14 +8108,14 @@ where
     let router_data = if should_continue_further {
         router_data
             .decide_flows(
-                state,
+                &updated_state,
                 &connector,
                 call_connector_action,
                 connector_request,
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
-                default_gateway_context,
+                gateway_context,
             )
             .await
     } else {
@@ -11507,6 +11764,7 @@ pub fn get_proxy_connector_filters(
         RecurringDetails::NetworkTransactionIdAndCardDetails(_)
         | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
         | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
+        | RecurringDetails::NetworkTokenWithVaultCardFallback(_)
         | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(state
             .conf
             .network_transaction_id_supported_connectors
@@ -12078,90 +12336,120 @@ where
     let txn = TransactionData::Payment(transaction_data.clone());
     let txn_data = transaction_data.clone();
     let fallback = fallback_config.clone();
-    let state_ref = &state;
     let fallback_outcome = (
         fallback.clone(),
         common_enums::RoutingApproach::DefaultFallback,
         true,
     );
 
-    let routing_future: BoxFuture<
-        '_,
-        Option<(
-            Vec<api_models::routing::RoutableConnectorChoice>,
-            common_enums::RoutingApproach,
-            bool,
-        )>,
-    > = straight_through_routing_stage
-        .map(|stage| {
-            async move {
-                stage
-                    .route(StraightThroughRoutingInput { creds_identifier })
-                    .await
-                    .inspect_err(|err| {
-                        logger::error!(error=?err, "straight-through routing failed");
-                    })
-                    .ok()
-                    .map(|out| {
-                        (
-                            out.connectors.connectors,
-                            stage.routing_approach(),
-                            out.check_eligibility,
-                        )
-                    })
-            }
-            .boxed()
-        })
-        .unwrap_or_else(|| {
-            async move {
-                static_dynamic_routing_v1_for_payments(
-                    state_ref,
-                    processor.get_key_store(),
-                    dimensions,
-                    business_profile,
-                    txn_data,
-                    backend_input,
-                    fallback.clone(),
-                    preferred_connector,
+    let has_straight_through_routing = straight_through_routing_stage.is_some();
+    let straight_through_outcome = if let Some(stage) = straight_through_routing_stage {
+        stage
+            .route(StraightThroughRoutingInput { creds_identifier })
+            .await
+            .inspect_err(|err| {
+                logger::error!(error=?err, "straight-through routing failed");
+            })
+            .ok()
+            .map(|out| {
+                (
+                    out.connectors.connectors,
+                    stage.routing_approach(),
+                    out.check_eligibility,
                 )
-                .await
-                .inspect_err(|err| {
-                    logger::error!(error=?err, "static/dynamic routing failed");
-                })
-                .ok()
-                .map(|out| {
-                    (
-                        out.connectors,
-                        out.routing_approach,
-                        out.requires_eligibility,
-                    )
-                })
-            }
-            .boxed()
-        });
+            })
+    } else {
+        None
+    };
 
-    let (connectors, routing_approach, requires_eligibility) =
-        routing_future.await.unwrap_or(fallback_outcome);
+    let needs_mca_eligibility = straight_through_outcome
+        .as_ref()
+        .map(|(_, _, requires_eligibility)| *requires_eligibility)
+        .unwrap_or(true);
+    let active_mca_ids = if needs_mca_eligibility {
+        Some(
+            routing::get_active_merchant_connector_accounts(
+                &state,
+                processor.get_key_store(),
+                business_profile.get_id(),
+            )
+            .await
+            .map(|accounts| accounts.get_ids()),
+        )
+    } else {
+        None
+    };
 
-    let final_connectors = if requires_eligibility {
-        routing::perform_eligibility_analysis_with_fallback(
+    let routing_outcome = if has_straight_through_routing {
+        straight_through_outcome
+    } else {
+        let outcome = static_dynamic_routing_v1_for_payments(
             &state,
             processor.get_key_store(),
-            connectors.clone(),
-            &txn,
-            eligible_connectors.clone(),
+            dimensions,
             business_profile,
+            txn_data,
+            backend_input,
+            fallback,
+            preferred_connector,
+            active_mca_ids
+                .as_ref()
+                .and_then(|result| result.as_ref().ok()),
         )
         .await
         .inspect_err(|err| {
-            logger::error!(
-                error = ?err,
-                "euclid: eligibility analysis failed, using fallback connectors"
-            );
+            logger::error!(error=?err, "static/dynamic routing failed");
         })
-        .unwrap_or_else(|_| fallback_config.clone())
-    } else {
-        connectors
+        .ok()
+        .map(|out| {
+            (
+                out.connectors,
+                out.routing_approach,
+                out.requires_eligibility,
+            )
+        });
+        outcome
+    };
+
+    let (connectors, routing_approach, requires_eligibility) =
+        routing_outcome.unwrap_or(fallback_outcome);
+
+    let final_connectors = match active_mca_ids {
+        Some(ids_result) if requires_eligibility => {
+            let eligibility_result = match ids_result {
+                Ok(ids) => {
+                    routing::perform_eligibility_analysis_with_fallback(
+                        &state,
+                        processor.get_key_store(),
+                        connectors.clone(),
+                        &txn,
+                        eligible_connectors.clone(),
+                        business_profile,
+                        Some(&ids),
+                    )
+                    .await
+                }
+                Err(error) => {
+                    logger::error!(error=?error, "euclid_routing: failed to fetch active merchant connector accounts; degrading to fallback config");
+                    routing::get_eligibility_fallback_config(
+                        &state,
+                        &txn,
+                        eligible_connectors.clone(),
+                        business_profile,
+                    )
+                    .await
+                }
+            };
+            eligibility_result
+                .inspect_err(|err| {
+                    logger::error!(
+                        error = ?err,
+                        "euclid: eligibility analysis failed, using fallback connectors"
+                    );
+                })
+                .unwrap_or_else(|_| fallback_config.clone())
+        }
+        _ => connectors,
     };
 
     core_routing::log_connectors("eligibility", &final_connectors);
@@ -13120,6 +13408,7 @@ pub async fn route_connector_v2_for_payments(
         &TransactionData::Payment(transaction_data),
         None,
         business_profile,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -13152,6 +13441,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     preferred_connector: Option<String>,
+    active_mca_ids: Option<&HashSet<id_type::MerchantConnectorAccountId>>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
     let (static_connectors, static_approach) = routing::perform_static_routing_locally(
         state,
@@ -13162,19 +13452,24 @@ pub async fn static_dynamic_routing_v1_for_payments(
     )
     .await?;
 
-    let (connectors, routing_approach) = routing::perform_hybrid_routing_if_enabled(
-        state,
-        key_store,
-        business_profile,
-        dimensions,
-        &payment_dsl_input,
-        &backend_input,
-        &fallback_config,
-        &static_connectors,
-        static_approach,
-        preferred_connector,
-    )
-    .await;
+    let (connectors, routing_approach) = if let Some(active_mca_ids) = active_mca_ids {
+        routing::perform_hybrid_routing_if_enabled(
+            state,
+            key_store,
+            business_profile,
+            dimensions,
+            &payment_dsl_input,
+            &backend_input,
+            &fallback_config,
+            &static_connectors,
+            static_approach,
+            preferred_connector,
+            active_mca_ids,
+        )
+        .await
+    } else {
+        (static_connectors, static_approach)
+    };
 
     Ok(routing::RoutingConnectorOutcomeWithApproachAndEligibility {
         connectors,
@@ -13238,6 +13533,7 @@ pub async fn route_connector_v1_for_payouts(
         &TransactionData::Payout(transaction_data),
         eligible_connectors,
         business_profile,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -14142,6 +14438,7 @@ fn get_eligible_manual_update_statuses(
 pub async fn payments_manual_status_update_eligible_statuses(
     state: SessionState,
     platform: domain::Platform,
+    profile_id_from_auth_layer: Option<id_type::ProfileId>,
     payment_id: id_type::PaymentId,
 ) -> RouterResponse<api_models::payments::PaymentsManualStatusUpdateEligibleStatusesResponse> {
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -14174,6 +14471,8 @@ pub async fn payments_manual_status_update_eligible_statuses(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
+
+    core_utils::validate_profile_id_from_auth_layer(profile_id_from_auth_layer, &payment_intent)?;
 
     if payment_intent.status != enums::IntentStatus::Conflicted {
         return Err(errors::ApiErrorResponse::InvalidRequestData {
@@ -14214,6 +14513,7 @@ pub async fn payments_manual_status_update_eligible_statuses(
 pub async fn payments_manual_status_update(
     state: SessionState,
     platform: domain::Platform,
+    profile_id_from_auth_layer: Option<id_type::ProfileId>,
     payment_id: id_type::PaymentId,
     req: api_models::payments::PaymentsManualStatusUpdateRequest,
 ) -> RouterResponse<api_models::payments::PaymentsManualStatusUpdateResponse> {
@@ -14249,6 +14549,8 @@ pub async fn payments_manual_status_update(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
+
+    core_utils::validate_profile_id_from_auth_layer(profile_id_from_auth_layer, &payment_intent)?;
 
     if !matches!(
         payment_intent.status,
