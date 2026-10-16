@@ -29892,6 +29892,7 @@
           "installment",
           "unscheduled",
           "recurring",
+          "subscription",
           "resubmission"
         ]
       },
