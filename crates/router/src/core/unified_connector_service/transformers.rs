@@ -525,6 +525,24 @@ impl ForeignFrom<&AccessToken> for ConnectorState {
     }
 }
 
+/// Builds the connector state from the access token, falling back to the session token the
+/// session-token call returned when the connector has no access token.
+fn connector_state_from_access_or_session_token(
+    access_token: Option<&AccessToken>,
+    session_token: Option<&String>,
+) -> Option<ConnectorState> {
+    access_token.map(ConnectorState::foreign_from).or_else(|| {
+        session_token.map(|session_token| ConnectorState {
+            access_token: Some(payments_grpc::AccessToken {
+                token: Some(session_token.clone().into()),
+                expires_in_seconds: None,
+                token_type: None,
+            }),
+            connector_customer_id: None,
+        })
+    })
+}
+
 impl
     transformers::ForeignTryFrom<
         &RouterData<
@@ -1579,9 +1597,12 @@ impl
             address: Some(address),
             authentication_data,
             metadata: None,
-            return_url: None,
+            return_url: router_data.request.router_return_url.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
-            state: None,
+            state: connector_state_from_access_or_session_token(
+                None,
+                router_data.session_token.as_ref(),
+            ),
             redirection_response: router_data
                 .request
                 .redirect_response
@@ -1988,10 +2009,10 @@ impl
             .transpose()
             .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
             .map(|s| s.into());
-        let state = router_data
-            .access_token
-            .as_ref()
-            .map(ConnectorState::foreign_from);
+        let state = connector_state_from_access_or_session_token(
+            router_data.access_token.as_ref(),
+            router_data.session_token.as_ref(),
+        );
 
         Ok(Self {
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
@@ -2983,7 +3004,7 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             webhook_url: router_data.request.webhook_url.clone(),
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
-            session_token: None,
+            session_token: router_data.session_token.clone(),
             order_tax_amount: None,
             order_category: None,
             merchant_order_id: None,
@@ -3118,10 +3139,10 @@ impl
             .transpose()?
             .map(|payment_method_type| payment_method_type.into());
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
-        let state = router_data
-            .access_token
-            .as_ref()
-            .map(ConnectorState::foreign_from);
+        let state = connector_state_from_access_or_session_token(
+            router_data.access_token.as_ref(),
+            router_data.session_token.as_ref(),
+        );
         let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)
             .attach_printable("Failed to convert authentication type")?;
         let authentication_data = router_data
@@ -3407,10 +3428,10 @@ impl
             }
         };
 
-        let state = router_data
-            .access_token
-            .as_ref()
-            .map(ConnectorState::foreign_from);
+        let state = connector_state_from_access_or_session_token(
+            router_data.access_token.as_ref(),
+            router_data.session_token.as_ref(),
+        );
 
         let payment_method_data = match router_data.request.payment_method_data.clone() {
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment => {

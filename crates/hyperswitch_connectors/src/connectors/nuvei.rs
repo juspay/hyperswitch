@@ -1725,6 +1725,35 @@ impl ConnectorSpecifications for Nuvei {
         }
     }
 
+    /// The Authenticate leg runs only on the connector-service (UCS) path.
+    ///
+    /// The UCS PreAuthenticate leg hands back `authentication_data` (the InitAuth3D
+    /// transaction id), which only the Authenticate leg consumes. The Direct PreAuthenticate
+    /// answers `ThreeDSEnrollmentResponse`, so `ucs_authentication_data` is `None` there and
+    /// the Direct path keeps sending the challenge `/payment.do` from Authorize.
+    ///
+    /// The leg is skipped when the merchant supplied external 3DS data
+    /// (`request.authentication_data`): Authorize then carries it to Nuvei as `externalMpi`,
+    /// as the Direct path does, instead of running Nuvei's own 3DS.
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+            } => {
+                auth_type.is_three_ds()
+                    && request_data.is_card()
+                    && request_data.ucs_authentication_data.is_some()
+                    && request_data.authentication_data.is_none()
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
+            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         Some(&*NUVEI_SUPPORTED_PAYMENT_METHODS)
     }
