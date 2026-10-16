@@ -4,6 +4,7 @@ use actix_web::http::header::HeaderMap;
 use common_enums::connector_enums::Connector;
 use error_stack::{report, ResultExt};
 use hyperswitch_interfaces::api::{ConnectorCommon, ConnectorSpecifications};
+use router_env::logger;
 
 use crate::{
     configs::settings::IncomingWebhooksSettings,
@@ -52,6 +53,10 @@ impl<'a> IncomingWebhookVerifier<'a> {
             if enabled {
                 self.validate_mtls(connector, request_headers)
             } else {
+                logger::info!(
+                    connector = %connector_name,
+                    "Skipping incoming webhook mTLS verification because incoming_webhooks.mtls_verification_enabled is disabled"
+                );
                 Ok(())
             }
         } else {
