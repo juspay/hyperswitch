@@ -1149,7 +1149,7 @@ def provider_preflight(operator, source, base, token, first_body=None):
     merchant, mca = cfg['merchant_id'], cfg['merchant_connector_id']
     assert all(re.fullmatch(r'[A-Za-z0-9_-]{1,128}', item) for item in [merchant, mca])
     status, account, _ = request(base, 'GET', '/account/' + merchant + '/connectors/' + mca,
-        None, None, cfg['admin_key_env'], token)
+        None, None, operator.get('api_key_env', 'HYPERSWITCH_API_KEY'), token)
     assert status == 200 and account['merchant_connector_id'] == mca and account['connector_name'] == 'paypal'
     assert account['test_mode'] is True and account.get('disabled') is not True
     assert account['profile_id'] == cfg['profile_id']

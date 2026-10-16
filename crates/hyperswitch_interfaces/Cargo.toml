@@ -35,7 +35,7 @@ time = "0.3.41"
 tonic = "0.14"
 url = { version = "2.5.4", features = ["serde"] }
 
-unified-connector-service-client = { git = "https://github.com/juspay/hyperswitch-prism", rev = "e231847934318192b058dae8dc142423822786e1", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/hyperswitch-prism", rev = "3684aa61313942a352d54c8ab4a518020cb5c9ba", package = "rust-grpc-client" }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
 # First party crates
