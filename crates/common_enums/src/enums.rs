@@ -2364,7 +2364,6 @@ pub enum RecoveryStatus {
 /// Specifies how the payment method can be used for future payments.
 /// - `off_session`: The payment method can be used for future payments when the customer is not present.
 /// - `on_session`: The payment method is intended for use only when the customer is present during checkout.
-///
 /// If omitted, defaults to `on_session`.
 #[derive(
     Clone,
