@@ -49,7 +49,6 @@ use subscriptions::{subscription_handler::SubscriptionHandler, workflows::Invoic
 use tracing_futures::Instrument;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
-use crate::core::webhooks as webhooks_core;
 #[cfg(feature = "v1")]
 use crate::types::storage;
 use crate::{
@@ -57,7 +56,7 @@ use crate::{
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments as payments_core,
+        payments as payments_core, webhooks as webhooks_core,
     },
     db::StorageInterface,
     headers::ACCEPT_LANGUAGE,
