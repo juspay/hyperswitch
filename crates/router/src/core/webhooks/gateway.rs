@@ -421,13 +421,13 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
         let connector_name = ctx.connector_name.clone();
         let merchant_event_id = build_merchant_event_id(ctx);
 
+        let event_type = ctx
+            .ucs_event_type
+            .unwrap_or(IncomingWebhookEvent::EventNotSupported);
         let reference = match ctx.ucs_reference.as_ref() {
             Some(r) => event_reference_to_object_ref(r)?,
             None => None,
         };
-        let event_type = ctx
-            .ucs_event_type
-            .unwrap_or(IncomingWebhookEvent::EventNotSupported);
 
         let outcome = match FilterDecision::evaluate(event_type, ctx).await {
             FilterDecision::Skip => WebhookOutcome::Skipped {
@@ -1044,5 +1044,59 @@ fn ucs_ack_to_webhook_response(
     match String::from_utf8(body.clone()) {
         Ok(text) => WebhookResponse::TextPlain(text),
         Err(_) => WebhookResponse::FileData((body, mime::APPLICATION_OCTET_STREAM)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn payment_reference(
+        connector_transaction_id: Option<&str>,
+        merchant_transaction_id: Option<&str>,
+    ) -> payments_grpc::EventReference {
+        payments_grpc::EventReference {
+            resource: Some(payments_grpc::event_reference::Resource::Payment(
+                payments_grpc::PaymentEventReference {
+                    connector_transaction_id: connector_transaction_id.map(str::to_string),
+                    merchant_transaction_id: merchant_transaction_id.map(str::to_string),
+                },
+            )),
+        }
+    }
+
+    #[test]
+    fn normal_payment_reference_prefers_merchant_transaction_id() {
+        let reference = payment_reference(Some("pi_123"), Some("order_123"));
+
+        let object_ref = event_reference_to_object_ref(&reference).unwrap().unwrap();
+
+        match object_ref {
+            ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentAttemptId(id),
+            ) => assert_eq!(id, "order_123"),
+            other => panic!("expected payment attempt id, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn payment_reference_uses_connector_transaction_id_when_merchant_id_is_absent() {
+        let reference = payment_reference(Some("pi_123"), None);
+
+        let object_ref = event_reference_to_object_ref(&reference).unwrap().unwrap();
+
+        match object_ref {
+            ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(id),
+            ) => assert_eq!(id, "pi_123"),
+            other => panic!("expected connector transaction id, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn payment_reference_has_no_object_ref_when_all_ids_are_absent() {
+        let reference = payment_reference(None, None);
+
+        assert!(event_reference_to_object_ref(&reference).unwrap().is_none());
     }
 }
