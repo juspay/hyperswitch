@@ -1602,6 +1602,9 @@ base_url = "http://127.0.0.1:8080" #Base URL
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billing connectors which has invoice sync api call
 
+[billing_connectors_invoice_record_back]
+billing_connectors_which_require_invoice_record_back_call = "chargebee,stripebilling,recurly" # Billing connectors eligible for invoice record-back after a recovery payment
+
 [billing_connectors_dispute_record_back]
 billing_connectors_which_requires_dispute_record_back_call = "chargebee" # List of billing connectors which support the dispute record back api call
 

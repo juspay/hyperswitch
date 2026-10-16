@@ -140,6 +140,7 @@ pub struct Settings<S: SecretState> {
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
     pub billing_connectors_invoice_sync: BillingConnectorInvoiceSyncCall,
+    pub billing_connectors_invoice_record_back: BillingConnectorInvoiceRecordBackCall,
     pub billing_connectors_dispute_record_back: BillingConnectorDisputeRecordBackCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
@@ -1373,6 +1374,19 @@ pub struct BillingConnectorPaymentsSyncCall {
 pub struct BillingConnectorInvoiceSyncCall {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub billing_connectors_which_requires_invoice_sync_call: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct BillingConnectorInvoiceRecordBackCall {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub billing_connectors_which_require_invoice_record_back_call: HashSet<enums::Connector>,
+}
+
+impl BillingConnectorInvoiceRecordBackCall {
+    pub fn is_connector_eligible(&self, connector: enums::Connector) -> bool {
+        self.billing_connectors_which_require_invoice_record_back_call
+            .contains(&connector)
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
