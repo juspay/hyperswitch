@@ -25,6 +25,11 @@
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 // commands.js or your custom support file
+import {
+  connectorDetails as commonConnectorDetails,
+  integrationTypeMismatchMessage,
+  OFFER_QUOTE_ID_PLACEHOLDER,
+} from "../e2e/configs/Payment/Commons";
 import getConnectorDetails, {
   CONNECTOR_LISTS,
   defaultErrorHandler,
@@ -36,11 +41,6 @@ import getConnectorDetails, {
   shouldIncludeConnector,
   stringifyWithBigInt,
 } from "../e2e/configs/Payment/Utils";
-import {
-  connectorDetails as commonConnectorDetails,
-  integrationTypeMismatchMessage,
-} from "../e2e/configs/Payment/Commons";
-import { OFFER_QUOTE_ID_PLACEHOLDER } from "../e2e/configs/Payment/Commons";
 import { injectGotymePayoutBankTransfer } from "../e2e/configs/Payout/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
@@ -8159,7 +8159,7 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
   }
   cy.request({
     method: "GET",
-    url: `${globalState.get("baseUrl")}/payouts/${payout_id}`,
+    url: `${globalState.get("baseUrl")}/payouts/${payout_id}?force_sync=true`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
