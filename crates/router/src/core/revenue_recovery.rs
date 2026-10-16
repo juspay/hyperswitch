@@ -1888,7 +1888,7 @@ fn determine_recovery_status_from_workflows(
         execute_business_status,
         execute_process_tracker_status,
     ) {
-        // Queued status conditions
+        // Waiting in the calculate workflow to be scheduled, which is still a scheduled retry
         (Some(cal_biz_status), Some(cal_pt_status), _, _)
             if (cal_biz_status == business_status::PENDING
                 && (cal_pt_status
@@ -1896,7 +1896,7 @@ fn determine_recovery_status_from_workflows(
                     || cal_pt_status
                         == ProcessTrackerStatus::Pending.to_string().to_uppercase())) =>
         {
-            RecoveryStatus::Queued
+            RecoveryStatus::Scheduled
         }
 
         // Scheduled status conditions
@@ -1974,7 +1974,8 @@ pub fn map_recovery_status(
             execute_process_tracker_status,
             || {
                 if attempt_count > max_retry_threshold {
-                    RecoveryStatus::NoPicked
+                    // Past the retry threshold without ever being picked up for retry
+                    RecoveryStatus::Terminated
                 } else {
                     RecoveryStatus::Monitoring
                 }
@@ -2040,17 +2041,14 @@ fn can_map_to_recovery_status(
         // Workflow driven statuses, `determine_recovery_status_from_workflows`
         IntentStatus::Failed => matches!(
             recovery_status,
-            RecoveryStatus::Queued
-                | RecoveryStatus::Scheduled
+            RecoveryStatus::Scheduled
                 | RecoveryStatus::Processing
                 | RecoveryStatus::Terminated
-                | RecoveryStatus::NoPicked
                 | RecoveryStatus::Monitoring
         ),
         IntentStatus::PartiallyCaptured | IntentStatus::PartiallyCapturedAndCapturable => matches!(
             recovery_status,
-            RecoveryStatus::Queued
-                | RecoveryStatus::Scheduled
+            RecoveryStatus::Scheduled
                 | RecoveryStatus::Processing
                 | RecoveryStatus::Terminated
                 | RecoveryStatus::PartiallyRecovered

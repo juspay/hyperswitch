@@ -2966,7 +2966,7 @@
           "Payments"
         ],
         "summary": "Payments - Recovery List",
-        "description": "List the revenue recovery invoices of the merchant, with the derived recovery status of each.\n`recovery_status` is applied before `limit` / `offset`, and `total_count` is the size of the\nfiltered set. `search` is an exact, case-sensitive match against the payment id, the merchant\nreference id or the customer id. Sort with `order_on` (`created`, `modified`, `amount`,\n`attempt_count`) and `order_by` (`asc`, `desc`); rows with equal sort keys are ordered by id.",
+        "description": "List the revenue recovery invoices of the merchant, with the derived recovery status of each.\n`recovery_status` is applied before `limit` / `offset`, and `total_count` is the size of the\nfiltered set. `search` is an exact, case-sensitive match against the payment id or the merchant\nreference id. Sort with `order_on` (`created`, `modified`, `amount`,\n`attempt_count`) and `order_by` (`asc`, `desc`); rows with equal sort keys are ordered by id.",
         "operationId": "List all Recovery Invoices",
         "parameters": [
           {
@@ -32271,12 +32271,10 @@
         "enum": [
           "recovered",
           "scheduled",
-          "no_picked",
           "processing",
           "partially_captured_and_processing",
           "terminated",
           "monitoring",
-          "queued",
           "partially_recovered",
           "pending",
           "succeeded",

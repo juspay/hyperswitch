@@ -2278,9 +2278,6 @@ pub enum RecoveryStatus {
     /// The payment is scheduled for retry and will be processed automatically.
     /// This status is shown when a retry is queued but not yet picked up for processing.
     Scheduled,
-    /// The payment has exceeded the maximum retry threshold but was never picked up for processing.
-    /// This typically occurs when the payment is a hard decline that the merchant has not enabled for retry.
-    NoPicked,
     /// The payment is currently being processed with the payment gateway.
     /// This status is shown during active retry attempts.
     Processing,
@@ -2294,9 +2291,6 @@ pub enum RecoveryStatus {
     /// This status is shown when the attempt count is below the threshold and the system is waiting to pick it up.
     #[default]
     Monitoring,
-    /// The payment is queued in the calculate workflow but has not yet been scheduled for execution.
-    /// This status indicates the payment is in the initial queuing phase of the recovery process.
-    Queued,
     /// The payment has been partially recovered through retry mechanisms.
     /// This indicates that a partially captured payment has been processed.
     PartiallyRecovered,

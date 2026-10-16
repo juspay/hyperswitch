@@ -1608,8 +1608,8 @@ pub fn payments_list() {}
 ///
 /// List the revenue recovery invoices of the merchant, with the derived recovery status of each.
 /// `recovery_status` is applied before `limit` / `offset`, and `total_count` is the size of the
-/// filtered set. `search` is an exact, case-sensitive match against the payment id, the merchant
-/// reference id or the customer id. Sort with `order_on` (`created`, `modified`, `amount`,
+/// filtered set. `search` is an exact, case-sensitive match against the payment id or the merchant
+/// reference id. Sort with `order_on` (`created`, `modified`, `amount`,
 /// `attempt_count`) and `order_by` (`asc`, `desc`); rows with equal sort keys are ordered by id.
 #[cfg(feature = "v2")]
 #[utoipa::path(

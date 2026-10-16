@@ -919,6 +919,11 @@ pub struct RevenueRecoveryGetIntentResponse {
     /// Number of cards/tokens attached to the connector customer in Redis
     #[schema(value_type = u32, example = 2)]
     pub card_attached: u32,
+
+    /// Time at which the payment intent was created
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    #[schema(value_type = PrimitiveDateTime, example = "2022-09-10T10:11:12Z")]
+    pub created_at: PrimitiveDateTime,
 }
 
 #[cfg(feature = "v2")]
