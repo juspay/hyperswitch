@@ -2150,7 +2150,7 @@ pub fn candidate_intent_statuses_for_recovery_status(
     allowed: Option<&[IntentStatus]>,
 ) -> Vec<IntentStatus> {
     IntentStatus::iter()
-        .filter(|intent_status| allowed.map_or(true, |allowed| allowed.contains(intent_status)))
+        .filter(|intent_status| allowed.is_none_or(|allowed| allowed.contains(intent_status)))
         .filter(|intent_status| {
             recovery_statuses
                 .iter()
