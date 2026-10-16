@@ -1566,6 +1566,19 @@ async fn record_back_to_billing_connector(
     logger::info!("Entering record_back_to_billing_connector");
 
     let billing_mca = &revenue_recovery_payment_data.billing_mca;
+    let connector = billing_mca.connector_name;
+    if !state
+        .conf
+        .billing_connectors_invoice_record_back
+        .is_connector_eligible(connector)
+    {
+        logger::info!(
+            %connector,
+            "Skipping invoice record-back because the billing connector is not eligible"
+        );
+        return Ok(());
+    }
+
     let connector_name = billing_mca.connector_name.to_string();
     let connector_data = api_types::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
