@@ -31,6 +31,7 @@ use hyperswitch_domain_models::{
     platform, revenue_recovery as domain_revenue_recovery, ApiModelToDieselModelConvertor,
 };
 use scheduler::errors as sch_errors;
+use strum::IntoEnumIterator;
 
 use crate::{
     core::{
@@ -2105,7 +2106,7 @@ pub fn map_recovery_status(
             execute_process_tracker_status,
             || {
                 if attempt_count > max_retry_threshold {
-                    RecoveryStatus::NoPicked
+                    RecoveryStatus::Terminated
                 } else {
                     RecoveryStatus::Monitoring
                 }
@@ -2123,23 +2124,79 @@ pub fn map_recovery_status(
         }
 
         // For all other intent statuses, return the mapped recovery status
-        IntentStatus::Succeeded => RecoveryStatus::Recovered,
+        IntentStatus::Succeeded => RecoveryStatus::Succeeded,
         IntentStatus::Processing | IntentStatus::PartiallyCapturedAndProcessing => {
             RecoveryStatus::Processing
         }
-        IntentStatus::Cancelled
-        | IntentStatus::CancelledPostCapture
+        IntentStatus::Cancelled => RecoveryStatus::Cancelled,
+        IntentStatus::CancelledPostCapture
         | IntentStatus::Conflicted
         | IntentStatus::Expired
         | IntentStatus::Review => RecoveryStatus::Terminated,
 
-        // For statuses that don't need recovery
         IntentStatus::RequiresCustomerAction
         | IntentStatus::RequiresMerchantAction
         | IntentStatus::RequiresPaymentMethod
         | IntentStatus::RequiresConfirmation
         | IntentStatus::RequiresCapture
-        | IntentStatus::PartiallyAuthorizedAndRequiresCapture => RecoveryStatus::Pending,
+        | IntentStatus::PartiallyAuthorizedAndRequiresCapture => RecoveryStatus::Monitoring,
+    }
+}
+
+/// Intent statuses that can resolve to any of the given recovery statuses (see
+/// [`map_recovery_status`]), a superset used to narrow the database query.
+pub fn candidate_intent_statuses_for_recovery_status(
+    recovery_statuses: &[RecoveryStatus],
+    allowed: Option<&[IntentStatus]>,
+) -> Vec<IntentStatus> {
+    IntentStatus::iter()
+        .filter(|intent_status| allowed.map_or(true, |allowed| allowed.contains(intent_status)))
+        .filter(|intent_status| {
+            recovery_statuses
+                .iter()
+                .any(|recovery_status| can_map_to_recovery_status(*intent_status, *recovery_status))
+        })
+        .collect()
+}
+
+fn can_map_to_recovery_status(
+    intent_status: IntentStatus,
+    recovery_status: RecoveryStatus,
+) -> bool {
+    match intent_status {
+        IntentStatus::Failed => matches!(
+            recovery_status,
+            RecoveryStatus::Queued
+                | RecoveryStatus::Scheduled
+                | RecoveryStatus::Processing
+                | RecoveryStatus::Terminated
+                | RecoveryStatus::Monitoring
+        ),
+        IntentStatus::PartiallyCaptured | IntentStatus::PartiallyCapturedAndCapturable => matches!(
+            recovery_status,
+            RecoveryStatus::Queued
+                | RecoveryStatus::Scheduled
+                | RecoveryStatus::Processing
+                | RecoveryStatus::Terminated
+                | RecoveryStatus::PartiallyRecovered
+        ),
+        IntentStatus::Succeeded => recovery_status == RecoveryStatus::Succeeded,
+        IntentStatus::Processing | IntentStatus::PartiallyCapturedAndProcessing => {
+            recovery_status == RecoveryStatus::Processing
+        }
+        IntentStatus::Cancelled => recovery_status == RecoveryStatus::Cancelled,
+        IntentStatus::CancelledPostCapture
+        | IntentStatus::Conflicted
+        | IntentStatus::Expired
+        | IntentStatus::Review => recovery_status == RecoveryStatus::Terminated,
+        IntentStatus::RequiresCustomerAction
+        | IntentStatus::RequiresMerchantAction
+        | IntentStatus::RequiresPaymentMethod
+        | IntentStatus::RequiresConfirmation
+        | IntentStatus::RequiresCapture
+        | IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
+            recovery_status == RecoveryStatus::Monitoring
+        }
     }
 }
 
@@ -2314,5 +2371,104 @@ mod tests {
         );
 
         assert_eq!(recovery_status, RecoveryStatus::Terminated);
+    }
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod recovery_status_mapping_tests {
+    use std::collections::BTreeSet;
+
+    use common_utils::date_time;
+
+    use super::*;
+
+    fn workflow(business_status: &str, status: ProcessTrackerStatus) -> ProcessTrackerStorage {
+        ProcessTrackerStorage {
+            id: "pt_test".to_string(),
+            name: None,
+            tag: Vec::new(),
+            runner: None,
+            retry_count: 0,
+            schedule_time: None,
+            rule: String::new(),
+            tracking_data: serde_json::Value::Null,
+            business_status: business_status.to_string(),
+            status,
+            event: Vec::new(),
+            created_at: date_time::now(),
+            updated_at: date_time::now(),
+            version: common_enums::ApiVersion::V2,
+            application_source: None,
+        }
+    }
+
+    /// Every workflow shape the derivation distinguishes, plus an unrelated one.
+    fn workflow_shapes() -> Vec<Option<ProcessTrackerStorage>> {
+        let business_statuses = [
+            business_status::PENDING,
+            business_status::CALCULATE_WORKFLOW_SCHEDULED,
+            business_status::CALCULATE_WORKFLOW_FINISH,
+            business_status::RETRIES_EXCEEDED,
+            business_status::FAILURE,
+            business_status::GLOBAL_FAILURE,
+            business_status::CANCELLED,
+            business_status::EXECUTE_WORKFLOW_FAILURE,
+            "SOMETHING_ELSE",
+        ];
+        let statuses = [
+            ProcessTrackerStatus::New,
+            ProcessTrackerStatus::Pending,
+            ProcessTrackerStatus::ProcessStarted,
+            ProcessTrackerStatus::Processing,
+            ProcessTrackerStatus::Finish,
+        ];
+        let mut shapes = vec![None];
+        for business_status in business_statuses {
+            for status in statuses {
+                shapes.push(Some(workflow(business_status, status)));
+            }
+        }
+        shapes
+    }
+
+    /// Intent statuses that `map_recovery_status` can resolve to the given recovery status.
+    fn reachable_intent_statuses(recovery_status: RecoveryStatus) -> BTreeSet<String> {
+        let shapes = workflow_shapes();
+        let mut reachable = BTreeSet::new();
+        for intent_status in IntentStatus::iter() {
+            for calculate in &shapes {
+                for execute in &shapes {
+                    for attempt_count in [0, 5] {
+                        let derived = map_recovery_status(
+                            intent_status,
+                            calculate.as_ref(),
+                            execute.as_ref(),
+                            attempt_count,
+                            3,
+                        );
+                        if derived == recovery_status {
+                            reachable.insert(intent_status.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        reachable
+    }
+
+    #[test]
+    fn candidate_intent_statuses_agree_with_map_recovery_status_for_every_variant() {
+        for recovery_status in RecoveryStatus::iter() {
+            let candidates: BTreeSet<String> =
+                candidate_intent_statuses_for_recovery_status(&[recovery_status], None)
+                    .into_iter()
+                    .map(|status| status.to_string())
+                    .collect();
+            assert_eq!(
+                candidates,
+                reachable_intent_statuses(recovery_status),
+                "candidate intent statuses and map_recovery_status disagree for {recovery_status:?}",
+            );
+        }
     }
 }
