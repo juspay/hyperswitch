@@ -10232,7 +10232,9 @@ where
                 if let Some(payment_method_id) = pm_id {
                     payment_data.set_payment_method_id_in_attempt(Some(payment_method_id));
                 }
-            } else {
+            } else if !is_operation_complete_authorize(operation)
+                || payment_data.get_payment_method_data().is_none()
+            {
                 set_payment_method_from_token_for_modular_payment_method_flow(
                     state,
                     payment_data,

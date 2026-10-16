@@ -6,7 +6,7 @@ use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::mandates;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
-        payment_methods::transformers as pm_transformers,
+        payment_methods::{transformers as pm_transformers, vault},
         payments::{
             self, helpers, operations, CustomerDetails, OperationSessionGetters, PaymentAddress,
             PaymentData,
@@ -222,6 +222,57 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             None
         };
 
+        let mut payment_method_data = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into));
+        if payment_method_info
+            .as_ref()
+            .is_some_and(|pm| pm.version == common_enums::ApiVersion::V2)
+            && payment_method_data.is_none()
+        {
+            // Confirm normally caches continuation data, including the original CVC.
+            if let Some(storage::PaymentTokenData::TemporaryGeneric(cached)) = token_data.as_ref() {
+                payment_method_data = vault::Vault::get_payment_method_data_from_locker(
+                    state,
+                    &cached.token,
+                    platform.get_provider().get_key_store(),
+                )
+                .await
+                .map(|(data, _)| data)
+                .unwrap_or_else(|error| {
+                    logger::warn!(
+                        ?error,
+                        "CompleteAuthorize continuation card data unavailable"
+                    );
+                    None
+                });
+            }
+            // Permanent tokens have no temporary continuation data. Recover raw data only
+            // when needed and carry it into PaymentData for connector preparation.
+            if payment_method_data.is_none() {
+                let pm = payment_method_info
+                    .as_ref()
+                    .get_required_value("payment_method_info")?;
+                let profile_id = payment_intent
+                    .profile_id
+                    .as_ref()
+                    .get_required_value("profile_id")?;
+                payment_method_data =
+                    Box::pin(pm_transformers::fetch_payment_method_from_modular_service(
+                        state,
+                        platform,
+                        profile_id,
+                        pm.get_id(),
+                        None,
+                        true,
+                        false,
+                    ))
+                    .await?
+                    .raw_payment_method_data;
+            }
+        }
+
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info.or(payment_attempt.browser_info);
         payment_attempt.payment_method_type =
@@ -374,10 +425,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: request.confirm,
-            payment_method_data: request
-                .payment_method_data
-                .as_ref()
-                .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into)),
+            payment_method_data,
             payment_method_token: None,
             payment_method_info,
             force_sync: None,
@@ -462,31 +510,39 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .await?;
 
         let payment_method_info = if let Some(pm_id) = payment_attempt.payment_method_id.as_ref() {
-            let legacy_payment_method = if feature_config.is_payment_method_modular_allowed {
-                None
-            } else {
-                Some(
-                    state
-                        .store
-                        .find_payment_method(
-                            platform.get_provider().get_key_store(),
-                            pm_id,
-                            platform.get_processor().get_account().storage_scheme,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?,
+            let legacy_payment_method = match state
+                .store
+                .find_payment_method(
+                    platform.get_provider().get_key_store(),
+                    pm_id,
+                    platform.get_processor().get_account().storage_scheme,
                 )
+                .await
+            {
+                Ok(pm) => Some(pm),
+                Err(error)
+                    if error.current_context().is_db_not_found()
+                        && feature_config.is_payment_method_modular_allowed =>
+                {
+                    None
+                }
+                Err(error) => {
+                    return Err(error)
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+                }
             };
 
-            if feature_config.is_payment_method_modular_allowed
-                || legacy_payment_method.as_ref().is_some_and(|pm| {
+            // An existing V1 record must pass the freshness check even after rollout.
+            if legacy_payment_method.as_ref().map_or(
+                feature_config.is_payment_method_modular_allowed,
+                |pm| {
                     feature_config.should_use_modular_pm_path(
                         Some(pm.version),
                         pm.compatibility_updated_at,
                         Some(pm.last_modified),
                     )
-                })
-            {
+                },
+            ) {
                 let profile_id = payment_intent
                     .profile_id
                     .as_ref()
