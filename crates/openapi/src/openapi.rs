@@ -46,6 +46,24 @@ the request Authorization header.
 | publishable key | Unique identifier for your account. Used to authenticate API requests from your app's client  |
 
 Never share your secret api keys. Keep them guarded and secure.
+
+## Integration types
+
+A checkout needs three things before it can render: the payment, the payment methods available for
+it, and the wallet session tokens. How you fetch them depends on where your checkout runs, and the
+`X-Integration-Type` request header selects between the two shapes.
+
+| Value             |  Response                                                                                      |
+|-------------------|------------------------------------------------------------------------------------------------|
+| client, or absent | The payment response, unchanged. The SDK fetches the other two itself                          |
+| server            | The payment, plus `payment_method_list` and `session_tokens`, so one call renders your checkout |
+
+A server integration is authenticated with the merchant api-key; the header is ignored for a caller
+authenticated with a publishable key and client secret, and an unrecognised value reads as `client`.
+Endpoints that support it list `X-Integration-Type` among their parameters.
+
+Sending the header never changes the payment itself, only the shape of the response, so an
+integration that has never heard of it is unaffected.
 "#,
     ),
     servers(
