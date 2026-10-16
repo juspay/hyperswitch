@@ -226,7 +226,17 @@ impl EuclidDirFilter for ConditionalConfigs {
 impl_to_sql_from_sql_json!(ConditionalConfigs);
 
 /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
-#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel)]
+#[derive(
+    Default,
+    Eq,
+    PartialEq,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    ToSchema,
+    SmithyModel,
+)]
 #[cfg_attr(feature = "diesel", derive(AsExpression))]
 #[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
@@ -292,7 +302,17 @@ pub enum AcceptanceType {
     Offline,
 }
 
-#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel)]
+#[derive(
+    Default,
+    Eq,
+    PartialEq,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    ToSchema,
+    SmithyModel,
+)]
 #[cfg_attr(feature = "diesel", derive(AsExpression))]
 #[serde(deny_unknown_fields)]
 /// Details of online mandate

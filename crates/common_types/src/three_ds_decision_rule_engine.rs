@@ -6,9 +6,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 /// Enum representing the possible outcomes of the 3DS Decision Rule Engine.
-#[derive(
-    Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, ToSchema, Default,
-)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, ToSchema, Default)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(rename_all = "snake_case")]

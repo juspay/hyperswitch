@@ -12,9 +12,7 @@ use crate::new_type::{
 };
 
 /// Masked payout method details for storing in db
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub enum AdditionalPayoutMethodData {
@@ -33,9 +31,7 @@ pub enum AdditionalPayoutMethodData {
 crate::impl_to_sql_from_sql_json!(AdditionalPayoutMethodData);
 
 /// Masked payout method details for card payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Serialize, Deserialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct CardAdditionalData {
@@ -78,9 +74,7 @@ pub struct CardAdditionalData {
 }
 
 /// Masked payout method details for bank payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(untagged)]
@@ -108,9 +102,7 @@ pub enum BankAdditionalData {
 crate::impl_to_sql_from_sql_json!(BankAdditionalData);
 
 /// Masked payout method details for ach bank transfer payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct AchBankTransferAdditionalData {
@@ -140,9 +132,7 @@ pub struct AchBankTransferAdditionalData {
 }
 
 /// Masked payout method details for bacs bank transfer payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct BacsBankTransferAdditionalData {
@@ -172,9 +162,7 @@ pub struct BacsBankTransferAdditionalData {
 }
 
 /// Masked payout method details for sepa bank transfer payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct SepaBankTransferAdditionalData {
@@ -204,9 +192,7 @@ pub struct SepaBankTransferAdditionalData {
 }
 
 /// Masked payout method details for pix bank transfer payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct PixBankTransferAdditionalData {
@@ -252,9 +238,7 @@ pub struct PixBankTransferAdditionalData {
 }
 
 /// Masked payout method details for PayShap bank transfer payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(deny_unknown_fields)]
@@ -273,9 +257,7 @@ pub struct PayshapBankTransferAdditionalData {
 }
 
 /// Masked payout method details for PayShap proxy bank transfer payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(deny_unknown_fields)]
@@ -290,9 +272,7 @@ pub struct PayshapProxyBankTransferAdditionalData {
 }
 
 /// Masked payout method details for TED bank transfer payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct TedBankTransferAdditionalData {
@@ -326,9 +306,7 @@ pub struct TedBankTransferAdditionalData {
 }
 
 /// Masked payout method details for Trustly bank transfer payout method
-#[derive(
-    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct TrustlyBankTransferAdditionalData {
@@ -347,9 +325,7 @@ pub struct TrustlyBankTransferAdditionalData {
 }
 
 /// Masked payout method details for wallet payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(untagged)]
@@ -367,9 +343,7 @@ pub enum WalletAdditionalData {
 }
 
 /// Masked payout method details for a MiFinity wallet payout.
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct MifinityAdditionalData {
@@ -379,9 +353,7 @@ pub struct MifinityAdditionalData {
 }
 
 /// Masked payout method details for paypal wallet payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(tag = "field_type", rename_all = "snake_case")]
@@ -408,9 +380,7 @@ pub enum PaypalAdditionalData {
 }
 
 /// Masked payout method details for venmo wallet payout method
-#[derive(
-    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct VenmoAdditionalData {
@@ -420,9 +390,7 @@ pub struct VenmoAdditionalData {
 }
 
 /// Masked payout method details for Apple pay decrypt wallet payout method
-#[derive(
-    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct ApplePayDecryptAdditionalData {
@@ -440,9 +408,7 @@ pub struct ApplePayDecryptAdditionalData {
 }
 
 /// Masked payout method details for Google pay decrypt wallet payout method
-#[derive(
-    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct GooglePayDecryptAdditionalData {
@@ -460,9 +426,7 @@ pub struct GooglePayDecryptAdditionalData {
 }
 
 /// Masked payout method details for wallet payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(untagged)]
@@ -474,9 +438,7 @@ pub enum BankRedirectAdditionalData {
 }
 
 /// Masked payout method details for interac bank redirect payout method
-#[derive(
-    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct InteracAdditionalData {
@@ -486,9 +448,7 @@ pub struct InteracAdditionalData {
 }
 
 /// Masked payout method details for OpenBankingUK bank redirect payout method
-#[derive(
-    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct OpenBankingUkAdditionalData {
@@ -501,9 +461,7 @@ pub struct OpenBankingUkAdditionalData {
 }
 
 /// Masked payout method details for OpenBanking bank transfer payout method
-#[derive(
-    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct OpenBankingAdditionalData {
@@ -516,9 +474,7 @@ pub struct OpenBankingAdditionalData {
 }
 
 /// additional payout method details for passthrough payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema,
-)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct PassthroughAdditionalData {

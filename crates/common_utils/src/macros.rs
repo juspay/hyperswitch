@@ -152,13 +152,7 @@ mod id_type {
         ($type:ident, $doc:literal, $diesel_type:ty, $max_length:expr, $min_length:expr) => {
             #[doc = $doc]
             #[derive(
-                Clone,
-                Hash,
-                PartialEq,
-                Eq,
-                serde::Serialize,
-                serde::Deserialize,
-                utoipa::ToSchema,
+                Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
             )]
             #[cfg_attr(feature = "diesel", derive(diesel::expression::AsExpression))]
             #[cfg_attr(feature = "diesel", diesel(sql_type = $diesel_type))]
