@@ -43,6 +43,7 @@ impl Default for GenericLinkStatus {
     }
 }
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(GenericLinkStatus);
 
 #[derive(Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, ToSchema)]
@@ -179,6 +180,7 @@ pub struct PayoutLinkData {
     pub test_mode: Option<bool>,
 }
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(PayoutLinkData);
 
 /// Object for GenericLinkUiConfig

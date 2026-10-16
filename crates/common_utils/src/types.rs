@@ -240,6 +240,7 @@ impl FromStr for SemanticVersion {
     }
 }
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(SemanticVersion);
 
 /// Amount convertor trait for connector
@@ -911,6 +912,7 @@ pub struct ChargeRefunds {
     pub revert_transfer: Option<bool>,
 }
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(ChargeRefunds);
 
 /// A common type of domain type that can be used for fields that contain a string with restriction of length
@@ -1281,6 +1283,7 @@ pub struct BrowserInformation {
 }
 
 #[cfg(feature = "v2")]
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(BrowserInformation);
 
 /// A single co-badge / secondary network entry enriched from the Pagos BIN data.
@@ -1323,6 +1326,7 @@ pub struct SecondaryNetwork {
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct CoBadgedCardNetworkMetadata(pub Vec<SecondaryNetwork>);
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(CoBadgedCardNetworkMetadata);
 
 /// A single interchange cap entry within the [`CardCost`] array. All values are kept as strings.
@@ -1360,6 +1364,7 @@ pub struct InterchangeCap {
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct CardCost(pub Vec<InterchangeCap>);
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(CardCost);
 
 /// A single customer-authentication requirement within the [`CardAuthentication`] array.
@@ -1378,6 +1383,7 @@ pub struct AuthenticationInfo {
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct CardAuthentication(pub Vec<AuthenticationInfo>);
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(CardAuthentication);
 
 /// Domain type for connector_transaction_id

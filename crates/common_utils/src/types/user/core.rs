@@ -27,4 +27,5 @@ pub struct LineageContext {
     pub tenant_id: id_type::TenantId,
 }
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(LineageContext);

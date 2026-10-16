@@ -6,9 +6,10 @@ use std::{
 
 use common_enums::enums;
 use common_utils::{
-    consts, date_time, errors, events, ext_traits::OptionExt, impl_to_sql_from_sql_json, pii,
-    types::MinorUnit,
+    consts, date_time, errors, events, ext_traits::OptionExt, pii, types::MinorUnit,
 };
+#[cfg(feature = "diesel")]
+use common_utils::impl_to_sql_from_sql_json;
 #[cfg(feature = "diesel")]
 use diesel::{
     sql_types::{Jsonb, Text},
@@ -54,6 +55,7 @@ pub enum SplitPaymentsRequest {
     #[smithy(value_type = "PayloadSplitPaymentRequest")]
     PayloadSplitPayment(PayloadSplitPaymentRequest),
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
@@ -81,6 +83,7 @@ pub struct StripeSplitPaymentRequest {
     #[smithy(value_type = "Option<String>")]
     pub on_behalf_of: Option<String>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
@@ -97,6 +100,7 @@ pub struct PayloadLedgerItem {
     #[smithy(value_type = "String")]
     pub receiver_id: String,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(PayloadLedgerItem);
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
@@ -109,6 +113,7 @@ pub struct PayloadSplitPaymentRequest {
     #[smithy(value_type = "Vec<PayloadLedgerItem>")]
     pub ledger: Vec<PayloadLedgerItem>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(PayloadSplitPaymentRequest);
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
@@ -119,6 +124,7 @@ impl_to_sql_from_sql_json!(PayloadSplitPaymentRequest);
 pub struct AuthenticationConnectorAccountMap(
     HashMap<enums::AuthenticationProduct, common_utils::id_type::MerchantConnectorAccountId>,
 );
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(AuthenticationConnectorAccountMap);
 
 impl AuthenticationConnectorAccountMap {
@@ -223,6 +229,7 @@ impl EuclidDirFilter for ConditionalConfigs {
     ];
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(ConditionalConfigs);
 
 /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
@@ -256,6 +263,7 @@ pub struct CustomerAcceptance {
     pub online: Option<OnlineMandate>,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(CustomerAcceptance);
 
 impl CustomerAcceptance {
@@ -328,6 +336,7 @@ pub struct OnlineMandate {
     pub user_agent: String,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(OnlineMandate);
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
@@ -348,6 +357,7 @@ impl events::ApiEventMetric for DecisionManagerRecord {
         Some(events::ApiEventsType::Routing)
     }
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(DecisionManagerRecord);
 
 /// DecisionManagerResponse
@@ -382,6 +392,7 @@ pub struct StripeChargeResponseData {
     #[smithy(value_type = "Option<String>")]
     pub on_behalf_of: Option<String>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(StripeChargeResponseData);
 
 /// Charge Information
@@ -406,6 +417,7 @@ pub enum ConnectorChargeResponseData {
     PayloadSplitPayment(PayloadSplitPaymentRequest),
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(ConnectorChargeResponseData);
 
 /// Fee information to be charged on the payment being collected via xendit
@@ -432,6 +444,7 @@ pub struct XenditSplitRoute {
     #[smithy(value_type = "String")]
     pub reference_id: String,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(XenditSplitRoute);
 
 /// Fee information to be charged on the payment being collected via xendit
@@ -454,6 +467,7 @@ pub struct XenditMultipleSplitRequest {
     #[smithy(value_type = "Vec<XenditSplitRoute>")]
     pub routes: Vec<XenditSplitRoute>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(XenditMultipleSplitRequest);
 
 /// Xendit Charge Request
@@ -472,6 +486,7 @@ pub enum XenditSplitRequest {
     SingleSplit(XenditSplitSubMerchantData),
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(XenditSplitRequest);
 
 /// Charge Information
@@ -490,6 +505,7 @@ pub enum XenditChargeResponseData {
     SingleSplit(XenditSplitSubMerchantData),
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(XenditChargeResponseData);
 
 /// Fee information charged on the payment being collected via xendit
@@ -515,6 +531,7 @@ pub struct XenditMultipleSplitResponse {
     #[smithy(value_type = "Vec<XenditSplitRoute>")]
     pub routes: Vec<XenditSplitRoute>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(XenditMultipleSplitResponse);
 
 #[derive(
@@ -1005,6 +1022,7 @@ pub struct BillingDescriptor {
     pub reference: Option<String>,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(BillingDescriptor);
 
 ///  Information identifying partner / external platform details
@@ -1022,6 +1040,7 @@ pub struct PartnerApplicationDetails {
     #[schema(value_type = Option<String>)]
     pub integrator: Option<String>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(PartnerApplicationDetails);
 
 ///  Information identifying merchant details
@@ -1036,6 +1055,7 @@ pub struct MerchantApplicationDetails {
     #[schema(value_type = Option<String>)]
     pub version: Option<String>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(MerchantApplicationDetails);
 
 /// Information identifying partner and merchant application initiating the request
@@ -1051,6 +1071,7 @@ pub struct PartnerMerchantIdentifierDetails {
     pub merchant_details: Option<MerchantApplicationDetails>,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(PartnerMerchantIdentifierDetails);
 
 /// Additional metadata for payment intent state containing refunded and disputed amounts
@@ -1154,6 +1175,7 @@ impl PaymentIntentStateMetadata {
     }
 }
 
+#[cfg(feature = "diesel")]
 common_utils::impl_to_sql_from_sql_json!(PaymentIntentStateMetadata);
 
 /// List of custom T&C messages grouped by payment method
@@ -1586,6 +1608,7 @@ pub struct InstallmentOption {
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct InstallmentOptions(pub Vec<InstallmentOption>);
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(InstallmentOptions);
 
 /// Installment selection made by the customer during payment confirmation.
@@ -1601,6 +1624,7 @@ pub struct InstallmentData {
     /// Total interest amount applied for this installment plan
     pub installment_interest: Option<MinorUnit>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(InstallmentData);
 
 #[derive(
@@ -1646,6 +1670,7 @@ impl ExternalSurchargeDetails {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(ExternalSurchargeDetails);
 
 /// Applied-offer details from Offer Engine `/apply`, persisted on `payment_attempt`
@@ -1693,6 +1718,7 @@ pub struct AppliedOfferDetailsV1 {
     pub currency: enums::Currency,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(AppliedOfferDetails);
 
 /// Values the router applied to a payment attempt in place of what was requested (stored as JSONB)
@@ -1704,4 +1730,5 @@ pub struct AppliedOverrides {
     pub capture_method_applied: Option<enums::CaptureMethod>,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(AppliedOverrides);

@@ -103,10 +103,10 @@ macro_rules! collect_missing_value_keys {
 
 /// Implements the `ToSql` and `FromSql` traits on a type to allow it to be serialized/deserialized
 /// to/from JSON data in the database.
+#[cfg(feature = "diesel")]
 #[macro_export]
 macro_rules! impl_to_sql_from_sql_json {
     ($type:ty, $diesel_type:ty) => {
-        #[cfg(feature = "diesel")]
         #[allow(unused_qualifications)]
         impl diesel::serialize::ToSql<$diesel_type, diesel::pg::Pg> for $type {
             fn to_sql<'b>(
@@ -125,7 +125,6 @@ macro_rules! impl_to_sql_from_sql_json {
             }
         }
 
-        #[cfg(feature = "diesel")]
         #[allow(unused_qualifications)]
         impl diesel::deserialize::FromSql<$diesel_type, diesel::pg::Pg> for $type {
             fn from_sql(

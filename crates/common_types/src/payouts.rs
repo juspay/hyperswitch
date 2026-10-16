@@ -1,5 +1,6 @@
 //! Payout related types.
 
+#[cfg(feature = "diesel")]
 use common_utils::impl_to_sql_from_sql_json;
 #[cfg(feature = "diesel")]
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
@@ -17,4 +18,5 @@ pub struct PayoutsBillingDescriptor {
     pub statement_descriptor: Option<String>,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(PayoutsBillingDescriptor);

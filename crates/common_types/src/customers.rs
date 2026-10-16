@@ -24,6 +24,7 @@ impl ConnectorCustomerMap {
 }
 
 #[cfg(feature = "v2")]
+#[cfg(feature = "diesel")]
 common_utils::impl_to_sql_from_sql_json!(ConnectorCustomerMap);
 
 #[cfg(feature = "v2")]

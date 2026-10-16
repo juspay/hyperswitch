@@ -317,7 +317,6 @@ currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = [
     "kv_store",
     "tokenization_v2",
-    "diesel",
 ], default-features = false }
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }
 events = { version = "0.1.0", path = "../events" }

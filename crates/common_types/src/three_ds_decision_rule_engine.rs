@@ -1,3 +1,4 @@
+#[cfg(feature = "diesel")]
 use common_utils::impl_to_sql_from_sql_json;
 #[cfg(feature = "diesel")]
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
@@ -27,6 +28,7 @@ pub enum ThreeDSDecision {
     /// No challenge requested by merchant (e.g., delegated authentication)
     IssuerThreeDsExemptionRequested,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(ThreeDSDecision);
 
 impl ThreeDSDecision {
@@ -52,6 +54,7 @@ impl ThreeDSDecisionRule {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(ThreeDSDecisionRule);
 
 impl EuclidDirFilter for ThreeDSDecisionRule {

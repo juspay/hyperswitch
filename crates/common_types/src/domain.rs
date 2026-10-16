@@ -3,7 +3,9 @@
 use std::collections::HashMap;
 
 use common_enums::enums;
-use common_utils::{impl_to_sql_from_sql_json, types::MinorUnit};
+#[cfg(feature = "diesel")]
+use common_utils::impl_to_sql_from_sql_json;
+use common_utils::types::MinorUnit;
 #[cfg(feature = "diesel")]
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 #[cfg(feature = "v2")]
@@ -26,6 +28,7 @@ pub struct AdyenSplitData {
     #[smithy(value_type = "Vec<AdyenSplitItem>")]
     pub split_items: Vec<AdyenSplitItem>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(AdyenSplitData);
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
@@ -53,6 +56,7 @@ pub struct AdyenSplitItem {
     #[smithy(value_type = "Option<String>")]
     pub description: Option<String>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(AdyenSplitItem);
 
 /// Fee information to be charged on the payment being collected for sub-merchant via xendit
@@ -66,6 +70,7 @@ pub struct XenditSplitSubMerchantData {
     #[smithy(value_type = "String")]
     pub for_user_id: String,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(XenditSplitSubMerchantData);
 
 /// Acquirer configuration
@@ -118,6 +123,7 @@ pub struct AcquirerConfigBucket {
     pub configs: HashMap<common_utils::id_type::ProfileAcquirerId, Vec<AcquirerConfig>>,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(AcquirerConfigBucket);
 
 /// Merchant connector details
@@ -174,7 +180,9 @@ pub struct RetryFeatureData {
     pub decision: common_enums::GsmDecision,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(GsmFeatureData);
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(RetryFeatureData);
 
 impl GsmFeatureData {

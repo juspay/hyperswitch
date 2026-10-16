@@ -28,6 +28,7 @@ pub enum AdditionalPayoutMethodData {
     Passthrough(Box<PassthroughAdditionalData>),
 }
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(AdditionalPayoutMethodData);
 
 /// Masked payout method details for card payout method
@@ -99,6 +100,7 @@ pub enum BankAdditionalData {
     Ted(Box<TedBankTransferAdditionalData>),
 }
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(BankAdditionalData);
 
 /// Masked payout method details for ach bank transfer payout method
