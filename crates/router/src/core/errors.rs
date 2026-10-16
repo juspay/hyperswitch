@@ -460,6 +460,8 @@ pub enum RevenueRecoveryError {
     TransactionWebhookProcessingFailed,
     #[error("Failed to create payment intent")]
     PaymentIntentCreateFailed,
+    #[error("Failed to update payment intent")]
+    PaymentIntentUpdateFailed,
     #[error("Source verification failed for billing connector")]
     WebhookAuthenticationFailed,
     #[error("Payment merchant connector account {id} not found using account reference id")]
@@ -523,7 +525,8 @@ impl common_utils::errors::ErrorSwitch<ApiErrorResponse> for RevenueRecoveryErro
             Self::PaymentAttemptIdNotFound | Self::RetryAlgorithmTypeNotFound => {
                 ApiErrorResponse::WebhookResourceNotFound
             }
-            Self::PaymentIntentFetchFailed
+            Self::PaymentIntentUpdateFailed
+            | Self::PaymentIntentFetchFailed
             | Self::PaymentAttemptFetchFailed
             | Self::PaymentIntentCreateFailed
             | Self::ScheduleTimeFetchFailed
