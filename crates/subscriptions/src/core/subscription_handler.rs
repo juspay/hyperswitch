@@ -100,6 +100,7 @@ impl<'a> SubscriptionHandler<'a> {
                 merchant_id,
                 merchant_key_store,
                 platform.get_processor().get_account().storage_scheme,
+                false,
             )
             .await
             .change_context(errors::ApiErrorResponse::CustomerNotFound)

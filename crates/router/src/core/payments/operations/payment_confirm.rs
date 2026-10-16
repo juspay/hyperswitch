@@ -1189,12 +1189,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 .as_ref()
                                 .and_then(|pmd| pmd.payment_method_data.as_ref())
                             {
-                                Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
-                                    req.setup_future_usage
-                                        .or(payment_data.payment_intent.setup_future_usage)
-                                        == Some(common_enums::FutureUsage::OffSession)
-                                }
-                                Some(api_models::payments::PaymentMethodData::Card(_))
+                                Some(api_models::payments::PaymentMethodData::Wallet(_))
+                                | Some(api_models::payments::PaymentMethodData::Card(_))
                                 | Some(api_models::payments::PaymentMethodData::CardWithNoCVC(_))
                                 | Some(api_models::payments::PaymentMethodData::BankRedirect(_))
                                 | Some(api_models::payments::PaymentMethodData::BankDebit(_)) => {
@@ -1210,14 +1206,40 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     },
                                 )?;
 
-                                let payment_method_data = req
-                                    .payment_method_data
-                                    .as_ref()
-                                    .and_then(|pmd| pmd.payment_method_data.clone())
-                                    .map(Into::into)
-                                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                                        field_name: "payment_method_data".into(),
-                                    })?;
+                                let payment_method_token =
+                                    payment_data.get_payment_method_token().cloned();
+
+                                let payment_method_data =
+                                    match (payment_method, payment_method_token.is_some()) {
+                                        (common_enums::PaymentMethod::Wallet, true) => {
+                                            let data = req
+                                            .payment_method_data
+                                            .as_ref()
+                                            .and_then(|pmd| pmd.payment_method_data.clone())
+                                            .zip(payment_method_token)
+                                            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                                                field_name: "payment_method_data".into(),
+                                            })?;
+
+                                            domain::PaymentMethodData::try_from(data)
+                                                .change_context(
+                                                errors::ApiErrorResponse::MissingRequiredField {
+                                                    field_name: "payment_method_data".into(),
+                                                },
+                                            )?
+                                        }
+                                        _ => req
+                                            .payment_method_data
+                                            .as_ref()
+                                            .and_then(|pmd| pmd.payment_method_data.clone())
+                                            .map(From::from)
+                                            .ok_or(
+                                                errors::ApiErrorResponse::MissingRequiredField {
+                                                    field_name: "payment_method_data".into(),
+                                                },
+                                            )?,
+                                    };
+
                                 let customer =
                                     customer.ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
                                 let global_customer_id =
@@ -2569,8 +2591,18 @@ impl PaymentConfirm {
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
 
+        // The customer id in the request can be the `merchant_reference_id` of the customer, while
+        // the payment method holds the id of the customer record.
+        let request_customer_id = match req.get_customer_id() {
+            Some(customer_id) => Some(
+                helpers::resolve_request_customer_id(state, platform.get_provider(), customer_id)
+                    .await,
+            ),
+            None => None,
+        };
+
         utils::when(
-            req.get_customer_id().is_some_and(|customer_id| {
+            request_customer_id.as_ref().is_some_and(|customer_id| {
                 pm_info.payment_method.customer_id.as_ref() != Some(customer_id)
             }),
             || {

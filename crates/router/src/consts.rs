@@ -433,6 +433,10 @@ pub mod superposition {
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
     /// Organization-scoped block implicit customer creation configuration key
     pub const BLOCK_IMPLICIT_CUSTOMER_CREATION: &str = "payments.block_implicit_customer_creation";
+    /// Resolve the `customer_id` of a payments request through the `merchant_reference_id` of the
+    /// customer (created via the v2 customers API) instead of the `customer_id` column
+    pub const USE_MERCHANT_REFERENCE_ID_AS_CUSTOMER_ID: &str =
+        "payments.use_merchant_reference_id_as_customer_id";
     /// Fingerprint secret configuration key retained for migration fallback
     pub const FINGERPRINT_SECRET: &str = "vaulting.fingerprint_secret";
     /// Poll config for external 3DS authentication key
@@ -537,6 +541,8 @@ pub mod superposition {
     /// Payment method types eligible for preferred-connectors routing (comma-separated)
     pub const PREFERRED_CONNECTORS_ENABLED_PAYMENT_METHOD_TYPES: &str =
         "routing.preferred_connectors_enabled_payment_method_types";
+    /// Payout blocklist guard configuration key
+    pub const PAYOUT_BLOCKLIST_GUARD: &str = "payouts.payout_blocklist_guard";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.

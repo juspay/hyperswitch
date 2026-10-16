@@ -752,19 +752,6 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    operation
-        .to_domain()?
-        .create_payment_method(
-            state,
-            &req,
-            platform,
-            &mut payment_data,
-            customer.as_ref(),
-            &business_profile,
-            &feature_config,
-        )
-        .await?;
-
     let connector_customer_map = customer
         .as_ref()
         .and_then(|customer| customer.connector_customer.as_ref());
@@ -839,6 +826,19 @@ where
     .await?;
 
     payment_method_token.map(|token| payment_data.set_payment_method_token(Some(token)));
+
+    operation
+        .to_domain()?
+        .create_payment_method(
+            state,
+            &req,
+            platform,
+            &mut payment_data,
+            customer.as_ref(),
+            &business_profile,
+            &feature_config,
+        )
+        .await?;
 
     let (connector, debit_routing_output) = debit_routing::perform_debit_routing(
         &operation,
@@ -13609,21 +13609,31 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     )?;
 
     let optional_customer = match &payment_intent.customer_id {
-        Some(customer_id) => Some(
-            state
-                .store
-                .find_customer_by_customer_id_merchant_id(
-                    customer_id,
-                    platform.get_provider().get_account().get_id(),
-                    platform.get_provider().get_key_store(),
-                    platform.get_provider().get_account().storage_scheme,
+        Some(customer_id) => {
+            let use_merchant_reference_id =
+                helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                    &state,
+                    platform.get_provider(),
+                    Some(customer_id),
                 )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable_lazy(|| {
-                    format!("error while finding customer with customer_id {customer_id:?}")
-                })?,
-        ),
+                .await;
+            Some(
+                state
+                    .store
+                    .find_customer_by_customer_id_merchant_id(
+                        customer_id,
+                        platform.get_provider().get_account().get_id(),
+                        platform.get_provider().get_key_store(),
+                        platform.get_provider().get_account().storage_scheme,
+                        use_merchant_reference_id,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable_lazy(|| {
+                        format!("error while finding customer with customer_id {customer_id:?}")
+                    })?,
+            )
+        }
         None => None,
     };
 
@@ -14482,9 +14492,10 @@ impl EligibilityCheck for BlockListCheck {
         let payment_method_data = decrypted_payment_method_data
             .or_else(|| payment_elgibility_data.payment_method_data.clone());
 
-        let block_reason = blocklist_utils::should_payment_be_blocked(
+        let block_reason = blocklist_utils::check_blocklist(
             state,
             platform.get_processor(),
+            common_enums::BlocklistTransactionType::Payment,
             &payment_method_data,
             business_profile,
         )

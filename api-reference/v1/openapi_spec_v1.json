@@ -7577,7 +7577,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BlocklistRequest"
+                "$ref": "#/components/schemas/BlocklistEntryRequest"
               }
             }
           },
@@ -7623,6 +7623,20 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/BlocklistDataKind"
+            }
+          },
+          {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Blocklist flow: payment (default) or payout.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BlocklistTransactionType"
+                }
+              ],
+              "nullable": true
             }
           },
           {
@@ -7706,7 +7720,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BlocklistRequest"
+                "$ref": "#/components/schemas/BlocklistEntryRequest"
               }
             }
           },
@@ -7807,6 +7821,20 @@
             }
           },
           {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Counts only payment or payout when selected. When omitted, counts both, including legacy NULL entries. Legacy NULL entries belong to payment when filtered.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BlocklistTransactionType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "Restricts the count to entries belonging to this business profile, plus entries with no profile. If omitted, the merchant's default profile is used; merchants with more than one profile have no default and will receive an error asking for this header.",
@@ -7870,6 +7898,20 @@
             }
           },
           {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Looks up only payment or payout when selected. When omitted, both are included. Legacy NULL transaction namespaces belong to payment.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BlocklistTransactionType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "Restricts the lookup to entries belonging to this business profile, plus entries with no profile. If omitted, the merchant's default profile is used; merchants with more than one profile have no default and will receive an error asking for this header.",
@@ -7893,7 +7935,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Blocklist lookup result",
+            "description": "All matches within the resolved profile, including merchant-wide entries. transaction_types contains distinct matching payment/payout namespaces, without data kinds or profile IDs.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7924,6 +7966,20 @@
         "operationId": "Upload a batch blocklist CSV",
         "parameters": [
           {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Overrides every CSV row with payment or payout when selected. When omitted, row selections are used; missing or empty row values default to payment.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BlocklistTransactionType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "The business profile every entry in this upload is blocked under. Resolution follows the same rules as blocking a single entry.",
@@ -7946,7 +8002,7 @@
           }
         ],
         "requestBody": {
-          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The part's `filename` is recorded on the job and returned as `file_name`. The CSV must have a header row: `type,data,metadata`. `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
+          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The part's `filename` is recorded on the job and returned as `file_name`. The CSV header is `type,data,metadata,transaction_type`; older headers without `transaction_type` are accepted. `type`: one of `generic_card_bin` (6 to 10 digits), `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). `transaction_type`: optional, `payment` (default) or `payout`; selection may differ per row. Invalid CSV transaction-type values are rejected even when a query override is selected. Maximum 100,000 data rows.",
           "content": {
             "multipart/form-data": {
               "schema": {
@@ -8129,6 +8185,20 @@
         "operationId": "Start a blocklist CSV export",
         "parameters": [
           {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Exports only `payment` or `payout` entries when selected. Both are exported when omitted.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BlocklistTransactionType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "The business profile whose blocklist is exported. Resolution follows the same rules as blocking a single entry.",
@@ -8162,7 +8232,7 @@
             }
           },
           "400": {
-            "description": "No profile could be resolved"
+            "description": "Invalid transaction type, or no profile could be resolved"
           }
         },
         "security": [
@@ -16789,6 +16859,19 @@
           "profile_clone"
         ]
       },
+      "BatchBlocklistUploadQuery": {
+        "type": "object",
+        "properties": {
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "BatchBlocklistUploadResponse": {
         "type": "object",
         "description": "Response returned on a successful `POST /blocklist/batch`.",
@@ -16944,6 +17027,14 @@
         "properties": {
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -16983,6 +17074,36 @@
           "generic_card_bin"
         ]
       },
+      "BlocklistEntryRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BlocklistRequest"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "transaction_type": {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            }
+          }
+        ],
+        "description": "A tagged single-entry request with an optional transaction namespace."
+      },
+      "BlocklistExportQuery": {
+        "type": "object",
+        "description": "Query parameters for `POST /blocklist/export`.",
+        "properties": {
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "BlocklistExportResponse": {
         "type": "object",
         "description": "Response for `POST /blocklist/export`.",
@@ -17015,6 +17136,14 @@
             "type": "string",
             "description": "The raw value to check against the blocklist, e.g. a card BIN. Limited to 20 characters,\nthe longest value a `fingerprint_id` can hold.",
             "maxLength": 20
+          },
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17022,7 +17151,8 @@
         "type": "object",
         "required": [
           "data",
-          "blocked"
+          "blocked",
+          "transaction_types"
         ],
         "properties": {
           "data": {
@@ -17030,7 +17160,14 @@
           },
           "blocked": {
             "type": "boolean",
-            "description": "Whether an entry matching `data` exists in the blocklist, under any data_kind"
+            "description": "Whether any entry matches within the resolved profile and selected transaction namespaces."
+          },
+          "transaction_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BlocklistTransactionType"
+            },
+            "description": "Distinct transaction types that block `data`, empty when `blocked` is false."
           }
         }
       },
@@ -17123,6 +17260,7 @@
         "required": [
           "fingerprint_id",
           "data_kind",
+          "transaction_type",
           "created_at"
         ],
         "properties": {
@@ -17131,6 +17269,9 @@
           },
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/BlocklistTransactionType"
           },
           "created_at": {
             "type": "string",
@@ -17168,6 +17309,14 @@
             "type": "string"
           }
         }
+      },
+      "BlocklistTransactionType": {
+        "type": "string",
+        "description": "The transaction namespace of a blocklist entry, stored as text.",
+        "enum": [
+          "payment",
+          "payout"
+        ]
       },
       "BoletoAdditionalDetails": {
         "type": "object",
@@ -19381,6 +19530,14 @@
             "items": {
               "type": "string"
             }
+          },
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27276,6 +27433,9 @@
         "properties": {
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/BlocklistTransactionType"
           },
           "limit": {
             "type": "integer",

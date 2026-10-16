@@ -234,6 +234,7 @@ diesel::table! {
         created_by -> Nullable<Varchar>,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        transaction_type -> Nullable<Text>,
     }
 }
 
@@ -513,6 +514,8 @@ diesel::table! {
         #[max_length = 64]
         id -> Nullable<Varchar>,
         preferred_connectors -> Nullable<Jsonb>,
+        #[max_length = 64]
+        merchant_reference_id -> Nullable<Varchar>,
     }
 }
 

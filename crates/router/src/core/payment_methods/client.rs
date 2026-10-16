@@ -451,11 +451,19 @@ async fn load_payment_intent_context(
         .customer_id
         .as_ref()
         .async_and_then(|customer_id| async {
+            let use_merchant_reference_id =
+                helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                    state,
+                    platform.get_provider(),
+                    Some(customer_id),
+                )
+                .await;
             db.find_customer_by_customer_id_merchant_id(
                 customer_id,
                 &payment_intent.merchant_id,
                 platform.get_provider().get_key_store(),
                 platform.get_provider().get_account().storage_scheme,
+                use_merchant_reference_id,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -601,7 +609,14 @@ async fn filter_customer_pms_by_blocklist(
     let blocked_bins = if bins.is_empty() {
         std::collections::HashSet::new()
     } else {
-        blocklist_utils::get_blocked_bins(state, processor, profile_id, bins).await
+        blocklist_utils::get_blocked_bins(
+            state,
+            processor,
+            common_enums::BlocklistTransactionType::Payment,
+            profile_id,
+            bins,
+        )
+        .await
     };
 
     if blocked_bins.is_empty() {
