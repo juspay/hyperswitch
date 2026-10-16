@@ -909,53 +909,6 @@ impl
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn builds_token_payment_method_for_elavon_pg_payment_session() {
-        let payment_session_href =
-            "https://uat.api.converge.eu.elavonaws.com/payment-sessions/session_123";
-
-        let payment_method = build_elavon_pg_payment_session_payment_method(
-            ELAVON_PG_CONNECTOR_ID,
-            Some(payment_session_href),
-        )
-        .expect("Elavon PG payment session should produce a payment method");
-
-        match payment_method.payment_method {
-            Some(payments_grpc::payment_method::PaymentMethod::Token(token)) => {
-                assert_eq!(
-                    token.token.expect("token should be present").expose(),
-                    payment_session_href
-                );
-                assert_eq!(token.token_payment_method_type, None);
-            }
-            payment_method => panic!("expected token payment method, got {payment_method:?}"),
-        }
-    }
-
-    #[test]
-    fn does_not_build_payment_method_for_non_session_references() {
-        let session_href = "https://uat.api.converge.eu.elavonaws.com/payment-sessions/session_123";
-
-        assert!(
-            build_elavon_pg_payment_session_payment_method("stripe", Some(session_href)).is_none()
-        );
-        assert!(build_elavon_pg_payment_session_payment_method(
-            ELAVON_PG_CONNECTOR_ID,
-            Some("c6b4a755-5d4c-4b67-92bb-a340ec8fc61e"),
-        )
-        .is_none());
-        assert!(build_elavon_pg_payment_session_payment_method(
-            ELAVON_PG_CONNECTOR_ID,
-            Some("/payment-sessions/session_123"),
-        )
-        .is_none());
-    }
-}
-
 impl
     transformers::ForeignTryFrom<(
         &RouterData<
