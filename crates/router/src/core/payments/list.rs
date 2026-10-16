@@ -243,10 +243,6 @@ pub async fn list_payments(
     .await
 }
 
-/// Upper bound on the intents scanned to resolve a recovery status filter.
-#[cfg(all(feature = "v2", feature = "olap"))]
-const RECOVERY_LIST_MAX_SCANNED_ROWS: usize = 20_000;
-
 /// Enriches the fetched payment intents with the recovery workflow entries and the billing
 /// connector retry threshold, and maps them to the recovery list items.
 #[cfg(all(feature = "v2", feature = "olap"))]
@@ -459,12 +455,16 @@ async fn list_recovery_payments_by_recovery_status(
 
     let mut matched: Vec<payments_api::RecoveryPaymentsListResponseItem> = Vec::new();
     let mut scan_offset: usize = 0;
-    // `PageOffset` is capped, so the scan is bounded to `RECOVERY_LIST_MAX_SCANNED_ROWS` rows.
-    while scan_offset <= RECOVERY_LIST_MAX_SCANNED_ROWS {
+    loop {
+        let page_offset = common_utils::types::list::PageOffset::from(
+            u32::try_from(scan_offset).unwrap_or(u32::MAX),
+        );
+        // `PageOffset` clamps at its maximum, so past it the same page would be read again forever.
+        if page_offset.as_usize() != scan_offset {
+            break;
+        }
         let page_constraints = payments_api::PaymentListConstraints {
-            offset: common_utils::types::list::PageOffset::from(
-                u32::try_from(scan_offset).unwrap_or(u32::MAX),
-            ),
+            offset: page_offset,
             ..scan_constraints.clone()
         };
         let fetch_constraints =
