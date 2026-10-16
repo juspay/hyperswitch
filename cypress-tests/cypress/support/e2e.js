@@ -119,6 +119,47 @@ function notifyProxyTestEnded() {
   });
 }
 
+function getCustomHeadersFromEnv() {
+  const envVal = Cypress.env("CUSTOM_HEADERS");
+  if (!envVal) return {};
+  if (typeof envVal === "object") return envVal;
+  if (typeof envVal === "string") {
+    try {
+      return JSON.parse(envVal);
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+beforeEach(() => {
+  const customHeaders = getCustomHeadersFromEnv();
+  if (Object.keys(customHeaders).length > 0) {
+    cy.intercept("**", (req) => {
+      Object.assign(req.headers, customHeaders);
+    });
+  }
+});
+
+// Tag every cy.request with custom headers and, if proxy enabled, a deterministic X-Request-ID.
+Cypress.Commands.overwrite("request", (originalFn, ...args) => {
+  const opts = normalizeRequestArgs(args);
+
+  if (IS_PROXY_ENABLED && PROXY_ADMIN_URL && isProxyAdminUrl(opts.url)) {
+    return originalFn(opts);
+  }
+
+  const customHeaders = getCustomHeadersFromEnv();
+
+  opts.headers = {
+    ...customHeaders,
+    ...(opts.headers || {}),
+    ...(IS_PROXY_ENABLED ? { [REQUEST_ID_HEADER]: buildRequestId() } : {}),
+  };
+  return originalFn(opts);
+});
+
 if (IS_PROXY_ENABLED) {
   Cypress._getStepCounter = () => stepCounter;
   Cypress._buildRequestId = buildRequestId;
@@ -153,20 +194,5 @@ if (IS_PROXY_ENABLED) {
     if (PROXY_ADMIN_URL) {
       notifyProxyTestEnded();
     }
-  });
-
-  // Tag every cy.request with a deterministic X-Request-ID for cassette matching.
-  Cypress.Commands.overwrite("request", (originalFn, ...args) => {
-    const opts = normalizeRequestArgs(args);
-
-    if (PROXY_ADMIN_URL && isProxyAdminUrl(opts.url)) {
-      return originalFn(opts);
-    }
-
-    opts.headers = {
-      ...(opts.headers || {}),
-      [REQUEST_ID_HEADER]: buildRequestId(),
-    };
-    return originalFn(opts);
   });
 }
