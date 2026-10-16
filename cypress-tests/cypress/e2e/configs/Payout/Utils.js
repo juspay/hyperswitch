@@ -4,11 +4,11 @@ import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as adyenPlatformConnectorDetails } from "./AdyenPlatform.js";
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as gotymeSanlamConnectorDetails } from "./GotymeSanlam.js";
-import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
 import { connectorDetails as nomupayConnectorDetails } from "./Nomupay.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
 import { connectorDetails as trustlyConnectorDetails } from "./Trustly.js";
+import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -107,16 +107,6 @@ export const CONNECTOR_LISTS = {
     // only supports wallet payouts (see configs/Payout/Paypal.js), so they
     // have no card payout method either and are skipped for the same reason.
     CARD_TEST: ["gotyme_sanlam", "trustly", "paypal"],
-    // PayPal sandbox does not support Venmo recipient wallets: the Venmo
-    // payout fulfill call is hard-rejected with HTTP 400 IR_41 /
-    // unified_code UE_9000 "Recipient wallet not supported in sandbox."
-    // (deterministic across retries — verified in the CLA-440 pipeline
-    // runs; NOT a spec bug and NOT an API-level bug). The FulfillVenmo key
-    // in configs/Payout/Paypal.js encodes the production behaviour
-    // (200 / "pending") and stays untouched, so the Venmo fulfill step in
-    // 00010-WalletPayout.cy.js is gated as a documented expected-skip for
-    // connectors on this list instead of failing deterministically. Remove
-    // a connector once its sandbox supports Venmo recipient wallets.
     VENMO_WALLET_FULFILL: ["paypal"],
   },
   INCLUDE: {
@@ -127,10 +117,6 @@ export const CONNECTOR_LISTS = {
     // Client-authenticated payout confirm (PR #14547) - only verified
     // connectors
     CLIENT_AUTH_CONFIRM: ["paypal"],
-    // Full wallet payout lifecycle (create -> confirm -> fulfill -> sync ->
-    // retrieve; PayPal and Venmo wallet receivers). PayPal payouts are
-    // wallet-only (see configs/Payout/Paypal.js) — only connectors whose
-    // wallet payout support has been verified run the wallet payout spec.
     WALLET_PAYOUT: ["paypal"],
     BANK_TRANSFER_OPEN_BANKING: ["truelayer", "trustly"],
     BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL: [],
