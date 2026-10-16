@@ -43,13 +43,13 @@ pub async fn migrate_payment_methods(
 
         let res = match req {
             Ok(migrate_request) => {
-                let res = migrate_payment_method(
+                let res = Box::pin(migrate_payment_method(
                     state,
                     migrate_request,
                     merchant_id,
                     platform,
                     controller,
-                )
+                ))
                 .await;
                 match res {
                     Ok(api::ApplicationResponse::Json(response)) => Ok(response),
@@ -266,6 +266,7 @@ pub struct RecordMigrationStatus {
     pub network_token_migrated: Option<bool>,
     pub connector_mandate_details_migrated: Option<bool>,
     pub network_transaction_migrated: Option<bool>,
+    pub already_migrated: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -275,6 +276,7 @@ pub struct RecordMigrationStatusBuilder {
     pub network_token_migrated: Option<bool>,
     pub connector_mandate_details_migrated: Option<bool>,
     pub network_transaction_migrated: Option<bool>,
+    pub already_migrated: Option<bool>,
 }
 
 impl RecordMigrationStatusBuilder {
@@ -285,6 +287,7 @@ impl RecordMigrationStatusBuilder {
             network_token_migrated: None,
             connector_mandate_details_migrated: None,
             network_transaction_migrated: None,
+            already_migrated: None,
         }
     }
 
@@ -311,6 +314,10 @@ impl RecordMigrationStatusBuilder {
         self.network_transaction_migrated = network_transaction_migrated;
     }
 
+    pub fn already_migrated(&mut self, already_migrated: bool) {
+        self.already_migrated = Some(already_migrated);
+    }
+
     pub fn build(self) -> RecordMigrationStatus {
         RecordMigrationStatus {
             card_migrated: self.card_migrated,
@@ -318,6 +325,7 @@ impl RecordMigrationStatusBuilder {
             network_token_migrated: self.network_token_migrated,
             connector_mandate_details_migrated: self.connector_mandate_details_migrated,
             network_transaction_migrated: self.network_transaction_migrated,
+            already_migrated: self.already_migrated,
         }
     }
 }

@@ -29,6 +29,7 @@ use super::metrics;
 use crate::core::utils::validate_legacy_endpoint_access;
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use crate::core::{
+    configs::dimension_state,
     customers,
     payment_methods::{batch_retrieve, tokenize},
 };
@@ -427,6 +428,7 @@ pub async fn payment_method_delete_api(
     .await
 }
 
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsMigrate))]
 pub async fn migrate_payment_method_api(
     state: web::Data<AppState>,
@@ -439,8 +441,9 @@ pub async fn migrate_payment_method_api(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| async move {
+        |state, auth: Option<auth::AuthenticationData>, req, _| async move {
             let merchant_id = req.merchant_id.clone();
+            validate_payment_method_migration_access(&state, auth.as_ref(), &merchant_id).await?;
             let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
             let platform = domain::Platform::new(
                 merchant_account.clone(),
@@ -461,7 +464,7 @@ pub async fn migrate_payment_method_api(
             ))
             .await
         },
-        &auth::AdminApiAuth,
+        &auth::AdminApiAuthOrApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -488,6 +491,51 @@ async fn get_merchant_account(
     Ok((key_store, merchant_account))
 }
 
+/// A merchant calling the payment method migration APIs with its own API key can only migrate
+/// its own payment methods, and only when migration is enabled for it. The admin API key is not
+/// restricted.
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+async fn validate_payment_method_migration_access(
+    state: &SessionState,
+    auth: Option<&auth::AuthenticationData>,
+    merchant_id: &id_type::MerchantId,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let Some(auth) = auth else {
+        return Ok(());
+    };
+    let provider = auth.platform.get_provider();
+
+    if provider.get_account().get_id() != merchant_id {
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::AccessForbidden {
+                resource: merchant_id.get_string_repr().to_string(),
+            }
+        ))
+        .attach_printable("merchant_id in the request does not match the authenticated merchant");
+    }
+
+    let is_migration_enabled = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(auth.platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(provider.get_provider_merchant_id())
+        .get_payment_method_migration_enabled(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(merchant_id),
+        )
+        .await;
+
+    if !is_migration_enabled {
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::AccessForbidden {
+                resource: "payment method migration".to_string(),
+            }
+        ))
+        .attach_printable("payment method migration is not enabled for the merchant");
+    }
+
+    Ok(())
+}
+
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsMigrate))]
 pub async fn migrate_payment_methods(
@@ -508,10 +556,12 @@ pub async fn migrate_payment_methods(
         state,
         &req,
         records,
-        |state, _, req, _| {
+        |state, auth: Option<auth::AuthenticationData>, req, _| {
             let merchant_id = merchant_id.clone();
             let merchant_connector_ids = merchant_connector_ids.clone();
             async move {
+                validate_payment_method_migration_access(&state, auth.as_ref(), &merchant_id)
+                    .await?;
                 let (key_store, merchant_account) =
                     get_merchant_account(&state, &merchant_id).await?;
                 // Create customers if they are not already present
@@ -577,7 +627,7 @@ pub async fn migrate_payment_methods(
                 .await
             }
         },
-        &auth::AdminApiAuth,
+        &auth::AdminApiAuthOrApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -600,9 +650,11 @@ pub async fn update_payment_methods(
         state,
         &req,
         records,
-        |state, _, req, _| {
+        |state, auth: Option<auth::AuthenticationData>, req, _| {
             let merchant_id = merchant_id.clone();
             async move {
+                validate_payment_method_migration_access(&state, auth.as_ref(), &merchant_id)
+                    .await?;
                 let (key_store, merchant_account) =
                     get_merchant_account(&state, &merchant_id).await?;
                 let platform = domain::Platform::new(
@@ -621,7 +673,7 @@ pub async fn update_payment_methods(
                 .await
             }
         },
-        &auth::AdminApiAuth,
+        &auth::AdminApiAuthOrApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
