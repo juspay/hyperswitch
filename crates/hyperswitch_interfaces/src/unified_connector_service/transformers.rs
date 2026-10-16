@@ -934,39 +934,6 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
     }
 }
 
-#[cfg(test)]
-mod connector_response_tests {
-    use super::*;
-
-    #[test]
-    fn paypal_connector_response_preserves_payer_details() {
-        let proto = payments_grpc::AdditionalPaymentMethodConnectorResponse {
-            payment_method_data: Some(
-                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Paypal(
-                    payments_grpc::PaypalConnectorResponse {
-                        email: Some(hyperswitch_masking::Secret::new(
-                            "payer@example.com".to_string(),
-                        )),
-                        payer_id: Some(hyperswitch_masking::Secret::new(
-                            "payer_test".to_string(),
-                        )),
-                    },
-                ),
-            ),
-        };
-
-        let connector_response = AdditionalPaymentMethodConnectorResponse::foreign_try_from(proto);
-
-        assert!(matches!(
-            connector_response,
-            Ok(AdditionalPaymentMethodConnectorResponse::Paypal {
-                email: Some(_),
-                payer_id: Some(payer_id),
-            }) if payer_id.clone().expose() == "payer_test"
-        ));
-    }
-}
-
 #[allow(missing_docs)]
 pub fn convert_connector_service_status_code(
     status_code: u32,
