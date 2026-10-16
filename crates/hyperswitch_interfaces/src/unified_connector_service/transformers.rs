@@ -909,6 +909,23 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 Ok(Self::BankRedirect { interac })
 
             }
+            Some(
+                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Paypal(
+                    paypal_data,
+                ),
+            ) => Ok(Self::Paypal {
+                email: paypal_data.email.and_then(|secret| {
+                    common_utils::pii::Email::from_str(&secret.expose())
+                        .inspect_err(|error| {
+                            router_env::logger::warn!(
+                                email_parse_error=?error,
+                                "Failed to parse payer email from UCS PayPal connector response"
+                            );
+                        })
+                        .ok()
+                }),
+                payer_id: paypal_data.payer_id,
+            }),
             None => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
