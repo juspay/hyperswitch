@@ -1741,13 +1741,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 }
 
                 if let Some(search) = &params.search {
-                    // Exact match on any of the identifiers; the term is always bound, never inlined.
+                    // Exact match on the payment id or merchant reference id; the term is always bound, never inlined.
                     query = query.filter(
                         diesel::dsl::sql::<diesel::sql_types::Bool>("(payment_intent.id = ")
                             .bind::<diesel::sql_types::Text, _>(search.clone())
                             .sql(" OR payment_intent.merchant_reference_id = ")
-                            .bind::<diesel::sql_types::Text, _>(search.clone())
-                            .sql(" OR payment_intent.customer_id = ")
                             .bind::<diesel::sql_types::Text, _>(search.clone())
                             .sql(")"),
                     );
@@ -1889,13 +1887,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 }
 
                 if let Some(search) = &params.search {
-                    // Exact match on any of the identifiers; the term is always bound, never inlined.
+                    // Exact match on the payment id or merchant reference id; the term is always bound, never inlined.
                     query = query.filter(
                         diesel::dsl::sql::<diesel::sql_types::Bool>("(payment_intent.id = ")
                             .bind::<diesel::sql_types::Text, _>(search.clone())
                             .sql(" OR payment_intent.merchant_reference_id = ")
-                            .bind::<diesel::sql_types::Text, _>(search.clone())
-                            .sql(" OR payment_intent.customer_id = ")
                             .bind::<diesel::sql_types::Text, _>(search.clone())
                             .sql(")"),
                     );

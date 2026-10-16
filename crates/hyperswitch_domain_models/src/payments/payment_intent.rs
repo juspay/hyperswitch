@@ -1900,7 +1900,7 @@ pub struct PaymentIntentListParams {
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub merchant_order_reference_id: Option<String>,
     pub payment_id: Option<id_type::GlobalPaymentId>,
-    /// Exact-match search across the payment id, merchant reference id and customer id.
+    /// Exact-match search across the payment id or merchant reference id.
     pub search: Option<String>,
 }
 

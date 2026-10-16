@@ -9465,8 +9465,7 @@ pub struct RecoveryPaymentListConstraints {
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub recovery_status: Option<Vec<api_enums::RecoveryStatus>>,
 
-    /// Exact, case-sensitive match against the payment id, the merchant reference id or the
-    /// customer id. Combined with the other filters using AND.
+    /// Exact, case-sensitive match against the payment id or the merchant reference id. Combined with the other filters using AND.
     #[param(example = "12345_pay_01926c58bc6e77c09e809964e72af8c8", value_type = Option<String>)]
     pub search: Option<String>,
 }

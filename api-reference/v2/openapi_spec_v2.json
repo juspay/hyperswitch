@@ -3274,7 +3274,7 @@
           {
             "name": "search",
             "in": "path",
-            "description": "Exact, case-sensitive match against the payment id, the merchant reference id or the\ncustomer id. Combined with the other filters using AND.",
+            "description": "Exact, case-sensitive match against the payment id or the merchant reference id. Combined with the other filters using AND.",
             "required": true,
             "schema": {
               "type": "string",
@@ -3625,7 +3625,7 @@
           {
             "name": "search",
             "in": "path",
-            "description": "Exact, case-sensitive match against the payment id, the merchant reference id or the\ncustomer id. Combined with the other filters using AND.",
+            "description": "Exact, case-sensitive match against the payment id or the merchant reference id. Combined with the other filters using AND.",
             "required": true,
             "schema": {
               "type": "string",
