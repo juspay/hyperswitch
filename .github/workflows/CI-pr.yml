@@ -23,7 +23,7 @@ env:
 jobs:
   formatting:
     name: Check formatting
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Generate a token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
@@ -221,13 +221,13 @@ jobs:
         shell: bash
         # Capped: uncapped + cold cache OOM'd a runner pod (git log).
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy
 
       - name: Run clippy (fred backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy fred
 
       - name: Check Cargo.lock changed
@@ -257,7 +257,7 @@ jobs:
 
   typos:
     name: Spell check
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -267,7 +267,7 @@ jobs:
 
   typos-required:
     name: Spell check specific critical directories
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -353,13 +353,13 @@ jobs:
       - name: Run cargo clippy with v2 features enabled (redis-rs backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy_v2
 
       - name: Run cargo clippy with v2 features enabled (fred backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 9
+          CARGO_BUILD_JOBS: 5
         run: just clippy_v2 fred
 
       - name: Show sccache stats

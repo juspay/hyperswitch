@@ -876,7 +876,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
-            enable_avs_check: None,
+            enable_avs_check: router_data.request.enable_avs_check,
         })
     }
 }
@@ -2632,7 +2632,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
-            enable_avs_check: None,
+            enable_avs_check: router_data.request.enable_avs_check,
         })
     }
 }
