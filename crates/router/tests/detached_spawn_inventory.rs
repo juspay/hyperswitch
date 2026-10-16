@@ -38,29 +38,12 @@ const SCANNED_ROOTS: &[&str] = &[
 
 /// Files permitted to spawn an uninstrumented future, with the count in that
 /// file and the reason no correlation is being lost.
-const ALLOWED_BARE: &[(&str, usize, &str)] = &[
-    (
-        "crates/router/src/routes/metrics/bg_metrics_collector.rs",
-        1,
-        "process-lifetime: the background metrics collector, spawned at startup \
-         with no request in scope",
-    ),
-    (
-        "crates/router/src/db/events.rs",
-        1,
-        "test-only: the concurrent webhook-creation test in this module's \
-         #[cfg(test)] block",
-    ),
-    (
-        "crates/router/src/services/authentication/decision.rs",
-        1,
-        "the #[cfg(not(feature = \"deja\"))] arm of spawn_tracked_job; the deja \
-         arm carries context through deja::spawn_fork, so nothing is lost from a \
-         recording. The bare arm costs log context only, and is worth tidying \
-         separately — changing it under the deja feature would move an existing \
-         fork region and re-address the tape",
-    ),
-];
+const ALLOWED_BARE: &[(&str, usize, &str)] = &[(
+    "crates/router_env/src/task.rs",
+    1,
+    "the spawn helper itself: its parameter is `tracing::instrument::Instrumented<F>`, \
+     so the future it hands to tokio is instrumented by type",
+)];
 
 fn workspace_root() -> &'static Path {
     Path::new(env!("CARGO_MANIFEST_DIR"))

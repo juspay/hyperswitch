@@ -1,8 +1,9 @@
 pub mod transformers;
-use std::{collections::HashMap, str, sync::LazyLock};
+use std::{str, sync::LazyLock};
 
 use common_enums::{enums, CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
+    collections::HashMap,
     errors::CustomResult,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},

@@ -1,7 +1,6 @@
-#[cfg(feature = "v1")]
-use std::collections::HashSet;
-
 use common_enums::enums::MerchantStorageScheme;
+#[cfg(feature = "v1")]
+use common_utils::collections::HashSet;
 use common_utils::{errors::CustomResult, id_type};
 #[cfg(feature = "v1")]
 use diesel_models::errors::DatabaseError;

@@ -378,7 +378,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                 .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
         let connector_customer = connector_customer_details.as_ref().map(|details_vec| {
-            let map: std::collections::HashMap<_, _> = details_vec
+            let map: common_utils::collections::HashMap<_, _> = details_vec
                 .iter()
                 .map(|details| {
                     (

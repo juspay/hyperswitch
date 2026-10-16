@@ -99,7 +99,7 @@ pub struct ProfileAcquirerConfigsResponse {
     #[schema(value_type= Option<String>,example = "pro_acq_LCRdERuylQvNQ4qh3QE0")]
     pub default_acquirer_config: Option<common_utils::id_type::ProfileAcquirerId>,
     /// Flattened map of acquirer configuration buckets
-    pub configs: std::collections::HashMap<
+    pub configs: common_utils::collections::HashMap<
         common_utils::id_type::ProfileAcquirerId,
         Vec<AcquirerBucketConfigResponse>,
     >,

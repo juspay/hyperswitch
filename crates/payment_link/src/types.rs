@@ -1,8 +1,7 @@
 //! Payment link specific types
 
-use std::collections::HashMap;
-
 use common_utils::{
+    collections::HashMap,
     events::{ApiEventMetric, ApiEventsType},
     impl_api_event_type,
 };

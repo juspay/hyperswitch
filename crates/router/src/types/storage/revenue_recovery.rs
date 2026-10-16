@@ -1,7 +1,7 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::fmt::Debug;
 
 use common_enums::enums::{self, CardNetwork};
-use common_utils::{date_time, ext_traits::ValueExt, id_type};
+use common_utils::{collections::HashMap, date_time, ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
 use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
 use hyperswitch_domain_models::{

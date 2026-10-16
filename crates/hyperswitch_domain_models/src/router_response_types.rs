@@ -3,10 +3,8 @@ pub mod fraud_check;
 pub mod merchant_connector_webhook_management;
 pub mod revenue_recovery;
 pub mod subscriptions;
-use std::collections::HashMap;
-
 use api_models::payments::AddressDetails;
-use common_utils::{pii, request::Method, types::MinorUnit};
+use common_utils::{collections::HashMap, pii, request::Method, types::MinorUnit};
 pub use disputes::{
     AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
     SubmitEvidenceResponse,

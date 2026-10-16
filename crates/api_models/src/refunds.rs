@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 pub use common_utils::types::MinorUnit;
-use common_utils::{pii, types::TimeRange};
+use common_utils::{collections::HashMap, pii, types::TimeRange};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use time::PrimitiveDateTime;

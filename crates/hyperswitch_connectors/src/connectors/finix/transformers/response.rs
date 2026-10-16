@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use common_enums::Currency;
-use common_utils::types::MinorUnit;
+use common_utils::{collections::HashMap, types::MinorUnit};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use time::PrimitiveDateTime;

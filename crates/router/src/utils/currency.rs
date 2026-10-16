@@ -1,21 +1,25 @@
+// currency_conversion, which does not use the facade, takes std's map.
+#![allow(clippy::disallowed_types, clippy::disallowed_methods)]
+
 use std::{
-    collections::HashMap,
     ops::Deref,
     str::FromStr,
     sync::{Arc, LazyLock},
 };
 
 use api_models::enums;
-use common_utils::{date_time, errors::CustomResult, events::ApiEventMetric, ext_traits::AsyncExt};
+use common_utils::{
+    collections::HashMap, date_time, errors::CustomResult, events::ApiEventMetric,
+    ext_traits::AsyncExt,
+};
 use currency_conversion::types::{CurrencyFactors, ExchangeRates};
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
 use redis_interface::DelReply;
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, tracing::Instrument};
 use rust_decimal::Decimal;
 use strum::IntoEnumIterator;
 use tokio::sync::RwLock;
-use tracing_futures::Instrument;
 
 use crate::{
     logger,
@@ -132,7 +136,8 @@ async fn save_forex_data_to_local_cache(
 impl TryFrom<DefaultExchangeRates> for ExchangeRates {
     type Error = error_stack::Report<ForexError>;
     fn try_from(value: DefaultExchangeRates) -> Result<Self, Self::Error> {
-        let mut conversion_usable: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
+        let mut conversion_usable: std::collections::HashMap<enums::Currency, CurrencyFactors> =
+            std::collections::HashMap::new();
         for (curr, conversion) in value.conversion {
             let enum_curr = enums::Currency::from_str(curr.as_str())
                 .change_context(ForexError::ConversionError)
@@ -211,7 +216,7 @@ async fn call_forex_api_and_save_data_to_cache_and_redis(
         Err(ForexError::ConfigurationError("api_keys not provided".into()).into())
     } else {
         let state = state.clone();
-        tokio::spawn(
+        router_env::spawn(
             async move {
                 acquire_redis_lock_and_call_forex_api(&state)
                     .await
@@ -319,7 +324,8 @@ async fn fetch_forex_rates_from_primary_api(
 
     logger::info!(primary_forex_response=?forex_response,"forex_log");
 
-    let mut conversions: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
+    let mut conversions: std::collections::HashMap<enums::Currency, CurrencyFactors> =
+        std::collections::HashMap::new();
     for enum_curr in enums::Currency::iter() {
         match forex_response.rates.get(&enum_curr.to_string()) {
             Some(rate) => {
@@ -385,7 +391,8 @@ pub async fn fetch_forex_rates_from_fallback_api(
 
     logger::info!(fallback_forex_response=?fallback_forex_response,"forex_log");
 
-    let mut conversions: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
+    let mut conversions: std::collections::HashMap<enums::Currency, CurrencyFactors> =
+        std::collections::HashMap::new();
     for enum_curr in enums::Currency::iter() {
         match fallback_forex_response
             .quotes

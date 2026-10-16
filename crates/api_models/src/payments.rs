@@ -1,9 +1,8 @@
 #[cfg(any(feature = "v1", feature = "v2"))]
 use std::fmt;
-use std::{
-    collections::{HashMap, HashSet},
-    num::{NonZeroI64, NonZeroU8},
-};
+use std::num::{NonZeroI64, NonZeroU8};
+
+use common_utils::collections::{HashMap, HashSet};
 pub mod additional_info;
 pub mod recipient;
 pub mod trait_impls;

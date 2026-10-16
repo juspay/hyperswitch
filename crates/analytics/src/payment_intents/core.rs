@@ -1,6 +1,4 @@
 #![allow(dead_code)]
-use std::collections::{HashMap, HashSet};
-
 use api_models::analytics::{
     payment_intents::{
         MetricsBucketResponse, PaymentIntentDimensions, PaymentIntentMetrics,
@@ -11,7 +9,11 @@ use api_models::analytics::{
 };
 use bigdecimal::ToPrimitive;
 use common_enums::Currency;
-use common_utils::{errors::CustomResult, types::TimeRange};
+use common_utils::{
+    collections::{HashMap, HashSet},
+    errors::CustomResult,
+    types::TimeRange,
+};
 use currency_conversion::{conversion::convert, types::ExchangeRates};
 use error_stack::ResultExt;
 use router_env::{
@@ -89,7 +91,8 @@ pub async fn get_metrics(
         // TODO: lifetime issues with joinset,
         // can be optimized away if joinset lifetime requirements are relaxed
         let auth_scoped = auth.to_owned();
-        set.spawn(
+        router_env::spawn_in_set(
+            &mut set,
             async move {
                 let data = pool
                     .get_payment_intent_metrics(

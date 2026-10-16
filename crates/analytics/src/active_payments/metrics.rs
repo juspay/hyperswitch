@@ -1,9 +1,8 @@
-use std::collections::HashSet;
-
 use api_models::analytics::{
     active_payments::{ActivePaymentsMetrics, ActivePaymentsMetricsBucketIdentifier},
     Granularity, TimeRange,
 };
+use common_utils::collections::HashSet;
 use time::PrimitiveDateTime;
 
 use crate::{

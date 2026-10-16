@@ -1,5 +1,6 @@
-use std::{collections::HashMap, fmt};
+use std::fmt;
 
+use common_utils::collections::HashMap;
 use serde::Serialize;
 
 use crate::{

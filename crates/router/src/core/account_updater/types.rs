@@ -1,6 +1,7 @@
-use std::{collections::HashSet, time::Duration};
+use std::time::Duration;
 
 use common_enums::{connector_enums::Connector, CardNetwork};
+use common_utils::collections::HashSet;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::Secret;

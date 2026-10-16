@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use api_models::{
     analytics::search::{OpensearchRange, SearchIndex},
     errors::types::{ApiError, ApiErrorResponse},
@@ -7,6 +5,7 @@ use api_models::{
 };
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::{
+    collections::HashSet,
     errors::{CustomResult, ErrorSwitch},
     types::TimeRange,
 };

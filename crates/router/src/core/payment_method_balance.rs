@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::marker::PhantomData;
 
 use api_models::payments::{
     ApplyPaymentMethodDataRequest, CheckAndApplyPaymentMethodDataResponse, GetPaymentMethodType,
@@ -6,6 +6,7 @@ use api_models::payments::{
 };
 use common_enums::CallConnectorAction;
 use common_utils::{
+    collections::HashMap,
     ext_traits::{Encode, StringExt},
     id_type,
     types::MinorUnit,

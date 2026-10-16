@@ -1,8 +1,8 @@
-use std::{collections::HashMap, sync::RwLock, time::Duration};
+use std::{sync::RwLock, time::Duration};
 
 use base64::Engine;
-use common_utils::consts::BASE64_ENGINE;
 pub use common_utils::errors::CustomResult;
+use common_utils::{collections::HashMap, consts::BASE64_ENGINE};
 use error_stack::ResultExt;
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
 use hyperswitch_masking::ExposeInterface;

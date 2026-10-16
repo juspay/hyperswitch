@@ -1,11 +1,11 @@
 #![allow(unused, clippy::expect_used)]
 
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use api_models::{
     admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
 };
-use common_utils::types::MinorUnit;
+use common_utils::{collections::HashMap, types::MinorUnit};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use euclid::{
     dirval,

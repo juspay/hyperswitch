@@ -1,12 +1,10 @@
-use std::collections::HashMap;
-
 use api_models::revenue_recovery_data_backfill::{
     BackfillError, ComprehensiveCardData, GetRedisDataQuery, RedisDataResponse, RedisKeyType,
     RevenueRecoveryBackfillRequest, RevenueRecoveryDataBackfillResponse, ScheduledAtUpdate,
     UnlockStatusResponse, UpdateTokenStatusRequest, UpdateTokenStatusResponse,
 };
 use common_enums::{CardNetwork, PaymentMethodType};
-use common_utils::id_type;
+use common_utils::{collections::HashMap, id_type};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
 use hyperswitch_masking::ExposeInterface;

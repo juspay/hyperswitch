@@ -1040,6 +1040,8 @@ where
 }
 
 #[cfg(test)]
+// Test fixtures and concurrency only; nothing here runs under replay.
+#[allow(clippy::disallowed_methods, clippy::disallowed_types)]
 mod cache_tests {
     use std::{
         sync::atomic::{AtomicUsize, Ordering},

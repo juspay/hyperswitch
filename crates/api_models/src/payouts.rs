@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
 use cards::CardNumber;
 use common_enums::{BankNames, CardNetwork};
 use common_types::payouts::PayoutsBillingDescriptor;
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
 use common_utils::{
+    collections::HashMap,
     crypto,
     errors::ValidationError,
     id_type, link_utils, payout_method_utils,

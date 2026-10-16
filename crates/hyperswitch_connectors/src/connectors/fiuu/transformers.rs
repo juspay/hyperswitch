@@ -1,10 +1,9 @@
-use std::collections::HashMap;
-
 use api_models::payments;
 use cards::CardNumber;
 use common_enums::{enums, BankNames, CaptureMethod, Currency};
 use common_types::payments::ApplePayPredecryptData;
 use common_utils::{
+    collections::HashMap,
     crypto::{self, GenerateDigest},
     errors::CustomResult,
     ext_traits::Encode,

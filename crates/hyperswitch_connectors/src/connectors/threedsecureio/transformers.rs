@@ -557,7 +557,7 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub browser_user_agent: Option<String>,
     pub sdk_app_id: Option<String>,
     pub sdk_enc_data: Option<String>,
-    pub sdk_ephem_pub_key: Option<std::collections::HashMap<String, String>>,
+    pub sdk_ephem_pub_key: Option<common_utils::collections::HashMap<String, String>>,
     pub sdk_reference_number: Option<String>,
     pub sdk_trans_id: Option<String>,
     pub mcc: String,

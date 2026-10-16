@@ -1,5 +1,6 @@
-use std::{collections::HashMap, env};
+use std::env;
 
+use common_utils::collections::HashMap;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 

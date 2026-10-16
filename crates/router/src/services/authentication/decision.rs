@@ -219,5 +219,5 @@ where
     deja::spawn_fork(tracked);
 
     #[cfg(not(feature = "deja"))]
-    let _task_handle = tokio::spawn(tracked);
+    let _task_handle = router_env::spawn(router_env::tracing::Instrument::in_current_span(tracked));
 }

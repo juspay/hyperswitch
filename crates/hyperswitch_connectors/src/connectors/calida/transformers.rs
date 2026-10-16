@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use common_enums::enums;
 use common_utils::{
+    collections::HashMap,
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     pii::{Email, IpAddress},

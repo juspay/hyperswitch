@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use common_enums::enums;
 pub use common_utils::request::Method;
 use common_utils::{
-    errors::CustomResult, ext_traits::ValueExt, id_type, pii::Email, types::FloatMajorUnit,
+    collections::HashMap, errors::CustomResult, ext_traits::ValueExt, id_type, pii::Email,
+    types::FloatMajorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{

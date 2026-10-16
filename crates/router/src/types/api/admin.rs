@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 #[cfg(feature = "v2")]
 pub use api_models::admin;
 pub use api_models::{
@@ -16,7 +14,7 @@ pub use api_models::{
         OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
     },
 };
-use common_utils::{ext_traits::ValueExt, types::keymanager as km_types};
+use common_utils::{collections::HashMap, ext_traits::ValueExt, types::keymanager as km_types};
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;

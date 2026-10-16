@@ -1,11 +1,11 @@
-use std::{
-    cmp,
-    collections::{HashMap, HashSet},
-};
+use std::cmp;
 
 use api_models::user_role::role as role_api;
 use common_enums::{EntityType, MerchantProductType, ParentGroup, PermissionGroup};
-use common_utils::id_type;
+use common_utils::{
+    collections::{HashMap, HashSet},
+    id_type,
+};
 use diesel_models::{
     enums::UserRoleVersion,
     role::ListRolesByEntityPayload,

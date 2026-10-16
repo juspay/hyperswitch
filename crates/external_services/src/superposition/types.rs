@@ -1,9 +1,9 @@
 //! Type definitions for Superposition integration
 
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use aws_smithy_types::Document;
-use common_utils::{errors::CustomResult, fp_utils::when};
+use common_utils::{collections::HashMap, errors::CustomResult, fp_utils::when};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 
