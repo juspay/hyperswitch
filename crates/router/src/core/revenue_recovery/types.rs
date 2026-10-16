@@ -1567,11 +1567,8 @@ async fn record_back_to_billing_connector(
 
     let billing_mca = &revenue_recovery_payment_data.billing_mca;
     let connector = billing_mca.connector_name;
-    if !state
-        .conf
-        .billing_connectors_invoice_record_back
-        .is_connector_eligible(connector)
-    {
+    let invoice_record_back_config = &state.conf.billing_connectors_invoice_record_back;
+    if !invoice_record_back_config.is_connector_eligible(connector) {
         logger::info!(
             %connector,
             "Skipping invoice record-back because the billing connector is not eligible"

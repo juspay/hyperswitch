@@ -1376,7 +1376,7 @@ pub struct BillingConnectorInvoiceSyncCall {
     pub billing_connectors_which_requires_invoice_sync_call: HashSet<enums::Connector>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct BillingConnectorInvoiceRecordBackCall {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub billing_connectors_which_require_invoice_record_back_call: HashSet<enums::Connector>,
@@ -1386,18 +1386,6 @@ impl BillingConnectorInvoiceRecordBackCall {
     pub fn is_connector_eligible(&self, connector: enums::Connector) -> bool {
         self.billing_connectors_which_require_invoice_record_back_call
             .contains(&connector)
-    }
-}
-
-impl Default for BillingConnectorInvoiceRecordBackCall {
-    fn default() -> Self {
-        Self {
-            billing_connectors_which_require_invoice_record_back_call: HashSet::from([
-                enums::Connector::Chargebee,
-                enums::Connector::Stripebilling,
-                enums::Connector::Recurly,
-            ]),
-        }
     }
 }
 
