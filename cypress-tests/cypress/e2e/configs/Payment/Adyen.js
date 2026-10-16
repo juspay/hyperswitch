@@ -1,4 +1,8 @@
-import { customerAcceptance, multiUseMandateData } from "./Commons";
+import {
+  customerAcceptance,
+  multiUseMandateData,
+  standardBillingAddress,
+} from "./Commons";
 import {
   getCurrency,
   getCustomExchange,
@@ -625,6 +629,7 @@ export const connectorDetails = {
     MITAutoCaptureWithCustomerAcceptance: {
       Request: {
         amount: 6000,
+        billing: standardBillingAddress,
         customer_acceptance: {
           acceptance_type: "offline",
           accepted_at: "1963-05-03T04:07:52.723Z",

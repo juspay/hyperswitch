@@ -4,6 +4,7 @@ import {
   customerAcceptance,
   singleUseMandateData,
   multiUseMandateData,
+  standardBillingAddress,
 } from "./Commons";
 
 // Disable Cypress retries for Helcim because the connector enforces strict
@@ -359,6 +360,7 @@ const card_pm = {
     Configs: { TRIGGER_SKIP: true },
     Request: {
       amount: 6000,
+      billing: standardBillingAddress,
       customer_acceptance: {
         acceptance_type: "offline",
         accepted_at: "1963-05-03T04:07:52.723Z",

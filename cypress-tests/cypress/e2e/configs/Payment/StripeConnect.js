@@ -1,6 +1,7 @@
 import {
   cardRequiredField as commonsCardRequiredField,
   customerAcceptance,
+  standardBillingAddress,
 } from "./Commons";
 import { getCurrency, getCustomExchange } from "./Modifiers";
 
@@ -598,6 +599,7 @@ export const connectorDetails = {
     MITAutoCaptureWithCustomerAcceptance: {
       Request: {
         amount: 6000,
+        billing: standardBillingAddress,
         split_payments: stripeSplitPaymentData,
         customer_acceptance: {
           acceptance_type: "offline",

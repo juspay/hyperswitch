@@ -182,6 +182,22 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
+        cy.step("retrieve-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentMethodIdMandateNo3DSManualCapture"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
         cy.step("cit-capture-call-test", () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: cit-capture-call-test");
@@ -392,6 +408,22 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
+        cy.step("retrieve-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentMethodIdMandateNo3DSManualCapture"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
         cy.step("cit-capture-call-test", () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: cit-capture-call-test");
@@ -440,6 +472,22 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
             "manual",
             globalState
           );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("retrieve-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["MITManualCapture"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
 
           if (!utils.should_continue_further(data)) {
             shouldContinue = false;
@@ -500,6 +548,22 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
+        cy.step("retrieve-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["MITManualCapture"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
         cy.step("mit-capture-call-test", () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: mit-capture-call-test");
@@ -532,7 +596,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
   );
 
   context("Card - MIT without billing address", () => {
-    it("Create No 3DS Payment Intent -> Confirm No 3DS CIT -> Confirm No 3DS MIT", () => {
+    it("Create No 3DS Payment Intent -> Confirm No 3DS CIT -> retrieve-payment-call-test -> Confirm No 3DS MIT", () => {
       let shouldContinue = true;
 
       cy.step("Create No 3DS Payment Intent", () => {
@@ -576,6 +640,22 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         }
       });
 
+      cy.step("retrieve-payment-call-test", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
       cy.step("Confirm No 3DS MIT", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm No 3DS MIT");
@@ -599,7 +679,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
   context(
     "Card - NoThreeDS MIT with PMID and customer_acceptance flow test",
     () => {
-      it("Create Customer -> Create No 3DS Payment Intent -> Confirm No 3DS CIT -> List Customer Payment Methods -> MIT with PMID and customer_acceptance -> List Customer Payment Methods", () => {
+      it("Create Customer -> Create No 3DS Payment Intent -> Confirm No 3DS CIT -> retrieve-payment-call-test -> List Customer Payment Methods -> MIT with PMID and customer_acceptance -> retrieve-payment-call-test -> List Customer Payment Methods", () => {
         let shouldContinue = true;
 
         cy.step("Create Customer", () => {
@@ -651,6 +731,22 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
+        cy.step("retrieve-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
         cy.step("List Customer Payment Methods", () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: List Customer Payment Methods");
@@ -684,6 +780,22 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
+        cy.step("retrieve-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["MITAutoCaptureWithCustomerAcceptance"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
         cy.step("List Customer Payment Methods", () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: List Customer Payment Methods");
@@ -698,7 +810,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
   context(
     "Card - ThreeDS Create + Confirm Automatic CIT and MIT payment flow test",
     () => {
-      it("Confirm 3DS CIT -> Handle redirection -> retrieve-payment-call-test -> Confirm No 3DS MIT -> Confirm No 3DS MIT", () => {
+      it("Confirm 3DS CIT -> Handle redirection -> retrieve-payment-call-test -> Confirm No 3DS MIT -> retrieve-payment-call-test -> Confirm No 3DS MIT -> retrieve-payment-call-test", () => {
         let shouldContinue = true;
 
         cy.step("Confirm 3DS CIT", () => {
@@ -767,6 +879,22 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
+        cy.step("retrieve-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["MITAutoCapture"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
         cy.step("Confirm No 3DS MIT", () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm No 3DS MIT");
@@ -783,6 +911,22 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
             "automatic",
             globalState
           );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("retrieve-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["MITAutoCapture"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
         });
       });
     }
@@ -791,7 +935,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
   context(
     "Card - ThreeDS Create + Confirm Manual CIT and MIT payment flow",
     () => {
-      it("Confirm 3DS CIT -> Handle redirection -> cit-capture-call-test -> retrieve-payment-call-test -> Confirm No 3DS MIT", () => {
+      it("Confirm 3DS CIT -> Handle redirection -> cit-capture-call-test -> retrieve-payment-call-test -> Confirm No 3DS MIT -> retrieve-payment-call-test", () => {
         let shouldContinue = true;
 
         cy.step("Confirm 3DS CIT", () => {
@@ -870,6 +1014,22 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
             "automatic",
             globalState
           );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("retrieve-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["MITAutoCapture"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
         });
       });
     }
