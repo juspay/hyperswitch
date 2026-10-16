@@ -1900,8 +1900,6 @@ pub struct PaymentIntentListParams {
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub merchant_order_reference_id: Option<String>,
     pub payment_id: Option<id_type::GlobalPaymentId>,
-    /// Exact-match search across the payment id or merchant reference id.
-    pub search: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -2004,18 +2002,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             card_network,
             merchant_order_reference_id,
             payment_id,
-            search: None,
         }))
-    }
-}
-
-#[cfg(feature = "v2")]
-impl PaymentIntentFetchConstraints {
-    /// Sets the exact-match search term. A blank term is ignored.
-    pub fn with_search(mut self, search: Option<String>) -> Self {
-        let Self::List(params) = &mut self;
-        params.search = search.filter(|term| !term.trim().is_empty());
-        self
     }
 }
 

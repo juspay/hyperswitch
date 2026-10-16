@@ -5,8 +5,6 @@ use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::ext_traits::AsyncExt;
 #[cfg(feature = "v2")]
 use common_utils::{ext_traits::Encode, fallback_reverse_lookup_not_found};
-#[cfg(all(feature = "v2", feature = "olap"))]
-use diesel::BoolExpressionMethods;
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "v1")]
@@ -73,34 +71,6 @@ use crate::{
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation},
     utils,
 };
-
-/// Filters by an exact match on the payment id or the merchant reference id. A term that parses
-/// as neither can match nothing.
-#[cfg(all(feature = "v2", feature = "olap"))]
-macro_rules! filter_by_search {
-    ($query:expr, $search:expr) => {{
-        let payment_id = common_utils::id_type::GlobalPaymentId::try_from(std::borrow::Cow::Owned(
-            $search.clone(),
-        ))
-        .ok();
-        let reference_id = common_utils::id_type::PaymentReferenceId::try_from(
-            std::borrow::Cow::Owned($search.clone()),
-        )
-        .ok();
-        match (payment_id, reference_id) {
-            (Some(payment_id), Some(reference_id)) => $query.filter(
-                pi_dsl::id
-                    .eq(payment_id)
-                    .or(pi_dsl::merchant_reference_id.eq(reference_id)),
-            ),
-            (Some(payment_id), None) => $query.filter(pi_dsl::id.eq(payment_id)),
-            (None, Some(reference_id)) => {
-                $query.filter(pi_dsl::merchant_reference_id.eq(reference_id))
-            }
-            (None, None) => $query.filter(pi_dsl::id.is_null()),
-        }
-    }};
-}
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
@@ -1770,10 +1740,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     query = query.filter(pi_dsl::id.eq(payment_id.clone()));
                 }
 
-                if let Some(search) = &params.search {
-                    query = filter_by_search!(query, search);
-                }
-
                 diesel_models::list::apply_pagination(query, params.limit, params.offset)
             }
         };
@@ -1890,10 +1856,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 if let Some(payment_id) = &params.payment_id {
                     query = query.filter(pi_dsl::id.eq(payment_id.clone()));
-                }
-
-                if let Some(search) = &params.search {
-                    query = filter_by_search!(query, search);
                 }
 
                 query

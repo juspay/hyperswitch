@@ -9467,24 +9467,17 @@ pub struct RecoveryPaymentListConstraints {
     #[param(value_type = Option<Vec<RecoveryStatus>>)]
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub recovery_status: Option<Vec<api_enums::RecoveryStatus>>,
-
-    /// Exact match on the payment id or the merchant reference id
-    #[param(example = "12345_pay_01926c58bc6e77c09e809964e72af8c8", value_type = Option<String>)]
-    pub search: Option<String>,
-}
-
-/// The part of [`RecoveryPaymentListConstraints`] that is not a regular payment list filter.
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, Default)]
-pub struct RecoveryListFilters {
-    pub recovery_status: Option<Vec<api_enums::RecoveryStatus>>,
-    pub search: Option<String>,
 }
 
 #[cfg(feature = "v2")]
 impl RecoveryPaymentListConstraints {
-    /// Splits into the regular payment list constraints and the recovery specific filters.
-    pub fn into_parts(self) -> (PaymentListConstraints, RecoveryListFilters) {
+    /// Splits into the regular payment list constraints and the recovery status filter.
+    pub fn into_parts(
+        self,
+    ) -> (
+        PaymentListConstraints,
+        Option<Vec<api_enums::RecoveryStatus>>,
+    ) {
         let Self {
             payment_id,
             profile_id,
@@ -9512,7 +9505,6 @@ impl RecoveryPaymentListConstraints {
             card_network,
             merchant_order_reference_id,
             recovery_status,
-            search,
         } = self;
         (
             PaymentListConstraints {
@@ -9542,10 +9534,7 @@ impl RecoveryPaymentListConstraints {
                 card_network,
                 merchant_order_reference_id,
             },
-            RecoveryListFilters {
-                recovery_status,
-                search,
-            },
+            recovery_status,
         )
     }
 }
