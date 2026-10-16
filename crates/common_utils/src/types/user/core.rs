@@ -1,10 +1,12 @@
+#[cfg(feature = "diesel")]
 use diesel::{deserialize::FromSqlRow, expression::AsExpression};
 
 use crate::id_type;
 
 /// Struct for lineageContext
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, AsExpression, FromSqlRow)]
-#[diesel(sql_type = diesel::sql_types::Jsonb)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Jsonb))]
 pub struct LineageContext {
     /// user_id: String
     pub user_id: String,

@@ -106,6 +106,7 @@ macro_rules! collect_missing_value_keys {
 #[macro_export]
 macro_rules! impl_to_sql_from_sql_json {
     ($type:ty, $diesel_type:ty) => {
+        #[cfg(feature = "diesel")]
         #[allow(unused_qualifications)]
         impl diesel::serialize::ToSql<$diesel_type, diesel::pg::Pg> for $type {
             fn to_sql<'b>(
@@ -124,6 +125,7 @@ macro_rules! impl_to_sql_from_sql_json {
             }
         }
 
+        #[cfg(feature = "diesel")]
         #[allow(unused_qualifications)]
         impl diesel::deserialize::FromSql<$diesel_type, diesel::pg::Pg> for $type {
             fn from_sql(
@@ -156,10 +158,10 @@ mod id_type {
                 Eq,
                 serde::Serialize,
                 serde::Deserialize,
-                diesel::expression::AsExpression,
                 utoipa::ToSchema,
             )]
-            #[diesel(sql_type = $diesel_type)]
+            #[cfg_attr(feature = "diesel", derive(diesel::expression::AsExpression))]
+            #[cfg_attr(feature = "diesel", diesel(sql_type = $diesel_type))]
             #[schema(value_type = String)]
             pub struct $type($crate::id_type::LengthId<$max_length, $min_length>);
         };
@@ -180,17 +182,9 @@ mod id_type {
     macro_rules! global_id_type {
         ($type:ident, $doc:literal) => {
             #[doc = $doc]
-            #[derive(
-                Debug,
-                Clone,
-                Hash,
-                PartialEq,
-                Eq,
-                serde::Serialize,
-                serde::Deserialize,
-                diesel::expression::AsExpression,
-            )]
-            #[diesel(sql_type = diesel::sql_types::Text)]
+            #[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+            #[cfg_attr(feature = "diesel", derive(diesel::expression::AsExpression))]
+            #[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Text))]
             pub struct $type($crate::id_type::global_id::GlobalId);
         };
     }
@@ -286,6 +280,7 @@ mod id_type {
     #[macro_export]
     macro_rules! impl_to_sql_from_sql_id_type {
         ($type:ty, $diesel_type:ty, $max_length:expr, $min_length:expr) => {
+            #[cfg(feature = "diesel")]
             impl<DB> diesel::serialize::ToSql<$diesel_type, DB> for $type
             where
                 DB: diesel::backend::Backend,
@@ -300,6 +295,7 @@ mod id_type {
                 }
             }
 
+            #[cfg(feature = "diesel")]
             impl<DB> diesel::deserialize::FromSql<$diesel_type, DB> for $type
             where
                 DB: diesel::backend::Backend,
@@ -326,6 +322,7 @@ mod id_type {
     #[macro_export]
     macro_rules! impl_to_sql_from_sql_global_id_type {
         ($type:ty, $diesel_type:ty) => {
+            #[cfg(feature = "diesel")]
             impl<DB> diesel::serialize::ToSql<$diesel_type, DB> for $type
             where
                 DB: diesel::backend::Backend,
@@ -339,6 +336,7 @@ mod id_type {
                 }
             }
 
+            #[cfg(feature = "diesel")]
             impl<DB> diesel::deserialize::FromSql<$diesel_type, DB> for $type
             where
                 DB: diesel::backend::Backend,
@@ -359,6 +357,7 @@ mod id_type {
     #[macro_export]
     macro_rules! impl_queryable_id_type {
         ($type:ty, $diesel_type:ty) => {
+            #[cfg(feature = "diesel")]
             impl<DB> diesel::Queryable<$diesel_type, DB> for $type
             where
                 DB: diesel::backend::Backend,

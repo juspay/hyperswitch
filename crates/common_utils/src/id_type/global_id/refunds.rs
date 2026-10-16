@@ -3,17 +3,9 @@ use error_stack::ResultExt;
 use crate::errors;
 
 /// A global id that can be used to identify a refund
-#[derive(
-    Debug,
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    diesel::expression::AsExpression,
-)]
-#[diesel(sql_type = diesel::sql_types::Text)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "diesel", derive(diesel::expression::AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Text))]
 pub struct GlobalRefundId(super::GlobalId);
 
 // Database related implementations so that this field can be used directly in the database tables
@@ -46,6 +38,7 @@ impl TryFrom<std::borrow::Cow<'static, str>> for GlobalRefundId {
 }
 
 // TODO: refactor the macro to include this id use case as well
+#[cfg(feature = "diesel")]
 impl<DB> diesel::serialize::ToSql<diesel::sql_types::Text, DB> for GlobalRefundId
 where
     DB: diesel::backend::Backend,
@@ -59,6 +52,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Text, DB> for GlobalRefundId
 where
     DB: diesel::backend::Backend,

@@ -1,10 +1,10 @@
 use common_utils::id_type;
+#[cfg(feature = "diesel")]
 use diesel::{AsExpression, FromSqlRow};
 
-#[derive(
-    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, AsExpression, FromSqlRow,
-)]
-#[diesel(sql_type = diesel::sql_types::Jsonb)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Jsonb))]
 /// Represents the data associated with a callback mapper.
 pub enum CallbackMapperData {
     /// data variant used while processing the network token webhook

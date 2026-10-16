@@ -3481,7 +3481,6 @@ dependencies = [
  "common_enums",
  "common_utils",
  "criterion",
- "diesel",
  "euclid_macros",
  "hyperswitch_constraint_graph",
  "nom 7.1.3",

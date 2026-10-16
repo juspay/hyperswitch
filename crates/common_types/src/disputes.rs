@@ -1,6 +1,7 @@
 //! Dispute related types
 
 use common_utils::impl_to_sql_from_sql_json;
+#[cfg(feature = "diesel")]
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
@@ -9,19 +10,9 @@ use utoipa::ToSchema;
 use crate::primitive_wrappers::RapidDisputeResolutionAppliedBool;
 
 /// Additional details of a dispute, stored as jsonb
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AdditionalDetails {
     /// Network specific details of the dispute
