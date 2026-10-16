@@ -544,7 +544,7 @@ where
 
             #[cfg(feature = "v1")]
             let merchant_connector_account_from_db_option = db
-                .find_merchant_connector_account_by_profile_id_connector_name(
+                .find_enabled_merchant_connector_account_by_profile_id_connector_name(
                     &profile_id,
                     &frm_routing_algorithm_struct.data,
                     platform.get_processor().get_key_store(),

@@ -1209,7 +1209,9 @@ pub async fn sync_refund_with_gateway(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("profile_id is not set in payment_intent")?;
 
-    let merchant_connector_account = helpers::get_merchant_connector_account(
+    // Refund sync is always a continuation of an already-created refund (and is also reached
+    // from refund webhooks), so the MCA is derived regardless of enabled/disabled status.
+    let merchant_connector_account = helpers::get_merchant_connector_account_for_webhook(
         state,
         platform.get_processor(),
         creds_identifier.as_deref(),

@@ -590,6 +590,51 @@ pub async fn get_authentication_connector_data(
     common_enums::AuthenticationConnectors,
     payments::helpers::MerchantConnectorAccountType,
 )> {
+    get_authentication_connector_data_with_status(
+        state,
+        processor,
+        business_profile,
+        authentication_connector,
+        true,
+    )
+    .await
+}
+
+/// Fetch the authentication connector account for a webhook continuation without applying its
+/// current enabled status.
+///
+/// A webhook belongs to an authentication that may have been initiated while the connector was
+/// enabled, then delivered after it was disabled. It must use the original MCA so the payment
+/// started with that connector can complete.
+pub async fn get_authentication_connector_data_for_webhook(
+    state: &SessionState,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
+    authentication_connector: Option<String>,
+) -> RouterResult<(
+    common_enums::AuthenticationConnectors,
+    payments::helpers::MerchantConnectorAccountType,
+)> {
+    get_authentication_connector_data_with_status(
+        state,
+        processor,
+        business_profile,
+        authentication_connector,
+        false,
+    )
+    .await
+}
+
+async fn get_authentication_connector_data_with_status(
+    state: &SessionState,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
+    authentication_connector: Option<String>,
+    enabled_only: bool,
+) -> RouterResult<(
+    common_enums::AuthenticationConnectors,
+    payments::helpers::MerchantConnectorAccountType,
+)> {
     let authentication_connector = if let Some(authentication_connector) = authentication_connector
     {
         api_models::enums::convert_authentication_connector(&authentication_connector).ok_or(
@@ -626,14 +671,26 @@ pub async fn get_authentication_connector_data(
     };
 
     let profile_id = business_profile.get_id();
-    let authentication_connector_mca = payments::helpers::get_merchant_connector_account(
-        state,
-        processor,
-        None,
-        profile_id,
-        authentication_connector.to_string().as_str(),
-        None,
-    )
-    .await?;
+    let authentication_connector_mca = if enabled_only {
+        payments::helpers::get_merchant_connector_account(
+            state,
+            processor,
+            None,
+            profile_id,
+            authentication_connector.to_string().as_str(),
+            None,
+        )
+        .await?
+    } else {
+        payments::helpers::get_merchant_connector_account_for_webhook(
+            state,
+            processor,
+            None,
+            profile_id,
+            authentication_connector.to_string().as_str(),
+            None,
+        )
+        .await?
+    };
     Ok((authentication_connector, authentication_connector_mca))
 }
