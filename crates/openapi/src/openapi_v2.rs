@@ -136,8 +136,6 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_connector_session,
         routes::payments::list_payment_methods,
         routes::payments::payments_list,
-        routes::payments::revenue_recovery_invoices_list,
-        routes::payments::revenue_recovery_invoices_list_profile,
         routes::payments::payments_apply_pm_data,
 
         //Routes for payment methods
@@ -655,9 +653,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SamsungPayTokenData,
         api_models::payments::PaymentsCancelRequest,
         api_models::payments::PaymentListResponse,
-        api_models::payments::RecoveryPaymentListResponse,
-        api_models::payments::RecoveryPaymentsListResponseItem,
-        api_models::enums::RecoveryStatus,
         api_models::payments::CashappQr,
         api_models::payments::BankTransferData,
         api_models::payments::BankTransferNextStepsData,

@@ -1604,49 +1604,6 @@ pub fn list_payment_methods() {}
 )]
 pub fn payments_list() {}
 
-/// Payments - Recovery List
-///
-/// List the revenue recovery invoices of the merchant, with the derived recovery status of each.
-/// `recovery_status` is applied before `limit` / `offset`, and `total_count` is the size of the
-/// filtered set. `search` is an exact, case-sensitive match against the payment id or the merchant
-/// reference id. Sort with `order_on` (`created`, `modified`, `amount`,
-/// `attempt_count`) and `order_by` (`asc`, `desc`); rows with equal sort keys are ordered by id.
-#[cfg(feature = "v2")]
-#[utoipa::path(
-    get,
-    path = "/v2/payments/recovery-list",
-    params(api_models::payments::RecoveryPaymentListConstraints),
-    responses(
-        (status = 200, description = "Successfully retrieved the recovery invoices list", body = RecoveryPaymentListResponse),
-        (status = 400, description = "Invalid or unsupported query parameter"),
-        (status = 404, description = "No payments found")
-    ),
-    tag = "Payments",
-    operation_id = "List all Recovery Invoices",
-    security(("api_key" = []), ("jwt_key" = []))
-)]
-pub fn revenue_recovery_invoices_list() {}
-
-/// Payments - Recovery List (Profile)
-///
-/// Same as the recovery list, scoped to the profile of the authenticated session. A
-/// `profile_id` query parameter is ignored in favour of the session profile.
-#[cfg(feature = "v2")]
-#[utoipa::path(
-    get,
-    path = "/v2/payments/profile/recovery-list",
-    params(api_models::payments::RecoveryPaymentListConstraints),
-    responses(
-        (status = 200, description = "Successfully retrieved the recovery invoices list", body = RecoveryPaymentListResponse),
-        (status = 400, description = "Invalid or unsupported query parameter"),
-        (status = 404, description = "No payments found")
-    ),
-    tag = "Payments",
-    operation_id = "List all Recovery Invoices for a Profile",
-    security(("jwt_key" = []))
-)]
-pub fn revenue_recovery_invoices_list_profile() {}
-
 /// Payments - Check Balance and Apply PM Data
 ///
 /// Check the balance of the payment methods, apply the payment method data and recalculate remaining_amount and surcharge
