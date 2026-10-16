@@ -100,6 +100,9 @@ impl HealthCheckInterface for app::SessionState {
                 })?;
             Ok(HealthState::Running)
         } else {
+            if !locker.locker_enabled {
+                logger::warn!("Locker health check skipped: locker is disabled");
+            }
             Ok(HealthState::NotApplicable)
         }
     }
