@@ -1120,6 +1120,22 @@ def provider_wallet_mask_preflight(operator, source):
     return _validate_mask_phase_handoff(value, source, operator, cfg['phase_runtime'])
 
 
+def _corroborate_masked_body_key(credentials, client_id, client_secret):
+    """Corroborate the owned MCA's ASCII mask, without authenticating its keys."""
+    if not isinstance(credentials, dict) or credentials.get('auth_type') != 'BodyKey':
+        raise GsmUnavailable('owned standard PayPal MCA credentials cannot be corroborated in memory')
+    for field, expected in [('key1', client_id), ('api_key', client_secret)]:
+        observed = credentials.get(field)
+        if (not isinstance(expected, str) or not expected or not expected.isascii()
+                or not isinstance(observed, str) or not observed or not observed.isascii()):
+            raise GsmUnavailable('owned PayPal MCA masked projection is unavailable')
+        projection = '*' * len(expected) if len(expected) <= 4 else expected[:2] + '*' * (len(expected) - 4) + expected[-2:]
+        if observed != projection:
+            raise GsmUnavailable('owned PayPal MCA masked projection does not match')
+    # A mask match cannot prove equality of the hidden characters or OAuth success.
+    return 'MASKED_PROJECTION_MATCH'
+
+
 def provider_preflight(operator, source, base, token, first_body=None):
     cfg = operator.get('provider')
     if not cfg:
@@ -1138,13 +1154,11 @@ def provider_preflight(operator, source, base, token, first_body=None):
     assert account['test_mode'] is True and account.get('disabled') is not True
     assert account['profile_id'] == cfg['profile_id']
     credentials = account.get('connector_account_details')
-    if not isinstance(credentials, dict) or credentials.get('auth_type') != 'BodyKey':
-        raise GsmUnavailable('owned standard PayPal MCA credentials cannot be corroborated in memory')
-    assert credentials.get('key1') == os.environ[cfg['client_id_env']]
-    assert credentials.get('api_key') == os.environ[cfg['client_secret_env']]
+    credential_corroboration = _corroborate_masked_body_key(credentials,
+        os.environ[cfg['client_id_env']], os.environ[cfg['client_secret_env']])
     if first_body is not None:
         result = first_authorize_config_preflight(operator, source, base, token, first_body)
-        return {**result, 'wallet_mask_preflight': mask_preflight}
+        return {**result, 'wallet_mask_preflight': mask_preflight, 'credential_corroboration': credential_corroboration}
     pre_path = cfg['route_preflight_path']
     query = urllib.parse.parse_qs(urllib.parse.urlsplit(pre_path).query)
     assert query.get('force_sync') == ['true'] and query.get('expand_attempts') == ['true']
@@ -1156,7 +1170,7 @@ def provider_preflight(operator, source, base, token, first_body=None):
     assert payment['payment_id'] == cfg['route_preflight_payment_id']
     pre_operator = {**operator, 'provider': {**cfg, 'expected': cfg['pre_expected']}}
     evidence = provider_state_observation(pre_operator, payment, source, snapshots, identity, 'PSync')
-    return {**evidence, 'wallet_mask_preflight': mask_preflight}
+    return {**evidence, 'wallet_mask_preflight': mask_preflight, 'credential_corroboration': credential_corroboration}
 
 
 def mac_fixture_preflight(case, operator, source):
