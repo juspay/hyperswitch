@@ -881,6 +881,10 @@ pub struct ApplePayPredecryptData {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub device_manufacturer_identifier: Option<Secret<String>>,
+    /// Identifies a merchant-provisioned Apple Pay token.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub merchant_token_identifier: Option<Box<str>>,
 }
 
 impl ApplePayPredecryptData {

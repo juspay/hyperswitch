@@ -850,13 +850,13 @@ static JPMORGAN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
+                mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            three_ds: common_enums::FeatureStatus::Supported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
@@ -869,13 +869,13 @@ static JPMORGAN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
+                mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            three_ds: common_enums::FeatureStatus::Supported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
@@ -883,6 +883,22 @@ static JPMORGAN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 ),
             },
         );
+
+        for payment_method_type in [
+            enums::PaymentMethodType::ApplePay,
+            enums::PaymentMethodType::GooglePay,
+        ] {
+            jpmorgan_supported_payment_methods.add(
+                enums::PaymentMethod::Wallet,
+                payment_method_type,
+                PaymentMethodDetails {
+                    mandates: enums::FeatureStatus::Supported,
+                    refunds: enums::FeatureStatus::Supported,
+                    supported_capture_methods: supported_capture_methods.clone(),
+                    specific_features: None,
+                },
+            );
+        }
 
         jpmorgan_supported_payment_methods
     });

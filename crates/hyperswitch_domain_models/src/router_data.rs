@@ -680,6 +680,7 @@ pub struct ApplePayPredecryptDataInternal {
     pub device_manufacturer_identifier: Secret<String>,
     pub payment_data_type: Secret<String>,
     pub payment_data: ApplePayCryptogramDataInternal,
+    pub merchant_token_identifier: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -701,6 +702,7 @@ impl TryFrom<ApplePayPredecryptDataInternal> for common_payment_types::ApplePayP
             application_expiration_year,
             payment_data: data.payment_data.into(),
             device_manufacturer_identifier: Some(data.device_manufacturer_identifier),
+            merchant_token_identifier: data.merchant_token_identifier.map(String::into_boxed_str),
         })
     }
 }
