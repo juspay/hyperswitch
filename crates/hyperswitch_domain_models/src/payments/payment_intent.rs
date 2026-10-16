@@ -182,6 +182,21 @@ pub struct CustomerData {
     pub date_of_birth: Option<Secret<time::Date>>,
 }
 
+#[cfg(feature = "v2")]
+impl From<api_models::payments::CustomerDetails> for CustomerData {
+    fn from(customer: api_models::payments::CustomerDetails) -> Self {
+        Self {
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            phone_country_code: customer.phone_country_code,
+            tax_registration_id: customer.tax_registration_id,
+            customer_document_details: customer.document_details,
+            date_of_birth: customer.date_of_birth,
+        }
+    }
+}
+
 impl CustomerData {
     pub fn fill_missing_fields(&mut self, other: &Self) {
         self.name = self.name.clone().or_else(|| other.name.clone());
