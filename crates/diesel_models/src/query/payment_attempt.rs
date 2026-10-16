@@ -225,6 +225,43 @@ impl PaymentAttempt {
         .await
     }
 
+    /// Finds the attempt that originally produced `network_transaction_id`.
+    ///
+    /// The column is not unique - connectors that echo the original id back on later MITs leave
+    /// several matching rows - so the oldest attempt wins: that is the authorization the network
+    /// id actually refers to. Without the ordering the chosen row is whatever Postgres returns
+    /// first, which can differ between two calls for the same payment.
+    #[cfg(feature = "v1")]
+    pub async fn find_by_processor_merchant_id_network_transaction_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        network_transaction_id: &str,
+    ) -> StorageResult<Self> {
+        let query = <Self as HasTable>::table()
+            .filter(
+                dsl::processor_merchant_id
+                    .eq(processor_merchant_id.to_owned())
+                    .and(dsl::network_transaction_id.eq(network_transaction_id.to_owned())),
+            )
+            .order(dsl::created_at.asc())
+            .limit(1);
+
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            db_metrics::DatabaseOperation::Filter,
+            query.get_results_async::<Self>(conn.raw_connection()),
+        )
+        .await
+        .change_context(DatabaseError::Others)
+        .attach_printable("Error finding payment attempt by network transaction id")?
+        .into_iter()
+        .next()
+        .ok_or_else(|| report!(DatabaseError::NotFound))
+    }
+
     #[cfg(feature = "v2")]
     pub async fn find_by_profile_id_connector_transaction_id(
         conn: &DatabaseConnectionWithContext<'_>,
