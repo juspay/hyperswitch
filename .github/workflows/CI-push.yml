@@ -123,6 +123,8 @@ jobs:
 
       - name: Run cargo check
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 10
         run: cargo check --features "release"
 
       - name: Show sccache stats
