@@ -3078,7 +3078,9 @@ Cypress.Commands.add(
       );
     }
 
-    const configInfo = execConfig(validatedConfigs);
+    const configInfo = execConfig(validatedConfigs, {
+      authenticationType: authentication_type,
+    });
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
 
     const body = JSON.parse(JSON.stringify(createPaymentBody));
