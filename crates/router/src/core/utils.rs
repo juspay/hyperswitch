@@ -267,6 +267,14 @@ pub(super) async fn construct_payout_router_data_common<F>(
                 .payouts
                 .metadata
                 .as_ref()
+                // Parse only metadata that carries vendor details; unrelated
+                // merchant metadata keeps the previous behavior and is treated
+                // as absent.
+                .filter(|metadata| {
+                    let value = metadata.peek();
+                    value.get("vendor_details").is_some()
+                        || value.get("individual_details").is_some()
+                })
                 .map(|metadata| {
                     serde_json::from_value::<PayoutVendorAccountDetails>(metadata.peek().to_owned())
                         .map_err(|error| {
