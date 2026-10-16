@@ -38,7 +38,6 @@ pub use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-#[cfg(feature = "v1")]
 use hyperswitch_interfaces::webhooks::WebhookResourceData;
 use hyperswitch_masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
