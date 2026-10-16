@@ -383,6 +383,9 @@ where
                                     }?
                                 }
                                 Err(body) => {
+                                    // Preserve the HTTP status if connector-specific parsing fails.
+                                    let http_status = http::StatusCode::from_u16(body.status_code)
+                                        .unwrap_or(http::StatusCode::INTERNAL_SERVER_ERROR);
                                     router_data.connector_http_status_code = Some(body.status_code);
                                     router_data.external_latency = Some(
                                         router_data
@@ -409,7 +412,8 @@ where
                                                 .get_5xx_error_response(
                                                     body,
                                                     Some(&mut connector_event),
-                                                )?;
+                                                )
+                                                .attach(http_status)?;
                                             state
                                                 .event_handler()
                                                 .log_connector_event(&connector_event);
@@ -420,7 +424,8 @@ where
                                                 .get_error_response(
                                                     body,
                                                     Some(&mut connector_event),
-                                                )?;
+                                                )
+                                                .attach(http_status)?;
                                             if let Some(status) = error_res.attempt_status {
                                                 router_data.status = status;
                                             };
