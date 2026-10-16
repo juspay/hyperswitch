@@ -9145,24 +9145,26 @@ Cypress.Commands.add(
       .then((response) => {
         logRequestId(response.headers["x-request-id"]);
 
-        if (expectSuccess) {
-          expect(response.status).to.equal(200);
-          expect(response.body)
-            .to.have.property("fingerprint_id")
-            .to.equal(cardBin);
-          expect(response.body).to.have.property("data_kind").to.equal(type);
-          expect(response.body).to.have.property("created_at").to.not.be.null;
-          globalState.set("blocklistRuleId", response.body.fingerprint_id);
-        } else {
-          // the only client-side validation failure this API returns for a
-          // bad card_bin/generic_card_bin length is a 400
-          expect(response.status).to.equal(400);
-          expect(response.body).to.have.nested.property(
-            "error.type",
-            "invalid_request"
-          );
-        }
-        return response;
+        return cy.wrap(response).then(() => {
+          if (expectSuccess) {
+            expect(response.status).to.equal(200);
+            expect(response.body)
+              .to.have.property("fingerprint_id")
+              .to.equal(cardBin);
+            expect(response.body).to.have.property("data_kind").to.equal(type);
+            expect(response.body).to.have.property("created_at").to.not.be.null;
+            globalState.set("blocklistRuleId", response.body.fingerprint_id);
+          } else {
+            // the only client-side validation failure this API returns for a
+            // bad card_bin/generic_card_bin length is a 400
+            expect(response.status).to.equal(400);
+            expect(response.body).to.have.nested.property(
+              "error.type",
+              "invalid_request"
+            );
+          }
+          return response;
+        });
       });
   }
 );
@@ -9195,17 +9197,19 @@ Cypress.Commands.add(
       .then((response) => {
         logRequestId(response.headers["x-request-id"]);
 
-        if (expectSuccess) {
-          expect(response.status).to.equal(200);
-          cy.log(`Blocklist rule deleted for ${type}: ${data}`);
-        } else {
-          expect(response.status).to.equal(400);
-          expect(response.body).to.have.nested.property(
-            "error.type",
-            "invalid_request"
-          );
-        }
-        return response;
+        return cy.wrap(response).then(() => {
+          if (expectSuccess) {
+            expect(response.status).to.equal(200);
+            cy.log(`Blocklist rule deleted for ${type}: ${data}`);
+          } else {
+            expect(response.status).to.equal(400);
+            expect(response.body).to.have.nested.property(
+              "error.type",
+              "invalid_request"
+            );
+          }
+          return response;
+        });
       });
   }
 );
