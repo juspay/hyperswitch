@@ -5,11 +5,11 @@ use std::{
 };
 
 use common_enums::enums;
+#[cfg(feature = "diesel")]
+use common_utils::impl_to_sql_from_sql_json;
 use common_utils::{
     consts, date_time, errors, events, ext_traits::OptionExt, pii, types::MinorUnit,
 };
-#[cfg(feature = "diesel")]
-use common_utils::impl_to_sql_from_sql_json;
 #[cfg(feature = "diesel")]
 use diesel::{
     sql_types::{Jsonb, Text},
