@@ -110,6 +110,7 @@ pub struct Settings<S: SecretState> {
     pub drainer: DrainerSettings,
     pub jwekey: SecretStateContainer<Jwekey, S>,
     pub webhooks: WebhooksSettings,
+    pub incoming_webhooks: IncomingWebhooksSettings,
     pub pm_filters: ConnectorFilters,
     pub customer_acceptance_support: CustomerAcceptanceSupportConfig,
     pub bank_config: BankRedirectConfig,
@@ -1324,6 +1325,12 @@ pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
     pub ignore_error: WebhookIgnoreErrorSettings,
     pub redis_lock_expiry_seconds: u32,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct IncomingWebhooksSettings {
+    pub mtls_verified_header: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

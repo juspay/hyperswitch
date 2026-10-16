@@ -719,6 +719,7 @@ pub(crate) async fn fetch_raw_secrets(
         scheduler: conf.scheduler,
         jwekey,
         webhooks: conf.webhooks,
+        incoming_webhooks: conf.incoming_webhooks,
         pm_filters: conf.pm_filters,
         customer_acceptance_support: conf.customer_acceptance_support,
         payout_method_filters: conf.payout_method_filters,
