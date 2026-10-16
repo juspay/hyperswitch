@@ -13,16 +13,16 @@ concurrency:
 jobs:
   wasm-ci:
     name: Check wasm build
-    # Stays on a GitHub-hosted runner: wasm-pack's own wasm-opt step needs to
-    # download a Binaryen binary from GitHub releases, and hyperswitch-runners
-    # has no general internet egress (confirmed: even `apt-get update` can't
-    # reach any of its configured mirrors there) — only a curated allowlist
-    # (crates.io, the Actions service, S3, a few release-CDN paths other tools
-    # already rely on). Everything else in this job still moved to S3 sccache.
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      # actions/cache keys are immutable; needed for `gh cache delete`.
+      actions: write
+
     env:
-      # sccache restored as one archive instead of S3 — avoids per-object round trips.
+      # sccache on local disk via actions/cache, not SCCACHE_GHA_ENABLED —
+      # see check-msrv in CI-push.yml for why.
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: "2G"
@@ -37,20 +37,17 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
 
-      - name: Mask S3 cache location in job logs
-        shell: bash
-        run: .github/scripts/sccache-mask-s3-env.sh
-
       - name: Install sccache
         uses: taiki-e/install-action@v2
         with:
           tool: sccache
           checksum: true
 
-      - name: Restore sccache cache from S3
-        continue-on-error: true
-        shell: bash
-        run: .github/scripts/sccache-restore-s3.sh wasm
+      - name: Restore sccache cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: sccache-local-wasm-${{ runner.os }}-${{ runner.arch }}
 
       - name: Install wasm-pack
         uses: taiki-e/install-action@v2
@@ -71,11 +68,18 @@ jobs:
         shell: bash
         run: sccache --show-stats
 
-      # TEMPORARY: force this run to populate the shared "wasm" S3 cache,
-      # since no cache has ever been saved under that key. Revert once this PR
-      # has run and the cache is warm — normal behaviour is restored below.
-      - name: Save sccache cache to S3
-        if: ${{ !cancelled() }}
+      # !cancelled(), not always() — don't delete+save on a cancelled run.
+      - name: Delete stale sccache cache entry
+        if: ${{ !cancelled() && github.event_name == 'push' }}
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-save-s3.sh wasm
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh cache delete "sccache-local-wasm-${{ runner.os }}-${{ runner.arch }}" --repo "${{ github.repository }}"
+
+      - name: Save sccache cache
+        if: ${{ !cancelled() && github.event_name == 'push' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: sccache-local-wasm-${{ runner.os }}-${{ runner.arch }}
