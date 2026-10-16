@@ -23,20 +23,52 @@ pub(super) struct IncomingWebhookVerifier<'a> {
     settings: &'a IncomingWebhooksSettings,
 }
 
+/// The outcome of incoming webhook network verification, such as mTLS or source IP checks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum NetworkVerification {
+    /// The source passed network verification.
+    Verified,
+    /// Required verification was disabled; the source remains unverified.
+    Skipped,
+    /// The connector does not require network verification.
+    NotRequired,
+}
+
+impl NetworkVerification {
+    /// Use connector source verification only when network verification is not required.
+    pub(super) fn resolve_source_verified(self, connector_source_verified: bool) -> bool {
+        match self {
+            Self::Verified => true,
+            Self::Skipped => false,
+            Self::NotRequired => connector_source_verified,
+        }
+    }
+}
+
 impl<'a> IncomingWebhookVerifier<'a> {
     pub(super) fn new(settings: &'a IncomingWebhooksSettings) -> Self {
         Self { settings }
     }
 
-    /// Enforce mTLS before processing when enabled in Superposition for the connector.
-    /// Trusted ingress must set the configured header to `true` only on verified mTLS
-    /// endpoints and strip caller-supplied values from all other endpoints.
-    pub(super) async fn verify_mtls(
+    /// Run router-managed source verification before processing the webhook.
+    pub(super) async fn verify(
         &self,
         state: &SessionState,
         connector: &ConnectorEnum,
         request_headers: &HeaderMap,
-    ) -> RouterResult<()> {
+    ) -> RouterResult<NetworkVerification> {
+        self.verify_mtls(state, connector, request_headers).await
+    }
+
+    /// Enforce mTLS before processing when enabled in Superposition for the connector.
+    /// Trusted ingress must set the configured header to `true` only on verified mTLS
+    /// endpoints and strip caller-supplied values from all other endpoints.
+    async fn verify_mtls(
+        &self,
+        state: &SessionState,
+        connector: &ConnectorEnum,
+        request_headers: &HeaderMap,
+    ) -> RouterResult<NetworkVerification> {
         if connector.is_webhook_mtls_required() {
             let connector_name = connector
                 .id()
@@ -57,10 +89,10 @@ impl<'a> IncomingWebhookVerifier<'a> {
                     connector = %connector_name,
                     "Skipping incoming webhook mTLS verification because incoming_webhooks.mtls_verification_enabled is disabled"
                 );
-                Ok(())
+                Ok(NetworkVerification::Skipped)
             }
         } else {
-            Ok(())
+            Ok(NetworkVerification::NotRequired)
         }
     }
 
@@ -69,7 +101,7 @@ impl<'a> IncomingWebhookVerifier<'a> {
         &self,
         connector: &ConnectorEnum,
         request_headers: &HeaderMap,
-    ) -> RouterResult<()> {
+    ) -> RouterResult<NetworkVerification> {
         let connector_name = connector.id();
         self.is_mtls_verification_header_present(request_headers)
             .and_then(|verified| {
@@ -80,7 +112,7 @@ impl<'a> IncomingWebhookVerifier<'a> {
                             .attach_printable(message),
                     )
                 } else {
-                    Ok(())
+                    Ok(NetworkVerification::Verified)
                 }
             })
             .inspect_err(|_| {
@@ -122,7 +154,7 @@ mod tests {
     use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
     use external_services::superposition::Config;
 
-    use super::IncomingWebhookVerifier;
+    use super::{IncomingWebhookVerifier, NetworkVerification};
     use crate::{
         configs::settings::IncomingWebhooksSettings,
         core::{configs::dimension_config::IncomingWebhookMtlsVerificationEnabled, errors},
@@ -156,6 +188,24 @@ mod tests {
     #[test]
     fn mtls_verification_is_disabled_by_default() {
         assert!(!IncomingWebhookMtlsVerificationEnabled::default_value());
+    }
+
+    #[test]
+    fn skipped_network_verification_does_not_trust_connector_result() {
+        assert!(!NetworkVerification::Skipped.resolve_source_verified(true));
+        assert!(!NetworkVerification::Skipped.resolve_source_verified(false));
+    }
+
+    #[test]
+    fn network_verification_establishes_source_verification() {
+        assert!(NetworkVerification::Verified.resolve_source_verified(false));
+        assert!(NetworkVerification::Verified.resolve_source_verified(true));
+    }
+
+    #[test]
+    fn connectors_without_network_verification_use_connector_result() {
+        assert!(NetworkVerification::NotRequired.resolve_source_verified(true));
+        assert!(!NetworkVerification::NotRequired.resolve_source_verified(false));
     }
 
     #[test]
@@ -201,10 +251,13 @@ mod tests {
                 error.current_context(),
                 errors::ApiErrorResponse::WebhookAuthenticationFailed
             ));
-            assert!(format!("{error:?}").contains("verification header is missing or invalid"));
-            assert!(verifier
-                .validate_mtls(&connector, &headers_with(&["true"]))
-                .is_ok());
+            assert!(format!("{error:?}").contains("missing or invalid verification header"));
+            assert_eq!(
+                verifier
+                    .validate_mtls(&connector, &headers_with(&["true"]))
+                    .unwrap(),
+                NetworkVerification::Verified
+            );
         }
     }
 

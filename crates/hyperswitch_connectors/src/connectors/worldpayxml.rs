@@ -1388,9 +1388,8 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         >,
         _connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        // Source verification uses mTLS. When enabled in Superposition, the router
-        // enforces mTLS before processing the webhook.
-        Ok(true)
+        // The router establishes source verification only after successful mTLS validation.
+        Ok(false)
     }
 
     fn get_webhook_object_reference_id(

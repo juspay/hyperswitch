@@ -2114,9 +2114,8 @@ impl webhooks::IncomingWebhook for Santander {
         _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         _connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        // Source verification uses mTLS. When enabled in Superposition, the router
-        // enforces mTLS before processing the webhook.
-        Ok(true)
+        // The router establishes source verification only after successful mTLS validation.
+        Ok(false)
     }
 
     fn get_webhook_object_reference_id(

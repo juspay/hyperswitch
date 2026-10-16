@@ -141,8 +141,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         )
         .await?;
 
-    IncomingWebhookVerifier::new(&state.conf.incoming_webhooks)
-        .verify_mtls(&state, &connector, request_details.headers)
+    let network_verification = IncomingWebhookVerifier::new(&state.conf.incoming_webhooks)
+        .verify(&state, &connector, request_details.headers)
         .await?;
 
     let decoded_body = connector
@@ -286,6 +286,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .attach_printable("There was an issue in incoming webhook source verification")?
         };
 
+        let source_verified = network_verification.resolve_source_verified(source_verified);
         logger::info!(source_verified=?source_verified);
 
         if source_verified {
