@@ -37,11 +37,11 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "frm")]
 use hyperswitch_interfaces::configs::Connectors;
+#[cfg(feature = "payouts")]
+use hyperswitch_masking::ExposeInterface;
 #[cfg(feature = "v2")]
 use hyperswitch_masking::ExposeOptionInterface;
-use hyperswitch_masking::Secret;
-#[cfg(feature = "payouts")]
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{PeekInterface, Secret};
 use maud::{html, PreEscaped};
 use redis_interface::errors::RedisError;
 use regex::Regex;
@@ -73,6 +73,34 @@ use crate::{
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
+
+pub async fn get_merchant_fingerprint_secret(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+) -> RouterResult<String> {
+    match merchant_account.fingerprint_secret.as_ref() {
+        Some(secret) => Ok(secret.peek().clone()),
+        None => {
+            router_env::logger::warn!(
+                merchant_id = ?merchant_account.get_id(),
+                "fingerprint_secret missing from merchant account; falling back to Superposition"
+            );
+            super::metrics::FINGERPRINT_SECRET_SUPERPOSITION_FETCH_COUNT.add(1, &[]);
+            let dimensions = dimension_state::Dimensions::new()
+                .with_processor_merchant_id(merchant_account.get_id().clone().into());
+            let secret = dimensions
+                .get_fingerprint_secret(&*state.store, state.superposition_service.as_ref(), None)
+                .await;
+
+            match secret.is_empty() {
+                false => Ok(secret),
+                true => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "fingerprint_secret not found in merchant account or Superposition",
+                ),
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct FeatureConfig {
