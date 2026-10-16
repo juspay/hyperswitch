@@ -51,28 +51,6 @@ use crate::{
     utils::OptionExt,
 };
 
-const UCS_AUTHENTICATION_DATA_METADATA_KEY: &str = "authentication_data";
-
-fn persist_ucs_authentication_data_in_connector_metadata(
-    connector_metadata: &mut Option<serde_json::Value>,
-    authentication_data: &router_request_types::UcsAuthenticationData,
-) -> RouterResult<()> {
-    let authentication_data = serde_json::to_value(authentication_data)
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize UCS authentication data")?;
-    let metadata = connector_metadata
-        .get_or_insert_with(|| serde_json::Value::Object(Default::default()))
-        .as_object_mut()
-        .ok_or(ApiErrorResponse::InternalServerError)
-        .attach_printable("Connector metadata is not a JSON object")?;
-
-    metadata.insert(
-        UCS_AUTHENTICATION_DATA_METADATA_KEY.to_string(),
-        authentication_data,
-    );
-    Ok(())
-}
-
 #[cfg(feature = "v2")]
 #[async_trait]
 impl
@@ -554,9 +532,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .await?;
 
             // Convert back to CompleteAuthorize router data while preserving pre authentication response data
-            let mut pre_authenticate_response = pre_authenticate_router_data.response.clone();
+            let pre_authenticate_response = pre_authenticate_router_data.response.clone();
 
-            let pre_authentication_data =
+            authorize_request_data.ucs_authentication_data =
                 if let Ok(types::PaymentsResponseData::TransactionResponse {
                     ref authentication_data,
                     ..
@@ -566,28 +544,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 } else {
                     None
                 };
-            authorize_request_data.ucs_authentication_data = pre_authentication_data.clone();
-
-            // Elavon PG stops this flow after PreAuthenticate so the shopper can complete its
-            // hosted payment page. Persist the payment-session href returned in
-            // `authentication_data`; CompleteAuthorize is a separate request and otherwise has
-            // no way to build the session-only `POST /transactions` settle call.
-            if connector.connector_name == api_models::enums::Connector::ElavonPg {
-                if let (
-                    Some(authentication_data),
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        connector_metadata, ..
-                    }),
-                ) = (
-                    pre_authentication_data.as_ref(),
-                    &mut pre_authenticate_response,
-                ) {
-                    persist_ucs_authentication_data_in_connector_metadata(
-                        connector_metadata,
-                        authentication_data,
-                    )?;
-                }
-            }
 
             let mut authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(

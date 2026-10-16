@@ -72,29 +72,23 @@ use crate::{
 const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
-const ELAVON_PG_CONNECTOR_ID: &str = "elavon_pg";
-const ELAVON_PG_PAYMENT_SESSIONS_SEGMENT: &str = "/payment-sessions/";
+const REDIRECT_COMPLETION_PAYMENT_METHOD_TOKEN_KEYS: [&str; 2] =
+    ["payment_method_token", "payment_handle_token"];
 
-fn build_elavon_pg_payment_session_payment_method(
-    connector: &str,
-    payment_session_reference: Option<&str>,
+fn build_redirect_completion_payment_method(
+    connector_metadata: Option<&serde_json::Value>,
 ) -> Option<payments_grpc::PaymentMethod> {
-    if connector != ELAVON_PG_CONNECTOR_ID {
-        return None;
-    }
-
-    payment_session_reference
-        .filter(|reference| {
-            (reference.starts_with("https://") || reference.starts_with("http://"))
-                && reference.contains(ELAVON_PG_PAYMENT_SESSIONS_SEGMENT)
+    connector_metadata
+        .and_then(|metadata| {
+            REDIRECT_COMPLETION_PAYMENT_METHOD_TOKEN_KEYS
+                .iter()
+                .find_map(|key| metadata.get(*key).and_then(serde_json::Value::as_str))
         })
-        .map(|payment_session| payments_grpc::PaymentMethod {
-            // UCS requires a payment method for every Authorize request. Elavon PG ignores
-            // this token on the hosted-page settle path and uses the same session href from
-            // `authentication_data` to build `{ "paymentSession": ... }`.
+        .filter(|token| !token.trim().is_empty())
+        .map(|token| payments_grpc::PaymentMethod {
             payment_method: Some(payments_grpc::payment_method::PaymentMethod::Token(
                 payments_grpc::TokenPaymentMethodType {
-                    token: Some(Secret::new(payment_session.to_string())),
+                    token: Some(Secret::new(token.to_string())),
                     token_payment_method_type: None,
                 },
             )),
@@ -940,22 +934,6 @@ impl
             )
         });
 
-        // Prefer authentication data loaded from the authentication record, then fall back to
-        // connector metadata persisted by the redirect-producing Authorize flow.
-        let authentication_data = router_data.request.authentication_data.clone().or_else(|| {
-            router_data
-                .request
-                .connector_meta
-                .as_ref()
-                .and_then(|metadata| metadata.get("authentication_data"))
-                .and_then(|value| {
-                    serde_json::from_value::<router_request_types::UcsAuthenticationData>(
-                        value.clone(),
-                    )
-                    .ok()
-                })
-        });
-
         let payment_method = payment_method_data
             .map(|payment_method_data| {
                 unified_connector_service::build_unified_connector_service_payment_method(
@@ -966,31 +944,11 @@ impl
                 )
             })
             .transpose()?
-            // Post-3DS settle: card data is not persisted through the redirect, so pay by the
-            // handle token the authenticate leg returned in connector metadata (stored on the
-            // request as connector_meta, same channel as authentication_data below).
+            // Card data is not persisted through a redirect. Connectors that return a
+            // single-use payment token in connector metadata can settle with that token.
             .or_else(|| {
-                router_data
-                    .request
-                    .connector_meta
-                    .as_ref()
-                    .and_then(|metadata| metadata.get("payment_handle_token"))
-                    .and_then(|token| token.as_str())
-                    .map(|handle_token| payments_grpc::PaymentMethod {
-                        payment_method: Some(payments_grpc::payment_method::PaymentMethod::Token(
-                            payments_grpc::TokenPaymentMethodType {
-                                token: Some(Secret::new(handle_token.to_string())),
-                                token_payment_method_type: None,
-                            },
-                        )),
-                    })
-            })
-            .or_else(|| {
-                build_elavon_pg_payment_session_payment_method(
-                    router_data.connector.as_str(),
-                    authentication_data
-                        .as_ref()
-                        .and_then(|data| data.threeds_server_transaction_id.as_deref()),
+                build_redirect_completion_payment_method(
+                    router_data.request.connector_meta.as_ref(),
                 )
             });
 
@@ -1011,9 +969,32 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-        let authentication_data = authentication_data
+        // First try to get authentication_data from the request
+        let authentication_data = router_data
+            .request
+            .authentication_data
+            .clone()
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
+
+        // If not in request, try to extract from connector_meta (stored during Authorize flow)
+        let authentication_data = if authentication_data.is_none() {
+            router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .and_then(|metadata| metadata.get("authentication_data"))
+                .and_then(|value| {
+                    serde_json::from_value::<router_request_types::UcsAuthenticationData>(
+                        value.clone(),
+                    )
+                    .ok()
+                })
+                .map(payments_grpc::AuthenticationData::foreign_try_from)
+                .transpose()?
+        } else {
+            authentication_data
+        };
 
         let metadata = router_data
             .request
