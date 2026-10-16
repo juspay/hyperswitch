@@ -23,7 +23,7 @@ env:
 jobs:
   formatting:
     name: Check formatting
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Generate a token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
@@ -257,7 +257,7 @@ jobs:
 
   typos:
     name: Spell check
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -267,7 +267,7 @@ jobs:
 
   typos-required:
     name: Spell check specific critical directories
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
