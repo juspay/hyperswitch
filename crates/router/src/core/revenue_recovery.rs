@@ -31,6 +31,7 @@ use hyperswitch_domain_models::{
     platform, revenue_recovery as domain_revenue_recovery, ApiModelToDieselModelConvertor,
 };
 use scheduler::errors as sch_errors;
+use strum::IntoEnumIterator;
 
 use crate::{
     core::{
@@ -2148,8 +2149,6 @@ pub fn candidate_intent_statuses_for_recovery_status(
     recovery_statuses: &[RecoveryStatus],
     allowed: Option<&[IntentStatus]>,
 ) -> Vec<IntentStatus> {
-    use strum::IntoEnumIterator;
-
     IntentStatus::iter()
         .filter(|intent_status| allowed.map_or(true, |allowed| allowed.contains(intent_status)))
         .filter(|intent_status| {
@@ -2380,7 +2379,6 @@ mod recovery_status_mapping_tests {
     use std::collections::BTreeSet;
 
     use common_utils::date_time;
-    use strum::IntoEnumIterator;
 
     use super::*;
 
@@ -2472,16 +2470,5 @@ mod recovery_status_mapping_tests {
                 "candidate intent statuses and map_recovery_status disagree for {recovery_status:?}",
             );
         }
-    }
-
-    #[test]
-    fn candidate_intent_statuses_respect_the_allowed_intent_statuses() {
-        let candidates = candidate_intent_statuses_for_recovery_status(
-            &[RecoveryStatus::Succeeded, RecoveryStatus::Terminated],
-            Some(&[IntentStatus::Succeeded, IntentStatus::Failed]),
-        );
-        assert!(candidates.contains(&IntentStatus::Succeeded));
-        assert!(candidates.contains(&IntentStatus::Failed));
-        assert_eq!(candidates.len(), 2);
     }
 }

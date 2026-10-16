@@ -243,6 +243,51 @@ pub async fn list_payments(
     .await
 }
 
+/// Turns `starting_after` / `ending_before` into `created_gte` / `created_lte` bounds, so the page
+/// and count queries filter on the same time range. Explicit time bounds take precedence.
+#[cfg(all(feature = "v2", feature = "olap"))]
+async fn resolve_pagination_cursors(
+    state: &SessionState,
+    platform: &domain::Platform,
+    constraints: &mut payments_api::PaymentListConstraints,
+) -> RouterResult<()> {
+    let db: &dyn StorageInterface = state.store.as_ref();
+    let has_lower_bound = constraints
+        .created_gte
+        .or(constraints.created_gt)
+        .or(constraints.created)
+        .is_some();
+    let has_upper_bound = constraints
+        .created_lte
+        .or(constraints.created_lt)
+        .or(constraints.created)
+        .is_some();
+
+    if let (false, Some(cursor)) = (has_lower_bound, constraints.starting_after.take()) {
+        constraints.created_gte = Some(find_intent_created_at(db, platform, &cursor).await?);
+    }
+    if let (false, Some(cursor)) = (has_upper_bound, constraints.ending_before.take()) {
+        constraints.created_lte = Some(find_intent_created_at(db, platform, &cursor).await?);
+    }
+    Ok(())
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+async fn find_intent_created_at(
+    db: &dyn StorageInterface,
+    platform: &domain::Platform,
+    payment_id: &common_utils::id_type::GlobalPaymentId,
+) -> RouterResult<time::PrimitiveDateTime> {
+    db.find_payment_intent_by_id(
+        payment_id,
+        platform.get_processor().get_key_store(),
+        platform.get_processor().get_account().storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+    .map(|payment_intent| payment_intent.created_at)
+}
+
 /// Maps intents to recovery list items using their workflow entries and billing retry threshold.
 #[cfg(all(feature = "v2", feature = "olap"))]
 async fn build_recovery_list_items(
@@ -325,6 +370,7 @@ pub async fn revenue_recovery_list_payments(
     if profile_id.is_some() {
         constraints.profile_id = profile_id;
     }
+    resolve_pagination_cursors(&state, &platform, &mut constraints).await?;
     common_utils::metrics::utils::record_operation_time(
         async {
             if let Some(recovery_status) = recovery_status {
