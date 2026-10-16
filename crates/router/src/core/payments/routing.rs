@@ -1738,6 +1738,7 @@ pub async fn perform_hybrid_routing_if_enabled(
     static_connectors: &[routing_types::RoutableConnectorChoice],
     static_approach: common_enums::RoutingApproach,
     preferred_connector: Option<String>,
+    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> (
     Vec<routing_types::RoutableConnectorChoice>,
     common_enums::RoutingApproach,
@@ -1771,6 +1772,7 @@ pub async fn perform_hybrid_routing_if_enabled(
                 fallback_config,
                 &routing::TransactionData::Payment(payment_dsl_input.clone()),
                 business_profile,
+                active_mca_ids,
             )
             .await
             .inspect_err(|error| {
@@ -2638,7 +2640,7 @@ fn update_eligible_connectors_for_installments(
         .or(installment_supported_connectors)
 }
 
-/// Filters active fallbacks by payment eligibility while preserving their configured order.
+/// Filters fallbacks using the active MCA IDs fetched by the payment-routing caller.
 #[cfg(feature = "v1")]
 pub async fn filter_fallback_based_on_eligibility(
     state: &SessionState,
@@ -2646,19 +2648,15 @@ pub async fn filter_fallback_based_on_eligibility(
     fallback_config: &[routing_types::RoutableConnectorChoice],
     transaction_data: &routing::TransactionData<'_>,
     business_profile: &domain::Profile,
+    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let active_mca_ids =
-        get_active_merchant_connector_accounts(state, key_store, business_profile.get_id())
-            .await?
-            .get_ids();
-
     perform_eligibility_analysis(
         state,
         key_store,
         fallback_config.to_vec(),
         transaction_data,
         None,
-        &active_mca_ids,
+        active_mca_ids,
         business_profile,
     )
     .await
@@ -2763,6 +2761,26 @@ pub async fn perform_fallback_routing(
     .await
 }
 
+pub(super) async fn get_eligibility_fallback_config(
+    state: &SessionState,
+    transaction_data: &routing::TransactionData<'_>,
+    eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
+    business_profile: &domain::Profile,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    #[cfg(feature = "v1")]
+    let eligible_connectors =
+        update_eligible_connectors_for_installments(state, transaction_data, eligible_connectors);
+    get_fallback_config(state, transaction_data, business_profile)
+        .await
+        .map(|mut fallback| {
+            if let Some(eligible) = eligible_connectors {
+                fallback.retain(|choice| eligible.contains(&choice.connector));
+            }
+            fallback
+        })
+}
+
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_eligibility_analysis_with_fallback(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -2770,6 +2788,9 @@ pub async fn perform_eligibility_analysis_with_fallback(
     transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
     business_profile: &domain::Profile,
+    fetched_mca_ids: Option<
+        &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    >,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     logger::debug!("euclid_routing: performing eligibility");
 
@@ -2784,27 +2805,39 @@ pub async fn perform_eligibility_analysis_with_fallback(
     // swapped for an arbitrary default. Hard failure can still occur downstream (e.g. a
     // cold-cache refresh errors after this fetch succeeded); only the MCA-fetch failure
     // is degraded here. Never populate the cgraph cache from a failed fetch.
-    let active_mca_ids =
-        match get_active_merchant_connector_accounts(state, key_store, business_profile.get_id())
+    let fetched_ids;
+    let active_mca_ids = match fetched_mca_ids {
+        Some(ids) => ids,
+        None => {
+            fetched_ids = match get_active_merchant_connector_accounts(
+                state,
+                key_store,
+                business_profile.get_id(),
+            )
             .await
-        {
-            Ok(merchant_connector_accounts) => merchant_connector_accounts.get_ids(),
-            Err(err) => {
-                logger::error!(
-                    error = ?err,
-                    "euclid_routing: failed to fetch active merchant connector accounts; \
-                     degrading to eligibility-filtered fallback config"
-                );
-                return get_fallback_config(state, transaction_data, business_profile)
-                    .await
-                    .map(|mut fallback_config| {
-                        if let Some(eligible) = eligible_connectors {
-                            fallback_config.retain(|choice| eligible.contains(&choice.connector));
-                        }
-                        fallback_config
-                    });
-            }
-        };
+            {
+                Ok(merchant_connector_accounts) => merchant_connector_accounts.get_ids(),
+                Err(err) => {
+                    logger::error!(
+                        error = ?err,
+                        "euclid_routing: failed to fetch active merchant connector accounts; \
+                         degrading to eligibility-filtered fallback config"
+                    );
+                    return get_fallback_config(state, transaction_data, business_profile)
+                        .await
+                        .map(|mut fallback_config| {
+                            if let Some(eligible) = eligible_connectors {
+                                fallback_config
+                                    .retain(|choice| eligible.contains(&choice.connector));
+                            }
+                            fallback_config
+                        });
+                }
+            };
+
+            &fetched_ids
+        }
+    };
 
     let mut final_selection = perform_eligibility_analysis(
         state,
@@ -2812,18 +2845,17 @@ pub async fn perform_eligibility_analysis_with_fallback(
         chosen,
         transaction_data,
         eligible_connectors.as_ref(),
-        &active_mca_ids,
+        active_mca_ids,
         business_profile,
     )
     .await?;
-
     let fallback_selection = perform_fallback_routing(
         state,
         key_store,
         transaction_data,
         eligible_connectors.as_ref(),
         business_profile,
-        &active_mca_ids,
+        active_mca_ids,
     )
     .await;
 

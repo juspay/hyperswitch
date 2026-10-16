@@ -3540,10 +3540,16 @@ pub struct RevenueRecovery;
 #[cfg(feature = "v2")]
 impl RevenueRecovery {
     pub fn server(state: AppState) -> Scope {
-        use super::{payments, revenue_recovery_data_backfill, revenue_recovery_redis};
+        use super::{
+            payments, revenue_recovery, revenue_recovery_data_backfill, revenue_recovery_redis,
+        };
         web::scope("/v2/recovery")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(payments::recovery_payments_create)))
+            .service(
+                web::resource("/{merchant_reference_id}/cancel")
+                    .route(web::post().to(revenue_recovery::revenue_recovery_cancel)),
+            )
             .service(
                 web::scope("/data-backfill")
                     .service(
