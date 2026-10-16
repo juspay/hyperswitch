@@ -276,7 +276,9 @@ function createIndividualRolloutConfig(
     };
 
     return makeRequest("POST", url, requestBody, "created").then((response) => {
-      if (response.status === 200) {
+      // makeRequest resolves { success: true } on HTTP 200; a raw response
+      // object (with .status/.body) is only returned for non-200 outcomes.
+      if (response.success) {
         return cy.wrap({ success: true, flow: methodFlow });
       }
 
@@ -294,7 +296,9 @@ function createIndividualRolloutConfig(
   const updateConfig = () => {
     return makeRequest("POST", `${url}${key}`, { value }, "updated").then(
       (updateResponse) => {
-        if (updateResponse.status === 200) {
+        // makeRequest resolves { success: true } on HTTP 200; a raw response
+        // object (with .status/.body) is only returned for non-200 outcomes.
+        if (updateResponse.success) {
           return cy.wrap({ success: true, flow: methodFlow });
         }
 
@@ -395,14 +399,24 @@ function createUcsConfigs(globalState, flow, type, configValueOverride = null) {
   const connector = getConnectorIdForRedirect(globalState);
   const methodFlowInput = flow || globalState.get("methodFlow");
 
-  if ((!httpUrl || !httpsUrl) && !configValueOverride) {
-    throw new Error(
-      `Missing proxyHttp or proxyHttps in globalState. globalState.proxyHttp=${httpUrl}, globalState.proxyHttps=${httpsUrl}, Cypress.env("PROXY_HTTP")=${Cypress.env("PROXY_HTTP")}, Cypress.env("PROXY_HTTPS")=${Cypress.env("PROXY_HTTPS")}`
+  // Proxy URLs are optional: since #14222 the router sources UCS/comparison
+  // endpoints from its own deployment config and ignores http_url/https_url
+  // in the rollout config value. Warn and continue when they are absent -
+  // hard failing here breaks otherwise valid runs (e.g. distributed UCS and
+  // sharded CI would never run a season without PROXY_HTTP/PROXY_HTTPS set).
+  if (!httpUrl || !httpsUrl) {
+    cy.task(
+      "cli_log",
+      "INFO: proxyHttp/proxyHttps not set - creating rollout config without http_url/https_url; the router will use its deployment-configured UCS endpoints"
     );
   }
 
   if (!connector || !methodFlowInput) {
-    throw new Error("Missing connectorId or methodFlow in globalState");
+    cy.task(
+      "cli_log",
+      `UCS ${type} config creation skipped - connectorId or methodFlow not set in globalState`
+    );
+    return;
   }
 
   if (!globalState) {
@@ -1266,6 +1280,27 @@ Cypress.Commands.add(
             expect(response.body.merchant_category_code).to.equal(
               updateBusinessProfileBody.merchant_category_code
             );
+          }
+          // Auto-retry specs rely on these flags being persisted on the
+          // profile; assert them so a stale/rejected update fails at the
+          // setup step instead of surfacing as a retry that never happened.
+          if (
+            typeof updateBusinessProfileBody.is_auto_retries_enabled !==
+            "undefined"
+          ) {
+            expect(
+              response.body.is_auto_retries_enabled,
+              "is_auto_retries_enabled"
+            ).to.equal(updateBusinessProfileBody.is_auto_retries_enabled);
+          }
+          if (
+            typeof updateBusinessProfileBody.max_auto_retries_enabled !==
+            "undefined"
+          ) {
+            expect(
+              response.body.max_auto_retries_enabled,
+              "max_auto_retries_enabled"
+            ).to.equal(updateBusinessProfileBody.max_auto_retries_enabled);
           }
         } else {
           throw new Error(
@@ -2382,6 +2417,35 @@ Cypress.Commands.add("setFrmRoutingAlgorithm", (body, globalState) => {
   });
 });
 
+Cypress.Commands.add(
+  "setProfileFrmRoutingAlgorithm",
+  (frmRoutingAlgorithm, globalState) => {
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get("profileId");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      body: { frm_routing_algorithm: frmRoutingAlgorithm },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status, "business profile update status").to.equal(200);
+        expect(
+          response.body.frm_routing_algorithm,
+          "profile frm_routing_algorithm"
+        ).to.deep.equal(frmRoutingAlgorithm);
+      });
+    });
+  }
+);
 // Overwrites the FRM connector's account details with an invalid api_key, to
 // force the FRM connector itself to fail (4xx) - used to test
 // fail_open/fail_closed behavior when pre-FRM is unreachable.
@@ -5082,6 +5146,19 @@ Cypress.Commands.add(
                 response.body.payment_account_reference,
                 "payment_account_reference"
               ).to.be.a("string").and.to.not.be.empty;
+            }
+          }
+
+          if (
+            resData.body &&
+            Object.prototype.hasOwnProperty.call(resData.body, "frm_message")
+          ) {
+            if (resData.body.frm_message === null) {
+              expect(response.body.frm_message, "frm_message").to.not.exist;
+            } else {
+              expect(response.body.frm_message?.frm_name, "frm_name").to.equal(
+                resData.body.frm_message.frm_name
+              );
             }
           }
 
