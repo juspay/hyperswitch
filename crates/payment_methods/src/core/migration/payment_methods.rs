@@ -481,6 +481,7 @@ impl
                     .and_then(|segment_type| segment_type.parse().ok())),
                 funding_source: card_details.funding_source.or(card_bin_info.funding_source),
                 saved_to_locker: false,
+                card_info: None,
             })
         } else {
             Ok(Self {
@@ -506,6 +507,7 @@ impl
                 card_segment_type: card_details.card_segment_type,
                 funding_source: card_details.funding_source,
                 saved_to_locker: false,
+                card_info: None,
             })
         }
     }
