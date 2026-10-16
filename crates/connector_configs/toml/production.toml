@@ -1603,6 +1603,25 @@ placeholder = "Enter chargebee site"
 required = true
 type = "Text"
 
+[custombilling]
+[custombilling.connector_auth.NoKey]
+
+[recurly]
+[recurly.connector_auth.HeaderKey]
+api_key = "Recurly API Key"
+
+[recurly.connector_webhook_details]
+merchant_secret = "Webhook URL Username"
+additional_secret = "Webhook URL Password"
+
+[stripebilling]
+[stripebilling.connector_auth.HeaderKey]
+api_key = "Stripe Billing API Key"
+
+[stripebilling.connector_webhook_details]
+merchant_secret = "Webhook URL Username"
+additional_secret = "Webhook URL Password"
+
 [checkbook]
 [[checkbook.bank_transfer]]
   payment_method_type = "ach"
