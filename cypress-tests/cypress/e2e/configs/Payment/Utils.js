@@ -828,7 +828,7 @@ export const CONNECTOR_LISTS = {
     OPEN_BANKING_PIS: ["plaid"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
     WEBHOOK_CONFIG: ["stripe"],
-    REQUIRES_CVV: ["bankofamerica"],
+    REQUIRES_CVV: ["bankofamerica", "stripe"],
     PAYMENT_ACCOUNT_REFERENCE: ["stripe", "checkout"],
     AUTH_CODE: ["checkout", "worldpayxml"],
     ZERO_AUTH_MANDATE: ["peachpayments"],
