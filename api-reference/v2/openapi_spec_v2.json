@@ -32276,7 +32276,6 @@
           "terminated",
           "monitoring",
           "partially_recovered",
-          "pending",
           "succeeded",
           "cancelled"
         ]

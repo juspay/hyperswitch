@@ -2003,13 +2003,13 @@ pub fn map_recovery_status(
         | IntentStatus::Expired
         | IntentStatus::Review => RecoveryStatus::Terminated,
 
-        // For statuses that don't need recovery
+        // Waiting on an action outside of the recovery workflows, so just keep monitoring
         IntentStatus::RequiresCustomerAction
         | IntentStatus::RequiresMerchantAction
         | IntentStatus::RequiresPaymentMethod
         | IntentStatus::RequiresConfirmation
         | IntentStatus::RequiresCapture
-        | IntentStatus::PartiallyAuthorizedAndRequiresCapture => RecoveryStatus::Pending,
+        | IntentStatus::PartiallyAuthorizedAndRequiresCapture => RecoveryStatus::Monitoring,
     }
 }
 
@@ -2068,7 +2068,7 @@ fn can_map_to_recovery_status(
         | IntentStatus::RequiresConfirmation
         | IntentStatus::RequiresCapture
         | IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
-            recovery_status == RecoveryStatus::Pending
+            recovery_status == RecoveryStatus::Monitoring
         }
     }
 }

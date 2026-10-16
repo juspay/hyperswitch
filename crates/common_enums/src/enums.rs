@@ -2288,15 +2288,14 @@ pub enum RecoveryStatus {
     /// This includes cases where all retries have been exhausted or the payment has hard decline errors.
     Terminated,
     /// The payment is being monitored for potential recovery.
-    /// This status is shown when the attempt count is below the threshold and the system is waiting to pick it up.
+    /// This status is shown when the attempt count is below the threshold and the system is waiting to pick it up,
+    /// and for payments that are still waiting on customer action, merchant action, a payment method,
+    /// confirmation or capture.
     #[default]
     Monitoring,
     /// The payment has been partially recovered through retry mechanisms.
     /// This indicates that a partially captured payment has been processed.
     PartiallyRecovered,
-    /// The payment is pending action from the customer, merchant, or requires additional information.
-    /// This status is shown for payments that require customer action, merchant action, payment method, confirmation, or capture.
-    Pending,
     /// The payment has succeeded (for example outside of the recovery retries).
     Succeeded,
     /// The payment has been cancelled.
