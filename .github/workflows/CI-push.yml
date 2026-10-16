@@ -54,27 +54,15 @@ jobs:
 
   check-msrv:
     name: Check compilation on MSRV toolchain
-    runs-on: ${{ matrix.runner }}
-
-    permissions:
-      contents: read
-      # actions/cache keys are immutable; needed for `gh cache delete`.
-      actions: write
+    runs-on: hyperswitch-runners
 
     env:
-      # sccache on local disk via actions/cache, not SCCACHE_GHA_ENABLED
-      # (proven slower here before — see git log for check-msrv).
+      # sccache restored as one archive instead of S3 — avoids per-object round trips.
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: "2G"
       SCCACHE_IDLE_TIMEOUT: "0"
       RUSTFLAGS: "-D warnings"
-
-    strategy:
-      fail-fast: true
-      matrix:
-        runner:
-          - ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -102,18 +90,6 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
-
-      - name: Restore sccache cache
-        uses: actions/cache/restore@v6
-        with:
-          path: ${{ env.SCCACHE_DIR }}
-          key: sccache-local-check-msrv-${{ runner.os }}-${{ runner.arch }}
-
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2
         with:
@@ -130,8 +106,25 @@ jobs:
         shell: bash
         run: .github/scripts/install-jq.sh
 
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
+
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+          checksum: true
+
+      - name: Restore sccache cache from S3
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-restore-s3.sh check-msrv
+
       - name: Run cargo check
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 10
         run: cargo check --features "release"
 
       - name: Show sccache stats
@@ -140,20 +133,11 @@ jobs:
         run: sccache --show-stats
 
       # !cancelled(), not always() — cache-on-failure, but skip on cancel.
-      - name: Delete stale sccache cache entry
+      - name: Save sccache cache to S3
         if: ${{ !cancelled() && github.event_name == 'push' }}
         continue-on-error: true
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh cache delete "sccache-local-check-msrv-${{ runner.os }}-${{ runner.arch }}" --repo "${{ github.repository }}"
-
-      - name: Save sccache cache
-        if: ${{ !cancelled() && github.event_name == 'push' }}
-        uses: actions/cache/save@v6
-        with:
-          path: ${{ env.SCCACHE_DIR }}
-          key: sccache-local-check-msrv-${{ runner.os }}-${{ runner.arch }}
+        run: .github/scripts/sccache-save-s3.sh check-msrv
 
   # cargo-deny:
   #   name: Run cargo-deny
