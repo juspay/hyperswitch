@@ -52,6 +52,19 @@ jobs:
           tool: wasm-pack
           checksum: true
 
+      # wasm-pack's own wasm-opt download (from GitHub releases) fails here on
+      # hyperswitch-runners. wasm-pack checks PATH for wasm-opt before trying
+      # to download one, so installing Binaryen via apt — a different network
+      # path — avoids that download entirely while keeping the
+      # `--enable-bulk-memory`/`--enable-nontrapping-float-to-int` flags set in
+      # euclid_wasm/payment_link's Cargo.toml (wasm-pack still passes those to
+      # whichever wasm-opt binary it finds).
+      - name: Install binaryen (system wasm-opt)
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binaryen
+
       - name: wasm build
         shell: bash
         run: make euclid-wasm
