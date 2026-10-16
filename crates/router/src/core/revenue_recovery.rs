@@ -2129,3 +2129,114 @@ pub fn map_to_recovery_payment_item(
         last_attempt_at: payment_attempt.as_ref().map(|p| p.created_at),
     }
 }
+
+#[cfg(all(test, feature = "v2"))]
+mod recovery_status_mapping_tests {
+    use std::collections::BTreeSet;
+
+    use common_utils::date_time;
+    use strum::IntoEnumIterator;
+
+    use super::*;
+
+    fn workflow(business_status: &str, status: ProcessTrackerStatus) -> ProcessTrackerStorage {
+        ProcessTrackerStorage {
+            id: "pt_test".to_string(),
+            name: None,
+            tag: Vec::new(),
+            runner: None,
+            retry_count: 0,
+            schedule_time: None,
+            rule: String::new(),
+            tracking_data: serde_json::Value::Null,
+            business_status: business_status.to_string(),
+            status,
+            event: Vec::new(),
+            created_at: date_time::now(),
+            updated_at: date_time::now(),
+            version: common_enums::ApiVersion::V2,
+            application_source: None,
+        }
+    }
+
+    /// Every (calculate, execute) workflow shape the derivation distinguishes, plus an unrelated one.
+    fn workflow_shapes() -> Vec<Option<ProcessTrackerStorage>> {
+        let business_statuses = [
+            business_status::PENDING,
+            business_status::CALCULATE_WORKFLOW_SCHEDULED,
+            business_status::CALCULATE_WORKFLOW_FINISH,
+            business_status::RETRIES_EXCEEDED,
+            business_status::FAILURE,
+            business_status::GLOBAL_FAILURE,
+            "SOMETHING_ELSE",
+        ];
+        let statuses = [
+            ProcessTrackerStatus::New,
+            ProcessTrackerStatus::Pending,
+            ProcessTrackerStatus::ProcessStarted,
+            ProcessTrackerStatus::Processing,
+            ProcessTrackerStatus::Finish,
+        ];
+        let mut shapes = vec![None];
+        for business_status in business_statuses {
+            for status in statuses {
+                shapes.push(Some(workflow(business_status, status)));
+            }
+        }
+        shapes
+    }
+
+    /// Brute-forces `map_recovery_status` over every intent status, workflow shape and retry
+    /// threshold side, and returns the intent statuses that can resolve to each recovery status.
+    fn reachable_intent_statuses(recovery_status: RecoveryStatus) -> BTreeSet<String> {
+        let shapes = workflow_shapes();
+        let mut reachable = BTreeSet::new();
+        for intent_status in IntentStatus::iter() {
+            for calculate in &shapes {
+                for execute in &shapes {
+                    // attempt_count above and below the threshold
+                    for attempt_count in [0, 5] {
+                        let derived = map_recovery_status(
+                            intent_status,
+                            calculate.as_ref(),
+                            execute.as_ref(),
+                            attempt_count,
+                            3,
+                        );
+                        if derived == recovery_status {
+                            reachable.insert(intent_status.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        reachable
+    }
+
+    #[test]
+    fn candidate_intent_statuses_agree_with_map_recovery_status_for_every_variant() {
+        for recovery_status in RecoveryStatus::iter() {
+            let candidates: BTreeSet<String> =
+                candidate_intent_statuses_for_recovery_status(&[recovery_status], None)
+                    .into_iter()
+                    .map(|status| status.to_string())
+                    .collect();
+            assert_eq!(
+                candidates,
+                reachable_intent_statuses(recovery_status),
+                "candidate intent statuses and map_recovery_status disagree for {recovery_status:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn candidate_intent_statuses_respect_the_allowed_intent_statuses() {
+        let candidates = candidate_intent_statuses_for_recovery_status(
+            &[RecoveryStatus::Succeeded, RecoveryStatus::Terminated],
+            Some(&[IntentStatus::Succeeded, IntentStatus::Failed]),
+        );
+        assert!(candidates.contains(&IntentStatus::Succeeded));
+        assert!(candidates.contains(&IntentStatus::Failed));
+        assert_eq!(candidates.len(), 2);
+    }
+}

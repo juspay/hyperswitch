@@ -2373,7 +2373,7 @@ pub async fn revenue_recovery_invoices_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::list::revenue_recovery_list_payments(state, auth.platform, req)
+            payments::list::revenue_recovery_list_payments(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -2382,11 +2382,45 @@ pub async fn revenue_recovery_invoices_list(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
         ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Profile scoped variant of [`revenue_recovery_invoices_list`]: the profile comes from the
+/// authenticated session and overrides any `profile_id` query param.
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(all(feature = "olap", feature = "v2"))]
+pub async fn revenue_recovery_invoices_list_profile(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<payment_types::RecoveryPaymentListConstraints>,
+) -> impl Responder {
+    let flow = Flow::PaymentsList;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::list::revenue_recovery_list_payments(
+                state,
+                auth.platform,
+                Some(auth.profile.get_id().clone()),
+                req,
+            )
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfilePaymentRead,
+            allow_connected: true,
+            allow_platform: false,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

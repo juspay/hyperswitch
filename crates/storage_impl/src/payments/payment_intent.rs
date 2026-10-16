@@ -1597,13 +1597,21 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::amount.desc()),
                     Order {
-                        on: SortOn::Created | SortOn::Modified,
+                        on: SortOn::Created,
                         by: SortBy::Asc,
                     } => query.order(pi_dsl::created_at.asc()),
                     Order {
-                        on: SortOn::Created | SortOn::Modified,
+                        on: SortOn::Created,
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::created_at.desc()),
+                    Order {
+                        on: SortOn::Modified,
+                        by: SortBy::Asc,
+                    } => query.order(pi_dsl::modified_at.asc()),
+                    Order {
+                        on: SortOn::Modified,
+                        by: SortBy::Desc,
+                    } => query.order(pi_dsl::modified_at.desc()),
                     Order {
                         on: SortOn::AttemptCount,
                         by: SortBy::Asc,
@@ -1612,6 +1620,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         on: SortOn::AttemptCount,
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::attempt_count.desc()),
+                };
+                // Stable secondary key so rows with equal sort keys keep their position across pages.
+                query = match params.order.by {
+                    SortBy::Asc => query.then_order_by(pi_dsl::id.asc()),
+                    SortBy::Desc => query.then_order_by(pi_dsl::id.desc()),
                 };
 
                 if let Some(customer_id) = &params.customer_id {
@@ -1727,6 +1740,19 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     query = query.filter(pi_dsl::id.eq(payment_id.clone()));
                 }
 
+                if let Some(search) = &params.search {
+                    // Exact match on any of the identifiers; the term is always bound, never inlined.
+                    query = query.filter(
+                        diesel::dsl::sql::<diesel::sql_types::Bool>("(payment_intent.id = ")
+                            .bind::<diesel::sql_types::Text, _>(search.clone())
+                            .sql(" OR payment_intent.merchant_reference_id = ")
+                            .bind::<diesel::sql_types::Text, _>(search.clone())
+                            .sql(" OR payment_intent.customer_id = ")
+                            .bind::<diesel::sql_types::Text, _>(search.clone())
+                            .sql(")"),
+                    );
+                }
+
                 diesel_models::list::apply_pagination(query, params.limit, params.offset)
             }
         };
@@ -1805,14 +1831,31 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     query = query.filter(pi_dsl::profile_id.eq(profile_id.clone()));
                 }
 
-                query = match params.starting_at {
-                    Some(starting_at) => query.filter(pi_dsl::created_at.ge(starting_at)),
-                    None => query,
+                // Mirror the page query: an explicit time bound wins over a cursor. The cursor's
+                // timestamp is resolved in SQL because the count path has no key store to decrypt
+                // the intent with.
+                query = match (params.starting_at, &params.starting_after_id) {
+                    (Some(starting_at), _) => query.filter(pi_dsl::created_at.ge(starting_at)),
+                    (None, Some(starting_after_id)) => query.filter(
+                        diesel::dsl::sql::<diesel::sql_types::Bool>(
+                            "payment_intent.created_at >= (SELECT created_at FROM payment_intent WHERE id = ",
+                        )
+                        .bind::<diesel::sql_types::Text, _>(starting_after_id.get_string_repr().to_owned())
+                        .sql(")"),
+                    ),
+                    (None, None) => query,
                 };
 
-                query = match params.ending_at {
-                    Some(ending_at) => query.filter(pi_dsl::created_at.le(ending_at)),
-                    None => query,
+                query = match (params.ending_at, &params.ending_before_id) {
+                    (Some(ending_at), _) => query.filter(pi_dsl::created_at.le(ending_at)),
+                    (None, Some(ending_before_id)) => query.filter(
+                        diesel::dsl::sql::<diesel::sql_types::Bool>(
+                            "payment_intent.created_at <= (SELECT created_at FROM payment_intent WHERE id = ",
+                        )
+                        .bind::<diesel::sql_types::Text, _>(ending_before_id.get_string_repr().to_owned())
+                        .sql(")"),
+                    ),
+                    (None, None) => query,
                 };
 
                 query = match params.amount_filter {
@@ -1843,6 +1886,19 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 if let Some(payment_id) = &params.payment_id {
                     query = query.filter(pi_dsl::id.eq(payment_id.clone()));
+                }
+
+                if let Some(search) = &params.search {
+                    // Exact match on any of the identifiers; the term is always bound, never inlined.
+                    query = query.filter(
+                        diesel::dsl::sql::<diesel::sql_types::Bool>("(payment_intent.id = ")
+                            .bind::<diesel::sql_types::Text, _>(search.clone())
+                            .sql(" OR payment_intent.merchant_reference_id = ")
+                            .bind::<diesel::sql_types::Text, _>(search.clone())
+                            .sql(" OR payment_intent.customer_id = ")
+                            .bind::<diesel::sql_types::Text, _>(search.clone())
+                            .sql(")"),
+                    );
                 }
 
                 query

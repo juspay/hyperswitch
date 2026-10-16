@@ -8,6 +8,8 @@ use common_utils::id_type;
 use error_stack::report;
 use error_stack::ResultExt;
 use futures::future::join_all;
+#[cfg(all(feature = "v2", feature = "olap"))]
+use hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints;
 
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::{
@@ -320,9 +322,18 @@ async fn build_recovery_list_items(
 pub async fn revenue_recovery_list_payments(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     constraints: payments_api::RecoveryPaymentListConstraints,
 ) -> RouterResponse<payments_api::RecoveryPaymentListResponse> {
-    let (constraints, recovery_status) = constraints.into_parts();
+    let (mut constraints, filters) = constraints.into_parts();
+    let payments_api::RecoveryListFilters {
+        recovery_status,
+        search,
+    } = filters;
+    // A profile resolved from auth always wins over a caller supplied `profile_id`.
+    if profile_id.is_some() {
+        constraints.profile_id = profile_id;
+    }
     common_utils::metrics::utils::record_operation_time(
         async {
             if let Some(recovery_status) = recovery_status {
@@ -330,6 +341,7 @@ pub async fn revenue_recovery_list_payments(
                     &state,
                     &platform,
                     constraints,
+                    search,
                     &recovery_status,
                 )
                 .await;
@@ -337,7 +349,8 @@ pub async fn revenue_recovery_list_payments(
 
             // `limit` is a `PageSize`, already validated at deserialize; no extra check needed.
             let db: &dyn StorageInterface = state.store.as_ref();
-            let fetch_constraints = constraints.clone().into();
+            let fetch_constraints =
+                PaymentIntentFetchConstraints::from(constraints.clone()).with_search(search);
             let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
                 .get_filtered_payment_intents_attempt(
                     platform.get_processor().get_account().get_id(),
@@ -416,6 +429,7 @@ async fn list_recovery_payments_by_recovery_status(
     state: &SessionState,
     platform: &domain::Platform,
     constraints: payments_api::PaymentListConstraints,
+    search: Option<String>,
     recovery_status: &[common_enums::enums::RecoveryStatus],
 ) -> RouterResult<services::ApplicationResponse<payments_api::RecoveryPaymentListResponse>> {
     let db: &dyn StorageInterface = state.store.as_ref();
@@ -453,7 +467,8 @@ async fn list_recovery_payments_by_recovery_status(
             ),
             ..scan_constraints.clone()
         };
-        let fetch_constraints = page_constraints.into();
+        let fetch_constraints =
+            PaymentIntentFetchConstraints::from(page_constraints).with_search(search.clone());
         let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
             .get_filtered_payment_intents_attempt(
                 platform.get_processor().get_account().get_id(),
