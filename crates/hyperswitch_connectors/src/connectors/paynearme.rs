@@ -665,6 +665,7 @@ impl ConnectorSpecifications for Paynearme {
             api::CurrentFlowInfo::Authorize {
                 auth_type: _,
                 request_data,
+                ..
             } => matches!(
                 &request_data.payment_method_data,
                 hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)

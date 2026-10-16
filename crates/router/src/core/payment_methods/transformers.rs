@@ -721,7 +721,7 @@ pub fn generate_payment_method_response(
                     }
                     Some(common_enums::PaymentMethodType::Paypal) => Some(
                         api::PaymentMethodResponseData::Wallet(WalletPaymentMethodData::PayPal(
-                            Box::new(api_models::payments::PaypalRedirection { email: info.email }),
+                            Box::new(api_models::payments::PaypalRedirection::from(info)),
                         )),
                     ),
                     _ => None,
@@ -1042,7 +1042,7 @@ impl
                         api_enums::PaymentMethodType::Paypal => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::PayPal(Box::new(
-                                    api_models::payments::PaypalRedirection { email: info.email },
+                                    api_models::payments::PaypalRedirection::from(info),
                                 )),
                             ))
                         }
@@ -1151,7 +1151,7 @@ impl
                         api_enums::PaymentMethodType::Paypal => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::PayPal(Box::new(
-                                    api_models::payments::PaypalRedirection { email: info.email },
+                                    api_models::payments::PaypalRedirection::from(info),
                                 )),
                             ))
                         }

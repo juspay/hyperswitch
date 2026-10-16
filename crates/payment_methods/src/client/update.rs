@@ -4,8 +4,10 @@ use api_models::payment_methods::NetworkTokenResponse;
 use common_enums::{PaymentMethod, PaymentMethodType, StorageType};
 use common_utils::{
     id_type,
+    pii::Email,
     request::{Method, RequestContent},
 };
+use hyperswitch_domain_models::payment_method_data::{PaymentMethodData, WalletData};
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -65,6 +67,39 @@ pub struct ModularPMUpdateRequest {
 pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
     BankDebit(BankDebitDetailUpdate),
+    Wallet(WalletDetailUpdate),
+}
+
+/// Wallet update payload for the modular service.
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum WalletDetailUpdate {
+    /// Disclosed PayPal account details. Omitted fields retain their stored values.
+    PayPal {
+        /// PayPal payer email address.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        email: Option<Email>,
+        /// PayPal payer identifier.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        payer_id: Option<Secret<String>>,
+    },
+}
+
+impl PaymentMethodUpdateData {
+    /// Convert connector-disclosed details into an update when wallet fields are present.
+    pub fn from_connector_details(method_data: &PaymentMethodData) -> Option<Self> {
+        match method_data {
+            PaymentMethodData::Wallet(WalletData::PaypalRedirect(details))
+                if details.email.is_some() || details.paypal_id.is_some() =>
+            {
+                Some(Self::Wallet(WalletDetailUpdate::PayPal {
+                    email: details.email.clone(),
+                    payer_id: details.paypal_id.clone(),
+                }))
+            }
+            _ => None,
+        }
+    }
 }
 
 /// Card update payload for the modular service.

@@ -1030,6 +1030,7 @@ impl ConnectorSpecifications for Redsys {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
                 request_data,
+                ..
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
@@ -1044,6 +1045,7 @@ impl ConnectorSpecifications for Redsys {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
                 request_data,
+                ..
             } => {
                 // For Redsys in authorize flow, if we reached authentication_step
                 // (controlled by should_continue_after_preauthenticate in pre_authentication_step),
