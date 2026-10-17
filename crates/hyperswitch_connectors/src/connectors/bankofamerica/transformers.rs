@@ -298,6 +298,7 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
+                | WalletData::Esewa(_)
                 | WalletData::Skrill(_)
                 | WalletData::Neteller(_)
                 | WalletData::BluecodeRedirect {}
@@ -1102,6 +1103,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                         | WalletData::AliPayHkRedirect(_)
                         | WalletData::AmazonPayRedirect(_)
                         | WalletData::Paysera(_)
+                        | WalletData::Esewa(_)
                         | WalletData::Skrill(_)
                         | WalletData::Neteller(_)
                         | WalletData::BluecodeRedirect {}

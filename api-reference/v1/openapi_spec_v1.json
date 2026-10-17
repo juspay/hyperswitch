@@ -19957,6 +19957,7 @@
           "ebanx",
           "envoy",
           "elavon",
+          "esewa",
           "etisalat",
           "elavon_pg",
           "facilitapay",
@@ -24324,6 +24325,9 @@
           "hard_decline",
           "soft_decline"
         ]
+      },
+      "EsewaData": {
+        "type": "object"
       },
       "EstimateSubscriptionQuery": {
         "type": "object",
@@ -35005,6 +35009,7 @@
           "eft",
           "eft_debit_order",
           "eps",
+          "esewa",
           "flexiti",
           "fps",
           "evoucher",
@@ -46299,6 +46304,7 @@
           "elavon",
           "elavon_pg",
           "envoy",
+          "esewa",
           "etisalat",
           "facilitapay",
           "finix",
@@ -51088,6 +51094,18 @@
             "properties": {
               "paysera": {
                 "$ref": "#/components/schemas/PayseraData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Esewa",
+            "required": [
+              "esewa"
+            ],
+            "properties": {
+              "esewa": {
+                "$ref": "#/components/schemas/EsewaData"
               }
             }
           },

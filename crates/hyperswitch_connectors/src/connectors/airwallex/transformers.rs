@@ -932,6 +932,7 @@ fn get_wallet_details(
         | WalletData::AliPayHkRedirect(_)
         | WalletData::AmazonPayRedirect(_)
         | WalletData::Paysera(_)
+        | WalletData::Esewa(_)
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
         | WalletData::GoPayRedirect(_)

@@ -4812,6 +4812,9 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::Wero => Err(error_stack::report!(
                 UnifiedConnectorServiceError::NotImplemented("Wero".to_string())
             )),
+            common_enums::PaymentMethodType::Esewa => Err(error_stack::report!(
+                UnifiedConnectorServiceError::NotImplemented("Esewa".to_string())
+            )),
         }
     }
 }

@@ -118,6 +118,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Mifinity => Self::Mifinity,
             api_enums::Connector::Mollie => Self::Mollie,
             api_enums::Connector::Moneris => Self::Moneris,
+            api_enums::Connector::Esewa => Self::Esewa,
             api_enums::Connector::Etisalat => Self::Etisalat,
             api_enums::Connector::Merchante => Self::Merchante,
             api_enums::Connector::Multisafepay => Self::Multisafepay,

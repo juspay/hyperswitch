@@ -799,6 +799,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SkrillData,
         api_models::payments::NetellerData,
         api_models::payments::PayseraData,
+        api_models::payments::EsewaData,
         api_models::payments::ApplePayRedirectData,
         api_models::payments::ApplePayThirdPartySdkData,
         api_models::payments::GooglePayRedirectData,

@@ -26,6 +26,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::Skrill => Ok(dirval!(WalletType = Skrill)),
             global_enums::PaymentMethodType::Neteller => Ok(dirval!(WalletType = Neteller)),
             global_enums::PaymentMethodType::Paysera => Ok(dirval!(WalletType = Paysera)),
+            global_enums::PaymentMethodType::Esewa => Ok(dirval!(WalletType = Esewa)),
             global_enums::PaymentMethodType::GooglePay => Ok(dirval!(WalletType = GooglePay)),
             global_enums::PaymentMethodType::Bluecode => Ok(dirval!(WalletType = Bluecode)),
             global_enums::PaymentMethodType::ApplePay => Ok(dirval!(WalletType = ApplePay)),

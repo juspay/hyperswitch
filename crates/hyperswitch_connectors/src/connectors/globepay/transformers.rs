@@ -62,6 +62,7 @@ impl TryFrom<&GlobepayRouterData<&types::PaymentsAuthorizeRouterData>> for Globe
                 | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
+                | WalletData::Esewa(_)
                 | WalletData::Skrill(_)
                 | WalletData::Neteller(_)
                 | WalletData::BluecodeRedirect {}

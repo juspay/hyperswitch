@@ -273,6 +273,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Moneris => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Moneris::new())))
                 }
+                enums::Connector::Esewa => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Esewa::new())))
+                }
                 enums::Connector::Etisalat => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Etisalat::new())))
                 }

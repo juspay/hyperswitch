@@ -25,6 +25,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Skrill => Ok(dirval!(WalletType = Skrill)),
         api_enums::PaymentMethodType::Neteller => Ok(dirval!(WalletType = Neteller)),
         api_enums::PaymentMethodType::Paysera => Ok(dirval!(WalletType = Paysera)),
+        api_enums::PaymentMethodType::Esewa => Ok(dirval!(WalletType = Esewa)),
         api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
         api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
         #[cfg(feature = "v2")]

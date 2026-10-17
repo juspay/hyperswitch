@@ -8805,3 +8805,10 @@ payment_method_type = "Discover"
 payment_method_type = "DinersClub"
 [[globalpayments_realex.debit]]
 payment_method_type = "UnionPay"
+
+[esewa]
+[[esewa.wallet]]
+  payment_method_type = "esewa"
+[esewa.connector_auth.BodyKey]
+api_key = "Secret Key"
+key1 = "Product Code"
