@@ -93,6 +93,7 @@ pub struct BamboraPaymentsRequest {
 #[derive(Default, Debug, Serialize)]
 pub struct BamboraVoidRequest {
     amount: FloatMajorUnit,
+    payment_method: PaymentMethod,
 }
 
 fn get_browser_info(
@@ -239,13 +240,12 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
     }
 }
 
-impl TryFrom<BamboraRouterData<&types::PaymentsCancelRouterData>> for BamboraVoidRequest {
+impl TryFrom<&types::PaymentsCancelRouterData> for BamboraVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: BamboraRouterData<&types::PaymentsCancelRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(_item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.amount,
+            amount: FloatMajorUnit::zero(),
+            payment_method: PaymentMethod::Card,
         })
     }
 }
