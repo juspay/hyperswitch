@@ -31,6 +31,7 @@ import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
 import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
+import { connectorDetails as elavonPgConnectorDetails } from "./ElavonPg.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
 import { connectorDetails as finixConnectorDetails } from "./Finix.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
@@ -127,6 +128,7 @@ const connectorDetails = {
   datatrans: datatransConnectorDetails,
   deutschebank: deutschebankConnectorDetails,
   elavon: elavonConnectorDetails,
+  elavon_pg: elavonPgConnectorDetails,
   facilitapay: facilitapayConnectorDetails,
   fiserv: fiservConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
