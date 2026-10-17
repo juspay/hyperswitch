@@ -308,6 +308,24 @@ pub struct UpdateScorePayload {
     /// Payment ID associated with the transaction
     #[schema(value_type = String, example = "pay_1234")]
     pub payment_id: id_type::PaymentId,
+
+    /// Optional gateway error details used for GSM-based scoring filters
+    pub error_info: Option<GsmErrorInfo>,
+}
+
+/// Error context from a failed payment attempt, used for a GSM lookup
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct GsmErrorInfo {
+    pub connector: String,
+    #[serde(default)]
+    pub flow: String,
+    #[serde(default)]
+    pub sub_flow: String,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub issuer_error_code: Option<String>,
+    pub card_network: Option<String>,
 }
 
 /// Response after updating gateway score
