@@ -124,6 +124,79 @@ pub trait FileStorageInterface: dyn_clone::DynClone + Sync + Send {
 
 dyn_clone::clone_trait_object!(FileStorageInterface);
 
+/// Writes a file of unknown size as a multipart upload, buffering writes into parts of the 5 MB
+/// minimum every part but the last must reach.
+#[allow(missing_debug_implementations)]
+pub struct MultipartUpload<'a> {
+    client: &'a dyn FileStorageInterface,
+    file_key: &'a str,
+    upload_id: String,
+    buffer: Vec<u8>,
+    parts: Vec<(i32, String)>,
+}
+
+impl<'a> MultipartUpload<'a> {
+    /// The minimum size of every part but the last.
+    pub const PART_SIZE: usize = 5 * 1024 * 1024;
+
+    /// Begins an upload to `file_key`.
+    pub async fn start(
+        client: &'a dyn FileStorageInterface,
+        file_key: &'a str,
+    ) -> CustomResult<Self, FileStorageError> {
+        Ok(Self {
+            client,
+            file_key,
+            upload_id: client.create_multipart_upload(file_key).await?,
+            buffer: Vec::with_capacity(Self::PART_SIZE),
+            parts: Vec::new(),
+        })
+    }
+
+    /// Appends `bytes`, uploading a part once the buffer reaches `PART_SIZE`.
+    pub async fn write(&mut self, bytes: &[u8]) -> CustomResult<(), FileStorageError> {
+        self.buffer.extend_from_slice(bytes);
+        if self.buffer.len() >= Self::PART_SIZE {
+            self.upload_buffer().await?;
+        }
+        Ok(())
+    }
+
+    /// Uploads what remains and assembles the file, returning the backend's expiry description
+    /// when a lifecycle rule applies.
+    pub async fn finish(mut self) -> CustomResult<Option<String>, FileStorageError> {
+        if !self.buffer.is_empty() || self.parts.is_empty() {
+            self.upload_buffer().await?;
+        }
+        self.client
+            .complete_multipart_upload(self.file_key, &self.upload_id, self.parts)
+            .await
+    }
+
+    /// Discards the upload, so its parts stop being billed.
+    pub async fn abort(self) -> CustomResult<(), FileStorageError> {
+        self.client
+            .abort_multipart_upload(self.file_key, &self.upload_id)
+            .await
+    }
+
+    async fn upload_buffer(&mut self) -> CustomResult<(), FileStorageError> {
+        let part_number = i32::try_from(self.parts.len() + 1)
+            .map_err(|_| error_stack::report!(FileStorageError::MultipartUploadPartFailed))?;
+        let e_tag = self
+            .client
+            .upload_part(
+                self.file_key,
+                &self.upload_id,
+                part_number,
+                std::mem::take(&mut self.buffer),
+            )
+            .await?;
+        self.parts.push((part_number, e_tag));
+        Ok(())
+    }
+}
+
 /// Error thrown when the file storage config is invalid
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum InvalidFileStorageConfig {
