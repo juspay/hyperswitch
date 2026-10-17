@@ -6901,8 +6901,9 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
                 Self::ChallengeRequiredDecoupledAuthentication
             }
             common_enums::TransactionStatus::InformationOnly => Self::InformationOnly,
-            // UCS proto has no SPC variant yet
-            common_enums::TransactionStatus::SecurePaymentConfirmationRequired => Self::Unspecified,
+            common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
+                Self::SecurePaymentConfirmationRequired
+            }
         }
     }
 }
