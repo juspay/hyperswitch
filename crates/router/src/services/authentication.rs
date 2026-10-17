@@ -2560,6 +2560,107 @@ where
     }
 }
 
+/// HTTP Basic carrying a Hyperswitch API key as the password, for a merchant named in the route.
+/// The counterpart to [`ApiKeyAuthWithMerchantIdFromRoute`], for callers that can only offer a
+/// username and a password — an inbound pay connector, say.
+///
+/// The username is not read: the merchant comes from the route, so the only check that matters is
+/// that the key belongs to it. A caller that cannot set a username still authenticates.
+///
+/// Authenticates the merchant only — an API key is scoped to a merchant, not to a profile.
+#[derive(Debug)]
+#[cfg(feature = "v1")]
+pub struct ApiKeyBasicAuthWithMerchantIdFromRoute(pub id_type::MerchantId);
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for ApiKeyBasicAuthWithMerchantIdFromRoute
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        // Username dropped: the merchant comes from the path.
+        let (_username, api_key) = parse_basic_auth_credentials(request_headers)?;
+
+        let merchant_id = &self.0;
+
+        let api_key = api_keys::PlaintextApiKey::from(api_key.peek().as_str());
+        let hash_key = {
+            let config = state.conf();
+            config.api_keys.get_inner().get_hash_key()?
+        };
+        let hashed_api_key = api_key.keyed_hash(hash_key.peek());
+
+        let stored_api_key = state
+            .store()
+            .find_api_key_by_hash_optional(hashed_api_key.into())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
+            .attach_printable("Failed to retrieve API key")?
+            .ok_or(report!(errors::ApiErrorResponse::InvalidBasicAuth)) // If retrieve returned `None`
+            .attach_printable("Merchant not authenticated")?;
+
+        if stored_api_key
+            .expires_at
+            .map(|expires_at| expires_at < date_time::now())
+            .unwrap_or(false)
+        {
+            return Err(report!(errors::ApiErrorResponse::InvalidBasicAuth))
+                .attach_printable("API key has expired");
+        }
+
+        if &stored_api_key.merchant_id != merchant_id {
+            return Err(report!(errors::ApiErrorResponse::InvalidBasicAuth)).attach_printable(
+                "The API key presented does not belong to the merchant named in the path",
+            );
+        }
+
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: merchant.get_id().clone(),
+            merchant_account_type: merchant.merchant_account_type,
+            publishable_key: merchant.publishable_key.clone(),
+        });
+
+        let platform =
+            resolve_platform(state, request_headers, merchant, key_store, initiator).await?;
+
+        // The profile is resolved in the core, from `parameters.profile_id` or the merchant's
+        // default profile, and validated against this merchant there.
+        let auth = AuthenticationData {
+            platform,
+            profile: None,
+            client_secret: None,
+        };
+
+        Ok((
+            auth.clone(),
+            AuthenticationType::ApiKey {
+                merchant_id: merchant_id.clone(),
+                key_id: stored_api_key.key_id,
+            },
+        ))
+    }
+}
+
 #[derive(Debug)]
 #[cfg(feature = "v2")]
 pub struct MerchantIdAuth;

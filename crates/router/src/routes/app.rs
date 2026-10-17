@@ -78,7 +78,8 @@ use super::{
 };
 #[cfg(feature = "v1")]
 use super::{
-    apple_pay_certificates_migration, blocklist, payment_link, subscription, webhook_events,
+    apple_pay_certificates_migration, blocklist, payment_link, subscription, telephone_order,
+    webhook_events,
 };
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, metrics::PaymentMetricsContext, payments};
@@ -2864,6 +2865,22 @@ impl ThreeDsDecisionRule {
             .service(
                 web::resource("/execute")
                     .route(web::post().to(three_ds_decision_rule::execute_decision_rule)),
+            )
+    }
+}
+
+/// `/telephone_order/{provider}/{merchant_id}` — one scope for every inbound telephone order provider.
+/// Adding one touches no routing: the handler matches the segment onto a `TelephoneOrderProvider`.
+pub struct TelephoneOrder;
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+impl TelephoneOrder {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/telephone_order")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{provider}/{merchant_id}")
+                    .route(web::post().to(telephone_order::telephone_order_charge)),
             )
     }
 }
