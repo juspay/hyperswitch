@@ -878,6 +878,10 @@ impl Payments {
                     .route(web::get().to(payments::revenue_recovery_invoices_list)),
             )
             .service(
+                web::resource("/profile/recovery-list")
+                    .route(web::get().to(payments::revenue_recovery_invoices_list_profile)),
+            )
+            .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )
             // TODO: Deprecated. Remove this in favour of /v2/recovery
