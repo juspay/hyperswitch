@@ -5,8 +5,9 @@ use crate::errors;
 /// The format will be `<cell_id>_<entity_prefix>_<time_ordered_id>`.
 ///
 /// Example: `0a_cus_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p`
-#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, diesel::expression::AsExpression)]
-#[diesel(sql_type = diesel::sql_types::Text)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize)]
+#[cfg_attr(feature = "diesel", derive(diesel::expression::AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Text))]
 pub struct GlobalCustomerId(super::GlobalId);
 
 // Database related implementations so that this field can be used directly in the database tables
@@ -16,6 +17,7 @@ crate::impl_queryable_id_type!(GlobalCustomerId);
 // macro generates a strict `FromSql` that validates GlobalId format. During the V1/V2 coexistence
 // period, V1-created rows may store a V1-format CustomerId (e.g. `cus_xxx`).
 // We use `new_unchecked` to accept any string value.
+#[cfg(feature = "diesel")]
 impl<DB> diesel::serialize::ToSql<diesel::sql_types::Text, DB> for GlobalCustomerId
 where
     DB: diesel::backend::Backend,
@@ -29,6 +31,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Text, DB> for GlobalCustomerId
 where
     DB: diesel::backend::Backend,
