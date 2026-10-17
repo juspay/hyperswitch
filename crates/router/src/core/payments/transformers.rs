@@ -522,6 +522,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
         recipient_details,
         business_country: None,
+        enable_avs_check: payment_data.payment_intent.enable_avs_check,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1870,6 +1871,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
         recipient_details,
         business_country: None,
+        enable_avs_check: payment_data.payment_intent.enable_avs_check,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -3059,6 +3061,7 @@ where
                 enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
                 is_account_funded_transaction: payment_intent.is_account_funded_transaction,
                 recipient_details: masked_recipient_details,
+                enable_avs_check: payment_intent.enable_avs_check,
             },
             vec![],
         )))
@@ -3235,6 +3238,7 @@ where
                 .feature_metadata
                 .map(|feature_metadata| feature_metadata.convert_back()),
             metadata: payment_intent.metadata,
+            enable_avs_check: payment_intent.enable_avs_check,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -3391,6 +3395,7 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
                 .feature_metadata
                 .map(|feature_metadata| feature_metadata.convert_back()),
             metadata: payment_intent.metadata,
+            enable_avs_check: payment_intent.enable_avs_check,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -3517,6 +3522,7 @@ where
                 .feature_metadata
                 .map(|feature_metadata| feature_metadata.convert_back()),
             metadata: payment_intent.metadata,
+            enable_avs_check: payment_intent.enable_avs_check,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -4531,6 +4537,7 @@ where
             installment_data: payment_data.get_installment_details().cloned(),
             connector_response_metadata,
             sender_payment_instrument_id: payment_attempt.sender_payment_instrument_id.clone(),
+            enable_avs_check: payment_intent.enable_avs_check,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -5040,6 +5047,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             installment_options: pi.installment_options,
             installment_data: pa.installment_data,
             sender_payment_instrument_id: pa.sender_payment_instrument_id.clone(),
+            enable_avs_check: pi.enable_avs_check,
         }
     }
 }
@@ -5430,6 +5438,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .is_account_funded_transaction,
             recipient_details,
             business_country: None,
+            enable_avs_check: payment_data.payment_intent.enable_avs_check,
         })
     }
 }
@@ -5713,6 +5722,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .is_account_funded_transaction,
             recipient_details,
             business_country: payment_data.payment_intent.business_country,
+            enable_avs_check: payment_data.payment_intent.enable_avs_check,
         })
     }
 }
@@ -7374,6 +7384,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .is_account_funded_transaction,
             recipient_details,
             business_country: payment_data.payment_intent.business_country,
+            enable_avs_check: payment_data.payment_intent.enable_avs_check,
         })
     }
 }
@@ -7509,6 +7520,25 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .get_connector_metadata_from_intent()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse connector metadata")?;
+        let order_details = payment_data
+            .payment_intent
+            .order_details
+            .as_ref()
+            .map(|order_details| {
+                order_details
+                    .iter()
+                    .map(|data| {
+                        data.to_owned()
+                            .parse_value("OrderDetailsWithAmount")
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "OrderDetailsWithAmount".into(),
+                            })
+                            .attach_printable("Unable to parse OrderDetailsWithAmount")
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
+        let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
         let connector = api_models::enums::Connector::from_str(connector_name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -7590,6 +7620,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 .force_3ds_challenge_trigger
                 .filter(|trigger| *trigger)
                 .or(payment_data.payment_intent.force_3ds_challenge),
+            customer_id: additional_data.customer_id.clone(),
+            billing_descriptor,
+            payment_channel: payment_data.payment_intent.payment_channel,
+            enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+            order_details,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
         })
     }

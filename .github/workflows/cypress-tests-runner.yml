@@ -41,12 +41,15 @@ jobs:
   formatter:
     name: Run formatter on Cypress tests and address lints
     if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Generate a token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         id: generate_token
         uses: actions/create-github-app-token@v3
+        env:
+          # v3 refuses to run behind hypersage-runners' proxy without this.
+          NODE_USE_ENV_PROXY: "1"
         with:
           app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
@@ -99,7 +102,7 @@ jobs:
 
   check-cypress-prerequisites:
     name: Check Cypress prerequisites
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     outputs:
       run-checks: ${{ steps.check.outputs.run-checks }}
     steps:
@@ -488,7 +491,7 @@ jobs:
     name: Mandatory Cypress Tests — Consolidated Result
     needs: [mandatory-cypress-tests]
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     permissions:
       pull-requests: write
     steps:
@@ -768,7 +771,7 @@ jobs:
     name: Prepare Mock Connectors matrix
     needs: [check-cypress-prerequisites]
     if: ${{ needs.check-cypress-prerequisites.outputs.run-checks == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     outputs:
       mock-matrix: ${{ steps.set-mock-matrix.outputs.matrix }}
     steps:
@@ -1201,7 +1204,7 @@ jobs:
     name: MITM Mock Cypress Tests — Consolidated Result
     needs: [mitm-cassette-replay-cypress-tests]
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     permissions:
       pull-requests: write
     steps:
