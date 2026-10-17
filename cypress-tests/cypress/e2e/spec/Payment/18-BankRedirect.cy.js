@@ -505,9 +505,13 @@ describe("Bank Redirect tests", () => {
       let shouldContinue = true;
 
       cy.step("Setup UCS rollout config", () => {
+        // Authorize covers the confirm call; PSync covers the force-sync
+        // retrieve below - without its rollout key the router falls back to
+        // the legacy interface, which truelayer (UCS-only) does not implement
+        // ("get_url method is not implemented").
         cy.createRolloutConfig(
           globalState,
-          "bank_redirect_open_banking_Authorize"
+          "bank_redirect_open_banking_Authorize,bank_redirect_open_banking_PSync"
         );
       });
 

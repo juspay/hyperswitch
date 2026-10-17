@@ -19972,6 +19972,7 @@
           "givepayments",
           "globalpay",
           "globalpayments_heartland",
+          "globalpayments_realex",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -36032,6 +36033,13 @@
               }
             ],
             "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -36613,6 +36621,13 @@
                 "$ref": "#/components/schemas/SurchargeStrategy"
               }
             ],
+            "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
             "nullable": true
           }
         }
@@ -37440,6 +37455,12 @@
             "description": "A connector-specific identifier representing the stored payment instrument",
             "nullable": true,
             "maxLength": 255
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Whether address verification was requested for this payment.",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -38475,6 +38496,13 @@
               }
             ],
             "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -39327,6 +39355,12 @@
             "description": "A connector-specific identifier representing the stored payment instrument",
             "nullable": true,
             "maxLength": 255
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Whether address verification was requested for this payment.",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -40072,6 +40106,13 @@
                 "$ref": "#/components/schemas/SurchargeStrategy"
               }
             ],
+            "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
             "nullable": true
           }
         }
@@ -46272,6 +46313,7 @@
           "givepayments",
           "globalpay",
           "globalpayments_heartland",
+          "globalpayments_realex",
           "globepay",
           "gocardless",
           "gotyme_sanlam",

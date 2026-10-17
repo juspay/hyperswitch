@@ -179,6 +179,7 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for Revenue Recovery flow under Process Tracker
         routes::revenue_recovery::revenue_recovery_pt_retrieve_api,
         routes::revenue_recovery::revenue_recovery_payments_create,
+        routes::revenue_recovery::revenue_recovery_cancel,
 
         // Routes for proxy
         routes::proxy::proxy_core,

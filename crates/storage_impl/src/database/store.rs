@@ -1,9 +1,10 @@
-use std::sync::Arc;
+use std::{future::Future, pin::Pin, sync::Arc};
 
 use async_bb8_diesel::{AsyncConnection, ConnectionError};
 use bb8::CustomizeConnection;
 use common_utils::{
     external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    id_type,
     types::{keymanager, TenantConfig},
     DbConnectionParams,
 };
@@ -22,18 +23,31 @@ pub type RawPgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnect
 pub struct PgPool {
     pub pg_pool: RawPgPool,
     pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+    pub tenant_id: id_type::TenantId,
+    pub pool_metrics: super::pool_metrics::PgPoolMetrics,
 }
 
 impl PgPool {
-    pub fn new(pg_pool: RawPgPool, event_emitter: Arc<dyn ExternalServiceEventEmitter>) -> Self {
+    pub fn new(
+        pg_pool: RawPgPool,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+        tenant_id: id_type::TenantId,
+        pool_metrics: super::pool_metrics::PgPoolMetrics,
+    ) -> Self {
         Self {
             pg_pool,
             event_emitter,
+            tenant_id,
+            pool_metrics,
         }
     }
 
-    pub fn new_without_event_emitter(pool: RawPgPool) -> Self {
-        Self::new(pool, Arc::new(NoOpEventEmitter))
+    pub fn new_without_event_emitter(
+        pool: RawPgPool,
+        tenant_id: id_type::TenantId,
+        pool_metrics: super::pool_metrics::PgPoolMetrics,
+    ) -> Self {
+        Self::new(pool, Arc::new(NoOpEventEmitter), tenant_id, pool_metrics)
     }
 }
 
@@ -89,6 +103,8 @@ impl DatabaseStore for Store {
                 tenant_config.get_schema(),
                 test_transaction,
                 Arc::clone(&event_emitter),
+                super::pool_metrics::DbPool::Master,
+                tenant_config.get_tenant_id(),
             )
             .await?,
             accounts_pool: diesel_make_pg_pool(
@@ -96,6 +112,8 @@ impl DatabaseStore for Store {
                 tenant_config.get_accounts_schema(),
                 test_transaction,
                 event_emitter,
+                super::pool_metrics::DbPool::AccountsMaster,
+                tenant_config.get_tenant_id(),
             )
             .await?,
         })
@@ -144,6 +162,8 @@ impl DatabaseStore for ReplicaStore {
             tenant_config.get_schema(),
             test_transaction,
             Arc::clone(&event_emitter),
+            super::pool_metrics::DbPool::Master,
+            tenant_config.get_tenant_id(),
         )
         .await
         .attach_printable("failed to create master pool")?;
@@ -152,6 +172,8 @@ impl DatabaseStore for ReplicaStore {
             tenant_config.get_accounts_schema(),
             test_transaction,
             Arc::clone(&event_emitter),
+            super::pool_metrics::DbPool::AccountsMaster,
+            tenant_config.get_tenant_id(),
         )
         .await
         .attach_printable("failed to create accounts master pool")?;
@@ -160,6 +182,8 @@ impl DatabaseStore for ReplicaStore {
             tenant_config.get_schema(),
             test_transaction,
             Arc::clone(&event_emitter),
+            super::pool_metrics::DbPool::Replica,
+            tenant_config.get_tenant_id(),
         )
         .await
         .attach_printable("failed to create replica pool")?;
@@ -169,6 +193,8 @@ impl DatabaseStore for ReplicaStore {
             tenant_config.get_accounts_schema(),
             test_transaction,
             event_emitter,
+            super::pool_metrics::DbPool::AccountsReplica,
+            tenant_config.get_tenant_id(),
         )
         .await
         .attach_printable("failed to create accounts pool")?;
@@ -202,6 +228,8 @@ pub async fn diesel_make_pg_pool(
     schema: &str,
     test_transaction: bool,
     event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+    db_pool: super::pool_metrics::DbPool,
+    tenant_id: &id_type::TenantId,
 ) -> StorageResult<PgPool> {
     let database_url = database.get_database_url(schema);
     let manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database_url);
@@ -254,22 +282,34 @@ pub async fn diesel_make_pg_pool(
         }
     }
 
-    Ok(PgPool::new(raw_pool, event_emitter))
+    let pool_metrics =
+        super::pool_metrics::PgPoolMetrics::new(raw_pool.clone(), db_pool, tenant_id);
+
+    Ok(PgPool::new(
+        raw_pool,
+        event_emitter,
+        tenant_id.clone(),
+        pool_metrics,
+    ))
 }
 
 #[derive(Debug)]
 struct TestTransaction;
 
-#[async_trait::async_trait]
 impl CustomizeConnection<RawPgConnection, ConnectionError> for TestTransaction {
     #[allow(clippy::unwrap_used)]
-    async fn on_acquire(&self, conn: &mut RawPgConnection) -> Result<(), ConnectionError> {
-        use diesel::Connection;
+    fn on_acquire<'a>(
+        &'a self,
+        conn: &'a mut RawPgConnection,
+    ) -> Pin<Box<dyn Future<Output = Result<(), ConnectionError>> + Send + 'a>> {
+        Box::pin(async move {
+            use diesel::Connection;
 
-        conn.run(|conn| {
-            conn.begin_test_transaction().unwrap();
-            Ok(())
+            conn.run(|conn| {
+                conn.begin_test_transaction().unwrap();
+                Ok(())
+            })
+            .await
         })
-        .await
     }
 }
