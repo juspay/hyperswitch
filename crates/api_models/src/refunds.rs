@@ -52,7 +52,7 @@ pub struct RefundRequest {
     pub reason: Option<String>,
 
     /// To indicate whether to refund needs to be instant or scheduled. Default value is instant
-    #[schema(default = "Instant", example = "Instant")]
+    #[schema(default = "instant", example = "instant")]
     #[smithy(value_type = "Option<RefundType>")]
     pub refund_type: Option<RefundType>,
 
@@ -110,7 +110,7 @@ pub struct RefundsCreateRequest {
     pub reason: Option<String>,
 
     /// To indicate whether to refund needs to be instant or scheduled. Default value is instant
-    #[schema(default = "Instant", example = "Instant")]
+    #[schema(default = "instant", example = "instant")]
     pub refund_type: Option<RefundType>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.

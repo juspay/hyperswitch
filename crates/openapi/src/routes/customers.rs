@@ -172,7 +172,7 @@ pub async fn customers_create() {}
 
     ),
     tag = "Customers",
-    operation_id = "Create a Customer",
+    operation_id = "Create a Customer V1",
     security(("api_key" = []))
 )]
 #[cfg(feature = "v2")]
@@ -274,7 +274,7 @@ pub async fn customers_retrieve_by_merchant_reference_id() {}
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
-    operation_id = "Retrieve a Customer",
+    operation_id = "Retrieve a Customer V1",
     security(("api_key" = []))
 )]
 #[cfg(feature = "v2")]
@@ -342,7 +342,7 @@ pub async fn customers_update() {}
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
-    operation_id = "Update a Customer",
+    operation_id = "Update a Customer V1",
     security(("api_key" = []))
 )]
 #[cfg(feature = "v2")]
@@ -392,7 +392,7 @@ pub async fn customers_delete() {}
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
-    operation_id = "Delete a Customer",
+    operation_id = "Delete a Customer V1",
     security(("api_key" = []))
 )]
 #[cfg(feature = "v2")]
@@ -439,7 +439,7 @@ pub async fn customers_list() {}
         (status = 400, description = "Invalid Data"),
     ),
     tag = "Customers",
-    operation_id = "List all Customers for a Merchant",
+    operation_id = "List all Customers for a Merchant V1",
     security(("api_key" = []))
 )]
 #[cfg(feature = "v2")]
