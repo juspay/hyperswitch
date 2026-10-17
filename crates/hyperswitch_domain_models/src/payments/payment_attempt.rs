@@ -55,7 +55,11 @@ use crate::{
     address::Address, consts, payment_method_data::PaymentMethodData, platform,
     router_response_types,
 };
-use crate::{errors, merchant_key_store::MerchantKeyStore, ForeignIDRef};
+use crate::{
+    errors,
+    platform::{ProcessorKeyStore, ProcessorMerchantId, ProcessorStorageScheme},
+    ForeignIDRef,
+};
 #[cfg(feature = "v1")]
 use crate::{
     mandates::{MandateDataType, MandateDetails, MandateTransactionType},
@@ -69,16 +73,16 @@ pub trait PaymentAttemptInterface {
     async fn insert_payment_attempt(
         &self,
         payment_attempt: PaymentAttempt,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: ProcessorStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn insert_payment_attempt(
         &self,
-        merchant_key_store: &MerchantKeyStore,
+        merchant_key_store: &ProcessorKeyStore,
         payment_attempt: PaymentAttempt,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
@@ -86,120 +90,120 @@ pub trait PaymentAttemptInterface {
         &self,
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: ProcessorStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn update_payment_attempt(
         &self,
-        merchant_key_store: &MerchantKeyStore,
+        merchant_key_store: &ProcessorKeyStore,
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
+        processor_merchant_id: &ProcessorMerchantId,
+        storage_scheme: ProcessorStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
+        processor_merchant_id: &ProcessorMerchantId,
+        storage_scheme: ProcessorStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
         &self,
-        merchant_key_store: &MerchantKeyStore,
+        merchant_key_store: &ProcessorKeyStore,
         payment_id: &id_type::GlobalPaymentId,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_processor_merchant_id_connector_txn_id(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         connector_txn_id: &str,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: ProcessorStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
-        merchant_key_store: &MerchantKeyStore,
+        merchant_key_store: &ProcessorKeyStore,
         profile_id: &id_type::ProfileId,
         connector_transaction_id: &str,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
         &self,
         payment_id: &id_type::PaymentId,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         attempt_id: &str,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: ProcessorStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_attempt_id_processor_merchant_id(
         &self,
         attempt_id: &str,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
+        processor_merchant_id: &ProcessorMerchantId,
+        storage_scheme: ProcessorStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_id(
         &self,
-        merchant_key_store: &MerchantKeyStore,
+        merchant_key_store: &ProcessorKeyStore,
         attempt_id: &id_type::GlobalAttemptId,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn find_payment_attempts_by_payment_intent_id(
         &self,
         payment_id: &id_type::GlobalPaymentId,
-        merchant_key_store: &MerchantKeyStore,
-        storage_scheme: common_enums::MerchantStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_attempts_by_processor_merchant_id_payment_id(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         payment_id: &id_type::PaymentId,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: ProcessorStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
     ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filters_for_payments(
         &self,
         pi: &[PaymentIntent],
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        processor_merchant_id: &ProcessorMerchantId,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<PaymentListFilters, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     #[allow(clippy::too_many_arguments)]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         active_attempt_ids: &[String],
         connector: Option<Vec<Connector>>,
         payment_method: Option<Vec<storage_enums::PaymentMethod>>,
@@ -208,14 +212,14 @@ pub trait PaymentAttemptInterface {
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<storage_enums::CardNetwork>>,
         card_discovery: Option<Vec<storage_enums::CardDiscovery>>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<i64, Self::Error>;
 
     #[cfg(all(feature = "v2", feature = "olap"))]
     #[allow(clippy::too_many_arguments)]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
-        merchant_id: &id_type::MerchantId,
+        merchant_id: &ProcessorMerchantId,
         active_attempt_ids: &[String],
         connector: Option<Vec<api_models::enums::Connector>>,
         payment_method_type: Option<Vec<storage_enums::PaymentMethod>>,
@@ -223,7 +227,7 @@ pub trait PaymentAttemptInterface {
         authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<storage_enums::CardNetwork>>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<i64, Self::Error>;
 }
 

@@ -1348,7 +1348,7 @@ pub async fn payouts_filtered_list_core(
                     <domain::Customer as storage_impl::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         cust,
-                        &(platform.get_processor().get_key_store().clone()).key,
+                        &(platform.get_processor().get_key_store().inner().clone()).key,
                         platform
                             .get_processor()
                             .get_key_store()
@@ -1370,7 +1370,7 @@ pub async fn payouts_filtered_list_core(
                     <domain::Address as domain::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         addr,
-                        &(platform.get_processor().get_key_store().clone()).key,
+                        &(platform.get_processor().get_key_store().inner().clone()).key,
                         platform
                             .get_processor()
                             .get_key_store()
