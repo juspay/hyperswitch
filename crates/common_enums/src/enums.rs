@@ -12564,7 +12564,7 @@ pub enum VaultEnv {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum BlocklistTransactionType {
