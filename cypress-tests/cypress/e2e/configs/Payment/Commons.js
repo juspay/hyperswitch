@@ -4716,6 +4716,34 @@ export const connectorDetails = {
         },
       },
     }),
+    BlockedGenericCardBinDenied: getCustomExchange({
+      Request: {
+        payment_method_type: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000002",
+            card_exp_month: "01",
+            card_exp_year: "2050",
+            card_holder_name: "John Smith",
+            card_cvc: "349",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          sdk_next_action: {
+            next_action: {
+              deny: {
+                message:
+                  "We're unable to accept this card, please try another card or a different payment method",
+              },
+            },
+          },
+        },
+      },
+    }),
     NonBlocklistedCardAllowed: getCustomExchange({
       Request: {
         payment_method_type: "card",
