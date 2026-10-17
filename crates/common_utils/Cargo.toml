@@ -62,7 +62,7 @@ serde_urlencoded = "0.7.1"
 signal-hook = { version = "0.3.18", optional = true }
 strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0.69"
-time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
+time = { version = "0.3.41", features = ["serde", "serde-well-known", "std", "macros"] }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"], optional = true }
 url = { version = "2.5.4", features = ["serde"] }
 urlencoding = "2.1.3"
@@ -72,7 +72,7 @@ ammonia = "3.3"
 
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }
-hyperswitch_masking = { version = "0.0.1", features = ["diesel", "serde", "time"] }
+hyperswitch_masking = { version = "0.0.1", features = ["serde", "time"] }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true, default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.uuid]
