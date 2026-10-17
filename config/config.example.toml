@@ -312,6 +312,10 @@ max_age = 365     # Max age of a refund in days.
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180
 
+# Incoming webhook mTLS headers are configured in deployment configurations.
+# [incoming_webhooks]
+# mtls_verified_header = "<value>"
+
 # Controls whether merchant ID authentication is enabled.
 # When enabled, payment endpoints will accept and require a x-merchant-id header in the request.
 [merchant_id_auth]
@@ -1602,6 +1606,9 @@ base_url = "http://127.0.0.1:8080" #Base URL
 
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billing connectors which has invoice sync api call
+
+[billing_connectors_invoice_record_back]
+billing_connectors_which_require_invoice_record_back_call = "chargebee,stripebilling,recurly" # Billing connectors eligible for invoice record-back after a recovery payment
 
 [billing_connectors_dispute_record_back]
 billing_connectors_which_requires_dispute_record_back_call = "chargebee" # List of billing connectors which support the dispute record back api call

@@ -2114,8 +2114,8 @@ impl webhooks::IncomingWebhook for Santander {
         _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         _connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        // Source verification for Santander is MTLS which is handled at the transport layer. No additional verification is needed here in application side
-        Ok(true)
+        // The router establishes source verification only after successful mTLS validation.
+        Ok(false)
     }
 
     fn get_webhook_object_reference_id(
@@ -2470,6 +2470,10 @@ static SANTANDER_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static SANTANDER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Santander {
+    fn is_webhook_mtls_required(&self) -> bool {
+        true
+    }
+
     fn is_payment_recurrence_operation_needed(
         &self,
         setup_future_usage: Option<common_enums::FutureUsage>,
