@@ -88,7 +88,7 @@ impl HealthCheckInterface for app::SessionState {
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckLockerError> {
         let locker = &self.conf.locker;
-        if !locker.mock_locker {
+        if locker.locker_enabled && !locker.mock_locker {
             let mut url = locker.host.to_owned();
             url.push_str(consts::LOCKER_HEALTH_CALL_PATH);
             let request = services::Request::new(services::Method::Get, &url);
@@ -100,6 +100,9 @@ impl HealthCheckInterface for app::SessionState {
                 })?;
             Ok(HealthState::Running)
         } else {
+            if !locker.locker_enabled {
+                logger::warn!("Locker health check skipped: locker is disabled");
+            }
             Ok(HealthState::NotApplicable)
         }
     }
