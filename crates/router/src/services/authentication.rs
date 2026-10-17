@@ -66,6 +66,7 @@ pub mod blacklist;
 pub mod cookies;
 pub mod decision;
 pub mod embedded;
+pub mod idle_session;
 
 #[cfg(feature = "partial-auth")]
 mod detached;
@@ -5458,7 +5459,13 @@ where
             &state.session_state().tenant.tenant_id,
         )?;
 
-        Ok(((), AuthenticationType::NoAuth))
+        Ok((
+            (),
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
     }
 }
 
@@ -5495,6 +5502,9 @@ where
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
         authorization::check_tenant(
             payload.tenant_id.clone(),
             &state.session_state().tenant.tenant_id,
