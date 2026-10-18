@@ -10,6 +10,23 @@ use serde::de;
 
 use crate::{kv_router_store::KVRouterStore, metrics, store::kv, UniqueConstraints};
 
+const HSET_IF_JSON_FIELD_NULL_SCRIPT: &str = r#"
+local current_value = redis.call("HGET", KEYS[1], ARGV[1])
+if not current_value then
+    return -1
+end
+
+local current_object = cjson.decode(current_value)
+local current_field = current_object[ARGV[3]]
+if current_field ~= nil and current_field ~= cjson.null then
+    return 0
+end
+
+redis.call("HSET", KEYS[1], ARGV[1], ARGV[2])
+redis.call("EXPIRE", KEYS[1], ARGV[4])
+return 1
+"#;
+
 pub trait KvStorePartition {
     fn partition_number(key: PartitionKey<'_>, num_partitions: u8) -> u32 {
         crc32fast::hash(key.to_string().as_bytes()) % u32::from(num_partitions)
@@ -127,6 +144,7 @@ pub trait RedisConnInterface {
 /// An enum to represent what operation to do on
 pub enum KvOperation<'a, S: serde::Serialize + Debug> {
     Hset((&'a str, String), kv::SerializableQuery),
+    HsetIfJsonFieldNull((&'a str, String, &'static str), kv::SerializableQuery),
     SetNx(&'a S, kv::SerializableQuery),
     HSetNx(&'a str, &'a S, kv::SerializableQuery),
     HGet(&'a str),
@@ -140,6 +158,7 @@ pub enum KvResult<T: de::DeserializeOwned> {
     HGet(T),
     Get(T),
     Hset(()),
+    HsetIfJsonFieldNull(bool),
     SetNx(redis_interface::SetnxReply),
     HSetNx(redis_interface::HsetnxReply),
     Scan(Vec<T>),
@@ -164,6 +183,7 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             KvOperation::Hset(_, _) => f.write_str("Hset"),
+            KvOperation::HsetIfJsonFieldNull(_, _) => f.write_str("HsetIfJsonFieldNull"),
             KvOperation::SetNx(_, _) => f.write_str("Setnx"),
             KvOperation::HSetNx(_, _, _) => f.write_str("HSetNx"),
             KvOperation::HGet(_) => f.write_str("Hget"),
@@ -206,6 +226,37 @@ where
                     .await?;
 
                 Ok(KvResult::Hset(()))
+            }
+
+            KvOperation::HsetIfJsonFieldNull((field, value, json_field), query) => {
+                logger::debug!(kv_operation= %operation, field, json_field);
+
+                let tenant_aware_key =
+                    redis_interface::RedisKey::from(&key).tenant_aware_key(&redis_conn.redis_conn);
+                let result: i64 = redis_conn
+                    .evaluate_redis_script(
+                        HSET_IF_JSON_FIELD_NULL_SCRIPT,
+                        vec![tenant_aware_key],
+                        vec![
+                            field.to_string(),
+                            value,
+                            json_field.to_string(),
+                            ttl.to_string(),
+                        ],
+                    )
+                    .await?;
+
+                match result {
+                    1 => {
+                        store
+                            .push_to_drainer_stream::<S>(query, partition_key)
+                            .await?;
+                        Ok(KvResult::HsetIfJsonFieldNull(true))
+                    }
+                    0 => Ok(KvResult::HsetIfJsonFieldNull(false)),
+                    -1 => Err(report!(RedisError::NotFound)),
+                    _ => Err(report!(RedisError::UnknownResult)),
+                }
             }
 
             KvOperation::HGet(field) => {
