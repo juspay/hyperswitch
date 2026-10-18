@@ -1879,6 +1879,111 @@ Cypress.Commands.add(
   }
 );
 
+/**
+ * Adds a payment_processor MCA for the connector id in globalState before it's needed by a spec - only if it's not there already.
+ * connector creation is idempotent unlike createConnectorCallTest so that the flow doesn't break, if the flow create MCA already exist for the merchant on (profile_id, connector_label) partial re-runs of a spec.
+ * createConnectorBody must already be populated (connector_label handled) by the caller.
+ */
+Cypress.Commands.add(
+  "createPaymentConnectorIfAbsentCallTest",
+  (
+    createConnectorBody,
+    payment_methods_enabled,
+    globalState,
+    profilePrefix = "profile",
+    mcaPrefix = "merchantConnector"
+  ) => {
+    const merchantId = globalState.get("merchantId");
+    const connector_id = globalState.get("connectorId");
+    const connectorAuthFilePath = globalState.get("connectorAuthFilePath");
+    // MCA create is authenticated with the merchant's own API key (same as
+    // createConnectorCallTest / createPayoutConnectorCallTest) - the admin
+    // key is rejected with IR_01 on /account/{id}/connectors routes.
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const profile_id = globalState.get(`${profilePrefix}Id`);
+    const url = `${baseUrl}/account/${merchantId}/connectors`;
+
+    const originalConnectorName = getOriginalConnectorName(connector_id);
+
+    createConnectorBody.connector_type = "payment_processor";
+    createConnectorBody.profile_id = profile_id;
+    createConnectorBody.connector_name = originalConnectorName;
+    createConnectorBody.payment_methods_enabled = payment_methods_enabled;
+    globalState.set("originalConnectorId", connector_id);
+
+    cy.readFile(connectorAuthFilePath).then((jsonContent) => {
+      const { authDetails } = getValueByKey(
+        JSON.stringify(jsonContent),
+        connector_id,
+        extractIntegerAtEnd(profilePrefix)
+      );
+
+      createConnectorBody.connector_account_details =
+        authDetails.connector_account_details;
+
+      if (authDetails && authDetails.metadata) {
+        createConnectorBody.metadata = {
+          ...createConnectorBody.metadata, // Preserve existing metadata fields
+          ...authDetails.metadata, // Merge with authDetails.metadata
+        };
+      }
+
+      if (authDetails && authDetails.additional_merchant_data) {
+        createConnectorBody.additional_merchant_data =
+          authDetails.additional_merchant_data;
+      }
+
+      if (authDetails && authDetails.connector_webhook_details) {
+        createConnectorBody.connector_webhook_details =
+          authDetails.connector_webhook_details;
+      }
+
+      cy.request({
+        method: "POST",
+        url: url,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        body: createConnectorBody,
+        failOnStatusCode: false,
+      }).then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        cy.wrap(response).then(() => {
+          if (response.status === 200) {
+            expect(originalConnectorName).to.equal(
+              response.body.connector_name
+            );
+            globalState.set(
+              `${mcaPrefix}Id`,
+              response.body.merchant_connector_id
+            );
+          } else if (
+            response.status === 400 &&
+            String(response.body?.error?.message).includes("already exists")
+          ) {
+            cy.task(
+              "cli_log",
+              `createPaymentConnectorIfAbsentCallTest: connector already exists on this profile - reusing it (${response.body.error.message})`
+            );
+          } else {
+            cy.task(
+              "cli_log",
+              "response status -> " + JSON.stringify(response.status)
+            );
+            throw new Error(
+              `Connector Create Call Failed ${response.body.error.message}`
+            );
+          }
+        });
+      });
+    });
+  }
+);
+
 Cypress.Commands.add(
   "externalVaultConnectorCreateCallTest",
   (
@@ -5187,10 +5292,23 @@ Cypress.Commands.add(
  * the connector-service returns them on authorize/psync — they are null on
  * the direct gateway, so a closed-loop passthrough payout must create its
  * source payment through UCS.
+ *
+ * The payment is force-synced in a poll loop: after the truelayer mock-bank
+ * redirect journey, the connector-side authorization settles asynchronously
+ * (sandbox webhook / delayed psync), so a single immediate read can observe
+ * the payment before `succeeded`. Each poll logs the attempt leg's
+ * status/error so a genuinely failed attempt surfaces its connector error
+ * on exhaustion instead of a bare status mismatch.
+ *
+ * Polling only continues while the payment is still in flight (`processing`
+ * or `requires_customer_action` before the first psync lands). Any other
+ * non-success status (e.g. `requires_payment_method` when the confirm leg
+ * failed, or `failed`) never transitions further, so the loop exits
+ * immediately instead of burning the full poll window on a dead payment.
  */
 Cypress.Commands.add(
   "retrieveClosedLoopPayoutSourceCallTest",
-  (globalState) => {
+  (globalState, maxAttempts = 8, waitMs = 5000) => {
     const payment_id = globalState.get("paymentID");
 
     if (!payment_id) {
@@ -5204,39 +5322,76 @@ Cypress.Commands.add(
       "api-key": globalState.get("apiKey"),
     };
 
-    cy.request({
-      method: "GET",
-      url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true&expand_attempts=true`,
-      headers,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-      storeRequestId(response.headers["x-request-id"], globalState);
+    // Statuses that can still transition to `succeeded` on a subsequent
+    // force-sync; anything else is terminal for this poll loop.
+    const IN_FLIGHT_STATUSES = ["processing", "requires_customer_action"];
 
-      cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
-        expect(response.body.payment_id).to.equal(payment_id);
-        expect(response.body.status, "payment status").to.equal("succeeded");
+    const pollUntilSucceeded = (attemptsLeft) => {
+      cy.request({
+        method: "GET",
+        url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true&expand_attempts=true`,
+        headers,
+        failOnStatusCode: false,
+      }).then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        storeRequestId(response.headers["x-request-id"], globalState);
 
-        expect(
-          response.body.sender_payment_instrument_id,
-          "sender_payment_instrument_id"
-        ).to.be.a("string").and.to.not.be.empty;
-        expect(
-          response.body.connector_customer_id,
-          "connector_customer_id"
-        ).to.be.a("string").and.to.not.be.empty;
+        const status = response.body?.status;
 
-        globalState.set(
-          "senderPaymentInstrumentId",
-          response.body.sender_payment_instrument_id
-        );
-        globalState.set(
-          "connectorCustomerId",
-          response.body.connector_customer_id
-        );
+        if (status !== "succeeded") {
+          const attempt = response.body?.attempts?.[0];
+          const diagnostics = `attempt #${maxAttempts - attemptsLeft + 1}/${maxAttempts} - payment status=${status}, attempt status=${attempt?.status}, error_code=${attempt?.error_code}, error_message=${attempt?.error_message}`;
+          cy.task(
+            "cli_log",
+            `retrieveClosedLoopPayoutSourceCallTest: ${diagnostics}`
+          );
+
+          if (!IN_FLIGHT_STATUSES.includes(status)) {
+            throw new Error(
+              `retrieveClosedLoopPayoutSourceCallTest: payment ${payment_id} is in non-progressing status '${status}' - the payment leg failed before the redirect journey completed (${diagnostics})`
+            );
+          }
+
+          if (attemptsLeft > 1) {
+            return cy
+              .wait(waitMs)
+              .then(() => pollUntilSucceeded(attemptsLeft - 1));
+          }
+
+          throw new Error(
+            `retrieveClosedLoopPayoutSourceCallTest: payment ${payment_id} still not succeeded after ${maxAttempts} force-sync polls (${diagnostics})`
+          );
+        }
+
+        cy.wrap(response).then(() => {
+          expect(response.headers["content-type"]).to.include(
+            "application/json"
+          );
+          expect(response.body.payment_id).to.equal(payment_id);
+          expect(response.body.status, "payment status").to.equal("succeeded");
+
+          expect(
+            response.body.sender_payment_instrument_id,
+            "sender_payment_instrument_id"
+          ).to.be.a("string").and.to.not.be.empty;
+          expect(
+            response.body.connector_customer_id,
+            "connector_customer_id"
+          ).to.be.a("string").and.to.not.be.empty;
+
+          globalState.set(
+            "senderPaymentInstrumentId",
+            response.body.sender_payment_instrument_id
+          );
+          globalState.set(
+            "connectorCustomerId",
+            response.body.connector_customer_id
+          );
+        });
       });
-    });
+    };
+
+    pollUntilSucceeded(maxAttempts);
   }
 );
 

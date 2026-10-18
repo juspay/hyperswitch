@@ -482,6 +482,13 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
   ) {
     context(
       "[Payout] [Bank transfer - Open Banking] Closed-loop passthrough (UCS)",
+      // These tests form a stateful chain (confirm payment -> redirect ->
+      // retrieve source tokens -> payout) held only in the describe-level
+      // globalState. A retry resets the page and re-seeds globalState from
+      // the node task, wiping every value the earlier tests produced - the
+      // redirect retry then "passes" vacuously with no nextActionUrl and the
+      // real failure never surfaces. Retries must stay off for this chain.
+      { retries: 0 },
       () => {
         let shouldContinue = true;
 
@@ -489,6 +496,20 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
           if (!shouldContinue) {
             this.skip();
           }
+        });
+
+        afterEach(function () {
+          if (this.currentTest.state === "failed") {
+            shouldContinue = false;
+          }
+
+          // Persist state to the node task after every test. In headless run
+          // mode the first cross-origin navigation of the redirect journey
+          // (integ -> truelayer-sandbox form auto-submit) makes Cypress
+          // reload the spec on the new origin and re-execute the current
+          // test with globalState re-seeded from this snapshot - without it,
+          // paymentID/nextActionUrl produced by the payment leg are lost.
+          cy.task("setGlobalState", globalState.data);
         });
 
         // sender_payment_instrument_id / connector_customer_id are returned
@@ -545,9 +566,12 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
           // test_mode to false for truelayer; the payment MCA mirrors the
           // payment-suite setup instead.
           paymentConnectorBody.test_mode = true;
+          // Explicit label: the payout MCA onboarded in 00002 already owns
+          // the auto-derived default label (truelayer_US_default) on this
+          // profile, and (profile_id, connector_label) must be unique.
+          paymentConnectorBody.connector_label = "truelayer_payment";
 
-          cy.createConnectorCallTest(
-            "payment_processor",
+          cy.createPaymentConnectorIfAbsentCallTest(
             paymentConnectorBody,
             [
               {
