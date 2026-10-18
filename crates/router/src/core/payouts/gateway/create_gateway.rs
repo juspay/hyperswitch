@@ -13,7 +13,7 @@ use hyperswitch_interfaces::{
 use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
-    core::{payments::gateway::context::RouterGatewayContext, unified_connector_service},
+    core::{payouts::gateway::context::RouterGatewayContext, unified_connector_service},
     routes::SessionState,
     services::logger,
     types::{self, transformers::ForeignTryFrom},
@@ -58,11 +58,12 @@ where
         RouterData<Self, types::PayoutsData, types::PayoutsResponseData>,
         ConnectorError,
     > {
+        let rollout_settings = context.rollout_settings();
+        let external_vault_proxy_metadata = context.payout_external_vault_proxy_metadata(state)?;
         let merchant_connector_account = context.merchant_connector_account;
         let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
-        let unified_connector_service_execution_mode = context.execution_mode;
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -97,8 +98,10 @@ where
             .map(ucs_types::UcsResourceId::PayoutAttempt);
 
         let grpc_headers = state
-            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
-            .external_vault_proxy_metadata(None)
+            .get_grpc_headers_ucs(rollout_settings.execution_mode)
+            .payment_method(Some(router_data.payment_method))
+            .payment_method_type(router_data.payment_method_type)
+            .external_vault_proxy_metadata(external_vault_proxy_metadata)
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
             .lineage_ids(lineage_ids);
@@ -115,15 +118,20 @@ where
                 state,
                 granular_payout_create_request,
                 grpc_headers,
-                unified_connector_service_execution_mode,
+                rollout_settings,
                 |mut router_data, granular_payout_create_request, grpc_headers| async move {
-                    let response = Box::pin(client.payout_create(
+                    let response = match Box::pin(client.payout_create(
                         granular_payout_create_request,
                         connector_auth_metadata,
                         grpc_headers,
                     ))
                     .await
-                    .attach_printable("Failed to create payout")?;
+                    {
+                        Ok(resp) => resp,
+                        Err(report) => {
+                            return Err(report.attach_printable("Failed to create payout"));
+                        }
+                    };
 
                     let payout_create_response = response.into_inner();
 
@@ -145,7 +153,7 @@ where
             ))
             .await
             .map(|(router_data, _)| router_data)
-            .change_context(ConnectorError::ResponseHandlingFailed)?;
+            .map_err(payout_gateway::convert_ucs_error_to_connector_error)?;
 
         Ok(updated_router_data)
     }

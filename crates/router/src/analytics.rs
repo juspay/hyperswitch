@@ -1780,8 +1780,9 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::ProfileAnalyticsRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: None,
+                permission: Some(Permission::ProfileAnalyticsRead),
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -1825,8 +1826,9 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::ProfileAnalyticsRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: None,
+                permission: Some(Permission::ProfileAnalyticsRead),
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -1865,8 +1867,9 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::ProfileAnalyticsRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: None,
+                permission: Some(Permission::ProfileAnalyticsRead),
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -3708,8 +3711,9 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::ProfileAnalyticsRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: None,
+                permission: Some(Permission::ProfileAnalyticsRead),
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -3785,8 +3789,9 @@ pub mod routes {
                     allow_connected_scope_operation: false,
                     allow_platform_self_operation: false,
                 }),
-                &auth::JWTAuth {
-                    permission: Permission::ProfileAnalyticsRead,
+                &auth::JWTAndEmbeddedAuth {
+                    merchant_id_from_route: None,
+                    permission: Some(Permission::ProfileAnalyticsRead),
                     allow_connected: true,
                     allow_platform: false,
                 },

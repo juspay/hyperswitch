@@ -15,6 +15,18 @@ pub const MIN_CARD_NUMBER_LENGTH: usize = 8;
 /// Maximum limit of a card number will not exceed 19 by ISO standards
 pub const MAX_CARD_NUMBER_LENGTH: usize = 19;
 
+/// Narrowest card number prefix that may be blocklisted
+pub const MIN_CARD_BIN_LENGTH: usize = 6;
+
+/// Widest card number prefix that may be blocklisted. Bounded well short of a full card number
+/// because blocklist prefixes are stored in plaintext, unlike vault-hashed card numbers.
+pub const MAX_CARD_BIN_LENGTH: usize = 10;
+
+/// Card BIN length sent to Offer Engine — the longest BIN it accepts. Its `CARD_BIN` filter
+/// matches any prefix from 6 digits up to the length it receives, so sending the longest BIN
+/// lets 7-9 digit BIN filters match too.
+pub const MAX_OFFER_CARD_BIN_LENGTH: usize = 9;
+
 #[derive(Debug, Deserialize, Serialize, Error)]
 #[error("{0}")]
 pub struct CardNumberValidationErr(&'static str);
@@ -27,13 +39,80 @@ pub struct CardNumber(StrongSecret<String, CardNumberStrategy>);
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct NetworkToken(StrongSecret<String, CardNumberStrategy>);
 
-impl CardNumber {
+/// Card BIN — the leading 6 to 10 digits of a card number. Not a full PAN, so it is
+/// stored and serialized in plain text (matching how BIN blocklist entries are stored).
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+pub struct CardBin(String);
+
+impl CardBin {
+    /// The 6-digit ISIN prefix of the BIN
     pub fn get_card_isin(&self) -> String {
-        self.0.peek().chars().take(6).collect::<String>()
+        self.0.chars().take(6).collect()
+    }
+
+    /// The leading [`MAX_OFFER_CARD_BIN_LENGTH`] digits of the BIN, or all of them when fewer
+    /// were provided
+    pub fn get_offer_card_bin(&self) -> String {
+        self.0.chars().take(MAX_OFFER_CARD_BIN_LENGTH).collect()
+    }
+
+    /// Every blocklist-relevant prefix derivable from this BIN: lengths
+    /// [`MIN_CARD_BIN_LENGTH`] up to the number of digits actually provided
+    /// (capped at [`MAX_CARD_BIN_LENGTH`]).
+    pub fn get_blocklist_bin_prefixes(&self) -> Vec<String> {
+        (MIN_CARD_BIN_LENGTH..=self.0.len().min(MAX_CARD_BIN_LENGTH))
+            .map(|len| self.0.chars().take(len).collect())
+            .collect()
+    }
+}
+
+impl FromStr for CardBin {
+    type Err = CardNumberValidationErr;
+
+    fn from_str(card_bin: &str) -> Result<Self, Self::Err> {
+        let is_valid = (MIN_CARD_BIN_LENGTH..=MAX_CARD_BIN_LENGTH).contains(&card_bin.len())
+            && card_bin.chars().all(|character| character.is_ascii_digit());
+
+        if is_valid {
+            Ok(Self(card_bin.to_string()))
+        } else {
+            Err(CardNumberValidationErr(
+                "card_bin must be the leading 6 to 10 digits of the card number",
+            ))
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for CardBin {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        Self::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+impl CardNumber {
+    fn get_bin_prefix(&self, len: usize) -> String {
+        self.0.peek().chars().take(len).collect::<String>()
+    }
+
+    /// Card BIN of [`MAX_OFFER_CARD_BIN_LENGTH`] digits. Takes no length, so no caller can widen
+    /// it towards the full card number.
+    pub fn get_offer_card_bin(&self) -> String {
+        self.get_bin_prefix(MAX_OFFER_CARD_BIN_LENGTH)
+    }
+
+    pub fn get_card_isin(&self) -> String {
+        self.get_bin_prefix(6)
     }
 
     pub fn get_extended_card_bin(&self) -> String {
-        self.0.peek().chars().take(8).collect::<String>()
+        self.get_bin_prefix(8)
+    }
+
+    pub fn get_blocklist_bin_prefixes(&self) -> Vec<String> {
+        (MIN_CARD_BIN_LENGTH..=MAX_CARD_BIN_LENGTH)
+            .map(|len| self.get_bin_prefix(len))
+            .collect()
     }
     pub fn get_card_no(&self) -> String {
         self.0.peek().chars().collect::<String>()
@@ -349,6 +428,25 @@ mod tests {
             CardNumber::from_str(s).unwrap_err().to_string(),
             "invalid card number length".to_string()
         );
+    }
+
+    #[test]
+    fn offer_card_bin_from_card_number() {
+        let card_number = CardNumber::from_str("4111111111111111").unwrap();
+        assert_eq!(card_number.get_offer_card_bin(), "411111111");
+        assert_eq!(
+            card_number.get_offer_card_bin().len(),
+            MAX_OFFER_CARD_BIN_LENGTH
+        );
+    }
+
+    #[test]
+    fn offer_card_bin_from_card_bin() {
+        let eight_digit_bin = CardBin::from_str("41111111").unwrap();
+        // capped by the digits actually provided
+        assert_eq!(eight_digit_bin.get_offer_card_bin(), "41111111");
+        let ten_digit_bin = CardBin::from_str("4111111111").unwrap();
+        assert_eq!(ten_digit_bin.get_offer_card_bin(), "411111111");
     }
 
     #[test]

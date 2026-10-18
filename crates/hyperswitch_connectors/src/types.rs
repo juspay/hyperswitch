@@ -10,7 +10,7 @@ use hyperswitch_domain_models::{
         },
         unified_authentication_service::{Authenticate, PostAuthenticate, PreAuthenticate},
         Accept, AccessTokenAuth, Authorize, Capture, CreateOrder, Defend, Dsync, Evidence,
-        ExtendAuthorization, Fetch, PSync, PostProcessing, PreProcessing, Retrieve, Session,
+        ExtendAuthorization, Fetch, PSync, PostProcessing, Retrieve, Session,
         SettlementSplitCreate, Upload, Void,
     },
     router_request_types::{
@@ -22,9 +22,9 @@ use hyperswitch_domain_models::{
         DefendDisputeRequestData, DisputeSyncData, FetchDisputesRequestData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsExtendAuthorizationData, PaymentsPostAuthenticateData, PaymentsPostProcessingData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, RetrieveFileRequestData, SettlementSplitRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData,
+        PaymentsPreAuthenticateData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        RetrieveFileRequestData, SettlementSplitRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
@@ -34,10 +34,10 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
-    router_flow_types::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
+    router_flow_types::{Checkout, Fulfillment, PoFrm, RecordReturn, Sale, Transaction},
     router_request_types::fraud_check::{
-        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
-        FraudCheckSaleData, FraudCheckTransactionData,
+        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckPayoutData,
+        FraudCheckRecordReturnData, FraudCheckSaleData, FraudCheckTransactionData,
     },
     router_response_types::fraud_check::FraudCheckResponseData,
 };
@@ -63,8 +63,6 @@ pub(crate) type PaymentsPreAuthenticateResponseRouterData<R> =
     ResponseRouterData<PreAuthenticate, R, PaymentsPreAuthenticateData, PaymentsResponseData>;
 pub(crate) type PaymentsSettlementSplitCreateResponseRouterData<R> =
     ResponseRouterData<SettlementSplitCreate, R, SettlementSplitRequestData, PaymentsResponseData>;
-pub(crate) type PaymentsPreprocessingResponseRouterData<R> =
-    ResponseRouterData<PreProcessing, R, PaymentsPreProcessingData, PaymentsResponseData>;
 pub(crate) type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<Session, R, PaymentsSessionData, PaymentsResponseData>;
 pub(crate) type CreateOrderResponseRouterData<R> =
@@ -116,6 +114,11 @@ pub(crate) type FrmFulfillmentType =
 #[cfg(feature = "frm")]
 pub(crate) type FrmCheckoutRouterData =
     RouterData<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type PoFrmType =
+    dyn ConnectorIntegration<PoFrm, FraudCheckPayoutData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub type PoFrmRouterData = RouterData<PoFrm, FraudCheckPayoutData, FraudCheckResponseData>;
 #[cfg(feature = "v2")]
 pub(crate) struct ResponseRouterDataV2<Flow, R, ResourceCommonData, Request, Response> {
     pub response: R,

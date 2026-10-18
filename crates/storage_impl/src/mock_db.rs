@@ -11,7 +11,10 @@ use hyperswitch_domain_models::{
 };
 use redis_interface::RedisSettings;
 
-use crate::{errors::StorageError, redis::RedisStore};
+use crate::{
+    errors::StorageError,
+    redis::{cache::Caches, RedisStore},
+};
 
 pub mod payment_attempt;
 pub mod payment_intent;
@@ -36,6 +39,9 @@ pub struct MockDb {
     pub refunds: Arc<Mutex<Vec<store::Refund>>>,
     pub processes: Arc<Mutex<Vec<store::ProcessTracker>>>,
     pub redis: Arc<RedisStore>,
+    /// In-memory caches, built with the defaults — a mock store has no configuration to
+    /// take them from.
+    pub caches: Arc<Caches>,
     pub api_keys: Arc<Mutex<Vec<store::ApiKey>>>,
     pub ephemeral_keys: Arc<Mutex<Vec<store::EphemeralKey>>>,
     pub cards_info: Arc<Mutex<Vec<store::CardInfo>>>,
@@ -45,6 +51,7 @@ pub struct MockDb {
     pub mandates: Arc<Mutex<Vec<store::Mandate>>>,
     pub captures: Arc<Mutex<Vec<store::capture::Capture>>>,
     pub merchant_key_store: Arc<Mutex<Vec<store::merchant_key_store::MerchantKeyStore>>>,
+    pub hierarchical_resources: Arc<Mutex<Vec<store::hierarchical_resource::HierarchicalResource>>>,
     #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
     pub tokenizations: Arc<Mutex<Vec<store::tokenization::Tokenization>>>,
     pub business_profiles: Arc<Mutex<Vec<store::business_profile::Profile>>>,
@@ -65,8 +72,6 @@ pub struct MockDb {
     pub user_authentication_methods:
         Arc<Mutex<Vec<store::user_authentication_method::UserAuthenticationMethod>>>,
     pub themes: Arc<Mutex<Vec<store::user::theme::Theme>>>,
-    pub hyperswitch_ai_interactions:
-        Arc<Mutex<Vec<store::hyperswitch_ai_interaction::HyperswitchAiInteraction>>>,
     pub card_issuers: Arc<Mutex<Vec<store::card_issuer::CardIssuer>>>,
     pub blocklists: Arc<Mutex<Vec<store::blocklist::Blocklist>>>,
     pub batch_blocklist_jobs: Arc<Mutex<Vec<store::batch_blocklist_job::BatchBlocklistJob>>>,
@@ -99,6 +104,7 @@ impl MockDb {
                     .await
                     .change_context(StorageError::InitializationError)?,
             ),
+            caches: Arc::new(Caches::default()),
             api_keys: Default::default(),
             ephemeral_keys: Default::default(),
             cards_info: Default::default(),
@@ -108,6 +114,7 @@ impl MockDb {
             mandates: Default::default(),
             captures: Default::default(),
             merchant_key_store: Default::default(),
+            hierarchical_resources: Default::default(),
             #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
             tokenizations: Default::default(),
             business_profiles: Default::default(),
@@ -127,7 +134,6 @@ impl MockDb {
             user_key_store: Default::default(),
             user_authentication_methods: Default::default(),
             themes: Default::default(),
-            hyperswitch_ai_interactions: Default::default(),
             card_issuers: Default::default(),
             blocklists: Default::default(),
             batch_blocklist_jobs: Default::default(),

@@ -86,7 +86,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "pm_collect_link_config in merchant_account",
+            field_name: "pm_collect_link_config in merchant_account".into(),
         })?;
 
     #[cfg(feature = "v2")]

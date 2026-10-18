@@ -3,6 +3,8 @@
 //! Functions that are used to perform the api level configuration, retrieval, updation
 //! of Routing configs.
 
+use std::str::FromStr;
+
 use actix_web::{web, HttpRequest, Responder};
 use api_models::{
     enums,
@@ -172,7 +174,7 @@ pub async fn routing_link_config(
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             routing::link_routing_config(
                 state,
-                auth.platform.get_processor().clone(),
+                auth.platform.clone(),
                 profile_id,
                 algorithm,
                 transaction_type
@@ -270,7 +272,7 @@ pub async fn routing_retrieve_config(
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             routing::retrieve_routing_algorithm_from_algorithm_id(
                 state,
-                auth.platform.get_processor().clone(),
+                auth.platform.clone(),
                 profile_id,
                 algorithm_id,
             )
@@ -489,7 +491,7 @@ pub async fn routing_unlink_config(
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             routing::unlink_routing_config(
                 state,
-                auth.platform.get_processor().clone(),
+                auth.platform.clone(),
                 payload_req.clone(),
                 profile_id,
                 transaction_type
@@ -1678,7 +1680,24 @@ pub async fn evaluate_routing_rule(
         state,
         &req,
         json_payload.clone(),
-        |state, _auth: auth::AuthenticationData, payload, _| async move {
+        |state, auth: auth::AuthenticationData, payload, _| async move {
+            // `created_by` is a DE profile id; restrict it to the caller's merchant.
+            let profile_id = common_utils::id_type::ProfileId::from_str(&payload.created_by)
+                .change_context(ApiErrorResponse::InvalidRequestData {
+                    message: "created_by is not a valid profile id".to_string(),
+                })?;
+            // A profile outside the caller's merchant surfaces as ProfileNotFound; report it
+            // as the ownership failure it is rather than leaking a lookup error.
+            crate::core::utils::validate_and_get_business_profile(
+                state.store.as_ref(),
+                auth.platform.get_processor(),
+                Some(&profile_id),
+            )
+            .await
+            .change_context(ApiErrorResponse::InvalidRequestData {
+                message: "created_by does not belong to the authenticated merchant".to_string(),
+            })?;
+
             let euclid_response: RoutingEvaluateResponse =
                 EuclidApiClient::send_decision_engine_request(
                     &state,
@@ -1748,26 +1767,6 @@ pub async fn migrate_routing_rules(
             let res = Box::pin(routing::migrate_rules_for_profiles(state, payload)).await?;
             Ok(services::ApplicationResponse::Json(res))
         },
-        &auth::AdminApiAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[instrument(skip_all, fields(flow = ?Flow::DecisionEngineDiffCounterReset))]
-pub async fn reset_decision_engine_diff_counter(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    path: web::Path<common_utils::id_type::ProfileId>,
-) -> impl Responder {
-    let flow = Flow::DecisionEngineDiffCounterReset;
-    let profile_id = path.into_inner();
-    Box::pin(oss_api::server_wrap(
-        flow,
-        state,
-        &req,
-        profile_id.clone(),
-        |state, _, profile_id, _| routing::reset_decision_engine_diff_counter(state, profile_id),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))

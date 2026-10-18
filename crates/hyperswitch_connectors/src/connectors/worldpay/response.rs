@@ -296,7 +296,7 @@ where
         .or_else(|| connector_transaction_id.map(transform_fn))
         .ok_or_else(|| {
             errors::ConnectorError::MissingRequiredField {
-                field_name: "_links.self.href",
+                field_name: "_links.self.href".into(),
             }
             .into()
         })

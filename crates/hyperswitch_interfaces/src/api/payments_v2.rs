@@ -9,8 +9,8 @@ use hyperswitch_domain_models::{
             CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
             IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid,
             PostCaptureVoidSync, PostProcessing, PostSessionTokens, PreAuthorizeVoid,
-            PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
-            SettlementSplitCreate, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
+            PushNotification, Reject, SdkSessionUpdate, Session, SettlementSplitCreate,
+            SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
         },
         Authenticate, GiftCardBalanceCheck, PostAuthenticate, PreAuthenticate,
     },
@@ -23,11 +23,11 @@ use hyperswitch_domain_models::{
         PaymentsCompleteRefundSurchrgeData, PaymentsCompleteSurchargeData,
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
-        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
-        PaymentsUpdatePostConfirmData, PushNotificationRequestData, SdkPaymentsSessionUpdateData,
-        SettlementSplitRequestData, SetupMandateRequestData,
+        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PaymentsUpdatePostConfirmData,
+        PushNotificationRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SetupMandateRequestData,
     },
     router_response_types::{
         CompleteRefundSurchrgeResponseData, CompleteSurchargeResponseData,
@@ -276,17 +276,6 @@ pub trait ConnectorCustomerV2:
     CreateConnectorCustomer,
     PaymentFlowData,
     ConnectorCustomerData,
-    PaymentsResponseData,
->
-{
-}
-
-/// trait PaymentsPreProcessingV2
-pub trait PaymentsPreProcessingV2:
-    ConnectorIntegrationV2<
-    PreProcessing,
-    PaymentFlowData,
-    PaymentsPreProcessingData,
     PaymentsResponseData,
 >
 {

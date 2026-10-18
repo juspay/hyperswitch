@@ -21,6 +21,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
+        business_profile: &domain::Profile,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -35,6 +36,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
             self.clone(),
             connector_id,
             processor,
+            business_profile,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
@@ -93,7 +95,13 @@ impl Feature<api::Void, types::PaymentsCancelData>
             router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
         );
 
-        payments::gateway::handle_gateway_call::<_, _, _, PaymentFlowData, _>(
+        Box::pin(payments::gateway::handle_gateway_call::<
+            _,
+            _,
+            _,
+            PaymentFlowData,
+            _,
+        >(
             state,
             self,
             connector,
@@ -101,7 +109,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
             call_connector_action,
             connector_request,
             return_raw_connector_response,
-        )
+        ))
         .await
     }
 

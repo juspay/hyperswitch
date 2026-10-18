@@ -181,28 +181,29 @@ export const connectorDetails = {
         name: "surcharge_config_rate",
         merchant_surcharge_configs: {},
         algorithm: {
-          type: "rate",
-          rate: 2.5,
           defaultSelection: {
-            surcharge_type: "rate",
-            rate: 2.5,
+            surcharge_details: {
+              surcharge: { type: "rate", value: { percentage: 2.5 } },
+            },
           },
           rules: [],
+          metadata: {},
         },
       },
       Response: {
         status: 200,
         body: {
           name: "surcharge_config_rate",
-          merchant_surcharge_configs: {},
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
           algorithm: {
-            type: "rate",
-            rate: 2.5,
             defaultSelection: {
-              surcharge_type: "rate",
-              rate: 2.5,
+              surcharge_details: {
+                surcharge: { type: "rate", value: { percentage: 2.5 } },
+                tax_on_surcharge: null,
+              },
             },
             rules: [],
+            metadata: {},
           },
         },
       },
@@ -213,15 +214,16 @@ export const connectorDetails = {
         status: 200,
         body: {
           name: "surcharge_config_rate",
-          merchant_surcharge_configs: {},
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
           algorithm: {
-            type: "rate",
-            rate: 2.5,
             defaultSelection: {
-              surcharge_type: "rate",
-              rate: 2.5,
+              surcharge_details: {
+                surcharge: { type: "rate", value: { percentage: 2.5 } },
+                tax_on_surcharge: null,
+              },
             },
             rules: [],
+            metadata: {},
           },
         },
       },
@@ -230,17 +232,149 @@ export const connectorDetails = {
       Request: {},
       Response: {
         status: 200,
+        body: {},
+      },
+    },
+    CreateFixed: {
+      Request: {},
+      Response: {
+        status: 200,
         body: {
-          name: "surcharge_config_rate",
-          merchant_surcharge_configs: {},
+          name: "surcharge_config_fixed",
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
           algorithm: {
-            type: "rate",
-            rate: 2.5,
             defaultSelection: {
-              surcharge_type: "rate",
-              rate: 2.5,
+              surcharge_details: {
+                surcharge: { type: "fixed", value: { amount: 100 } },
+                tax_on_surcharge: null,
+              },
             },
             rules: [],
+            metadata: {},
+          },
+        },
+      },
+    },
+    RetrieveFixed: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          name: "surcharge_config_fixed",
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
+          algorithm: {
+            defaultSelection: {
+              surcharge_details: {
+                surcharge: { type: "fixed", value: { amount: 100 } },
+                tax_on_surcharge: null,
+              },
+            },
+            rules: [],
+            metadata: {},
+          },
+        },
+      },
+    },
+    CreateWithRules: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          name: "surcharge_config_rules",
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
+          algorithm: {
+            defaultSelection: {
+              surcharge_details: {
+                surcharge: { type: "rate", value: { percentage: 2.5 } },
+                tax_on_surcharge: null,
+              },
+            },
+            rules: [
+              {
+                connectorSelection: {
+                  surcharge_details: {
+                    surcharge: { type: "rate", value: { percentage: 3 } },
+                    tax_on_surcharge: null,
+                  },
+                },
+                name: "card_surcharge_rule",
+                statements: [
+                  {
+                    condition: [
+                      {
+                        lhs: "payment_method",
+                        comparison: "equal",
+                        value: {
+                          type: "enum_variant",
+                          value: "card",
+                        },
+                        metadata: {},
+                      },
+                    ],
+                    nested: null,
+                  },
+                ],
+              },
+            ],
+            metadata: {},
+          },
+        },
+      },
+    },
+    RetrieveWithRules: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          name: "surcharge_config_rules",
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
+          algorithm: {
+            defaultSelection: {
+              surcharge_details: {
+                surcharge: { type: "rate", value: { percentage: 2.5 } },
+                tax_on_surcharge: null,
+              },
+            },
+            rules: [
+              {
+                connectorSelection: {
+                  surcharge_details: {
+                    surcharge: { type: "rate", value: { percentage: 3 } },
+                    tax_on_surcharge: null,
+                  },
+                },
+                name: "card_surcharge_rule",
+                statements: [
+                  {
+                    condition: [
+                      {
+                        lhs: "payment_method",
+                        comparison: "equal",
+                        value: {
+                          type: "enum_variant",
+                          value: "card",
+                        },
+                        metadata: {},
+                      },
+                    ],
+                    nested: null,
+                  },
+                ],
+              },
+            ],
+            metadata: {},
+          },
+        },
+      },
+    },
+    RetrieveAfterDelete: {
+      Request: {},
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            message: "Resource ID does not exist in our records",
+            code: "HE_02",
           },
         },
       },

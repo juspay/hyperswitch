@@ -342,7 +342,7 @@ pub async fn confirm_subscription(
             invoice
                 .payment_intent_id
                 .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_intent_id",
+                    field_name: "payment_intent_id".into(),
                 })?,
             &request,
         )
@@ -703,7 +703,7 @@ pub async fn update_subscription(
             estimate.currency,
             invoice_entry.payment_intent_id.ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_intent_id",
+                    field_name: "payment_intent_id".into(),
                 },
             )?,
         )
@@ -739,12 +739,12 @@ pub async fn list_subscriptions(
         .await
         .attach_printable("subscriptions: failed to list subscriptions by profile id")?;
 
-    let mut subscriptions_resonse = Vec::new();
+    let mut subscriptions_response = Vec::new();
     for subscription in subscriptions {
         let response = SubscriptionWithHandler::to_subscription_response(&subscription, None, None)
             .attach_printable("subscriptions: failed to convert subscription entry to response")?;
-        subscriptions_resonse.push(response);
+        subscriptions_response.push(response);
     }
 
-    Ok(ApplicationResponse::Json(subscriptions_resonse))
+    Ok(ApplicationResponse::Json(subscriptions_response))
 }

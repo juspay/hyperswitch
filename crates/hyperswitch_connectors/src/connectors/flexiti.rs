@@ -44,7 +44,6 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::PeekInterface;
 use transformers as flexiti;
-use uuid::Uuid;
 
 use crate::{
     capture_method_not_supported,
@@ -89,7 +88,7 @@ impl Flexiti {
     fn get_default_header() -> (String, hyperswitch_masking::Maskable<String>) {
         (
             "x-reference-id".to_string(),
-            Uuid::new_v4().to_string().into(),
+            common_utils::generate_uuid_v4().to_string().into(),
         )
     }
 }

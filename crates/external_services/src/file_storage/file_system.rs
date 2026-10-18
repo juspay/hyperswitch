@@ -1,7 +1,7 @@
 //! Module for local file system storage operations
 
 use std::{
-    fs::{remove_file, File},
+    fs::{remove_file, File, OpenOptions},
     io::{Read, Write},
     path::PathBuf,
 };
@@ -69,6 +69,70 @@ impl FileSystem {
             .change_context(FileSystemStorageError::ReadFailure)?;
         Ok(received_data)
     }
+
+    /// Truncates the staging file that parts are appended to.
+    async fn create_multipart_upload(
+        &self,
+        file_key: &str,
+    ) -> CustomResult<String, FileSystemStorageError> {
+        let file_path = get_file_path(staging_key(file_key));
+
+        std::fs::create_dir_all(
+            file_path
+                .parent()
+                .ok_or(FileSystemStorageError::CreateDirFailed)
+                .attach_printable("Failed to obtain parent directory")?,
+        )
+        .change_context(FileSystemStorageError::CreateDirFailed)?;
+
+        File::create(file_path).change_context(FileSystemStorageError::CreateFailure)?;
+        Ok(file_key.to_owned())
+    }
+
+    /// Appends a part to the staging file.
+    async fn upload_part(
+        &self,
+        file_key: &str,
+        body: Vec<u8>,
+    ) -> CustomResult<(), FileSystemStorageError> {
+        let file_path = get_file_path(staging_key(file_key));
+        let mut file_handler = OpenOptions::new()
+            .append(true)
+            .open(file_path)
+            .change_context(FileSystemStorageError::FileOpenFailure)?;
+        file_handler
+            .write_all(&body)
+            .change_context(FileSystemStorageError::WriteFailure)?;
+        Ok(())
+    }
+
+    /// Moves the completed staging file into place under the real key.
+    async fn complete_multipart_upload(
+        &self,
+        file_key: &str,
+    ) -> CustomResult<(), FileSystemStorageError> {
+        std::fs::rename(
+            get_file_path(staging_key(file_key)),
+            get_file_path(file_key),
+        )
+        .change_context(FileSystemStorageError::WriteFailure)?;
+        Ok(())
+    }
+
+    /// Removes the staging file for an abandoned upload.
+    async fn abort_multipart_upload(
+        &self,
+        file_key: &str,
+    ) -> CustomResult<(), FileSystemStorageError> {
+        remove_file(get_file_path(staging_key(file_key)))
+            .change_context(FileSystemStorageError::DeleteFailure)?;
+        Ok(())
+    }
+}
+
+/// Key of the staging file that parts are appended to before the upload is completed.
+fn staging_key(file_key: &str) -> String {
+    format!("{file_key}.part")
 }
 
 #[async_trait::async_trait]
@@ -99,6 +163,69 @@ impl FileStorageInterface for FileSystem {
             .retrieve_file(file_key)
             .await
             .change_context(FileStorageError::RetrieveFailed)?)
+    }
+
+    /// Truncates the staging file, returning the file key as the upload identifier.
+    async fn create_multipart_upload(
+        &self,
+        file_key: &str,
+    ) -> CustomResult<String, FileStorageError> {
+        Ok(self
+            .create_multipart_upload(file_key)
+            .await
+            .change_context(FileStorageError::MultipartCreateFailed)?)
+    }
+
+    /// Appends a part to the staging file. Part numbers are ignored, since appends arrive in order.
+    async fn upload_part(
+        &self,
+        file_key: &str,
+        _upload_id: &str,
+        _part_number: i32,
+        body: Vec<u8>,
+    ) -> CustomResult<String, FileStorageError> {
+        self.upload_part(file_key, body)
+            .await
+            .change_context(FileStorageError::MultipartUploadPartFailed)?;
+        Ok(String::new())
+    }
+
+    /// Moves the staging file into place under the real key. No lifecycle rule applies locally.
+    async fn complete_multipart_upload(
+        &self,
+        file_key: &str,
+        _upload_id: &str,
+        _parts: Vec<(i32, String)>,
+    ) -> CustomResult<Option<String>, FileStorageError> {
+        self.complete_multipart_upload(file_key)
+            .await
+            .change_context(FileStorageError::MultipartCompleteFailed)?;
+        Ok(None)
+    }
+
+    /// Removes the staging file for an abandoned upload.
+    async fn abort_multipart_upload(
+        &self,
+        file_key: &str,
+        _upload_id: &str,
+    ) -> CustomResult<(), FileStorageError> {
+        self.abort_multipart_upload(file_key)
+            .await
+            .change_context(FileStorageError::MultipartAbortFailed)?;
+        Ok(())
+    }
+
+    /// A local path is neither signed nor reachable by a merchant.
+    async fn get_presigned_download_url(
+        &self,
+        _file_key: &str,
+        _expires_in: std::time::Duration,
+        _download_file_name: Option<&str>,
+    ) -> CustomResult<url::Url, FileStorageError> {
+        Err(error_stack::report!(
+            FileStorageError::PresigningNotSupported
+        ))
+        .attach_printable("The file_system storage backend cannot issue presigned URLs")
     }
 }
 

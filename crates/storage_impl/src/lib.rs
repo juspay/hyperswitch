@@ -28,6 +28,7 @@ pub mod customers;
 pub mod database;
 pub mod dispute;
 pub mod errors;
+pub mod hierarchical_resource;
 pub mod invoice;
 pub mod kv_router_store;
 pub mod lookup;
@@ -44,6 +45,8 @@ pub mod payouts;
 pub mod platform_wrapper;
 pub mod redis;
 pub mod refund;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_retry_stats;
 mod reverse_lookup;
 pub mod subscription;
 pub mod utils;
@@ -58,13 +61,19 @@ use redis_interface::{errors::RedisError, RedisConnectionWithContext, SaddReply}
 
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
-use crate::redis::kv_store;
+use crate::redis::{
+    cache::{CacheInterface, Caches},
+    kv_store,
+};
 pub use crate::{database::store::DatabaseStore, errors::StorageError};
 
 #[derive(Debug, Clone)]
 pub struct RouterStore<T: DatabaseStore> {
     db_store: T,
     cache_store: Arc<RedisStore>,
+    /// The process-wide in-memory caches. Shared with every other tenant's store and with
+    /// the redis subscriber that invalidates them; see [`Caches`].
+    caches: Arc<Caches>,
     master_encryption_key: StrongSecret<Vec<u8>>,
     pub request_id: Option<String>,
     key_manager_state: Option<KeyManagerState>,
@@ -76,6 +85,16 @@ impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
             Arc::clone(&self.cache_store.get_redis_pool()?),
             self,
         ))
+    }
+}
+
+impl<T: DatabaseStore> CacheInterface for RouterStore<T> {
+    fn caches(&self) -> &Caches {
+        &self.caches
+    }
+
+    fn cache_key_prefix(&self) -> &str {
+        self.cache_store.key_prefix()
     }
 }
 
@@ -105,23 +124,25 @@ where
         redis_interface::RedisSettings,
         StrongSecret<Vec<u8>>,
         tokio::sync::oneshot::Sender<()>,
-        &'static str,
+        Arc<Caches>,
     );
     async fn new(
         config: Self::Config,
         tenant_config: &dyn TenantConfig,
         test_transaction: bool,
         key_manager_state: Option<KeyManagerState>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> error_stack::Result<Self, StorageError> {
-        let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
-            config;
+        let (db_conf, cache_conf, encryption_key, cache_error_signal, caches) = config;
         if test_transaction {
             Self::test_store(
                 db_conf,
                 tenant_config,
                 &cache_conf,
                 encryption_key,
+                caches,
                 key_manager_state,
+                event_emitter,
             )
             .await
             .attach_printable("failed to create test router store")
@@ -132,8 +153,9 @@ where
                 encryption_key,
                 Self::cache_store(&cache_conf, cache_error_signal, Arc::new(NoOpEventEmitter))
                     .await?,
-                inmemory_cache_stream,
+                caches,
                 key_manager_state,
+                event_emitter,
             )
             .await
             .attach_printable("failed to create store")
@@ -173,10 +195,18 @@ impl<T: DatabaseStore> RouterStore<T> {
         tenant_config: &dyn TenantConfig,
         encryption_key: StrongSecret<Vec<u8>>,
         cache_store: Arc<RedisStore>,
-        inmemory_cache_stream: &str,
+        caches: Arc<Caches>,
         key_manager_state: Option<KeyManagerState>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> error_stack::Result<Self, StorageError> {
-        let db_store = T::new(db_conf, tenant_config, false, key_manager_state.clone()).await?;
+        let db_store = T::new(
+            db_conf,
+            tenant_config,
+            false,
+            key_manager_state.clone(),
+            event_emitter,
+        )
+        .await?;
         let cache_store = Arc::new(
             cache_store
                 .clone()
@@ -185,7 +215,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         cache_store
             .get_redis_pool()
             .change_context(StorageError::InitializationError)?
-            .subscribe(inmemory_cache_stream)
+            .subscribe(&caches.invalidation_channel, Arc::clone(&caches))
             .await
             .change_context(StorageError::InitializationError)
             .attach_printable("Failed to subscribe to inmemory cache stream")?;
@@ -193,6 +223,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         Ok(Self {
             db_store,
             cache_store,
+            caches,
             master_encryption_key: encryption_key,
             request_id: None,
             key_manager_state,
@@ -418,10 +449,19 @@ impl<T: DatabaseStore> RouterStore<T> {
         tenant_config: &dyn TenantConfig,
         cache_conf: &redis_interface::RedisSettings,
         encryption_key: StrongSecret<Vec<u8>>,
+        caches: Arc<Caches>,
         key_manager_state: Option<KeyManagerState>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> error_stack::Result<Self, StorageError> {
         // TODO: create an error enum and return proper error here
-        let db_store = T::new(db_conf, tenant_config, true, key_manager_state.clone()).await?;
+        let db_store = T::new(
+            db_conf,
+            tenant_config,
+            true,
+            key_manager_state.clone(),
+            event_emitter,
+        )
+        .await?;
         let cache_store = RedisStore::new_without_event_emitter(cache_conf)
             .await
             .change_context(StorageError::InitializationError)
@@ -429,6 +469,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         Ok(Self {
             db_store,
             cache_store: Arc::new(cache_store),
+            caches,
             master_encryption_key: encryption_key,
             request_id: None,
             key_manager_state,

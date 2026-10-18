@@ -101,7 +101,7 @@ impl TryFrom<&ElavonRouterData<&PaymentsAuthorizeRouterData>> for ElavonPayments
                 if item.router_data.is_three_ds() {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Card 3DS".to_string(),
-                        connector: "Elavon",
+                        connector: "Elavon".into(),
                     })?
                 };
                 Ok(Self::Card(CardPaymentRequest {
@@ -319,6 +319,7 @@ impl TryFrom<PaymentsResponseRouterData<ElavonPaymentsResponse>> for PaymentsAut
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 }
             }
@@ -468,6 +469,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<ElavonSyncResponse>> for PaymentsSyn
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -542,6 +544,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 }
             }

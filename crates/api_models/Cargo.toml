@@ -63,6 +63,7 @@ hyperswitch_masking = { version = "0.0.1", default-features = false, features = 
 router_derive = { version = "0.1.0", path = "../router_derive" }
 smithy = { version = "0.1.0", path = "../smithy" }
 smithy-core = { version = "0.1.0", path = "../smithy-core" }
+tracing = { workspace = true }
 
 [lints]
 workspace = true

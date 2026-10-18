@@ -40,7 +40,7 @@ impl<F> TryFrom<&VaultRouterData<F>> for TokenexInsertRequest {
             Some(PaymentMethodCustomVaultingData::CardData(req_card)) => Ok(Self {
                 data: req_card.card_number.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "card_number",
+                        field_name: "card_number".into(),
                     },
                 )?,
             }),
@@ -161,7 +161,7 @@ impl<F> TryFrom<&VaultRouterData<F>> for TokenexRetrieveRequest {
     fn try_from(item: &VaultRouterData<F>) -> Result<Self, Self::Error> {
         let connector_vault_id = item.request.connector_vault_id.as_ref().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_vault_id",
+                field_name: "connector_vault_id".into(),
             },
         )?;
         Ok(Self {

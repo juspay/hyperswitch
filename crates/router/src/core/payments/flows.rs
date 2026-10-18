@@ -51,6 +51,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
+        business_profile: &domain::Profile,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
@@ -327,7 +328,7 @@ pub trait Feature<F, T> {
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _processor: &domain::Processor,
-        _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+        _rollout_settings: crate::core::unified_connector_service::kill_switch::RolloutSettings,
     ) -> RouterResult<()>
     where
         F: Clone,
@@ -346,7 +347,7 @@ pub trait Feature<F, T> {
         _merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         _external_vault_merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         _processor: &domain::Processor,
-        _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+        _rollout_settings: crate::core::unified_connector_service::kill_switch::RolloutSettings,
     ) -> RouterResult<()>
     where
         F: Clone,

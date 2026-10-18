@@ -24,9 +24,12 @@ use crate::{
     errors::{self, RedisErrorExt, StorageResult},
     lookup::ReverseLookupInterface,
     metrics,
-    redis::kv_store::{
-        decide_storage_scheme, kv_wrapper, KvOperation, KvStorePartition, Op, PartitionKey,
-        RedisConnInterface,
+    redis::{
+        cache::{CacheInterface, Caches},
+        kv_store::{
+            decide_storage_scheme, kv_wrapper, KvOperation, KvStorePartition, Op, PartitionKey,
+            RedisConnInterface,
+        },
     },
     utils::{find_all_combined_kv_database, try_redis_get_else_try_database_get},
     RouterStore, TenantConfig, UniqueConstraints,
@@ -132,6 +135,9 @@ where
         tenant_config: &dyn TenantConfig,
         _test_transaction: bool,
         key_manager_state: Option<KeyManagerState>,
+        _event_emitter: std::sync::Arc<
+            dyn common_utils::external_service::ExternalServiceEventEmitter,
+        >,
     ) -> StorageResult<Self> {
         let (router_store, _, drainer_num_partitions, ttl_for_kv, soft_kill_mode) = config;
         let drainer_stream_name = format!("{}_{}", tenant_config.get_schema(), config.1);
@@ -179,6 +185,16 @@ impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
         &self,
     ) -> error_stack::Result<redis_interface::RedisConnectionWithContext, RedisError> {
         self.router_store.get_redis_conn()
+    }
+}
+
+impl<T: DatabaseStore> CacheInterface for KVRouterStore<T> {
+    fn caches(&self) -> &Caches {
+        self.router_store.caches()
+    }
+
+    fn cache_key_prefix(&self) -> &str {
+        self.router_store.cache_key_prefix()
     }
 }
 

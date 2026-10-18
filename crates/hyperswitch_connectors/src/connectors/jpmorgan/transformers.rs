@@ -163,7 +163,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                 if item.router_data.is_three_ds() {
                     return Err(errors::ConnectorError::NotSupported {
                         message: "3DS payments".to_string(),
-                        connector: "Jpmorgan",
+                        connector: "Jpmorgan".into(),
                     }
                     .into());
                 }
@@ -392,6 +392,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -481,6 +482,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganCaptureResponse, T, PaymentsRes
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -526,6 +528,7 @@ impl<F, PaymentsSyncData>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -760,6 +763,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<JpmorganCancelResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

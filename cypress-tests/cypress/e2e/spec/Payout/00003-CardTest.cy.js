@@ -15,6 +15,16 @@ describe("[Payout] Cards", () => {
       if (!globalState.get("payoutsExecution")) {
         shouldContinue = false;
       }
+
+      // Skip running test against a connector that is added in the exclude list
+      if (
+        utils.shouldExcludeConnector(
+          globalState.get("connectorId"),
+          utils.CONNECTOR_LISTS.EXCLUDE.CARD_TEST
+        )
+      ) {
+        shouldContinue = false;
+      }
     });
   });
 

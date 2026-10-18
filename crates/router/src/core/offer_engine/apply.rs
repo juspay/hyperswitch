@@ -1,4 +1,5 @@
 use common_utils::{errors::CustomResult, id_type, types::MinorUnit};
+use hyperswitch_masking::Secret;
 
 use super::{
     client::OfferEngineClient,
@@ -33,7 +34,7 @@ pub struct OfferApplyContext {
     /// Card network, if available.
     pub payment_method: Option<String>,
     /// Card BIN/IIN, if available.
-    pub card_bin: Option<String>,
+    pub card_bin: Option<Secret<String>>,
     /// Card type, if available.
     pub card_type: Option<String>,
     /// Issuing bank code, if available.

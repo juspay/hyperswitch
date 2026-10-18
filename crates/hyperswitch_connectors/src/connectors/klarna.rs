@@ -444,11 +444,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Kla
             }
             None => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: "payment_experience not supported".to_string(),
-                connector: "klarna",
+                connector: "klarna".into(),
             })),
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: "payment_experience not supported".to_string(),
-                connector: "klarna",
+                connector: "klarna".into(),
             })),
         }
     }
@@ -562,6 +562,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::BhnCardNetwork
                         | common_enums::PaymentMethodType::Paysera
                         | common_enums::PaymentMethodType::Skrill
+                        | common_enums::PaymentMethodType::Neteller
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs
@@ -645,6 +646,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::UpiQr
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
+                        | common_enums::PaymentMethodType::Wero
                         | common_enums::PaymentMethodType::Walley
                         | common_enums::PaymentMethodType::WeChatPay
                         | common_enums::PaymentMethodType::SevenEleven
@@ -670,10 +672,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Breadpay
                         | common_enums::PaymentMethodType::Payjustnow
                         | common_enums::PaymentMethodType::OpenBanking
-                        | common_enums::PaymentMethodType::NetworkToken,
+                        | common_enums::PaymentMethodType::Payshap
+                        | common_enums::PaymentMethodType::PayshapProxy
+                        | common_enums::PaymentMethodType::NetworkToken
+                        | common_enums::PaymentMethodType::Ted,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
-                        connector: "klarna",
+                        connector: "klarna".into(),
                     })),
                     #[cfg(feature = "v2")]
                     (
@@ -696,6 +701,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::AmazonPay
                         | common_enums::PaymentMethodType::Paysera
                         | common_enums::PaymentMethodType::Skrill
+                        | common_enums::PaymentMethodType::Neteller
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs
@@ -782,6 +788,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::UpiQr
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
+                        | common_enums::PaymentMethodType::Wero
                         | common_enums::PaymentMethodType::Walley
                         | common_enums::PaymentMethodType::WeChatPay
                         | common_enums::PaymentMethodType::SevenEleven
@@ -802,15 +809,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Flexiti
                         | common_enums::PaymentMethodType::OpenBankingPIS
                         | common_enums::PaymentMethodType::Skrill
+                        | common_enums::PaymentMethodType::Neteller
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
                         | common_enums::PaymentMethodType::RevolutPay
                         | common_enums::PaymentMethodType::Breadpay
                         | common_enums::PaymentMethodType::Payjustnow
                         | common_enums::PaymentMethodType::OpenBanking
-                        | common_enums::PaymentMethodType::NetworkToken,
+                        | common_enums::PaymentMethodType::Payshap
+                        | common_enums::PaymentMethodType::PayshapProxy
+                        | common_enums::PaymentMethodType::NetworkToken
+                        | common_enums::PaymentMethodType::Ted,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
-                        connector: "klarna",
+                        connector: "klarna".into(),
                     })),
                 }
             }
@@ -841,6 +852,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::AmazonPay
                         | common_enums::PaymentMethodType::Paysera
                         | common_enums::PaymentMethodType::Skrill
+                        | common_enums::PaymentMethodType::Neteller
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs
@@ -925,6 +937,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::UpiQr
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
+                        | common_enums::PaymentMethodType::Wero
                         | common_enums::PaymentMethodType::Walley
                         | common_enums::PaymentMethodType::WeChatPay
                         | common_enums::PaymentMethodType::SevenEleven
@@ -950,10 +963,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Breadpay
                         | common_enums::PaymentMethodType::Payjustnow
                         | common_enums::PaymentMethodType::OpenBanking
-                        | common_enums::PaymentMethodType::NetworkToken,
+                        | common_enums::PaymentMethodType::Payshap
+                        | common_enums::PaymentMethodType::PayshapProxy
+                        | common_enums::PaymentMethodType::NetworkToken
+                        | common_enums::PaymentMethodType::Ted,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
-                        connector: "klarna",
+                        connector: "klarna".into(),
                     })),
                     #[cfg(feature = "v2")]
                     (
@@ -976,6 +992,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::AmazonPay
                         | common_enums::PaymentMethodType::Paysera
                         | common_enums::PaymentMethodType::Skrill
+                        | common_enums::PaymentMethodType::Neteller
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs
@@ -1062,6 +1079,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::UpiQr
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
+                        | common_enums::PaymentMethodType::Wero
                         | common_enums::PaymentMethodType::Walley
                         | common_enums::PaymentMethodType::WeChatPay
                         | common_enums::PaymentMethodType::SevenEleven
@@ -1085,12 +1103,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Breadpay
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
                         | common_enums::PaymentMethodType::Skrill
+                        | common_enums::PaymentMethodType::Neteller
                         | common_enums::PaymentMethodType::Payjustnow
                         | common_enums::PaymentMethodType::OpenBanking
-                        | common_enums::PaymentMethodType::NetworkToken,
+                        | common_enums::PaymentMethodType::Payshap
+                        | common_enums::PaymentMethodType::PayshapProxy
+                        | common_enums::PaymentMethodType::NetworkToken
+                        | common_enums::PaymentMethodType::Ted,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
-                        connector: "klarna",
+                        connector: "klarna".into(),
                     })),
                 }
             }

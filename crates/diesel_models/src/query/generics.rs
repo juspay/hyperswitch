@@ -25,9 +25,15 @@ use hyperswitch_masking::PeekInterface;
 use hyperswitch_masking::Secret;
 use router_env::logger;
 
-use crate::{errors, query::utils::GetPrimaryKey, DejaPgConnection, PgPooledConn, StorageResult};
+use crate::{
+    errors, query::utils::GetPrimaryKey, DatabaseConnectionWithContext, DejaPgConnection,
+    StorageResult,
+};
 
 pub mod db_metrics {
+    use common_utils::external_service::{ExternalServiceCall, ExternalServiceEventEmitter};
+    use diesel::result::Error as DieselError;
+
     #[derive(Debug)]
     pub enum DatabaseOperation {
         FindOne,
@@ -41,10 +47,67 @@ pub mod db_metrics {
         Count,
     }
 
+    pub trait DatabaseCallStatus {
+        fn is_success(&self) -> bool;
+    }
+
+    impl<T> DatabaseCallStatus for Result<T, DieselError> {
+        fn is_success(&self) -> bool {
+            matches!(self, Ok(_) | Err(DieselError::NotFound))
+        }
+    }
+
+    /// Row-returning executors resolve to the `(result, wire)` pair under `deja` (see
+    /// `Captured` in this module); success is determined by the inner result alone.
+    #[cfg(feature = "deja")]
+    impl<T> DatabaseCallStatus for (Result<T, DieselError>, Option<Vec<deja::db::WireRow>>) {
+        fn is_success(&self) -> bool {
+            self.0.is_success()
+        }
+    }
+
+    fn emit_database_call_event<U>(
+        request_id: Option<&str>,
+        event_emitter: &dyn ExternalServiceEventEmitter,
+        table_name: &str,
+        operation: &DatabaseOperation,
+        time_elapsed: std::time::Duration,
+        output: &U,
+    ) where
+        U: DatabaseCallStatus,
+    {
+        if let Some(request_id) = request_id {
+            let success = output.is_success();
+            event_emitter.emit_external_service_call(ExternalServiceCall {
+                service_name: "database".to_string(),
+                endpoint: table_name.to_string(),
+                method: format!("{operation:?}"),
+                request_id: request_id.to_string(),
+                status_code: if success { 200 } else { 500 },
+                success,
+                latency_ms: time_elapsed.as_millis(),
+                created_at_timestamp: common_utils::date_time::now()
+                    .assume_utc()
+                    .unix_timestamp_nanos(),
+            });
+        }
+    }
+
+    /// Times a single database call, records its latency metric, and emits one
+    /// `ExternalServiceCall` event reflecting that call.
+    ///
+    /// When `request_id` is absent (background work, drainer, scheduler) no event is emitted: the
+    /// correlator joins on `request_id` and cannot place request-less rows.
     #[inline]
-    pub async fn track_database_call<T, Fut, U>(future: Fut, operation: DatabaseOperation) -> U
+    pub async fn track_database_call<T, Fut, U>(
+        request_id: Option<&str>,
+        event_emitter: &dyn ExternalServiceEventEmitter,
+        operation: DatabaseOperation,
+        future: Fut,
+    ) -> U
     where
         Fut: std::future::Future<Output = U>,
+        U: DatabaseCallStatus,
     {
         let start = std::time::Instant::now();
         let output = future.await;
@@ -52,13 +115,29 @@ pub mod db_metrics {
 
         let table_name = std::any::type_name::<T>().rsplit("::").nth(1);
 
+        let outcome = if output.is_success() {
+            "success"
+        } else {
+            "error"
+        };
+
         let attributes = router_env::metric_attributes!(
             ("table", table_name.unwrap_or("undefined")),
-            ("operation", format!("{:?}", operation))
+            ("operation", format!("{:?}", operation)),
+            ("outcome", outcome)
         );
 
         crate::metrics::DATABASE_CALLS_COUNT.add(1, attributes);
         crate::metrics::DATABASE_CALL_TIME.record(time_elapsed.as_secs_f64(), attributes);
+
+        emit_database_call_event(
+            request_id,
+            event_emitter,
+            table_name.unwrap_or("undefined"),
+            &operation,
+            time_elapsed,
+            &output,
+        );
 
         output
     }
@@ -113,9 +192,8 @@ impl<T> DejaQueryResult for T {}
 //     shadow-compare), the read-only scalar `count` `Substitute`s (a count is
 //     a non-seedable scalar; re-running it against a partially-seeded schema
 //     would only measure seed incompleteness).
-// `sql`/`inputs` are `Secret`-wrapped so their `Debug` output is redacted
-// (bind values / changeset debug strings can carry PII); the deja attribute
-// exprs `.peek()` them at the boundary, and the tape keeps full fidelity.
+// Args are `sql` plus `inputs.binds` as JSON; `debug_sql` only feeds read keys.
+// All three are `Secret`-wrapped so `Debug` redacts them.
 // Feature-off, every executor is a plain async fn passthrough.
 
 /// Under `deja`, a row-returning query future resolves to the result paired
@@ -126,6 +204,37 @@ impl<T> DejaQueryResult for T {}
 type Captured<T> = (T, Option<Vec<deja::db::WireRow>>);
 #[cfg(not(feature = "deja"))]
 type Captured<T> = T;
+
+/// The statement and its binds as JSON, captured only while observation is active.
+#[cfg(feature = "deja")]
+fn capture<Q: QueryFragment<Pg>>(query: &Q) -> (String, serde_json::Value) {
+    if deja::__private::observation_is_active() {
+        capture_statement(query)
+    } else {
+        (String::new(), serde_json::Value::Null)
+    }
+}
+
+/// What an observing call records.
+#[cfg(feature = "deja")]
+fn capture_statement<Q: QueryFragment<Pg>>(query: &Q) -> (String, serde_json::Value) {
+    let captured = deja::db::capture_query(query);
+    (captured.sql, captured.binds)
+}
+#[cfg(not(feature = "deja"))]
+fn capture<Q>(_query: &Q) -> (String, serde_json::Value) {
+    (String::new(), serde_json::Value::Null)
+}
+
+/// A unique violation writes no row, so replay serves the recorded error
+/// instead of inserting into a store that lacks the conflicting row.
+#[cfg(feature = "deja")]
+fn is_unique_violation<R>(out: &Captured<StorageResult<R>>) -> bool {
+    matches!(
+        &out.0,
+        Err(err) if matches!(err.current_context(), errors::DatabaseError::UniqueViolation)
+    )
+}
 
 #[cfg_attr(
     feature = "deja",
@@ -140,13 +249,15 @@ type Captured<T> = T;
         codec = deja::codec::WithWireCodec::<deja::codec::ResultCodec<R, errors::DatabaseError>>,
         args = deja::db::args("generic_insert", table, sql.peek(), inputs.peek()),
         state_write = deja::db::query_state_key("generic_insert", table, sql.peek(), inputs.peek()),
-        result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Write, table, sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
+        result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Write, table, debug_sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
+        neutral_error = is_unique_violation::<R>,
     )
 )]
 async fn execute_generic_insert<F, R>(
     fut: F,
     table: &'static str,
     sql: Secret<String>,
+    debug_sql: Secret<String>,
     inputs: Secret<serde_json::Value>,
 ) -> Captured<StorageResult<R>>
 where
@@ -154,7 +265,7 @@ where
     R: Send + 'static + DejaQueryResult,
 {
     #[cfg(not(feature = "deja"))]
-    let _ = (&table, &sql, &inputs);
+    let _ = (&table, &sql, &debug_sql, &inputs);
     #[cfg(feature = "deja")]
     let (result, wire) = fut.await;
     #[cfg(not(feature = "deja"))]
@@ -186,20 +297,21 @@ where
         codec = deja::codec::ResultCodec::<usize, errors::DatabaseError>,
         args = deja::db::args("generic_update", table, sql.peek(), inputs.peek()),
         state_touch = deja::db::query_state_key("generic_update", table, sql.peek(), inputs.peek()),
-        result = deja::db::recorded_output(deja::db::StateAxis::Touch, table, sql.peek(), __deja_result),
+        result = deja::db::recorded_output(deja::db::StateAxis::Touch, table, debug_sql.peek(), __deja_result),
     )
 )]
 async fn execute_generic_update<F>(
     fut: F,
     table: &'static str,
     sql: Secret<String>,
+    debug_sql: Secret<String>,
     inputs: Secret<serde_json::Value>,
 ) -> StorageResult<usize>
 where
     F: std::future::Future<Output = Result<usize, DieselError>> + Send,
 {
     #[cfg(not(feature = "deja"))]
-    let _ = (&table, &sql, &inputs);
+    let _ = (&table, &sql, &debug_sql, &inputs);
     fut.await.change_context(errors::DatabaseError::Others)
 }
 
@@ -216,13 +328,14 @@ where
         codec = deja::codec::WithWireCodec::<deja::codec::ResultCodec<Vec<R>, errors::DatabaseError>>,
         args = deja::db::args("generic_update_with_results", table, sql.peek(), inputs.peek()),
         state_touch = deja::db::query_state_key("generic_update_with_results", table, sql.peek(), inputs.peek()),
-        result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Touch, table, sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
+        result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Touch, table, debug_sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
     )
 )]
 async fn execute_generic_update_with_results<F, R>(
     fut: F,
     table: &'static str,
     sql: Secret<String>,
+    debug_sql: Secret<String>,
     inputs: Secret<serde_json::Value>,
 ) -> Captured<StorageResult<Vec<R>>>
 where
@@ -230,7 +343,7 @@ where
     R: Send + 'static + DejaQueryResult,
 {
     #[cfg(not(feature = "deja"))]
-    let _ = (&table, &sql, &inputs);
+    let _ = (&table, &sql, &debug_sql, &inputs);
     #[cfg(feature = "deja")]
     let (result, wire) = fut.await;
     #[cfg(not(feature = "deja"))]
@@ -261,13 +374,14 @@ where
         codec = deja::codec::WithWireCodec::<deja::codec::ResultCodec<R, errors::DatabaseError>>,
         args = deja::db::args("generic_update_by_id", table, sql.peek(), inputs.peek()),
         state_touch = deja::db::query_state_key("generic_update_by_id", table, sql.peek(), inputs.peek()),
-        result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Touch, table, sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
+        result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Touch, table, debug_sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
     )
 )]
 async fn execute_generic_update_by_id<F, R>(
     fut: F,
     table: &'static str,
     sql: Secret<String>,
+    debug_sql: Secret<String>,
     inputs: Secret<serde_json::Value>,
 ) -> Captured<StorageResult<R>>
 where
@@ -275,7 +389,7 @@ where
     R: Send + 'static + DejaQueryResult,
 {
     #[cfg(not(feature = "deja"))]
-    let _ = (&table, &sql, &inputs);
+    let _ = (&table, &sql, &debug_sql, &inputs);
     #[cfg(feature = "deja")]
     let (result, wire) = fut.await;
     #[cfg(not(feature = "deja"))]
@@ -306,20 +420,21 @@ where
         codec = deja::codec::ResultCodec::<bool, errors::DatabaseError>,
         args = deja::db::args("generic_delete", table, sql.peek(), inputs.peek()),
         state_touch = deja::db::query_state_key("generic_delete", table, sql.peek(), inputs.peek()),
-        result = deja::db::recorded_output(deja::db::StateAxis::Touch, table, sql.peek(), __deja_result),
+        result = deja::db::recorded_output(deja::db::StateAxis::Touch, table, debug_sql.peek(), __deja_result),
     )
 )]
 async fn execute_generic_delete<F>(
     fut: F,
     table: &'static str,
     sql: Secret<String>,
+    debug_sql: Secret<String>,
     inputs: Secret<serde_json::Value>,
 ) -> StorageResult<bool>
 where
     F: std::future::Future<Output = Result<usize, DieselError>> + Send,
 {
     #[cfg(not(feature = "deja"))]
-    let _ = (&table, &sql, &inputs);
+    let _ = (&table, &sql, &debug_sql, &inputs);
     fut.await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting")
@@ -348,13 +463,14 @@ where
         codec = deja::codec::WithWireCodec::<deja::codec::ResultCodec<R, errors::DatabaseError>>,
         args = deja::db::args("generic_delete_one_with_result", table, sql.peek(), inputs.peek()),
         state_touch = deja::db::query_state_key("generic_delete_one_with_result", table, sql.peek(), inputs.peek()),
-        result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Touch, table, sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
+        result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Touch, table, debug_sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
     )
 )]
 async fn execute_generic_delete_one_with_result<F, R>(
     fut: F,
     table: &'static str,
     sql: Secret<String>,
+    debug_sql: Secret<String>,
     inputs: Secret<serde_json::Value>,
 ) -> Captured<StorageResult<R>>
 where
@@ -362,7 +478,7 @@ where
     R: Send + Clone + 'static + DejaQueryResult,
 {
     #[cfg(not(feature = "deja"))]
-    let _ = (&table, &sql, &inputs);
+    let _ = (&table, &sql, &debug_sql, &inputs);
     #[cfg(feature = "deja")]
     let (result, wire) = fut.await;
     #[cfg(not(feature = "deja"))]
@@ -394,13 +510,14 @@ where
         codec = deja::codec::WithWireCodec::<deja::codec::ResultCodec<R, errors::DatabaseError>>,
         args = deja::db::args("generic_find_by_id_core", table, sql.peek(), inputs.peek()),
         state_read = deja::db::query_state_key("generic_find_by_id_core", table, sql.peek(), inputs.peek()),
-        result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Read, table, sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
+        result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Read, table, debug_sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
     )
 )]
 async fn execute_generic_find_by_id<F, R>(
     fut: F,
     table: &'static str,
     sql: Secret<String>,
+    debug_sql: Secret<String>,
     inputs: Secret<serde_json::Value>,
 ) -> Captured<StorageResult<R>>
 where
@@ -408,7 +525,7 @@ where
     R: Send + 'static + DejaQueryResult,
 {
     #[cfg(not(feature = "deja"))]
-    let _ = (&table, &sql, &inputs);
+    let _ = (&table, &sql, &debug_sql, &inputs);
     #[cfg(feature = "deja")]
     let (result, wire) = fut.await;
     #[cfg(not(feature = "deja"))]
@@ -440,13 +557,14 @@ where
         codec = deja::codec::WithWireCodec::<deja::codec::ResultCodec<R, errors::DatabaseError>>,
         args = deja::db::args("generic_find_one_core", table, sql.peek(), inputs.peek()),
         state_read = deja::db::query_state_key("generic_find_one_core", table, sql.peek(), inputs.peek()),
-        result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Read, table, sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
+        result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Read, table, debug_sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
     )
 )]
 async fn execute_generic_find_one<F, R>(
     fut: F,
     table: &'static str,
     sql: Secret<String>,
+    debug_sql: Secret<String>,
     inputs: Secret<serde_json::Value>,
 ) -> Captured<StorageResult<R>>
 where
@@ -454,7 +572,7 @@ where
     R: Send + 'static + DejaQueryResult,
 {
     #[cfg(not(feature = "deja"))]
-    let _ = (&table, &sql, &inputs);
+    let _ = (&table, &sql, &debug_sql, &inputs);
     #[cfg(feature = "deja")]
     let (result, wire) = fut.await;
     #[cfg(not(feature = "deja"))]
@@ -483,13 +601,14 @@ where
         codec = deja::codec::WithWireCodec::<deja::codec::ResultCodec<Vec<R>, errors::DatabaseError>>,
         args = deja::db::args("generic_filter", table, sql.peek(), inputs.peek()),
         state_read = deja::db::query_state_key("generic_filter", table, sql.peek(), inputs.peek()),
-        result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Read, table, sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
+        result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Read, table, debug_sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
     )
 )]
 async fn execute_generic_filter<F, R>(
     fut: F,
     table: &'static str,
     sql: Secret<String>,
+    debug_sql: Secret<String>,
     inputs: Secret<serde_json::Value>,
 ) -> Captured<StorageResult<Vec<R>>>
 where
@@ -497,7 +616,7 @@ where
     R: Send + 'static + DejaQueryResult,
 {
     #[cfg(not(feature = "deja"))]
-    let _ = (&table, &sql, &inputs);
+    let _ = (&table, &sql, &debug_sql, &inputs);
     #[cfg(feature = "deja")]
     let (result, wire) = fut.await;
     #[cfg(not(feature = "deja"))]
@@ -510,6 +629,8 @@ where
     mapped
 }
 
+// Deja: no `on_miss`. A sync miss arm cannot run the count, and a made-up count
+// would be treated as fact.
 #[cfg_attr(
     feature = "deja",
     deja::boundary(
@@ -523,20 +644,21 @@ where
         codec = deja::codec::ResultCodec::<usize, errors::DatabaseError>,
         args = deja::db::args("generic_count", table, sql.peek(), inputs.peek()),
         state_read = deja::db::query_state_key("generic_count", table, sql.peek(), inputs.peek()),
-        result = deja::db::recorded_output(deja::db::StateAxis::Read, table, sql.peek(), __deja_result),
+        result = deja::db::recorded_output(deja::db::StateAxis::Read, table, debug_sql.peek(), __deja_result),
     )
 )]
 async fn execute_generic_count<F>(
     fut: F,
     table: &'static str,
     sql: Secret<String>,
+    debug_sql: Secret<String>,
     inputs: Secret<serde_json::Value>,
 ) -> StorageResult<usize>
 where
     F: std::future::Future<Output = Result<i64, DieselError>> + Send,
 {
     #[cfg(not(feature = "deja"))]
-    let _ = (&table, &sql, &inputs);
+    let _ = (&table, &sql, &debug_sql, &inputs);
     let count_i64: i64 = fut
         .await
         .change_context(errors::DatabaseError::Others)
@@ -553,7 +675,10 @@ where
 // Public builders (signatures identical to pre-fold — zero call-site changes)
 // ---------------------------------------------------------------------------
 
-pub async fn generic_insert<T, V, R>(conn: &PgPooledConn, values: V) -> StorageResult<R>
+pub async fn generic_insert<T, V, R>(
+    conn: &DatabaseConnectionWithContext<'_>,
+    values: V,
+) -> StorageResult<R>
 where
     T: HasTable<Table = T> + Table + 'static + Debug,
     V: Debug + Insertable<T>,
@@ -566,25 +691,33 @@ where
     let debug_values = format!("{values:?}");
 
     let query = diesel::insert_into(<T as HasTable>::table()).values(values);
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
+    let debug_sql = debug_query::<Pg, _>(&query).to_string();
+    logger::debug!(query = %debug_sql);
+    let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
-        "values": { "debug": debug_values.as_str() },
+        "binds": binds,
     });
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        deja::db::get_result_captured(conn, query),
+        conn.request_id(),
+        conn.event_emitter(),
         DatabaseOperation::Insert,
+        deja::db::get_result_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
-    let fut =
-        track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::Insert);
+    let fut = track_database_call::<T, _, _>(
+        conn.request_id(),
+        conn.event_emitter(),
+        DatabaseOperation::Insert,
+        query.get_result_async(conn.raw_connection()),
+    );
 
     let output = execute_generic_insert(
         fut,
         table_name::<T>(),
         Secret::new(sql),
+        Secret::new(debug_sql),
         Secret::new(inputs),
     )
     .await;
@@ -594,7 +727,7 @@ where
 }
 
 pub async fn generic_update<T, V, P>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     predicate: P,
     values: V,
 ) -> StorageResult<usize>
@@ -611,17 +744,24 @@ where
     let debug_values = format!("{values:?}");
 
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
+    let debug_sql = debug_query::<Pg, _>(&query).to_string();
+    logger::debug!(query = %debug_sql);
+    let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
-        "values": { "debug": debug_values.as_str() },
+        "binds": binds,
         "predicate": { "type": std::any::type_name::<P>() },
     });
 
     execute_generic_update(
-        track_database_call::<T, _, _>(query.execute_async(conn), DatabaseOperation::Update),
+        track_database_call::<T, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            DatabaseOperation::Update,
+            query.execute_async(conn.raw_connection()),
+        ),
         table_name::<T>(),
         Secret::new(sql),
+        Secret::new(debug_sql),
         Secret::new(inputs),
     )
     .await
@@ -629,7 +769,7 @@ where
 }
 
 pub async fn generic_update_with_results<T, V, P, R>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     predicate: P,
     values: V,
 ) -> StorageResult<Vec<R>>
@@ -653,28 +793,34 @@ where
     let debug_values = format!("{values:?}");
 
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
+    let debug_sql = debug_query::<Pg, _>(&query).to_string();
+    logger::debug!(query = %debug_sql);
+    let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
-        "values": { "debug": debug_values.as_str() },
+        "binds": binds,
         "predicate": { "type": std::any::type_name::<P>() },
     });
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        deja::db::get_results_captured(conn, query.to_owned()),
+        conn.request_id(),
+        conn.event_emitter(),
         DatabaseOperation::UpdateWithResults,
+        deja::db::get_results_captured(conn.raw_connection(), query.to_owned()),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        query.to_owned().get_results_async(conn),
+        conn.request_id(),
+        conn.event_emitter(),
         DatabaseOperation::UpdateWithResults,
+        query.to_owned().get_results_async(conn.raw_connection()),
     );
 
     let output = execute_generic_update_with_results(
         fut,
         table_name::<T>(),
         Secret::new(sql),
+        Secret::new(debug_sql),
         Secret::new(inputs),
     )
     .await;
@@ -684,7 +830,7 @@ where
 }
 
 pub async fn generic_update_with_unique_predicate_get_result<T, V, P, R>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     predicate: P,
     values: V,
 ) -> StorageResult<R>
@@ -720,7 +866,7 @@ where
 }
 
 pub async fn generic_update_by_id<T, V, Pk, R>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     id: Pk,
     values: V,
 ) -> StorageResult<R>
@@ -748,28 +894,33 @@ where
     let debug_values = format!("{values:?}");
 
     let query = diesel::update(<T as HasTable>::table().find(id.to_owned())).set(values);
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
+    let debug_sql = debug_query::<Pg, _>(&query).to_string();
+    logger::debug!(query = %debug_sql);
+    let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
-        "id": { "debug": format!("{id:?}") },
-        "values": { "debug": debug_values.as_str() },
+        "binds": binds,
     });
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        deja::db::get_result_captured(conn, query.to_owned()),
+        conn.request_id(),
+        conn.event_emitter(),
         DatabaseOperation::UpdateOne,
+        deja::db::get_result_captured(conn.raw_connection(), query.to_owned()),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        query.to_owned().get_result_async(conn),
+        conn.request_id(),
+        conn.event_emitter(),
         DatabaseOperation::UpdateOne,
+        query.to_owned().get_result_async(conn.raw_connection()),
     );
 
     let output = execute_generic_update_by_id(
         fut,
         table_name::<T>(),
         Secret::new(sql),
+        Secret::new(debug_sql),
         Secret::new(inputs),
     )
     .await;
@@ -778,7 +929,10 @@ where
     output.attach_printable_lazy(|| format!("Error while updating by ID {debug_values}"))
 }
 
-pub async fn generic_delete<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<bool>
+pub async fn generic_delete<T, P>(
+    conn: &DatabaseConnectionWithContext<'_>,
+    predicate: P,
+) -> StorageResult<bool>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     Filter<T, P>: IntoUpdateTarget,
@@ -788,23 +942,31 @@ where
     >: AsQuery + QueryFragment<Pg> + QueryId + Send + 'static,
 {
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
+    let debug_sql = debug_query::<Pg, _>(&query).to_string();
+    logger::debug!(query = %debug_sql);
+    let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
+        "binds": binds,
         "predicate": { "type": std::any::type_name::<P>() },
     });
 
     execute_generic_delete(
-        track_database_call::<T, _, _>(query.execute_async(conn), DatabaseOperation::Delete),
+        track_database_call::<T, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            DatabaseOperation::Delete,
+            query.execute_async(conn.raw_connection()),
+        ),
         table_name::<T>(),
         Secret::new(sql),
+        Secret::new(debug_sql),
         Secret::new(inputs),
     )
     .await
 }
 
 pub async fn generic_delete_one_with_result<T, P, R>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     predicate: P,
 ) -> StorageResult<R>
 where
@@ -817,27 +979,34 @@ where
     R: Send + Clone + 'static + DejaQueryResult,
 {
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
+    let debug_sql = debug_query::<Pg, _>(&query).to_string();
+    logger::debug!(query = %debug_sql);
+    let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
+        "binds": binds,
         "predicate": { "type": std::any::type_name::<P>() },
     });
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        deja::db::get_results_captured(conn, query),
+        conn.request_id(),
+        conn.event_emitter(),
         DatabaseOperation::DeleteWithResult,
+        deja::db::get_results_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        query.get_results_async(conn),
+        conn.request_id(),
+        conn.event_emitter(),
         DatabaseOperation::DeleteWithResult,
+        query.get_results_async(conn.raw_connection()),
     );
 
     let output = execute_generic_delete_one_with_result(
         fut,
         table_name::<T>(),
         Secret::new(sql),
+        Secret::new(debug_sql),
         Secret::new(inputs),
     )
     .await;
@@ -846,7 +1015,10 @@ where
     output
 }
 
-async fn generic_find_by_id_core<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
+async fn generic_find_by_id_core<T, Pk, R>(
+    conn: &DatabaseConnectionWithContext<'_>,
+    id: Pk,
+) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<DejaPgConnection> + Send + 'static,
@@ -855,24 +1027,33 @@ where
     R: Send + 'static + DejaQueryResult,
 {
     let query = <T as HasTable>::table().find(id.to_owned());
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
+    let debug_sql = debug_query::<Pg, _>(&query).to_string();
+    logger::debug!(query = %debug_sql);
+    let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
-        "id": { "debug": format!("{id:?}") },
+        "binds": binds,
     });
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        deja::db::first_captured(conn, query),
+        conn.request_id(),
+        conn.event_emitter(),
         DatabaseOperation::FindOne,
+        deja::db::first_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
-    let fut = track_database_call::<T, _, _>(query.first_async(conn), DatabaseOperation::FindOne);
+    let fut = track_database_call::<T, _, _>(
+        conn.request_id(),
+        conn.event_emitter(),
+        DatabaseOperation::FindOne,
+        query.first_async(conn.raw_connection()),
+    );
 
     let output = execute_generic_find_by_id(
         fut,
         table_name::<T>(),
         Secret::new(sql),
+        Secret::new(debug_sql),
         Secret::new(inputs),
     )
     .await;
@@ -881,7 +1062,10 @@ where
     output.attach_printable_lazy(|| format!("Error finding record by primary key: {id:?}"))
 }
 
-pub async fn generic_find_by_id<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
+pub async fn generic_find_by_id<T, Pk, R>(
+    conn: &DatabaseConnectionWithContext<'_>,
+    id: Pk,
+) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<DejaPgConnection> + Send + 'static,
@@ -893,7 +1077,7 @@ where
 }
 
 pub async fn generic_find_by_id_optional<T, Pk, R>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     id: Pk,
 ) -> StorageResult<Option<R>>
 where
@@ -907,32 +1091,44 @@ where
     to_optional(generic_find_by_id_core::<T, _, _>(conn, id).await)
 }
 
-async fn generic_find_one_core<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
+async fn generic_find_one_core<T, P, R>(
+    conn: &DatabaseConnectionWithContext<'_>,
+    predicate: P,
+) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     Filter<T, P>: LoadQuery<'static, DejaPgConnection, R> + QueryFragment<Pg> + Send + 'static,
     R: Send + 'static + DejaQueryResult,
 {
     let query = <T as HasTable>::table().filter(predicate);
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
+    let debug_sql = debug_query::<Pg, _>(&query).to_string();
+    logger::debug!(query = %debug_sql);
+    let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
+        "binds": binds,
         "predicate": { "type": std::any::type_name::<P>() },
     });
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        deja::db::get_result_captured(conn, query),
+        conn.request_id(),
+        conn.event_emitter(),
         DatabaseOperation::FindOne,
+        deja::db::get_result_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
-    let fut =
-        track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::FindOne);
+    let fut = track_database_call::<T, _, _>(
+        conn.request_id(),
+        conn.event_emitter(),
+        DatabaseOperation::FindOne,
+        query.get_result_async(conn.raw_connection()),
+    );
 
     let output = execute_generic_find_one(
         fut,
         table_name::<T>(),
         Secret::new(sql),
+        Secret::new(debug_sql),
         Secret::new(inputs),
     )
     .await;
@@ -941,7 +1137,10 @@ where
     output
 }
 
-pub async fn generic_find_one<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
+pub async fn generic_find_one<T, P, R>(
+    conn: &DatabaseConnectionWithContext<'_>,
+    predicate: P,
+) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     Filter<T, P>: LoadQuery<'static, DejaPgConnection, R> + QueryFragment<Pg> + Send + 'static,
@@ -951,7 +1150,7 @@ where
 }
 
 pub async fn generic_find_one_optional<T, P, R>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     predicate: P,
 ) -> StorageResult<Option<R>>
 where
@@ -963,7 +1162,7 @@ where
 }
 
 pub(super) async fn generic_filter<T, P, O, R>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     predicate: P,
     limit: Option<i64>,
     offset: Option<i64>,
@@ -998,9 +1197,11 @@ where
         query = query.order(order);
     }
 
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
+    let debug_sql = debug_query::<Pg, _>(&query).to_string();
+    logger::debug!(query = %debug_sql);
+    let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
+        "binds": binds,
         "predicate": { "type": std::any::type_name::<P>() },
         "limit": limit,
         "offset": offset,
@@ -1009,17 +1210,24 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        deja::db::get_results_captured(conn, query),
+        conn.request_id(),
+        conn.event_emitter(),
         DatabaseOperation::Filter,
+        deja::db::get_results_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
-    let fut =
-        track_database_call::<T, _, _>(query.get_results_async(conn), DatabaseOperation::Filter);
+    let fut = track_database_call::<T, _, _>(
+        conn.request_id(),
+        conn.event_emitter(),
+        DatabaseOperation::Filter,
+        query.get_results_async(conn.raw_connection()),
+    );
 
     let output = execute_generic_filter(
         fut,
         table_name::<T>(),
         Secret::new(sql),
+        Secret::new(debug_sql),
         Secret::new(inputs),
     )
     .await;
@@ -1028,7 +1236,10 @@ where
     output
 }
 
-pub async fn generic_count<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<usize>
+pub async fn generic_count<T, P>(
+    conn: &DatabaseConnectionWithContext<'_>,
+    predicate: P,
+) -> StorageResult<usize>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + SelectDsl<count_star> + 'static,
     Filter<T, P>: SelectDsl<count_star>,
@@ -1039,16 +1250,24 @@ where
         .filter(predicate)
         .select(count_star());
 
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
+    let debug_sql = debug_query::<Pg, _>(&query).to_string();
+    logger::debug!(query = %debug_sql);
+    let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
+        "binds": binds,
         "predicate": { "type": std::any::type_name::<P>() },
     });
 
     execute_generic_count(
-        track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::Count),
+        track_database_call::<T, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            DatabaseOperation::Count,
+            query.get_result_async(conn.raw_connection()),
+        ),
         table_name::<T>(),
         Secret::new(sql),
+        Secret::new(debug_sql),
         Secret::new(inputs),
     )
     .await
@@ -1061,5 +1280,86 @@ fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {
             errors::DatabaseError::NotFound => Ok(None),
             _ => Err(err),
         },
+    }
+}
+
+#[cfg(all(test, feature = "deja", feature = "v1"))]
+mod capture_tests {
+    use diesel::{debug_query, pg::Pg, ExpressionMethods, QueryDsl};
+
+    use super::{capture, capture_statement};
+    use crate::schema::payment_attempt;
+
+    /// A routing document with its keys inserted in `order`.
+    fn routing(order: [&str; 2]) -> serde_json::Value {
+        let mut inner = serde_json::Map::new();
+        for method in order {
+            inner.insert(
+                method.to_owned(),
+                serde_json::json!({ "connector": "adyen", "merchant_connector_id": "mca_1" }),
+            );
+        }
+        serde_json::json!({ "algorithm": null, "pre_routing_results": inner })
+    }
+
+    fn update(value: serde_json::Value) -> impl diesel::query_builder::QueryFragment<Pg> {
+        diesel::update(payment_attempt::table.filter(payment_attempt::attempt_id.eq("att_1")))
+            .set(payment_attempt::straight_through_algorithm.eq(Some(value)))
+    }
+
+    /// The same map in two key orders captures identical args.
+    #[test]
+    fn one_routing_map_in_two_orders_records_the_same_args() {
+        let (forward, backward) = (
+            update(routing(["przelewy24", "ach"])),
+            update(routing(["ach", "przelewy24"])),
+        );
+        assert_ne!(
+            debug_query::<Pg, _>(&forward).to_string(),
+            debug_query::<Pg, _>(&backward).to_string(),
+            "premise: diesel renders the map in its iteration order"
+        );
+        let (left, right) = (capture_statement(&forward), capture_statement(&backward));
+        assert_eq!(left, right);
+        assert!(!left.0.contains("-- binds"), "{}", left.0);
+        assert_eq!(
+            left.1
+                .pointer("/$1/pre_routing_results/ach/merchant_connector_id"),
+            Some(&serde_json::json!("mca_1")),
+            "the bound document is captured as a document: {}",
+            left.1
+        );
+    }
+
+    /// With nothing observing, `capture` returns the empty pair.
+    #[test]
+    fn an_unobserved_query_builds_no_statement() {
+        let query = update(routing(["ach", "przelewy24"]));
+        let idle = (String::new(), serde_json::Value::Null);
+        assert_eq!(capture(&query), idle);
+        assert_ne!(capture_statement(&query), idle);
+    }
+}
+
+#[cfg(all(test, feature = "deja"))]
+mod neutral_error_tests {
+    use error_stack::report;
+
+    use super::{errors, is_unique_violation, Captured, StorageResult};
+
+    fn out(result: StorageResult<()>) -> Captured<StorageResult<()>> {
+        (result, None)
+    }
+
+    /// Only a unique violation is state-neutral.
+    #[test]
+    fn only_a_unique_violation_is_state_neutral() {
+        assert!(is_unique_violation(&out(Err(report!(
+            errors::DatabaseError::UniqueViolation
+        )))));
+        assert!(!is_unique_violation(&out(Err(report!(
+            errors::DatabaseError::NotFound
+        )))));
+        assert!(!is_unique_violation(&out(Ok(()))));
     }
 }

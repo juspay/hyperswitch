@@ -50,7 +50,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             .primary_email
             .ok_or(errors::ProcessTrackerError::EValidationError(
                 ValidationError::MissingRequiredField {
-                    field_name: "email".to_string(),
+                    field_name: "email".into(),
                 }
                 .into(),
             ))?;

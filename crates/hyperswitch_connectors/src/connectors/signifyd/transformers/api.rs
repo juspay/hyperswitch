@@ -356,7 +356,7 @@ impl TryFrom<&SignifydRouterData<&FrmSaleRouterData>> for SignifydPaymentsSaleRe
             .request
             .currency
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             })?;
         let products = item
             .request
@@ -385,11 +385,11 @@ impl TryFrom<&SignifydRouterData<&FrmSaleRouterData>> for SignifydPaymentsSaleRe
             .frm_metadata
             .clone()
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "frm_metadata",
+                field_name: "frm_metadata".into(),
             })?
             .parse_value("Signifyd Frm Metadata")
             .change_context(ConnectorError::InvalidDataFormat {
-                field_name: "frm_metadata",
+                field_name: "frm_metadata".into(),
             })?;
         let ship_address = item.get_shipping_address()?;
         let billing_address = item.get_billing()?;
@@ -642,7 +642,7 @@ impl TryFrom<&SignifydRouterData<&FrmCheckoutRouterData>> for SignifydPaymentsCh
             .request
             .currency
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             })?;
         let products = item
             .request
@@ -671,11 +671,11 @@ impl TryFrom<&SignifydRouterData<&FrmCheckoutRouterData>> for SignifydPaymentsCh
             .frm_metadata
             .clone()
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "frm_metadata",
+                field_name: "frm_metadata".into(),
             })?
             .parse_value("Signifyd Frm Metadata")
             .change_context(ConnectorError::InvalidDataFormat {
-                field_name: "frm_metadata",
+                field_name: "frm_metadata".into(),
             })?;
         let ship_address = item.get_shipping_address()?;
         let billing_address = item.get_billing()?;
@@ -984,7 +984,7 @@ impl TryFrom<&FrmRecordReturnRouterData> for SignifydPaymentsRecordReturnRequest
             currency,
         };
         Ok(Self {
-            return_id: uuid::Uuid::new_v4().to_string(),
+            return_id: common_utils::generate_uuid_v4().to_string(),
             refund_transaction_id: item.request.refund_transaction_id.clone(),
             refund,
             order_id: item.attempt_id.clone(),

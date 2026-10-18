@@ -27,7 +27,11 @@ pub use hyperswitch_interfaces::connector_integration_v2::{
 use hyperswitch_masking::{ExposeInterface, StrongSecret};
 #[cfg(feature = "kv_store")]
 use storage_impl::kv_router_store::KVRouterStore;
-use storage_impl::{errors::StorageResult, redis::RedisStore, RouterStore};
+use storage_impl::{
+    errors::StorageResult,
+    redis::{cache::Caches, RedisStore},
+    RouterStore,
+};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
@@ -49,16 +53,18 @@ pub type Store = KVRouterStore<StoreType>;
 /// # Panics
 ///
 /// Will panic if hex decode of master key fails
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::too_many_arguments)]
 pub async fn get_store(
     config: &Settings,
     tenant: &dyn TenantConfig,
     master_config: Database,
     accounts_config: Database,
     cache_store: Arc<RedisStore>,
+    caches: Arc<Caches>,
     test_transaction: bool,
     key_manager_state: keymanager::KeyManagerState,
 ) -> StorageResult<Store> {
+    let database_event_emitter = Arc::clone(&key_manager_state.event_emitter);
     // Reads are served off a single replica pool regardless of tenant/accounts/global role.
     #[cfg(feature = "olap")]
     let replica_config = config.replica_database.clone().into_inner();
@@ -88,7 +94,9 @@ pub async fn get_store(
             tenant,
             &config.redis,
             master_enc_key,
+            caches,
             Some(key_manager_state.clone()),
+            Arc::clone(&database_event_emitter),
         )
         .await?
     } else {
@@ -97,8 +105,9 @@ pub async fn get_store(
             tenant,
             master_enc_key,
             cache_store,
-            storage_impl::redis::cache::IMC_INVALIDATION_CHANNEL,
+            caches,
             Some(key_manager_state.clone()),
+            database_event_emitter,
         )
         .await?
     };
@@ -129,14 +138,17 @@ pub async fn get_cache_store(
 // deja: the per-merchant data-encryption key (DEK) is random. It is stored
 // (master-key-encrypted) in merchant_key_store AND used to encrypt the merchant's
 // own columns, so it must replay to the recorded value or the substituted DB rows
-// and the response body diverge. Ok-only: the ring error type is non-serializable.
+// and the response body diverge.
 #[inline]
 #[cfg_attr(
     feature = "deja",
     deja::id(
         component = "router::services",
         operation = "generate_aes256_key",
-        codec = ResultOkCodec,
+        codec = deja::codec::ResultCodec::<[u8; 32], common_utils::errors::CryptoError>,
+        // A synthesized key diverges the ciphertext it encrypts, attributably;
+        // a fail-stop here would blind every later column encryption.
+        on_miss = Ok(deja::synth::bytes::<32>(&__deja_miss)),
     )
 )]
 pub fn generate_aes256_key() -> errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {

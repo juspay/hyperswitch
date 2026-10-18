@@ -3,7 +3,7 @@ use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
 use euclid::backend::{self, inputs as dsl_inputs, EuclidBackend};
 use router_env::{instrument, tracing};
-use storage_impl::redis::cache::{self, DECISION_MANAGER_CACHE};
+use storage_impl::redis::cache;
 
 use super::routing::make_dsl_input;
 #[cfg(feature = "v2")]
@@ -32,7 +32,10 @@ pub async fn perform_decision_management(
     let key = merchant_id.get_dsl_config();
 
     let find_key_from_db = || async {
-        let config = db.find_config_by_key(&algorithm_id).await?;
+        let config = db
+            .find_config_by_key_optional(&algorithm_id)
+            .await?
+            .ok_or(errors::StorageError::ValueNotFound(algorithm_id.clone()))?;
 
         let rec: DecisionManagerRecord = config
             .config
@@ -45,12 +48,12 @@ pub async fn perform_decision_management(
             .attach_printable("Error initializing DSL interpreter backend")
     };
 
-    let interpreter = cache::get_or_populate_in_memory(
-        db.get_cache_store().as_ref(),
+    let interpreter = Box::pin(cache::get_or_populate_in_memory_redis(
+        db,
         &key,
-        find_key_from_db,
-        &DECISION_MANAGER_CACHE,
-    )
+        find_key_from_db(),
+        cache::CacheId::DecisionManager,
+    ))
     .await
     .change_context(ConfigError::DslCachePoisoned)?;
 

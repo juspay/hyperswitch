@@ -407,6 +407,7 @@ fn get_iatpay_response(
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }
         }
         None => PaymentsResponseData::TransactionResponse {
@@ -420,6 +421,7 @@ fn get_iatpay_response(
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         },
     };
 

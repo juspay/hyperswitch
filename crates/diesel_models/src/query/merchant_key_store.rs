@@ -4,18 +4,21 @@ use super::generics;
 use crate::{
     merchant_key_store::{MerchantKeyStore, MerchantKeyStoreNew},
     schema::merchant_key_store::dsl,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl MerchantKeyStoreNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<MerchantKeyStore> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<MerchantKeyStore> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl MerchantKeyStore {
     pub async fn find_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -26,7 +29,7 @@ impl MerchantKeyStore {
     }
 
     pub async fn delete_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
@@ -37,7 +40,7 @@ impl MerchantKeyStore {
     }
 
     pub async fn list_multiple_key_stores(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
@@ -56,7 +59,7 @@ impl MerchantKeyStore {
     }
 
     pub async fn list_all_key_stores(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         from: u32,
         limit: u32,
     ) -> StorageResult<Vec<Self>> {

@@ -58,6 +58,9 @@ const paymentMethodData = {
   card: {
     last4: "1112",
     card_type: "DEBIT",
+    card_subtype: "CLASSIC",
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
     card_issuing_country: "UNITEDSTATES",
@@ -71,6 +74,62 @@ const paymentMethodData = {
     auth_code: null,
   },
   billing: null,
+};
+
+export const blockedPaymentErrorBodyForIssuingCountry = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "Cards issued in your region aren't supported for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForDebitCard = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "Debit cards are not accepted for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForCardSubtype = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "This card is not accepted for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForBinUnavailable = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "We couldn't verify this card's information, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
 };
 
 export const connectorDetails = {
@@ -150,6 +209,7 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: 5000,
         },
+        TRIGGER_SKIP: true, // status "processing" is returned for 3DSManualCapture flow
       },
       Request: {
         payment_method: "card",
@@ -200,6 +260,7 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: 5000,
         },
+        TRIGGER_SKIP: true, // status "processing" is returned for 3DSManualCapture flow
       },
       Request: {
         payment_method: "card",
@@ -268,6 +329,11 @@ export const connectorDetails = {
       },
     },
     Capture: {
+      Configs: {
+        // Payu returns "pending" status on authorize and requires PSync to get the actual status,
+        // hence the payment method status is not updated to "active" on retrieve
+        skipPaymentMethodStatusAssertion: true,
+      },
       Request: {
         amount_to_capture: 6000,
       },
@@ -283,6 +349,11 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
+      Configs: {
+        // Payu returns "pending" status on authorize and requires PSync to get the actual status,
+        // hence the payment method status is not updated to "active" on retrieve
+        skipPaymentMethodStatusAssertion: true,
+      },
       Request: {
         amount_to_capture: 2000,
       },
@@ -426,6 +497,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -446,6 +518,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -466,6 +539,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -486,6 +560,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -543,6 +618,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -578,6 +654,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -605,6 +682,9 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: 5000,
         },
+        // Payu returns "pending" status on authorize and requires PSync to get the actual status,
+        // hence the payment method status is not updated to "active" on retrieve
+        skipPaymentMethodStatusAssertion: true,
       },
       Request: {
         payment_method: "card",
@@ -620,7 +700,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
-          payment_method_data: paymentMethodData,
         },
       },
     },
@@ -714,6 +793,12 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCapture: {
+      Configs: {
+        // Payu returns "pending" status on authorize and requires PSync to get the actual status,
+        // hence the payment method status is not updated to "active" on retrieve
+        skipPaymentMethodStatusAssertion: true,
+        TRIGGER_SKIP: true, // status "processing" is returned for No3DSManualCapture flow
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -737,6 +822,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -758,6 +844,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -779,6 +866,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -801,6 +889,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -817,6 +906,106 @@ export const connectorDetails = {
           status: "processing",
         },
       },
+    },
+    PaymentWithBilling: {
+      Request: {
+        currency: "USD",
+        setup_future_usage: "on_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "CA",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "CA",
+            zip: "94122",
+            country: "PL",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9111222333",
+            country_code: "+91",
+          },
+        },
+        email: "hyperswitch.example@gmail.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+  },
+  payment_method_blocking_pm: {
+    BlockIssuingCountry: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000002",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: polishBillingAddress,
+      },
+      Response: blockedPaymentErrorBodyForIssuingCountry,
+    },
+    BlockCardType: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: polishBillingAddress,
+      },
+      Response: blockedPaymentErrorBodyForDebitCard,
+    },
+    BlockCardSubtype: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "378282246310005",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: polishBillingAddress,
+      },
+      Response: blockedPaymentErrorBodyForCardSubtype,
+    },
+    BlockIfBinInfoUnavailable: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "6304000000000000",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: polishBillingAddress,
+      },
+      Response: blockedPaymentErrorBodyForBinUnavailable,
     },
   },
 };

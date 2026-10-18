@@ -9,7 +9,6 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
 use hyperswitch_masking::ExposeInterface;
 use rdkafka::message::ToBytes;
-use uuid::Uuid;
 
 use crate::{
     consts::user::REDIS_THEME_CONFIG_VERSION_TTL_IN_SECS as redis_theme_config_ttl,
@@ -127,7 +126,7 @@ pub async fn create_theme(
     };
 
     let new_theme = ThemeNew::new(
-        Uuid::new_v4().to_string(),
+        common_utils::generate_uuid_v4().to_string(),
         request.theme_name,
         request.lineage,
         email_config,
@@ -265,7 +264,7 @@ pub async fn create_user_theme(
     )
     .await?;
     let new_theme = ThemeNew::new(
-        Uuid::new_v4().to_string(),
+        common_utils::generate_uuid_v4().to_string(),
         request.theme_name,
         lineage,
         email_config,

@@ -530,7 +530,7 @@ impl TryFrom<common_enums::CardNetwork> for WorldpayvativCardType {
             common_enums::CardNetwork::UnionPay => Ok(Self::UnionPay),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Card network".to_string(),
-                connector: "worldpayvantiv",
+                connector: "worldpayvantiv".into(),
             }
             .into()),
         }
@@ -549,7 +549,7 @@ impl TryFrom<&connector_utils::CardIssuer> for WorldpayvativCardType {
             connector_utils::CardIssuer::JCB => Ok(Self::JCB),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Card network".to_string(),
-                connector: "worldpayvantiv",
+                connector: "worldpayvantiv".into(),
             }
             .into()),
         }
@@ -688,6 +688,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 minor_amount_captured,
                 ..item.data
@@ -788,7 +789,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         {
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
-                connector: "Worldpayvantiv",
+                connector: "Worldpayvantiv".into(),
             })?
         }
         let worldpayvantiv_metadata =
@@ -939,7 +940,7 @@ impl TryFrom<&SetupMandateRouterData> for CnpOnlineRequest {
         {
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
-                connector: "Worldpayvantiv",
+                connector: "Worldpayvantiv".into(),
             })?
         }
 
@@ -1632,6 +1633,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -1745,6 +1747,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCa
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -2133,6 +2136,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         connector_response,
                         amount_captured: sale_response.approved_amount.map(MinorUnit::get_amount_as_i64),
@@ -2229,6 +2233,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         connector_response,
                         amount_captured: if payment_flow_type == WorldpayvantivPaymentFlow::Sale {
@@ -2381,6 +2386,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         connector_response,
                         ..item.data
@@ -4668,7 +4674,7 @@ fn get_vantiv_card_data(
                     let exp_date = apple_pay_decrypted_data
                         .get_expiry_date_as_mmyy()
                         .change_context(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "payment_method_data.card.card_exp_month",
+                            field_name: "payment_method_data.card.card_exp_month".into(),
                         })?;
 
                     let cardholder_authentication = CardholderAuthentication {
@@ -4688,7 +4694,7 @@ fn get_vantiv_card_data(
                                 "Invalid Apple Pay network '{}'. Supported networks: Visa,MasterCard,AmEx,Discover,DinersClub,JCB,UnionPay",
                                 apple_pay_data.payment_method.network
                             ),
-                            connector: "worldpay_vativ"
+                            connector: "worldpay_vativ".into()
                         })
                     })?;
 
@@ -4721,7 +4727,7 @@ fn get_vantiv_card_data(
                     let exp_date = google_pay_decrypted_data
                         .get_expiry_date_as_mmyy()
                         .change_context(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "payment_method_data.card.card_exp_month",
+                            field_name: "payment_method_data.card.card_exp_month".into(),
                         })?;
 
                     let cardholder_authentication = CardholderAuthentication {
@@ -4729,7 +4735,7 @@ fn get_vantiv_card_data(
                             .cryptogram
                             .clone()
                             .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                                field_name: "cryptogram",
+                                field_name: "cryptogram".into(),
                             })?,
                     };
                     let google_pay_network = google_pay_data
@@ -4742,7 +4748,7 @@ fn get_vantiv_card_data(
                                     "Invalid Google Pay card network '{}'. Supported networks: VISA, MASTERCARD, AMEX, DISCOVER, JCB, UNIONPAY",
                                     google_pay_data.info.card_network
                                 ),
-                                connector: "worldpay_vativ"
+                                connector: "worldpay_vativ".into()
                             })
                         })?;
 
@@ -4781,6 +4787,13 @@ fn get_connector_response(payment_response: &FraudResult) -> ConnectorResponseDa
             card_network: None,
             domestic_network: None,
             auth_code: None,
+            processor_card_network: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
         },
     )
 }
@@ -4801,6 +4814,13 @@ fn get_additional_payment_method_connector_response(
         card_network: None,
         domestic_network: None,
         auth_code: None,
+        processor_card_network: None,
+        card_subtype: None,
+        card_segment_type: None,
+        funding_source: None,
+        card_type: None,
+        issuer_name: None,
+        issuer_country: None,
     }
 }
 
@@ -4947,7 +4967,7 @@ fn get_dispute_stage(
         "retrievalrequest" => Ok(common_enums::enums::DisputeStage::PreDispute),
         _ => Err(errors::ConnectorError::NotSupported {
             message: format!("Dispute stage {dispute_cycle}",),
-            connector: "worldpayvantiv",
+            connector: "worldpayvantiv".into(),
         }
         .into()),
     }

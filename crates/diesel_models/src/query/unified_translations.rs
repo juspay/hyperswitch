@@ -6,18 +6,21 @@ use crate::{
     query::generics,
     schema::unified_translations::dsl,
     unified_translations::{UnifiedTranslationsUpdateInternal, *},
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl UnifiedTranslationsNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<UnifiedTranslations> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<UnifiedTranslations> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl UnifiedTranslations {
     pub async fn find_by_unified_code_unified_message_locale(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         unified_code: String,
         unified_message: String,
         locale: String,
@@ -33,7 +36,7 @@ impl UnifiedTranslations {
     }
 
     pub async fn update_by_unified_code_unified_message_locale(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         unified_code: String,
         unified_message: String,
         locale: String,
@@ -62,7 +65,7 @@ impl UnifiedTranslations {
     }
 
     pub async fn delete_by_unified_code_unified_message_locale(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         unified_code: String,
         unified_message: String,
         locale: String,

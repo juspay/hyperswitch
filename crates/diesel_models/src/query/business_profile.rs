@@ -7,11 +7,11 @@ use crate::schema::business_profile::dsl::{self, profile_id as dsl_identifier};
 use crate::schema_v2::business_profile::dsl::{self, id as dsl_identifier};
 use crate::{
     business_profile::{Profile, ProfileNew, ProfileUpdateInternal},
-    errors, PgPooledConn, StorageResult,
+    errors, DatabaseConnectionWithContext, StorageResult,
 };
 
 impl ProfileNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Profile> {
+    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Profile> {
         Box::pin(generics::generic_insert(conn, self)).await
     }
 }
@@ -19,7 +19,7 @@ impl ProfileNew {
 impl Profile {
     pub async fn update_by_profile_id(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         business_profile: ProfileUpdateInternal,
     ) -> StorageResult<Self> {
         match Box::pin(generics::generic_update_by_id::<
@@ -39,7 +39,7 @@ impl Profile {
     }
 
     pub async fn find_by_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -50,7 +50,7 @@ impl Profile {
     }
 
     pub async fn find_by_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Self> {
@@ -64,7 +64,7 @@ impl Profile {
     }
 
     pub async fn find_by_profile_name_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         profile_name: &str,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -78,7 +78,7 @@ impl Profile {
     }
 
     pub async fn list_profile_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
@@ -97,7 +97,7 @@ impl Profile {
     }
 
     pub async fn delete_by_profile_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         profile_id: &common_utils::id_type::ProfileId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<bool> {

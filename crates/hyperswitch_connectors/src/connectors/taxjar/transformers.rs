@@ -80,7 +80,7 @@ impl TryFrom<&TaxjarRouterData<&types::PaymentsTaxCalculationRouterData>>
             .address
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "address",
+                field_name: "address".into(),
             })?;
 
         match request.order_details.clone() {
@@ -110,7 +110,7 @@ impl TryFrom<&TaxjarRouterData<&types::PaymentsTaxCalculationRouterData>>
                 })
             }
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                field_name: "order_details"
+                field_name: "order_details".into()
             })),
         }
     }

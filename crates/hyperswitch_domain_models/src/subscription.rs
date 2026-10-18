@@ -27,7 +27,7 @@ impl ClientSecret {
             .split(SECRET_SPLIT)
             .next()
             .ok_or(ApiErrorResponse::MissingRequiredField {
-                field_name: "client_secret",
+                field_name: "client_secret".into(),
             })
             .attach_printable("Failed to extract subscription_id from client_secret")?;
 

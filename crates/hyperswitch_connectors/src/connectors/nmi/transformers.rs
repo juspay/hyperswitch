@@ -20,8 +20,7 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsPreAuthenticateRouterData,
-        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
-        RefundsRouterData, SetupMandateRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::errors::ConnectorError;
@@ -31,8 +30,8 @@ use serde_with::skip_serializing_none;
 
 use crate::{
     types::{
-        PaymentsPreAuthenticateResponseRouterData, PaymentsPreprocessingResponseRouterData,
-        PaymentsResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        PaymentsPreAuthenticateResponseRouterData, PaymentsResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData,
     },
     unimplemented_payment_method,
     utils::{
@@ -147,17 +146,6 @@ fn try_build_nmi_vault_request_from_router_data(
 }
 
 // Marker trait: only implemented for the allowed RouterData types
-impl TryFrom<&PaymentsPreProcessingRouterData> for NmiVaultRequest {
-    type Error = Error;
-    fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        try_build_nmi_vault_request_from_router_data(
-            &item.connector_auth_type,
-            item.request.payment_method_data.clone(),
-            item.get_billing_address(),
-        )
-    }
-}
-
 impl TryFrom<&PaymentsPreAuthenticateRouterData> for NmiVaultRequest {
     type Error = Error;
     fn try_from(item: &PaymentsPreAuthenticateRouterData) -> Result<Self, Self::Error> {
@@ -206,7 +194,7 @@ fn process_nmi_vault_response(
     let auth_type: NmiAuthType = connector_auth_type.try_into()?;
     let amount_data = amount;
     let currency_data = currency.ok_or(ConnectorError::MissingRequiredField {
-        field_name: "currency",
+        field_name: "currency".into(),
     })?;
 
     build_nmi_vault_response(
@@ -241,7 +229,7 @@ fn build_nmi_vault_response(
                         .customer_vault_id
                         .clone()
                         .ok_or(ConnectorError::MissingRequiredField {
-                            field_name: "customer_vault_id",
+                            field_name: "customer_vault_id".into(),
                         })?
                         .peek()
                         .to_string(),
@@ -260,6 +248,7 @@ fn build_nmi_vault_response(
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             AttemptStatus::AuthenticationPending,
         ),
@@ -303,31 +292,6 @@ fn build_nmi_vault_response(
         }
     };
     Ok((response, status))
-}
-
-impl TryFrom<PaymentsPreprocessingResponseRouterData<NmiVaultResponse>>
-    for PaymentsPreProcessingRouterData
-{
-    type Error = Error;
-    fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<NmiVaultResponse>,
-    ) -> Result<Self, Self::Error> {
-        let (response, status) = process_nmi_vault_response(
-            &item.data.connector_auth_type,
-            item.data.request.amount,
-            item.data.request.currency,
-            &item.response,
-            item.http_code,
-            item.data.connector_request_reference_id.clone(),
-            item.data.status,
-        )?;
-
-        Ok(Self {
-            status,
-            response,
-            ..item.data
-        })
-    }
 }
 
 impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NmiVaultResponse>>
@@ -419,7 +383,7 @@ impl TryFrom<&NmiRouterData<&PaymentsCompleteAuthorizeRouterData>> for NmiComple
 
         let three_ds_data: NmiRedirectResponseData = serde_json::from_value(payload_data)
             .change_context(ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "three_ds_data",
+                field_name: "three_ds_data".into(),
             })?;
 
         let (_, _, cvv) = get_card_details(item.router_data.request.payment_method_data.clone())?;
@@ -497,6 +461,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 if item.data.request.is_auto_capture()? {
                     AttemptStatus::Charged
@@ -842,6 +807,7 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
@@ -861,6 +827,7 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
                 | WalletData::AmazonPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
+                | WalletData::WeroRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
@@ -963,7 +930,7 @@ impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for GooglePayPa
                         ccexp: google_pay_decrypt_data
                             .get_expiry_date_as_mmyy()
                             .change_context(ConnectorError::InvalidDataFormat {
-                                field_name: "expiration_month/expiration_year",
+                                field_name: "expiration_month/expiration_year".into(),
                             })?,
                         cavv: google_pay_decrypt_data.cryptogram.clone(),
                         eci: google_pay_decrypt_data.eci_indicator.clone(),
@@ -986,7 +953,7 @@ impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for GooglePayPa
                             .tokenization_data
                             .get_encrypted_google_pay_token()
                             .change_context(ConnectorError::MissingRequiredField {
-                                field_name: "gpay wallet_token",
+                                field_name: "gpay wallet_token".into(),
                             })?
                             .clone(),
                     ),
@@ -1031,7 +998,7 @@ impl TryFrom<(&ApplePayWalletData, Option<PaymentMethodToken>)> for ApplePayPaym
                         ccexp: apple_pay_decrypt_data
                             .get_expiry_date_as_mmyy()
                             .change_context(ConnectorError::InvalidDataFormat {
-                                field_name: "application_expiration_date",
+                                field_name: "application_expiration_date".into(),
                             })?,
                         cavv: apple_pay_decrypt_data
                             .payment_data
@@ -1055,13 +1022,13 @@ impl TryFrom<(&ApplePayWalletData, Option<PaymentMethodToken>)> for ApplePayPaym
                     .payment_data
                     .get_encrypted_apple_pay_payment_data_mandatory()
                     .change_context(ConnectorError::MissingRequiredField {
-                        field_name: "Apple pay encrypted data",
+                        field_name: "Apple pay encrypted data".into(),
                     })?;
 
                 let base64_decoded_apple_pay_data = base64::prelude::BASE64_STANDARD
                     .decode(apple_pay_encrypted_data)
                     .change_context(ConnectorError::InvalidDataFormat {
-                        field_name: "apple_pay_encrypted_data",
+                        field_name: "apple_pay_encrypted_data".into(),
                     })?;
 
                 let hex_encoded_apple_pay_data = hex::encode(base64_decoded_apple_pay_data);
@@ -1214,6 +1181,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 AttemptStatus::Charged,
             ),
@@ -1270,7 +1238,7 @@ impl TryFrom<&PaymentsCancelRouterData> for NmiCancelRequest {
                 let void_reason: NmiVoidReason = serde_json::from_str(&format!("\"{cancellation_reason}\"", ))
                     .map_err(|_| ConnectorError::NotSupported {
                         message: format!("Json deserialise error: unknown variant `{cancellation_reason}` expected to be one of `fraud`, `user_cancel`, `icc_rejected`,  `icc_card_removed`, `icc_no_confirmation`, `pos_timeout`. This cancellation_reason"),
-                        connector: "nmi"
+                        connector: "nmi".into()
                     })?;
                 Ok(Self {
                     transaction_type: TransactionType::Void,
@@ -1280,7 +1248,7 @@ impl TryFrom<&PaymentsCancelRouterData> for NmiCancelRequest {
                 })
             }
             None => Err(ConnectorError::MissingRequiredField {
-                field_name: "cancellation_reason",
+                field_name: "cancellation_reason".into(),
             }
             .into()),
         }
@@ -1344,6 +1312,7 @@ impl<T> TryFrom<ResponseRouterData<SetupMandate, StandardResponse, T, PaymentsRe
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 AttemptStatus::Charged,
             ),
@@ -1423,6 +1392,7 @@ impl TryFrom<PaymentsResponseRouterData<StandardResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 if item.data.request.is_auto_capture()? {
                     AttemptStatus::Charged
@@ -1476,6 +1446,7 @@ impl<T> TryFrom<ResponseRouterData<Void, StandardResponse, T, PaymentsResponseDa
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 AttemptStatus::VoidInitiated,
             ),
@@ -1537,6 +1508,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SyncResponse, T, PaymentsResponseData>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),

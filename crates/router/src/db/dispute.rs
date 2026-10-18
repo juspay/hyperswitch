@@ -38,6 +38,20 @@ pub trait DisputeInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError>;
 
+    #[cfg(feature = "v1")]
+    async fn find_disputes_by_constraints_for_platform(
+        &self,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError>;
+
+    #[cfg(feature = "v1")]
+    async fn get_disputes_count_for_platform(
+        &self,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<i64, errors::StorageError>;
+
     async fn find_disputes_by_processor_merchant_id_payment_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -194,6 +208,40 @@ mod storage_impl {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
+        #[cfg(feature = "v1")]
+        #[instrument(skip_all)]
+        async fn find_disputes_by_constraints_for_platform(
+            &self,
+            platform_merchant_id: &common_utils::id_type::MerchantId,
+            dispute_constraints: &disputes::DisputeListConstraints,
+        ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::filter_by_constraints_for_platform(
+                &conn,
+                platform_merchant_id,
+                dispute_constraints,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(feature = "v1")]
+        #[instrument(skip_all)]
+        async fn get_disputes_count_for_platform(
+            &self,
+            platform_merchant_id: &common_utils::id_type::MerchantId,
+            dispute_constraints: &disputes::DisputeListConstraints,
+        ) -> CustomResult<i64, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::get_disputes_count_for_platform(
+                &conn,
+                platform_merchant_id,
+                dispute_constraints,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
         #[instrument(skip_all)]
         async fn update_dispute(
             &self,
@@ -302,6 +350,7 @@ mod storage_impl {
                         dispute_currency: dispute.dispute_currency,
                         processor_merchant_id: dispute.processor_merchant_id.clone(),
                         created_by: dispute.created_by.clone(),
+                        additional_details: dispute.additional_details.clone(),
                     };
 
                     let key = created_dispute.get_partition_key();
@@ -589,6 +638,40 @@ mod storage_impl {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
+        #[cfg(feature = "v1")]
+        #[instrument(skip_all)]
+        async fn find_disputes_by_constraints_for_platform(
+            &self,
+            platform_merchant_id: &common_utils::id_type::MerchantId,
+            dispute_constraints: &disputes::DisputeListConstraints,
+        ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::filter_by_constraints_for_platform(
+                &conn,
+                platform_merchant_id,
+                dispute_constraints,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(feature = "v1")]
+        #[instrument(skip_all)]
+        async fn get_disputes_count_for_platform(
+            &self,
+            platform_merchant_id: &common_utils::id_type::MerchantId,
+            dispute_constraints: &disputes::DisputeListConstraints,
+        ) -> CustomResult<i64, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::get_disputes_count_for_platform(
+                &conn,
+                platform_merchant_id,
+                dispute_constraints,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
         #[instrument(skip_all)]
         async fn update_dispute(
             &self,
@@ -733,6 +816,7 @@ impl DisputeInterface for MockDb {
             dispute_currency: dispute.dispute_currency,
             processor_merchant_id: dispute.processor_merchant_id,
             created_by: dispute.created_by,
+            additional_details: dispute.additional_details,
         };
 
         locked_disputes.push(new_dispute.clone());
@@ -884,6 +968,185 @@ impl DisputeInterface for MockDb {
         Ok(filtered_disputes)
     }
 
+    #[cfg(feature = "v1")]
+    async fn find_disputes_by_constraints_for_platform(
+        &self,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
+        let locked_disputes = self.disputes.lock().await;
+        let limit_usize = dispute_constraints.limit.as_usize();
+        let offset_usize = dispute_constraints.offset.as_usize();
+        let filtered_disputes: Vec<storage::Dispute> = locked_disputes
+            .iter()
+            .filter(|dispute| {
+                dispute.merchant_id == *platform_merchant_id
+                    && dispute_constraints
+                        .processor_merchant_id
+                        .as_ref()
+                        .is_none_or(|merchant_ids| {
+                            dispute
+                                .processor_merchant_id
+                                .as_ref()
+                                .is_some_and(|id| merchant_ids.contains(id))
+                        })
+                    && dispute_constraints
+                        .dispute_id
+                        .as_ref()
+                        .is_none_or(|id| &dispute.dispute_id == id)
+                    && dispute_constraints
+                        .payment_id
+                        .as_ref()
+                        .is_none_or(|id| &dispute.payment_id == id)
+                    && dispute_constraints
+                        .profile_id
+                        .as_ref()
+                        .is_none_or(|profile_ids| {
+                            dispute
+                                .profile_id
+                                .as_ref()
+                                .is_none_or(|id| profile_ids.contains(id))
+                        })
+                    && dispute_constraints
+                        .dispute_status
+                        .as_ref()
+                        .is_none_or(|statuses| statuses.contains(&dispute.dispute_status))
+                    && dispute_constraints
+                        .dispute_stage
+                        .as_ref()
+                        .is_none_or(|stages| stages.contains(&dispute.dispute_stage))
+                    && dispute_constraints.reason.as_ref().is_none_or(|reason| {
+                        dispute
+                            .connector_reason
+                            .as_ref()
+                            .is_none_or(|d_reason| d_reason == reason)
+                    })
+                    && dispute_constraints
+                        .connector
+                        .as_ref()
+                        .is_none_or(|connectors| {
+                            connectors
+                                .iter()
+                                .any(|connector| dispute.connector.as_str() == *connector)
+                        })
+                    && dispute_constraints
+                        .merchant_connector_id
+                        .as_ref()
+                        .is_none_or(|id| dispute.merchant_connector_id.as_ref() == Some(id))
+                    && dispute_constraints
+                        .currency
+                        .as_ref()
+                        .is_none_or(|currencies| {
+                            currencies.iter().any(|currency| {
+                                dispute
+                                    .dispute_currency
+                                    .map(|dispute_currency| &dispute_currency == currency)
+                                    .unwrap_or(dispute.currency.as_str() == currency.to_string())
+                            })
+                        })
+                    && dispute_constraints.time_range.as_ref().is_none_or(|range| {
+                        let dispute_time = dispute.created_at;
+                        dispute_time >= range.start_time
+                            && range
+                                .end_time
+                                .is_none_or(|end_time| dispute_time <= end_time)
+                    })
+            })
+            .skip(offset_usize)
+            .take(limit_usize)
+            .cloned()
+            .collect();
+
+        Ok(filtered_disputes)
+    }
+
+    #[cfg(feature = "v1")]
+    async fn get_disputes_count_for_platform(
+        &self,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<i64, errors::StorageError> {
+        let locked_disputes = self.disputes.lock().await;
+        let count = locked_disputes
+            .iter()
+            .filter(|dispute| {
+                dispute.merchant_id == *platform_merchant_id
+                    && dispute_constraints
+                        .processor_merchant_id
+                        .as_ref()
+                        .is_none_or(|merchant_ids| {
+                            dispute
+                                .processor_merchant_id
+                                .as_ref()
+                                .is_some_and(|id| merchant_ids.contains(id))
+                        })
+                    && dispute_constraints
+                        .dispute_id
+                        .as_ref()
+                        .is_none_or(|id| &dispute.dispute_id == id)
+                    && dispute_constraints
+                        .payment_id
+                        .as_ref()
+                        .is_none_or(|id| &dispute.payment_id == id)
+                    && dispute_constraints
+                        .profile_id
+                        .as_ref()
+                        .is_none_or(|profile_ids| {
+                            dispute
+                                .profile_id
+                                .as_ref()
+                                .is_none_or(|id| profile_ids.contains(id))
+                        })
+                    && dispute_constraints
+                        .dispute_status
+                        .as_ref()
+                        .is_none_or(|statuses| statuses.contains(&dispute.dispute_status))
+                    && dispute_constraints
+                        .dispute_stage
+                        .as_ref()
+                        .is_none_or(|stages| stages.contains(&dispute.dispute_stage))
+                    && dispute_constraints.reason.as_ref().is_none_or(|reason| {
+                        dispute
+                            .connector_reason
+                            .as_ref()
+                            .is_none_or(|d_reason| d_reason == reason)
+                    })
+                    && dispute_constraints
+                        .connector
+                        .as_ref()
+                        .is_none_or(|connectors| {
+                            connectors
+                                .iter()
+                                .any(|connector| dispute.connector.as_str() == *connector)
+                        })
+                    && dispute_constraints
+                        .merchant_connector_id
+                        .as_ref()
+                        .is_none_or(|id| dispute.merchant_connector_id.as_ref() == Some(id))
+                    && dispute_constraints
+                        .currency
+                        .as_ref()
+                        .is_none_or(|currencies| {
+                            currencies.iter().any(|currency| {
+                                dispute
+                                    .dispute_currency
+                                    .map(|dispute_currency| &dispute_currency == currency)
+                                    .unwrap_or(dispute.currency.as_str() == currency.to_string())
+                            })
+                        })
+                    && dispute_constraints.time_range.as_ref().is_none_or(|range| {
+                        let dispute_time = dispute.created_at;
+                        dispute_time >= range.start_time
+                            && range
+                                .end_time
+                                .is_none_or(|end_time| dispute_time <= end_time)
+                    })
+            })
+            .count();
+
+        Ok(i64::try_from(count).unwrap_or(i64::MAX))
+    }
+
     async fn update_dispute(
         &self,
         this: storage::Dispute,
@@ -908,7 +1171,12 @@ impl DisputeInterface for MockDb {
                 connector_reason_code,
                 challenge_required_by,
                 connector_updated_at,
+                additional_details,
             } => {
+                if additional_details.is_some() {
+                    dispute_to_update.additional_details = additional_details;
+                }
+
                 if connector_reason.is_some() {
                     dispute_to_update.connector_reason = connector_reason;
                 }
@@ -1054,6 +1322,7 @@ mod tests {
                 dispute_currency: Some(Currency::default()),
                 processor_merchant_id: Some(dispute_ids.merchant_id),
                 created_by: None,
+                additional_details: None,
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
             }
@@ -1265,6 +1534,7 @@ mod tests {
                         dispute_stage: None,
                         reason: None,
                         time_range: None,
+                        processor_merchant_id: None,
                     },
                     diesel_models::enums::MerchantStorageScheme::PostgresOnly,
                 )
@@ -1389,6 +1659,7 @@ mod tests {
                             connector_reason_code: Some("updated_connector_reason_code".into()),
                             challenge_required_by: Some(datetime!(2019-01-10 0:00)),
                             connector_updated_at: Some(datetime!(2019-01-11 0:00)),
+                            additional_details: None,
                         },
                         diesel_models::enums::MerchantStorageScheme::PostgresOnly,
                     )

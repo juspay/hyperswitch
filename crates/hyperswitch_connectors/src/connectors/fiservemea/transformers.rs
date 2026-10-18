@@ -96,7 +96,7 @@ impl TryFrom<&FiservemeaRouterData<&PaymentsAuthorizeRouterData>> for Fiservemea
         if item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "Cards 3DS".to_string(),
-                connector: "Fiservemea",
+                connector: "Fiservemea".into(),
             })?
         }
 
@@ -380,6 +380,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservemeaPaymentsResponse, T, Payments
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -469,7 +470,7 @@ fn map_refund_status(
                 | FiservemeaPaymentResult::Fraud => Ok(enums::RefundStatus::Failure),
             },
             None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "transactionResult",
+                field_name: "transactionResult".into(),
             }),
         },
     }

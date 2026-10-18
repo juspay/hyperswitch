@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use common_enums;
 use common_types::payments as common_payments_types;
+use common_utils::fp_utils;
 use hyperswitch_connectors::constants as connector_consts;
 use hyperswitch_domain_models::{
     mandates, payments as domain_payments, router_data,
@@ -16,7 +17,7 @@ use router_env::logger;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{ConnectorErrorExt, RouterResult},
+        errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
             self, access_token, customers, gateway as payments_gateway,
@@ -43,12 +44,17 @@ impl
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
+        business_profile: &domain::Profile,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::SetupMandateRouterData> {
+        fp_utils::when(merchant_connector_account.is_disabled(), || {
+            Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
+        })?;
+
         Box::pin(transformers::construct_payment_router_data::<
             api::SetupMandate,
             types::SetupMandateRequestData,
@@ -57,6 +63,7 @@ impl
             self.clone(),
             connector_id,
             processor,
+            business_profile,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
@@ -127,15 +134,16 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-        // Change the authentication_type to ThreeDs, for google_pay wallet if card_holder_authenticated or account_verified in assurance_details is false
+        // Change the authentication_type to ThreeDs, for google_pay wallet if card_holder_authenticated or account_verified in assurance_details is false,
+        // unless the merchant requested `no_three_ds` — the merchant's requested authentication type is always respected
         if let hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
             hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(google_pay_data),
         ) = &self.request.payment_method_data
         {
             if let Some(assurance_details) = google_pay_data.info.assurance_details.as_ref() {
                 // Step up the transaction to 3DS when either assurance_details.card_holder_authenticated or assurance_details.account_verified is false
-                if !assurance_details.card_holder_authenticated
-                    || !assurance_details.account_verified
+                if (!assurance_details.card_holder_authenticated)
+                    && self.auth_type != diesel_models::enums::AuthenticationType::NoThreeDs
                 {
                     logger::info!("Googlepay transaction stepped up to 3DS");
                     self.auth_type = diesel_models::enums::AuthenticationType::ThreeDs;

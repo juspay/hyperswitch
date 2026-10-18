@@ -28,7 +28,14 @@
     ),
     params(
         ("X-Profile-Id" = String, Header, description = "Profile ID for authentication"),
-        ("X-Idempotency-Key" = String, Header, description = "Idempotency Key for relay request")
+        ("X-Idempotency-Key" = String, Header, description = "Idempotency Key for relay request"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     tag = "Relay",
     operation_id = "Relay Request",
@@ -43,7 +50,15 @@ pub async fn relay() {}
 #[utoipa::path(
     get,
     path = "/relay/{relay_id}",
-    params (("relay_id" = String, Path, description = "The unique identifier for the Relay"), ("X-Profile-Id" = String, Header, description = "Profile ID for authentication")),
+    params (("relay_id" = String, Path, description = "The unique identifier for the Relay"), ("X-Profile-Id" = String, Header, description = "Profile ID for authentication"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
+    ),
     responses(
         (status = 200, description = "Relay Retrieved", body = RelayResponse),
         (status = 404, description = "Relay details was not found")

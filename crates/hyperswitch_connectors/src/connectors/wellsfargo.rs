@@ -299,7 +299,7 @@ where
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        let date = OffsetDateTime::now_utc();
+        let date = common_utils::date_time::now().assume_utc();
         let wellsfargo_req = self.get_request_body(req, connectors)?;
         let auth = wellsfargo::WellsfargoAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account = auth.merchant_account.clone();
@@ -938,13 +938,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for We
             self.amount_converter,
             MinorUnit::new(req.request.amount.ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "Amount",
+                    field_name: "Amount".into(),
                 },
             )?),
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Currency",
+                    field_name: "Currency".into(),
                 })?,
         )?;
 

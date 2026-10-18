@@ -33,6 +33,8 @@ pub(crate) enum RedisOperation {
     SetMultipleKeysIfNotExist,
     SetKeyIfNotExistsWithExpiry,
     SetKeyIfNotExistsAndGetValue,
+    IncrementKeyWithExpiry,
+    DecrementKeyWithExpiry,
     GetKey,
     GetMultipleKeys,
     Exists,
@@ -130,7 +132,15 @@ where
 
     #[cfg(feature = "metrics")]
     {
-        let attributes = router_env::metric_attributes!(("operation", format!("{operation:?}")));
+        let outcome = if output.is_success() {
+            "success"
+        } else {
+            "error"
+        };
+        let attributes = router_env::metric_attributes!(
+            ("operation", format!("{operation:?}")),
+            ("outcome", outcome)
+        );
         REDIS_CALL_TIME.record(time_elapsed.as_secs_f64(), attributes);
     }
 
@@ -144,7 +154,9 @@ where
             status_code: if success { 200 } else { 500 },
             success,
             latency_ms: time_elapsed.as_millis(),
-            created_at_timestamp: common_utils::date_time::now_unix_timestamp_nanos(),
+            created_at_timestamp: common_utils::date_time::now()
+                .assume_utc()
+                .unix_timestamp_nanos(),
         });
     }
 

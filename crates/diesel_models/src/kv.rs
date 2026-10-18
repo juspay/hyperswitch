@@ -69,7 +69,7 @@ impl SerializableQuery {
     }
 
     async fn from_query<Q>(
-        conn: &mut crate::PgPooledConn,
+        conn: &mut crate::DatabaseConnectionWithContext<'_>,
         query: Q,
         entity_type: String,
         operation: DatabaseOperation,
@@ -94,6 +94,7 @@ impl SerializableQuery {
             )?;
 
         let bind_collector = conn
+            .raw_connection()
             .run(move |c| {
                 let mut bc = RawBytesBindCollector::<Pg>::new();
                 query.collect_binds(&mut bc, c, &Pg)?;
@@ -138,14 +139,18 @@ impl SerializableQuery {
         )
     }
 
-    pub async fn execute(self, conn: &mut crate::PgPooledConn) -> crate::StorageResult<usize> {
+    pub async fn execute(
+        self,
+        conn: &mut crate::DatabaseConnectionWithContext<'_>,
+    ) -> crate::StorageResult<usize> {
         use common_utils::errors::ReportSwitchExt;
 
         let query = self.to_collected_query();
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        conn.run(move |c| ExecuteDsl::execute(query, c))
+        conn.raw_connection()
+            .run(move |c| ExecuteDsl::execute(query, c))
             .await
             .attach_printable("Failed to execute drainer query")
             .switch()
@@ -172,7 +177,7 @@ impl SerializableQuery {
 }
 
 pub(crate) async fn generate_insert_query<T, N>(
-    conn: &mut crate::PgPooledConn,
+    conn: &mut crate::DatabaseConnectionWithContext<'_>,
     new: N,
 ) -> crate::StorageResult<SerializableQuery>
 where
@@ -189,7 +194,7 @@ where
 }
 
 pub(crate) async fn generate_update_query_by_id<T, V, Pk>(
-    conn: &mut crate::PgPooledConn,
+    conn: &mut crate::DatabaseConnectionWithContext<'_>,
     id: Pk,
     values: V,
 ) -> crate::StorageResult<SerializableQuery>
@@ -212,7 +217,7 @@ where
 }
 
 pub(crate) async fn generate_update_query_with_predicate<T, V, P>(
-    conn: &mut crate::PgPooledConn,
+    conn: &mut crate::DatabaseConnectionWithContext<'_>,
     predicate: P,
     values: V,
 ) -> crate::StorageResult<SerializableQuery>

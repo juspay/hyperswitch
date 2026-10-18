@@ -11,13 +11,12 @@ use once_cell::sync::OnceCell;
 use router_env::{
     global_meter, histogram_metric_f64, instrument, logger, metric_attributes, tracing,
 };
-use time::OffsetDateTime;
 
 #[cfg(feature = "ext_services_latency")]
 use crate::consts::EXTERNAL_CALL_TAG;
 use crate::{
     consts::{BASE64_ENGINE, TENANT_HEADER},
-    errors,
+    date_time, errors,
     external_service::ExternalServiceCall,
     types::keymanager::{
         BatchDecryptDataRequest, DataKeyCreateResponse, DecryptDataRequest,
@@ -141,7 +140,7 @@ where
         ))?;
 
     let latency_ms = elapsed.as_millis();
-    let created_at_timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos();
+    let created_at_timestamp = date_time::now().assume_utc().unix_timestamp_nanos();
     #[cfg(feature = "ext_services_latency")]
     {
         let downstream_request_id = response
@@ -184,6 +183,8 @@ where
 // Deja: the one seam every keymanager operation crosses. Substituted on replay
 // so recorded ciphertext comes back verbatim and replay does not depend on a
 // live keymanager.
+// A miss answers with a transport failure: no response body can be synthesized
+// honestly, and callers already handle the error.
 #[cfg_attr(
     feature = "deja",
     deja::boundary(
@@ -201,6 +202,11 @@ where
             "endpoint": endpoint,
             "request": request_body.wire_image(),
         }),
+        on_miss = Err(errors::KeyManagerClientError::RequestNotSent(format!(
+            "deja: no recorded key manager response for {endpoint} (occurrence {})",
+            __deja_miss.occurrence,
+        ))
+        .into()),
     )
 )]
 pub async fn call_encryption_service<T, R>(

@@ -260,6 +260,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FlexitiSyncResponse, T, PaymentsRespons
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -291,6 +292,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FlexitiPaymentsResponse, T, PaymentsRes
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

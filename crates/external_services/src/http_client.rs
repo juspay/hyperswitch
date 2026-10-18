@@ -10,6 +10,8 @@ use router_env::{instrument, logger, tracing};
 pub mod client;
 /// metrics module
 pub mod metrics;
+/// outbound_destination module
+pub mod outbound_destination;
 /// request module
 pub mod request;
 
@@ -84,8 +86,24 @@ pub fn serialize_to_xml_bytes<T: serde::Serialize>(
         args = hyperswitch_masking::ExposeInterface::expose(boundary::request_args(&request, option_timeout_secs)),
         // Rebuild the recorded reqwest::Response (status+headers+body) so the
         // outgoing call (e.g. Stripe) is served from the lookup table with no
-        // network. A recorded error reconstructs to None -> falls through to live.
-        codec = boundary::HttpResponseCodec,
+        // network. A recorded value this build cannot reconstruct fail-stops the
+        // request; it is not a silent fallback to a live call.
+        owned_codec = boundary::HttpResponseCodec,
+        // A miss answers as a send failure: nobody answered, and a fabricated status
+        // could report a payment outcome that never happened. The url comes from the
+        // recorded args because the real call moves `request`.
+        on_miss = Err(HttpClientError::RequestNotSent(
+            format!(
+                "deja: no recorded response for this outbound call (url {}, occurrence {})",
+                __deja_miss
+                    .args
+                    .get("url")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("unknown"),
+                __deja_miss.occurrence,
+            ),
+        )
+        .into()),
     )
 )]
 #[instrument(skip_all)]
@@ -247,20 +265,7 @@ pub async fn send_request(
         response => response,
     };
 
-    #[cfg(feature = "deja")]
-    {
-        match response {
-            Ok(response) if boundary::is_active() => {
-                boundary::response_with_captured_body(response).await
-            }
-            response => response,
-        }
-    }
-
-    #[cfg(not(feature = "deja"))]
-    {
-        response
-    }
+    response
 }
 
 fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) -> bool {

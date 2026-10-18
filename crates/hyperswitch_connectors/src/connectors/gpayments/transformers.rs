@@ -156,7 +156,7 @@ impl TryFrom<&GpaymentsRouterData<&PreAuthNRouterData>>
             merchant_id: metadata.merchant_id,
             skip_auto_browser_info_collect: Some(true),
             // should auto generate this id.
-            three_ds_requestor_trans_id: uuid::Uuid::new_v4().hyphenated().to_string(),
+            three_ds_requestor_trans_id: common_utils::generate_uuid_v4().hyphenated().to_string(),
         })
     }
 }
@@ -175,7 +175,7 @@ impl TryFrom<&GpaymentsRouterData<&ConnectorAuthenticationRouterData>>
             None => {
                 if request.device_channel == DeviceChannel::Browser {
                     Err(ConnectorError::MissingRequiredField {
-                        field_name: "browser_info",
+                        field_name: "browser_info".into(),
                     })?
                 } else {
                     Ok(None)

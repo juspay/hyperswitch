@@ -36,6 +36,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::USER_AGENT,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -192,6 +193,10 @@ where
             (
                 headers::X_PROFILE_ID.to_string(),
                 auth.profile_id.expose().into_masked(),
+            ),
+            (
+                headers::USER_AGENT.to_string(),
+                USER_AGENT.to_string().into(),
             ),
         ];
         Ok(header)

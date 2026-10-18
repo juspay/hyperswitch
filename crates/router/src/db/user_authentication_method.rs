@@ -137,9 +137,10 @@ impl UserAuthenticationMethodInterface for MockDb {
             .find(|uam| uam.owner_id == user_authentication_method.owner_id)
             .map(|uam| uam.auth_id.clone());
 
-        let auth_id = existing_auth_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        let auth_id =
+            existing_auth_id.unwrap_or_else(|| common_utils::generate_uuid_v4().to_string());
         let user_authentication_method = storage::UserAuthenticationMethod {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: common_utils::generate_uuid_v4().to_string(),
             auth_id,
             owner_id: user_authentication_method.auth_id,
             owner_type: user_authentication_method.owner_type,

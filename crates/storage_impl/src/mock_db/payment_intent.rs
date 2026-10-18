@@ -1,5 +1,7 @@
 use common_utils::errors::CustomResult;
 use diesel_models::enums as storage_enums;
+#[cfg(all(feature = "v1", feature = "olap"))]
+use diesel_models::PaymentIntent as DieselPaymentIntent;
 #[cfg(feature = "v1")]
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
@@ -44,6 +46,32 @@ impl PaymentIntentInterface for MockDb {
         )>,
         StorageError,
     > {
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn get_filtered_payment_intents_attempt_for_platform(
+        &self,
+        _platform_merchant_id: &common_utils::id_type::MerchantId,
+        _filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+    ) -> CustomResult<
+        Vec<(
+            DieselPaymentIntent,
+            diesel_models::payment_attempt::PaymentAttempt,
+        )>,
+        StorageError,
+    > {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn get_payment_intents_attempt_count_for_platform(
+        &self,
+        _platform_merchant_id: &common_utils::id_type::MerchantId,
+        _filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+    ) -> CustomResult<i64, StorageError> {
+        // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
 

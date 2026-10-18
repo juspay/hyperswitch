@@ -381,6 +381,14 @@ impl
                     .clone()
                     .or(card_bin_info.card_network),
                 card_type: card_details.card_type.clone().or(card_bin_info.card_type),
+                card_subtype: card_details
+                    .card_subtype
+                    .clone()
+                    .or(card_bin_info.card_subtype),
+                card_segment_type: card_details.card_segment_type.or(card_bin_info
+                    .card_segment_type
+                    .and_then(|segment_type| segment_type.parse().ok())),
+                funding_source: card_details.funding_source.or(card_bin_info.funding_source),
                 saved_to_locker: false,
             })
         } else {
@@ -403,6 +411,9 @@ impl
                 card_issuer: card_details.card_issuer.clone(),
                 card_network: card_details.card_network.clone(),
                 card_type: card_details.card_type.clone(),
+                card_subtype: card_details.card_subtype.clone(),
+                card_segment_type: card_details.card_segment_type,
+                funding_source: card_details.funding_source,
                 saved_to_locker: false,
             })
         }
@@ -461,6 +472,14 @@ impl
                     .clone()
                     .or(card_bin_info.card_network),
                 card_type: card_details.card_type.clone().or(card_bin_info.card_type),
+                card_subtype: card_details
+                    .card_subtype
+                    .clone()
+                    .or(card_bin_info.card_subtype),
+                card_segment_type: card_details.card_segment_type.or(card_bin_info
+                    .card_segment_type
+                    .and_then(|segment_type| segment_type.parse().ok())),
+                funding_source: card_details.funding_source.or(card_bin_info.funding_source),
                 saved_to_locker: false,
             })
         } else {
@@ -483,6 +502,9 @@ impl
                 card_issuer: card_details.card_issuer.clone(),
                 card_network: card_details.card_network.clone(),
                 card_type: card_details.card_type.clone(),
+                card_subtype: card_details.card_subtype.clone(),
+                card_segment_type: card_details.card_segment_type,
+                funding_source: card_details.funding_source,
                 saved_to_locker: false,
             })
         }

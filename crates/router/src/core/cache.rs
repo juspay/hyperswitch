@@ -10,12 +10,9 @@ pub async fn invalidate(
     key: &str,
 ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ApiErrorResponse> {
     let store = state.store.as_ref();
-    let result = redact_from_redis_and_publish(
-        store.get_cache_store().as_ref(),
-        [CacheKind::All(key.into())],
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let result = redact_from_redis_and_publish(store, [CacheKind::All(key.into())])
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     // If the message was published to atleast one channel
     // then return status Ok

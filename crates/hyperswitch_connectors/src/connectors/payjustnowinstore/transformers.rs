@@ -88,7 +88,7 @@ impl TryFrom<&PayjustnowinstoreRouterData<&PaymentsAuthorizeRouterData>>
                         let product_name = order.product_name.trim();
                         if product_name.is_empty() {
                             return Err(errors::ConnectorError::MissingRequiredField {
-                                field_name: "order_details[].product_name",
+                                field_name: "order_details[].product_name".into(),
                             });
                         }
                         let sku = order.product_id.as_ref().and_then(|id| {
@@ -161,6 +161,7 @@ impl<F, T>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -255,6 +256,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayjustnowinstoreSyncResponse, T, Payme
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
 

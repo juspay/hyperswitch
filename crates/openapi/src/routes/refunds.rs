@@ -40,6 +40,15 @@
         (status = 200, description = "Refund created", body = RefundResponse),
         (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
     ),
+    params(
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
+    ),
     tag = "Refunds",
     operation_id = "Create a Refund",
     security(("api_key" = []))
@@ -54,7 +63,14 @@ pub async fn refunds_create() {}
     get,
     path = "/refunds/{refund_id}",
     params(
-        ("refund_id" = String, Path, description = "The identifier for refund")
+        ("refund_id" = String, Path, description = "The identifier for refund"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Refund retrieved", body = RefundResponse),
@@ -90,7 +106,14 @@ pub async fn refunds_retrieve_with_body() {}
     post,
     path = "/refunds/{refund_id}",
     params(
-        ("refund_id" = String, Path, description = "The identifier for refund")
+        ("refund_id" = String, Path, description = "The identifier for refund"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     request_body(
         content = RefundUpdateRequest,
@@ -124,6 +147,15 @@ pub async fn refunds_update() {}
     request_body=RefundListRequest,
     responses(
         (status = 200, description = "List of refunds", body = RefundListResponse),
+    ),
+    params(
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     tag = "Refunds",
     operation_id = "List all Refunds",

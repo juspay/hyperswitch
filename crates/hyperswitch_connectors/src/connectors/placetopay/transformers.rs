@@ -121,7 +121,7 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
                 if item.router_data.is_three_ds() {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Cards 3DS".to_string(),
-                        connector: "Placetopay",
+                        connector: "Placetopay".into(),
                     })?
                 }
                 let card = PlacetopayCard {
@@ -288,6 +288,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlacetopayPaymentsResponse, T, Payments
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -330,7 +331,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PlacetopayRefundRequest {
         } else {
             Err(errors::ConnectorError::NotSupported {
                 message: "Partial Refund".to_string(),
-                connector: "placetopay",
+                connector: "placetopay".into(),
             }
             .into())
         }

@@ -1,10 +1,10 @@
-use std::borrow::Cow;
+use std::collections::{HashMap, HashSet};
 
 use common_enums::enums as api_enums;
 use common_types::{domain::AcquirerConfig, primitive_wrappers};
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
-    errors::{CustomResult, ValidationError},
+    errors::{CustomResult, ParsingError, ValidationError},
     ext_traits::{OptionExt, ValueExt},
     pii,
 };
@@ -16,10 +16,13 @@ use diesel_models::business_profile::{
     SurchargeConnectorDetails, WebhookDetails,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::logger;
 
-use crate::{errors::api_error_response, merchant_key_store::MerchantKeyStore, payments};
+use crate::{
+    consts::SENSITIVE_WEBHOOK_HEADER_NAMES, errors::api_error_response,
+    merchant_key_store::MerchantKeyStore, payments,
+};
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Profile {
@@ -82,6 +85,7 @@ pub struct Profile {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
@@ -90,6 +94,8 @@ pub struct Profile {
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -264,6 +270,7 @@ pub struct ProfileSetter {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
@@ -336,6 +343,7 @@ impl From<ProfileSetter> for Profile {
             merchant_country_code: value.merchant_country_code,
             dispute_polling_interval: value.dispute_polling_interval,
             is_manual_retry_enabled: value.is_manual_retry_enabled,
+            auto_fallback_capture_method: value.auto_fallback_capture_method,
             always_enable_overcapture: value.always_enable_overcapture,
             external_vault_details: value.external_vault_details,
             billing_processor_id: value.billing_processor_id,
@@ -343,6 +351,8 @@ impl From<ProfileSetter> for Profile {
             network_tokenization_credentials: value.network_tokenization_credentials,
             payment_method_blocking: value.payment_method_blocking,
             default_fallback_routing: value.default_fallback_routing,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         }
     }
 }
@@ -406,6 +416,7 @@ pub struct ProfileDbBuilder {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
@@ -413,6 +424,8 @@ pub struct ProfileDbBuilder {
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -478,6 +491,7 @@ impl From<ProfileDbBuilder> for Profile {
             merchant_country_code: value.merchant_country_code,
             dispute_polling_interval: value.dispute_polling_interval,
             is_manual_retry_enabled: value.is_manual_retry_enabled,
+            auto_fallback_capture_method: value.auto_fallback_capture_method,
             always_enable_overcapture: value.always_enable_overcapture,
             external_vault_details: value.external_vault_details,
             billing_processor_id: value.billing_processor_id,
@@ -485,6 +499,8 @@ impl From<ProfileDbBuilder> for Profile {
             network_tokenization_credentials: value.network_tokenization_credentials,
             payment_method_blocking: value.payment_method_blocking,
             default_fallback_routing: value.default_fallback_routing,
+            apple_pay_certificates: value.apple_pay_certificates,
+            apple_pay_certificates_encrypted: value.apple_pay_certificates_encrypted,
         }
     }
 }
@@ -493,6 +509,20 @@ impl Profile {
     #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &common_utils::id_type::ProfileId {
         &self.profile_id
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_auto_fallback_capture_method(
+        &self,
+    ) -> Option<common_enums::AutoFallbackCaptureMethod> {
+        self.auto_fallback_capture_method
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_auto_fallback_capture_method(
+        &self,
+    ) -> Option<common_enums::AutoFallbackCaptureMethod> {
+        None
     }
 
     #[cfg(feature = "v2")]
@@ -552,6 +582,7 @@ pub struct ProfileGeneralUpdate {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
@@ -591,6 +622,10 @@ pub enum ProfileUpdate {
     },
     DefaultRoutingFallbackUpdate {
         default_fallback_routing: Option<pii::SecretSerdeValue>,
+    },
+    ApplePayCertificateCacheUpdate {
+        apple_pay_certificates: Option<serde_json::Value>,
+        apple_pay_certificates_encrypted: Option<common_utils::encryption::Encryption>,
     },
 }
 
@@ -918,6 +953,46 @@ impl From<ProfileDbBuilder> for Profile {
 }
 
 impl Profile {
+    pub fn get_outgoing_webhook_headers(
+        &self,
+    ) -> CustomResult<Option<HashMap<String, Secret<String>>>, ParsingError> {
+        self.outgoing_webhook_custom_http_headers
+            .as_ref()
+            .map(|outgoing_webhook_custom_http_headers| {
+                outgoing_webhook_custom_http_headers
+                    .clone()
+                    .into_inner()
+                    .expose()
+                    .parse_value::<HashMap<String, Secret<String>>>(
+                        "HashMap<String, Secret<String>>",
+                    )
+            })
+            .transpose()
+    }
+
+    pub fn get_sensitive_webhook_header_names(&self) -> Option<HashSet<String>> {
+        let custom_http_headers = self
+            .get_outgoing_webhook_headers()
+            .inspect_err(|error| {
+                logger::error!(
+                    ?error,
+                    "Failed to parse outgoing webhook custom HTTP headers"
+                )
+            })
+            .ok()?;
+
+        Some(
+            custom_http_headers
+                .unwrap_or_default()
+                .into_keys()
+                .map(|header_name| header_name.to_ascii_lowercase())
+                .filter(|header_name| {
+                    SENSITIVE_WEBHOOK_HEADER_NAMES.contains(&header_name.as_str())
+                })
+                .collect(),
+        )
+    }
+
     pub fn get_is_tax_connector_enabled(&self) -> bool {
         let is_tax_connector_enabled = self.is_tax_connector_enabled;
         match &self.tax_connector_id {
@@ -1127,32 +1202,56 @@ impl Profile {
 
     pub fn get_configured_payment_webhook_statuses(
         &self,
-    ) -> Option<Cow<'_, [common_enums::IntentStatus]>> {
+    ) -> Option<&HashSet<common_enums::IntentStatus>> {
         self.webhook_details
             .as_ref()
             .and_then(|details| details.payment_statuses_enabled.as_ref())
-            .filter(|statuses_vec| !statuses_vec.is_empty())
-            .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
+            .filter(|statuses| !statuses.is_empty())
     }
 
     pub fn get_configured_refund_webhook_statuses(
         &self,
-    ) -> Option<Cow<'_, [common_enums::RefundStatus]>> {
+    ) -> Option<&HashSet<common_enums::RefundStatus>> {
         self.webhook_details
             .as_ref()
             .and_then(|details| details.refund_statuses_enabled.as_ref())
-            .filter(|statuses_vec| !statuses_vec.is_empty())
-            .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
+            .filter(|statuses| !statuses.is_empty())
     }
 
     pub fn get_configured_payout_webhook_statuses(
         &self,
-    ) -> Option<Cow<'_, [common_enums::PayoutStatus]>> {
+    ) -> Option<&HashSet<common_enums::PayoutStatus>> {
         self.webhook_details
             .as_ref()
             .and_then(|details| details.payout_statuses_enabled.as_ref())
-            .filter(|statuses_vec| !statuses_vec.is_empty())
-            .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
+            .filter(|statuses| !statuses.is_empty())
+    }
+
+    pub fn get_configured_dispute_webhook_statuses(
+        &self,
+    ) -> Option<&HashSet<common_enums::DisputeStatus>> {
+        self.webhook_details
+            .as_ref()
+            .and_then(|details| details.dispute_statuses_enabled.as_ref())
+            .filter(|statuses| !statuses.is_empty())
+    }
+
+    pub fn get_configured_mandate_webhook_statuses(
+        &self,
+    ) -> Option<&HashSet<common_enums::MandateStatus>> {
+        self.webhook_details
+            .as_ref()
+            .and_then(|details| details.mandate_statuses_enabled.as_ref())
+            .filter(|statuses| !statuses.is_empty())
+    }
+
+    pub fn get_configured_invoice_webhook_statuses(
+        &self,
+    ) -> Option<&HashSet<common_enums::InvoiceStatus>> {
+        self.webhook_details
+            .as_ref()
+            .and_then(|details| details.invoice_statuses_enabled.as_ref())
+            .filter(|statuses| !statuses.is_empty())
     }
 
     pub fn get_billing_processor_id(
@@ -1165,7 +1264,7 @@ impl Profile {
             .to_owned()
             .ok_or(error_stack::report!(
                 api_error_response::ApiErrorResponse::MissingRequiredField {
-                    field_name: "billing_processor_id"
+                    field_name: "billing_processor_id".into()
                 }
             ))
     }
@@ -1256,6 +1355,10 @@ pub enum ProfileUpdate {
     RevenueRecoveryAlgorithmUpdate {
         revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
         revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    },
+    ApplePayCertificateCacheUpdate {
+        apple_pay_certificates: Option<serde_json::Value>,
+        apple_pay_certificates_encrypted: Option<common_utils::encryption::Encryption>,
     },
 }
 

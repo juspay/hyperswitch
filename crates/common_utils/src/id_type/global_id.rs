@@ -105,7 +105,7 @@ impl CellId {
     ) -> error_stack::Result<Self, errors::ValidationError> {
         Self::from_str(input_string).change_context(
             errors::ValidationError::IncorrectValueProvided {
-                field_name: "cell_id",
+                field_name: "cell_id".into(),
             },
         )
     }

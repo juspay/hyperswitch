@@ -58,11 +58,11 @@ where
         RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
         ConnectorError,
     > {
+        let rollout_settings = context.rollout_settings();
         let merchant_connector_account = context.merchant_connector_account;
         let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
-        let unified_connector_service_execution_mode = context.execution_mode;
         complete_authorize_flow::call_unified_connector_service_post_authenticate(
             router_data,
             state,
@@ -70,7 +70,7 @@ where
             lineage_ids,
             merchant_connector_account,
             processor,
-            unified_connector_service_execution_mode,
+            rollout_settings,
         )
         .await
     }

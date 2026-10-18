@@ -13,8 +13,8 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, CompleteAuthorize, PSync, PaymentMethodToken, PreProcessing,
-            Session, SetupMandate, Void,
+            Authorize, Capture, CompleteAuthorize, PSync, PaymentMethodToken, Session,
+            SetupMandate, Void,
         },
         refunds::{Execute, RSync},
         unified_authentication_service::PostAuthenticate,
@@ -23,8 +23,8 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -33,8 +33,8 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsPostAuthenticateRouterData,
-        PaymentsPreAuthenticateRouterData, PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
+        PaymentsPreAuthenticateRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -52,7 +52,6 @@ use hyperswitch_masking::{ExposeInterface, Mask};
 use lazy_static::lazy_static;
 use serde_json::Value;
 use transformers as nexixpay;
-use uuid::Uuid;
 
 use crate::{
     constants::headers,
@@ -86,7 +85,6 @@ impl Nexixpay {
 }
 
 impl api::Payment for Nexixpay {}
-impl api::PaymentsPreProcessing for Nexixpay {}
 impl api::PaymentSession for Nexixpay {}
 impl api::ConnectorAccessToken for Nexixpay {}
 impl api::MandateSetup for Nexixpay {}
@@ -159,7 +157,7 @@ impl ConnectorCommon for Nexixpay {
             ),
             (
                 headers::CORRELATION_ID.to_string(),
-                Uuid::new_v4().to_string().into_masked(),
+                common_utils::generate_uuid_v4().to_string().into_masked(),
             ),
         ])
     }
@@ -480,7 +478,7 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, Payments
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
         )?;
 
@@ -518,92 +516,6 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, Payments
         let response: nexixpay::NexixpayPaymentsResponse = res
             .response
             .parse_struct("NexixpayPaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
-impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
-    for Nexixpay
-{
-    fn get_headers(
-        &self,
-        req: &PaymentsPreProcessingRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
-    {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &PaymentsPreProcessingRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}/orders/3steps/validation",
-            self.base_url(connectors)
-        ))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &PaymentsPreProcessingRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = nexixpay::NexixpayRedirectRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &PaymentsPreProcessingRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&types::PaymentsPreProcessingType::get_url(
-                    self, req, connectors,
-                )?)
-                .attach_default_headers()
-                .headers(types::PaymentsPreProcessingType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsPreProcessingType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsPreProcessingRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
-        let response: nexixpay::NexixpayRedirectionResponse = res
-            .response
-            .parse_struct("NexixpayRedirectionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -882,7 +794,7 @@ fn get_payment_id(
     (metadata, payment_intent): (Option<Value>, Option<nexixpay::NexixpayPaymentIntent>),
 ) -> CustomResult<String, errors::ConnectorError> {
     let connector_metadata = metadata.ok_or(errors::ConnectorError::MissingRequiredField {
-        field_name: "connector_meta",
+        field_name: "connector_meta".into(),
     })?;
     let nexixpay_meta_data =
         serde_json::from_value::<nexixpay::NexixpayConnectorMetaData>(connector_metadata)
@@ -896,7 +808,7 @@ fn get_payment_id(
     };
     payment_id.ok_or_else(|| {
         errors::ConnectorError::MissingRequiredField {
-            field_name: "operation_id",
+            field_name: "operation_id".into(),
         }
         .into()
     })
@@ -911,7 +823,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     {
         let mut header = vec![(
             headers::IDEMPOTENCY_KEY.to_string(),
-            Uuid::new_v4().to_string().into_masked(),
+            common_utils::generate_uuid_v4().to_string().into_masked(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -1011,7 +923,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ne
     {
         let mut header = vec![(
             headers::IDEMPOTENCY_KEY.to_string(),
-            Uuid::new_v4().to_string().into_masked(),
+            common_utils::generate_uuid_v4().to_string().into_masked(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -1047,13 +959,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ne
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
+                    field_name: "amount".into(),
                 })?;
         let currency =
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
         let amount = utils::convert_amount(self.amount_converter, minor_amount, currency)?;
 
@@ -1118,7 +1030,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nexixpa
     {
         let mut header = vec![(
             headers::IDEMPOTENCY_KEY.to_string(),
-            Uuid::new_v4().to_string().into_masked(),
+            common_utils::generate_uuid_v4().to_string().into_masked(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);

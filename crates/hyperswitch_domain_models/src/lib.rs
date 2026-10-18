@@ -8,7 +8,6 @@ pub mod callback_mapper;
 pub mod card_issuer;
 pub mod card_testing_guard_data;
 pub mod cards_info;
-pub mod chat;
 pub mod configs;
 pub mod connector_endpoints;
 pub mod consts;
@@ -17,6 +16,7 @@ pub mod disputes;
 pub mod errors;
 pub mod ext_traits;
 pub mod gsm;
+pub mod hierarchical_resource;
 pub mod invoice;
 pub mod mandates;
 pub mod master_key;
@@ -967,6 +967,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
                 .first_payment_attempt_network_decline_code,
             first_payment_attempt_pg_error_code: from.first_payment_attempt_pg_error_code,
             invoice_billing_started_at_time: from.invoice_billing_started_at_time,
+            revenue_recovery_ab_routing: from.revenue_recovery_ab_routing,
         }
     }
 
@@ -992,6 +993,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
                 .first_payment_attempt_network_decline_code,
             first_payment_attempt_pg_error_code: self.first_payment_attempt_pg_error_code,
             invoice_billing_started_at_time: self.invoice_billing_started_at_time,
+            revenue_recovery_ab_routing: self.revenue_recovery_ab_routing,
         }
     }
 }
@@ -1169,6 +1171,8 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
             show_merchant_name: item.show_merchant_name,
+            payment_methods_separator_text: item.payment_methods_separator_text,
+            redirect_delay_seconds: item.redirect_delay_seconds,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -1200,6 +1204,8 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             is_setup_mandate_flow,
             color_icon_card_cvc_error,
             show_merchant_name,
+            payment_methods_separator_text,
+            redirect_delay_seconds,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -1235,6 +1241,8 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             is_setup_mandate_flow,
             color_icon_card_cvc_error,
             show_merchant_name,
+            payment_methods_separator_text,
+            redirect_delay_seconds,
         }
     }
 }
@@ -1405,6 +1413,7 @@ impl From<&api_models::payments::RecordAttemptErrorDetails>
             network_advice_code: error.network_advice_code.clone(),
             network_decline_code: error.network_decline_code.clone(),
             network_error_message: error.network_error_message.clone(),
+            standardised_code: None,
         }
     }
 }

@@ -56,7 +56,7 @@ pub fn check_currency(
     } else {
         Err(errors::ConnectorError::NotSupported {
             message: format!("currency {currency} is not supported for this merchant account"),
-            connector: "Helcim",
+            connector: "Helcim".into(),
         })?
     }
 }
@@ -204,7 +204,7 @@ impl TryFrom<(&HelcimRouterData<&PaymentsAuthorizeRouterData>, &Card)> for Helci
         if item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "Cards 3DS".to_string(),
-                connector: "Helcim",
+                connector: "Helcim".into(),
             })?
         }
         let card_data = HelcimCard {
@@ -404,6 +404,7 @@ impl<F>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -448,6 +449,7 @@ impl TryFrom<PaymentsResponseRouterData<HelcimPaymentsResponse>> for PaymentsAut
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -496,6 +498,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<HelcimPaymentsResponse>> for Payment
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 status: enums::AttemptStatus::from(item.response),
                 ..item.data
@@ -571,6 +574,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<HelcimPaymentsResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -624,6 +628,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<HelcimPaymentsResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data

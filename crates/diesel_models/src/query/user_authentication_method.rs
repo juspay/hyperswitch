@@ -2,25 +2,28 @@ use diesel::{associations::HasTable, ExpressionMethods};
 
 use crate::{
     query::generics, schema::user_authentication_methods::dsl, user_authentication_method::*,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl UserAuthenticationMethodNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<UserAuthenticationMethod> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<UserAuthenticationMethod> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl UserAuthenticationMethod {
     pub async fn get_user_authentication_method_by_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 
     pub async fn list_user_authentication_methods_for_auth_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         auth_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
@@ -34,7 +37,7 @@ impl UserAuthenticationMethod {
     }
 
     pub async fn list_user_authentication_methods_for_owner_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         owner_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
@@ -48,7 +51,7 @@ impl UserAuthenticationMethod {
     }
 
     pub async fn update_user_authentication_method(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: &str,
         user_authentication_method_update: UserAuthenticationMethodUpdate,
     ) -> StorageResult<Self> {
@@ -66,7 +69,7 @@ impl UserAuthenticationMethod {
     }
 
     pub async fn list_user_authentication_methods_for_email_domain(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         email_domain: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(

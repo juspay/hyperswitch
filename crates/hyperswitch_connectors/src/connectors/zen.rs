@@ -49,7 +49,6 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{Mask, PeekInterface, Secret};
 use transformers::{self as zen, ZenPaymentStatus, ZenWebhookTxnType};
-use uuid::Uuid;
 
 use crate::{constants::headers, types::ResponseRouterData};
 
@@ -71,7 +70,10 @@ impl api::RefundSync for Zen {}
 
 impl Zen {
     fn get_default_header() -> (String, hyperswitch_masking::Maskable<String>) {
-        ("request-id".to_string(), Uuid::new_v4().to_string().into())
+        (
+            "request-id".to_string(),
+            common_utils::generate_uuid_v4().to_string().into(),
+        )
     }
 }
 

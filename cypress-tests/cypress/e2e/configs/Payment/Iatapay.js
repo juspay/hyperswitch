@@ -125,7 +125,77 @@ export const connectorDetails = {
     },
   },
   card_pm: {
+    // Auto fallback capture method flow (PR #14452) - iatapay does not support
+    // manual capture; with auto_fallback_capture_method enabled on the business
+    // profile, manual capture payments fall back to automatic capture.
+    AutoFallbackCaptureMethod: {
+      PaymentIntent: {
+        Request: {
+          currency: "INR",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+            capture_method_applied: null,
+          },
+        },
+      },
+      AutoFallbackDisabled: {
+        Configs: {
+          skipBillingAssertion: true,
+        },
+        Request: {
+          payment_method: "upi",
+          payment_method_type: "upi_collect",
+          payment_method_data: {
+            upi: {
+              upi_collect: {
+                vpa_id: "successtest@iata",
+              },
+            },
+          },
+          billing: billingAddress,
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              message: "Payment method type not supported",
+              code: "IR_19",
+              reason: "manual is not supported by iatapay",
+            },
+          },
+        },
+      },
+      AutoFallbackEnabled: {
+        Request: {
+          payment_method: "upi",
+          payment_method_type: "upi_collect",
+          payment_method_data: {
+            upi: {
+              upi_collect: {
+                vpa_id: "successtest@iata",
+              },
+            },
+          },
+          billing: billingAddress,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+            capture_method: "manual",
+            capture_method_applied: "automatic",
+          },
+        },
+      },
+    },
     ZeroAuthMandate: {
+      Request: {
+        amount: 0,
+      },
       Response: {
         status: 501,
         body: {
@@ -153,6 +223,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",

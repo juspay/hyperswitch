@@ -140,7 +140,7 @@ impl TryFrom<&DomainAddress> for CeleroAddress {
                 email: address.email.clone(),
             }),
             None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "address_details",
+                field_name: "address_details".into(),
             }
             .into()),
         }
@@ -228,7 +228,7 @@ impl TryFrom<(&PaymentMethodData, bool)> for CeleroPaymentMethod {
         if is_three_ds {
             return Err(errors::ConnectorError::NotSupported {
                 message: "Cards 3DS".to_string(),
-                connector: "celero",
+                connector: "celero".into(),
             }
             .into());
         }
@@ -577,6 +577,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                                     incremental_authorization_allowed: None,
                                     authentication_data: None,
                                     charges: None,
+                                    payment_account_reference: None,
                                 }),
                                 connector_response: connector_response_data,
                                 ..item.data
@@ -700,6 +701,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -778,6 +780,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -1042,6 +1045,13 @@ fn convert_to_additional_payment_method_connector_response(
                 card_network: None,
                 domestic_network: None,
                 auth_code: None,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             })
         }
     }

@@ -3,14 +3,14 @@ use common_utils::errors::CustomResult;
 use common_utils::id_type;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::behaviour::Conversion;
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
     payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
 };
 
 use super::MockDb;
+#[cfg(feature = "v1")]
+use crate::behaviour::Conversion;
 use crate::errors::StorageError;
 
 #[async_trait::async_trait]
@@ -105,18 +105,6 @@ impl PaymentAttemptInterface for MockDb {
         _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentAttempt>, StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(StorageError::MockDbError)?
-    }
-
-    #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-        &self,
-        _preprocessing_id: &str,
-        _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
-        _merchant_key_store: &MerchantKeyStore,
-    ) -> CustomResult<PaymentAttempt, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
@@ -221,6 +209,7 @@ impl PaymentAttemptInterface for MockDb {
             mandate_data: payment_attempt.mandate_data,
             payment_method_billing_address_id: payment_attempt.payment_method_billing_address_id,
             fingerprint_id: payment_attempt.fingerprint_id,
+            fingerprint_type: payment_attempt.fingerprint_type,
             client_source: payment_attempt.client_source,
             client_version: payment_attempt.client_version,
             customer_acceptance: payment_attempt.customer_acceptance,
@@ -255,7 +244,10 @@ impl PaymentAttemptInterface for MockDb {
             installment_data: payment_attempt.installment_data,
             external_surcharge_details: payment_attempt.external_surcharge_details,
             applied_offer_details: payment_attempt.applied_offer_details,
+            applied_overrides: payment_attempt.applied_overrides,
             sender_payment_instrument_id: payment_attempt.sender_payment_instrument_id,
+            payment_account_reference: payment_attempt.payment_account_reference,
+            active_frm_id: payment_attempt.active_frm_id,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

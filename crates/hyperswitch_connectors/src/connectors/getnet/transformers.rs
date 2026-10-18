@@ -183,7 +183,7 @@ impl TryFrom<enums::PaymentMethodType> for PaymentMethodContainer {
             }),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Payment method type not supported".to_string(),
-                connector: "Getnet",
+                connector: "Getnet".into(),
             }
             .into()),
         }
@@ -200,7 +200,7 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                 if item.router_data.is_three_ds() {
                     return Err(errors::ConnectorError::NotSupported {
                         message: "3DS payments".to_string(),
-                        connector: "Getnet",
+                        connector: "Getnet".into(),
                     }
                     .into());
                 }
@@ -426,6 +426,7 @@ impl TryFrom<PaymentsResponseRouterData<GetnetPaymentsResponse>> for PaymentsAut
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -479,6 +480,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<GetnetPaymentsResponse>> for Payment
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -503,6 +505,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<GetnetPaymentsResponse>> for Payment
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     ..item.data
                 })
@@ -653,6 +656,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<GetnetCaptureResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -985,6 +989,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<GetnetCancelResponse>> for Payment
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

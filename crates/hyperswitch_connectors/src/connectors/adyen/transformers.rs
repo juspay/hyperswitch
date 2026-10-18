@@ -28,7 +28,7 @@ use hyperswitch_domain_models::{
     },
     router_data::{
         ConnectorAuthType, ConnectorResponseData, ErrorResponse, ExtendedAuthorizationResponseData,
-        PaymentMethodBalance, PaymentMethodToken, RouterData,
+        PaymentMethodToken, RouterData,
     },
     router_flow_types::{
         merchant_connector_webhook_management::{
@@ -54,7 +54,7 @@ use hyperswitch_domain_models::{
         ConnectorWebhookGenerateSecretRouterData, ConnectorWebhookRegisterRouterData,
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
-        PaymentsPreProcessingRouterData, RefundsRouterData,
+        RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -68,7 +68,7 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use time::{Duration, OffsetDateTime, PrimitiveDateTime};
+use time::{Duration, PrimitiveDateTime};
 use url::Url;
 
 #[cfg(feature = "payouts")]
@@ -77,8 +77,7 @@ use crate::{
     types::{
         AcceptDisputeRouterData, DefendDisputeRouterData, PaymentsCancelResponseRouterData,
         PaymentsCaptureResponseRouterData, PaymentsExtendAuthorizationResponseRouterData,
-        PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
-        SubmitEvidenceRouterData,
+        RefundsResponseRouterData, ResponseRouterData, SubmitEvidenceRouterData,
     },
     utils::{
         self, is_manual_capture, missing_field_err, AddressDetailsData, BrowserInformationData,
@@ -284,9 +283,9 @@ pub struct RiskData {
     #[serde(rename = "riskdata.deliveryMethod")]
     delivery_method: Option<String>,
     #[serde(rename = "riskdata.emailName")]
-    email_name: Option<String>,
+    email_name: Option<Secret<String>>,
     #[serde(rename = "riskdata.emailDomain")]
-    email_domain: Option<String>,
+    email_domain: Option<Secret<String>>,
     #[serde(rename = "riskdata.lastOrderDate")]
     last_order_date: Option<String>,
     #[serde(rename = "riskdata.merchantReference")]
@@ -1265,135 +1264,9 @@ impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
             common_enums::BankNames::TsbBank => Ok(Self::TsbBank),
             common_enums::BankNames::TescoBank => Ok(Self::TescoBank),
             common_enums::BankNames::UlsterBank => Ok(Self::UlsterBank),
-            common_enums::BankNames::AmericanExpress
-            | common_enums::BankNames::AffinBank
-            | common_enums::BankNames::AgroBank
-            | common_enums::BankNames::AllianceBank
-            | common_enums::BankNames::AmBank
-            | common_enums::BankNames::BankOfAmerica
-            | common_enums::BankNames::BankOfChina
-            | common_enums::BankNames::BankIslam
-            | common_enums::BankNames::BankMuamalat
-            | common_enums::BankNames::BankRakyat
-            | common_enums::BankNames::BankSimpananNasional
-            | common_enums::BankNames::BlikPSP
-            | common_enums::BankNames::CapitalOne
-            | common_enums::BankNames::Chase
-            | common_enums::BankNames::Citi
-            | common_enums::BankNames::CimbBank
-            | common_enums::BankNames::Discover
-            | common_enums::BankNames::NavyFederalCreditUnion
-            | common_enums::BankNames::PentagonFederalCreditUnion
-            | common_enums::BankNames::SynchronyBank
-            | common_enums::BankNames::WellsFargo
-            | common_enums::BankNames::AbnAmro
-            | common_enums::BankNames::AsnBank
-            | common_enums::BankNames::Bunq
-            | common_enums::BankNames::Handelsbanken
-            | common_enums::BankNames::HongLeongBank
-            | common_enums::BankNames::Ing
-            | common_enums::BankNames::Knab
-            | common_enums::BankNames::KuwaitFinanceHouse
-            | common_enums::BankNames::Moneyou
-            | common_enums::BankNames::Rabobank
-            | common_enums::BankNames::Regiobank
-            | common_enums::BankNames::SnsBank
-            | common_enums::BankNames::TriodosBank
-            | common_enums::BankNames::VanLanschot
-            | common_enums::BankNames::ArzteUndApothekerBank
-            | common_enums::BankNames::AustrianAnadiBankAg
-            | common_enums::BankNames::BankAustria
-            | common_enums::BankNames::Bank99Ag
-            | common_enums::BankNames::BankhausCarlSpangler
-            | common_enums::BankNames::BankhausSchelhammerUndSchatteraAg
-            | common_enums::BankNames::BankMillennium
-            | common_enums::BankNames::BankPEKAOSA
-            | common_enums::BankNames::BawagPskAg
-            | common_enums::BankNames::BksBankAg
-            | common_enums::BankNames::BrullKallmusBankAg
-            | common_enums::BankNames::BtvVierLanderBank
-            | common_enums::BankNames::CapitalBankGraweGruppeAg
-            | common_enums::BankNames::CeskaSporitelna
-            | common_enums::BankNames::Dolomitenbank
-            | common_enums::BankNames::EasybankAg
-            | common_enums::BankNames::EPlatbyVUB
-            | common_enums::BankNames::ErsteBankUndSparkassen
-            | common_enums::BankNames::FrieslandBank
-            | common_enums::BankNames::HypoAlpeadriabankInternationalAg
-            | common_enums::BankNames::HypoNoeLbFurNiederosterreichUWien
-            | common_enums::BankNames::HypoOberosterreichSalzburgSteiermark
-            | common_enums::BankNames::HypoTirolBankAg
-            | common_enums::BankNames::HypoVorarlbergBankAg
-            | common_enums::BankNames::HypoBankBurgenlandAktiengesellschaft
-            | common_enums::BankNames::KomercniBanka
-            | common_enums::BankNames::MBank
-            | common_enums::BankNames::MarchfelderBank
-            | common_enums::BankNames::Maybank
-            | common_enums::BankNames::OberbankAg
-            | common_enums::BankNames::OsterreichischeArzteUndApothekerbank
-            | common_enums::BankNames::OcbcBank
-            | common_enums::BankNames::PayWithING
-            | common_enums::BankNames::PlaceZIPKO
-            | common_enums::BankNames::PlatnoscOnlineKartaPlatnicza
-            | common_enums::BankNames::PosojilnicaBankEGen
-            | common_enums::BankNames::PostovaBanka
-            | common_enums::BankNames::PublicBank
-            | common_enums::BankNames::RaiffeisenBankengruppeOsterreich
-            | common_enums::BankNames::RhbBank
-            | common_enums::BankNames::SchelhammerCapitalBankAg
-            | common_enums::BankNames::StandardCharteredBank
-            | common_enums::BankNames::SchoellerbankAg
-            | common_enums::BankNames::SpardaBankWien
-            | common_enums::BankNames::SporoPay
-            | common_enums::BankNames::TatraPay
-            | common_enums::BankNames::Viamo
-            | common_enums::BankNames::VolksbankGruppe
-            | common_enums::BankNames::VolkskreditbankAg
-            | common_enums::BankNames::VrBankBraunau
-            | common_enums::BankNames::UobBank
-            | common_enums::BankNames::PayWithAliorBank
-            | common_enums::BankNames::BankiSpoldzielcze
-            | common_enums::BankNames::PayWithInteligo
-            | common_enums::BankNames::BNPParibasPoland
-            | common_enums::BankNames::BankNowySA
-            | common_enums::BankNames::CreditAgricole
-            | common_enums::BankNames::PayWithBOS
-            | common_enums::BankNames::PayWithCitiHandlowy
-            | common_enums::BankNames::PayWithPlusBank
-            | common_enums::BankNames::ToyotaBank
-            | common_enums::BankNames::VeloBank
-            | common_enums::BankNames::ETransferPocztowy24
-            | common_enums::BankNames::PlusBank
-            | common_enums::BankNames::EtransferPocztowy24
-            | common_enums::BankNames::BankiSpbdzielcze
-            | common_enums::BankNames::BankNowyBfgSa
-            | common_enums::BankNames::GetinBank
-            | common_enums::BankNames::Blik
-            | common_enums::BankNames::NoblePay
-            | common_enums::BankNames::IdeaBank
-            | common_enums::BankNames::EnveloBank
-            | common_enums::BankNames::NestPrzelew
-            | common_enums::BankNames::MbankMtransfer
-            | common_enums::BankNames::Inteligo
-            | common_enums::BankNames::PbacZIpko
-            | common_enums::BankNames::BnpParibas
-            | common_enums::BankNames::BankPekaoSa
-            | common_enums::BankNames::VolkswagenBank
-            | common_enums::BankNames::AliorBank
-            | common_enums::BankNames::Boz
-            | common_enums::BankNames::BangkokBank
-            | common_enums::BankNames::KrungsriBank
-            | common_enums::BankNames::KrungThaiBank
-            | common_enums::BankNames::TheSiamCommercialBank
-            | common_enums::BankNames::Yoursafe
-            | common_enums::BankNames::N26
-            | common_enums::BankNames::Absa
-            | common_enums::BankNames::NationaleNederlanden
-            | common_enums::BankNames::KasikornBank => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Adyen"),
-                ))?
-            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            ))?,
         }
     }
 }
@@ -1997,40 +1870,6 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
     }
 }
 
-impl TryFrom<&PaymentsPreProcessingRouterData> for AdyenBalanceRequest<'_> {
-    type Error = Error;
-    fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        let payment_method = match &item.request.payment_method_data {
-            Some(PaymentMethodData::GiftCard(gift_card_data)) => match gift_card_data.as_ref() {
-                GiftCardData::Givex(gift_card_data) => {
-                    let balance_pm = BalancePmData {
-                        number: gift_card_data.number.clone(),
-                        cvc: gift_card_data.cvc.clone(),
-                    };
-                    Ok(AdyenPaymentMethod::PaymentMethodBalance(Box::new(
-                        balance_pm,
-                    )))
-                }
-                GiftCardData::PaySafeCard {} | GiftCardData::BhnCardNetwork(_) => {
-                    Err(errors::ConnectorError::FlowNotSupported {
-                        flow: "Balance".to_string(),
-                        connector: "adyen".to_string(),
-                    })
-                }
-            },
-            _ => Err(errors::ConnectorError::FlowNotSupported {
-                flow: "Balance".to_string(),
-                connector: "adyen".to_string(),
-            }),
-        }?;
-        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-        Ok(Self {
-            payment_method,
-            merchant_account: auth_type.merchant_account,
-        })
-    }
-}
-
 impl TryFrom<&PaymentsGiftCardBalanceCheckRouterData> for AdyenBalanceRequest<'_> {
     type Error = Error;
     fn try_from(item: &PaymentsGiftCardBalanceCheckRouterData) -> Result<Self, Self::Error> {
@@ -2182,7 +2021,7 @@ fn get_additional_data(
                 if metadata_capture_delay.is_some() {
                     return Err(errors::ConnectorError::InvalidDataFormat {
                         field_name:
-                            "metadata.capture_delay_hours should be None for manual capture",
+                            "metadata.capture_delay_hours should be None for manual capture".into(),
                     }
                     .into());
                 }
@@ -2195,7 +2034,7 @@ fn get_additional_data(
                     Some(0) => Some(0),
                     Some(_) => {
                         return Err(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "metadata.capture_delay_hours should be 0 or None for automatic capture",
+                            field_name: "metadata.capture_delay_hours should be 0 or None for automatic capture".into(),
                         }
                         .into());
                     }
@@ -2497,7 +2336,12 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::Interac
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
-        | common_enums::CardNetwork::Dinacard => None,
+        | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::AirPlus
+        | common_enums::CardNetwork::Aurore
+        | common_enums::CardNetwork::EftposAustralia
+        | common_enums::CardNetwork::GeCapital
+        | common_enums::CardNetwork::Uatp => None,
     }
 }
 
@@ -2596,11 +2440,11 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                     let expiry_year_4_digit = google_pay_decrypt
                         .get_four_digit_expiry_year()
                         .change_context(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "expiration_year",
+                            field_name: "expiration_year".into(),
                         })?;
                     let exp_month = google_pay_decrypt.get_expiry_month().change_context(
                         errors::ConnectorError::InvalidDataFormat {
-                            field_name: "expiration_month",
+                            field_name: "expiration_month".into(),
                         },
                     )?;
                     let google_pay_decrypted_data = AdyenGooglePayDecryptData {
@@ -2619,7 +2463,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                             data.tokenization_data
                                 .get_encrypted_google_pay_token()
                                 .change_context(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "gpay wallet_token",
+                                    field_name: "gpay wallet_token".into(),
                                 })?
                                 .to_owned(),
                         ),
@@ -2634,7 +2478,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                     let expiry_year_4_digit = apple_pay_decrypte.get_four_digit_expiry_year();
                     let exp_month = apple_pay_decrypte.get_expiry_month().change_context(
                         errors::ConnectorError::InvalidDataFormat {
-                            field_name: "expiration_month",
+                            field_name: "expiration_month".into(),
                         },
                     )?;
                     let apple_pay_decrypted_data = AdyenApplePayDecryptData {
@@ -2652,7 +2496,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                         .payment_data
                         .get_encrypted_apple_pay_payment_data_mandatory()
                         .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "Apple pay encrypted data",
+                            field_name: "Apple pay encrypted data".into(),
                         })?;
                     let apple_pay_data = AdyenApplePay {
                         apple_pay_token: Secret::new(apple_pay_encrypted_data.to_string()),
@@ -2724,10 +2568,12 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             WalletData::VippsRedirect { .. } => Ok(AdyenPaymentMethod::Vipps),
             WalletData::DanaRedirect { .. } => Ok(AdyenPaymentMethod::Dana),
             WalletData::SwishQr(_) => Ok(AdyenPaymentMethod::Swish),
-            WalletData::AliPayQr(_)
+            WalletData::WeroRedirect { .. }
+            | WalletData::AliPayQr(_)
             | WalletData::AmazonPayRedirect(_)
             | WalletData::Paysera(_)
             | WalletData::Skrill(_)
+            | WalletData::Neteller(_)
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::GooglePayRedirect(_)
@@ -2753,7 +2599,7 @@ pub fn check_required_field<'a, T>(
     field
         .as_ref()
         .ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: message,
+            field_name: message.into(),
         })
 }
 
@@ -2824,7 +2670,7 @@ impl
                     }
                 } else {
                     Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "country",
+                        field_name: "country".into(),
                     })?
                 }
             }
@@ -2891,19 +2737,19 @@ impl TryFrom<(&BankRedirectData, &PaymentsAuthorizeRouterData)> for AdyenPayment
                     number: card_number
                         .as_ref()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "bancontact_card.card_number",
+                            field_name: "bancontact_card.card_number".into(),
                         })?
                         .clone(),
                     expiry_month: card_exp_month
                         .as_ref()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "bancontact_card.card_exp_month",
+                            field_name: "bancontact_card.card_exp_month".into(),
                         })?
                         .clone(),
                     expiry_year: card_exp_year
                         .as_ref()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "bancontact_card.card_exp_year",
+                            field_name: "bancontact_card.card_exp_year".into(),
                         })?
                         .clone(),
                     holder_name: test_holder_name.or(Some(item.get_billing_full_name()?)),
@@ -2916,7 +2762,7 @@ impl TryFrom<(&BankRedirectData, &PaymentsAuthorizeRouterData)> for AdyenPayment
                 Ok(AdyenPaymentMethod::Blik(Box::new(BlikRedirectionData {
                     blik_code: Secret::new(blik_code.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "blik_code",
+                            field_name: "blik_code".into(),
                         },
                     )?),
                 })))
@@ -2926,7 +2772,7 @@ impl TryFrom<(&BankRedirectData, &PaymentsAuthorizeRouterData)> for AdyenPayment
                     issuer: Some(
                         AdyenTestBankNames::try_from(&bank_name.ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "eps.bank_name",
+                                field_name: "eps.bank_name".into(),
                             },
                         )?)?
                         .0,
@@ -3132,8 +2978,8 @@ pub fn get_risk_data(metadata: serde_json::Value) -> Option<RiskData> {
         affiliate_channel,
         avg_order_value,
         delivery_method,
-        email_name,
-        email_domain,
+        email_name: email_name.map(Secret::new),
+        email_domain: email_domain.map(Secret::new),
         last_order_date,
         merchant_reference,
         payment_method,
@@ -3275,7 +3121,7 @@ impl
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
-                            connector: "Adyen",
+                            connector: "Adyen".into(),
                         })?
                     }
                 }
@@ -3326,7 +3172,7 @@ impl
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
-                            connector: "Adyen",
+                            connector: "Adyen".into(),
                         })?
                     }
                 }
@@ -3334,7 +3180,7 @@ impl
             mandates::MandateReferenceId::CardWithLimitedData(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Card Only MIT for payment method".to_string(),
-                    connector: "Adyen",
+                    connector: "Adyen".into(),
                 })?
             }
         }?;
@@ -3474,12 +3320,12 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
                 Some(AdyenMpiData {
                     directory_response: auth_data.transaction_status.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "three_ds_data.transaction_status",
+                            field_name: "three_ds_data.transaction_status".into(),
                         },
                     )?,
                     authentication_response: auth_data.transaction_status.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "three_ds_data.transaction_status",
+                            field_name: "three_ds_data.transaction_status".into(),
                         },
                     )?,
                     cavv: Some(auth_data.cavv.clone()),
@@ -3765,14 +3611,18 @@ impl
             } => {
                 // Validate expiry_date doesn't exceed 5 days from now
                 if let Some(expiry) = expiry_date {
-                    let now = OffsetDateTime::now_utc();
+                    // The value never reaches the request, but it decides
+                    // whether the request is made at all: a recording whose
+                    // expiry_date was valid would fail this check when replayed
+                    // six days later. Substituting the clock is what stops that.
+                    let now = common_utils::date_time::now().assume_utc();
                     let max_expiry = now + Duration::days(5);
                     let max_expiry_primitive =
                         PrimitiveDateTime::new(max_expiry.date(), max_expiry.time());
 
                     if *expiry > max_expiry_primitive {
                         return Err(report!(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "expiry_date cannot be more than 5 days from now",
+                            field_name: "expiry_date cannot be more than 5 days from now".into(),
                         }));
                     }
                 }
@@ -4311,7 +4161,7 @@ impl
             .router_data
             .get_billing_phone()
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "billing.phone",
+                field_name: "billing.phone".into(),
             })?
             .number
             .to_owned();
@@ -4425,35 +4275,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<AdyenCancelResponse>> for Payments
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<PaymentsPreprocessingResponseRouterData<AdyenBalanceResponse>>
-    for PaymentsPreProcessingRouterData
-{
-    type Error = Error;
-    fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<AdyenBalanceResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.psp_reference),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                network_txn_link_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                authentication_data: None,
-                charges: None,
-            }),
-            payment_method_balance: Some(PaymentMethodBalance {
-                currency: item.response.balance.currency,
-                amount: item.response.balance.value,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -4624,6 +4446,7 @@ pub fn get_adyen_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges,
+        payment_account_reference: None,
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
@@ -4738,6 +4561,7 @@ pub fn get_webhook_response(
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         };
 
         Ok(AdyenPaymentsResponseData {
@@ -4847,6 +4671,7 @@ pub fn get_redirection_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges,
+        payment_account_reference: None,
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
@@ -4927,6 +4752,7 @@ pub fn get_present_to_shopper_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges,
+        payment_account_reference: None,
     };
     let txn_amount = response.amount.map(|amount| amount.value);
 
@@ -5005,6 +4831,7 @@ pub fn get_qr_code_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges,
+        payment_account_reference: None,
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
@@ -5083,6 +4910,7 @@ pub fn get_redirection_error_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
 
     Ok(AdyenPaymentsResponseData {
@@ -5154,7 +4982,9 @@ pub fn get_wait_screen_metadata(
 ) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
     match next_action.action.payment_method_type {
         PaymentType::Blik => {
-            let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+            let current_time = common_utils::date_time::now()
+                .assume_utc()
+                .unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
                 display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds()),
@@ -5162,7 +4992,9 @@ pub fn get_wait_screen_metadata(
             })))
         }
         PaymentType::Mbway => {
-            let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+            let current_time = common_utils::date_time::now()
+                .assume_utc()
+                .unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
                 display_to_timestamp: None,
@@ -5550,6 +5382,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges,
+                payment_account_reference: None,
             }),
             amount_captured: None, // updated by Webhooks
             ..item.data
@@ -5704,7 +5537,7 @@ pub struct AdyenAdditionalDataWH {
     /// [only for cards] This is only available for Visa and Mastercard
     pub refusal_code_raw: Option<String>,
     #[serde(rename = "shopperEmail")]
-    pub shopper_email: Option<String>,
+    pub shopper_email: Option<Secret<String, common_utils::pii::EmailStrategy>>,
     #[serde(rename = "shopperReference")]
     pub shopper_reference: Option<String>,
     pub expiry_date: Option<Secret<String>>,
@@ -5732,7 +5565,7 @@ pub enum WebhookEventCode {
     Capture,
     CaptureFailed,
     RefundFailed,
-    RefundReversed,
+    RefundedReversed,
     NotificationOfChargeback,
     Chargeback,
     ChargebackReversed,
@@ -5791,7 +5624,7 @@ pub fn is_refund_event(event_code: &WebhookEventCode) -> bool {
         WebhookEventCode::Refund
             | WebhookEventCode::CancelOrRefund
             | WebhookEventCode::RefundFailed
-            | WebhookEventCode::RefundReversed
+            | WebhookEventCode::RefundedReversed
     )
 }
 
@@ -5867,8 +5700,9 @@ pub(crate) fn get_adyen_webhook_event(
                 api_models::webhooks::IncomingWebhookEvent::PaymentIntentExtendAuthorizationFailure
             }
         }
-        WebhookEventCode::RefundFailed | WebhookEventCode::RefundReversed => {
-            api_models::webhooks::IncomingWebhookEvent::RefundFailure
+        WebhookEventCode::RefundFailed => api_models::webhooks::IncomingWebhookEvent::RefundFailure,
+        WebhookEventCode::RefundedReversed => {
+            api_models::webhooks::IncomingWebhookEvent::RefundReview
         }
         WebhookEventCode::NotificationOfChargeback => {
             api_models::webhooks::IncomingWebhookEvent::DisputeOpened
@@ -6123,7 +5957,7 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                 WebhookEventCode::CancelOrRefund
                 | WebhookEventCode::Refund
                 | WebhookEventCode::RefundFailed
-                | WebhookEventCode::RefundReversed
+                | WebhookEventCode::RefundedReversed
                 | WebhookEventCode::NotificationOfChargeback
                 | WebhookEventCode::RequestForInformation
                 | WebhookEventCode::Chargeback
@@ -6389,11 +6223,11 @@ impl TryFrom<&PayoutMethodData> for PayoutCardDetails {
                     .clone()
                     .get_required_value("card_holder_name")
                     .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payout_method_data.card.holder_name",
+                        field_name: "payout_method_data.card.holder_name".into(),
                     })?,
             }),
             _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "payout_method_data.card",
+                field_name: "payout_method_data.card".into(),
             })?,
         }
     }
@@ -6435,7 +6269,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for AdyenPayoutCancelRequest {
             })
         } else {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_payout_id",
+                field_name: "connector_payout_id".into(),
             })?
         }
     }
@@ -6456,14 +6290,14 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
             .map_or((None, None), |c| (c.name, c.email));
         let owner_name = owner_name.get_required_value("owner_name").change_context(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "payout_method_data.bank.owner_name",
+                field_name: "payout_method_data.bank.owner_name".into(),
             },
         )?;
 
         match item.router_data.get_payout_method_data()? {
             PayoutMethodData::Card(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout creation is not supported".to_string(),
-                connector: "Adyen",
+                connector: "Adyen".into(),
             })?,
             PayoutMethodData::BankTransfer(bd) => {
                 let bank_details = match bd {
@@ -6478,28 +6312,40 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                     },
                     payouts::BankTransfer::Ach(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via ACH is not supported".to_string(),
-                        connector: "Adyen",
+                        connector: "Adyen".into(),
                     })?,
                     payouts::BankTransfer::Bacs(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Bacs is not supported".to_string(),
-                        connector: "Adyen",
+                        connector: "Adyen".into(),
                     })?,
                     payouts::BankTransfer::Pix(..)
                     | payouts::BankTransfer::PixKey(..)
                     | payouts::BankTransfer::PixEmv(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
-                        connector: "Adyen",
+                        connector: "Adyen".into(),
                     })?,
                     payouts::BankTransfer::Trustly(..) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Bank transfer via Trustly is not supported".to_string(),
-                            connector: "Adyen",
+                            connector: "Adyen".into(),
                         })?
                     }
                     payouts::BankTransfer::OpenBanking(..) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Bank transfer via OpenBanking is not supported".to_string(),
-                            connector: "Adyen",
+                            connector: "Adyen".into(),
+                        })?
+                    }
+                    payouts::BankTransfer::Payshap(..) | payouts::BankTransfer::PayshapProxy(..) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via PayShap is not supported".to_string(),
+                            connector: "Adyen".into(),
+                        })?
+                    }
+                    payouts::BankTransfer::Ted(..) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via TED is not supported".to_string(),
+                            connector: std::borrow::Cow::Borrowed("Adyen"),
                         })?
                     }
                 };
@@ -6536,23 +6382,27 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                         token_data_type: PayoutTokenDataType::PayPal,
                         email_id: paypal_data.email.clone().ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "email_address",
+                                field_name: "email_address".into(),
                             },
                         )?,
                     },
                     payouts::Wallet::Venmo(_) => Err(errors::ConnectorError::NotSupported {
                         message: "Venmo Wallet is not supported".to_string(),
-                        connector: "Adyen",
+                        connector: "Adyen".into(),
                     })?,
                     payouts::Wallet::ApplePayDecrypt(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Apple Pay Decrypt Wallet is not supported".to_string(),
-                            connector: "Adyen",
+                            connector: "Adyen".into(),
                         })?
                     }
                     payouts::Wallet::GooglePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
                         message: "Google Pay Decrypt Wallet is not supported".to_string(),
-                        connector: "Adyen",
+                        connector: "Adyen".into(),
+                    })?,
+                    payouts::Wallet::Mifinity(_) => Err(errors::ConnectorError::NotSupported {
+                        message: "MiFinity Wallet is not supported".to_string(),
+                        connector: "Adyen".into(),
                     })?,
                 };
                 let address: &hyperswitch_domain_models::address::AddressDetails =
@@ -6587,11 +6437,11 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
             }
             PayoutMethodData::BankRedirect(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Bank redirect payout creation is not supported".to_string(),
-                connector: "Adyen",
+                connector: "Adyen".into(),
             })?,
             PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Passthrough payout creation is not supported".to_string(),
-                connector: "Adyen",
+                connector: "Adyen".into(),
             })?,
             PayoutMethodData::Bank(_) => Err(errors::ConnectorError::GenericError {
                 error_message: "Payout method 'Bank' should have been normalized to 'BankTransfer'. This is an unexpected state.".to_string(),
@@ -6621,7 +6471,7 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutFulfillR
                         .connector_payout_id
                         .clone()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "connector_payout_id",
+                            field_name: "connector_payout_id".into(),
                         })?,
                 }))
             }
@@ -6796,7 +6646,7 @@ impl TryFrom<common_utils::pii::SecretSerdeValue> for AdyenTestingData {
             .expose()
             .parse_value::<Self>("AdyenTestingData")
             .change_context(errors::ConnectorError::InvalidDataFormat {
-                field_name: "connector_metadata.adyen.testing",
+                field_name: "connector_metadata.adyen.testing".into(),
             })?;
         Ok(testing_data)
     }
@@ -6810,7 +6660,7 @@ impl TryFrom<&SubmitEvidenceRouterData> for Evidence {
         Ok(Self {
             defense_documents: get_defence_documents(submit_evidence_request_data).ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "Missing Defence Documents",
+                    field_name: "Missing Defence Documents".into(),
                 },
             )?,
             merchant_account_code,
@@ -7096,7 +6946,7 @@ impl
             token_authentication_verification_value: Some(
                 token_data.get_cryptogram().clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "network_token_data.token_cryptogram",
+                        field_name: "network_token_data.token_cryptogram".into(),
                     },
                 )?,
             ),
@@ -7346,7 +7196,7 @@ impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhookRegisterType {
             enums::ConnectorWebhookEventType::SpecificEvent(event_type) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("Webhook Register for {} event type", event_type),
-                    connector: "Adyen",
+                    connector: "Adyen".into(),
                 }
                 .into())
             }

@@ -48,13 +48,12 @@ pub async fn get_multiple_metadata(
     let mut response = Vec::with_capacity(metadata_keys.len());
     for key in metadata_keys {
         let data = metadata.iter().find(|ele| ele.data_key == key);
-        let resp;
-        if data.is_none() && utils::is_backfill_required(key) {
+        let resp = if data.is_none() && utils::is_backfill_required(key) {
             let backfill_data = backfill_metadata(&state, &user, &key).await?;
-            resp = into_response(backfill_data.as_ref(), key)?;
+            into_response(backfill_data.as_ref(), key)?
         } else {
-            resp = into_response(data, key)?;
-        }
+            into_response(data, key)?
+        };
         response.push(resp);
     }
 

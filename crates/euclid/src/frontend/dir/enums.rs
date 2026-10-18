@@ -81,6 +81,7 @@ pub enum WalletType {
     GooglePay,
     AmazonPay,
     Skrill,
+    Neteller,
     Paysera,
     ApplePay,
     Paypal,
@@ -104,6 +105,7 @@ pub enum WalletType {
     Mifinity,
     Paze,
     RevolutPay,
+    Wero,
 }
 
 #[derive(
@@ -228,6 +230,9 @@ pub enum BankTransferType {
     PixQr,
     PixAutomaticoPush,
     PixAutomaticoQr,
+    Payshap,
+    PayshapProxy,
+    Ted,
     Pse,
     LocalBankTransfer,
     InstantBankTransfer,

@@ -23,6 +23,7 @@ use crate::{
         storage::{self, revenue_recovery as revenue_recovery_types},
         transformers::ForeignFrom,
     },
+    utils,
 };
 
 pub async fn call_psync_api(
@@ -264,6 +265,7 @@ pub async fn custom_revenue_recovery_core(
 ) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
     let store = state.store.as_ref();
     let payment_merchant_connector_account_id = request.payment_merchant_connector_id.to_owned();
+    let profile_id = profile.get_id();
     // Find the payment & billing merchant connector id at the top level to avoid multiple DB calls.
     let payment_merchant_connector_account = store
         .find_merchant_connector_account_by_id(
@@ -277,6 +279,18 @@ pub async fn custom_revenue_recovery_core(
                 .get_string_repr()
                 .to_string(),
         })?;
+
+    utils::when(
+        &payment_merchant_connector_account.profile_id != profile_id,
+        || {
+            Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: payment_merchant_connector_account_id
+                    .clone()
+                    .get_string_repr()
+                    .to_string(),
+            })
+        },
+    )?;
     let billing_connector_account = store
         .find_merchant_connector_account_by_id(
             &request.billing_merchant_connector_id.clone(),
@@ -290,6 +304,15 @@ pub async fn custom_revenue_recovery_core(
                 .get_string_repr()
                 .to_string(),
         })?;
+    utils::when(&billing_connector_account.profile_id != profile_id, || {
+        Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: request
+                .billing_merchant_connector_id
+                .clone()
+                .get_string_repr()
+                .to_string(),
+        })
+    })?;
 
     let recovery_intent =
         recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
@@ -337,7 +360,7 @@ pub async fn custom_revenue_recovery_core(
 
     router_env::logger::info!("Intent retry count: {:?}", intent_retry_count);
     let recovery_action = recovery_incoming::RecoveryAction {
-        action: request.action.to_owned(),
+        action: request.action.to_owned().into(),
     };
     let mca_retry_threshold = billing_connector_account
         .get_retry_threshold()
@@ -368,6 +391,53 @@ pub async fn custom_revenue_recovery_core(
         id: updated_recovery_intent.payment_id.to_owned(),
         intent_status: updated_recovery_intent.status.to_owned(),
         merchant_reference_id: updated_recovery_intent.merchant_reference_id.to_owned(),
+    };
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
+}
+
+/// Cancel the revenue recovery workflow of the invoice identified by `merchant_reference_id`
+/// within `profile`.
+pub async fn cancel_revenue_recovery_core(
+    state: SessionState,
+    platform: Platform,
+    profile: domain::Profile,
+    merchant_reference_id: id_type::PaymentReferenceId,
+) -> RouterResponse<api_payments::RecoveryPaymentsResponse> {
+    let db = &*state.store;
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+
+    let payment_intent = db
+        .find_payment_intent_by_merchant_reference_id_profile_id(
+            &merchant_reference_id,
+            profile.get_id(),
+            platform.get_processor().get_key_store(),
+            &storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let cancelled_intent = super::cancel_invoice_workflows(
+        &state,
+        platform.get_processor().get_key_store(),
+        storage_scheme,
+        payment_intent,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed to cancel the revenue recovery workflow")?
+    .map_err(|refusal| {
+        report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: refusal.to_string(),
+        })
+    })?;
+
+    let response = api_payments::RecoveryPaymentsResponse {
+        id: cancelled_intent.id,
+        intent_status: cancelled_intent.status,
+        merchant_reference_id: cancelled_intent.merchant_reference_id,
     };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(

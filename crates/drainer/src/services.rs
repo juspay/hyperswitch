@@ -4,12 +4,9 @@ use actix_web::{body, HttpResponse, ResponseError};
 use common_utils::request_context::RequestContext;
 use error_stack::Report;
 use redis_interface::RedisConnectionPool;
+use storage_impl::database::store::PgPool;
 
-use crate::{
-    connection::{diesel_make_pg_pool, PgPool},
-    logger,
-    settings::Tenant,
-};
+use crate::{connection::diesel_make_pg_pool, logger, settings::Tenant};
 
 #[derive(Clone)]
 pub struct Store {
@@ -44,6 +41,8 @@ impl Store {
                 config.master_database.get_inner(),
                 test_transaction,
                 &tenant.schema,
+                storage_impl::database::pool_metrics::DbPool::Master,
+                &tenant.tenant_id,
             )
             .await,
             redis_conn: Arc::new(RedisConnectionPool::clone(

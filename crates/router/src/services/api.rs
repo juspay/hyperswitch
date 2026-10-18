@@ -99,6 +99,8 @@ pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
 pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::InvoiceRecordBackData, Req, Res>;
+pub type BoxedRevenueRecoveryDisputeRecordBackInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::DisputeRecordBackData, Req, Res>;
 pub type BoxedGetSubscriptionPlansInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionItemsData, Req, Res>;
 pub type BoxedGetSubscriptionPlanPricesInterface<T, Req, Res> =
@@ -366,6 +368,12 @@ where
     );
 
     let auth_user_id = auth_type.get_user_id();
+
+    // The header still holds raw connector time here; it is only turned into Hyperswitch's own
+    // overhead later, on the wire.
+    let hs_latency =
+        overhead_latency.map(|overhead_latency| request_duration.saturating_sub(overhead_latency));
+
     let api_event = ApiEvent::new(
         tenant_id,
         Some(merchant_id.clone()),
@@ -375,7 +383,7 @@ where
         status_code,
         serialized_request,
         serialized_response,
-        overhead_latency,
+        hs_latency,
         auth_type,
         auth_user_id,
         error,
@@ -640,7 +648,9 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
         if header_name == X_HS_LATENCY {
             if let Some(request_duration) = request_duration {
                 if let Ok(external_latency) = header_value.parse::<u128>() {
-                    let updated_duration = request_duration.as_millis() - external_latency;
+                    let updated_duration = request_duration
+                        .as_millis()
+                        .saturating_sub(external_latency);
                     header_value = updated_duration.to_string();
                 }
             }

@@ -192,7 +192,7 @@ impl<T> AppClient<T> {
 }
 
 fn mk_merchant_account(merchant_id: Option<String>) -> Value {
-    let merchant_id = merchant_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let merchant_id = merchant_id.unwrap_or_else(|| common_utils::generate_uuid_v4().to_string());
 
     json!({
       "merchant_id": merchant_id,

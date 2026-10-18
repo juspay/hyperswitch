@@ -332,7 +332,7 @@ impl ValidateStatusForOperation for PaymentsCancel {
             | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
-                    field_name: "status".to_string(),
+                    field_name: "status".into(),
                     current_value: intent_status.to_string(),
                     states: [
                         common_enums::IntentStatus::RequiresCapture,
