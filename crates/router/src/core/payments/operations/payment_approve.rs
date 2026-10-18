@@ -158,6 +158,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
         };
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             payment_intent,
             payment_attempt,

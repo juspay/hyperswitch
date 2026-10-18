@@ -343,6 +343,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let unified_address = address.unify_with_payment_method_data_billing(pmd_address);
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             payment_intent,
             payment_attempt,

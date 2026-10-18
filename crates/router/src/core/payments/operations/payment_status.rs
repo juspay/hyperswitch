@@ -517,6 +517,7 @@ async fn get_tracker_for_sync<
         .transpose()?;
 
     let payment_data = PaymentData {
+        capture_feature_metadata: None,
         flow: PhantomData,
         payment_intent,
         currency,

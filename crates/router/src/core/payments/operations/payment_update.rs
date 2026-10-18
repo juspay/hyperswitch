@@ -526,6 +526,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         }
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             payment_intent,
             payment_attempt,
@@ -714,8 +715,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .unwrap_or(false);
         // When the merchant has concluded the settlement, the tax pipeline must not mutate
         // the net amount.
-        let settlement_conclusion_applied =
-            payment_data.payment_intent.is_settlement_conclusion_applied();
+        let settlement_conclusion_applied = payment_data
+            .payment_intent
+            .is_settlement_conclusion_applied();
         if is_tax_connector_enabled
             && !skip_external_tax_calculation
             && !settlement_conclusion_applied

@@ -1379,6 +1379,24 @@ pub async fn validate_and_create_refund(
 
     let (connector_transaction_id, processor_transaction_data) =
         ConnectorTransactionId::form_id_and_data(connector_transaction_id);
+    let payment_feature_metadata = payment_intent
+        .get_optional_feature_metadata()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let refund_settlement = validator::validate_multi_currency_processing_refund_settlement(
+        &connector,
+        payment_feature_metadata.as_ref(),
+        req.feature_metadata.as_ref(),
+        refund_amount,
+        payment_attempt.get_total_amount(),
+        &all_refunds,
+    )?;
+    let refund_feature_metadata = refund_settlement
+        .map(
+            |multi_currency_processing| api_models::refunds::RefundFeatureMetadata {
+                multi_currency_processing: Some(multi_currency_processing),
+            },
+        )
+        .or(req.feature_metadata);
     let refund_create_req = diesel_refund::RefundNew {
         refund_id: refund_id.to_string(),
         internal_reference_id: utils::generate_id(consts::ID_LENGTH, "refid"),
@@ -1395,6 +1413,11 @@ pub async fn validate_and_create_refund(
         modified_at: common_utils::date_time::now(),
         refund_status: enums::RefundStatus::Pending,
         metadata: req.metadata,
+        feature_metadata: refund_feature_metadata
+            .map(serde_json::to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to serialize refund feature metadata")?,
         description: req.reason.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
         refund_reason: req.reason,
@@ -1787,6 +1810,7 @@ impl ForeignFrom<diesel_refund::Refund> for api::RefundResponse {
             status: refund.refund_status.foreign_into(),
             profile_id: refund.profile_id,
             metadata: refund.metadata,
+            feature_metadata: refund.feature_metadata,
             error_message: refund.refund_error_message,
             error_code: refund.refund_error_code,
             created_at: Some(refund.created_at),
@@ -1831,6 +1855,7 @@ impl
             status: refund.refund_status.foreign_into(),
             profile_id: refund.profile_id,
             metadata: refund.metadata,
+            feature_metadata: refund.feature_metadata,
             error_message: refund.refund_error_message,
             error_code: refund.refund_error_code,
             created_at: Some(refund.created_at),

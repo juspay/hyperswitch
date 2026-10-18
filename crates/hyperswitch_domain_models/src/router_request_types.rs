@@ -325,6 +325,8 @@ pub struct SyncIntegrityObject {
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct PaymentsCaptureData {
+    pub payment_feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub feature_metadata: Option<api_models::payments::CaptureFeatureMetadata>,
     pub amount_to_capture: i64,
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
@@ -1097,6 +1099,7 @@ impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRes
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct CompleteAuthorizeData {
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub payment_method_data: Option<PaymentMethodData>,
     pub amount: i64,
     pub email: Option<pii::Email>,
@@ -1479,6 +1482,8 @@ pub struct AuthenticationData {
 pub struct RefundsData {
     pub refund_id: String,
     pub connector_transaction_id: String,
+    pub payment_feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub feature_metadata: Option<api_models::refunds::RefundFeatureMetadata>,
 
     pub connector_refund_id: Option<String>,
     pub currency: storage_enums::Currency,

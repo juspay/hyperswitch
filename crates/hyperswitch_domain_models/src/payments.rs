@@ -554,13 +554,9 @@ impl PaymentIntent {
     ) -> CustomResult<(), common_utils::errors::ParsingError> {
         use common_utils::ext_traits::Encode;
 
-        let mut feature_metadata = self
-            .get_optional_feature_metadata()?
-            .unwrap_or_default();
+        let mut feature_metadata = self.get_optional_feature_metadata()?.unwrap_or_default();
         feature_metadata.settlement_conclusion_applied = Some(settlement_conclusion_applied);
-        self.feature_metadata = Some(hyperswitch_masking::Secret::new(
-            feature_metadata.encode_to_value()?,
-        ));
+
         Ok(())
     }
 
@@ -1540,6 +1536,7 @@ pub struct PaymentCaptureData<F>
 where
     F: Clone,
 {
+    pub capture_feature_metadata: Option<api_models::payments::CaptureFeatureMetadata>,
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
@@ -1708,6 +1705,9 @@ where
                 .attach_printable("Connector not found in payment attempt")?,
         };
         Ok(Some(FeatureMetadata {
+            multi_currency_processing: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.multi_currency_processing.clone()),
             redirect_response: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.redirect_response.clone()),

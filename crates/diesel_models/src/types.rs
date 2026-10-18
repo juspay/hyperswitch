@@ -70,10 +70,24 @@ impl hyperswitch_masking::SerializableSecret for OrderDetailsWithAmount {}
 
 common_utils::impl_to_sql_from_sql_json!(OrderDetailsWithAmount);
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct MultiCurrencyProcessingData {
+    pub currency: common_enums::Currency,
+    pub amount: MinorUnit,
+    pub conversion_rate: Option<f64>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub transaction_date: Option<time::PrimitiveDateTime>,
+    pub retrieval_reference_number: Option<String>,
+    pub user_id: String,
+    pub provider: String,
+    pub reason_indicator: String,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
 pub struct FeatureMetadata {
+    pub multi_currency_processing: Option<MultiCurrencyProcessingData>,
     /// Redirection response coming in request as metadata field only for redirection scenarios
     pub redirect_response: Option<RedirectResponse>,
     /// Additional tags to be used for global search
@@ -289,6 +303,7 @@ impl FeatureMetadata {
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
 pub struct FeatureMetadata {
+    pub multi_currency_processing: Option<MultiCurrencyProcessingData>,
     /// Redirection response coming in request as metadata field only for redirection scenarios
     pub redirect_response: Option<RedirectResponse>,
     /// Additional tags to be used for global search

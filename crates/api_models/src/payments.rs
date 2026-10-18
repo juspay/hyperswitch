@@ -6572,6 +6572,39 @@ pub struct PhoneDetails {
     pub country_code: Option<String>,
 }
 
+/// Merchant settlement leg for a single capture or refund. No conversion is recomputed.
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct MultiCurrencyProcessingAmountData {
+    #[schema(value_type = i64)]
+    #[smithy(value_type = "i64")]
+    pub amount: MinorUnit,
+    #[smithy(value_type = "Currency")]
+    pub currency: api_enums::Currency,
+}
+
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct CaptureFeatureMetadata {
+    /// Settlement amount and currency for this capture.
+    #[smithy(value_type = "Option<MultiCurrencyProcessingAmountData>")]
+    pub multi_currency_processing: Option<MultiCurrencyProcessingAmountData>,
+}
+
 #[cfg(feature = "v1")]
 #[derive(
     Debug,
@@ -6586,6 +6619,8 @@ pub struct PhoneDetails {
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentsCaptureRequest {
+    #[cfg_attr(feature = "v1", smithy(value_type = "Option<CaptureFeatureMetadata>"))]
+    pub feature_metadata: Option<CaptureFeatureMetadata>,
     /// The unique identifier for the payment being captured. This is taken from the path parameter.
     #[serde(skip_deserializing)]
     pub payment_id: id_type::PaymentId,
@@ -6618,6 +6653,8 @@ pub struct PaymentsCaptureRequest {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsCaptureRequest {
+    #[cfg_attr(feature = "v1", smithy(value_type = "Option<CaptureFeatureMetadata>"))]
+    pub feature_metadata: Option<CaptureFeatureMetadata>,
     /// The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.
     #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_to_capture: Option<MinorUnit>,
@@ -10091,8 +10128,6 @@ pub struct ConnectorMetadata {
     pub noon: Option<NoonData>,
     #[smithy(value_type = "Option<BraintreeData>")]
     pub braintree: Option<BraintreeData>,
-    #[smithy(value_type = "Option<DatatransConnectorMetadataData>")]
-    pub datatrans: Option<DatatransConnectorMetadataData>,
     #[smithy(value_type = "Option<AdyenConnectorMetadata>")]
     pub adyen: Option<AdyenConnectorMetadata>,
     #[smithy(value_type = "Option<PeachpaymentsData>")]
@@ -10178,16 +10213,7 @@ pub struct BraintreeData {
     pub merchant_config_currency: Option<api_enums::Currency>,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct DatatransConnectorMetadataData {
-    /// Multi-currency processing (MCP) details. When present, the merchant is charging the
-    /// customer in the customer's currency while settling in its own configured currency.
-    #[smithy(value_type = "Option<DatatransMcpData>")]
-    pub mcp: Option<DatatransMcpData>,
-}
-
-/// Datatrans multi-currency processing (MCP) details supplied by the merchant.
+/// Datatrans multi-currency processing (multi-currency processing) details supplied by the merchant.
 ///
 /// `amount`/`currency` here describe the **merchant settlement leg** — what Planet pays out to
 /// the merchant. The payment's own `amount`/`currency` remain the **customer-facing leg**, i.e.
@@ -10195,7 +10221,7 @@ pub struct DatatransConnectorMetadataData {
 /// merchant is the source of truth for both.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct DatatransMcpData {
+pub struct MultiCurrencyProcessingData {
     /// The merchant settlement currency, i.e. the currency the merchant is paid out in.
     #[smithy(value_type = "Currency")]
     pub currency: api_enums::Currency,
@@ -10204,7 +10230,7 @@ pub struct DatatransMcpData {
     #[schema(value_type = i64)]
     #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
-    /// Conversion rate received from the currency rates endpoint. Required for dynamic MCP.
+    /// Conversion rate received from the currency rates endpoint. Required for dynamic multi-currency processing.
     #[smithy(value_type = "Option<f64>")]
     pub conversion_rate: Option<f64>,
     /// Transaction datetime received from the currency rates endpoint.
@@ -11756,6 +11782,12 @@ pub struct PaymentsStartRequest {
 #[cfg(feature = "v2")]
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct FeatureMetadata {
+    /// Datatrans multi-currency processing settlement amount, currency and conversion details.
+    #[cfg_attr(
+        feature = "v1",
+        smithy(value_type = "Option<MultiCurrencyProcessingData>")
+    )]
+    pub multi_currency_processing: Option<MultiCurrencyProcessingData>,
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
@@ -11875,6 +11907,7 @@ impl FeatureMetadata {
         payment_revenue_recovery_metadata: PaymentRevenueRecoveryMetadata,
     ) -> Self {
         Self {
+            multi_currency_processing: self.multi_currency_processing,
             redirect_response: self.redirect_response,
             search_tags: self.search_tags,
             apple_pay_recurring_details: self.apple_pay_recurring_details,
@@ -11932,6 +11965,9 @@ impl FeatureMetadata {
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct FeatureMetadata {
+    /// Datatrans multi-currency processing settlement amount, currency and conversion details.
+    #[smithy(value_type = "Option<MultiCurrencyProcessingData>")]
+    pub multi_currency_processing: Option<MultiCurrencyProcessingData>,
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
     #[smithy(value_type = "Option<RedirectResponse>")]
@@ -11996,6 +12032,9 @@ impl FeatureMetadata {
     pub fn merge(self, other: Option<Self>) -> Self {
         if let Some(other) = other {
             Self {
+                multi_currency_processing: self
+                    .multi_currency_processing
+                    .or(other.multi_currency_processing),
                 redirect_response: self.redirect_response.or(other.redirect_response),
                 search_tags: self.search_tags.or(other.search_tags),
                 apple_pay_recurring_details: self

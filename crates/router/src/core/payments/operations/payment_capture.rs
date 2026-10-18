@@ -113,6 +113,34 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
 
         helpers::validate_capture_method(capture_method)?;
 
+        let payment_feature_metadata = payment_intent
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let capture_connector = payment_attempt
+            .connector
+            .as_deref()
+            .get_required_value("connector")?;
+        let capture_settlement = crate::core::utils::multi_currency_processing::resolve_operation_multi_currency_processing(
+            capture_connector,
+            payment_feature_metadata.as_ref(),
+            request
+                .feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
+            request
+                .amount_to_capture
+                .unwrap_or(payment_attempt.get_total_amount()),
+            payment_attempt.get_total_amount(),
+        )?;
+        let capture_feature_metadata = capture_settlement
+            .clone()
+            .map(
+                |multi_currency_processing| api_models::payments::CaptureFeatureMetadata {
+                    multi_currency_processing: Some(multi_currency_processing),
+                },
+            )
+            .or_else(|| request.feature_metadata.clone());
+
         let multiple_capture_data = if capture_method == enums::CaptureMethod::ManualMultiple {
             let amount_to_capture = request
                 .amount_to_capture
@@ -133,12 +161,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+            crate::core::utils::multi_currency_processing::validate_capture_settlement(
+                capture_connector,
+                payment_feature_metadata.as_ref(),
+                capture_settlement.as_ref(),
+                &previous_captures,
+            )?;
+            let mut capture_new = payment_attempt
+                .make_new_capture(amount_to_capture, enums::CaptureStatus::Started)?;
+            capture_new.feature_metadata = capture_feature_metadata
+                .as_ref()
+                .map(serde_json::to_value)
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to serialize capture feature metadata")?;
             let capture = db
-                .insert_capture(
-                    payment_attempt
-                        .make_new_capture(amount_to_capture, enums::CaptureStatus::Started)?,
-                    storage_scheme,
-                )
+                .insert_capture(capture_new, storage_scheme)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment {
                     payment_id: payment_id.clone(),
@@ -222,6 +260,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             })?;
 
         let payment_data = payments::PaymentData {
+            capture_feature_metadata,
             flow: PhantomData,
             payment_intent,
             payment_attempt,

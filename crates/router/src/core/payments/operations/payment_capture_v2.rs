@@ -5,6 +5,7 @@ use hyperswitch_domain_models::payments::PaymentCaptureData;
 use router_env::{instrument, tracing};
 
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+use crate::types::transformers::ForeignFrom;
 use crate::{
     core::{
         configs::dimension_state,
@@ -200,7 +201,37 @@ impl<F: Send + Clone> GetTracker<F, PaymentCaptureData<F>, PaymentsCaptureReques
                 .set_amount_to_capture(amount_to_capture);
         }
 
+        let payment_feature_metadata = payment_intent
+            .feature_metadata
+            .as_ref()
+            .map(api_models::payments::FeatureMetadata::foreign_from);
+        let amount = payment_attempt.amount_details.get_net_amount();
+        let capture_connector = payment_attempt
+            .connector
+            .as_deref()
+            .get_required_value("connector")?;
+        let capture_settlement = crate::core::utils::multi_currency_processing::resolve_operation_multi_currency_processing(
+            capture_connector,
+            payment_feature_metadata.as_ref(),
+            request
+                .feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
+            payment_attempt
+                .amount_details
+                .get_amount_to_capture()
+                .unwrap_or(amount),
+            amount,
+        )?;
+        let capture_feature_metadata = capture_settlement
+            .map(
+                |multi_currency_processing| api_models::payments::CaptureFeatureMetadata {
+                    multi_currency_processing: Some(multi_currency_processing),
+                },
+            )
+            .or_else(|| request.feature_metadata.clone());
         let payment_data = PaymentCaptureData {
+            capture_feature_metadata,
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,

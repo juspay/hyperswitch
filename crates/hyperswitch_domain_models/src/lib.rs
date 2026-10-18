@@ -116,6 +116,7 @@ pub trait ApiModelToDieselModelConvertor<F> {
 impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
     fn convert_from(from: ApiFeatureMetadata) -> Self {
         let ApiFeatureMetadata {
+            multi_currency_processing,
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
@@ -128,6 +129,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
         } = from;
 
         Self {
+            multi_currency_processing: multi_currency_processing
+                .map(diesel_models::types::MultiCurrencyProcessingData::convert_from),
             redirect_response: redirect_response.map(RedirectResponse::convert_from),
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
@@ -147,6 +150,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
 
     fn convert_back(self) -> ApiFeatureMetadata {
         let Self {
+            multi_currency_processing,
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
@@ -159,6 +163,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
         } = self;
 
         ApiFeatureMetadata {
+            multi_currency_processing: multi_currency_processing.map(|data| data.convert_back()),
             redirect_response: redirect_response.map(|v| v.convert_back()),
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details.map(|v| v.convert_back()),
@@ -738,6 +743,7 @@ impl ApiModelToDieselModelConvertor<api_models::payments::PixAutomaticoAdditiona
 impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
     fn convert_from(from: ApiFeatureMetadata) -> Self {
         let ApiFeatureMetadata {
+            multi_currency_processing,
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
@@ -749,6 +755,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
         } = from;
 
         Self {
+            multi_currency_processing: multi_currency_processing
+                .map(diesel_models::types::MultiCurrencyProcessingData::convert_from),
             redirect_response: redirect_response.map(RedirectResponse::convert_from),
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
@@ -768,6 +776,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
 
     fn convert_back(self) -> ApiFeatureMetadata {
         let Self {
+            multi_currency_processing,
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
@@ -779,6 +788,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
         } = self;
 
         ApiFeatureMetadata {
+            multi_currency_processing: multi_currency_processing.map(|data| data.convert_back()),
             redirect_response: redirect_response
                 .map(|redirect_response| redirect_response.convert_back()),
             search_tags,
@@ -1395,6 +1405,35 @@ impl From<&api_models::payments::RecordAttemptErrorDetails>
             network_advice_code: error.network_advice_code.clone(),
             network_decline_code: error.network_decline_code.clone(),
             network_error_message: error.network_error_message.clone(),
+        }
+    }
+}
+
+impl ApiModelToDieselModelConvertor<api_models::payments::MultiCurrencyProcessingData>
+    for diesel_models::types::MultiCurrencyProcessingData
+{
+    fn convert_from(from: api_models::payments::MultiCurrencyProcessingData) -> Self {
+        Self {
+            amount: from.amount,
+            currency: from.currency,
+            conversion_rate: from.conversion_rate,
+            transaction_date: from.transaction_date,
+            retrieval_reference_number: from.retrieval_reference_number,
+            provider: from.provider,
+            user_id: from.user_id,
+            reason_indicator: from.reason_indicator,
+        }
+    }
+    fn convert_back(self) -> api_models::payments::MultiCurrencyProcessingData {
+        api_models::payments::MultiCurrencyProcessingData {
+            amount: self.amount,
+            currency: self.currency,
+            conversion_rate: self.conversion_rate,
+            transaction_date: self.transaction_date,
+            retrieval_reference_number: self.retrieval_reference_number,
+            provider: self.provider,
+            user_id: self.user_id,
+            reason_indicator: self.reason_indicator,
         }
     }
 }

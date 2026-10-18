@@ -4749,6 +4749,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 }
             }),
             feature_metadata: Some(api_models::payments::FeatureMetadata {
+                multi_currency_processing: None,
                 redirect_response: Some(api_models::payments::RedirectResponse {
                     param: req.param.map(Secret::new),
                     json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
@@ -5356,6 +5357,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 payment_id: Some(req.resource_id.clone()),
                 merchant_id: req.merchant_id.clone(),
                 feature_metadata: Some(api_models::payments::FeatureMetadata {
+                    multi_currency_processing: None,
                     redirect_response: Some(api_models::payments::RedirectResponse {
                         param: req.param.clone().map(Secret::new),
                         json_payload: Some(
@@ -9811,6 +9813,7 @@ pub struct PaymentData<F>
 where
     F: Clone,
 {
+    pub capture_feature_metadata: Option<api_models::payments::CaptureFeatureMetadata>,
     pub flow: PhantomData<F>,
     pub payment_intent: storage::PaymentIntent,
     pub payment_attempt: storage::PaymentAttempt,

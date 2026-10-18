@@ -567,6 +567,13 @@ impl ConnectorValidation for ConnectorEnum {
     }
 }
 impl ConnectorSpecifications for ConnectorEnum {
+    fn is_multi_currency_processing_supported(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_multi_currency_processing_supported(),
+            Self::New(connector) => connector.is_multi_currency_processing_supported(),
+        }
+    }
+
     fn is_balance_check_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_balance_check_flow_required(current_flow),
