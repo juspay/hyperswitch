@@ -373,6 +373,7 @@ export const connectorDetails = {
     MITAutoCaptureWithCustomerAcceptance: {
       Request: {
         amount: 6000,
+        billing: billingAddress,
         currency: "EUR",
         customer_acceptance: {
           acceptance_type: "offline",
