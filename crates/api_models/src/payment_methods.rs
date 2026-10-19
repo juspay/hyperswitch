@@ -608,7 +608,7 @@ pub enum WalletDetailUpdate {
         #[schema(value_type = Option<String>)]
         email: Option<pii::Email>,
         #[schema(value_type = Option<String>)]
-        paypal_id: Option<hyperswitch_masking::Secret<String>>,
+        payer_id: Option<hyperswitch_masking::Secret<String>>,
     },
 }
 
@@ -616,19 +616,19 @@ pub enum WalletDetailUpdate {
 impl WalletDetailUpdate {
     pub fn is_metadata_update(&self) -> bool {
         match self {
-            Self::PayPal { email, paypal_id } => email.is_some() || paypal_id.is_some(),
+            Self::PayPal { email, payer_id } => email.is_some() || payer_id.is_some(),
         }
     }
 
     /// Preserve stored wallet fields omitted from the update.
     pub fn apply_to(self, mut saved: PaymentMethodDataWalletInfo) -> PaymentMethodDataWalletInfo {
         match self {
-            Self::PayPal { email, paypal_id } => {
+            Self::PayPal { email, payer_id } => {
                 saved.email = email.or(saved.email);
-                if let Some(paypal_id) = paypal_id {
+                if let Some(payer_id) = payer_id {
                     saved.provider_details =
                         Some(WalletProviderDetails::PayPal(PaypalWalletInfo {
-                            paypal_id: Some(paypal_id),
+                            payer_id: Some(payer_id),
                         }));
                 }
             }
@@ -1950,7 +1950,7 @@ impl WalletProviderDetails {
         match (incoming, saved) {
             (Some(Self::PayPal(incoming)), Some(Self::PayPal(saved))) => {
                 Some(Self::PayPal(PaypalWalletInfo {
-                    paypal_id: incoming.paypal_id.or(saved.paypal_id),
+                    payer_id: incoming.payer_id.or(saved.payer_id),
                 }))
             }
             (incoming, saved) => incoming.or(saved),
@@ -1963,7 +1963,7 @@ impl WalletProviderDetails {
 pub struct PaypalWalletInfo {
     /// Unique identifier of the payer's PayPal account.
     #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
-    pub paypal_id: Option<hyperswitch_masking::Secret<String>>,
+    pub payer_id: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3290,15 +3290,15 @@ pub struct PaypalWalletDetailsForClient {
     #[schema(value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<pii::Email>,
     #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
-    pub paypal_id: Option<hyperswitch_masking::Secret<String>>,
+    pub payer_id: Option<hyperswitch_masking::Secret<String>>,
 }
 
 impl From<PaymentMethodDataWalletInfo> for PaypalWalletDetailsForClient {
     fn from(info: PaymentMethodDataWalletInfo) -> Self {
         Self {
             email: info.email,
-            paypal_id: info.provider_details.and_then(|details| match details {
-                WalletProviderDetails::PayPal(info) => info.paypal_id,
+            payer_id: info.provider_details.and_then(|details| match details {
+                WalletProviderDetails::PayPal(info) => info.payer_id,
             }),
         }
     }
@@ -3331,7 +3331,6 @@ pub enum CustomerPaymentMethodDataForClient {
     /// Masked card details from the card locker.
     Card(Box<CardDetailFromLocker>),
     /// Wallet details (Apple Pay, Google Pay, PayPal).
-    #[serde(rename = "wallets")]
     Wallet(WalletPaymentMethodDataForClient),
     /// Bank debit details (ACH, …).
     BankDebit(BankDebitDataForClient),

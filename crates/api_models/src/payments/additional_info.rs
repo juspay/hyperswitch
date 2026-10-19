@@ -434,7 +434,7 @@ pub struct PaypalWalletAdditionalData {
     /// Unique identifier of the payer in PayPal
     #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
     #[smithy(value_type = "Option<String>")]
-    pub paypal_id: Option<String>,
+    pub payer_id: Option<String>,
 }
 
 #[derive(

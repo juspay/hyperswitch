@@ -3099,8 +3099,8 @@ pub(crate) fn get_paypal_wallet_info(
     match connector_response?.additional_payment_method_data.as_ref()? {
         hyperswitch_domain_models::router_data::AdditionalPaymentMethodConnectorResponse::Paypal {
             email,
-            paypal_id,
-        } if email.is_some() || paypal_id.is_some() => Some(PaymentMethodDataWalletInfo {
+            payer_id,
+        } if email.is_some() || payer_id.is_some() => Some(PaymentMethodDataWalletInfo {
             last4: None,
             card_network: None,
             card_type: None,
@@ -3109,7 +3109,7 @@ pub(crate) fn get_paypal_wallet_info(
             auth_code: None,
             email: email.clone(),
             provider_details: Some(WalletProviderDetails::PayPal(PaypalWalletInfo {
-                paypal_id: paypal_id.clone(),
+                payer_id: payer_id.clone(),
             })),
         }),
         _ => None,
@@ -3128,10 +3128,10 @@ pub async fn prepare_saved_wallet_data_from_connector_response(
         Some(enums::PaymentMethodType::Paypal) => {
             match (
                 connector_disclosed_details.email.as_ref(),
-                connector_disclosed_details.paypal_id.as_ref(),
+                connector_disclosed_details.payer_id.as_ref(),
             ) {
                 (None, None) => Ok(None),
-                (email, paypal_id) => {
+                (email, payer_id) => {
                     let mut wallet_info = PaymentMethodDataWalletInfo {
                         last4: None,
                         card_network: None,
@@ -3141,7 +3141,7 @@ pub async fn prepare_saved_wallet_data_from_connector_response(
                         auth_code: None,
                         email: email.cloned(),
                         provider_details: Some(WalletProviderDetails::PayPal(PaypalWalletInfo {
-                            paypal_id: paypal_id.cloned(),
+                            payer_id: payer_id.cloned(),
                         })),
                     };
                     let saved_data = pm

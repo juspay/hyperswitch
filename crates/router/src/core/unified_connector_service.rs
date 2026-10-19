@@ -548,7 +548,7 @@ impl ForeignTryFrom<payments_grpc::PaymentMethod> for domain_pm::PaymentMethodDa
                     email: paypal_redirect
                         .email
                         .and_then(|email| common_utils::pii::Email::try_from(email.expose()).ok()),
-                    paypal_id: None,
+                    payer_id: None,
                 }),
             )),
             PaymentMethod::Crypto(crypto) => Some(Self::Crypto(domain_pm::CryptoData {
@@ -1546,7 +1546,7 @@ pub fn reconstruct_payment_method_data_for_redirect_completion(
                 hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(
                     hyperswitch_domain_models::payment_method_data::PaypalRedirection {
                         email,
-                        paypal_id: None,
+                        payer_id: None,
                     },
                 ),
             ),
