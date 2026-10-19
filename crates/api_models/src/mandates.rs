@@ -226,16 +226,10 @@ pub struct ProcessorPaymentToken {
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ProcessorPaymentTokenDetails {
-    /// The card's expiry month, when required by the processor.
+    /// The card expiry, when required by the processor.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[schema(value_type = Option<String>)]
-    #[smithy(value_type = "Option<String>")]
-    pub card_exp_month: Option<Secret<String>>,
-    /// The card's expiry year, when required by the processor.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schema(value_type = Option<String>)]
-    #[smithy(value_type = "Option<String>")]
-    pub card_exp_year: Option<Secret<String>>,
+    #[smithy(value_type = "Option<CardExpiry>")]
+    pub card_expiry: Option<CardExpiry>,
     /// The card network associated with the processor token.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[smithy(value_type = "Option<CardNetwork>")]
@@ -252,6 +246,22 @@ pub struct ProcessorPaymentTokenDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[smithy(value_type = "Option<String>")]
     pub processor_transaction_id: Option<String>,
+}
+
+/// Card expiry supplied with a processor token.
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct CardExpiry {
+    /// The card expiry month.
+    #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
+    pub month: Secret<String>,
+    /// The card expiry year.
+    #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
+    pub year: Secret<String>,
 }
 
 #[derive(

@@ -1347,18 +1347,27 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .map(payments_grpc::PaymentMethodType::foreign_try_from)
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
-            mandate_reference: Option::<payments_grpc::ConnectorMandateReferenceId>::foreign_from(
-                router_data,
-            ),
+            mandate_reference:
+                <Option<payments_grpc::ConnectorMandateReferenceId> as transformers::ForeignTryFrom<_>>::foreign_try_from(router_data)?,
         })
     }
 }
 
-impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
+impl transformers::ForeignTryFrom<&mandates::ConnectorMandateReferenceId>
     for payments_grpc::ConnectorMandateReferenceId
 {
-    fn foreign_from(value: &mandates::ConnectorMandateReferenceId) -> Self {
-        Self {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: &mandates::ConnectorMandateReferenceId,
+    ) -> Result<Self, Self::Error> {
+        if value.get_processor_payment_token_details().is_some() {
+            return Err(UnifiedConnectorServiceError::NotImplemented(
+                "Typed processor payment token details require UCS interface support".to_owned(),
+            )
+            .into());
+        }
+        Ok(Self {
             connector_mandate_id: value.get_connector_mandate_id(),
             payment_method_id: value.get_payment_method_id(),
             connector_mandate_request_reference_id: value
@@ -1366,22 +1375,32 @@ impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
             mandate_metadata: value.get_mandate_metadata().map(|mandate_metadata| {
                 Secret::new(serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default())
             }),
-        }
+        })
     }
 }
 
-impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
+impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
     for Option<payments_grpc::ConnectorMandateReferenceId>
 {
-    fn foreign_from(
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
         router_data: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
-    ) -> Self {
+    ) -> Result<Self, Self::Error> {
         let structured = router_data.request.mandate_id.as_ref().and_then(|m| {
             match m.mandate_reference_id.as_ref()? {
                 mandates::MandateReferenceId::ConnectorMandateId(r) => Some(r),
                 _ => None,
             }
         });
+        let structured_reference =
+            structured
+                .map(
+                    <payments_grpc::ConnectorMandateReferenceId as transformers::ForeignTryFrom<
+                        _,
+                    >>::foreign_try_from,
+                )
+                .transpose()?;
         let connector_mandate_id = structured
             .and_then(|r| r.get_connector_mandate_id())
             .or_else(|| router_data.request.connector_mandate_id.clone())
@@ -1395,22 +1414,14 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
             && payment_method_id.is_none()
             && connector_mandate_request_reference_id.is_none()
         {
-            return None;
+            return Ok(None);
         }
-        Some(payments_grpc::ConnectorMandateReferenceId {
+        Ok(Some(payments_grpc::ConnectorMandateReferenceId {
             connector_mandate_id,
             payment_method_id,
             connector_mandate_request_reference_id,
-            mandate_metadata: structured
-                .and_then(|connector_mandate_reference_id| {
-                    connector_mandate_reference_id.get_mandate_metadata()
-                })
-                .map(|mandate_metadata| {
-                    Secret::new(
-                        serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default(),
-                    )
-                }),
-        })
+            mandate_metadata: structured_reference.and_then(|reference| reference.mandate_metadata),
+        }))
     }
 }
 
@@ -3333,21 +3344,9 @@ impl
                     Some(payments_grpc::MandateReference {
                         mandate_id_type: Some(
                             payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
-                                payments_grpc::ConnectorMandateReferenceId {
-                                    connector_mandate_id: connector_mandate_id
-                                        .get_connector_mandate_id(),
-                                    payment_method_id: connector_mandate_id.get_payment_method_id(),
-                                    connector_mandate_request_reference_id: connector_mandate_id
-                                        .get_connector_mandate_request_reference_id(),
-                                    mandate_metadata: connector_mandate_id
-                                        .get_mandate_metadata()
-                                        .map(|mandate_metadata| {
-                                            Secret::new(
-                                                serde_json::to_string(&mandate_metadata.expose())
-                                                    .unwrap_or_default(),
-                                            )
-                                        }),
-                                },
+                                <payments_grpc::ConnectorMandateReferenceId as transformers::ForeignTryFrom<_>>::foreign_try_from(
+                                    connector_mandate_id,
+                                )?,
                             ),
                         ),
                     })

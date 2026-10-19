@@ -745,6 +745,8 @@ pub struct ConnectorMandateReferenceId {
     mandate_metadata: Option<pii::SecretSerdeValue>,
     connector_mandate_request_reference_id: Option<String>,
     updated_mandate_details: Option<UpdatedMandateDetails>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    processor_payment_token_details: Option<api_models::mandates::ProcessorPaymentTokenDetails>,
 }
 
 impl ConnectorMandateReferenceId {
@@ -763,6 +765,7 @@ impl ConnectorMandateReferenceId {
             mandate_metadata,
             connector_mandate_request_reference_id,
             updated_mandate_details,
+            processor_payment_token_details: None,
         }
     }
 
@@ -774,6 +777,11 @@ impl ConnectorMandateReferenceId {
     }
     pub fn get_mandate_metadata(&self) -> Option<pii::SecretSerdeValue> {
         self.mandate_metadata.clone()
+    }
+    pub fn get_processor_payment_token_details(
+        &self,
+    ) -> Option<&api_models::mandates::ProcessorPaymentTokenDetails> {
+        self.processor_payment_token_details.as_ref()
     }
     pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
         self.connector_mandate_request_reference_id.clone()
@@ -796,29 +804,18 @@ impl ConnectorMandateReferenceId {
     }
 }
 
-impl TryFrom<&api_models::mandates::ProcessorPaymentToken> for ConnectorMandateReferenceId {
-    type Error = serde_json::Error;
-
-    fn try_from(token: &api_models::mandates::ProcessorPaymentToken) -> Result<Self, Self::Error> {
-        let metadata = token
-            .processor_payment_token_details
-            .as_ref()
-            .map(|details| {
-                serde_json::to_value(details).map(|details| {
-                    pii::SecretSerdeValue::new(serde_json::json!({
-                        "processor_payment_token_details": details
-                    }))
-                })
-            })
-            .transpose()?;
-        Ok(Self::new(
+impl From<&api_models::mandates::ProcessorPaymentToken> for ConnectorMandateReferenceId {
+    fn from(token: &api_models::mandates::ProcessorPaymentToken) -> Self {
+        let mut reference = Self::new(
             Some(token.processor_payment_token.clone()),
             None,
             None,
-            metadata,
             None,
             None,
-        ))
+            None,
+        );
+        reference.processor_payment_token_details = token.processor_payment_token_details.clone();
+        reference
     }
 }
 

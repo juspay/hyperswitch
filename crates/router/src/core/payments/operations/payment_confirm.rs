@@ -850,11 +850,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         // If processor_payment_token is passed in request then populating the same in PaymentData
         let processor_token_reference = match request.recurring_details.as_ref() {
-            Some(RecurringDetails::ProcessorPaymentToken(token)) => Some(
-                ConnectorMandateReferenceId::try_from(token)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to encode processor payment token details")?,
-            ),
+            Some(RecurringDetails::ProcessorPaymentToken(token)) => {
+                Some(ConnectorMandateReferenceId::from(token))
+            }
             _ => None,
         };
         let mandate_id = request

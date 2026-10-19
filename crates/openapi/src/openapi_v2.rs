@@ -773,6 +773,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::mandates::RecurringDetails,
         api_models::mandates::ProcessorPaymentToken,
         api_models::mandates::ProcessorPaymentTokenDetails,
+        api_models::mandates::CardExpiry,
         api_models::ephemeral_key::ClientSecretResponse,
         api_models::payments::CustomerDetails,
         api_models::payments::GiftCardData,
