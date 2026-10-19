@@ -1,4 +1,5 @@
-//! S3 object storage, for AWS S3 and S3-compatible stores such as OCI Object Storage.
+//! S3 object storage, for AWS S3 and S3-compatible stores such as OCI Object Storage and Google
+//! Cloud Storage.
 
 use aws_config::{meta::region::RegionProviderChain, Region};
 use aws_sdk_s3::{
