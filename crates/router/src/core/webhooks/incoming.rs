@@ -38,7 +38,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing::Instrument};
 use unified_connector_service_client::payments as payments_grpc;
 
-use super::{types, MERCHANT_ID};
+use super::{source_verification::IncomingWebhookVerifier, types, MERCHANT_ID};
 use crate::{
     consts,
     core::{
@@ -217,12 +217,16 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .await?;
 
     // Each arm resolves its path (UAS vs Direct/UCS) and returns a
-    // `WebhookOutcome` plus the connector/name used for acks, errors, and
-    // logging. Downstream filter interception and business-logic dispatch are
-    // identical for both and run once after the match.
-    let (connector, connector_name, outcome) = match three_ds_execution_path {
+    // `WebhookOutcome`, the network verification decision, and the connector/name
+    // used for acks, errors, and logging. Downstream filter interception and
+    // business-logic dispatch are identical for both and run once after the match.
+    let (connector, connector_name, network_verification, outcome) = match three_ds_execution_path {
         ThreeDsProcessingMode::UnifiedAuthenticationService(ref mca_data) => {
             let connector_name = mca_data.connector_name.clone();
+            let network_verification = IncomingWebhookVerifier::new(&state.conf.incoming_webhooks)
+                .verify(&state, &mca_data.connector, request_details.headers)
+                .await?;
+
             let (uas_connector, _) =
                 get_connector_by_connector_name(&state, UNIFIED_AUTHENTICATION_SERVICE, None)?;
 
@@ -236,11 +240,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 ))
                 .await;
 
-            (uas_connector, connector_name, outcome)
+            (uas_connector, connector_name, network_verification, outcome)
         }
         ThreeDsProcessingMode::Direct(ref mca_data) => {
             let connector = mca_data.connector.clone();
             let connector_name = mca_data.connector_name.clone();
+            let network_verification = IncomingWebhookVerifier::new(&state.conf.incoming_webhooks)
+                .verify(&state, &connector, request_details.headers)
+                .await?;
+
             let mca_ref = mca_data.merchant_connector_account.as_ref();
 
             let connector_enum = Connector::from_str(&connector_name)
@@ -335,7 +343,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             let outcome =
                 super::gateway::execute_incoming_webhook_gateway(&ctx, &request_details).await;
 
-            (connector, connector_name, outcome)
+            (connector, connector_name, network_verification, outcome)
         }
     };
 
@@ -381,6 +389,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             merchant_connector_account: processed_mca,
             ack_response,
         }) => {
+            let source_verified = network_verification.resolve_source_verified(source_verified);
             // Reconstruct request_details with the decoded body when available
             // (Direct and UAS paths), so downstream connector methods that parse
             // request_details.body (get_dispute_details, get_webhook_mandate_details,

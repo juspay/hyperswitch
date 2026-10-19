@@ -17,7 +17,6 @@ use crate::{configs::Settings, core::errors::UserErrors};
         // Typed codec so a recorded `UserErrors` replays as the same error.
         codec = deja::codec::ResultCodec::<std::time::Duration, UserErrors>,
         on_miss = {
-            use common_utils::synth_shape::Synthesize as _;
             Ok(
                 std::time::Duration::from_nanos(
                     u64::try_from(__deja_miss.epoch_nanos()).unwrap_or(0),

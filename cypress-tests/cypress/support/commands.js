@@ -1281,6 +1281,13 @@ Cypress.Commands.add(
               updateBusinessProfileBody.merchant_category_code
             );
           }
+          if (
+            updateBusinessProfileBody.auto_fallback_capture_method !== undefined
+          ) {
+            expect(response.body.auto_fallback_capture_method).to.equal(
+              updateBusinessProfileBody.auto_fallback_capture_method
+            );
+          }
           // Auto-retry specs rely on these flags being persisted on the
           // profile; assert them so a stale/rejected update fails at the
           // setup step instead of surfacing as a retry that never happened.
