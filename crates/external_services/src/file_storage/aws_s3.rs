@@ -246,8 +246,17 @@ mod tests {
     #[test]
     fn gcs_object_storage_backend_config_deserializes_and_validates() {
         for gcs_object_storage in [
-            serde_json::json!({ "bucket_name": "bucket" }),
-            serde_json::json!({ "bucket_name": "bucket", "region": "asia-south1" }),
+            serde_json::json!({
+                "bucket_name": "bucket",
+                "hmac_access_id": "GOOG1EXAMPLEACCESSID",
+                "hmac_secret": "secret",
+            }),
+            serde_json::json!({
+                "bucket_name": "bucket",
+                "hmac_access_id": "GOOG1EXAMPLEACCESSID",
+                "hmac_secret": "secret",
+                "region": "asia-south1",
+            }),
         ] {
             let config = file_storage_config(serde_json::json!({
                 "file_storage_backend": "gcs_object_storage",

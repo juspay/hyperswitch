@@ -1439,11 +1439,13 @@ bucket_name = "bucket1" # The AWS S3 bucket name for file storage
 # bucket_name = "bucket1"    # The OCI Object Storage bucket name for file storage
 
 # Used when file_storage_backend = "gcs_object_storage" (requires the `gcs_object_storage` feature,
-# included in release builds). Files go through Cloud Storage's XML API (S3 interoperability);
-# authenticate with a service account's Cloud Storage HMAC key in AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
+# included in release builds). Files go through Cloud Storage's XML API (S3 interoperability),
+# signed with a service account's Cloud Storage HMAC key (not the AWS credential chain).
 # [file_storage.gcs_object_storage]
-# bucket_name = "bucket1"    # The Cloud Storage bucket name for file storage
-# region = "auto"            # Optional; the region requests are signed for (defaults to auto)
+# bucket_name = "bucket1"       # The Cloud Storage bucket name for file storage
+# hmac_access_id = "GOOG1E..."  # Access ID of the service account's HMAC key
+# hmac_secret = "secret"        # Secret of the service account's HMAC key
+# region = "auto"               # Optional; the region requests are signed for (defaults to auto)
 
 [secrets_management]
 secrets_manager = "aws_kms" # Secrets manager client to be used (no_encryption | aws_kms | hashicorp_vault | gcp_kms | oci_kms)
