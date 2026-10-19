@@ -1828,6 +1828,45 @@ pub async fn get_payment_attempt_from_object_reference_id(
     }
 }
 
+/// Dispute-only variant of [`get_payment_attempt_from_object_reference_id`].
+///
+/// A dispute can reference the capture id while the attempt stores a different id as its
+/// `connector_transaction_id` (e.g. PayPal auto-capture: the attempt holds the order id and
+/// the capture id lives in `connector_metadata.capture_id`). When the transaction-id lookup
+/// finds nothing, retry on `connector_metadata.capture_id`. Payment and refund webhook
+/// flows keep using the strict lookup.
+async fn get_payment_attempt_for_dispute(
+    state: &SessionState,
+    object_reference_id: webhooks::ObjectReferenceId,
+    processor: &domain::Processor,
+) -> CustomResult<PaymentAttempt, errors::ApiErrorResponse> {
+    let result =
+        get_payment_attempt_from_object_reference_id(state, object_reference_id.clone(), processor)
+            .await;
+    match (result, object_reference_id) {
+        (
+            Err(error),
+            api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(id)),
+        ) if matches!(
+            error.current_context(),
+            errors::ApiErrorResponse::WebhookResourceNotFound
+        ) =>
+        {
+            state
+                .store
+                .find_payment_attempt_by_processor_merchant_id_connector_metadata_capture_id(
+                    processor.get_account().get_id(),
+                    &id,
+                    processor.get_account().storage_scheme,
+                    processor.get_key_store(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+        }
+        (result, _) => result,
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn get_or_update_dispute_object(
     state: SessionState,
@@ -3255,7 +3294,7 @@ async fn disputes_incoming_webhook_flow(
             if let Some(WebhookResourceData::Payment { payment_attempt }) = webhook_resource_data {
                 payment_attempt
             } else {
-                get_payment_attempt_from_object_reference_id(
+                get_payment_attempt_for_dispute(
                     &state,
                     webhook_details.object_reference_id.clone(),
                     platform.get_processor(),

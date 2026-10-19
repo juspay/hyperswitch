@@ -330,6 +330,42 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
+    #[cfg(feature = "v1")]
+    async fn find_payment_attempt_by_processor_merchant_id_connector_metadata_capture_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        capture_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let key_manager_state = self
+            .get_keymanager_state()
+            .attach_printable("Missing KeyManagerState")?;
+        DieselPaymentAttempt::find_by_processor_merchant_id_connector_metadata_capture_id(
+            &conn,
+            processor_merchant_id,
+            capture_id,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })
+        .async_map(|diesel_payment_attempt| async {
+            PaymentAttempt::convert_back(
+                key_manager_state,
+                diesel_payment_attempt,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+        })
+        .await?
+    }
+
+    #[instrument(skip_all)]
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
@@ -1490,6 +1526,27 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 .await
             }
         }
+    }
+
+    /// Not tracked by a KV reverse lookup: reads the database directly. Only used as a
+    /// dispute-webhook fallback, which arrives long after the attempt is drained to the DB.
+    #[instrument(skip_all)]
+    #[cfg(feature = "v1")]
+    async fn find_payment_attempt_by_processor_merchant_id_connector_metadata_capture_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        capture_id: &str,
+        storage_scheme: MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        self.router_store
+            .find_payment_attempt_by_processor_merchant_id_connector_metadata_capture_id(
+                processor_merchant_id,
+                capture_id,
+                storage_scheme,
+                merchant_key_store,
+            )
+            .await
     }
 
     #[cfg(feature = "v1")]

@@ -334,7 +334,7 @@ card.debit = "adyen"
 adyen = "BRL,MXN,JPY"
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,stripe,nuvei,worldpayvantiv,revolv3,peachpayments,tsys_transit"
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,stripe,nuvei,worldpayvantiv,revolv3,peachpayments,tsys_transit,paypal"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
@@ -1018,6 +1018,7 @@ google_pay = { country = "AF,DZ,AW,AU,AZ,BS,BH,BD,BB,BZ,BM,BT,BO,BA,BW,BR,BN,BG,
 
 [temp_locker_enable_config]
 ilixium.payment_method = "card"
+paypal.payment_method = "card"
 bluesnap.payment_method = "card"
 nuvei.payment_method = "card"
 shift4.payment_method = "card"
