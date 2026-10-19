@@ -471,6 +471,44 @@ pub trait ConnectorSpecifications {
     fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
+    /// Check if authentication flow is required on the given execution path.
+    ///
+    /// A connector whose Direct integration performs 3DS inside Authorize, while its Unified
+    /// Connector Service integration splits 3DS into separate legs, overrides this so the leg
+    /// runs only on the path that implements it. The default ignores the execution path and
+    /// defers to [`Self::is_authentication_flow_required`].
+    fn is_authentication_flow_required_for_execution_path(
+        &self,
+        current_flow: CurrentFlowInfo,
+        _execution_path: enums::ExecutionPath,
+    ) -> bool {
+        self.is_authentication_flow_required(current_flow)
+    }
+    /// Check if post-authentication flow is required on the given execution path.
+    ///
+    /// See [`Self::is_authentication_flow_required_for_execution_path`]. The default ignores the
+    /// execution path and defers to [`Self::is_post_authentication_flow_required`].
+    fn is_post_authentication_flow_required_for_execution_path(
+        &self,
+        current_flow: CurrentFlowInfo,
+        _execution_path: enums::ExecutionPath,
+    ) -> bool {
+        self.is_post_authentication_flow_required(current_flow)
+    }
+    /// Check if the Authorize flow should continue to the Authorize call after the
+    /// Authenticate leg returned a transaction response.
+    ///
+    /// `has_redirection_data` is true when the leg returned a challenge redirect, and `status`
+    /// is the attempt status the leg produced. The default is `false`: the payment stops after
+    /// the Authenticate leg.
+    fn should_continue_after_authenticate(
+        &self,
+        _has_redirection_data: bool,
+        _status: enums::AttemptStatus,
+        _execution_path: enums::ExecutionPath,
+    ) -> bool {
+        false
+    }
     /// Check if pre-authenticate cancel flow is supported
     fn is_pre_authorize_cancel_supported(
         &self,

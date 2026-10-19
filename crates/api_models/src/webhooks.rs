@@ -46,6 +46,8 @@ pub enum IncomingWebhookEvent {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+    // Mandate (stored contract) could not be created at the connector; no payment status implied
+    MandateFailed,
     // Mandate created at the connector, waiting for the customer to approve it
     MandateActionRequired,
     EndpointVerification,
@@ -114,6 +116,7 @@ impl IncomingWebhookEvent {
             // Mandate events
             24 => Self::MandateActive,
             25 => Self::MandateRevoked,
+            41 => Self::MandateFailed,
             // Miscellaneous events
             26 => Self::EndpointVerification,
             27 => Self::ExternalAuthenticationARes,
@@ -304,9 +307,9 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::RefundSuccess
             | IncomingWebhookEvent::RefundFailure
             | IncomingWebhookEvent::RefundReview => Self::Refund,
-            IncomingWebhookEvent::MandateActive | IncomingWebhookEvent::MandateRevoked => {
-                Self::Mandate
-            }
+            IncomingWebhookEvent::MandateActive
+            | IncomingWebhookEvent::MandateRevoked
+            | IncomingWebhookEvent::MandateFailed => Self::Mandate,
             IncomingWebhookEvent::MandateActionRequired => Self::ReturnResponse,
             IncomingWebhookEvent::PaymentAssociatedDataUpdate => Self::AssociatedDataUpdate,
             IncomingWebhookEvent::DisputeOpened
