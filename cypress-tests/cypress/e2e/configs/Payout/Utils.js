@@ -4,11 +4,11 @@ import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as adyenPlatformConnectorDetails } from "./AdyenPlatform.js";
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as gotymeSanlamConnectorDetails } from "./GotymeSanlam.js";
-import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
 import { connectorDetails as nomupayConnectorDetails } from "./Nomupay.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
 import { connectorDetails as trustlyConnectorDetails } from "./Trustly.js";
+import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -102,12 +102,13 @@ export const CONNECTOR_LISTS = {
   EXCLUDE: {
     // gotyme_sanlam only supports bank transfer payouts (payshap /
     // payshap_proxy) and has no card payout method, so it is skipped for
-    // the card payout tests in 00003-CardTest.cy.js
-    // truelayer only supports open-banking bank transfer payouts; card
-    // payout eligibility is not implemented ("payout_eligibility flow for
-    // truelayer" is unimplemented over UCS), so it is skipped for the card
-    // payout tests in 00003-CardTest.cy.js
-    CARD_TEST: ["gotyme_sanlam", "trustly", "truelayer"],
+    // the card payout tests in 00003-CardTest.cy.js.
+    // trustly only supports open-banking bank transfer payouts, paypal only
+    // supports wallet payouts (see configs/Payout/Paypal.js), and truelayer
+    // does not implement card payout eligibility over UCS, so they have no
+    // card payout method either and are skipped for the same reason.
+    CARD_TEST: ["gotyme_sanlam", "trustly", "paypal", "truelayer"],
+    VENMO_WALLET_FULFILL: ["paypal"],
   },
   INCLUDE: {
     ENTITY_TYPE: ["wise"],
@@ -117,6 +118,7 @@ export const CONNECTOR_LISTS = {
     // Client-authenticated payout confirm (PR #14547) - only verified
     // connectors
     CLIENT_AUTH_CONFIRM: ["paypal"],
+    WALLET_PAYOUT: ["paypal"],
     BANK_TRANSFER_OPEN_BANKING: ["truelayer", "trustly"],
     BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL: [],
     BANK_TRANSFER_OPEN_BANKING_MANUAL_FULFILL: ["trustly"],

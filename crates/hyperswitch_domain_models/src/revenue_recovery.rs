@@ -76,6 +76,8 @@ pub struct RevenueRecoveryInvoiceData {
     pub merchant_reference_id: id_type::PaymentReferenceId,
     /// billing address id of the invoice
     pub billing_address: Option<api_payments::Address>,
+    /// Payer details supplied with the recovery invoice.
+    pub customer_details: Option<api_payments::CustomerDetails>,
     /// Retry count of the invoice
     pub retry_count: Option<u16>,
     /// Ending date of the invoice or the Next billing time of the Subscription
@@ -153,6 +155,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             capture_method: Some(common_enums::CaptureMethod::Automatic),
             authentication_type: Some(common_enums::AuthenticationType::NoThreeDs),
             billing: data.billing_address.clone(),
+            customer_details: data.customer_details.clone(),
             shipping: None,
             customer_id: None,
             customer_present: Some(common_enums::PresenceOfCustomerDuringPayment::Absent),
@@ -189,6 +192,7 @@ impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
             currency: data.currency,
             merchant_reference_id: data.merchant_reference_id.clone(),
             billing_address: data.billing_address.clone(),
+            customer_details: None,
             retry_count: data.retry_count,
             next_billing_at: data.ends_at,
             billing_started_at: data.created_at,

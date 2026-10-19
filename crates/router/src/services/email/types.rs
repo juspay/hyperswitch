@@ -397,7 +397,7 @@ impl EmailData for VerifyEmail {
                 self.theme_config.entity_name
             ),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
@@ -447,7 +447,7 @@ impl EmailData for ResetPassword {
                 self.theme_config.entity_name
             ),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
@@ -497,7 +497,7 @@ impl EmailData for MagicLink {
                 self.theme_config.entity_name
             ),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
@@ -547,7 +547,7 @@ impl EmailData for InviteUser {
                 self.theme_config.entity_name
             ),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
@@ -570,7 +570,7 @@ impl EmailData for ReconActivation {
         Ok(EmailContents {
             subject: self.subject.to_string(),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
@@ -642,7 +642,7 @@ impl EmailData for BizEmailProd {
         Ok(EmailContents {
             subject: "New Prod Intent".to_string(),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
@@ -673,7 +673,7 @@ impl EmailData for ProFeatureRequest {
         Ok(EmailContents {
             subject: self.subject.clone(),
             body: external_services::email::IntermediateString::new(body),
-            recipient,
+            recipients: recipient.into(),
         })
     }
 }
@@ -702,7 +702,7 @@ impl EmailData for ApiKeyExpiryReminder {
         Ok(EmailContents {
             subject: self.subject.to_string(),
             body: external_services::email::IntermediateString::new(body),
-            recipient,
+            recipients: recipient.into(),
         })
     }
 }
@@ -719,7 +719,7 @@ impl EmailData for WelcomeToCommunity {
         Ok(EmailContents {
             subject: "Thank you for signing up on Hyperswitch Dashboard!".to_string(),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
@@ -781,7 +781,7 @@ impl EmailData for RoleDeleted {
         Ok(EmailContents {
             subject: format!("Access Removed - {} Role Revoked", self.role_name),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
