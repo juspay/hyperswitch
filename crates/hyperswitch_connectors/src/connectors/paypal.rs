@@ -2870,7 +2870,7 @@ impl ConnectorSpecifications for Paypal {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 connector_meta_data,
-                ..
+                auth_type: _,
             } => {
                 // Match on payment method type so that both fresh paypal wallet
                 // (PaypalRedirect / PaypalSdk) payments and returning-customer payments with a
