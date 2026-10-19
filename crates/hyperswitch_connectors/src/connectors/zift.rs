@@ -222,17 +222,21 @@ impl ConnectorCommon for Zift {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let error_message = response
+            .response_message
+            .clone()
+            .or(response.failure_message.clone());
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response
                 .response_code
                 .or(response.failure_code)
                 .unwrap_or(NO_ERROR_CODE.to_string()),
-            message: response
-                .response_message
+            message: error_message
                 .clone()
                 .unwrap_or(NO_ERROR_MESSAGE.to_string()),
-            reason: response.response_message.clone(),
+            reason: error_message,
             attempt_status: None,
             connector_transaction_id: None,
             connector_response_reference_id: None,
