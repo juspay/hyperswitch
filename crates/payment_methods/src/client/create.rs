@@ -295,7 +295,7 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                 ) => Ok(Self::Wallet(WalletPaymentMethodData::PayPal(Box::new(
                     payments::PaypalRedirection {
                         email: paypal.email,
-                        payer_id: paypal.paypal_id,
+                        paypal_id: paypal.paypal_id,
                     },
                 )))),
                 _ => Err(MicroserviceClientError {

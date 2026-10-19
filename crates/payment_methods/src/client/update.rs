@@ -81,7 +81,7 @@ pub enum WalletDetailUpdate {
         email: Option<Email>,
         /// PayPal payer identifier.
         #[serde(skip_serializing_if = "Option::is_none")]
-        payer_id: Option<Secret<String>>,
+        paypal_id: Option<Secret<String>>,
     },
 }
 
@@ -94,7 +94,7 @@ impl PaymentMethodUpdateData {
             {
                 Some(Self::Wallet(WalletDetailUpdate::PayPal {
                     email: details.email.clone(),
-                    payer_id: details.paypal_id.clone(),
+                    paypal_id: details.paypal_id.clone(),
                 }))
             }
             _ => None,

@@ -1029,7 +1029,7 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         /// Email address associated with the payer's PayPal account
         email: Option<common_utils::pii::Email>,
         /// Unique identifier of the payer in PayPal
-        payer_id: Option<Secret<String>>,
+        paypal_id: Option<Secret<String>>,
     },
     SepaBankTransfer {
         debitor_iban: Option<Secret<String>>,

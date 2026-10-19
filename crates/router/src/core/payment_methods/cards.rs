@@ -3099,8 +3099,8 @@ pub(crate) fn get_paypal_wallet_info(
     match connector_response?.additional_payment_method_data.as_ref()? {
         hyperswitch_domain_models::router_data::AdditionalPaymentMethodConnectorResponse::Paypal {
             email,
-            payer_id,
-        } if email.is_some() || payer_id.is_some() => Some(PaymentMethodDataWalletInfo {
+            paypal_id,
+        } if email.is_some() || paypal_id.is_some() => Some(PaymentMethodDataWalletInfo {
             last4: None,
             card_network: None,
             card_type: None,
@@ -3109,7 +3109,7 @@ pub(crate) fn get_paypal_wallet_info(
             auth_code: None,
             email: email.clone(),
             provider_details: Some(WalletProviderDetails::PayPal(PaypalWalletInfo {
-                paypal_id: payer_id.clone(),
+                paypal_id: paypal_id.clone(),
             })),
         }),
         _ => None,

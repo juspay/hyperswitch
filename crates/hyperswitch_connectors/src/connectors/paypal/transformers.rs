@@ -3576,8 +3576,8 @@ impl Payer {
     fn get_wallet_additional_data(&self) -> Option<AdditionalPaymentMethodConnectorResponse> {
         match (self.email_address.clone(), self.payer_id.clone()) {
             (None, None) => None,
-            (email, payer_id) => {
-                Some(AdditionalPaymentMethodConnectorResponse::Paypal { email, payer_id })
+            (email, paypal_id) => {
+                Some(AdditionalPaymentMethodConnectorResponse::Paypal { email, paypal_id })
             }
         }
     }

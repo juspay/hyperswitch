@@ -8905,7 +8905,7 @@ pub fn add_connector_response_to_additional_payment_data(
                 samsung_pay,
                 ..
             },
-            AdditionalPaymentMethodConnectorResponse::Paypal { email, payer_id },
+            AdditionalPaymentMethodConnectorResponse::Paypal { email, paypal_id },
         ) => api_models::payments::AdditionalPaymentData::Wallet {
             apple_pay: apple_pay.clone(),
             google_pay: google_pay.clone(),
@@ -8913,7 +8913,7 @@ pub fn add_connector_response_to_additional_payment_data(
             paypal: Some(Box::new(
                 payment_additional_types::PaypalWalletAdditionalData {
                     email,
-                    payer_id: payer_id.map(|payer_id| payer_id.expose()),
+                    paypal_id: paypal_id.map(|paypal_id| paypal_id.expose()),
                 },
             )),
         },

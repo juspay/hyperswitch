@@ -608,7 +608,7 @@ pub enum WalletDetailUpdate {
         #[schema(value_type = Option<String>)]
         email: Option<pii::Email>,
         #[schema(value_type = Option<String>)]
-        payer_id: Option<hyperswitch_masking::Secret<String>>,
+        paypal_id: Option<hyperswitch_masking::Secret<String>>,
     },
 }
 
@@ -616,16 +616,16 @@ pub enum WalletDetailUpdate {
 impl WalletDetailUpdate {
     pub fn is_metadata_update(&self) -> bool {
         match self {
-            Self::PayPal { email, payer_id } => email.is_some() || payer_id.is_some(),
+            Self::PayPal { email, paypal_id } => email.is_some() || paypal_id.is_some(),
         }
     }
 
     /// Preserve stored wallet fields omitted from the update.
     pub fn apply_to(self, mut saved: PaymentMethodDataWalletInfo) -> PaymentMethodDataWalletInfo {
         match self {
-            Self::PayPal { email, payer_id } => {
+            Self::PayPal { email, paypal_id } => {
                 saved.email = email.or(saved.email);
-                if let Some(paypal_id) = payer_id {
+                if let Some(paypal_id) = paypal_id {
                     saved.provider_details =
                         Some(WalletProviderDetails::PayPal(PaypalWalletInfo {
                             paypal_id: Some(paypal_id),
@@ -3290,7 +3290,6 @@ pub struct PaypalWalletDetailsForClient {
     #[schema(value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<pii::Email>,
     #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
-    #[serde(alias = "payer_id")]
     pub paypal_id: Option<hyperswitch_masking::Secret<String>>,
 }
 

@@ -2959,7 +2959,7 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::PaypalRedirect(paypal_redirect_data) => {
                 Self::PaypalRedirect(PaypalRedirection {
                     email: paypal_redirect_data.email,
-                    paypal_id: paypal_redirect_data.payer_id,
+                    paypal_id: paypal_redirect_data.paypal_id,
                 })
             }
             api_models::payments::WalletData::PaypalSdk(paypal_sdk_data) => {
