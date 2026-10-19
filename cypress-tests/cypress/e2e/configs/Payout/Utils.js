@@ -6,6 +6,7 @@ import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as gotymeSanlamConnectorDetails } from "./GotymeSanlam.js";
 import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
 import { connectorDetails as nomupayConnectorDetails } from "./Nomupay.js";
+import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
 import { connectorDetails as trustlyConnectorDetails } from "./Trustly.js";
 
@@ -15,6 +16,7 @@ const connectorDetails = {
   commons: CommonConnectorDetails,
   gotyme_sanlam: gotymeSanlamConnectorDetails,
   nomupay: nomupayConnectorDetails,
+  paypal: paypalConnectorDetails,
   truelayer: truelayerConnectorDetails,
   trustly: trustlyConnectorDetails,
   wise: wiseConnectorDetails,
@@ -101,13 +103,20 @@ export const CONNECTOR_LISTS = {
     // gotyme_sanlam only supports bank transfer payouts (payshap /
     // payshap_proxy) and has no card payout method, so it is skipped for
     // the card payout tests in 00003-CardTest.cy.js
-    CARD_TEST: ["gotyme_sanlam", "trustly"],
+    // truelayer only supports open-banking bank transfer payouts; card
+    // payout eligibility is not implemented ("payout_eligibility flow for
+    // truelayer" is unimplemented over UCS), so it is skipped for the card
+    // payout tests in 00003-CardTest.cy.js
+    CARD_TEST: ["gotyme_sanlam", "trustly", "truelayer"],
   },
   INCLUDE: {
     ENTITY_TYPE: ["wise"],
     // Payout recurring feature - only verified connectors
     PAYOUT_RECURRING: ["adyenplatform"],
     PAYOUT_LINK: ["wise"],
+    // Client-authenticated payout confirm (PR #14547) - only verified
+    // connectors
+    CLIENT_AUTH_CONFIRM: ["paypal"],
     BANK_TRANSFER_OPEN_BANKING: ["truelayer", "trustly"],
     BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL: [],
     BANK_TRANSFER_OPEN_BANKING_MANUAL_FULFILL: ["trustly"],
@@ -115,6 +124,9 @@ export const CONNECTOR_LISTS = {
     BANK_TRANSFER_OPEN_BANKING_NO_BILLING: ["trustly"],
     BANK_TRANSFER_PAYSHAP: ["gotyme_sanlam"],
     BANK_TRANSFER_PAYSHAP_PROXY: ["gotyme_sanlam"],
+    // Payout FRM (sanlam_payshield pre-FRM gating gotyme_sanlam payouts) -
+    // only verified connector pairing
+    PAYOUT_FRM: ["gotyme_sanlam"],
     BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_CARD: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],

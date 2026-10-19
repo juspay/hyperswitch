@@ -49,6 +49,8 @@ pub mod profile_acquirer;
 pub mod profiles;
 pub mod refunds;
 #[cfg(feature = "v2")]
+pub mod revenue_recovery;
+#[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_redis;
@@ -113,7 +115,7 @@ pub use self::app::{
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
 #[cfg(feature = "v2")]
-pub use self::app::{RecoveryDataBackfill, Tokenization};
+pub use self::app::{RevenueRecovery, Tokenization};
 #[cfg(all(feature = "stripe", feature = "v1"))]
 pub use super::compatibility::stripe::StripeApis;
 #[cfg(feature = "olap")]

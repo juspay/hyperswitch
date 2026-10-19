@@ -662,13 +662,12 @@ pub trait DynamicRoutingCache {
         key: &str,
     ) -> Option<Arc<Self>>;
 
-    async fn refresh_dynamic_routing_cache<T, F, Fut>(
+    async fn refresh_dynamic_routing_cache<T, Fut>(
         state: &SessionState,
         key: &str,
-        func: F,
+        func: Fut,
     ) -> RouterResult<T>
     where
-        F: FnOnce() -> Fut + Send,
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send;
 }
@@ -691,17 +690,16 @@ impl DynamicRoutingCache for routing_types::SuccessBasedRoutingConfig {
             .await
     }
 
-    async fn refresh_dynamic_routing_cache<T, F, Fut>(
+    async fn refresh_dynamic_routing_cache<T, Fut>(
         state: &SessionState,
         key: &str,
-        func: F,
+        func: Fut,
     ) -> RouterResult<T>
     where
-        F: FnOnce() -> Fut + Send,
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
     {
-        cache::get_or_populate_in_memory(
+        cache::get_or_populate_in_memory_redis(
             &*state.store,
             key,
             func,
@@ -731,17 +729,16 @@ impl DynamicRoutingCache for routing_types::ContractBasedRoutingConfig {
             .await
     }
 
-    async fn refresh_dynamic_routing_cache<T, F, Fut>(
+    async fn refresh_dynamic_routing_cache<T, Fut>(
         state: &SessionState,
         key: &str,
-        func: F,
+        func: Fut,
     ) -> RouterResult<T>
     where
-        F: FnOnce() -> Fut + Send,
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
     {
-        cache::get_or_populate_in_memory(
+        cache::get_or_populate_in_memory_redis(
             &*state.store,
             key,
             func,
@@ -771,17 +768,16 @@ impl DynamicRoutingCache for routing_types::EliminationRoutingConfig {
             .await
     }
 
-    async fn refresh_dynamic_routing_cache<T, F, Fut>(
+    async fn refresh_dynamic_routing_cache<T, Fut>(
         state: &SessionState,
         key: &str,
-        func: F,
+        func: Fut,
     ) -> RouterResult<T>
     where
-        F: FnOnce() -> Fut + Send,
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
     {
-        cache::get_or_populate_in_memory(
+        cache::get_or_populate_in_memory_redis(
             &*state.store,
             key,
             func,
@@ -840,7 +836,7 @@ where
         };
 
         let dynamic_routing_config =
-            T::refresh_dynamic_routing_cache(state, key.as_str(), func).await?;
+            T::refresh_dynamic_routing_cache(state, key.as_str(), func()).await?;
 
         Ok(dynamic_routing_config)
     }

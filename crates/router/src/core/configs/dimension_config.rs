@@ -312,6 +312,25 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
 }
 
 config! {
+    superposition_key = PAYMENT_BLOCKLIST_GUARD,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PaymentBlocklistGuard {
+    const KEY: &'static str = "payment_blocklist_guard";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Retain the legacy merchant key used by the blocklist toggle API.
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| id.get_blocklist_guard_key())
+    }
+}
+
+config! {
     superposition_key = GSM_PAYOUT_CALL,
     output = bool,
     default = false,
@@ -515,6 +534,18 @@ impl DatabaseBackedConfig for ShouldTriggerFingerprintMigration {
             .get_provider_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
+}
+
+config! {
+    superposition_key = SHOULD_GENERATE_MERCHANT_SCOPED_PAYMENT_METHOD_FINGERPRINT,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldGenerateMerchantScopedPaymentMethodFingerprint {
+    const KEY: &'static str = "should_generate_merchant_scoped_payment_method_fingerprint";
 }
 
 config! {
@@ -748,7 +779,7 @@ impl DatabaseBackedConfig for RevenueRecoveryAbEnabled {
 config! {
     superposition_key = REVENUE_RECOVERY_AB_ALGORITHM,
     output = common_enums::RevenueRecoveryABAlgorithm,
-    default = common_enums::RevenueRecoveryABAlgorithm::AdaptiveRetry,
+    default = common_enums::RevenueRecoveryABAlgorithm::SystematicKMaxAtScore,
     string_enum = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
     targeting_key = id_type::GlobalPaymentId
@@ -948,6 +979,99 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
 }
 
 config! {
+    superposition_key = INCOMING_WEBHOOK_MTLS_VERIFICATION_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithConnector,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for IncomingWebhookMtlsVerificationEnabled {
+    const KEY: &'static str = "incoming_webhook_mtls_verification_enabled";
+}
+
+config! {
+    superposition_key = UNVERIFIED_WEBHOOK_RATE_LIMIT_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithMerchantConnectorAccount,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for UnverifiedWebhookRateLimitEnabled {
+    const KEY: &'static str = "unverified_webhook_rate_limit_enabled";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Unverified webhook rate limiting is configured only in superposition, so there is no db fallback.
+        None
+    }
+}
+
+config! {
+    superposition_key = UNVERIFIED_WEBHOOK_RATE_LIMIT_WINDOW_IN_SECS,
+    output = u32,
+    default = 60u32,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for UnverifiedWebhookRateLimitWindowInSecs {
+    const KEY: &'static str = "unverified_webhook_rate_limit_window_in_secs";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = UNVERIFIED_WEBHOOK_MERCHANT_RATE_LIMIT,
+    output = u32,
+    default = 60u32,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for UnverifiedWebhookMerchantRateLimit {
+    const KEY: &'static str = "unverified_webhook_merchant_rate_limit";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = UNVERIFIED_WEBHOOK_PROFILE_RATE_LIMIT,
+    output = u32,
+    default = 0u32,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for UnverifiedWebhookProfileRateLimit {
+    const KEY: &'static str = "unverified_webhook_profile_rate_limit";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = UNVERIFIED_WEBHOOK_MERCHANT_CONNECTOR_ACCOUNT_RATE_LIMIT,
+    output = u32,
+    default = 0u32,
+    requires = dimension_state::DimensionsWithMerchantConnectorAccount,
+    targeting_key = id_type::MerchantConnectorAccountId
+}
+
+impl DatabaseBackedConfig for UnverifiedWebhookMerchantConnectorAccountRateLimit {
+    const KEY: &'static str = "unverified_webhook_merchant_connector_account_rate_limit";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
     superposition_key = SAVE_WALLET_DECRYPTED_DATA,
     output = bool,
     default = false,
@@ -1087,6 +1211,18 @@ impl DatabaseBackedConfig for PayoutFrmCall {
             .get_profile_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
+}
+
+config! {
+    superposition_key = RERUN_PAYOUT_FRM_BEFORE_AUTO_RETRY,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for RerunPayoutFrmBeforeAutoRetry {
+    const KEY: &'static str = "rerun_payout_frm_before_auto_retry";
 }
 
 config! {

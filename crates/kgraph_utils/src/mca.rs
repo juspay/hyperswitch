@@ -78,6 +78,7 @@ fn get_dir_value_payment_method(
         }
         api_enums::PaymentMethodType::Payshap => Ok(dirval!(BankTransferType = Payshap)),
         api_enums::PaymentMethodType::PayshapProxy => Ok(dirval!(BankTransferType = PayshapProxy)),
+        api_enums::PaymentMethodType::Ted => Ok(dirval!(BankTransferType = Ted)),
         api_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
         api_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),
         api_enums::PaymentMethodType::OnlineBankingCzechRepublic => {
@@ -195,6 +196,7 @@ fn get_dir_value_payment_method(
             Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
         }
         api_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
+        api_enums::PaymentMethodType::Wero => Ok(dirval!(WalletType = Wero)),
         api_enums::PaymentMethodType::OpenBanking => Ok(dirval!(BankRedirectType = OpenBanking)),
         api_enums::PaymentMethodType::NetworkToken => Ok(dirval!(NetworkTokenType = NetworkToken)),
     }

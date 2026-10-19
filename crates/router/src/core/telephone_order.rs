@@ -510,7 +510,7 @@ async fn retrieve_payment(
                 "A payment already exists for this payment_id",
             )
             .with_parameters(ResponseParameters::from([(
-                "hyperswitch_payment_id".to_string(),
+                "payment_id".to_string(),
                 payment_id.get_string_repr().to_owned(),
             )])))
         }
@@ -640,7 +640,7 @@ fn decline_failure(payment: &api_models::payments::PaymentsResponse) -> Failure 
 fn outcome_parameters(payment: &api_models::payments::PaymentsResponse) -> ResponseParameters {
     let mut parameters = ResponseParameters::from([
         (
-            "hyperswitch_payment_id".to_string(),
+            "payment_id".to_string(),
             payment.payment_id.get_string_repr().to_owned(),
         ),
         ("status".to_string(), payment.status.to_string()),

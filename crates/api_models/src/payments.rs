@@ -380,6 +380,10 @@ pub struct PaymentsCreateIntentRequest {
     /// Details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
+
+    /// Request address verification using the billing address for supported card payments.
+    #[schema(default = false, example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -568,6 +572,11 @@ pub struct PaymentsUpdateIntentRequest {
     /// Details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
+
+    /// Request address verification using the billing address for supported card payments.
+    /// Omit this field on updates or confirmation to preserve the existing setting.
+    #[schema(default = false, example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -603,6 +612,7 @@ impl PaymentsUpdateIntentRequest {
             enable_partial_authorization: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            enable_avs_check: None,
         }
     }
 }
@@ -759,6 +769,10 @@ pub struct PaymentsIntentResponse {
     /// Partially masked details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<MaskedRecipientDetails>)]
     pub recipient_details: Option<MaskedRecipientDetails>,
+
+    /// Whether address verification was requested for this payment.
+    #[schema(example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -1658,6 +1672,12 @@ pub struct PaymentsRequest {
     /// The strategy to use when applying surcharge for this payment.
     #[schema(value_type = Option<SurchargeStrategy>)]
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+
+    /// Request address verification using the billing address for supported card payments.
+    /// Omit this field on updates or confirmation to preserve the existing setting.
+    #[schema(default = false, example = true)]
+    #[smithy(value_type = "Option<bool>")]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -2312,7 +2332,7 @@ pub struct PaymentAttemptRecordResponse {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct RecoveryPaymentsResponse {
-    /// Unique identifier for the payment.
+    /// Unique identifier of the invoice in Hyperswitch against which the transaction has been recorded.
     #[schema(
         min_length = 30,
         max_length = 30,
@@ -2321,16 +2341,17 @@ pub struct RecoveryPaymentsResponse {
     )]
     pub id: id_type::GlobalPaymentId,
 
+    /// Current status of the payment after the transaction has been recorded.
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
     pub intent_status: api_enums::IntentStatus,
 
-    /// Unique identifier for the payment. This ensures idempotency for multiple payments
-    /// that have been done by a single merchant.
+    /// Unique identifier of the invoice in the merchant's billing system against which the
+    /// transaction is being recorded.
     #[schema(
         value_type = Option<String>,
         min_length = 30,
         max_length = 30,
-        example = "pay_mbabizu24mvu3mela5njyhpit4"
+        example = "invoice_mbabizu24mvu3mela5njyh"
     )]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 }
@@ -3900,6 +3921,7 @@ impl GetPaymentMethodType for WalletData {
             Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
             Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
             Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,
+            Self::WeroRedirect {} => api_enums::PaymentMethodType::Wero,
             Self::TouchNGoRedirect(_) => api_enums::PaymentMethodType::TouchNGo,
             Self::WeChatPayRedirect(_) | Self::WeChatPayQr(_) => {
                 api_enums::PaymentMethodType::WeChatPay
@@ -5426,6 +5448,9 @@ pub enum WalletData {
     #[schema(title = "VippsRedirect")]
     #[smithy(nested_value_type)]
     VippsRedirect {},
+    #[schema(title = "WeroRedirect")]
+    #[smithy(nested_value_type)]
+    WeroRedirect {},
     /// The wallet data for WeChat Pay Display QrCode
     #[schema(title = "WeChatPayQr")]
     #[smithy(value_type = "WeChatPayQr")]
@@ -5485,6 +5510,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::SamsungPay(_)
             | Self::TwintRedirect {}
             | Self::VippsRedirect {}
+            | Self::WeroRedirect {}
             | Self::TouchNGoRedirect(_)
             | Self::WeChatPayRedirect(_)
             | Self::WeChatPayQr(_)
@@ -6508,8 +6534,6 @@ pub enum PaymentIdType {
     ConnectorTransactionId(String),
     /// The identifier for payment attempt
     PaymentAttemptId(String),
-    /// The identifier for preprocessing step
-    PreprocessingId(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -6521,8 +6545,6 @@ pub enum PaymentIdType {
     ConnectorTransactionId(String),
     /// The identifier for payment attempt
     PaymentAttemptId(String),
-    /// The identifier for preprocessing step
-    PreprocessingId(String),
 }
 
 #[cfg(feature = "v1")]
@@ -6542,9 +6564,6 @@ impl fmt::Display for PaymentIdType {
             ),
             Self::PaymentAttemptId(payment_attempt_id) => {
                 write!(f, "payment_attempt_id = \"{payment_attempt_id}\"")
-            }
-            Self::PreprocessingId(preprocessing_id) => {
-                write!(f, "preprocessing_id = \"{preprocessing_id}\"")
             }
         }
     }
@@ -7665,6 +7684,14 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<CaptureMethod>")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
+    /// The capture method the payment was sent to the connector with. Same as `capture_method`,
+    /// except when the profile's `auto_fallback_capture_method` is enabled and the connector did
+    /// not support the requested `capture_method`, in which case it is `automatic`. `null` until
+    /// the payment has been confirmed with a connector.
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    #[smithy(value_type = "Option<CaptureMethod>")]
+    pub capture_method_applied: Option<api_enums::CaptureMethod>,
+
     /// The payment method that is to be used
     #[schema(value_type = PaymentMethod, example = "bank_transfer")]
     #[smithy(value_type = "Option<PaymentMethod>")]
@@ -8099,6 +8126,11 @@ pub struct PaymentsResponse {
     )]
     #[smithy(value_type = "Option<String>")]
     pub sender_payment_instrument_id: Option<String>,
+
+    /// Whether address verification was requested for this payment.
+    #[schema(example = true)]
+    #[smithy(value_type = "Option<bool>")]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -8400,6 +8432,11 @@ pub struct PaymentsConfirmIntentRequest {
     /// The webhook endpoint URL to receive payment status notifications
     #[schema(value_type = Option<String>, example = "https://merchant.example.com/webhooks/payment")]
     pub webhook_url: Option<common_utils::types::Url>,
+
+    /// Request address verification using the billing address for supported card payments.
+    /// Omit this field on updates or confirmation to preserve the existing setting.
+    #[schema(default = false, example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -8642,6 +8679,11 @@ pub struct PaymentsRequest {
     /// Details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
+
+    /// Request address verification using the billing address for supported card payments.
+    /// Omit this field on updates or confirmation to preserve the existing setting.
+    #[schema(default = false, example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -8679,6 +8721,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             enable_partial_authorization: request.enable_partial_authorization,
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: request.recipient_details.clone(),
+            enable_avs_check: request.enable_avs_check,
         }
     }
 }
@@ -8700,6 +8743,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             return_raw_connector_response: request.return_raw_connector_response,
             split_payment_method_data: None,
             webhook_url: request.webhook_url.clone(),
+            enable_avs_check: request.enable_avs_check,
         }
     }
 }
@@ -9009,6 +9053,10 @@ pub struct PaymentsResponse {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Whether address verification was requested for this payment.
+    #[schema(example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -10774,6 +10822,9 @@ pub struct SantanderData {
     #[schema(value_type = Option<String>, example = "E9040088820260710172800044983797")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_to_end_id: Option<String>,
+    #[schema(value_type = Option<SantanderJourneyName>, example = "journey_1")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub journey_name: Option<SantanderJourneyName>,
     /// Actual timestamp when the payment was completed, as reported by Santander.
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2025-07-20T14:35:00Z")]
     #[serde(
@@ -10781,6 +10832,28 @@ pub struct SantanderData {
         with = "common_utils::custom_serde::iso8601::option"
     )]
     pub paid_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum SantanderJourneyName {
+    #[serde(rename = "journey_1")]
+    // PixAutomaticoPush payment method type for zero-amount payments.
+    Journey1,
+    #[serde(rename = "journey_2")]
+    // PixAutomaticoQr payment method type for zero-amount payments.
+    Journey2,
+    #[serde(rename = "journey_3")]
+    // PixAutomaticoQr payment method type for non-zero payments with immediate QR expiry.
+    Journey3,
+    #[serde(rename = "journey_4")]
+    // PixAutomaticoQr payment method type for non-zero payments with scheduled QR expiry.
+    Journey4,
+    #[serde(rename = "awaiting_definition")]
+    // Journey could not be determined from the connector response.
+    AwaitingDefinition,
 }
 
 impl ConnectorMetadata {
@@ -14666,11 +14739,10 @@ pub struct RecoveryPaymentsCreate {
     /// The amount details for the payment
     pub amount_details: AmountDetails,
 
-    /// The invoice identifier from the merchant's billing system that this payment attempt is
-    /// being recorded against. This ensures idempotency when the same invoice is reported
-    /// more than once.
+    /// Unique identifier of the invoice in the merchant's billing system against which the
+    /// transaction is being recorded.
     #[schema(
-        value_type = Option<String>,
+        value_type = String,
         min_length = 30,
         max_length = 30,
         example = "invoice_mbabizu24mvu3mela5njyh"
@@ -14680,53 +14752,58 @@ pub struct RecoveryPaymentsCreate {
     /// Error details for the payment if any
     pub error: Option<ErrorDetails>,
 
-    /// Billing connector id to update the invoices.
+    /// Unique identifier of the billing connector account, such as Chargebee, that manages the
+    /// invoice. The account must belong to the profile passed in the `X-Profile-Id` header.
     #[schema(value_type = String, example = "mca_1234567890")]
     pub billing_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
-    /// Payments connector id to update the invoices.
+    /// Unique identifier of the payment connector account, such as Stripe, on which the
+    /// transaction was processed. The account must belong to the profile passed in the
+    /// `X-Profile-Id` header.
     #[schema(value_type = String, example = "mca_1234567890")]
     pub payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
-    /// The status of the transaction at the payment connector.
-    #[schema(value_type = AttemptStatus, example = "charged")]
-    pub transaction_status: enums::AttemptStatus,
+    /// Status of the transaction reported.
+    #[schema(value_type = RecoveryTransactionStatus, example = "failure")]
+    pub transaction_status: common_payments_types::RecoveryTransactionStatus,
 
-    /// The billing details of the payment attempt.
+    /// The billing details of the transaction.
     pub billing: Option<Address>,
 
-    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    /// The payment method subtype used for the transaction.
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_sub_type: api_enums::PaymentMethodType,
 
-    /// The time at which payment attempt was created.
+    /// The time at which the transaction was created at the payment connector.
     #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub transaction_created_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub transaction_created_at: PrimitiveDateTime,
 
-    /// Payment method type for the payment attempt
-    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    /// Payment method type used for the transaction.
+    #[schema(value_type = PaymentMethod, example = "wallet")]
     pub payment_method_type: common_enums::PaymentMethod,
 
-    /// customer id at payment connector for which mandate is attached.
+    /// Unique identifier of the customer at the payment connector, with which the payment
+    /// method token used for the transaction is associated.
     #[schema(value_type = String, example = "cust_12345")]
     pub connector_customer_id: Secret<String>,
 
-    /// Invoice billing started at billing connector end.
+    /// Invoice billing started at billing connector's end.
     #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub billing_started_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub billing_started_at: PrimitiveDateTime,
 
-    /// A unique identifier for a payment provided by the payment connector
-    #[schema(value_type = Option<String>, example = "993672945374576J")]
-    pub connector_transaction_id: Option<Secret<String>>,
+    /// Unique identifier of the transaction at the payment connector. It is used to identify
+    /// the transaction among the attempts recorded for the invoice.
+    #[schema(value_type = String, example = "993672945374576J")]
+    pub connector_transaction_id: String,
 
     /// payment method token units at payment processor end.
     pub payment_method_data: CustomRecoveryPaymentMethodData,
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
-    #[schema(value_type = RecoveryAction, example = "schedule_failed_payment")]
-    pub action: common_payments_types::RecoveryAction,
+    #[schema(value_type = RecoveryPaymentsAction, example = "schedule_failed_payment")]
+    pub action: common_payments_types::RecoveryPaymentsAction,
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]

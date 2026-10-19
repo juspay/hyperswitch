@@ -1188,6 +1188,59 @@ fn is_kill_switch_applicable(
     )
 }
 
+/// Whether an external vault proxy authorize for `connector_name` would reach the connector over
+/// UCS.
+///
+/// `decide_execution_path` pins a later attempt to the gateway the earlier one used, and the
+/// external vault proxy has no Direct implementation. A fallback that would land on Direct cannot
+/// authorize, so the caller checks this before creating an attempt for it.
+#[cfg(feature = "v1")]
+pub async fn is_ucs_execution_path_for_external_vault_proxy(
+    state: &SessionState,
+    processor: &Processor,
+    connector_name: &str,
+    payment_method: common_enums::PaymentMethod,
+    payment_method_type: Option<PaymentMethodType>,
+) -> RouterResult<bool> {
+    let connector_enum = Connector::from_str(connector_name)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+        .attach_printable_lazy(|| format!("Failed to parse connector name: {connector_name}"))?;
+
+    match check_ucs_availability(state).await {
+        UcsAvailability::Disabled => Ok(false),
+        UcsAvailability::Enabled => {
+            let rollout_keys = build_rollout_keys_by_precedence(
+                processor.get_account().get_org_id().get_string_repr(),
+                processor.get_account().get_id().get_string_repr(),
+                connector_name,
+                // Derived the same way the live path does, so the key shapes cannot drift.
+                &get_flow_name::<hyperswitch_domain_models::router_flow_types::Authorize>()?,
+                payment_method,
+                payment_method_type,
+            );
+
+            let rollout_result =
+                should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
+
+            let connector_integration_type =
+                determine_connector_integration_type(state, connector_enum).await?;
+
+            // `previous_gateway` is left unset deliberately: this asks whether the configuration
+            // admits UCS at all, which is what decides whether both arms can run there.
+            let (gateway_system, _execution_path) = decide_execution_path(
+                connector_integration_type,
+                None,
+                rollout_result.execution_mode,
+            )?;
+
+            Ok(matches!(
+                gateway_system,
+                GatewaySystem::UnifiedConnectorService
+            ))
+        }
+    }
+}
+
 fn decide_execution_path(
     connector_type: ConnectorIntegrationType,
     previous_gateway: Option<GatewaySystem>,
@@ -2336,6 +2389,16 @@ pub fn build_unified_connector_service_payment_method(
                 payment_method: Some(PaymentMethod::CardDetailsForNetworkTransactionId(card_details_for_nti)),
             })
         }
+        // v1 only: the conversion it delegates to is v1-gated, matching the flow that produces
+        // this variant.
+        #[cfg(feature = "v1")]
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(token_nti_data) => {
+            let network_token = payments_grpc::NetworkTokenData::foreign_try_from(token_nti_data)?;
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::NetworkToken(network_token)),
+            })
+        }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(network_token_data) => {
             let network_token = payments_grpc::NetworkTokenData::foreign_try_from(network_token_data)?;
 
@@ -2576,6 +2639,33 @@ pub fn build_unified_connector_service_payment_method(
             "Unimplemented payment method: {payment_method_data:?}"
         ))
         .into()),
+    }
+}
+
+/// The MIT counterpart of [`build_unified_connector_service_payment_method_for_external_proxy`].
+///
+/// Emits `ProxyCardDetailsForNetworkTransactionId` rather than `CardProxy`, so UCS substitutes the
+/// alias on its recurring charge flow. No CVC: an MIT has no cardholder present.
+pub fn build_unified_connector_service_payment_method_for_external_proxy_mit(
+    payment_method_data: hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+    payment_method_type: Option<PaymentMethodType>,
+) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
+    match payment_method_data {
+        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+            external_vault_card,
+        ) => Ok(payments_grpc::PaymentMethod {
+            payment_method: Some(PaymentMethod::ProxyCardDetailsForNetworkTransactionId(
+                payments_grpc::ProxyCardDetailsForNetworkTransactionId::foreign_from(
+                    *external_vault_card,
+                ),
+            )),
+        }),
+        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(_) => {
+            Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented payment method subtype: {payment_method_type:?}"
+            ))
+            .into())
+        }
     }
 }
 
@@ -3928,7 +4018,7 @@ where
     // Box::pin the handler to reduce the monomorphized future size and prevent stack overflow
     let start_time = Instant::now();
     let result = Box::pin(handler(router_data, grpc_request, grpc_header)).await;
-    let external_latency = start_time.elapsed().as_millis();
+    let external_latency = common_utils::elapsed::millis_since(start_time);
 
     // Create and emit connector event after UCS call
     let (status_code, response_body, router_result) = match result {
@@ -4169,7 +4259,7 @@ where
     // Box::pin the handler to reduce the monomorphized future size and prevent stack overflow
     let start_time = Instant::now();
     let result = Box::pin(handler(router_data, grpc_request, grpc_header)).await;
-    let external_latency = start_time.elapsed().as_millis();
+    let external_latency = common_utils::elapsed::millis_since(start_time);
 
     // Create and emit connector event after UCS call
     let (status_code, response_body, router_result) = match result {
@@ -4379,7 +4469,7 @@ where
 
     let start_time = Instant::now();
     let result = handler(grpc_request, grpc_header).await;
-    let external_latency = start_time.elapsed().as_millis();
+    let external_latency = common_utils::elapsed::millis_since(start_time);
 
     match result {
         Ok(grpc_response) => {

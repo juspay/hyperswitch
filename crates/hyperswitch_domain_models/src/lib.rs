@@ -1399,6 +1399,7 @@ impl From<&api_models::payments::RecordAttemptErrorDetails>
             network_advice_code: error.network_advice_code.clone(),
             network_decline_code: error.network_decline_code.clone(),
             network_error_message: error.network_error_message.clone(),
+            standardised_code: None,
         }
     }
 }

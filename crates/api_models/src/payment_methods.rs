@@ -584,6 +584,10 @@ pub struct PaymentMethodUpdate {
     /// The acknowledgement status of the payment method update, this is used to determine the status of the payment method update
     #[schema(value_type = Option<AcknowledgementStatus>)]
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+
+    /// Customer's acceptance for vaulting a payment method.
+    #[schema(value_type = Option<CustomerAcceptance>)]
+    pub customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
 }
 
 #[cfg(feature = "v2")]
@@ -1552,6 +1556,12 @@ pub struct PaymentMethodResponse {
     /// The acknowledgement status of the payment method update
     #[schema(value_type = Option<AcknowledgementStatus>)]
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+
+    /// A merchant-scoped fingerprint of the card, identical for the same card saved against
+    /// different customers of the merchant. Present only when payment method fingerprinting is
+    /// enabled.
+    #[schema(example = "wyH7yWdtaRhxDkVE1cvs")]
+    pub fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
