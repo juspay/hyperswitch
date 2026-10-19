@@ -1388,7 +1388,7 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         >,
         _connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        // Bypass Source Verification since it is done via MTLS
+        // The router establishes source verification only after successful mTLS validation.
         Ok(false)
     }
 
@@ -1573,6 +1573,10 @@ static WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS: &[common_enums::EventClass] = &[
 ];
 
 impl ConnectorSpecifications for Worldpayxml {
+    fn is_webhook_mtls_required(&self) -> bool {
+        true
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&WORLDPAYXML_CONNECTOR_INFO)
     }

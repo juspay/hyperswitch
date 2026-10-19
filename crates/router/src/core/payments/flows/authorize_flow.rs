@@ -592,11 +592,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     _ => false,
                 },
                 api_models::enums::Connector::Shift4 => true,
-                api_models::enums::Connector::Nuvei => true,
-                // Paypal's pre-authentication step is the Set Transaction Context (STC) call to
-                // PayPal Risk-as-a-Service API, which is an informational call that feeds fraud
-                // risk data. Payment authorization must proceed after this step.
                 api_models::enums::Connector::Paypal => true,
+                // Nuvei: never run the next leg after a failed initPayment
+                api_models::enums::Connector::Nuvei => authorize_router_data.response.is_ok(),
                 // Paysafe card + 3DS: PreAuthenticate mints the handle. When Paysafe returns no ACS
                 // redirect (frictionless / no challenge), continue straight to the settle Authorize
                 // in this flow; when it returns a redirect, break so the shopper completes the
