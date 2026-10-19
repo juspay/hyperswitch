@@ -175,6 +175,9 @@ async fn update_modular_pm_and_mandate_impl<F, T>(
 where
     F: Clone + Send + Sync,
 {
+    if payment_data.payment_intent.is_payment_processor_token_flow == Some(true) {
+        return Ok(());
+    }
     let is_eligible_pm = matches!(
         payment_data.payment_attempt.payment_method,
         Some(
@@ -430,6 +433,9 @@ async fn update_pm_connector_mandate_details<F, Req>(
 where
     F: Clone + Send + Sync,
 {
+    if payment_data.payment_intent.is_payment_processor_token_flow == Some(true) {
+        return Ok(());
+    }
     let is_valid_response = matches!(
         router_data.response.as_ref(),
         Ok(types::PaymentsResponseData::TransactionResponse { .. })
@@ -768,6 +774,9 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     where
         F: 'b + Clone + Send + Sync,
     {
+        if payment_data.payment_intent.is_payment_processor_token_flow == Some(true) {
+            return Ok(());
+        }
         let customer_id = payment_data.payment_intent.customer_id.clone();
         let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
         let payment_method_billing_address = payment_data.address.get_payment_method_billing();
@@ -3980,6 +3989,9 @@ async fn create_or_update_payment_method_from_payment_response<F: Clone>(
     platform: &domain::Platform,
     business_profile: &domain::Profile,
 ) -> RouterResult<()> {
+    if payment_data.payment_intent.is_payment_processor_token_flow == Some(true) {
+        return Ok(());
+    }
     if payment_data.payment_attempt.payment_method_id.is_none() {
         if let Err(error) = create_deferred_payment_method(
             state,

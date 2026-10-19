@@ -463,25 +463,24 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .await
             .transpose()?;
 
+        let processor_token_reference = match request.recurring_details.as_ref() {
+            Some(RecurringDetails::ProcessorPaymentToken(token)) => Some(
+                mandates::ConnectorMandateReferenceId::try_from(token)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to encode processor payment token details")?,
+            ),
+            _ => None,
+        };
         let mandate_id = if mandate_id.is_none() {
             request
                 .recurring_details
                 .as_ref()
                 .and_then(|recurring_details| match recurring_details {
-                    RecurringDetails::ProcessorPaymentToken(token) => Some(mandates::MandateIds {
+                    RecurringDetails::ProcessorPaymentToken(_) => Some(mandates::MandateIds {
                         mandate_id: None,
-                        mandate_reference_id: Some(
-                            mandates::MandateReferenceId::ConnectorMandateId(
-                                mandates::ConnectorMandateReferenceId::new(
-                                    Some(token.processor_payment_token.clone()),
-                                    None,
-                                    None,
-                                    None,
-                                    None,
-                                    None,
-                                ),
-                            ),
-                        ),
+                        mandate_reference_id: processor_token_reference
+                            .clone()
+                            .map(mandates::MandateReferenceId::ConnectorMandateId),
                     }),
                     RecurringDetails::CardWithLimitedData(_)
                     | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)

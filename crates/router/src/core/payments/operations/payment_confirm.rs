@@ -849,26 +849,25 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let unified_address = address.unify_with_payment_method_data_billing(pmd_address);
 
         // If processor_payment_token is passed in request then populating the same in PaymentData
+        let processor_token_reference = match request.recurring_details.as_ref() {
+            Some(RecurringDetails::ProcessorPaymentToken(token)) => Some(
+                ConnectorMandateReferenceId::try_from(token)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to encode processor payment token details")?,
+            ),
+            _ => None,
+        };
         let mandate_id = request
             .recurring_details
             .as_ref()
             .and_then(|recurring_details| match recurring_details {
-                RecurringDetails::ProcessorPaymentToken(token) => {
+                RecurringDetails::ProcessorPaymentToken(_) => {
                     payment_intent.is_payment_processor_token_flow = Some(true);
                     Some(mandates::MandateIds {
                         mandate_id: None,
-                        mandate_reference_id: Some(
-                            mandates::MandateReferenceId::ConnectorMandateId(
-                                ConnectorMandateReferenceId::new(
-                                    Some(token.processor_payment_token.clone()), // connector_mandate_id
-                                    None, // payment_method_id
-                                    None, // update_history
-                                    None, // mandate_metadata
-                                    None, // connector_mandate_request_reference_id
-                                    None,
-                                ),
-                            ),
-                        ),
+                        mandate_reference_id: processor_token_reference
+                            .clone()
+                            .map(mandates::MandateReferenceId::ConnectorMandateId),
                     })
                 }
                 RecurringDetails::CardWithLimitedData(_)
@@ -1174,6 +1173,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         business_profile: &domain::Profile,
         feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
+        if payment_data.payment_intent.is_payment_processor_token_flow == Some(true) {
+            return Ok(());
+        }
+
         match feature_config.is_payment_method_modular_allowed {
             true => {
                 if req.customer_acceptance.is_some() {

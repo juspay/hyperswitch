@@ -214,6 +214,44 @@ pub struct ProcessorPaymentToken {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    /// Additional processor-token data for this payment. Resend these details on a separate confirm request.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<ProcessorPaymentTokenDetails>")]
+    pub processor_payment_token_details: Option<ProcessorPaymentTokenDetails>,
+}
+
+/// Optional processor-token data. Required fields depend on the processor and card network.
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct ProcessorPaymentTokenDetails {
+    /// The card's expiry month, when required by the processor.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub card_exp_month: Option<Secret<String>>,
+    /// The card's expiry year, when required by the processor.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub card_exp_year: Option<Secret<String>>,
+    /// The card network associated with the processor token.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<api_enums::CardNetwork>,
+    /// The network transaction identifier from the initial payment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<String>")]
+    pub network_transaction_id: Option<String>,
+    /// The transaction link identifier from the initial payment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<String>")]
+    pub transaction_link_id: Option<String>,
+    /// The processor transaction identifier from the initial payment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<String>")]
+    pub processor_transaction_id: Option<String>,
 }
 
 #[derive(

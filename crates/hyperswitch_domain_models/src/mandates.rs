@@ -796,6 +796,32 @@ impl ConnectorMandateReferenceId {
     }
 }
 
+impl TryFrom<&api_models::mandates::ProcessorPaymentToken> for ConnectorMandateReferenceId {
+    type Error = serde_json::Error;
+
+    fn try_from(token: &api_models::mandates::ProcessorPaymentToken) -> Result<Self, Self::Error> {
+        let metadata = token
+            .processor_payment_token_details
+            .as_ref()
+            .map(|details| {
+                serde_json::to_value(details).map(|details| {
+                    pii::SecretSerdeValue::new(serde_json::json!({
+                        "processor_payment_token_details": details
+                    }))
+                })
+            })
+            .transpose()?;
+        Ok(Self::new(
+            Some(token.processor_payment_token.clone()),
+            None,
+            None,
+            metadata,
+            None,
+            None,
+        ))
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct UpdatedMandateDetails {
     pub card_network: Option<common_enums::CardNetwork>,
