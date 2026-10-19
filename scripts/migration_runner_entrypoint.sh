@@ -12,4 +12,6 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
 fi
 
 # Run diesel migrations
-diesel migration run
+# `diesel_migration.toml` has no `[print_schema]` section, so this does not try to regenerate
+# `crates/diesel_models/src/schema.rs` (which requires `rustfmt` to be installed).
+diesel migration run --config-file diesel_migration.toml
