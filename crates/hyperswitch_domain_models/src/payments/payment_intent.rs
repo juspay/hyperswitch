@@ -315,6 +315,7 @@ pub struct PaymentIntentUpdateFields {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub sender_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub enable_avs_check: Option<bool>,
 }
 
@@ -551,6 +552,7 @@ pub struct PaymentIntentUpdateInternal {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub sender_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub enable_avs_check: Option<bool>,
 }
 
@@ -1400,6 +1402,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                sender_details: None,
                 enable_avs_check: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
@@ -1460,6 +1463,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                sender_details: None,
                 enable_avs_check: None,
             },
         }
@@ -1572,6 +1576,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     external_surcharge_applicable: None,
                     is_account_funded_transaction: value.is_account_funded_transaction,
                     recipient_details: value.recipient_details.map(Encryption::from),
+                    sender_details: value.sender_details.map(Encryption::from),
                     enable_avs_check: value.enable_avs_check,
                 }))
             }
@@ -1768,6 +1773,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details,
+            sender_details,
             enable_avs_check,
         } = value;
         Self {
@@ -1830,6 +1836,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details: recipient_details.map(Encryption::from),
+            sender_details: sender_details.map(Encryption::from),
             enable_avs_check,
         }
     }
@@ -2296,6 +2303,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details,
+            sender_details,
             enable_avs_check,
         } = self;
         Ok(DieselPaymentIntent {
@@ -2413,6 +2421,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details: recipient_details.map(Encryption::from),
+            sender_details: sender_details.map(Encryption::from),
             enable_avs_check,
         })
     }
@@ -2435,6 +2444,7 @@ impl behaviour::Conversion for PaymentIntent {
                         shipping_address: storage_model.shipping_address,
                         customer_details: storage_model.customer_details,
                         recipient_details: storage_model.recipient_details,
+                        sender_details: storage_model.sender_details,
                     },
                 )),
                 key_manager_identifier,
@@ -2573,6 +2583,7 @@ impl behaviour::Conversion for PaymentIntent {
                 external_surcharge_applicable: storage_model.external_surcharge_applicable,
                 is_account_funded_transaction: storage_model.is_account_funded_transaction,
                 recipient_details: data.recipient_details,
+                sender_details: data.sender_details,
                 enable_avs_check: storage_model.enable_avs_check,
             })
         }
@@ -2690,6 +2701,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable: self.external_surcharge_applicable,
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
+            sender_details: self.sender_details.map(Encryption::from),
             enable_avs_check: self.enable_avs_check,
         })
     }
@@ -2787,6 +2799,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable: self.external_surcharge_applicable,
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
+            sender_details: self.sender_details.map(Encryption::from),
             enable_avs_check: self.enable_avs_check,
         })
     }
@@ -2810,6 +2823,7 @@ impl behaviour::Conversion for PaymentIntent {
                         shipping_details: storage_model.shipping_details,
                         customer_details: storage_model.customer_details,
                         recipient_details: storage_model.recipient_details,
+                        sender_details: storage_model.sender_details,
                     },
                 )),
                 key_manager_identifier,
@@ -2910,6 +2924,7 @@ impl behaviour::Conversion for PaymentIntent {
                 external_surcharge_applicable: storage_model.external_surcharge_applicable,
                 is_account_funded_transaction: storage_model.is_account_funded_transaction,
                 recipient_details: data.recipient_details,
+                sender_details: data.sender_details,
                 enable_avs_check: storage_model.enable_avs_check,
             })
         }
@@ -3005,6 +3020,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable: self.external_surcharge_applicable,
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
+            sender_details: self.sender_details.map(Encryption::from),
             enable_avs_check: self.enable_avs_check,
         })
     }

@@ -907,6 +907,7 @@ impl
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            // TODO: Populate sender_details once the UCS proto supports sender details for AFT
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -1187,6 +1188,7 @@ impl
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            // TODO: Populate sender_details once the UCS proto supports sender details for AFT
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -2471,6 +2473,7 @@ impl
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            // TODO: Populate sender_details once the UCS proto supports sender details for AFT
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -2688,6 +2691,7 @@ impl
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            // TODO: Populate sender_details once the UCS proto supports sender details for AFT
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -3115,6 +3119,7 @@ impl
                     }),
                 }),
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            // TODO: Populate sender_details once the UCS proto supports sender details for AFT
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -3661,6 +3666,7 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            // TODO: Populate sender_details once the UCS proto supports sender details for AFT
             recipient_details: router_data
                 .request
                 .recipient_details

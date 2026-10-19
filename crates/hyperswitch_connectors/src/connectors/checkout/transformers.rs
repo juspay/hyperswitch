@@ -413,20 +413,19 @@ pub struct CheckoutBillingDescriptor {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum CheckoutSenderType {
-    Individual,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Serialize)]
-pub struct CheckoutSender {
-    #[serde(rename = "type")]
-    pub sender_type: CheckoutSenderType,
-    pub first_name: Secret<String>,
-    pub last_name: Secret<String>,
-    pub address: CheckoutAddress,
-    pub date_of_birth: Secret<time::Date>,
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum CheckoutSender {
+    Individual {
+        first_name: Secret<String>,
+        last_name: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        date_of_birth: Option<Secret<time::Date>>,
+        address: CheckoutAddress,
+    },
+    Corporate {
+        company_name: Secret<String>,
+        address: CheckoutAddress,
+    },
 }
 
 #[skip_serializing_none]
@@ -560,29 +559,98 @@ fn build_checkout_recipient(
     })
 }
 
+fn build_checkout_sender_address_from_billing(
+    router_data: &PaymentsAuthorizeRouterData,
+) -> Result<CheckoutAddress, error_stack::Report<errors::ConnectorError>> {
+    let country = router_data.get_billing_country()?;
+
+    Ok(CheckoutAddress {
+        address_line1: Some(router_data.get_billing_line1()?),
+        address_line2: router_data.get_optional_billing_line2(),
+        city: Some(router_data.get_billing_city()?),
+        state: get_checkout_aft_state(
+            router_data.get_optional_billing_state(),
+            country,
+            "payment_method_data.billing.address.state",
+        )?,
+        zip: Some(router_data.get_billing_zip()?),
+        country: Some(country),
+    })
+}
+
+fn build_checkout_sender_address(
+    address: &api_models::payments::SenderAddress,
+) -> Result<CheckoutAddress, error_stack::Report<errors::ConnectorError>> {
+    let country = address
+        .country
+        .ok_or_else(utils::missing_field_err("sender_details.address.country"))?;
+
+    Ok(CheckoutAddress {
+        address_line1: Some(
+            address
+                .line1
+                .clone()
+                .ok_or_else(utils::missing_field_err("sender_details.address.line1"))?,
+        ),
+        address_line2: address.line2.clone(),
+        city: Some(
+            address
+                .city
+                .clone()
+                .ok_or_else(utils::missing_field_err("sender_details.address.city"))?,
+        ),
+        state: get_checkout_aft_state(
+            address.state.clone(),
+            country,
+            "sender_details.address.state",
+        )?,
+        zip: Some(
+            address
+                .zip
+                .clone()
+                .ok_or_else(utils::missing_field_err("sender_details.address.zip"))?,
+        ),
+        country: Some(country),
+    })
+}
+
 fn build_checkout_sender(
     router_data: &PaymentsAuthorizeRouterData,
 ) -> Result<CheckoutSender, error_stack::Report<errors::ConnectorError>> {
-    let country = router_data.get_billing_country()?;
+    use api_models::payments::SenderDetails;
 
-    Ok(CheckoutSender {
-        sender_type: CheckoutSenderType::Individual,
-        first_name: router_data.get_billing_first_name()?,
-        last_name: router_data.get_billing_last_name()?,
-        date_of_birth: router_data.get_customer_date_of_birth()?,
-        address: CheckoutAddress {
-            address_line1: Some(router_data.get_billing_line1()?),
-            address_line2: router_data.get_optional_billing_line2(),
-            city: Some(router_data.get_billing_city()?),
-            state: get_checkout_aft_state(
-                router_data.get_optional_billing_state(),
-                country,
-                "payment_method_data.billing.address.state",
-            )?,
-            zip: Some(router_data.get_billing_zip()?),
-            country: Some(country),
-        },
-    })
+    let sender_details = router_data.request.sender_details.as_ref();
+
+    // The sender's address is used only when at least one of its fields is provided; otherwise
+    // the billing address of the payment method is used in its entirety.
+    let address = match sender_details
+        .and_then(SenderDetails::get_address)
+        .filter(|address| !address.is_empty())
+    {
+        Some(address) => build_checkout_sender_address(address)?,
+        None => build_checkout_sender_address_from_billing(router_data)?,
+    };
+
+    match sender_details {
+        // Without sender details, the sender defaults to an individual identified by the billing
+        // details of the payment method.
+        None => Ok(CheckoutSender::Individual {
+            first_name: router_data.get_billing_first_name()?,
+            last_name: router_data.get_billing_last_name()?,
+            date_of_birth: None,
+            address,
+        }),
+        Some(SenderDetails::Individual(individual)) => Ok(CheckoutSender::Individual {
+            first_name: individual.first_name.clone(),
+            last_name: individual.last_name.clone(),
+            date_of_birth: individual.date_of_birth.clone(),
+            address,
+        }),
+        Some(SenderDetails::Corporate(corporate)) => Ok(CheckoutSender::Corporate {
+            company_name: corporate.company_name.clone(),
+            address,
+        }),
+    }
 }
 
 #[skip_serializing_none]

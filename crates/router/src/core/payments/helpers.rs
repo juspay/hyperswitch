@@ -5155,6 +5155,7 @@ mod tests {
             billing_descriptor: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
@@ -5251,6 +5252,7 @@ mod tests {
             billing_descriptor: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
@@ -5347,6 +5349,7 @@ mod tests {
             billing_descriptor: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
@@ -8594,6 +8597,24 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     } else {
         Ok(())
     }
+}
+
+/// Validates that the names identifying an account funded transaction sender are not blank.
+pub fn validate_sender_details(
+    sender_details: Option<&api_models::payments::SenderDetails>,
+) -> Result<(), errors::ApiErrorResponse> {
+    use common_utils::ext_traits::ConfigExt;
+
+    sender_details
+        .map(|sender_details| sender_details.get_name_fields())
+        .unwrap_or_default()
+        .into_iter()
+        .find(|(_, value)| value.is_empty_after_trim())
+        .map_or(Ok(()), |(field_name, _)| {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("{field_name} must not be empty"),
+            })
+        })
 }
 
 pub fn get_recipient_id_for_open_banking(

@@ -159,6 +159,8 @@ pub struct PaymentIntent {
     pub is_account_funded_transaction: Option<bool>,
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
+    #[encrypt]
+    pub sender_details: Option<Encryptable<Secret<Value>>>,
     pub enable_avs_check: Option<bool>,
 }
 
@@ -434,6 +436,23 @@ impl PaymentIntent {
                 ValueExt::parse_value::<api_models::payments::RecipientDetails>(
                     decrypted_value,
                     "RecipientDetails",
+                )
+            })
+            .transpose()
+    }
+
+    /// Decrypt and parse the sender details
+    pub fn get_sender_details(
+        &self,
+    ) -> CustomResult<Option<api_models::payments::SenderDetails>, common_utils::errors::ParsingError>
+    {
+        self.sender_details
+            .as_ref()
+            .map(|details| {
+                let decrypted_value = details.clone().into_inner().expose();
+                ValueExt::parse_value::<api_models::payments::SenderDetails>(
+                    decrypted_value,
+                    "SenderDetails",
                 )
             })
             .transpose()
@@ -1061,6 +1080,9 @@ pub struct PaymentIntent {
     /// The details of the party receiving the funds in an account funded transaction.
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
+    /// The details of the party providing the funds in an account funded transaction.
+    #[encrypt]
+    pub sender_details: Option<Encryptable<Secret<Value>>>,
     pub enable_avs_check: Option<bool>,
 }
 
@@ -1274,6 +1296,7 @@ impl PaymentIntent {
             external_surcharge_applicable: None,
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: decrypted_payment_intent.recipient_details,
+            sender_details: decrypted_payment_intent.sender_details,
             enable_avs_check: request.enable_avs_check,
         })
     }

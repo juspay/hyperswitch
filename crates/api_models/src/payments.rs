@@ -6,6 +6,7 @@ use std::{
 };
 pub mod additional_info;
 pub mod recipient;
+pub mod sender;
 pub mod trait_impls;
 use cards::{CardBin, CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
@@ -36,6 +37,11 @@ use error_stack::ResultExt;
 pub use self::recipient::{
     MaskedRecipientAccount, MaskedRecipientBankAccount, MaskedRecipientDetails, RecipientAccount,
     RecipientBankAccount, RecipientDetails,
+};
+pub use self::sender::{
+    CorporateSenderDetails, IndividualSenderDetails, MaskedCorporateSenderDetails,
+    MaskedIndividualSenderDetails, MaskedSenderDetails, MaskedSenderPhoneDetails, SenderAddress,
+    SenderDetails,
 };
 use crate::customers::CustomerDocumentDetails;
 
@@ -384,6 +390,10 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
 
+    /// Details of the party providing the funds in an account funded transaction.
+    #[schema(value_type = Option<SenderDetails>)]
+    pub sender_details: Option<SenderDetails>,
+
     /// Request address verification using the billing address for supported card payments.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
@@ -576,6 +586,10 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
 
+    /// Details of the party providing the funds in an account funded transaction.
+    #[schema(value_type = Option<SenderDetails>)]
+    pub sender_details: Option<SenderDetails>,
+
     /// Request address verification using the billing address for supported card payments.
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
@@ -615,6 +629,7 @@ impl PaymentsUpdateIntentRequest {
             enable_partial_authorization: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             enable_avs_check: None,
         }
     }
@@ -772,6 +787,11 @@ pub struct PaymentsIntentResponse {
     /// Partially masked details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<MaskedRecipientDetails>)]
     pub recipient_details: Option<MaskedRecipientDetails>,
+
+    /// Partially masked details of the party providing the funds in an account funded
+    /// transaction. The sender's date of birth is never returned.
+    #[schema(value_type = Option<MaskedSenderDetails>)]
+    pub sender_details: Option<MaskedSenderDetails>,
 
     /// Whether address verification was requested for this payment.
     #[schema(example = true)]
@@ -1651,6 +1671,11 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<RecipientDetails>)]
     #[remove_in(PaymentsConfirmRequest)]
     pub recipient_details: Option<RecipientDetails>,
+
+    /// Details of the party providing the funds in an account funded transaction.
+    #[schema(value_type = Option<SenderDetails>)]
+    #[remove_in(PaymentsConfirmRequest)]
+    pub sender_details: Option<SenderDetails>,
 
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>, example = "tokenize_at_psp")]
@@ -8102,6 +8127,11 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<MaskedRecipientDetails>)]
     pub recipient_details: Option<MaskedRecipientDetails>,
 
+    /// Partially masked details of the party providing the funds in an account funded
+    /// transaction. The sender's date of birth is never returned.
+    #[schema(value_type = Option<MaskedSenderDetails>)]
+    pub sender_details: Option<MaskedSenderDetails>,
+
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>,example="skip_psp")]
     pub tokenization: Option<enums::Tokenization>,
@@ -8686,6 +8716,10 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
 
+    /// Details of the party providing the funds in an account funded transaction.
+    #[schema(value_type = Option<SenderDetails>)]
+    pub sender_details: Option<SenderDetails>,
+
     /// Request address verification using the billing address for supported card payments.
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
@@ -8728,6 +8762,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             enable_partial_authorization: request.enable_partial_authorization,
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: request.recipient_details.clone(),
+            sender_details: request.sender_details.clone(),
             enable_avs_check: request.enable_avs_check,
         }
     }

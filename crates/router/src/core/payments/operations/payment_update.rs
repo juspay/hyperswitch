@@ -982,6 +982,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         processor: &'a domain::Processor,
     ) -> RouterResult<(PaymentUpdateOperation<'b, F>, operations::ValidateResult)> {
         helpers::validate_customer_information(request)?;
+        helpers::validate_sender_details(request.sender_details.as_ref())?;
 
         if let Some(amount) = request.amount {
             helpers::validate_max_amount(amount)?;
@@ -1074,6 +1075,7 @@ impl PaymentUpdate {
                 .and_then(|customer| customer.document_details.clone()),
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: request.recipient_details.clone(),
+            sender_details: request.sender_details.clone(),
         }
     }
 
@@ -1279,6 +1281,23 @@ impl PaymentUpdate {
             None => payment_data.payment_intent.recipient_details.clone(),
         };
 
+        // Re-encrypt the sender details only when the update request carries them; otherwise
+        // retain whatever is already stored on the intent.
+        let sender_details = match request.sender_details.as_ref() {
+            Some(sender_details) => Some(
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    sender_details.clone(),
+                    common_utils::type_name!(diesel_models::payment_intent::PaymentIntent),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt sender details")?,
+            ),
+            None => payment_data.payment_intent.sender_details.clone(),
+        };
+
         let order_details = payment_data.payment_intent.order_details.clone();
         let connector_metadata = payment_data.payment_intent.connector_metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
@@ -1351,6 +1370,7 @@ impl PaymentUpdate {
                     .is_account_funded_transaction
                     .or(payment_data.payment_intent.is_account_funded_transaction),
                 recipient_details,
+                sender_details,
                 order_details,
                 metadata,
                 connector_metadata,
