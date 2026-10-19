@@ -1,6 +1,9 @@
 //! OCI Object Storage, accessed through its Amazon S3 Compatibility API.
 
-use super::s3::{S3Endpoint, S3Storage};
+use super::{
+    s3::{S3Endpoint, S3Storage},
+    InvalidStorageConfig,
+};
 
 /// Configuration for OCI Object Storage.
 ///
@@ -21,17 +24,19 @@ pub struct OciObjectStorageConfig {
 impl OciObjectStorageConfig {
     /// Validates the OCI Object Storage configuration, returning a description of the first
     /// problem.
-    pub fn validate(&self) -> Result<(), &'static str> {
+    pub fn validate(&self) -> Result<(), InvalidStorageConfig> {
         if !is_hostname_label(&self.namespace) {
-            return Err("oci object storage namespace must be non-empty and contain only letters, digits and hyphens");
+            return Err(InvalidStorageConfig("oci object storage namespace must be non-empty and contain only letters, digits and hyphens"));
         }
 
         if !is_hostname_label(&self.region) {
-            return Err("oci object storage region must be non-empty and contain only letters, digits and hyphens");
+            return Err(InvalidStorageConfig("oci object storage region must be non-empty and contain only letters, digits and hyphens"));
         }
 
         if self.bucket_name.trim().is_empty() {
-            return Err("oci object storage bucket name must not be empty");
+            return Err(InvalidStorageConfig(
+                "oci object storage bucket name must not be empty",
+            ));
         }
 
         Ok(())
@@ -108,7 +113,9 @@ mod tests {
         ] {
             let error = config.validate().err();
             assert!(
-                error.is_some_and(|error| error.starts_with(message)),
+                error
+                    .as_ref()
+                    .is_some_and(|error| error.0.starts_with(message)),
                 "{config:?}: {error:?}"
             );
         }
