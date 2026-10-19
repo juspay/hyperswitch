@@ -404,6 +404,7 @@ pub enum PaymentMethodUpdate {
         last_modified_by: Option<String>,
     },
     GenericUpdate {
+        last_used_at: Option<PrimitiveDateTime>,
         payment_method_data: Option<Encryption>,
         status: Option<storage_enums::PaymentMethodStatus>,
         locker_id: Option<String>,
@@ -1219,6 +1220,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 compatibility_updated_at: Some(now),
             },
             PaymentMethodUpdate::GenericUpdate {
+                last_used_at,
                 payment_method_data,
                 status,
                 locker_id,
@@ -1235,7 +1237,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified_by,
             } => Self {
                 payment_method_data,
-                last_used_at: None,
+                last_used_at,
                 status,
                 locker_id,
                 payment_method: None,
@@ -1997,5 +1999,51 @@ impl From<PaymentsMandateReference> for CommonMandateReference {
             payments: Some(payment_reference),
             payouts: None,
         }
+    }
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod last_used_at_update_tests {
+    use super::{PaymentMethod, PaymentMethodUpdate, PaymentMethodUpdateInternal};
+
+    #[test]
+    fn generic_update_preserves_optional_last_used_at() -> Result<(), serde_json::Error> {
+        let original_time = time::PrimitiveDateTime::MIN;
+        let original: PaymentMethod = serde_json::from_value(serde_json::json!({
+            "id": "pm_test",
+            "merchant_id": "merchant_test",
+            "created_at": original_time,
+            "last_modified": original_time,
+            "last_used_at": original_time,
+            "status": "inactive",
+            "version": "v2",
+            "locker_id": "vault_test"
+        }))?;
+        for last_used_at in [None, Some(common_utils::date_time::now())] {
+            let update = PaymentMethodUpdate::GenericUpdate {
+                last_used_at,
+                payment_method_data: None,
+                status: Some(common_enums::PaymentMethodStatus::Active),
+                locker_id: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
+                network_token_requestor_reference_id: None,
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
+                locker_fingerprint_id: None,
+                connector_mandate_details: Box::new(None),
+                external_vault_source: None,
+                network_transaction_id: None,
+                network_transaction_link_id: None,
+                last_modified_by: None,
+            };
+            let changeset = PaymentMethodUpdateInternal::from(update);
+            let updated = changeset.apply_changeset(original.clone());
+            assert_eq!(updated.last_used_at, last_used_at.unwrap_or(original_time));
+            assert_eq!(updated.status, common_enums::PaymentMethodStatus::Active);
+            assert_eq!(updated.id, original.id);
+            assert_eq!(updated.locker_id, original.locker_id);
+        }
+        Ok(())
     }
 }

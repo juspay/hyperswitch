@@ -33,6 +33,7 @@ pub struct UpdatePaymentMethodV1Request {
 /// V1-facing update payload.
 #[derive(Clone, Debug, Serialize)]
 pub struct UpdatePaymentMethodV1Payload {
+    pub update_last_used_at: Option<bool>,
     /// Payment method details to update.
     pub payment_method_data: Option<PaymentMethodUpdateData>,
     /// Connector token details to update.
@@ -47,6 +48,7 @@ pub struct UpdatePaymentMethodV1Payload {
 /// Modular service update request payload.
 #[derive(Clone, Debug, Serialize)]
 pub struct ModularPMUpdateRequest {
+    pub update_last_used_at: Option<bool>,
     /// Payment method details to update.
     pub payment_method_data: Option<PaymentMethodUpdateData>,
     /// Connector token details to update.
@@ -126,6 +128,7 @@ impl TryFrom<&UpdatePaymentMethodV1Request> for ModularPMUpdateRequest {
 
     fn try_from(value: &UpdatePaymentMethodV1Request) -> Result<Self, Self::Error> {
         Ok(Self {
+            update_last_used_at: value.payload.update_last_used_at,
             payment_method_data: value.payload.payment_method_data.clone(),
             connector_token_details: value.payload.connector_token_details.clone(),
             network_transaction_id: value.payload.network_transaction_id.clone(),
@@ -201,3 +204,40 @@ hyperswitch_interfaces::impl_microservice_flow!(
     path_params = UpdatePaymentMethod::build_path_params,
     validate = UpdatePaymentMethod::validate_request
 );
+
+#[cfg(test)]
+mod last_used_at_update_tests {
+    use super::{
+        ModularPMUpdateRequest, UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
+    };
+
+    #[test]
+    fn forwards_last_used_at_flag_to_modular_request() -> Result<(), Box<dyn std::error::Error>> {
+        for value in [None, Some(false), Some(true)] {
+            let request = UpdatePaymentMethodV1Request {
+                payment_method_id: "pm_test".to_owned(),
+                modular_service_prefix: "v1".to_owned(),
+                payload: UpdatePaymentMethodV1Payload {
+                    update_last_used_at: value,
+                    payment_method_data: None,
+                    connector_token_details: None,
+                    network_transaction_id: None,
+                    acknowledgement_status: Some(
+                        common_enums::AcknowledgementStatus::Authenticated,
+                    ),
+                    customer_acceptance: None,
+                },
+            };
+            let body = serde_json::to_value(ModularPMUpdateRequest::try_from(&request)?)?;
+            assert_eq!(
+                body.get("update_last_used_at"),
+                Some(&serde_json::json!(value))
+            );
+            assert_eq!(
+                body.get("acknowledgement_status"),
+                Some(&serde_json::json!("authenticated"))
+            );
+        }
+        Ok(())
+    }
+}

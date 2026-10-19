@@ -551,6 +551,9 @@ impl PaymentMethodCreate {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
+    #[schema(example = true)]
+    pub update_last_used_at: Option<bool>,
+
     /// Card Details
     #[schema(example = json!({
     "card_number": "4111111145551142",
@@ -570,6 +573,9 @@ pub struct PaymentMethodUpdate {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentMethodUpdate {
+    #[schema(example = true)]
+    pub update_last_used_at: Option<bool>,
+
     /// Payment method details to be updated for the payment_method
     pub payment_method_data: Option<PaymentMethodUpdateData>,
 
@@ -5033,4 +5039,65 @@ pub struct PaymentMethodGetTokenDetailsResponse {
     /// The token associated with the payment method
     #[schema(value_type = String, example = "token_CSum555d9YxDOpGwYq6q")]
     pub payment_method_token: String,
+}
+
+#[cfg(all(test, any(feature = "v1", feature = "v2")))]
+mod last_used_at_update_tests {
+    use super::PaymentMethodUpdate;
+
+    #[test]
+    fn accepts_optional_last_used_at_flag() -> Result<(), serde_json::Error> {
+        for (body, expected) in [
+            (serde_json::json!({}), None),
+            (serde_json::json!({"update_last_used_at": null}), None),
+            (
+                serde_json::json!({"update_last_used_at": false}),
+                Some(false),
+            ),
+            (serde_json::json!({"update_last_used_at": true}), Some(true)),
+        ] {
+            let request: PaymentMethodUpdate = serde_json::from_value(body)?;
+            assert_eq!(request.update_last_used_at, expected);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_non_boolean_last_used_at_flag() {
+        for value in [
+            serde_json::json!("true"),
+            serde_json::json!("now"),
+            serde_json::json!("2026-10-19T10:30:00Z"),
+            serde_json::json!(1),
+            serde_json::json!({}),
+        ] {
+            assert!(
+                serde_json::from_value::<PaymentMethodUpdate>(serde_json::json!({
+                    "update_last_used_at": value
+                }))
+                .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn accepts_last_used_at_flag_with_card_update() -> Result<(), serde_json::Error> {
+        #[cfg(feature = "v1")]
+        let body = serde_json::json!({
+            "card": {"card_holder_name": "Jane Doe"},
+            "update_last_used_at": true
+        });
+        #[cfg(feature = "v2")]
+        let body = serde_json::json!({
+            "payment_method_data": {"card": {"card_holder_name": "Jane Doe"}},
+            "update_last_used_at": true
+        });
+        let request: PaymentMethodUpdate = serde_json::from_value(body)?;
+        assert_eq!(request.update_last_used_at, Some(true));
+        #[cfg(feature = "v1")]
+        assert!(request.card.is_some());
+        #[cfg(feature = "v2")]
+        assert!(request.payment_method_data.is_some());
+        Ok(())
+    }
 }

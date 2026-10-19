@@ -341,6 +341,7 @@ impl PaymentMethod {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct PaymentMethodUpdate {
+    pub update_last_used_at: Option<bool>,
     pub payment_method_data: Option<payment_methods::PaymentMethodUpdateData>,
     pub connector_token_details: Option<payment_methods::ConnectorTokenDetails>,
     pub network_transaction_id: Option<Secret<String>>,
@@ -355,6 +356,7 @@ pub struct PaymentMethodUpdate {
 impl From<payment_methods::PaymentMethodUpdate> for PaymentMethodUpdate {
     fn from(value: payment_methods::PaymentMethodUpdate) -> Self {
         Self {
+            update_last_used_at: value.update_last_used_at,
             payment_method_data: value.payment_method_data,
             connector_token_details: value.connector_token_details,
             network_transaction_id: value.network_transaction_id,
@@ -406,7 +408,8 @@ impl PaymentMethodUpdate {
     }
 
     pub fn is_payment_method_update_required(&self) -> bool {
-        self.is_payment_method_metadata_update()
+        self.update_last_used_at == Some(true)
+            || self.is_payment_method_metadata_update()
             || self.connector_token_details.is_some()
             || self.network_transaction_id.is_some()
             || self.acknowledgement_status.is_some()
@@ -455,6 +458,7 @@ impl
 
         Self {
             payment_method_data,
+            update_last_used_at: None,
             connector_token_details: None,
             network_transaction_id: None,
             acknowledgement_status: None,
@@ -1269,5 +1273,27 @@ mod tests {
 
         assert!(common_mandate.payments.is_some());
         assert!(common_mandate.payouts.is_some());
+    }
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod last_used_at_update_tests {
+    use super::PaymentMethodUpdate;
+
+    #[test]
+    fn last_used_at_flag_requires_update_only_when_true() -> Result<(), serde_json::Error> {
+        for value in [None, Some(false), Some(true)] {
+            let request: api_models::payment_methods::PaymentMethodUpdate =
+                serde_json::from_value(serde_json::json!({"update_last_used_at": value}))?;
+            let request = PaymentMethodUpdate::from(request);
+            assert_eq!(request.update_last_used_at, value);
+            assert_eq!(
+                request.is_payment_method_update_required(),
+                value == Some(true)
+            );
+            assert!(!request.is_payment_method_metadata_update());
+            assert!(!request.can_promote_volatile_payment_method(None));
+        }
+        Ok(())
     }
 }
