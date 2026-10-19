@@ -193,11 +193,6 @@ var hyper = null;
 
 // @ts-ignore
 const translations = getTranslations(paymentDetails.locale);
-document.documentElement.lang = getLanguage(paymentDetails.locale);
-document.title = formatPaymentLinkTitle(
-  translations.paymentLinkTitle,
-  paymentDetails.merchant_name
-);
 
 var isFramed = false;
 try {
@@ -233,6 +228,16 @@ function emitPaymentStatus(paymentDetails) {
  *  - Initialize SDK
  **/
 function boot() {
+  if (!isFramed) {
+    document.documentElement.lang = getLanguage(paymentDetails.locale);
+
+    if (paymentDetails.merchant_name) {
+      document.title = formatPaymentLinkTitle(
+        translations.paymentLinkTitle,
+        paymentDetails.merchant_name
+      );
+    }
+  }
   // Emit latest payment status
   if (isFramed) {
     emitPaymentStatus(paymentDetails);
@@ -606,7 +611,13 @@ function removeClass(id, className) {
 }
 
 function formatPaymentLinkTitle(title, merchantName) {
-  return title.replace("{merchantName}", () => merchantName || "");
+  var titleTemplate =
+    typeof title === "string" && title
+      ? title
+      : "Payment requested by {merchantName}";
+
+
+  return titleTemplate.replace("{merchantName}", () => merchantName || "");
 }
 
 /**
@@ -685,8 +696,16 @@ function renderPaymentDetails(paymentDetails) {
     paymentDetails.session_expiry === undefined
       ? null
       : new Date(paymentDetails.session_expiry);
-  var formattedDate = formatDate(expiryDate, paymentDetails.locale);
-  paymentExpiryNode.innerText = translations.expiresOn + formattedDate;
+
+  var paymentExpiryNode = null;
+
+  if (expiryDate !== null && !Number.isNaN(expiryDate.getTime())) {
+    paymentExpiryNode = document.createElement("div");
+    paymentExpiryNode.className = "hyper-checkout-payment-footer-expiry";
+
+    var formattedDate = formatDate(expiryDate, paymentDetails.locale);
+    paymentExpiryNode.innerText = translations.expiresOn + formattedDate;
+  }
 
   // Append information to DOM
   var paymentContextNode = document.getElementById(
@@ -711,7 +730,7 @@ function renderPaymentDetails(paymentDetails) {
     merchantImageNode.prepend(merchantLogoNode);
   }
   var footerNode = document.getElementById("hyper-checkout-payment-footer");
-  if (footerNode instanceof HTMLDivElement) {
+  if (footerNode instanceof HTMLDivElement && paymentExpiryNode !== null) {
     footerNode.append(paymentExpiryNode);
   }
 }
