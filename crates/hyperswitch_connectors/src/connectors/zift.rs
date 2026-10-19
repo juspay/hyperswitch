@@ -36,6 +36,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -226,11 +227,11 @@ impl ConnectorCommon for Zift {
             code: response
                 .response_code
                 .or(response.failure_code)
-                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                .unwrap_or(NO_ERROR_CODE.to_string()),
             message: response
                 .response_message
                 .clone()
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                .unwrap_or(NO_ERROR_MESSAGE.to_string()),
             reason: response.response_message.clone(),
             attempt_status: None,
             connector_transaction_id: None,
