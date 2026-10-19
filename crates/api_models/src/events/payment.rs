@@ -6,7 +6,8 @@ use common_utils::id_type::GlobalPaymentMethodId;
 use super::{
     PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentStartRedirectionRequest,
     PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
-    RecoveryPaymentListConstraints, RecoveryPaymentListResponse, RecoveryPaymentsCreate,
+    RecoveryAggregateResponse, RecoveryPaymentListConstraints, RecoveryPaymentListResponse,
+    RecoveryPaymentsCreate,
     RecoveryPaymentsResponse, RevenueRecoveryGetIntentResponse,
 };
 #[cfg(feature = "v2")]
@@ -597,6 +598,13 @@ impl ApiEventMetric for RecoveryPaymentsCreate {
 impl ApiEventMetric for RecoveryPaymentsResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         None
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for RecoveryAggregateResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
     }
 }
 

@@ -445,35 +445,16 @@ pub async fn revenue_recovery_list_payments(
     .await
 }
 
-/// Lists recovery invoices filtered by the derived recovery status.
-///
-/// The status is derived per row, so intents are narrowed by candidate intent status in the
-/// database, then filtered, then paginated. `total_count` is the filtered size.
+/// Fetches, page by page, the recovery invoices whose intent status is one of
+/// `candidate_statuses`, with the recovery status derived for each of them.
 #[cfg(all(feature = "v2", feature = "olap"))]
-async fn list_recovery_payments_by_recovery_status(
+async fn scan_recovery_items(
     state: &SessionState,
     platform: &domain::Platform,
     constraints: payments_api::PaymentListConstraints,
-    recovery_status: &[common_enums::enums::RecoveryStatus],
-) -> RouterResult<services::ApplicationResponse<payments_api::RecoveryPaymentListResponse>> {
+    candidate_statuses: Vec<common_enums::enums::IntentStatus>,
+) -> RouterResult<Vec<payments_api::RecoveryPaymentsListResponseItem>> {
     let db: &dyn StorageInterface = state.store.as_ref();
-    let requested_limit = constraints.limit.as_usize();
-    let requested_offset = constraints.offset.as_usize();
-
-    let candidate_statuses = candidate_intent_statuses_for_recovery_status(
-        recovery_status,
-        constraints.status.as_deref(),
-    );
-    if candidate_statuses.is_empty() {
-        return Ok(services::ApplicationResponse::Json(
-            payments_api::RecoveryPaymentListResponse {
-                count: 0,
-                total_count: 0,
-                data: Vec::new(),
-            },
-        ));
-    }
-
     let scan_page_size = common_utils::types::list::PageSize::from(LIST_MAX_LIMIT);
     let scan_constraints = payments_api::PaymentListConstraints {
         status: Some(candidate_statuses),
@@ -481,7 +462,7 @@ async fn list_recovery_payments_by_recovery_status(
         ..constraints
     };
 
-    let mut matched: Vec<payments_api::RecoveryPaymentsListResponseItem> = Vec::new();
+    let mut items: Vec<payments_api::RecoveryPaymentsListResponseItem> = Vec::new();
     let mut scan_offset: usize = 0;
     loop {
         let page_offset = common_utils::types::list::PageOffset::from(
@@ -507,18 +488,114 @@ async fn list_recovery_payments_by_recovery_status(
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let fetched = list.len();
-        let items = build_recovery_list_items(state, platform, list).await;
-        matched.extend(
-            items
-                .into_iter()
-                .filter(|item| recovery_status.contains(&item.status)),
-        );
+        items.extend(build_recovery_list_items(state, platform, list).await);
 
         if fetched < scan_page_size.as_usize() {
             break;
         }
         scan_offset += fetched;
     }
+    Ok(items)
+}
+
+/// Counts the recovery invoices created in `time_range` in each recovery status, for the whole
+/// merchant or, when `profile_id` is passed, for that profile only.
+///
+/// Like the list, the recovery status is derived from the intent status and the recovery
+/// workflows rather than stored, so the invoices are scanned and counted by the derived status.
+#[cfg(all(feature = "v2", feature = "olap"))]
+pub async fn revenue_recovery_aggregates(
+    state: SessionState,
+    platform: domain::Platform,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    time_range: common_utils::types::TimeRange,
+) -> RouterResponse<payments_api::RecoveryAggregateResponse> {
+    use strum::IntoEnumIterator;
+
+    let constraints = payments_api::PaymentListConstraints {
+        payment_id: None,
+        profile_id,
+        customer_id: None,
+        starting_after: None,
+        ending_before: None,
+        limit: common_utils::types::list::PageSize::from(LIST_MAX_LIMIT),
+        offset: common_utils::types::list::PageOffset::default(),
+        created: None,
+        created_lt: None,
+        created_gt: None,
+        created_lte: time_range.end_time,
+        created_gte: Some(time_range.start_time),
+        start_amount: None,
+        end_amount: None,
+        connector: None,
+        currency: None,
+        status: None,
+        payment_method_type: None,
+        payment_method_subtype: None,
+        authentication_type: None,
+        merchant_connector_id: None,
+        order_on: Default::default(),
+        order_by: Default::default(),
+        card_network: None,
+        merchant_order_reference_id: None,
+    };
+
+    let all_recovery_statuses: Vec<_> = common_enums::enums::RecoveryStatus::iter().collect();
+    let candidate_statuses =
+        candidate_intent_statuses_for_recovery_status(&all_recovery_statuses, None);
+
+    let items = scan_recovery_items(&state, &platform, constraints, candidate_statuses).await?;
+
+    let mut status_with_count: std::collections::HashMap<_, i64> = all_recovery_statuses
+        .into_iter()
+        .map(|status| (status, 0))
+        .collect();
+    for item in &items {
+        *status_with_count.entry(item.status).or_default() += 1;
+    }
+    let total_count = status_with_count.values().sum();
+
+    Ok(services::ApplicationResponse::Json(
+        payments_api::RecoveryAggregateResponse {
+            status_with_count,
+            total_count,
+        },
+    ))
+}
+
+/// Lists recovery invoices filtered by the derived recovery status.
+///
+/// The status is derived per row, so intents are narrowed by candidate intent status in the
+/// database, then filtered, then paginated. `total_count` is the filtered size.
+#[cfg(all(feature = "v2", feature = "olap"))]
+async fn list_recovery_payments_by_recovery_status(
+    state: &SessionState,
+    platform: &domain::Platform,
+    constraints: payments_api::PaymentListConstraints,
+    recovery_status: &[common_enums::enums::RecoveryStatus],
+) -> RouterResult<services::ApplicationResponse<payments_api::RecoveryPaymentListResponse>> {
+    let requested_limit = constraints.limit.as_usize();
+    let requested_offset = constraints.offset.as_usize();
+
+    let candidate_statuses = candidate_intent_statuses_for_recovery_status(
+        recovery_status,
+        constraints.status.as_deref(),
+    );
+    if candidate_statuses.is_empty() {
+        return Ok(services::ApplicationResponse::Json(
+            payments_api::RecoveryPaymentListResponse {
+                count: 0,
+                total_count: 0,
+                data: Vec::new(),
+            },
+        ));
+    }
+
+    let matched: Vec<_> = scan_recovery_items(state, platform, constraints, candidate_statuses)
+        .await?
+        .into_iter()
+        .filter(|item| recovery_status.contains(&item.status))
+        .collect();
 
     let total_count = i64::try_from(matched.len())
         .change_context(errors::ApiErrorResponse::InternalServerError)

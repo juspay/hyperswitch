@@ -9826,6 +9826,18 @@ pub struct PlatformPaymentListResponse {
     pub data: Vec<PlatformPaymentListItem>,
 }
 
+/// Count of the recovery invoices in each recovery status.
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct RecoveryAggregateResponse {
+    /// The number of invoices in each recovery status. Every status is present, with a count
+    /// of zero when no invoice is in it.
+    #[schema(value_type = HashMap<RecoveryStatus, i64>)]
+    pub status_with_count: HashMap<api_enums::RecoveryStatus, i64>,
+    /// The total number of invoices counted across all the statuses
+    pub total_count: i64,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct RecoveryPaymentListResponse {
