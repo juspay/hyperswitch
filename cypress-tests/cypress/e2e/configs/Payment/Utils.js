@@ -612,6 +612,7 @@ export const CONNECTOR_LISTS = {
     ],
     DDC_RACE_CONDITION: ["worldpay"],
     CARD_HOLDER_NAME_BILLING_FALLBACK: ["worldpayxml"],
+    VOID_PAYMENT_SYNC: ["zift"],
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
     UCS_CONNECTORS: [
@@ -835,6 +836,14 @@ export const CONNECTOR_LISTS = {
     ZERO_AUTH_MANDATE: ["peachpayments"],
     BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
     ERROR_ON_REQUIRES_ACTION: ["stripe"],
+    AUTO_FALLBACK_CAPTURE_METHOD: [
+      "trustpay",
+      "cryptopay",
+      "facilitapay",
+      "payjustnow",
+      "placetopay",
+      "iatapay",
+    ],
     AFT_PURPOSE_OF_PAYMENT: ["checkout"],
     AFT_FUNDING_TRANSACTION_TYPE: ["worldpayxml"],
     PEACHPAYMENTS_CONNECTOR_METADATA: ["peachpayments"],
