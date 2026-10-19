@@ -24,8 +24,9 @@ mod olap {
         db::{kafka_store::KafkaStore, Store},
     };
 
-    // The derive's generated impl trips `unused_qualifications`; this module scopes the allow.
-    #[allow(unused_qualifications)]
+    // The derive's generated impl trips `unused_qualifications` and, from Rust 1.99,
+    // `clippy::redundant_field_names`; this module scopes the allows.
+    #[allow(unused_qualifications, clippy::redundant_field_names)]
     mod row {
         use diesel::sql_types::{Array, Nullable, Text};
 
