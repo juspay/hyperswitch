@@ -9,6 +9,7 @@ use crate::errors;
 pub struct GlobalRefundId(super::GlobalId);
 
 // Database related implementations so that this field can be used directly in the database tables
+#[cfg(feature = "diesel")]
 crate::impl_queryable_id_type!(GlobalRefundId);
 
 impl GlobalRefundId {

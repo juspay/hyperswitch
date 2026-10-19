@@ -270,10 +270,10 @@ mod id_type {
     }
 
     /// Implements the `ToSql` and `FromSql` traits on the specified ID type.
+    #[cfg(feature = "diesel")]
     #[macro_export]
     macro_rules! impl_to_sql_from_sql_id_type {
         ($type:ty, $diesel_type:ty, $max_length:expr, $min_length:expr) => {
-            #[cfg(feature = "diesel")]
             impl<DB> diesel::serialize::ToSql<$diesel_type, DB> for $type
             where
                 DB: diesel::backend::Backend,
@@ -288,7 +288,6 @@ mod id_type {
                 }
             }
 
-            #[cfg(feature = "diesel")]
             impl<DB> diesel::deserialize::FromSql<$diesel_type, DB> for $type
             where
                 DB: diesel::backend::Backend,
@@ -310,12 +309,11 @@ mod id_type {
         };
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "v2", feature = "diesel"))]
     /// Implements the `ToSql` and `FromSql` traits on the specified Global ID type.
     #[macro_export]
     macro_rules! impl_to_sql_from_sql_global_id_type {
         ($type:ty, $diesel_type:ty) => {
-            #[cfg(feature = "diesel")]
             impl<DB> diesel::serialize::ToSql<$diesel_type, DB> for $type
             where
                 DB: diesel::backend::Backend,
@@ -329,7 +327,6 @@ mod id_type {
                 }
             }
 
-            #[cfg(feature = "diesel")]
             impl<DB> diesel::deserialize::FromSql<$diesel_type, DB> for $type
             where
                 DB: diesel::backend::Backend,
@@ -347,10 +344,10 @@ mod id_type {
     }
 
     /// Implements the `Queryable` trait on the specified ID type.
+    #[cfg(feature = "diesel")]
     #[macro_export]
     macro_rules! impl_queryable_id_type {
         ($type:ty, $diesel_type:ty) => {
-            #[cfg(feature = "diesel")]
             impl<DB> diesel::Queryable<$diesel_type, DB> for $type
             where
                 DB: diesel::backend::Backend,

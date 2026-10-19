@@ -11,6 +11,7 @@ use crate::errors;
 pub struct GlobalCustomerId(super::GlobalId);
 
 // Database related implementations so that this field can be used directly in the database tables
+#[cfg(feature = "diesel")]
 crate::impl_queryable_id_type!(GlobalCustomerId);
 
 // NOTE: We intentionally do NOT use `impl_to_sql_from_sql_global_id_type!` here because that
