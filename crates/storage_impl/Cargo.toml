@@ -26,9 +26,9 @@ redis-rs = ["redis_interface/redis-rs"]
 [dependencies]
 # First Party dependencies
 api_models = { version = "0.1.0", path = "../api_models" }
-common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils" }
-common_types = { version = "0.1.0", path = "../common_types" }
+common_enums = { version = "0.1.0", path = "../common_enums", features = ["diesel"] }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["diesel"] }
+common_types = { version = "0.1.0", path = "../common_types", features = ["diesel"] }
 deja = { git = "https://github.com/juspay/deja", rev = "6ace82f8d37c7c5703f9636a608dd8d85a8f6953", optional = true, default-features = false }
 diesel_models = { version = "0.1.0", path = "../diesel_models", default-features = false }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
