@@ -1,6 +1,9 @@
 //! Google Cloud Storage, accessed through its XML API's Amazon S3 interoperability.
 
-use super::s3::{S3Endpoint, S3Storage};
+use super::{
+    s3::{S3Endpoint, S3Storage},
+    InvalidStorageConfig,
+};
 
 /// The XML API endpoint of Google Cloud Storage, the same for every bucket location.
 const GCS_XML_API_ENDPOINT: &str = "https://storage.googleapis.com";
@@ -26,9 +29,11 @@ pub struct GcsObjectStorageConfig {
 impl GcsObjectStorageConfig {
     /// Validates the Google Cloud Storage configuration, returning a description of the first
     /// problem.
-    pub fn validate(&self) -> Result<(), &'static str> {
+    pub fn validate(&self) -> Result<(), InvalidStorageConfig> {
         if self.bucket_name.trim().is_empty() {
-            return Err("gcs object storage bucket name must not be empty");
+            return Err(InvalidStorageConfig(
+                "gcs object storage bucket name must not be empty",
+            ));
         }
 
         if self
@@ -36,7 +41,9 @@ impl GcsObjectStorageConfig {
             .as_deref()
             .is_some_and(|region| region.trim().is_empty())
         {
-            return Err("gcs object storage region must not be empty when set");
+            return Err(InvalidStorageConfig(
+                "gcs object storage region must not be empty when set",
+            ));
         }
 
         Ok(())
@@ -86,11 +93,15 @@ mod tests {
         assert_eq!(config("bucket", Some("asia-south1")).validate(), Ok(()));
         assert_eq!(
             config(" ", None).validate(),
-            Err("gcs object storage bucket name must not be empty")
+            Err(InvalidStorageConfig(
+                "gcs object storage bucket name must not be empty"
+            ))
         );
         assert_eq!(
             config("bucket", Some("")).validate(),
-            Err("gcs object storage region must not be empty when set")
+            Err(InvalidStorageConfig(
+                "gcs object storage region must not be empty when set"
+            ))
         );
     }
 

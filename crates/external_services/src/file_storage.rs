@@ -1,9 +1,6 @@
 //! Module for managing file storage operations with support for multiple storage schemes.
 
-use std::{
-    fmt::{Display, Formatter},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use common_utils::errors::CustomResult;
 
@@ -59,17 +56,15 @@ impl FileStorageConfig {
     pub fn validate(&self) -> Result<(), InvalidFileStorageConfig> {
         match self {
             #[cfg(feature = "aws_s3")]
-            Self::AwsS3 { aws_s3 } => aws_s3.validate().map_err(InvalidFileStorageConfig),
+            Self::AwsS3 { aws_s3 } => aws_s3.validate()?,
             #[cfg(feature = "oci_object_storage")]
-            Self::OciObjectStorage { oci_object_storage } => oci_object_storage
-                .validate()
-                .map_err(InvalidFileStorageConfig),
+            Self::OciObjectStorage { oci_object_storage } => oci_object_storage.validate()?,
             #[cfg(feature = "gcs_object_storage")]
-            Self::GcsObjectStorage { gcs_object_storage } => gcs_object_storage
-                .validate()
-                .map_err(InvalidFileStorageConfig),
-            Self::FileSystem => Ok(()),
+            Self::GcsObjectStorage { gcs_object_storage } => gcs_object_storage.validate()?,
+            Self::FileSystem => {}
         }
+
+        Ok(())
     }
 
     /// Retrieves the appropriate file storage client based on the file storage configuration.
@@ -223,15 +218,16 @@ impl<'a> MultipartUpload<'a> {
 }
 
 /// Error thrown when the file storage config is invalid
-#[derive(Debug, Clone)]
-pub struct InvalidFileStorageConfig(&'static str);
-
-impl std::error::Error for InvalidFileStorageConfig {}
-
-impl Display for InvalidFileStorageConfig {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "file_storage: {}", self.0)
-    }
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum InvalidFileStorageConfig {
+    /// The configuration of a cloud storage backend is invalid.
+    #[cfg(any(
+        feature = "aws_s3",
+        feature = "oci_object_storage",
+        feature = "gcs_object_storage"
+    ))]
+    #[error("file_storage: {0}")]
+    CloudStorage(#[from] cloud_services::storage::InvalidStorageConfig),
 }
 
 /// Represents errors that can occur during file storage operations.
