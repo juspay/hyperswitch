@@ -25976,6 +25976,14 @@
             ],
             "nullable": true
           },
+          "customer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
+          },
           "shipping": {
             "allOf": [
               {
@@ -26811,6 +26819,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
               }
             ],
             "nullable": true
@@ -31410,6 +31426,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
               }
             ],
             "nullable": true

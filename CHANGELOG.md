@@ -4,6 +4,43 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.19.0
+
+### Features
+
+- **connector:**
+  - Add Global Payments RealEx routing via unified connector service ([#13980](https://github.com/juspay/hyperswitch/pull/13980)) ([`9209eb9`](https://github.com/juspay/hyperswitch/commit/9209eb9c165f71461163c1fa595a7bd5baa75baf))
+  - [Nuvei] enable UCS ThreeDS, SetupMandate, RepeatPayment and IncomingWebhook ([#14316](https://github.com/juspay/hyperswitch/pull/14316)) ([`8b153c5`](https://github.com/juspay/hyperswitch/commit/8b153c59f2d2b6e38abb98439c39094919b9d2e2))
+- **payment-methods:** Generate fingerprint_id scoped at merchant level ([#14392](https://github.com/juspay/hyperswitch/pull/14392)) ([`40033eb`](https://github.com/juspay/hyperswitch/commit/40033ebc5c5dbdfe3e9a01093c2cf93fb98275e4))
+- **revenue_recovery:** Add cancel invoice action and cancel API for v2 ([#14716](https://github.com/juspay/hyperswitch/pull/14716)) ([`2c9a35e`](https://github.com/juspay/hyperswitch/commit/2c9a35e07a83b83a1edf93d4a1ee7c967cff6bf7))
+- **router:** Separate payment and payout blocklists ([#14722](https://github.com/juspay/hyperswitch/pull/14722)) ([`697eb32`](https://github.com/juspay/hyperswitch/commit/697eb32304d24f31feb5d6138a169e4676977308))
+- **superposition:** Add provider merchant_id as dimension filter to SDK config APIs ([#14748](https://github.com/juspay/hyperswitch/pull/14748)) ([`5d6a6f1`](https://github.com/juspay/hyperswitch/commit/5d6a6f1e6a6f4e35ad6bbd50475be1ea8c9ffa02))
+- **webhooks:** Reject non-mTLS webhooks for connectors that require mTLS ([#14787](https://github.com/juspay/hyperswitch/pull/14787)) ([`e797b36`](https://github.com/juspay/hyperswitch/commit/e797b36a1af204f4e4820c4938c6e4b10e9ae4fa))
+
+### Bug Fixes
+
+- **cypress:** Fixed autoretries, setupretries and truelayer bankredirect ([#14669](https://github.com/juspay/hyperswitch/pull/14669)) ([`5da1205`](https://github.com/juspay/hyperswitch/commit/5da12054874a0ffaf83c83a625a88b5a92834cdf))
+- **payouts:**
+  - Validate client secret during confirmation ([#14820](https://github.com/juspay/hyperswitch/pull/14820)) ([`f1144ec`](https://github.com/juspay/hyperswitch/commit/f1144ec5c7e38b3b048fe797fad57e743041f345))
+  - Surface payout metadata parse errors ([#14846](https://github.com/juspay/hyperswitch/pull/14846)) ([`b925e5c`](https://github.com/juspay/hyperswitch/commit/b925e5cc79b3020caffaafc776e40c7d2adec0d6))
+- **refunds:** Add missing indexes ([#14454](https://github.com/juspay/hyperswitch/pull/14454)) ([`926d41f`](https://github.com/juspay/hyperswitch/commit/926d41f45af836d3db507f6402f398a10f34d770))
+- **revenue-recovery:** Handle custom billing engine retries without record-back ([#14850](https://github.com/juspay/hyperswitch/pull/14850)) ([`cd57941`](https://github.com/juspay/hyperswitch/commit/cd57941c09fbe48d660b100618d6e7f2e215b752))
+- **webhooks:** Preserve setup payment id for Santander mandate API events ([#14814](https://github.com/juspay/hyperswitch/pull/14814)) ([`9432560`](https://github.com/juspay/hyperswitch/commit/943256054fc0e634fccf1044cf09d90b825b55ab))
+
+### Refactors
+
+- **metrics:** Add storage layer and scheduler execution metrics ([#13963](https://github.com/juspay/hyperswitch/pull/13963)) ([`8d20dc9`](https://github.com/juspay/hyperswitch/commit/8d20dc99d048cc24218efb09d3ddc9155b2b76e3))
+
+### Testing
+
+- **cypress:**
+  - Add Zift void payment sync coverage ([#14735](https://github.com/juspay/hyperswitch/pull/14735)) ([`d4e11d9`](https://github.com/juspay/hyperswitch/commit/d4e11d933a90ed6c02a01f2b4fe6a23d1a3e90e9))
+  - Add capture method auto-fallback coverage for trustpay ([#14705](https://github.com/juspay/hyperswitch/pull/14705)) ([`d41d8aa`](https://github.com/juspay/hyperswitch/commit/d41d8aaf950dab11febced14a8162d85bd9e8605))
+
+**Full Changelog:** [`2026.10.16.0...2026.10.19.0`](https://github.com/juspay/hyperswitch/compare/2026.10.16.0...2026.10.19.0)
+
+- - -
+
 ## 2026.10.16.0
 
 ### Features
