@@ -291,15 +291,27 @@ pub(super) async fn construct_payout_router_data_common<F>(
         match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
             |err| report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err),
         )? {
-            api_models::enums::PayoutConnectors::Stripe => {
-                payout_data.payouts.metadata.as_ref().and_then(|metadata| {
-                    metadata
-                        .peek()
-                        .to_owned()
-                        .parse_value("PayoutVendorAccountDetails")
-                        .ok()
+            api_models::enums::PayoutConnectors::Stripe => payout_data
+                .payouts
+                .metadata
+                .as_ref()
+                // Parse only metadata that carries vendor details; unrelated
+                // merchant metadata keeps the previous behavior and is treated
+                // as absent.
+                .filter(|metadata| {
+                    let value = metadata.peek();
+                    value.get("vendor_details").is_some()
+                        || value.get("individual_details").is_some()
                 })
-            }
+                .map(|metadata| {
+                    serde_json::from_value::<PayoutVendorAccountDetails>(metadata.peek().to_owned())
+                        .map_err(|error| {
+                            report!(errors::ApiErrorResponse::InvalidRequestData {
+                                message: format!("Invalid payout metadata: {error}"),
+                            })
+                        })
+                })
+                .transpose()?,
             _ => None,
         };
 

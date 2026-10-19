@@ -54,7 +54,7 @@ jobs:
 
   check-msrv:
     name: Check compilation on MSRV toolchain
-    runs-on: hyperswitch-runners
+    runs-on: hyperswitch-runners-merge
 
     env:
       # sccache restored as one archive instead of S3 — avoids per-object round trips.
