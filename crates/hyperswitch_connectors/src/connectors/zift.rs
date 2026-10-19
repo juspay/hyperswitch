@@ -203,14 +203,35 @@ impl ConnectorCommon for Zift {
         let response: zift::ZiftErrorResponse = serde_urlencoded::from_bytes(&res.response)
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        if res.response.is_empty() {
+            router_env::logger::info!(
+                "Zift connector returned an empty response body for error response"
+            );
+        } else if response.response_code.is_none()
+            || response.response_message.is_none()
+            || response.failure_code.is_none()
+            || response.failure_message.is_none()
+        {
+            router_env::logger::info!(
+                "Zift connector returned an unexpected error response: {:?}",
+                String::from_utf8_lossy(&res.response)
+            );
+        }
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.response_code,
-            message: response.response_message.clone(),
-            reason: Some(response.response_message),
+            code: response
+                .response_code
+                .or(response.failure_code)
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .response_message
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response.response_message.clone(),
             attempt_status: None,
             connector_transaction_id: None,
             connector_response_reference_id: None,
