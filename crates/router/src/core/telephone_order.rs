@@ -4,14 +4,13 @@ use std::collections::HashMap;
 
 use common_utils::events::ApiEventMetric;
 use hyperswitch_domain_models::payments::HeaderPayload;
-use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use crate::{
     core::{
         api_locking,
         errors::{self, RouterResponse},
-        payments, utils as core_utils,
+        payments,
     },
     routes::{app::ReqState, lock_utils, SessionState},
     services::{
@@ -31,19 +30,19 @@ pub mod error_codes {
     pub const PAYMENT_NOT_COMPLETED: &str = "PAYMENT_NOT_COMPLETED";
     pub const PROCESSING_ERROR: &str = "PROCESSING_ERROR";
     pub const DUPLICATE_TRANSACTION: &str = "DUPLICATE_TRANSACTION";
+    /// The charge reached the connector with no final outcome. Kept apart from a decline so an
+    /// IVR can be told not to ask for another card: the first authorization may be standing.
+    pub const PAYMENT_PENDING: &str = "PAYMENT_PENDING";
 }
 
-/// How this core reads Hyperswitch ids out of a provider's request: a flat map of masked values,
-/// which is the only extension point an IVR provider tends to offer. Declared here rather than in
-/// `api_models` because it is what the core reads, not a field every provider must send.
-pub type Parameters = HashMap<String, Secret<String>>;
+pub type Parameters = HashMap<String, String>;
 
-/// Why a charge is not reaching the connector, or did not end up paid, in terms the provider can
-/// read back to the caller.
+/// Why a charge failed, in terms the provider can read back to the caller.
 #[derive(Debug)]
 pub struct Failure {
     pub code: String,
     pub message: String,
+    pub parameters: ResponseParameters,
 }
 
 impl Failure {
@@ -51,7 +50,14 @@ impl Failure {
         Self {
             code: code.into(),
             message: message.into(),
+            parameters: ResponseParameters::new(),
         }
+    }
+
+    /// Only for a failure with a payment behind it; one rejected earlier has nothing to point at.
+    fn with_parameters(mut self, parameters: ResponseParameters) -> Self {
+        self.parameters = parameters;
+        self
     }
 
     /// A failure of ours: reported without detail, investigated from the logs.
@@ -63,23 +69,35 @@ impl Failure {
     }
 }
 
+pub type ResponseParameters = HashMap<String, String>;
+
+/// How a finished payment reads to the caller. Three outcomes, not two: a payment that is not yet
+/// paid is not thereby declined, and the difference decides whether the IVR asks for another card.
+#[derive(Debug)]
+pub enum Outcome {
+    /// Money is secured. An authorization counts — the capture is the merchant's to make.
+    Paid,
+    /// Terminal, and no money moved. Asking the caller for another card is the right next step.
+    Declined(Failure),
+    /// We do not know, or money is held in a state that cannot be read back. Carries
+    /// [`error_codes::PAYMENT_PENDING`] so a provider can tell it from a decline.
+    Indeterminate(Failure),
+}
+
 /// The half of the payment every adapter fills in the same way, read out of [`Parameters`].
 pub struct Context {
     /// `None` falls back to the merchant's default profile.
     pub profile_id: Option<common_utils::id_type::ProfileId>,
-    /// What makes a provider's retry idempotent: the retry collides on `(payment_id, merchant_id)`
-    /// instead of charging again.
+    /// What makes a provider's retry idempotent: it collides on `(payment_id, merchant_id)`
+    /// instead of charging again. Settled by [`TelephoneOrderAdapter::resolve_payment_id`].
     pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
-    /// The parameters themselves, carried through for reconciliation.
     pub metadata: Option<serde_json::Value>,
 }
 
 impl Context {
     /// The shared fields, for an adapter to fill the rest in with `..context.payments_request()`.
-    ///
-    /// A card read out over the phone is confirmed in the same call, captured automatically,
-    /// flagged as a telephone order, and never sent through 3DS — a caller has no browser.
+    /// Confirmed, auto-captured, flagged a telephone order, never 3DS — a caller has no browser.
     pub fn payments_request(self) -> api_models::payments::PaymentsRequest {
         api_models::payments::PaymentsRequest {
             confirm: Some(true),
@@ -111,9 +129,8 @@ pub enum TelephoneOrderProvider {
 /// methods and nothing else; [`charge`](TelephoneOrderAdapter::charge) is the same for all of them.
 #[async_trait::async_trait]
 pub trait TelephoneOrderAdapter {
-    /// The provider's request body. Deserialized in the route from the raw bytes, then serialized
-    /// into the `ApiEvent` log through `masked_serialize` — which is the reason every sensitive
-    /// field on it has to be a `Secret`.
+    /// The provider's request body. Serialized into the `ApiEvent` log through `masked_serialize`,
+    /// so every sensitive field on it must be a `Secret`; [`Parameters`] is the exception.
     type Request: serde::de::DeserializeOwned
         + serde::Serialize
         + std::fmt::Debug
@@ -124,13 +141,15 @@ pub trait TelephoneOrderAdapter {
     /// What the provider expects back, on success and on failure alike.
     type Response: serde::Serialize + std::fmt::Debug + ApiEventMetric + Send;
 
-    /// The provider's identifier for the attempt. Logged to line our records up with theirs, not
-    /// used as a key — providers do not agree on what makes one unique.
+    /// The provider's identifier for the attempt. Logged, not used as a key.
     fn transaction_reference(request: &Self::Request) -> String;
 
-    /// Where the provider carries the IVR's [`Parameters`]. Returning a reference means a provider
-    /// has to hold such a map; one carrying those ids as typed fields would need a `Cow` or a typed
-    /// getter instead.
+    /// The provider's own value that stays the same across *its* retries: the payment id derives
+    /// from it, so a retry collides instead of charging again. `None` means no such protection.
+    fn idempotency_reference(request: &Self::Request) -> Option<&str>;
+
+    /// Where the provider carries the IVR's [`Parameters`]. A reference, so a provider holding
+    /// those ids as typed fields would need a `Cow` or a typed getter instead.
     fn parameters(request: &Self::Request) -> Option<&Parameters>;
 
     /// Maps the provider's own fields — amount, payment method, descriptors — onto the payment.
@@ -139,35 +158,48 @@ pub trait TelephoneOrderAdapter {
         context: Context,
     ) -> Result<api_models::payments::PaymentsRequest, Failure>;
 
-    fn success_response(payment: &api_models::payments::PaymentsResponse) -> Self::Response;
+    fn success_response(
+        payment: &api_models::payments::PaymentsResponse,
+        parameters: ResponseParameters,
+    ) -> Self::Response;
 
     fn failure_response(failure: Failure) -> Self::Response;
 
-    /// The credential check this provider's requests go through; HTTP Basic carrying a Hyperswitch
-    /// API key by default. Boxed rather than an associated type because stable Rust has no
-    /// associated-type defaults, so an associated type would cost every provider a declaration.
-    ///
-    /// Auth sees headers and state, never the body, so a provider that signs its payload needs a
-    /// source verification step after auth instead.
+    /// The credential check these requests go through; HTTP Basic carrying a Hyperswitch API key
+    /// by default. Auth never sees the body, so `parameters.profile_id` is read here and handed in.
     fn authenticator(
         merchant_id: common_utils::id_type::MerchantId,
+        request: &Self::Request,
     ) -> Box<dyn AuthenticateAndFetch<AuthenticationData, SessionState>> {
-        Box::new(ApiKeyBasicAuthWithMerchantIdFromRoute(merchant_id))
+        Box::new(ApiKeyBasicAuthWithMerchantIdFromRoute {
+            merchant_id,
+            profile_id: extract_id(Self::parameters(request), "profile_id")
+                // An unusable id is rejected with `INVALID_REQUEST` in `charge`.
+                .ok()
+                .flatten(),
+        })
     }
 
-    /// Locks the payment the IVR named, so a provider's retry waits for the charge already in
-    /// flight instead of racing it. Computed in the route, before the body is handed to
-    /// `server_wrap`, the same way `payments_create` does it.
-    ///
-    /// Without `parameters.payment_id` there is nothing to lock on: the id is then generated per
-    /// request, so a lock on it could never contend. Correctness there rests on the
-    /// `(payment_id, merchant_id)` key, which `PaymentCreate` hits before any connector call.
+    /// The payment id this request becomes, settled in one place because the route locks on it and
+    /// the core puts it on the payment. `parameters.payment_id` wins; else [`derive_payment_id`].
+    fn resolve_payment_id(
+        request: &Self::Request,
+    ) -> Result<Option<common_utils::id_type::PaymentId>, Failure> {
+        if let Some(supplied) = extract_id(Self::parameters(request), "payment_id")? {
+            return Ok(Some(supplied));
+        }
+
+        Ok(Self::idempotency_reference(request).and_then(derive_payment_id))
+    }
+
+    /// Locks the payment this request becomes, so a provider's retry waits for the charge in
+    /// flight instead of racing it. `NotApplicable` only when there is no id to lock on at all.
     fn locking_action<F>(request: &Self::Request, flow: F) -> api_locking::LockAction
     where
         F: router_env::types::FlowMetric,
         lock_utils::ApiIdentifier: From<F>,
     {
-        extract_id::<common_utils::id_type::PaymentId>(Self::parameters(request), "payment_id")
+        Self::resolve_payment_id(request)
             // An unusable id is rejected with `INVALID_REQUEST` in `charge`; there is no key here.
             .ok()
             .flatten()
@@ -196,11 +228,8 @@ pub trait TelephoneOrderAdapter {
         ApplicationResponse::Json(Self::failure_response(failure))
     }
 
-    /// Creates and confirms the payment the provider is asking for.
-    ///
-    /// Failures are answered with a `200` carrying an error code rather than propagated, so the
-    /// provider reads a result instead of an opaque 5xx. Retries are unaffected: they fire only
-    /// when we fail to respond in time, and an error delivered promptly is still a response.
+    /// Creates and confirms the payment the provider is asking for. Failures are answered with a
+    /// `200` carrying an error code, so the provider reads a result instead of an opaque 5xx.
     async fn charge(
         state: SessionState,
         req_state: ReqState,
@@ -209,7 +238,12 @@ pub trait TelephoneOrderAdapter {
     ) -> RouterResponse<Self::Response> {
         let transaction_reference = Self::transaction_reference(&request);
 
-        let context = match build_context(&state, &auth, Self::parameters(&request)).await {
+        let payment_id = match Self::resolve_payment_id(&request) {
+            Ok(payment_id) => payment_id,
+            Err(failure) => return Ok(Self::reject(&transaction_reference, failure)),
+        };
+
+        let context = match build_context(&auth, Self::parameters(&request), payment_id) {
             Ok(context) => context,
             Err(failure) => return Ok(Self::reject(&transaction_reference, failure)),
         };
@@ -233,8 +267,8 @@ pub trait TelephoneOrderAdapter {
             payments::PaymentData<api::Authorize>,
         >(
             state.clone(),
-            req_state,
-            auth.platform,
+            req_state.clone(),
+            auth.platform.clone(),
             profile_id,
             payments::PaymentCreate,
             payments_request,
@@ -260,30 +294,71 @@ pub trait TelephoneOrderAdapter {
                     Failure::processing_error(),
                 ));
             }
-            Err(error) => {
-                let failure = classify_core_error(&transaction_reference, &error);
-                return Ok(Self::reject(&transaction_reference, failure));
-            }
+            // The one error with a payment behind it. Answered with that charge's own outcome, so
+            // the retry does not read as a decline and send the caller round for a second card.
+            Err(error) => match error.current_context() {
+                errors::ApiErrorResponse::DuplicatePayment { payment_id } => {
+                    logger::info!(
+                        transaction_reference = %transaction_reference,
+                        payment_id = %payment_id.get_string_repr(),
+                        "A charge that already exists was retried; replaying its outcome"
+                    );
+
+                    match retrieve_payment(&state, req_state, &auth, payment_id).await {
+                        Ok(payment) => payment,
+                        Err(failure) => {
+                            return Ok(Self::reject(&transaction_reference, failure));
+                        }
+                    }
+                }
+                _ => {
+                    let failure = classify_core_error(&transaction_reference, &error);
+                    return Ok(Self::reject(&transaction_reference, failure));
+                }
+            },
         };
 
-        Ok(match payment_outcome(&payment) {
-            Ok(()) => ApplicationResponse::Json(Self::success_response(&payment)),
-            Err(failure) => Self::reject(&transaction_reference, failure),
-        })
+        Ok(Self::answer(&transaction_reference, &payment))
+    }
+
+    /// Reads a finished payment back to the provider.
+    fn answer(
+        transaction_reference: &str,
+        payment: &api_models::payments::PaymentsResponse,
+    ) -> ApplicationResponse<Self::Response> {
+        match payment_outcome(payment) {
+            Outcome::Paid => ApplicationResponse::Json(Self::success_response(
+                payment,
+                outcome_parameters(payment),
+            )),
+            Outcome::Declined(failure) => Self::reject(transaction_reference, failure),
+            // Logged louder than a decline: nobody has to act on a declined card, and somebody
+            // has to act on an authorization the caller was not told about.
+            Outcome::Indeterminate(failure) => {
+                logger::error!(
+                    transaction_reference = %transaction_reference,
+                    payment_id = %payment.payment_id.get_string_repr(),
+                    status = %payment.status,
+                    "Telephone order charge has no outcome that can be read to the caller; \
+                     funds may be held at the connector"
+                );
+                Self::reject(transaction_reference, failure)
+            }
+        }
     }
 }
 
-/// Reads the ids the IVR passed through, checking the profile among them belongs to this merchant.
-async fn build_context(
-    state: &SessionState,
+/// Reads the ids the IVR passed through. The profile was resolved by authentication, the payment
+/// id by [`TelephoneOrderAdapter::resolve_payment_id`] — which the route needed first, to lock on.
+fn build_context(
     auth: &AuthenticationData,
     parameters: Option<&Parameters>,
+    payment_id: Option<common_utils::id_type::PaymentId>,
 ) -> Result<Context, Failure> {
     Ok(Context {
-        profile_id: resolve_profile_id(state, auth, parameters).await?,
-        payment_id: extract_id(parameters, "payment_id")?,
-        // The customer is a convenience, so an unusable one is dropped rather than failing a
-        // charge the caller is waiting on.
+        profile_id: resolve_profile_id(auth, parameters)?,
+        payment_id,
+        // A convenience: an unusable one is dropped rather than failing the charge.
         customer_id: extract_id(parameters, "customer_id")
             .inspect_err(|failure| {
                 logger::warn!(
@@ -297,41 +372,21 @@ async fn build_context(
     })
 }
 
-/// Resolves `parameters.profile_id` against the authenticated merchant. These endpoints are
-/// merchant level — an API key is scoped to a merchant — so the profile arrives in the parameters,
-/// and its absence leaves the payment flow to fall back to the default profile.
-async fn resolve_profile_id(
-    state: &SessionState,
+/// The profile the IVR named, as authentication resolved it. Parsed again here so a mangled id is
+/// rejected rather than dropped by the route and replaced by the default profile.
+fn resolve_profile_id(
     auth: &AuthenticationData,
     parameters: Option<&Parameters>,
 ) -> Result<Option<common_utils::id_type::ProfileId>, Failure> {
-    let Some(requested) = extract_id::<common_utils::id_type::ProfileId>(parameters, "profile_id")?
-    else {
-        return Ok(None);
-    };
+    extract_id::<common_utils::id_type::ProfileId>(parameters, "profile_id")?;
 
-    // Merchant-scoped lookup, so another merchant's profile is "not found" rather than usable.
-    core_utils::validate_and_get_business_profile(
-        state.store.as_ref(),
-        auth.platform.get_processor(),
-        Some(&requested),
-    )
-    .await
-    .map_err(|error| {
-        logger::warn!("Generic pay profile validation failed: {error:?}");
-        Failure::new(
-            error_codes::PROFILE_NOT_FOUND,
-            format!(
-                "profile_id {} is not available for this merchant",
-                requested.get_string_repr()
-            ),
-        )
-    })
-    .map(|profile| profile.map(|profile| profile.get_id().clone()))
+    Ok(auth
+        .profile
+        .as_ref()
+        .map(|profile| profile.get_id().clone()))
 }
 
-/// Reads one Hyperswitch id out of the parameters. An unusable value is rejected rather than
-/// ignored: dropping an id the merchant meant to pass is worse than a rejection they can see.
+/// Reads one Hyperswitch id out of the parameters. An unusable value is rejected, not ignored.
 fn extract_id<I>(parameters: Option<&Parameters>, key: &str) -> Result<Option<I>, Failure>
 where
     I: TryFrom<std::borrow::Cow<'static, str>>,
@@ -341,7 +396,7 @@ where
         return Ok(None);
     };
 
-    I::try_from(std::borrow::Cow::Owned(value.peek().clone()))
+    I::try_from(std::borrow::Cow::Owned(value.clone()))
         .map(Some)
         .map_err(|error| {
             Failure::new(
@@ -351,7 +406,8 @@ where
         })
 }
 
-/// Carries the IVR's parameters through to the payment, for reconciliation.
+/// Carries the IVR's parameters through to the payment, for reconciliation. Lands in
+/// `payment_intent.metadata` unmasked — returned by payments retrieve, sent in webhooks.
 fn build_metadata(parameters: Option<&Parameters>) -> Option<serde_json::Value> {
     let parameters = parameters.filter(|parameters| !parameters.is_empty())?;
 
@@ -382,24 +438,123 @@ fn finalize_payments_request(
     Ok(payments_request)
 }
 
+/// One id per provider attempt, shared by its retries. Derived, not generated: Twilio resends the
+/// same body when we miss its budget, so a fresh id would charge the card again. The reference is
+/// hashed because it is untrusted text, and kept a pure function so route and core agree.
+fn derive_payment_id(reference: &str) -> Option<common_utils::id_type::PaymentId> {
+    use common_utils::crypto::GenerateDigest;
+
+    let digest = common_utils::crypto::Sha256
+        .generate_digest(reference.as_bytes())
+        .inspect_err(|error| {
+            logger::error!("Could not derive a payment_id for a telephone order: {error:?}")
+        })
+        .ok()?;
+
+    // `pay_` is what every payment id in this repo carries, generated or derived; 32 hex
+    // characters is half the digest, well inside the 64 a `PaymentId` allows. Nothing stops a
+    // merchant choosing this exact string for a payment of their own — the prefix is a
+    // convention, not a namespace — but 128 bits of digest makes landing on one by accident not a
+    // thing that happens.
+    common_utils::id_type::PaymentId::wrap(format!("pay_{}", hex::encode(digest.get(..16)?))).ok()
+}
+
+/// Reads back the payment a retry collided with, so the collision answers with the original
+/// outcome rather than a decline. Not force-synced: the lock means that charge already finished.
+async fn retrieve_payment(
+    state: &SessionState,
+    req_state: ReqState,
+    auth: &AuthenticationData,
+    payment_id: &common_utils::id_type::PaymentId,
+) -> Result<api_models::payments::PaymentsResponse, Failure> {
+    let response = Box::pin(payments::payments_core::<
+        api::PSync,
+        api::PaymentsResponse,
+        _,
+        _,
+        _,
+        payments::PaymentData<api::PSync>,
+    >(
+        state.clone(),
+        req_state,
+        auth.platform.clone(),
+        None,
+        payments::operations::PaymentStatus,
+        api::PaymentsRetrieveRequest {
+            resource_id: api_models::payments::PaymentIdType::PaymentIntentId(payment_id.clone()),
+            merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
+            force_sync: false,
+            ..Default::default()
+        },
+        services::api::AuthFlow::Merchant,
+        payments::CallConnectorAction::Avoid,
+        None,
+        None,
+        HeaderPayload::default(),
+        None,
+    ))
+    .await;
+
+    match response {
+        Ok(ApplicationResponse::Json(payment))
+        | Ok(ApplicationResponse::JsonWithHeaders((payment, _))) => Ok(payment),
+        // The payment exists, so failing to read it is ours. Still not a decline: the first charge
+        // stands either way, and a decline would send the caller round for another card.
+        other => {
+            logger::error!(
+                payment_id = %payment_id.get_string_repr(),
+                "Could not read back the payment a telephone order retry collided with: {other:?}"
+            );
+            Err(Failure::new(
+                error_codes::DUPLICATE_TRANSACTION,
+                "A payment already exists for this payment_id",
+            )
+            .with_parameters(ResponseParameters::from([(
+                "hyperswitch_payment_id".to_string(),
+                payment_id.get_string_repr().to_owned(),
+            )])))
+        }
+    }
+}
+
 /// Reads a payments core error back as something the provider can act on.
 fn classify_core_error(
     transaction_reference: &str,
     error: &error_stack::Report<errors::ApiErrorResponse>,
 ) -> Failure {
     match error.current_context() {
-        // A retry of a charge we already hold: the insert collided, so the card was not authorized
-        // again and the first payment may well have succeeded. Kept apart from a decline.
-        errors::ApiErrorResponse::DuplicatePayment { .. } => {
-            logger::info!(
+        // `PaymentCreate`'s merchant-scoped profile lookup, which rejects a `parameters.profile_id`
+        // that is not this merchant's — an IVR configuration mistake, not a failure of ours.
+        errors::ApiErrorResponse::ProfileNotFound { id } => {
+            logger::warn!(
                 transaction_reference = %transaction_reference,
-                "A charge that already exists was retried; not authorizing it again"
+                "Telephone order named a profile the merchant does not have: {id}"
             );
             Failure::new(
-                error_codes::DUPLICATE_TRANSACTION,
-                "A payment already exists for this payment_id",
+                error_codes::PROFILE_NOT_FOUND,
+                format!("profile_id {id} is not available for this merchant"),
             )
         }
+        // Kept apart from `PROCESSING_ERROR`: a mistyped expiry is worth re-prompting for, an
+        // outage is not. The core's message names the field to ask for again.
+        errors::ApiErrorResponse::PreconditionFailed { message }
+        | errors::ApiErrorResponse::InvalidRequestData { message } => {
+            invalid_request(transaction_reference, message.clone())
+        }
+        errors::ApiErrorResponse::InvalidDataValue { field_name } => {
+            invalid_request(transaction_reference, format!("{field_name} is not valid"))
+        }
+        errors::ApiErrorResponse::MissingRequiredField { field_name } => {
+            invalid_request(transaction_reference, format!("{field_name} is required"))
+        }
+        errors::ApiErrorResponse::InvalidDataFormat {
+            field_name,
+            expected_format,
+        } => invalid_request(
+            transaction_reference,
+            format!("{field_name} is not in the expected format: {expected_format}"),
+        ),
+
         // A failure we cannot classify is reported as a decline and investigated from the logs.
         _ => {
             logger::error!(
@@ -411,28 +566,112 @@ fn classify_core_error(
     }
 }
 
-/// Whether a finished payment is one we can report to the caller as paid.
-fn payment_outcome(payment: &api_models::payments::PaymentsResponse) -> Result<(), Failure> {
+/// A rejection the caller caused. `warn`, not `error`: a mistyped card is not an incident.
+fn invalid_request(transaction_reference: &str, message: String) -> Failure {
+    logger::warn!(
+        transaction_reference = %transaction_reference,
+        "Telephone order charge was rejected on its input: {message}"
+    );
+    Failure::new(error_codes::INVALID_REQUEST, message)
+}
+
+/// How a finished payment reads to the caller. Matched exhaustively on purpose: a wildcard would
+/// drop every `IntentStatus` Hyperswitch grows next into whichever bucket happens to be last.
+fn payment_outcome(payment: &api_models::payments::PaymentsResponse) -> Outcome {
+    use common_enums::IntentStatus as Status;
+
     match payment.status {
-        common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::PartiallyCaptured => {
-            Ok(())
-        }
-        // Everything else is a failure: a phone call cannot wait out a `Processing` or satisfy a
-        // `RequiresCustomerAction`, so neither is a result we can read to the caller.
-        _ => {
-            let code = payment
-                .unified_code
-                .clone()
-                .or_else(|| payment.error_code.clone())
-                .unwrap_or_else(|| error_codes::PAYMENT_NOT_COMPLETED.to_string());
+        // Captured, in whole or in part.
+        Status::Succeeded | Status::PartiallyCaptured => Outcome::Paid,
 
-            let message = payment
-                .unified_message
-                .clone()
-                .or_else(|| payment.error_message.clone())
-                .unwrap_or_else(|| format!("Payment was not completed: {}", payment.status));
+        // Authorized and not captured — still paid: the funds are held, and a decline here would
+        // leave the authorization standing while the IVR collects another card.
+        Status::RequiresCapture | Status::PartiallyAuthorizedAndRequiresCapture => Outcome::Paid,
 
-            Err(Failure::new(code, message))
+        // Money has moved, or may yet, by an amount that cannot be read back. `CancelledPostCapture`
+        // too: a capture happened before the cancellation.
+        Status::Processing
+        | Status::PartiallyCapturedAndCapturable
+        | Status::PartiallyCapturedAndProcessing
+        | Status::Review
+        | Status::RequiresMerchantAction
+        | Status::Conflicted
+        | Status::CancelledPostCapture => Outcome::Indeterminate(
+            Failure::new(
+                error_codes::PAYMENT_PENDING,
+                format!(
+                    "Payment outcome is not final and funds may be held: {}",
+                    payment.status
+                ),
+            )
+            .with_parameters(outcome_parameters(payment)),
+        ),
+
+        // Terminal with nothing held — the only statuses where another card is the right next step.
+        // `RequiresCustomerAction` included: its redirect is unreachable for a caller on a phone.
+        Status::Failed
+        | Status::Cancelled
+        | Status::Expired
+        | Status::RequiresPaymentMethod
+        | Status::RequiresConfirmation
+        | Status::RequiresCustomerAction => Outcome::Declined(decline_failure(payment)),
+    }
+}
+
+/// A decline in the connector's own terms where it gave them, and in ours where it did not.
+fn decline_failure(payment: &api_models::payments::PaymentsResponse) -> Failure {
+    let code = payment
+        .unified_code
+        .clone()
+        .or_else(|| payment.error_code.clone())
+        .unwrap_or_else(|| error_codes::PAYMENT_NOT_COMPLETED.to_string());
+
+    let message = payment
+        .unified_message
+        .clone()
+        .or_else(|| payment.error_message.clone())
+        .unwrap_or_else(|| format!("Payment was not completed: {}", payment.status));
+
+    Failure::new(code, message).with_parameters(outcome_parameters(payment))
+}
+
+/// What a merchant needs to find this payment again — the only place a `payment_id` reaches the
+/// provider when its own success field is null. An explicit list, never the request's own.
+fn outcome_parameters(payment: &api_models::payments::PaymentsResponse) -> ResponseParameters {
+    let mut parameters = ResponseParameters::from([
+        (
+            "hyperswitch_payment_id".to_string(),
+            payment.payment_id.get_string_repr().to_owned(),
+        ),
+        ("status".to_string(), payment.status.to_string()),
+        (
+            "amount_capturable".to_string(),
+            payment.amount_capturable.get_amount_as_i64().to_string(),
+        ),
+    ]);
+
+    // A missing value drops its key: Twilio raises a JSON mapping exception on a non-string, which
+    // would break the whole response rather than this one field.
+    let optional = [
+        ("connector", payment.connector.clone()),
+        (
+            "connector_transaction_id",
+            payment.connector_transaction_id.clone(),
+        ),
+        ("unified_code", payment.unified_code.clone()),
+        (
+            "amount_received",
+            payment
+                .amount_received
+                .map(|amount| amount.get_amount_as_i64().to_string()),
+        ),
+    ];
+
+    for (key, value) in optional {
+        if let Some(value) = value {
+            parameters.insert(key.to_string(), value);
         }
     }
+
+    parameters
 }

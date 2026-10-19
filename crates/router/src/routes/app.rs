@@ -63,6 +63,8 @@ use super::recovery_webhooks::*;
 use super::refunds;
 #[cfg(feature = "olap")]
 use super::routing;
+#[cfg(all(feature = "oltp", feature = "v1"))]
+use super::telephone_order;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::tokenization as tokenization_routes;
 #[cfg(feature = "olap")]
@@ -78,8 +80,7 @@ use super::{
 };
 #[cfg(feature = "v1")]
 use super::{
-    apple_pay_certificates_migration, blocklist, payment_link, subscription, telephone_order,
-    webhook_events,
+    apple_pay_certificates_migration, blocklist, payment_link, subscription, webhook_events,
 };
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, metrics::PaymentMetricsContext, payments};

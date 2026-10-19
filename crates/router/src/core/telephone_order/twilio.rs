@@ -3,10 +3,11 @@ use api_models::telephone_order::twilio::{
 };
 use common_utils::types::{AmountConvertor, StringMajorUnitForConnector};
 
-use crate::core::telephone_order::{self, Context, Failure, Parameters, TelephoneOrderAdapter};
+use crate::core::telephone_order::{
+    self, Context, Failure, Parameters, ResponseParameters, TelephoneOrderAdapter,
+};
 
-/// What Twilio can ask for that this endpoint does not do; the rest are shared, in
-/// [`telephone_order::error_codes`].
+/// What Twilio can ask for that this endpoint does not do; the rest are shared.
 mod error_codes {
     pub const TOKENIZE_UNSUPPORTED: &str = "TOKENIZE_UNSUPPORTED";
     pub const BANK_ACCOUNT_UNSUPPORTED: &str = "BANK_ACCOUNT_UNSUPPORTED";
@@ -19,8 +20,7 @@ struct TwilioCardDetails {
     card_cvc: hyperswitch_masking::Secret<String>,
 }
 
-/// Twilio's Generic Pay Connector. Everything but the request and response shapes is shared with
-/// the other providers, in [`telephone_order`].
+/// Twilio's Generic Pay Connector. All but the request and response shapes is shared.
 pub struct TwilioGenericPay;
 
 #[async_trait::async_trait]
@@ -30,6 +30,12 @@ impl TelephoneOrderAdapter for TwilioGenericPay {
 
     fn transaction_reference(request: &Self::Request) -> String {
         request.transaction_id.clone()
+    }
+
+    /// Twilio documents `transaction_id` as stable across its own retries — the same value for
+    /// all five retries of one `<Pay>` attempt, a different one for the next caller.
+    fn idempotency_reference(request: &Self::Request) -> Option<&str> {
+        Some(&request.transaction_id)
     }
 
     fn parameters(request: &Self::Request) -> Option<&Parameters> {
@@ -104,12 +110,15 @@ impl TelephoneOrderAdapter for TwilioGenericPay {
         })
     }
 
-    fn success_response(payment: &api_models::payments::PaymentsResponse) -> Self::Response {
-        TwilioGenericPayResponse::success(payment.payment_id.clone())
+    fn success_response(
+        payment: &api_models::payments::PaymentsResponse,
+        parameters: ResponseParameters,
+    ) -> Self::Response {
+        TwilioGenericPayResponse::success(payment.payment_id.clone(), parameters)
     }
 
     fn failure_response(failure: Failure) -> Self::Response {
-        TwilioGenericPayResponse::failure(failure.code, failure.message)
+        TwilioGenericPayResponse::failure(failure.code, failure.message, failure.parameters)
     }
 }
 
