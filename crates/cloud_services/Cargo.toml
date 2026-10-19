@@ -32,7 +32,7 @@ aws-config = { version = "1.5.10", optional = true, features = [
     "behavior-version-latest",
 ] }
 aws-sdk-kms = { version = "1.51.0", optional = true }
-aws-sdk-s3 = { version = "1.65.0", optional = true }
+aws-sdk-s3 = { version = "1.79.0", optional = true }
 aws-sdk-sesv2 = { version = "1.57.0", optional = true }
 aws-sdk-sts = { version = "1.51.0", optional = true }
 aws-smithy-runtime = { version = "1.8.3", optional = true }

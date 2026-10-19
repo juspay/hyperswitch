@@ -145,11 +145,13 @@ bucket_name = "bucket"   # The AWS S3 bucket name for file storage
 # bucket_name = "bucket"   # The OCI Object Storage bucket name for file storage
 
 # Used when file_storage_backend = "gcs_object_storage" (requires the `gcs_object_storage` feature,
-# included in release builds). Files go through Cloud Storage's XML API (S3 interoperability);
-# authenticate with a service account's Cloud Storage HMAC key in AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
+# included in release builds). Files go through Cloud Storage's XML API (S3 interoperability),
+# signed with a service account's Cloud Storage HMAC key (not the AWS credential chain).
 # [file_storage.gcs_object_storage]
-# bucket_name = "bucket"   # The Cloud Storage bucket name for file storage
-# region = "auto"          # Optional; the region requests are signed for (defaults to auto)
+# bucket_name = "bucket"        # The Cloud Storage bucket name for file storage
+# hmac_access_id = "GOOG1E..."  # Access ID of the service account's HMAC key
+# hmac_secret = "secret"        # Secret of the service account's HMAC key
+# region = "auto"               # Optional; the region requests are signed for (defaults to auto)
 
 # This section provides configs for currency conversion api
 [forex_api]
@@ -517,7 +519,9 @@ bucket_name = "bucket"   # AWS S3 bucket name for theme storage
 
 # Used when file_storage_backend = "gcs_object_storage"; see [file_storage.gcs_object_storage].
 # [theme.storage.gcs_object_storage]
-# bucket_name = "bucket"   # Cloud Storage bucket name for theme storage
+# bucket_name = "bucket"        # Cloud Storage bucket name for theme storage
+# hmac_access_id = "GOOG1E..."  # Access ID of the service account's HMAC key
+# hmac_secret = "secret"        # Secret of the service account's HMAC key
 
 [theme.email_config]
 entity_name = "Hyperswitch"                      # Name of the entity to be showed in emails
