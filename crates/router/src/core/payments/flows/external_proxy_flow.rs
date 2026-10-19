@@ -213,15 +213,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         .await
     }
 
-    async fn postprocessing_steps<'a>(
-        self,
-        _state: &SessionState,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Self> {
-        // TODO: Implement external vault proxy postprocessing.
-        Ok(self)
-    }
-
     async fn create_connector_customer<'a>(
         &self,
         state: &SessionState,

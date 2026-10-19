@@ -25,6 +25,11 @@
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 // commands.js or your custom support file
+import {
+  connectorDetails as commonConnectorDetails,
+  integrationTypeMismatchMessage,
+  OFFER_QUOTE_ID_PLACEHOLDER,
+} from "../e2e/configs/Payment/Commons";
 import getConnectorDetails, {
   CONNECTOR_LISTS,
   defaultErrorHandler,
@@ -42,6 +47,7 @@ import {
   integrationTypeMismatchMessage,
 } from "../e2e/configs/Payment/Commons";
 import { OFFER_QUOTE_ID_PLACEHOLDER } from "../e2e/configs/Payment/Commons";
+import { injectGotymePayoutBankTransfer } from "../e2e/configs/Payout/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
@@ -1279,6 +1285,13 @@ Cypress.Commands.add(
           if (updateBusinessProfileBody.merchant_category_code) {
             expect(response.body.merchant_category_code).to.equal(
               updateBusinessProfileBody.merchant_category_code
+            );
+          }
+          if (
+            updateBusinessProfileBody.auto_fallback_capture_method !== undefined
+          ) {
+            expect(response.body.auto_fallback_capture_method).to.equal(
+              updateBusinessProfileBody.auto_fallback_capture_method
             );
           }
           // Auto-retry specs rely on these flags being persisted on the
@@ -5086,6 +5099,7 @@ Cypress.Commands.add(
     expectedIntentStatus,
     connectedMerchantId,
     unconfirmedPayment = false,
+    allKeysRequired = false,
   }) => {
     const { Configs: configs = {}, Response: resData = {} } = data || {};
 
@@ -5101,9 +5115,14 @@ Cypress.Commands.add(
       headers["x-connected-merchant-id"] = connectedMerchantId;
     }
 
+    // force_sync alone is served from the DB once the attempt is already in a
+    // terminal state, so it won't re-query the connector. all_keys_required=true
+    // forces a genuine connector round-trip regardless of terminal status.
     const queryParams = unconfirmedPayment
       ? "expand_attempts=true"
-      : "force_sync=true&expand_attempts=true";
+      : `force_sync=true&expand_attempts=true${
+          allKeysRequired ? "&all_keys_required=true" : ""
+        }`;
 
     cy.request({
       method: "GET",
@@ -5202,6 +5221,15 @@ Cypress.Commands.add(
               response.body.status,
               "payment status should match stored intent_status"
             ).to.equal(expectedIntentStatus);
+          }
+
+          if (allKeysRequired) {
+            // Proves a real connector round-trip happened (not a cached DB
+            // read) — the field is only populated from a fresh connector call.
+            expect(
+              response.body.whole_connector_response,
+              "whole_connector_response"
+            ).to.be.a("string").and.to.not.be.empty;
           }
 
           if (resData?.body && "applied_offer" in resData.body) {

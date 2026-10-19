@@ -10709,6 +10709,7 @@
         "required": [
           "fingerprint_id",
           "data_kind",
+          "transaction_type",
           "created_at"
         ],
         "properties": {
@@ -10717,6 +10718,9 @@
           },
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/BlocklistTransactionType"
           },
           "created_at": {
             "type": "string",
@@ -10728,6 +10732,14 @@
             "nullable": true
           }
         }
+      },
+      "BlocklistTransactionType": {
+        "type": "string",
+        "description": "The transaction namespace of a blocklist entry, stored as text.",
+        "enum": [
+          "payment",
+          "payout"
+        ]
       },
       "BoletoAdditionalDetails": {
         "type": "object",
@@ -18485,6 +18497,9 @@
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
           },
+          "transaction_type": {
+            "$ref": "#/components/schemas/BlocklistTransactionType"
+          },
           "limit": {
             "type": "integer",
             "format": "int32",
@@ -24871,6 +24886,12 @@
                 "$ref": "#/components/schemas/AcknowledgementStatus"
               }
             ],
+            "nullable": true
+          },
+          "fingerprint_id": {
+            "type": "string",
+            "description": "A merchant-scoped fingerprint of the card, identical for the same card saved against\ndifferent customers of the merchant. Present only when payment method fingerprinting is\nenabled.",
+            "example": "wyH7yWdtaRhxDkVE1cvs",
             "nullable": true
           }
         }

@@ -12,6 +12,7 @@ mod outgoing;
 mod outgoing_v2;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 pub mod recovery_incoming;
+mod source_verification;
 pub mod types;
 pub mod unverified_rate_limit;
 pub mod utils;
