@@ -4367,10 +4367,18 @@ impl
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
+                // proto3 gives the empty string no field presence, so a connector that has
+                // no id to report on an error still sends `Some("")`. Treat it as absent:
+                // otherwise it shadows the real id in the `or_else` fallback below, and
+                // `PaymentAttemptUpdate::ErrorUpdate` goes on to overwrite the stored
+                // `connector_transaction_id` with "" -- discarding the only handle on the
+                // transaction, and defeating the `is_none()` guard in the PaymentsSync
+                // workflow that would otherwise fail a stuck attempt (B033).
                 connector_transaction_id: error_info
                     .connector_details
                     .as_ref()
                     .and_then(|cd| cd.connector_transaction_id.clone())
+                    .filter(|id| !id.is_empty())
                     .or_else(|| connector_transaction_id.get_optional_response_id()),
                 connector_response_reference_id: connector_response_reference_id.clone(),
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
@@ -8746,10 +8754,12 @@ impl transformers::ForeignTryFrom<(payments_grpc::RefundResponse, RefundStatus)>
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status: None,
+                // Empty string means "no id" on the wire -- see B033 above.
                 connector_transaction_id: error_info
                     .connector_details
                     .as_ref()
-                    .and_then(|cd| cd.connector_transaction_id.clone()),
+                    .and_then(|cd| cd.connector_transaction_id.clone())
+                    .filter(|id| !id.is_empty()),
                 connector_response_reference_id: None,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
