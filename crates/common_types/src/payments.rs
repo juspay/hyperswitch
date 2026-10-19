@@ -1073,10 +1073,9 @@ pub enum RecoveryTransactionStatus {
     Charged,
     /// The transaction failed.
     Failure,
-    /// The transaction was charged for a part of the amount.
+    /// The transaction was charged for a part of the amount. The captured amount must be sent
+    /// in `amount_captured`.
     PartialCharged,
-    /// The transaction was charged for a part of the amount and the remaining amount can still be captured.
-    PartialChargedAndChargeable,
 }
 
 impl From<RecoveryTransactionStatus> for common_enums::AttemptStatus {
@@ -1085,9 +1084,6 @@ impl From<RecoveryTransactionStatus> for common_enums::AttemptStatus {
             RecoveryTransactionStatus::Charged => Self::Charged,
             RecoveryTransactionStatus::Failure => Self::Failure,
             RecoveryTransactionStatus::PartialCharged => Self::PartialCharged,
-            RecoveryTransactionStatus::PartialChargedAndChargeable => {
-                Self::PartialChargedAndChargeable
-            }
         }
     }
 }

@@ -58,6 +58,11 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             billing_started_at: Some(data.billing_started_at),
             metadata: data.metadata,
             enable_partial_authorization: data.enable_partial_authorization,
+            customer_present: if data.customer_present {
+                common_enums::PresenceOfCustomerDuringPayment::Present
+            } else {
+                common_enums::PresenceOfCustomerDuringPayment::Absent
+            },
         }
     }
 }
@@ -68,6 +73,7 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
     fn foreign_from(data: &api_models::payments::RecoveryPaymentsCreate) -> Self {
         Self {
             amount: data.amount_details.order_amount().into(),
+            amount_captured: data.amount_captured,
             currency: data.amount_details.currency(),
             merchant_reference_id: data.merchant_reference_id.to_owned(),
             connector_transaction_id: Some(common_utils::types::ConnectorTransactionId::TxnId(
@@ -107,6 +113,7 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             invoice_billing_started_at_time: Some(data.billing_started_at),
             card_info: data.payment_method_data.payment_method_metadata.clone(),
             charge_id: None,
+            billing_address: data.billing.clone(),
         }
     }
 }

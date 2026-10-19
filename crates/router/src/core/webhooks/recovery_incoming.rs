@@ -884,7 +884,7 @@ impl RevenueRecoveryAttempt {
             payment_method_data: api_models::payments::AdditionalPaymentData::Card(Box::new(
                 revenue_recovery_attempt_data.card_info.clone(),
             )),
-            billing: None,
+            billing: revenue_recovery_attempt_data.billing_address.clone(),
         };
 
         let card_issuer = revenue_recovery_attempt_data.card_info.card_issuer.clone();

@@ -256,6 +256,41 @@ pub async fn record_internal_attempt_api(
     }
 }
 
+/// Checks that `amount_captured` agrees with the reported `transaction_status`, so that the
+/// attempt is never recorded with amounts that contradict its status.
+fn validate_recovery_amounts(
+    request: &api_models::payments::RecoveryPaymentsCreate,
+) -> RouterResult<()> {
+    use common_types::payments::RecoveryTransactionStatus;
+
+    let order_amount = common_utils::types::MinorUnit::from(request.amount_details.order_amount());
+    let invalid = |message: &str| {
+        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: message.to_owned(),
+        }))
+    };
+
+    match (request.transaction_status, request.amount_captured) {
+        (RecoveryTransactionStatus::PartialCharged, None) => {
+            invalid("`amount_captured` is required when `transaction_status` is `partial_charged`")
+        }
+        (RecoveryTransactionStatus::PartialCharged, Some(captured))
+            if captured <= common_utils::types::MinorUnit::zero() || captured >= order_amount =>
+        {
+            invalid(
+                "`amount_captured` must be greater than zero and less than the order amount for a `partial_charged` transaction",
+            )
+        }
+        (RecoveryTransactionStatus::Charged, Some(captured)) if captured != order_amount => {
+            invalid("`amount_captured` must be equal to the order amount for a `charged` transaction")
+        }
+        (RecoveryTransactionStatus::Failure, Some(_)) => {
+            invalid("`amount_captured` must not be sent for a `failure` transaction")
+        }
+        _ => Ok(()),
+    }
+}
+
 pub async fn custom_revenue_recovery_core(
     state: SessionState,
     req_state: ReqState,
@@ -263,6 +298,7 @@ pub async fn custom_revenue_recovery_core(
     profile: domain::Profile,
     request: api_models::payments::RecoveryPaymentsCreate,
 ) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
+    validate_recovery_amounts(&request)?;
     let store = state.store.as_ref();
     let payment_merchant_connector_account_id = request.payment_merchant_connector_id.to_owned();
     let profile_id = profile.get_id();

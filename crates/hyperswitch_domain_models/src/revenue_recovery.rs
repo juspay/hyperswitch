@@ -21,6 +21,9 @@ use crate::{
 pub struct RevenueRecoveryAttemptData {
     /// transaction amount against invoice, accepted in minor unit.
     pub amount: util_types::MinorUnit,
+    /// amount captured by the transaction, populated only when the source reports it
+    /// (a partially charged transaction).
+    pub amount_captured: Option<util_types::MinorUnit>,
     /// currency of the transaction
     pub currency: common_enums::Currency,
     /// merchant reference id at billing connector. ex: invoice_id
@@ -63,6 +66,8 @@ pub struct RevenueRecoveryAttemptData {
     pub charge_id: Option<String>,
     /// Additional card details
     pub card_info: api_payments::AdditionalCardInfo,
+    /// Billing address the transaction was made with, if the source reports it.
+    pub billing_address: Option<api_payments::Address>,
 }
 
 /// This is unified struct for Revenue Recovery Invoice Data and it is constructed from billing connectors
@@ -86,6 +91,9 @@ pub struct RevenueRecoveryInvoiceData {
     pub metadata: Option<pii::SecretSerdeValue>,
     /// Allow partial authorization for this payment
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+    /// Whether the customer was present during the payment. Billing connectors only report
+    /// merchant initiated transactions, so they always set this to absent.
+    pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
 }
 
 #[derive(Clone, Debug)]
@@ -155,7 +163,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             billing: data.billing_address.clone(),
             shipping: None,
             customer_id: None,
-            customer_present: Some(common_enums::PresenceOfCustomerDuringPayment::Absent),
+            customer_present: Some(data.customer_present),
             description: None,
             return_url: None,
             setup_future_usage: Some(common_enums::FutureUsage::OffSession),
@@ -194,6 +202,7 @@ impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
             billing_started_at: data.created_at,
             metadata: None,
             enable_partial_authorization: None,
+            customer_present: common_enums::PresenceOfCustomerDuringPayment::Absent,
         }
     }
 }
@@ -214,6 +223,7 @@ impl
         let invoice_details = data.1;
         Self {
             amount: billing_connector_payment_details.amount,
+            amount_captured: None,
             currency: billing_connector_payment_details.currency,
             merchant_reference_id: billing_connector_payment_details
                 .merchant_reference_id
@@ -244,21 +254,31 @@ impl
             charge_id: billing_connector_payment_details.charge_id.clone(),
             invoice_billing_started_at_time: invoice_details.billing_started_at,
             card_info: billing_connector_payment_details.card_info.clone(),
+            billing_address: None,
         }
     }
 }
 
 impl From<&RevenueRecoveryAttemptData> for api_payments::PaymentAttemptAmountDetails {
     fn from(data: &RevenueRecoveryAttemptData) -> Self {
+        // An external attempt is already settled at the processor, so nothing is left to capture.
+        let (amount_captured, amount_capturable) = match data.status {
+            common_enums::AttemptStatus::Charged => (Some(data.amount), util_types::MinorUnit::zero()),
+            common_enums::AttemptStatus::PartialCharged => match data.amount_captured {
+                Some(amount_captured) => (Some(amount_captured), util_types::MinorUnit::zero()),
+                None => (None, data.amount),
+            },
+            _ => (None, data.amount),
+        };
         Self {
             net_amount: data.amount,
             amount_to_capture: None,
             surcharge_amount: None,
             tax_on_surcharge: None,
-            amount_capturable: data.amount,
+            amount_capturable,
             shipping_cost: None,
             order_tax_amount: None,
-            amount_captured: None,
+            amount_captured,
         }
     }
 }
