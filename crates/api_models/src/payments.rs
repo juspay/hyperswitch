@@ -5825,10 +5825,11 @@ pub struct PaypalRedirection {
 
 impl From<payment_methods::PaymentMethodDataWalletInfo> for PaypalRedirection {
     fn from(info: payment_methods::PaymentMethodDataWalletInfo) -> Self {
-        let paypal_info = payment_methods::PaypalWalletDetailsForClient::from(info);
         Self {
-            email: paypal_info.email,
-            payer_id: paypal_info.payer_id,
+            email: info.email,
+            payer_id: info.provider_details.and_then(|details| match details {
+                payment_methods::WalletProviderDetails::PayPal(info) => info.payer_id,
+            }),
         }
     }
 }

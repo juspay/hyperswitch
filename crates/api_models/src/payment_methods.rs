@@ -3281,27 +3281,8 @@ pub struct ResponsePaymentMethodsEnabledForClient {
 pub enum WalletPaymentMethodDataForClient {
     ApplePay(Box<PaymentMethodDataWalletInfo>),
     GooglePay(Box<PaymentMethodDataWalletInfo>),
-    PayPal(Box<PaypalWalletDetailsForClient>),
-}
-
-/// PayPal account details returned for a saved wallet.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct PaypalWalletDetailsForClient {
-    #[schema(value_type = Option<String>, example = "johntest@test.com")]
-    pub email: Option<pii::Email>,
-    #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
-    pub payer_id: Option<hyperswitch_masking::Secret<String>>,
-}
-
-impl From<PaymentMethodDataWalletInfo> for PaypalWalletDetailsForClient {
-    fn from(info: PaymentMethodDataWalletInfo) -> Self {
-        Self {
-            email: info.email,
-            payer_id: info.provider_details.and_then(|details| match details {
-                WalletProviderDetails::PayPal(info) => info.payer_id,
-            }),
-        }
-    }
+    #[schema(value_type = PaypalRedirection)]
+    PayPal(Box<payments::PaypalRedirection>),
 }
 
 /// Bank debit payment method data returned in the client-facing PM list.
