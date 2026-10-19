@@ -7,8 +7,7 @@ use super::{
     PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentStartRedirectionRequest,
     PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
     RecoveryAggregateResponse, RecoveryPaymentListConstraints, RecoveryPaymentListResponse,
-    RecoveryPaymentsCreate,
-    RecoveryPaymentsResponse, RevenueRecoveryGetIntentResponse,
+    RecoveryPaymentsCreate, RecoveryPaymentsResponse, RevenueRecoveryGetIntentResponse,
 };
 #[cfg(feature = "v2")]
 use crate::payment_methods::{
