@@ -18755,6 +18755,11 @@
             "type": "string",
             "description": "The identifier for mandate"
           },
+          "payment_id": {
+            "type": "string",
+            "description": "The original setup payment associated with this connector-managed mandate, when known.",
+            "nullable": true
+          },
           "status": {
             "$ref": "#/components/schemas/MandateStatus"
           },

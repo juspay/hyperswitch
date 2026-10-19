@@ -38,6 +38,10 @@ pub struct MandateResponse {
     /// The identifier for mandate
     #[smithy(value_type = "String")]
     pub mandate_id: String,
+    /// The original setup payment associated with this connector-managed mandate, when known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<String>")]
+    pub payment_id: Option<String>,
     /// The status for mandates
     #[schema(value_type = MandateStatus)]
     #[smithy(value_type = "MandateStatus")]
@@ -659,5 +663,47 @@ impl RecurringDetails {
 
     pub fn is_card_limited_details_flow(self) -> bool {
         matches!(self, Self::CardWithLimitedData(_))
+    }
+}
+
+#[cfg(all(test, any(feature = "v1", feature = "v2")))]
+mod tests {
+    use super::MandateResponse;
+    use crate::{enums::MandateStatus, webhooks::OutgoingWebhookContent};
+
+    #[test]
+    fn outgoing_mandate_body_preserves_setup_payment_for_activation_and_revocation() {
+        for status in [MandateStatus::Active, MandateStatus::Revoked] {
+            let mandate = MandateResponse {
+                mandate_id: "recurrence_123".to_string(),
+                payment_id: Some("pay_setup_123".to_string()),
+                status,
+                ..Default::default()
+            };
+            let content = OutgoingWebhookContent::MandateDetails(Box::new(mandate));
+            // Outgoing requests are stored as serialized JSON and reused for retries.
+            let stored_body = serde_json::to_string(&content).expect("serialize outgoing mandate");
+            let body: serde_json::Value =
+                serde_json::from_str(&stored_body).expect("read stored outgoing body");
+
+            assert_eq!(body["type"], "mandate_details");
+            assert_eq!(body["object"]["mandate_id"], "recurrence_123");
+            assert_eq!(body["object"]["payment_id"], "pay_setup_123");
+            assert_eq!(
+                body["object"]["status"],
+                serde_json::to_value(status).expect("serialize mandate status")
+            );
+        }
+    }
+
+    #[test]
+    fn mandate_without_setup_payment_keeps_existing_body_shape() {
+        let mandate = MandateResponse::default();
+        let body = serde_json::to_value(&mandate).expect("serialize mandate response");
+        assert!(body.get("payment_id").is_none());
+
+        let previous_body: MandateResponse =
+            serde_json::from_value(body).expect("read mandate without payment id");
+        assert!(previous_body.payment_id.is_none());
     }
 }
