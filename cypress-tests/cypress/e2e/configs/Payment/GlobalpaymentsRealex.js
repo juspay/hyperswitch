@@ -270,6 +270,7 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code: "101",
+          error_message: "[ test system ] Declined",
         },
       },
     },
@@ -290,6 +291,7 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code: "101",
+          error_message: "[ test system ] Declined",
         },
       },
     },
