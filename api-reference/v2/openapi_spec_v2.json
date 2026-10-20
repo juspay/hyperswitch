@@ -18757,7 +18757,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "The original setup payment associated with this connector-managed mandate, when known.",
+            "description": "The original setup payment associated with this mandate, when known.",
             "nullable": true
           },
           "status": {
