@@ -256,6 +256,113 @@ pub async fn record_internal_attempt_api(
     }
 }
 
+/// Syncs the recorded attempt with the payment connector and returns the status it reports.
+///
+/// An attempt recorded for an external transaction is never the active attempt of the invoice,
+/// and the invoice may already be in a final state, so this cannot go through the payment
+/// retrieve API, which only syncs the active attempt of an invoice that is not final. The sync
+/// is best effort: when the connector cannot be reached, or does not support syncing, `None` is
+/// returned and the caller falls back to the reported status.
+async fn sync_recorded_attempt_status(
+    state: &SessionState,
+    platform: &Platform,
+    profile: &domain::Profile,
+    payment_id: &id_type::GlobalPaymentId,
+    attempt_id: &id_type::GlobalAttemptId,
+) -> Option<common_enums::AttemptStatus> {
+    let synced = call_psync_api_for_attempt(state, platform, profile, payment_id, attempt_id).await;
+    match synced {
+        Ok(payment_data) => Some(payment_data.payment_attempt.status),
+        Err(error) => {
+            logger::warn!(
+                ?error,
+                "Failed to sync the recorded attempt with the payment connector, using the reported transaction status"
+            );
+            None
+        }
+    }
+}
+
+/// Runs a payment connector sync for one particular attempt of an invoice, regardless of the
+/// status of the invoice and of which attempt is active.
+pub async fn call_psync_api_for_attempt(
+    state: &SessionState,
+    platform: &Platform,
+    profile: &domain::Profile,
+    payment_id: &id_type::GlobalPaymentId,
+    attempt_id: &id_type::GlobalAttemptId,
+) -> RouterResult<payments_domain::PaymentStatusData<api_types::PSync>> {
+    let db = state.store.as_ref();
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+    let key_store = platform.get_processor().get_key_store();
+
+    let payment_intent = db
+        .find_payment_intent_by_id(payment_id, key_store, storage_scheme)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    let payment_attempt = db
+        .find_payment_attempt_by_id(key_store, attempt_id, storage_scheme)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Could not find the recorded payment attempt")?;
+
+    let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
+        payment_intent
+            .shipping_address
+            .clone()
+            .map(|address| address.into_inner()),
+        payment_intent
+            .billing_address
+            .clone()
+            .map(|address| address.into_inner()),
+        payment_attempt
+            .payment_method_billing_address
+            .clone()
+            .map(|address| address.into_inner()),
+        Some(true),
+    );
+
+    let get_tracker_response = payments::operations::GetTrackerResponse {
+        payment_data: payments_domain::PaymentStatusData {
+            flow: std::marker::PhantomData,
+            payment_intent,
+            payment_attempt,
+            payment_address,
+            attempts: None,
+            should_sync_with_connector: true,
+            merchant_connector_details: None,
+        },
+    };
+
+    let req = payments_api::PaymentsRetrieveRequest {
+        force_sync: true,
+        param: None,
+        expand_attempts: false,
+        return_raw_connector_response: None,
+        merchant_connector_details: None,
+    };
+
+    let (payment_data, _req, _, _, _, _) = Box::pin(payments::payments_operation_core::<
+        api_types::PSync,
+        _,
+        _,
+        _,
+        payments_domain::PaymentStatusData<api_types::PSync>,
+    >(
+        state,
+        state.get_req_state(),
+        platform.clone(),
+        profile,
+        payments::operations::PaymentGet,
+        req,
+        get_tracker_response,
+        payments::CallConnectorAction::Trigger,
+        payments_domain::HeaderPayload::default(),
+    ))
+    .await?;
+    Ok(payment_data)
+}
+
 /// Checks that `amount_captured` agrees with the reported `transaction_status`, so that the
 /// attempt is never recorded with amounts that contradict its status.
 fn validate_recovery_amounts(
@@ -378,12 +485,25 @@ pub async fn custom_revenue_recovery_core(
             payment_merchant_connector_account,
         )
         .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: format!(
-                "Failed to load recovery attempt for merchant reference id : {:?}",
-                request.merchant_reference_id.to_owned()
-            )
-            .to_string(),
+        .map_err(|error| {
+            let api_error = match error.current_context() {
+                errors::RevenueRecoveryError::PaymentAttemptAlreadyRecorded => {
+                    errors::ApiErrorResponse::GenericDuplicateError {
+                        message: format!(
+                            "The transaction {} is already recorded against the invoice {}",
+                            request.connector_transaction_id,
+                            request.merchant_reference_id.get_string_repr()
+                        ),
+                    }
+                }
+                _ => errors::ApiErrorResponse::GenericNotFoundError {
+                    message: format!(
+                        "Failed to load recovery attempt for merchant reference id : {:?}",
+                        request.merchant_reference_id.to_owned()
+                    ),
+                },
+            };
+            error.change_context(api_error)
         })?;
 
     let intent_retry_count = updated_recovery_intent
@@ -395,15 +515,46 @@ pub async fn custom_revenue_recovery_core(
         }))?;
 
     router_env::logger::info!("Intent retry count: {:?}", intent_retry_count);
-    let recovery_action = recovery_incoming::RecoveryAction {
-        action: request.action.to_owned().into(),
-    };
     let mca_retry_threshold = billing_connector_account
         .get_retry_threshold()
         .ok_or(report!(errors::ApiErrorResponse::GenericNotFoundError {
             message: "Failed to fetch retry threshold from billing merchant connector account"
                 .to_string(),
         }))?;
+
+    // The reported `transaction_status` is only a hint: the status that the payment connector
+    // returns for the transaction decides the action. The attempt was recorded with the reported
+    // status, so it is what the decision falls back to when the connector cannot be synced.
+    let mut revenue_recovery_attempt_data = revenue_recovery_attempt_data;
+    let synced_attempt_status = sync_recorded_attempt_status(
+        &state,
+        &platform,
+        &profile,
+        &updated_recovery_intent.payment_id,
+        &revenue_recovery_attempt_data.attempt_id,
+    )
+    .await;
+    let attempt_status = match synced_attempt_status {
+        Some(synced_status) => {
+            if synced_status != revenue_recovery_attempt_data.attempt_status {
+                router_env::logger::warn!(
+                    reported_status = ?revenue_recovery_attempt_data.attempt_status,
+                    ?synced_status,
+                    "Status synced from the payment connector differs from the reported transaction status, using the synced status"
+                );
+            }
+            revenue_recovery_attempt_data.attempt_status = synced_status;
+            synced_status
+        }
+        None => revenue_recovery_attempt_data.attempt_status,
+    };
+
+    let recovery_action = recovery_incoming::RecoveryAction {
+        action: recovery_incoming::RecoveryAction::get_action(
+            recovery_incoming::RecoveryAction::get_event_for_attempt_status(attempt_status),
+            Some(common_enums::TriggeredBy::External),
+        ),
+    };
 
     recovery_action
         .handle_action(

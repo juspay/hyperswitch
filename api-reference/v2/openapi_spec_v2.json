@@ -4895,7 +4895,6 @@
               "examples": {
                 "Record a failed transaction and schedule a retry": {
                   "value": {
-                    "action": "schedule_failed_payment",
                     "amount_details": {
                       "currency": "USD",
                       "order_amount": 6540
@@ -31258,14 +31257,6 @@
           }
         }
       },
-      "RecoveryPaymentsAction": {
-        "type": "string",
-        "description": "Action to be taken on the transaction reported through the revenue recovery API",
-        "enum": [
-          "schedule_failed_payment",
-          "success_payment_external"
-        ]
-      },
       "RecoveryPaymentsCreate": {
         "type": "object",
         "required": [
@@ -31280,8 +31271,7 @@
           "connector_customer_id",
           "billing_started_at",
           "connector_transaction_id",
-          "payment_method_data",
-          "action"
+          "payment_method_data"
         ],
         "properties": {
           "amount_details": {
@@ -31366,9 +31356,6 @@
           },
           "payment_method_data": {
             "$ref": "#/components/schemas/CustomRecoveryPaymentMethodData"
-          },
-          "action": {
-            "$ref": "#/components/schemas/RecoveryPaymentsAction"
           },
           "enable_partial_authorization": {
             "type": "boolean",

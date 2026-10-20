@@ -14814,10 +14814,6 @@ pub struct RecoveryPaymentsCreate {
     /// payment method token units at payment processor end.
     pub payment_method_data: CustomRecoveryPaymentMethodData,
 
-    /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
-    #[schema(value_type = RecoveryPaymentsAction, example = "schedule_failed_payment")]
-    pub action: common_payments_types::RecoveryPaymentsAction,
-
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
