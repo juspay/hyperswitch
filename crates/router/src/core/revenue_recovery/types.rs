@@ -1410,6 +1410,14 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
         .attach_printable("Failed to find CALCULATE_WORKFLOW process tracker")?;
 
     match calculate_process {
+        Some(process) if process.business_status == business_status::CANCELLED => {
+            logger::info!(
+                payment_id = %id.get_string_repr(),
+                process_tracker_id = %process_tracker_id,
+                current_status = %process.business_status,
+                "CALCULATE_WORKFLOW was cancelled, not reopening it on payment failure"
+            );
+        }
         Some(process) => {
             logger::info!(
                 payment_id = %id.get_string_repr(),
@@ -1558,6 +1566,16 @@ async fn record_back_to_billing_connector(
     logger::info!("Entering record_back_to_billing_connector");
 
     let billing_mca = &revenue_recovery_payment_data.billing_mca;
+    let connector = billing_mca.connector_name;
+    let invoice_record_back_config = &state.conf.billing_connectors_invoice_record_back;
+    if !invoice_record_back_config.is_connector_eligible(connector) {
+        logger::info!(
+            %connector,
+            "Skipping invoice record-back because the billing connector is not eligible"
+        );
+        return Ok(());
+    }
+
     let connector_name = billing_mca.connector_name.to_string();
     let connector_data = api_types::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -1773,7 +1791,7 @@ impl RevenueRecoveryOutgoingWebhook {
                 .change_context(errors::RecoveryError::InvalidTask)
                 .attach_printable("Failed to resolve webhook recipient for revenue recovery")?;
 
-                create_event_and_trigger_outgoing_webhook(
+                Box::pin(create_event_and_trigger_outgoing_webhook(
                     state.clone(),
                     platform.clone(),
                     event_status,
@@ -1783,7 +1801,7 @@ impl RevenueRecoveryOutgoingWebhook {
                     outgoing_webhook_content,
                     payment_intent.created_at,
                     webhook_recipient,
-                )
+                ))
                 .await
                 .change_context(errors::RecoveryError::InvalidTask)
                 .attach_printable("Failed to send out going webhook")?;
