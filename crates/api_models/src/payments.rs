@@ -277,6 +277,9 @@ pub struct PaymentsCreateIntentRequest {
     /// The billing details of the payment. This address will be used for invoicing.
     pub billing: Option<Address>,
 
+    /// Payer details stored with the payment intent; does not create or attach a customer.
+    pub customer_details: Option<CustomerDetails>,
+
     /// The shipping address for the payment
     pub shipping: Option<Address>,
 
@@ -8543,6 +8546,9 @@ pub struct PaymentsRequest {
     /// The billing details of the payment. This address will be used for invoicing.
     pub billing: Option<Address>,
 
+    /// Payer details stored with the payment intent; does not create or attach a customer.
+    pub customer_details: Option<CustomerDetails>,
+
     /// The shipping address for the payment
     pub shipping: Option<Address>,
 
@@ -8696,6 +8702,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             capture_method: request.capture_method,
             authentication_type: request.authentication_type,
             billing: request.billing.clone(),
+            customer_details: request.customer_details.clone(),
             shipping: request.shipping.clone(),
             customer_id: request.customer_id.clone(),
             customer_present: request.customer_present,
@@ -14769,6 +14776,9 @@ pub struct RecoveryPaymentsCreate {
 
     /// The billing details of the transaction.
     pub billing: Option<Address>,
+
+    /// Payer details stored with the payment intent; does not create or attach a customer.
+    pub customer_details: Option<CustomerDetails>,
 
     /// The payment method subtype used for the transaction.
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
