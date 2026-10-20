@@ -346,12 +346,16 @@ pub struct SyncIntegrityObject {
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct PaymentsCaptureData {
+    pub payment_feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub feature_metadata: Option<api_models::payments::CaptureFeatureMetadata>,
     pub amount_to_capture: i64,
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
     pub payment_amount: i64,
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_meta: Option<serde_json::Value>,
+    // Contains the connector specific metadata coming from payments request
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
     pub browser_info: Option<BrowserInformation>,
     pub metadata: Option<serde_json::Value>,
     // This metadata is used to store the metadata shared during the payment intent request.
@@ -1014,6 +1018,7 @@ impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRes
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct CompleteAuthorizeData {
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub payment_method_data: Option<PaymentMethodData>,
     pub amount: i64,
     pub email: Option<pii::Email>,
@@ -1048,7 +1053,6 @@ pub struct CompleteAuthorizeData {
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<api_models::payments::RecipientDetails>,
     pub business_country: Option<common_enums::CountryAlpha2>,
-    pub connector_intent_metadata: Option<ConnectorMetadata>,
     pub order_id: Option<String>,
     pub force_3ds_challenge: Option<bool>,
     pub customer_id: Option<id_type::CustomerId>,
@@ -1058,6 +1062,8 @@ pub struct CompleteAuthorizeData {
         Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    // Contains the connector specific metadata coming from payments request
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1426,6 +1432,8 @@ pub struct AuthenticationData {
 pub struct RefundsData {
     pub refund_id: String,
     pub connector_transaction_id: String,
+    pub payment_feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub feature_metadata: Option<api_models::refunds::RefundFeatureMetadata>,
 
     pub connector_refund_id: Option<String>,
     pub currency: storage_enums::Currency,

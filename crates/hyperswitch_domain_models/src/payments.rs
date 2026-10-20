@@ -578,6 +578,36 @@ impl PaymentIntent {
             .transpose()
     }
 
+    /// Whether the merchant has concluded the settlement for this payment. When `true`, the
+    /// tax and surcharge pipelines must not mutate the payment's net amount, so the
+    /// merchant-concluded amounts cannot drift from what was quoted to the shopper.
+    ///
+    /// This mirrors the top-level `settlement_conclusion_applied` request flag, persisted
+    /// with the payment intent so that capture / recurring flows honour the same guarantee.
+    #[cfg(feature = "v1")]
+    pub fn is_settlement_conclusion_applied(&self) -> bool {
+        self.get_optional_feature_metadata()
+            .ok()
+            .flatten()
+            .and_then(|feature_metadata| feature_metadata.settlement_conclusion_applied)
+            .unwrap_or(false)
+    }
+
+    /// Records the `settlement_conclusion_applied` flag in the intent's feature metadata so
+    /// that it persists across the payment lifecycle and is honoured by later flows.
+    #[cfg(feature = "v1")]
+    pub fn set_settlement_conclusion_applied(
+        &mut self,
+        settlement_conclusion_applied: bool,
+    ) -> CustomResult<(), common_utils::errors::ParsingError> {
+        use common_utils::ext_traits::Encode;
+
+        let mut feature_metadata = self.get_optional_feature_metadata()?.unwrap_or_default();
+        feature_metadata.settlement_conclusion_applied = Some(settlement_conclusion_applied);
+
+        Ok(())
+    }
+
     #[cfg(feature = "v1")]
     pub fn into_payment_method_list_intent_data(
         self,
@@ -1574,6 +1604,7 @@ pub struct PaymentCaptureData<F>
 where
     F: Clone,
 {
+    pub capture_feature_metadata: Option<api_models::payments::CaptureFeatureMetadata>,
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
@@ -1753,6 +1784,9 @@ where
                 .attach_printable("Connector not found in payment attempt")?,
         };
         Ok(Some(FeatureMetadata {
+            multi_currency_processing: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.multi_currency_processing.clone()),
             redirect_response: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.redirect_response.clone()),

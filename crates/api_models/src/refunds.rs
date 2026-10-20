@@ -12,11 +12,22 @@ use super::payments::AmountFilter;
 use crate::admin;
 use crate::{admin::MerchantConnectorInfo, enums};
 
+#[derive(Default, Debug, ToSchema, Clone, PartialEq, Eq, Deserialize, Serialize, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct RefundFeatureMetadata {
+    /// Settlement amount and currency for this refund.
+    #[smithy(value_type = "Option<MultiCurrencyProcessingAmountData>")]
+    pub multi_currency_processing: Option<super::payments::MultiCurrencyProcessingAmountData>,
+}
+
 #[cfg(feature = "v1")]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize, SmithyModel)]
 #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct RefundRequest {
+    #[smithy(value_type = "Option<RefundFeatureMetadata>")]
+    pub feature_metadata: Option<RefundFeatureMetadata>,
     /// The payment id against which refund is to be initiated
     #[schema(
         max_length = 30,
@@ -79,6 +90,7 @@ pub struct RefundRequest {
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundsCreateRequest {
+    pub feature_metadata: Option<RefundFeatureMetadata>,
     /// The payment id against which refund is initiated
     #[schema(
         max_length = 30,
@@ -298,6 +310,9 @@ pub enum RefundType {
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct RefundResponse {
+    #[schema(value_type = Option<RefundFeatureMetadata>)]
+    #[cfg_attr(feature = "v1", smithy(value_type = "Option<RefundFeatureMetadata>"))]
+    pub feature_metadata: Option<serde_json::Value>,
     /// Unique Identifier for the refund
     #[smithy(value_type = "String")]
     pub refund_id: String,
@@ -382,6 +397,9 @@ impl RefundResponse {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundResponse {
+    #[schema(value_type = Option<RefundFeatureMetadata>)]
+    #[cfg_attr(feature = "v1", smithy(value_type = "Option<RefundFeatureMetadata>"))]
+    pub feature_metadata: Option<serde_json::Value>,
     /// Global Refund Id for the refund
     #[schema(value_type = String)]
     pub id: common_utils::id_type::GlobalRefundId,

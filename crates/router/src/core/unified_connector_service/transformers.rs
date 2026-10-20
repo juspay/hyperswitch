@@ -73,50 +73,6 @@ const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
 
-impl ForeignFrom<&api_models::payments::ConnectorMetadata>
-    for payments_grpc::AdditionalConnectorDetails
-{
-    fn foreign_from(metadata: &api_models::payments::ConnectorMetadata) -> Self {
-        let api_models::payments::ConnectorMetadata {
-            checkout,
-            apple_pay: _,
-            airwallex: _,
-            noon: _,
-            braintree: _,
-            adyen: _,
-            peachpayments: _,
-            santander: _,
-            worldpayxml,
-            stripe,
-        } = metadata;
-        fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
-            serde_json::to_value(value)
-                .ok()
-                .and_then(|value| value.as_str().map(ToString::to_string))
-        }
-        Self {
-            checkout: checkout
-                .as_ref()
-                .map(|data| payments_grpc::CheckoutAdditionalInformation {
-                    purpose_of_payment: data.purpose_of_payment.clone(),
-                }),
-            worldpayxml: worldpayxml.as_ref().map(|data| {
-                payments_grpc::WorldpayxmlAdditionalInformation {
-                    funding_transaction_type: data
-                        .funding_transaction_type
-                        .and_then(to_snake_case_string),
-                    payment_purpose: data.payment_purpose.and_then(to_snake_case_string),
-                }
-            }),
-            stripe: stripe
-                .as_ref()
-                .map(|data| payments_grpc::StripeAdditionalInformation {
-                    error_on_requires_action: data.error_on_requires_action,
-                }),
-        }
-    }
-}
-
 impl ForeignFrom<common_enums::ProductType> for payments_grpc::ProductType {
     fn foreign_from(product_type: common_enums::ProductType) -> Self {
         match product_type {
@@ -751,6 +707,10 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
+        let currency_conversion_data = convert_currency_conversion_data(
+            &router_data.connector,
+            router_data.request.feature_metadata.as_ref(),
+        )?;
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
@@ -906,20 +866,6 @@ impl
                 }),
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
-            is_account_funding_transaction: router_data.request.is_account_funded_transaction,
-            recipient_details: router_data
-                .request
-                .recipient_details
-                .as_ref()
-                .map(payments_grpc::RecipientDetails::foreign_try_from)
-                .transpose()?,
-            additional_connector_details: router_data
-                .request
-                .connector_intent_metadata
-                .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
-            business_country: router_data.request.business_country.map(|c| c.to_string()),
-            enable_avs_check: router_data.request.enable_avs_check,
         })
     }
 }
@@ -1054,8 +1000,6 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
-        let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
-        let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
 
         Ok(Self {
             split_settlement: None,
@@ -1186,20 +1130,6 @@ impl
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
-            is_account_funding_transaction: router_data.request.is_account_funded_transaction,
-            recipient_details: router_data
-                .request
-                .recipient_details
-                .as_ref()
-                .map(payments_grpc::RecipientDetails::foreign_try_from)
-                .transpose()?,
-            additional_connector_details: router_data
-                .request
-                .connector_intent_metadata
-                .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
-            business_country: router_data.request.business_country.map(|c| c.to_string()),
-            enable_avs_check: None,
         })
     }
 }
@@ -2255,6 +2185,18 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .as_ref()
             .map(ConnectorState::foreign_from);
 
+        let currency_conversion_data = convert_operation_currency_conversion_data(
+            &router_data.connector,
+            router_data.request.payment_feature_metadata.as_ref(),
+            router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
+            router_data.request.minor_amount_to_capture,
+            router_data.request.minor_payment_amount,
+        )?;
+
         Ok(Self {
             split_settlement: None,
             connector_transaction_id,
@@ -2291,6 +2233,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .transpose()
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
+            currency_conversion_data,
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
@@ -2375,6 +2318,10 @@ impl
             .clone()
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
+        let currency_conversion_data = convert_currency_conversion_data(
+            &router_data.connector,
+            router_data.request.feature_metadata.as_ref(),
+        )?;
 
         Ok(Self {
             split_settlement: None,
@@ -2470,20 +2417,6 @@ impl
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
-            is_account_funding_transaction: router_data.request.is_account_funded_transaction,
-            recipient_details: router_data
-                .request
-                .recipient_details
-                .as_ref()
-                .map(payments_grpc::RecipientDetails::foreign_try_from)
-                .transpose()?,
-            additional_connector_details: router_data
-                .request
-                .connector_intent_metadata
-                .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
-            business_country: router_data.request.business_country.map(|c| c.to_string()),
-            enable_avs_check: None,
         })
     }
 }
@@ -2556,6 +2489,10 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
+        let currency_conversion_data = convert_currency_conversion_data(
+            &router_data.connector,
+            router_data.request.feature_metadata.as_ref(),
+        )?;
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
@@ -2687,20 +2624,6 @@ impl
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
-            is_account_funding_transaction: router_data.request.is_account_funded_transaction,
-            recipient_details: router_data
-                .request
-                .recipient_details
-                .as_ref()
-                .map(payments_grpc::RecipientDetails::foreign_try_from)
-                .transpose()?,
-            additional_connector_details: router_data
-                .request
-                .connector_intent_metadata
-                .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
-            business_country: router_data.request.business_country.map(|c| c.to_string()),
-            enable_avs_check: router_data.request.enable_avs_check,
         })
     }
 }
@@ -3351,7 +3274,7 @@ impl
             payment_channel: None,
             is_account_funding_transaction: None,
             recipient_details: None,
-            additional_connector_details: None,
+            additional_connector_details: None, 
         })
     }
 }
@@ -3660,18 +3583,6 @@ impl
                 .map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
-            is_account_funding_transaction: router_data.request.is_account_funded_transaction,
-            recipient_details: router_data
-                .request
-                .recipient_details
-                .as_ref()
-                .map(payments_grpc::RecipientDetails::foreign_try_from)
-                .transpose()?,
-            additional_connector_details: router_data
-                .request
-                .connector_intent_metadata
-                .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
         })
     }
 }
@@ -8493,6 +8404,18 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .transpose()?
             .map(|payment_method_type| payment_method_type.into());
 
+        let currency_conversion_data = convert_operation_currency_conversion_data(
+            &router_data.connector,
+            router_data.request.payment_feature_metadata.as_ref(),
+            router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
+            router_data.request.minor_refund_amount,
+            router_data.request.minor_payment_amount,
+        )?;
+
         Ok(Self {
             split_settlement_refund: None,
             split_refunds: router_data
@@ -8555,6 +8478,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .payment_connector_request_reference_id
                 .clone(),
             payment_method: None,
+            currency_conversion_data,
         })
     }
 }
@@ -9477,12 +9401,6 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             description: router_data.description.clone(),
-            merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
-            billing_descriptor: router_data
-                .request
-                .billing_descriptor
-                .as_ref()
-                .map(payments_grpc::BillingDescriptor::foreign_from),
         })
     }
 }
