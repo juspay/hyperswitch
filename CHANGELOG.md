@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.20.0
+
+### Features
+
+- **common:** Make diesel optional across common_enums, common_utils, common_types ([#14852](https://github.com/juspay/hyperswitch/pull/14852)) ([`814ab02`](https://github.com/juspay/hyperswitch/commit/814ab0228b47681e77e42f8639d31151a7ebd98e))
+- **revenue_recovery:** Persist customer details for retry requests ([#14817](https://github.com/juspay/hyperswitch/pull/14817)) ([`4fafe50`](https://github.com/juspay/hyperswitch/commit/4fafe50539acf4a1a9ba5f13af937758a779f9c2))
+
+### Bug Fixes
+
+- **payments:**
+  - Preserve pm context during new mandate setup ([#14872](https://github.com/juspay/hyperswitch/pull/14872)) ([`b29755e`](https://github.com/juspay/hyperswitch/commit/b29755e88ed1c4e846a3c58055e6cecdafe80189))
+  - Trigger webhooks for v2 proxy payments ([#14853](https://github.com/juspay/hyperswitch/pull/14853)) ([`fbc4099`](https://github.com/juspay/hyperswitch/commit/fbc409925fc255ef33cc4392b4d7288ffd91ce7d))
+
+### Refactors
+
+- **external_services:** Add shared cloud_services crate for storage, KMS and email clients ([#14671](https://github.com/juspay/hyperswitch/pull/14671)) ([`7793a71`](https://github.com/juspay/hyperswitch/commit/7793a71aa8cbd3e77a109c25b72bfed43830138c))
+
+### Testing
+
+- **cypress:** Fix paypal payout skips via wallet-only exclusion ([#14756](https://github.com/juspay/hyperswitch/pull/14756)) ([`db0e592`](https://github.com/juspay/hyperswitch/commit/db0e5924125f7926eccac9fcfa90393da2f97396))
+
+**Full Changelog:** [`2026.10.19.0...2026.10.20.0`](https://github.com/juspay/hyperswitch/compare/2026.10.19.0...2026.10.20.0)
+
+- - -
+
 ## 2026.10.19.0
 
 ### Features
