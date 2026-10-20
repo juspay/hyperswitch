@@ -263,7 +263,9 @@ impl From<&RevenueRecoveryAttemptData> for api_payments::PaymentAttemptAmountDet
     fn from(data: &RevenueRecoveryAttemptData) -> Self {
         // An external attempt is already settled at the processor, so nothing is left to capture.
         let (amount_captured, amount_capturable) = match data.status {
-            common_enums::AttemptStatus::Charged => (Some(data.amount), util_types::MinorUnit::zero()),
+            common_enums::AttemptStatus::Charged => {
+                (Some(data.amount), util_types::MinorUnit::zero())
+            }
             common_enums::AttemptStatus::PartialCharged => match data.amount_captured {
                 Some(amount_captured) => (Some(amount_captured), util_types::MinorUnit::zero()),
                 None => (None, data.amount),
