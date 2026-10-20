@@ -486,7 +486,7 @@ pub async fn get_token_pm_type_mandate_details(
             mandate_data.clone(),
             None,
             None,
-            None,
+            pm_info,
         ),
         Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             match &request.recurring_details {

@@ -314,6 +314,8 @@ pub async fn custom_revenue_recovery_core(
         })
     })?;
 
+    validate_customer_information(&request)?;
+
     let recovery_intent =
         recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
             request.clone(),
@@ -443,4 +445,22 @@ pub async fn cancel_revenue_recovery_core(
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))
+}
+
+fn validate_customer_information(
+    request: &api_models::payments::RecoveryPaymentsCreate,
+) -> RouterResult<()> {
+    if let Some(document) = request
+        .customer_details
+        .as_ref()
+        .and_then(|customer| customer.document_details.as_ref())
+    {
+        document
+            .validate()
+            .map_err(|err| errors::ApiErrorResponse::PreconditionFailed {
+                message: err.to_string(),
+            })?;
+    }
+
+    Ok(())
 }

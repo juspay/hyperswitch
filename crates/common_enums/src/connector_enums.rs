@@ -25,7 +25,7 @@ pub use crate::PaymentMethodType;
     Hash,
     SmithyModel,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -585,7 +585,7 @@ impl Connector {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum InvoiceStatus {
