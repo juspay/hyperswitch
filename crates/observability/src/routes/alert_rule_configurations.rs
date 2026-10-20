@@ -26,14 +26,11 @@ pub async fn update(
     id: web::Path<String>,
     payload: web::Json<AlertRuleConfigurationUpdateRequest>,
 ) -> HttpResponse {
-    let id = id.into_inner();
     services::server_wrap(
         state.get_ref().clone(),
         &request,
-        payload.into_inner(),
-        move |state, payload| {
-            core::alert_rule_configurations::update_alert_rule_configuration(state, id, payload)
-        },
+        (id.into_inner(), payload.into_inner()),
+        core::alert_rule_configurations::update_alert_rule_configuration,
         &auth::InternalApiKeyAuth,
     )
     .await

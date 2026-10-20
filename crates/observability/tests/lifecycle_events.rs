@@ -50,7 +50,9 @@ impl observability::db::alert_rule_configurations::AlertRuleConfigurationInterfa
     async fn insert_alert_rule_configuration(
         &self,
         _new: observability::domain_models::alert_rule_configurations::AlertRuleConfigurationNew,
-    ) -> StorageResult<diesel_models::observability::alert_manager::alert_rule_configurations::AlertRuleConfiguration>{
+    ) -> StorageResult<
+        observability::domain_models::alert_rule_configurations::AlertRuleConfiguration,
+    > {
         Err(report!(DatabaseError::Others))
     }
 
@@ -58,13 +60,42 @@ impl observability::db::alert_rule_configurations::AlertRuleConfigurationInterfa
         &self,
         _id: String,
         _update: observability::domain_models::alert_rule_configurations::AlertRuleConfigurationUpdate,
-    ) -> StorageResult<diesel_models::observability::alert_manager::alert_rule_configurations::AlertRuleConfiguration>{
+    ) -> StorageResult<
+        observability::domain_models::alert_rule_configurations::AlertRuleConfiguration,
+    > {
         Err(report!(DatabaseError::Others))
     }
 
     async fn list_alert_rule_configurations(
         &self,
-    ) -> StorageResult<Vec<diesel_models::observability::alert_manager::alert_rule_configurations::AlertRuleConfiguration>>{
+    ) -> StorageResult<
+        observability::domain_models::alert_rule_configurations::AlertRuleConfigurationListing,
+    > {
+        Err(report!(DatabaseError::Others))
+    }
+
+    async fn list_due_alert_rule_configurations(
+        &self,
+        _now: PrimitiveDateTime,
+    ) -> StorageResult<
+        observability::domain_models::alert_rule_configurations::AlertRuleConfigurationListing,
+    > {
+        Err(report!(DatabaseError::Others))
+    }
+
+    async fn set_alert_rule_next_run_at(
+        &self,
+        _id: String,
+        _next_run_at: PrimitiveDateTime,
+    ) -> StorageResult<bool> {
+        Err(report!(DatabaseError::Others))
+    }
+
+    async fn set_alert_rule_last_evaluated_at(
+        &self,
+        _id: String,
+        _last_evaluated_at: PrimitiveDateTime,
+    ) -> StorageResult<bool> {
         Err(report!(DatabaseError::Others))
     }
 }
@@ -77,7 +108,9 @@ impl observability::db::alert_rule_configurations::AlertRuleConfigurationInterfa
     async fn insert_alert_rule_configuration(
         &self,
         _new: observability::domain_models::alert_rule_configurations::AlertRuleConfigurationNew,
-    ) -> StorageResult<diesel_models::observability::alert_manager::alert_rule_configurations::AlertRuleConfiguration>{
+    ) -> StorageResult<
+        observability::domain_models::alert_rule_configurations::AlertRuleConfiguration,
+    > {
         Err(report!(DatabaseError::Others))
     }
 
@@ -85,13 +118,42 @@ impl observability::db::alert_rule_configurations::AlertRuleConfigurationInterfa
         &self,
         _id: String,
         _update: observability::domain_models::alert_rule_configurations::AlertRuleConfigurationUpdate,
-    ) -> StorageResult<diesel_models::observability::alert_manager::alert_rule_configurations::AlertRuleConfiguration>{
+    ) -> StorageResult<
+        observability::domain_models::alert_rule_configurations::AlertRuleConfiguration,
+    > {
         Err(report!(DatabaseError::Others))
     }
 
     async fn list_alert_rule_configurations(
         &self,
-    ) -> StorageResult<Vec<diesel_models::observability::alert_manager::alert_rule_configurations::AlertRuleConfiguration>>{
+    ) -> StorageResult<
+        observability::domain_models::alert_rule_configurations::AlertRuleConfigurationListing,
+    > {
+        Err(report!(DatabaseError::Others))
+    }
+
+    async fn list_due_alert_rule_configurations(
+        &self,
+        _now: PrimitiveDateTime,
+    ) -> StorageResult<
+        observability::domain_models::alert_rule_configurations::AlertRuleConfigurationListing,
+    > {
+        Err(report!(DatabaseError::Others))
+    }
+
+    async fn set_alert_rule_next_run_at(
+        &self,
+        _id: String,
+        _next_run_at: PrimitiveDateTime,
+    ) -> StorageResult<bool> {
+        Err(report!(DatabaseError::Others))
+    }
+
+    async fn set_alert_rule_last_evaluated_at(
+        &self,
+        _id: String,
+        _last_evaluated_at: PrimitiveDateTime,
+    ) -> StorageResult<bool> {
         Err(report!(DatabaseError::Others))
     }
 }

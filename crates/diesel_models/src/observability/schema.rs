@@ -70,9 +70,16 @@ diesel::table! {
         id -> Varchar,
         #[max_length = 255]
         name -> Varchar,
+        #[max_length = 64]
+        classification -> Varchar,
+        #[max_length = 64]
+        datasource -> Varchar,
+        query -> Jsonb,
+        thresholds -> Jsonb,
+        interval_seconds -> Int4,
         is_enabled -> Bool,
-        config -> Jsonb,
         next_run_at -> Timestamp,
+        last_evaluated_at -> Nullable<Timestamp>,
         created_at -> Timestamp,
         last_updated_at -> Timestamp,
     }

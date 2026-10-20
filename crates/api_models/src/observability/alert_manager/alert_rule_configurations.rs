@@ -4,68 +4,51 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "version", rename_all = "snake_case")]
-pub enum AlertRuleConfig {
-    V1(AlertRuleConfigV1),
-}
-
-impl AlertRuleConfig {
-    pub fn inner(&self) -> &AlertRuleConfigV1 {
-        match self {
-            Self::V1(config) => config,
-        }
-    }
-
-    pub fn into_inner(self) -> AlertRuleConfigV1 {
-        match self {
-            Self::V1(config) => config,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct AlertRuleConfigV1 {
-    pub query: AlertRuleQuery,
-    pub frequency: u32,
-    pub severities: BTreeMap<Severity, SeverityRuleV1>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "version", rename_all = "snake_case")]
-pub enum AlertRuleQuery {
-    V1(AlertRuleQueryV1),
-}
-
-impl AlertRuleQuery {
-    pub fn inner(&self) -> &AlertRuleQueryV1 {
-        match self {
-            Self::V1(query) => query,
-        }
-    }
-
-    pub fn into_inner(self) -> AlertRuleQueryV1 {
-        match self {
-            Self::V1(query) => query,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "data_source", rename_all = "snake_case")]
-pub enum AlertRuleQueryV1 {
-    Cloudwatch(CloudwatchQueryV1),
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudwatchQueryV1 {
     pub region: String,
     pub namespace: String,
     pub metric_name: String,
+    #[serde(default)]
     pub dimensions: BTreeMap<String, String>,
     pub statistic: CloudwatchStatistic,
     pub period: u32,
+    #[serde(default = "default_end_offset_seconds")]
+    pub end_offset_seconds: u32,
+}
+
+const DEFAULT_END_OFFSET_SECONDS: u32 = 180;
+
+fn default_end_offset_seconds() -> u32 {
+    DEFAULT_END_OFFSET_SECONDS
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AlertRuleThresholdsV1 {
+    pub severities: BTreeMap<Severity, SeverityThresholdV1>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SeverityThresholdV1 {
+    pub threshold: f64,
+    pub comparison_operator: ComparisonOperator,
+    pub evaluation_periods: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub datapoints_to_alarm: Option<u32>,
+    #[serde(default)]
+    pub treat_missing_data: TreatMissingData,
+    pub description: String,
+}
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AlertDatasource {
+    Cloudwatch,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
@@ -87,36 +70,45 @@ pub enum Severity {
     Sev3,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct SeverityRuleV1 {
-    pub operator: ComparisonOperator,
-    pub threshold: f64,
-    pub description: String,
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
+pub enum ComparisonOperator {
+    GreaterThanThreshold,
+    GreaterThanOrEqualToThreshold,
+    LessThanThreshold,
+    LessThanOrEqualToThreshold,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum ComparisonOperator {
-    Gt,
-    Gte,
-    Lt,
-    Lte,
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
+#[serde(rename_all = "camelCase")]
+#[strum(serialize_all = "camelCase")]
+pub enum TreatMissingData {
+    Breaching,
+    NotBreaching,
+    #[default]
+    Missing,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlertRuleConfigurationCreateRequest {
+    pub id: String,
     pub name: String,
-    pub config: AlertRuleConfig,
+    pub classification: String,
+    pub datasource: AlertDatasource,
+    pub query: CloudwatchQueryV1,
+    pub thresholds: AlertRuleThresholdsV1,
+    pub interval_seconds: u32,
     pub is_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AlertRuleConfigurationUpdateRequest {
-    pub config: Option<AlertRuleConfig>,
+    pub name: Option<String>,
+    pub classification: Option<String>,
+    pub query: Option<CloudwatchQueryV1>,
+    pub thresholds: Option<AlertRuleThresholdsV1>,
+    pub interval_seconds: Option<u32>,
     pub is_enabled: Option<bool>,
 }
 
@@ -124,10 +116,16 @@ pub struct AlertRuleConfigurationUpdateRequest {
 pub struct AlertRuleConfigurationResponse {
     pub id: String,
     pub name: String,
+    pub classification: String,
+    pub datasource: AlertDatasource,
+    pub query: CloudwatchQueryV1,
+    pub thresholds: AlertRuleThresholdsV1,
+    pub interval_seconds: u32,
     pub is_enabled: bool,
-    pub config: AlertRuleConfig,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub next_run_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub last_evaluated_at: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
