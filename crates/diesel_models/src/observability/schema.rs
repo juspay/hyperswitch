@@ -65,6 +65,20 @@ diesel::table! {
 }
 
 diesel::table! {
+    alert_rule_configurations (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 255]
+        name -> Varchar,
+        is_enabled -> Bool,
+        config -> Jsonb,
+        next_run_at -> Timestamp,
+        created_at -> Timestamp,
+        last_updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     alert_rule_toggles (rule_id) {
         rule_id -> Text,
         is_enabled -> Bool,
@@ -377,6 +391,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     alert_dictionary,
     alert_lifecycle_events,
     alert_metadata,
+    alert_rule_configurations,
     alert_rule_toggles,
     alerts_dicts,
     alerts_info,

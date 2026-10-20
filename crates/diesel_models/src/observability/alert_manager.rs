@@ -1,5 +1,6 @@
 //! Database models for alert-manager state.
 
+pub mod alert_rule_configurations;
 pub mod alerts_info;
 pub mod blacklist;
 pub mod dictionary;

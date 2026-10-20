@@ -1,5 +1,6 @@
 //! Request and response types for alert-manager APIs.
 
+pub mod alert_rule_configurations;
 pub mod alerts_info;
 pub mod blacklist;
 pub mod dictionary;

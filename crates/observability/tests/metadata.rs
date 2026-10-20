@@ -51,6 +51,30 @@ impl observability::db::lifecycle_events::LifecycleEventsInterface for MemorySto
     }
 }
 
+#[async_trait::async_trait]
+impl observability::db::alert_rule_configurations::AlertRuleConfigurationInterface for MemoryStore {
+    async fn insert_alert_rule_configuration(
+        &self,
+        _new: observability::domain_models::alert_rule_configurations::AlertRuleConfigurationNew,
+    ) -> StorageResult<diesel_models::observability::alert_manager::alert_rule_configurations::AlertRuleConfiguration>{
+        Err(report!(DatabaseError::Others))
+    }
+
+    async fn update_alert_rule_configuration(
+        &self,
+        _id: String,
+        _update: observability::domain_models::alert_rule_configurations::AlertRuleConfigurationUpdate,
+    ) -> StorageResult<diesel_models::observability::alert_manager::alert_rule_configurations::AlertRuleConfiguration>{
+        Err(report!(DatabaseError::Others))
+    }
+
+    async fn list_alert_rule_configurations(
+        &self,
+    ) -> StorageResult<Vec<diesel_models::observability::alert_manager::alert_rule_configurations::AlertRuleConfiguration>>{
+        Err(report!(DatabaseError::Others))
+    }
+}
+
 impl StorageInterface for MemoryStore {}
 #[async_trait::async_trait]
 impl observability::db::lifecycle_events::LifecycleEventsInterface for FailingStore {
@@ -66,6 +90,32 @@ impl observability::db::lifecycle_events::LifecycleEventsInterface for FailingSt
         &self,
         _batch: observability::domain_models::lifecycle_events::LifecycleEventsBatch,
     ) -> StorageResult<usize> {
+        Err(report!(DatabaseError::Others))
+    }
+}
+
+#[async_trait::async_trait]
+impl observability::db::alert_rule_configurations::AlertRuleConfigurationInterface
+    for FailingStore
+{
+    async fn insert_alert_rule_configuration(
+        &self,
+        _new: observability::domain_models::alert_rule_configurations::AlertRuleConfigurationNew,
+    ) -> StorageResult<diesel_models::observability::alert_manager::alert_rule_configurations::AlertRuleConfiguration>{
+        Err(report!(DatabaseError::Others))
+    }
+
+    async fn update_alert_rule_configuration(
+        &self,
+        _id: String,
+        _update: observability::domain_models::alert_rule_configurations::AlertRuleConfigurationUpdate,
+    ) -> StorageResult<diesel_models::observability::alert_manager::alert_rule_configurations::AlertRuleConfiguration>{
+        Err(report!(DatabaseError::Others))
+    }
+
+    async fn list_alert_rule_configurations(
+        &self,
+    ) -> StorageResult<Vec<diesel_models::observability::alert_manager::alert_rule_configurations::AlertRuleConfiguration>>{
         Err(report!(DatabaseError::Others))
     }
 }
