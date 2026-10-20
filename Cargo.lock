@@ -2120,6 +2120,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
+name = "cloud_services"
+version = "0.1.0"
+dependencies = [
+ "aws-config",
+ "aws-sdk-kms",
+ "aws-sdk-s3",
+ "aws-sdk-sesv2",
+ "aws-sdk-sts",
+ "aws-smithy-runtime",
+ "aws-smithy-runtime-api",
+ "base64 0.22.1",
+ "google-cloud-gax",
+ "google-cloud-kms",
+ "hyper 0.14.32",
+ "hyper-proxy",
+ "lettre",
+ "oci_kms",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio 1.48.0",
+ "tokio-socks",
+ "tracing",
+ "url 2.5.4",
+]
+
+[[package]]
 name = "cloudabi"
 version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3523,7 +3550,6 @@ dependencies = [
  "common_enums",
  "common_utils",
  "criterion",
- "diesel",
  "euclid_macros",
  "hyperswitch_constraint_graph",
  "nom 7.1.3",
@@ -3608,34 +3634,24 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "async-trait",
- "aws-config",
- "aws-sdk-kms",
- "aws-sdk-s3",
- "aws-sdk-sesv2",
- "aws-sdk-sts",
- "aws-smithy-runtime",
- "aws-smithy-runtime-api",
  "aws-smithy-types",
  "base64 0.22.1",
  "bytes 1.10.1",
+ "cloud_services",
  "common_enums",
  "common_utils",
  "deja",
  "dyn-clone",
  "error-stack 0.4.1",
  "futures 0.3.31",
- "google-cloud-kms",
  "hex",
  "http 0.2.12",
  "http-body 1.0.1",
  "http-body-util",
  "hyper 0.14.32",
- "hyper-proxy",
  "hyper-util",
  "hyperswitch_interfaces",
  "hyperswitch_masking",
- "lettre",
- "oci_kms",
  "once_cell",
  "open-feature",
  "prost 0.14.3",
@@ -3654,7 +3670,6 @@ dependencies = [
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",
- "tokio-socks",
  "tokio-stream",
  "tonic 0.14.5",
  "tonic-prost",
@@ -8609,7 +8624,6 @@ name = "router_derive"
 version = "0.1.0"
 dependencies = [
  "common_utils",
- "diesel",
  "error-stack 0.4.1",
  "indexmap 2.9.0",
  "proc-macro2",
