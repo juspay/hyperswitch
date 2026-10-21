@@ -688,6 +688,7 @@ export const connectorDetails = {
             adyen: null,
             peachpayments: null,
             santander: null,
+            paypal: null,
             worldpayxml: {
               funding_transaction_type: "funds_transfer_me_to_me",
               payment_purpose: "family_support",

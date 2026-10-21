@@ -13,8 +13,10 @@ use ::payment_methods::{
 use api_models::admin::PaymentMethodsEnabled;
 #[cfg(feature = "v1")]
 use api_models::payment_methods::{
-    PaymentMethodListIntentDataInput, PaymentMethodSubtypeSpecificDataForClient,
-    ResponsePaymentMethodsEnabledForClient,
+    PaymentMethodDataWalletInfo, PaymentMethodListIntentDataInput,
+    PaymentMethodSubtypeSpecificDataForClient, PaypalWalletInfo,
+    ResponsePaymentMethodsEnabledForClient, WalletPaymentMethodDataForClient,
+    WalletProviderDetails,
 };
 use api_models::{
     enums as api_enums,
@@ -3091,18 +3093,111 @@ pub async fn update_customer_payment_method(
 }
 
 #[cfg(feature = "v1")]
+pub(crate) fn get_paypal_wallet_info(
+    connector_response: Option<&hyperswitch_domain_models::router_data::ConnectorResponseData>,
+) -> Option<PaymentMethodDataWalletInfo> {
+    match connector_response?.additional_payment_method_data.as_ref()? {
+        hyperswitch_domain_models::router_data::AdditionalPaymentMethodConnectorResponse::Paypal {
+            email,
+            payer_id,
+        } if email.is_some() || payer_id.is_some() => Some(PaymentMethodDataWalletInfo {
+            last4: None,
+            card_network: None,
+            card_type: None,
+            card_exp_month: None,
+            card_exp_year: None,
+            auth_code: None,
+            email: email.clone(),
+            provider_details: Some(WalletProviderDetails::PayPal(PaypalWalletInfo {
+                payer_id: payer_id.clone(),
+            })),
+        }),
+        _ => None,
+    }
+}
+
+/// Prepares merged PayPal wallet data without fetching or updating the PM.
+#[cfg(feature = "v1")]
+pub async fn prepare_saved_wallet_data_from_connector_response(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    pm: &domain::PaymentMethod,
+    connector_disclosed_details: &domain::PaypalRedirection,
+) -> errors::RouterResult<Option<Encryption>> {
+    match pm.get_payment_method_subtype() {
+        Some(enums::PaymentMethodType::Paypal) => {
+            match (
+                connector_disclosed_details.email.as_ref(),
+                connector_disclosed_details.payer_id.as_ref(),
+            ) {
+                (None, None) => Ok(None),
+                (email, payer_id) => {
+                    let mut wallet_info = PaymentMethodDataWalletInfo {
+                        last4: None,
+                        card_network: None,
+                        card_type: None,
+                        card_exp_month: None,
+                        card_exp_year: None,
+                        auth_code: None,
+                        email: email.cloned(),
+                        provider_details: Some(WalletProviderDetails::PayPal(PaypalWalletInfo {
+                            payer_id: payer_id.cloned(),
+                        })),
+                    };
+                    let saved_data = pm
+                        .payment_method_data
+                        .as_ref()
+                        .map(|data| {
+                            data.get_inner()
+                                .peek()
+                                .clone()
+                                .parse_value::<domain::PaymentMethodsData>("PaymentMethodsData")
+                        })
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to parse saved PayPal wallet data")?;
+
+                    if let Some(domain::PaymentMethodsData::WalletDetails(mut saved_wallet)) =
+                        saved_data
+                    {
+                        saved_wallet.email = wallet_info.email.or(saved_wallet.email);
+                        saved_wallet.provider_details = WalletProviderDetails::merge(
+                            wallet_info.provider_details,
+                            saved_wallet.provider_details,
+                        );
+                        wallet_info = saved_wallet;
+                    }
+
+                    let encrypted_data = core_utils::create_encrypted_data(
+                        &state.into(),
+                        platform.get_provider().get_key_store(),
+                        domain::PaymentMethodsData::WalletDetails(wallet_info),
+                        type_name!(payment_method::PaymentMethod),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt PayPal wallet data")?;
+
+                    Ok(Some(encrypted_data.into()))
+                }
+            }
+        }
+        Some(..) | None => Ok(None),
+    }
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn prepare_payment_method_update_from_connector_details(
     state: &routes::SessionState,
     platform: &domain::Platform,
     pm: &domain::PaymentMethod,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    connector_disclosed_details: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+    connector_disclosed_details: &domain::PaymentMethodData,
     business_profile: &Profile,
-) -> errors::CustomResult<storage::PaymentMethodUpdate, errors::ApiErrorResponse> {
+) -> errors::RouterResult<storage::PaymentMethodUpdate> {
     match connector_disclosed_details {
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
-            bank_redirect_update,
-        ) => {
+        domain::PaymentMethodData::BankRedirect(bank_redirect_update) => {
             prepare_bank_redirect_payment_method_update(
                 state,
                 platform,
@@ -3112,6 +3207,33 @@ pub async fn prepare_payment_method_update_from_connector_details(
                 business_profile,
             )
             .await
+        }
+        domain::PaymentMethodData::Wallet(domain::WalletData::PaypalRedirect(details)) => {
+            let payment_method_data =
+                prepare_saved_wallet_data_from_connector_response(state, platform, pm, details)
+                    .await?;
+
+            Ok(storage::PaymentMethodUpdate::AdditionalDataUpdate {
+                payment_method_data,
+                last_used_at: Some(common_utils::date_time::now()),
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|initiator| initiator.to_string()),
+                status: None,
+                locker_id: None,
+                locker_fingerprint_id: None,
+                payment_method: None,
+                payment_method_type: None,
+                payment_method_issuer: None,
+                network_token_requestor_reference_id: None,
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
+                metadata: None,
+                connector_mandate_details: None,
+                network_tokenization_data: None,
+                connector_payment_method_details: Box::new(None),
+            })
         }
         _ => Err(report!(errors::ApiErrorResponse::NotImplemented {
             message: errors::NotImplementedMessage::Reason(
@@ -6252,6 +6374,43 @@ fn filter_latest_wallet_methods(
     result
 }
 
+/// Returns saved wallet display details for PayPal, the currently supported wallet subtype.
+/// Other wallet subtypes and non-wallet payment method data return no display details.
+#[cfg(feature = "v1")]
+fn get_saved_wallet_details_for_client(
+    pm: &domain::PaymentMethod,
+) -> errors::RouterResult<Option<WalletPaymentMethodDataForClient>> {
+    let payment_method_data = pm
+        .payment_method_data
+        .as_ref()
+        .map(|data| {
+            data.get_inner()
+                .peek()
+                .clone()
+                .parse_value::<domain::PaymentMethodsData>("PaymentMethodsData")
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse saved wallet data")?;
+
+    Ok(match payment_method_data {
+        Some(domain::PaymentMethodsData::WalletDetails(info))
+            if pm.get_payment_method_subtype() == Some(enums::PaymentMethodType::Paypal) =>
+        {
+            Some(WalletPaymentMethodDataForClient::PayPal(Box::new(
+                info.into(),
+            )))
+        }
+        Some(domain::PaymentMethodsData::WalletDetails(..))
+        | Some(domain::PaymentMethodsData::Card(..))
+        | Some(domain::PaymentMethodsData::BankDetails(..))
+        | Some(domain::PaymentMethodsData::NetworkToken(..))
+        | Some(domain::PaymentMethodsData::BankDebit(..))
+        | Some(domain::PaymentMethodsData::BankRedirect(..))
+        | None => None,
+    })
+}
+
 #[cfg(feature = "v1")]
 pub async fn list_customer_payment_method(
     state: &routes::SessionState,
@@ -6433,6 +6592,7 @@ pub async fn list_customer_payment_method(
         };
         // Need validation for enabled payment method ,querying MCA
         let pma = api::CustomerPaymentMethod {
+            wallets: get_saved_wallet_details_for_client(&pm)?,
             payment_token: parent_payment_method_token.to_owned(),
             payment_method_id: pm.payment_method_id.clone(),
             customer_id: pm.customer_id.clone().get_required_value("customer_id")?,

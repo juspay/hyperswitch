@@ -163,6 +163,7 @@ pub struct SavePaymentMethodData<Req> {
     payment_method_token: Option<types::PaymentMethodToken>,
     payment_method: PaymentMethod,
     attempt_status: common_enums::AttemptStatus,
+    connector_response: Option<hyperswitch_domain_models::router_data::ConnectorResponseData>,
 }
 
 impl<F, Req: Clone> From<&types::RouterData<F, Req, types::PaymentsResponseData>>
@@ -175,6 +176,7 @@ impl<F, Req: Clone> From<&types::RouterData<F, Req, types::PaymentsResponseData>
             payment_method_token: router_data.payment_method_token.clone(),
             payment_method: router_data.payment_method,
             attempt_status: router_data.status,
+            connector_response: router_data.connector_response.clone(),
         }
     }
 }
@@ -183,6 +185,7 @@ pub struct SavePaymentMethodDataResponse {
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
     pub connector_mandate_reference_id: Option<ConnectorMandateReferenceId>,
 }
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -357,8 +360,8 @@ where
                     platform.get_provider().get_key_store(),
                 )
                 .await
-                .map_err(|e| {
-                    logger::error!("Failed to update last used at: {:?}", e);
+                .map_err(|error| {
+                    logger::error!(?error, "Failed to update last used at");
                 })
                 .ok();
 
@@ -443,6 +446,16 @@ where
                     ) => Some(domain::PaymentMethodsData::WalletDetails(
                         get_googlepay_wallet_info(googlepay, payment_method_token),
                     )),
+                    (
+                        _,
+                        domain::PaymentMethodData::Wallet(
+                            domain::WalletData::PaypalRedirect(_)
+                            | domain::WalletData::PaypalSdk(_),
+                        ),
+                    ) => payment_methods::cards::get_paypal_wallet_info(
+                        save_payment_method_data.connector_response.as_ref(),
+                    )
+                    .map(domain::PaymentMethodsData::WalletDetails),
                     (_, domain::PaymentMethodData::BankDebit(bank_debit_data)) => bank_debit_data
                         .get_bank_debit_details()
                         .map(domain::PaymentMethodsData::BankDebit),
@@ -1038,8 +1051,8 @@ where
                                 platform.get_provider().get_key_store(),
                             )
                             .await
-                            .map_err(|e| {
-                                logger::error!("Failed to update last used at: {:?}", e);
+                            .map_err(|error| {
+                                logger::error!(?error, "Failed to update last used at");
                             })
                             .ok();
                             resp.payment_method_id = customer_saved_pm.payment_method_id;

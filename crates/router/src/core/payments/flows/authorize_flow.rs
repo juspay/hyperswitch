@@ -218,6 +218,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         Some(api_interface::CurrentFlowInfo::Authorize {
             auth_type: self.auth_type,
             request_data: Box::new(self.request.clone()),
+            connector_meta_data: self.connector_meta_data.clone(),
         })
     }
 
@@ -305,6 +306,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
+                connector_meta_data: self.connector_meta_data.clone(),
             },
         ) {
             logger::info!(
@@ -416,6 +418,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         let current_flow = Some(api_interface::CurrentFlowInfo::Authorize {
             auth_type: self.auth_type,
             request_data: Box::new(self.request.clone()),
+            connector_meta_data: self.connector_meta_data.clone(),
         });
         Box::pin(access_token::add_access_token(
             state,
@@ -440,6 +443,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         let current_flow = api_interface::CurrentFlowInfo::Authorize {
             auth_type: self.auth_type,
             request_data: Box::new(self.request.clone()),
+            connector_meta_data: self.connector_meta_data.clone(),
         };
         self.session_token = session_token::add_session_token_if_needed(
             self,
@@ -486,6 +490,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
+                connector_meta_data: self.connector_meta_data.clone(),
             },
         ) {
             logger::info!(
@@ -587,6 +592,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     _ => false,
                 },
                 api_models::enums::Connector::Shift4 => true,
+                api_models::enums::Connector::Paypal => true,
                 // Nuvei: never run the next leg after a failed initPayment
                 api_models::enums::Connector::Nuvei => authorize_router_data.response.is_ok(),
                 // Paysafe card + 3DS: PreAuthenticate mints the handle. When Paysafe returns no ACS
@@ -636,6 +642,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
+                connector_meta_data: self.connector_meta_data.clone(),
             },
         ) {
             logger::info!(
@@ -784,6 +791,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
+                connector_meta_data: self.connector_meta_data.clone(),
             },
         ) {
             logger::info!(
@@ -846,6 +854,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
+                connector_meta_data: self.connector_meta_data.clone(),
             },
         ) {
             logger::info!(
@@ -1003,6 +1012,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
+                connector_meta_data: self.connector_meta_data.clone(),
             },
         ) {
             logger::info!(
@@ -1074,6 +1084,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
+                connector_meta_data: self.connector_meta_data.clone(),
             },
         );
         if (connector

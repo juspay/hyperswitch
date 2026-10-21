@@ -1500,11 +1500,8 @@ where
             }
 
             if connector_call_type.is_none() {
-                crate::core::payments::helpers::override_setup_future_usage_to_on_session(
-                    &*state.store,
-                    payment_data,
-                )
-                .await?;
+                crate::core::payments::helpers::override_setup_feature_usage(state, payment_data)
+                    .await?;
 
                 connector_call_type = Some(api::ConnectorCallType::PreDetermined(
                     first_connector.clone(),

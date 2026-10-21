@@ -1125,10 +1125,10 @@ pub async fn retrieve_payment_method_with_token(
             .unwrap_or_default()
         }
 
-        storage::PaymentTokenData::WalletToken(_) => storage::PaymentMethodDataWithId {
-            payment_method: None,
-            payment_method_data: None,
-            payment_method_id: None,
+        storage::PaymentTokenData::WalletToken(wallet_token) => storage::PaymentMethodDataWithId {
+            payment_method: Some(enums::PaymentMethod::Wallet),
+            payment_method_data: Some(domain::PaymentMethodData::MandatePayment),
+            payment_method_id: Some(wallet_token.payment_method_id.clone()),
         },
         storage::PaymentTokenData::BankDebit(bank_debit) => {
             let customer_id = payment_intent.customer_id.as_ref().ok_or(
@@ -4417,6 +4417,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                             card_exp_month: None,
                             card_exp_year: None,
                             auth_code: None,
+                            provider_details: None,
                             email: data.email,
                         },
                     ))
@@ -5316,6 +5317,10 @@ fn build_payment_methods_additional_data_for_create(
                         .or(vaulted_wallet_info.card_exp_year),
                     auth_code: wallet_info.auth_code.or(vaulted_wallet_info.auth_code),
                     email: wallet_info.email.or(vaulted_wallet_info.email),
+                    provider_details: payment_methods::WalletProviderDetails::merge(
+                        wallet_info.provider_details,
+                        vaulted_wallet_info.provider_details,
+                    ),
                 },
             )
         }
@@ -8524,6 +8529,21 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
 
     fn validate(&self) -> RouterResult<()> {
         let payment_method = &self.payment_method;
+        let is_paypal_payment_method = payment_method.payment_method_type
+            == Some(enums::PaymentMethod::Wallet)
+            && payment_method.payment_method_subtype == Some(enums::PaymentMethodType::Paypal);
+        if matches!(
+            self.request.payment_method_data,
+            Some(payment_methods::PaymentMethodUpdateData::Wallet(
+                payment_methods::WalletDetailUpdate::PayPal { .. }
+            ))
+        ) && !is_paypal_payment_method
+        {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "PayPal wallet updates require a saved PayPal payment method".to_string(),
+            }
+            .into());
+        }
         when(
             payment_method.status == enums::PaymentMethodStatus::Redacted,
             || {
@@ -8534,7 +8554,6 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
         )?;
         Ok(())
     }
-
     fn is_pm_metadata_changed_for_same_fingerprint(
         &self,
         vault_request_data: &domain::PaymentMethodVaultingData,
@@ -8609,55 +8628,73 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
         Option<domain::PaymentMethodVaultingData>,
         Option<pm_types::AddVaultResponse>,
     )> {
-        if !self.request.is_payment_method_metadata_update() {
-            return Ok((None, None));
-        }
+        match (
+            self.request.is_payment_method_metadata_update(),
+            &self.request.payment_method_data,
+        ) {
+            // Wallet metadata is updated directly in the database without vault operations.
+            (
+                true | false,
+                Some(payment_methods::PaymentMethodUpdateData::Wallet(
+                    payment_methods::WalletDetailUpdate::PayPal { .. },
+                )),
+            ) => Ok((None, None)),
+            (true, Some(payment_methods::PaymentMethodUpdateData::Card(..)))
+            | (true, Some(payment_methods::PaymentMethodUpdateData::BankDebit(..))) => {
+                let pmd: domain::PaymentMethodVaultingData =
+                    Box::pin(vault::retrieve_payment_method_from_vault(
+                        self.state,
+                        self.platform,
+                        self.profile,
+                        &self.payment_method,
+                    ))
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve payment method from vault")?
+                    .data;
 
-        let pmd: domain::PaymentMethodVaultingData =
-            Box::pin(vault::retrieve_payment_method_from_vault(
-                self.state,
-                self.platform,
-                self.profile,
-                &self.payment_method,
-            ))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to retrieve payment method from vault")?
-            .data;
+                let vault_request_data = self
+                    .request
+                    .payment_method_data
+                    .clone()
+                    .map(|payment_method_data| {
+                        pm_transforms::generate_pm_vaulting_req_from_update_request(
+                            pmd,
+                            payment_method_data,
+                        )
+                    })
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::NotSupported {
+                        message: "Payment method type not supported for update".to_string(),
+                    })?
+                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "payment_method_data".into(),
+                    })?;
 
-        let vault_request_data = self
-            .request
-            .payment_method_data
-            .clone()
-            .map(|payment_method_data| {
-                pm_transforms::generate_pm_vaulting_req_from_update_request(
-                    pmd,
-                    payment_method_data,
-                )
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::NotSupported {
-                message: "Payment method type not supported for update".to_string(),
-            })?
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_data".into(),
-            })?;
+                let is_metadata_changed_for_same_fingerprint =
+                    self.is_pm_metadata_changed_for_same_fingerprint(&vault_request_data);
 
-        let is_metadata_changed_for_same_fingerprint =
-            self.is_pm_metadata_changed_for_same_fingerprint(&vault_request_data);
+                let locker =
+                    LockerType::from_micro_services_config(&self.state.conf.micro_services);
 
-        let locker = LockerType::from_micro_services_config(&self.state.conf.micro_services);
-
-        locker
-            .validate_locker_operations_for_update(
-                self.state,
-                self.platform,
-                self.profile,
-                &self.payment_method,
-                &vault_request_data,
-                is_metadata_changed_for_same_fingerprint,
+                locker
+                    .validate_locker_operations_for_update(
+                        self.state,
+                        self.platform,
+                        self.profile,
+                        &self.payment_method,
+                        &vault_request_data,
+                        is_metadata_changed_for_same_fingerprint,
+                    )
+                    .await
+            }
+            (
+                false,
+                Some(payment_methods::PaymentMethodUpdateData::Card(..))
+                | Some(payment_methods::PaymentMethodUpdateData::BankDebit(..)),
             )
-            .await
+            | (true | false, None) => Ok((None, None)),
+        }
     }
 
     pub async fn update_payment_method_if_required(
@@ -8769,10 +8806,45 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 .attach_printable("Failed to persist the promoted payment method in db")?
             }
             false => {
-                let pm_update = create_pm_additional_data_update(
-                    vault_request_data
+                let payment_methods_data = match self.request.payment_method_data.clone() {
+                    Some(payment_methods::PaymentMethodUpdateData::Wallet(update))
+                        if update.is_metadata_update() =>
+                    {
+                        let saved = self
+                            .payment_method
+                            .payment_method_data
+                            .clone()
+                            .map(|data| data.into_inner());
+                        let wallet_info = match saved {
+                            Some(domain::PaymentMethodsData::WalletDetails(info)) => info,
+                            None => payment_methods::PaymentMethodDataWalletInfo {
+                                last4: None,
+                                card_network: None,
+                                card_type: None,
+                                card_exp_month: None,
+                                card_exp_year: None,
+                                auth_code: None,
+                                email: None,
+                                provider_details: None,
+                            },
+                            _ => {
+                                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                                    message: "Saved payment method data is not wallet data"
+                                        .to_string(),
+                                }
+                                .into());
+                            }
+                        };
+                        Some(domain::PaymentMethodsData::WalletDetails(
+                            update.apply_to(wallet_info),
+                        ))
+                    }
+                    _ => vault_request_data
                         .as_ref()
-                        .map(|vault_request_data| vault_request_data.get_payment_methods_data()),
+                        .map(|data| data.get_payment_methods_data()),
+                };
+                let pm_update = create_pm_additional_data_update(
+                    payment_methods_data,
                     self.state,
                     self.platform.get_provider().get_key_store(),
                     vault_resp
