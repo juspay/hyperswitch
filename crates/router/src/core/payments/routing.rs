@@ -1392,9 +1392,13 @@ where
             continue;
         }
 
+        let connector_label = routing::format_connector_for_logging(
+            choice.connector,
+            choice.merchant_connector_id.as_ref(),
+        );
         if !Connector::from(choice.connector).is_separate_authentication_supported() {
             logger::warn!(
-                connector = %choice.connector,
+                connector = %connector_label,
                 "euclid: skipping retry candidate that does not support external 3ds authentication"
             );
             continue;
@@ -1409,7 +1413,7 @@ where
             Ok(connector_data) => ordered.push(connector_data.into()),
             Err(err) => logger::warn!(
                 error = ?err,
-                connector = %choice.connector,
+                connector = %connector_label,
                 "euclid: skipping invalid retry candidate while expanding external-3ds retry list"
             ),
         }
@@ -2436,7 +2440,7 @@ pub async fn refresh_cgraph_cache(
             let key = api_enums::RoutableConnectors::from_str(&key).map_err(|error| {
                 logger::error!(
                     error=?error,
-                    connector_name = %key,
+                    connector = %routing::format_connector_for_logging(&key, None),
                     "euclid: invalid connector name in pm_filters config"
                 );
                 errors::RoutingError::InvalidConnectorName(key)
@@ -2733,6 +2737,9 @@ pub async fn perform_eligibility_analysis(
 }
 
 /// Fetches the merchant's default (fallback) list of routable connectors.
+///
+/// This is the ultimate degrade target for routing: it never applies cgraph/MCA
+/// filtering, so it can be returned as-is when the active MCA list is unavailable.
 #[cfg_attr(feature = "v2", allow(clippy::unused_async))]
 async fn get_fallback_config(
     state: &SessionState,
@@ -2820,31 +2827,34 @@ pub async fn perform_eligibility_analysis_with_fallback(
     // swapped for an arbitrary default. Hard failure can still occur downstream (e.g. a
     // cold-cache refresh errors after this fetch succeeded); only the MCA-fetch failure
     // is degraded here. Never populate the cgraph cache from a failed fetch.
-    let active_mca_ids =
-        match get_active_merchant_connector_accounts(state, key_store, business_profile.get_id())
-            .await
-        {
-            Ok(merchant_connector_accounts) => merchant_connector_accounts.get_ids(),
-            Err(err) => {
-                let fallback = get_fallback_config(state, transaction_data, business_profile)
-                    .await
-                    .map(|mut fallback_config| {
-                        if let Some(eligible) = eligible_connectors {
-                            fallback_config.retain(|choice| eligible.contains(&choice.connector));
-                        }
-                        fallback_config
-                    });
-                logger::error!(
-                    error = ?err,
-                    profile_id = %business_profile.get_id().get_string_repr(),
-                    eligibility_bypassed = true,
-                    fallback_connectors = ?fallback.as_ref().ok(),
-                    "euclid_routing: failed to fetch active merchant connector accounts; \
-                     degrading to fallback config without MCA eligibility checks"
-                );
-                return fallback;
-            }
-        };
+    let active_mca_ids = match get_active_merchant_connector_accounts(
+        state,
+        key_store,
+        business_profile.get_id(),
+    )
+    .await
+    {
+        Ok(merchant_connector_accounts) => merchant_connector_accounts.get_ids(),
+        Err(err) => {
+            let fallback = get_fallback_config(state, transaction_data, business_profile)
+                .await
+                .map(|mut fallback_config| {
+                    if let Some(eligible) = eligible_connectors {
+                        fallback_config.retain(|choice| eligible.contains(&choice.connector));
+                    }
+                    fallback_config
+                });
+            logger::error!(
+                error = ?err,
+                profile_id = %business_profile.get_id().get_string_repr(),
+                eligibility_bypassed = true,
+                fallback_connectors = ?fallback.as_ref().ok().map(|connectors| routing::format_connectors_for_logging(connectors)),
+                "euclid_routing: failed to fetch active merchant connector accounts; \
+                 degrading to fallback config without MCA eligibility checks"
+            );
+            return fallback;
+        }
+    };
 
     let mut final_selection = perform_eligibility_analysis(
         state,
@@ -2878,10 +2888,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
             .collect::<Vec<_>>(),
     );
 
-    let final_selected_connectors = final_selection
-        .iter()
-        .map(|item| item.connector)
-        .collect::<Vec<_>>();
+    let final_selected_connectors = routing::format_connectors_for_logging(&final_selection);
     logger::debug!(final_selected_connectors_for_routing=?final_selected_connectors, "euclid_routing: List of final selected connectors for routing");
 
     Ok(final_selection)
@@ -3603,7 +3610,11 @@ pub async fn perform_dynamic_routing_with_open_router(
             if let Some(connector) = connectors.connectors.first() {
                 logger::debug!(
                 "penalizing the elimination score of the gateway with id {} in open_router for profile {}",
-                connector, profile.get_id().get_string_repr()
+                routing::format_connector_for_logging(
+                    connector.connector,
+                    connector.merchant_connector_id.as_ref(),
+                ),
+                profile.get_id().get_string_repr()
             );
                 update_gateway_score_with_open_router(
                     state,
@@ -3982,7 +3993,10 @@ pub async fn update_gateway_score_with_open_router(
 
             logger::debug!(
                 "open_router update_gateway_score response for gateway with id {}: {:?}",
-                payment_connector,
+                routing::format_connector_for_logging(
+                    payment_connector.connector,
+                    payment_connector.merchant_connector_id.as_ref(),
+                ),
                 update_score_resp.message
             );
 
@@ -4184,7 +4198,7 @@ where
                 ),
             });
         }
-        logger::debug!(success_based_routing_connectors=?connectors);
+        logger::debug!(success_based_routing_connectors=?routing::format_connectors_for_logging(&connectors));
 
         routing_event.set_status_code(200);
         routing_event.set_routable_connectors(connectors.clone());
@@ -4378,8 +4392,8 @@ pub async fn perform_elimination_routing(
             connectors.extend(non_eliminated_connectors.clone());
             connectors.extend(eliminated_connectors.clone());
         }
-        logger::debug!(dynamic_eliminated_connectors=?eliminated_connectors);
-        logger::debug!(dynamic_elimination_based_routing_connectors=?connectors);
+        logger::debug!(dynamic_eliminated_connectors=?routing::format_connectors_for_logging(&eliminated_connectors));
+        logger::debug!(dynamic_elimination_based_routing_connectors=?routing::format_connectors_for_logging(&connectors));
 
         routing_event.set_status_code(200);
         routing_event.set_routable_connectors(connectors.clone());
@@ -4595,7 +4609,7 @@ where
 
         connectors.append(&mut other_connectors);
 
-        logger::debug!(contract_based_routing_connectors=?connectors);
+        logger::debug!(contract_based_routing_connectors=?routing::format_connectors_for_logging(&connectors));
 
         routing_event.set_status_code(200);
         routing_event.set_routable_connectors(connectors.clone());
