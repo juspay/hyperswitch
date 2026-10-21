@@ -1,9 +1,7 @@
 //! The observability plane for Hyperswitch.
 //!
-//! `observability` delivers alerts, and for infrastructure it decides them too. Business alerts
-//! arrive already decided and go straight to [`core::notifier`]; the CloudWatch alarms the
-//! infrastructure repository owns are evaluated here instead, against metrics we query ourselves —
-//! see [`domain::cloudwatch`].
+//! `observability` delivers alerts that arrive already decided and go straight to
+//! [`core::notifier`].
 //!
 //! Laid out on the router's lines: [`core`] decides, [`routes`] exposes, and the whole route tree
 //! is visible in [`routes::app`].
@@ -26,7 +24,6 @@ pub mod services;
 pub mod settings;
 pub mod state;
 pub mod types;
-pub mod utils;
 
 mod secrets_transformers;
 

@@ -27,7 +27,6 @@ async fn test_state(client: Option<&RouterClient>) -> AppState {
         router_transport: client.cloned().map(Arc::new),
         chat: Arc::new(Registry::default()),
         email: Arc::new(Registry::default()),
-        metrics: None,
         // No idle connections: monitoring never touches the database.
         store: Arc::new(
             Store::new(&Database {

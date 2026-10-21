@@ -8,7 +8,6 @@ use external_services::{
         no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
         EmailSettings as EmailClientSettings,
     },
-    metrics_service::{aws_cloudwatch::CloudWatchMetrics, MetricsProvider},
 };
 use hyperswitch_interfaces::{
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
@@ -25,9 +24,7 @@ use crate::{
     },
     errors::ConfigurationError,
     logger, secrets_transformers,
-    settings::{
-        cloudwatch::CloudWatchSettings, ChatDestination, ChatSettings, EmailSettings, Settings,
-    },
+    settings::{ChatDestination, ChatSettings, EmailSettings, Settings},
 };
 
 /// Everything a request handler needs, cloned per worker.
@@ -46,9 +43,6 @@ pub struct AppState {
     pub chat: Arc<Registry<dyn ChatNotifier>>,
     /// Email destinations, by the id a request names.
     pub email: Arc<Registry<dyn EmailNotifier>>,
-    /// Reads the metrics the alarm catalogue is evaluated against. `None` when no catalogue is
-    /// configured, which boot has already checked is the only way to have no client.
-    pub metrics: Option<Arc<dyn MetricsProvider>>,
     /// The observability database.
     pub store: Arc<dyn StorageInterface>,
 }
@@ -99,14 +93,6 @@ impl AppState {
         }
 
         #[allow(clippy::expect_used)]
-        let metrics = build_metrics_provider(&raw_conf.cloudwatch)
-            .await
-            .expect("Failed to build the cloudwatch metrics client");
-        #[allow(clippy::expect_used)]
-        resolve_alarm_destinations(&raw_conf.cloudwatch, &chat)
-            .expect("Failed to resolve the cloudwatch alarm destinations");
-
-        #[allow(clippy::expect_used)]
         let store: Arc<dyn StorageInterface> = Arc::new(
             Store::new(raw_conf.database.get_inner())
                 .await
@@ -129,60 +115,9 @@ impl AppState {
             router_transport,
             chat: Arc::new(chat),
             email: Arc::new(email),
-            metrics,
             store,
         }
     }
-}
-
-/// Check that every severity's announcement has somewhere to go.
-///
-/// A breaching rule pointed at a destination that does not exist is the one failure this service
-/// cannot report: the evaluation succeeds, the alarm is real, and the message goes nowhere. Caught
-/// at boot, where it is a typo, rather than at 3am, where it is silence.
-fn resolve_alarm_destinations(
-    settings: &CloudWatchSettings,
-    chat: &Registry<dyn ChatNotifier>,
-) -> Result<(), ConfigurationError> {
-    for (severity, destination) in settings.destination_ids() {
-        if chat.get(destination).is_none() {
-            Err(ConfigurationError::ConfigParsingError(format!(
-                "cloudwatch severity `{severity}` announces to chat destination `{destination}`, \
-                 which is not configured"
-            )))?
-        }
-    }
-
-    Ok(())
-}
-
-/// Build the provider the catalogue is read through, if there is a catalogue to read.
-///
-/// Built at boot rather than per request, and eagerly enough that a region the SDK cannot resolve
-/// stops the service starting instead of turning every evaluation into a failed batch.
-async fn build_metrics_provider(
-    settings: &CloudWatchSettings,
-) -> Result<Option<Arc<dyn MetricsProvider>>, ConfigurationError> {
-    if settings.alarms.is_empty() {
-        return Ok(None);
-    }
-
-    let provider = CloudWatchMetrics::create(&settings.client)
-        .await
-        .map_err(|error| {
-            ConfigurationError::ConfigParsingError(format!(
-                "the cloudwatch metrics client is not usable: {error}"
-            ))
-        })?;
-
-    logger::info!(
-        alarms = settings.alarms.len(),
-        rules = settings.rule_count(),
-        region = %settings.client.region,
-        "CloudWatch alarm catalogue loaded"
-    );
-
-    Ok(Some(Arc::new(provider)))
 }
 
 /// Turn configured chat destinations into the notifiers that serve them.

@@ -9,7 +9,6 @@
 //! configuration can be used to serve requests, so "did we remember to decrypt this?" is answered
 //! by the type checker rather than by review.
 
-pub mod cloudwatch;
 pub mod utils;
 
 use std::{collections::HashMap, path::PathBuf};
@@ -30,10 +29,7 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use router_env::{env, logger};
 use serde::Deserialize;
 
-use crate::{
-    errors,
-    settings::{cloudwatch::CloudWatchSettings, utils::validate_config_ids},
-};
+use crate::{errors, settings::utils::validate_config_ids};
 
 /// The default configuration file name, looked up inside the config directory.
 const CONFIG_FILE_NAME: &str = "observability.toml";
@@ -72,8 +68,6 @@ pub struct Settings<S: SecretState> {
     pub chat: SecretStateContainer<ChatSettings, S>,
     /// Email destinations this service can deliver to.
     pub email: EmailSettings,
-    /// The infrastructure alarm catalogue this service evaluates.
-    pub cloudwatch: CloudWatchSettings,
     /// The observability database, which holds alert state. Separate from `hyperswitch_db`.
     pub database: SecretStateContainer<Database, S>,
 }
@@ -424,7 +418,6 @@ impl Settings<SecuredSecret> {
         self.chat.get_inner().validate()?;
         self.email.validate()?;
         validate_config_ids(&self.monitoring.destinations, "monitoring destination")?;
-        self.cloudwatch.validate()?;
         self.database.get_inner().validate()?;
         self.secrets_management
             .validate()
