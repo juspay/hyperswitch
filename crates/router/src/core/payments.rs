@@ -4168,6 +4168,7 @@ pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
+    Res: Clone + Into<api_models::payments::PaymentsResponse>,
     Req: Send + Sync + Authenticate,
     FData: Send + Sync + Clone,
     Op: Operation<F, Req, Data = D> + ValidateStatusForOperation + Send + Sync + Clone,
@@ -4220,7 +4221,8 @@ where
         )
         .await?;
 
-    payment_data.generate_response(
+    let cloned_payment_data = payment_data.clone();
+    let payments_response = payment_data.generate_response(
         &state,
         connector_http_status_code,
         external_latency,
@@ -4228,7 +4230,20 @@ where
         &platform,
         &profile,
         None,
+    )?;
+
+    utils::trigger_payments_webhook(
+        &platform,
+        profile,
+        cloned_payment_data,
+        &payments_response,
+        &state,
     )
+    .await
+    .map_err(|error| logger::warn!(payments_outgoing_webhook_error = ?error))
+    .ok();
+
+    Ok(payments_response)
 }
 
 #[cfg(feature = "v2")]
