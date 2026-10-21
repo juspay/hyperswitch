@@ -206,7 +206,6 @@ impl JWTFlow {
         );
 
         if let Some(idle_timeout_in_secs) = state.conf.user.idle_session_timeout_in_secs {
-            auth::blacklist::insert_user_in_blacklist(state, &new_lineage_context.user_id).await?;
             auth::idle_session::start_idle_session(
                 state,
                 &new_lineage_context.user_id,

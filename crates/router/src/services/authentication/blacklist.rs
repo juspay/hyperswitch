@@ -126,7 +126,7 @@ pub async fn check_email_token_in_blacklist(state: &SessionState, token: &str) -
     Ok(())
 }
 
-pub(super) fn get_redis_connection_for_global_tenant<A: SessionStateInfo>(
+fn get_redis_connection_for_global_tenant<A: SessionStateInfo>(
     state: &A,
 ) -> RouterResult<RedisConnectionWithContext> {
     state
