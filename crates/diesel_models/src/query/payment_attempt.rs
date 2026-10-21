@@ -225,6 +225,30 @@ impl PaymentAttempt {
         .await
     }
 
+    /// Finds the attempt whose `connector_metadata` carries `capture_id` as a top-level key.
+    /// Used only to link a dispute that references a capture id when the attempt's
+    /// `connector_transaction_id` holds a different (e.g. order) id.
+    #[cfg(feature = "v1")]
+    pub async fn find_by_processor_merchant_id_connector_metadata_capture_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        capture_id: &str,
+    ) -> StorageResult<Self> {
+        use diesel::expression_methods::PgAnyJsonExpressionMethods;
+
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(
+                    dsl::connector_metadata
+                        .retrieve_as_text("capture_id")
+                        .eq(capture_id.to_owned()),
+                ),
+        )
+        .await
+    }
+
     #[cfg(feature = "v2")]
     pub async fn find_by_profile_id_connector_transaction_id(
         conn: &DatabaseConnectionWithContext<'_>,
