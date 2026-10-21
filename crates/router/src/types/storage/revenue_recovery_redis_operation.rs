@@ -406,7 +406,7 @@ impl RedisTokenManager {
     /// exhausted, only in production. Transactions made in the other environments are test
     /// traffic and must not use up the limits.
     pub fn should_count_retries(state: &SessionState) -> bool {
-        matches!(state.conf.env, router_env::env::Env::Production)
+        state.conf.env.is_production()
     }
 
     /// Normalize retry window to exactly `RETRY_WINDOW_DAYS` days (today to `RETRY_WINDOW_DAYS - 1` days ago).
