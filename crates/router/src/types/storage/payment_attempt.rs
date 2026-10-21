@@ -64,6 +64,7 @@ impl PaymentAttemptExt for PaymentAttempt {
             connector_capture_id: None,
             connector_response_reference_id: None,
             processor_capture_data: None,
+            feature_metadata: None,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_capture_data: None,
         })

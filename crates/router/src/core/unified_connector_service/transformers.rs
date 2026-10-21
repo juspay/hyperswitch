@@ -73,6 +73,121 @@ const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
 
+fn convert_currency_conversion_data(
+    connector: &str,
+    feature_metadata: Option<&api_models::payments::FeatureMetadata>,
+) -> Result<
+    Option<payments_grpc::CurrencyConversionData>,
+    error_stack::Report<UnifiedConnectorServiceError>,
+> {
+    let supported = crate::core::utils::multi_currency_processing::is_supported(connector)
+        .map_err(|error| {
+            error_stack::report!(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(error.to_string(),)
+            )
+        })?;
+    if !supported {
+        return Ok(None);
+    }
+    feature_metadata
+        .and_then(|metadata| metadata.multi_currency_processing.as_ref())
+        .map(
+            |multi_currency_processing| -> Result<
+                payments_grpc::CurrencyConversionData,
+                error_stack::Report<UnifiedConnectorServiceError>,
+            > {
+                if multi_currency_processing.amount.get_amount_as_i64() <= 0 {
+                    return Err(report!(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "multi-currency processing settlement amount must be positive"
+                                .to_string(),
+                        )
+                    ));
+                }
+                let currency =
+                    <payments_grpc::Currency as transformers::ForeignTryFrom<_>>::foreign_try_from(
+                        multi_currency_processing.currency,
+                    )?;
+                Ok(payments_grpc::CurrencyConversionData {
+                    decision: payments_grpc::CurrencyConversionDecision::NotApplicable.into(),
+                    quote: Some(payments_grpc::CurrencyConversionQuote {
+                        merchant_order_amount: Some(payments_grpc::Money {
+                            minor_amount: multi_currency_processing.amount.get_amount_as_i64(),
+                            currency: currency.into(),
+                        }),
+                        exchange_rate: multi_currency_processing
+                            .conversion_rate
+                            .map(|rate| rate.to_string()),
+                        exchange_rate_id: multi_currency_processing.processing_reference_id.clone(),
+                        provider: multi_currency_processing.conversion_provider.clone(),
+                        currency_conversion_type: Some(
+                            payments_grpc::CurrencyConversionType::Mcp.into(),
+                        ),
+                        quoted_at: multi_currency_processing
+                            .date
+                            .map(|dt| dt.assume_utc().unix_timestamp()),
+                        conversion_reason_code: multi_currency_processing
+                            .conversion_reason_code
+                            .clone(),
+                        user_id: multi_currency_processing.user_id.clone(),
+                        connector_quote_id: None,
+                        rate_source: None,
+                        markup_percentage: None,
+                        markup_amount: None,
+                        expires_at: None,
+                    }),
+                })
+            },
+        )
+        .transpose()
+}
+
+/// Use a merchant-supplied settlement leg for partial operations; never prorate a quote.
+pub(crate) fn convert_operation_currency_conversion_data(
+    connector: &str,
+    payment_feature_metadata: Option<&api_models::payments::FeatureMetadata>,
+    operation_multi_currency_processing: Option<
+        &api_models::payments::MultiCurrencyProcessingAmountData,
+    >,
+    customer_amount: MinorUnit,
+    payment_amount: MinorUnit,
+) -> Result<
+    Option<payments_grpc::CurrencyConversionData>,
+    error_stack::Report<UnifiedConnectorServiceError>,
+> {
+    let settlement =
+        crate::core::utils::multi_currency_processing::resolve_operation_multi_currency_processing(
+            connector,
+            payment_feature_metadata,
+            operation_multi_currency_processing,
+            customer_amount,
+            payment_amount,
+        )
+        .map_err(|error| {
+            error_stack::report!(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(error.to_string(),)
+            )
+        })?;
+    let Some(settlement) = settlement else {
+        return Ok(None);
+    };
+    Ok(Some(payments_grpc::CurrencyConversionData {
+        decision: payments_grpc::CurrencyConversionDecision::NotApplicable.into(),
+        quote: Some(payments_grpc::CurrencyConversionQuote {
+            merchant_order_amount: Some(payments_grpc::Money {
+                minor_amount: settlement.amount.get_amount_as_i64(),
+                currency:
+                    <payments_grpc::Currency as transformers::ForeignTryFrom<_>>::foreign_try_from(
+                        settlement.currency,
+                    )?
+                    .into(),
+            }),
+            currency_conversion_type: Some(payments_grpc::CurrencyConversionType::Mcp.into()),
+            ..Default::default()
+        }),
+    }))
+}
+
 impl ForeignFrom<&api_models::payments::ConnectorMetadata>
     for payments_grpc::AdditionalConnectorDetails
 {
@@ -753,6 +868,11 @@ impl
             .map(ConnectorState::foreign_from);
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
+        let currency_conversion_data = convert_currency_conversion_data(
+            &router_data.connector,
+            router_data.request.feature_metadata.as_ref(),
+        )?;
+
         Ok(Self {
             split_settlement: None,
             split_payments: router_data
@@ -904,8 +1024,7 @@ impl
                         }
                     }),
                 }),
-            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
-            currency_conversion_data: None,
+            currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
             recipient_details: router_data
                 .request
@@ -1057,6 +1176,11 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
 
+        let currency_conversion_data = convert_currency_conversion_data(
+            &router_data.connector,
+            router_data.request.feature_metadata.as_ref(),
+        )?;
+
         Ok(Self {
             split_settlement: None,
             split_payments: None,
@@ -1184,8 +1308,7 @@ impl
                 .or_else(|| router_data.request.connector_transaction_id.clone()),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
-            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
-            currency_conversion_data: None,
+            currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
             recipient_details: router_data
                 .request
@@ -2255,6 +2378,18 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .as_ref()
             .map(ConnectorState::foreign_from);
 
+        let currency_conversion_data = convert_operation_currency_conversion_data(
+            &router_data.connector,
+            router_data.request.payment_feature_metadata.as_ref(),
+            router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
+            router_data.request.minor_amount_to_capture,
+            router_data.request.minor_payment_amount,
+        )?;
+
         Ok(Self {
             split_settlement: None,
             connector_transaction_id,
@@ -2305,6 +2440,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                     currency: currency.into(),
                 }
             }),
+            currency_conversion_data,
         })
     }
 }
@@ -2375,6 +2511,11 @@ impl
             .clone()
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
+
+        let currency_conversion_data = convert_currency_conversion_data(
+            &router_data.connector,
+            router_data.request.feature_metadata.as_ref(),
+        )?;
 
         Ok(Self {
             split_settlement: None,
@@ -2468,8 +2609,7 @@ impl
             l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
-            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
-            currency_conversion_data: None,
+            currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
             recipient_details: router_data
                 .request
@@ -2558,6 +2698,11 @@ impl
             .map(ConnectorState::foreign_from);
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
+        let currency_conversion_data = convert_currency_conversion_data(
+            &router_data.connector,
+            router_data.request.feature_metadata.as_ref(),
+        )?;
+
         Ok(Self {
             split_settlement: None,
             split_payments: router_data
@@ -2685,8 +2830,7 @@ impl
             l2_l3_data,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
-            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
-            currency_conversion_data: None,
+            currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
             recipient_details: router_data
                 .request
@@ -3352,6 +3496,7 @@ impl
             is_account_funding_transaction: None,
             recipient_details: None,
             additional_connector_details: None,
+            currency_conversion_data: None,
         })
     }
 }
@@ -3519,6 +3664,11 @@ impl
             router_data.recurring_mandate_payment_data.as_ref(),
         )?;
 
+        let currency_conversion_data = convert_currency_conversion_data(
+            &router_data.connector,
+            router_data.request.feature_metadata.as_ref(),
+        )?;
+
         Ok(Self {
             split_settlement: None,
             split_payments: router_data
@@ -3672,6 +3822,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            currency_conversion_data,
         })
     }
 }
@@ -8493,6 +8644,18 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .transpose()?
             .map(|payment_method_type| payment_method_type.into());
 
+        let currency_conversion_data = convert_operation_currency_conversion_data(
+            &router_data.connector,
+            router_data.request.payment_feature_metadata.as_ref(),
+            router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
+            router_data.request.minor_refund_amount,
+            router_data.request.minor_payment_amount,
+        )?;
+
         Ok(Self {
             split_settlement_refund: None,
             split_refunds: router_data
@@ -8555,6 +8718,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .payment_connector_request_reference_id
                 .clone(),
             payment_method: None,
+            currency_conversion_data,
         })
     }
 }

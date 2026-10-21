@@ -1227,6 +1227,26 @@ pub async fn validate_and_create_refund(
         .attach_printable("No connector populated in payment attempt")?;
     let (connector_transaction_id, processor_transaction_data) =
         common_utils_types::ConnectorTransactionId::form_id_and_data(connector_payment_id);
+    let payment_feature_metadata = payment_intent
+        .feature_metadata
+        .as_ref()
+        .map(api_models::payments::FeatureMetadata::foreign_from);
+    let refund_settlement =
+        refunds_validator::validate_multi_currency_processing_refund_settlement(
+            &connector,
+            payment_feature_metadata.as_ref(),
+            req.feature_metadata.as_ref(),
+            refund_amount,
+            payment_attempt.get_total_amount(),
+            &all_refunds,
+        )?;
+    let refund_feature_metadata = refund_settlement
+        .map(
+            |multi_currency_processing| api_models::refunds::RefundFeatureMetadata {
+                multi_currency_processing: Some(multi_currency_processing),
+            },
+        )
+        .or(req.feature_metadata);
     let refund_create_req = diesel_refund::RefundNew {
         id: global_refund_id,
         merchant_reference_id: merchant_reference_id.clone(),
@@ -1243,6 +1263,11 @@ pub async fn validate_and_create_refund(
         modified_at: common_utils::date_time::now(),
         refund_status: enums::RefundStatus::Pending,
         metadata: req.metadata,
+        feature_metadata: refund_feature_metadata
+            .map(serde_json::to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to serialize refund feature metadata")?,
         description: req.reason.clone(),
         attempt_id: payment_attempt.id.clone(),
         refund_reason: req.reason,
@@ -1353,6 +1378,7 @@ impl ForeignTryFrom<diesel_refund::Refund> for api::RefundResponse {
             status: refunds::RefundStatus::foreign_from(refund.refund_status),
             profile_id,
             metadata: refund.metadata,
+            feature_metadata: refund.feature_metadata,
             created_at: refund.created_at,
             updated_at: refund.modified_at,
             connector,

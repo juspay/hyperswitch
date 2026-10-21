@@ -506,6 +506,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .set_order_tax_amount(request.order_tax_amount.or(order_tax_amount));
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,

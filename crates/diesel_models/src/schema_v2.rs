@@ -385,6 +385,7 @@ diesel::table! {
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
         processor_capture_data -> Nullable<Text>,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -1613,6 +1614,7 @@ diesel::table! {
         merchant_reference_id -> Nullable<Varchar>,
         #[max_length = 64]
         connector_id -> Nullable<Varchar>,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 

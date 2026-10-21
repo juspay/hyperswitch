@@ -1,3 +1,4 @@
+pub mod multi_currency_processing;
 pub mod refunds_transformers;
 pub mod refunds_validator;
 
@@ -55,6 +56,8 @@ use super::payouts::{helpers as payout_helpers, PayoutData};
 use crate::core::payments;
 #[cfg(feature = "v2")]
 use crate::core::payments::helpers as payment_helpers;
+#[cfg(feature = "v2")]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     configs::Settings,
     consts,
@@ -559,6 +562,17 @@ pub async fn construct_refund_router_data<'a, F>(
         minor_amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.id.get_string_repr().to_string(),
+            payment_feature_metadata: payment_intent
+                .feature_metadata
+                .as_ref()
+                .map(api_models::payments::FeatureMetadata::foreign_from),
+            feature_metadata: refund
+                .feature_metadata
+                .as_ref()
+                .map(|metadata| metadata.clone().parse_value("RefundFeatureMetadata"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse refund feature metadata")?,
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
             refund_amount: refund.refund_amount.get_amount_as_i64(),
             minor_refund_amount: refund.refund_amount,
@@ -786,6 +800,17 @@ pub async fn construct_refund_router_data<'a, F>(
         minor_amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
+            payment_feature_metadata: payment_intent
+                .get_optional_feature_metadata()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse payment feature metadata")?,
+            feature_metadata: refund
+                .feature_metadata
+                .as_ref()
+                .map(|metadata| metadata.clone().parse_value("RefundFeatureMetadata"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse refund feature metadata")?,
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
             refund_amount: refund.refund_amount.get_amount_as_i64(),
             minor_refund_amount: refund.refund_amount,

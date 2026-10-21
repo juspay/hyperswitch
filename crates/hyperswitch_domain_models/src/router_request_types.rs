@@ -368,6 +368,12 @@ pub struct PaymentsCaptureData {
     /// amount for this payment. Used to avoid treating a legitimate overcapture as an integrity
     /// mismatch.
     pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
+    /// Original payment settlement metadata for operation validation.
+    pub payment_feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    /// Feature metadata persisted for this operation.
+    pub feature_metadata: Option<api_models::payments::CaptureFeatureMetadata>,
+    // Contains the connector specific metadata coming from payments request
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -1058,6 +1064,8 @@ pub struct CompleteAuthorizeData {
         Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    /// Payment feature metadata retained through redirect completion.
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1460,6 +1468,10 @@ pub struct RefundsData {
     /// `connector_transaction_id` holds the connector-generated identifier, so neither can be used
     /// by connectors that bind a refund to the merchant-side reference of the original payment.
     pub payment_connector_request_reference_id: Option<String>,
+    /// Original payment settlement metadata for operation validation.
+    pub payment_feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    /// Feature metadata persisted for this operation.
+    pub feature_metadata: Option<api_models::refunds::RefundFeatureMetadata>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]

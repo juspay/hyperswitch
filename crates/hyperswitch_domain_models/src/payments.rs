@@ -1560,6 +1560,8 @@ where
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
+    /// Settlement metadata for the current capture, separate from the payment metadata.
+    pub capture_feature_metadata: Option<api_models::payments::CaptureFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -1736,6 +1738,9 @@ where
                 .attach_printable("Connector not found in payment attempt")?,
         };
         Ok(Some(FeatureMetadata {
+            multi_currency_processing: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.multi_currency_processing.clone()),
             redirect_response: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.redirect_response.clone()),

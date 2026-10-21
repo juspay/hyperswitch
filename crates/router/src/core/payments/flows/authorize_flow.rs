@@ -1355,6 +1355,10 @@ impl<F>
             multiple_capture_data: None,
             connector_meta: types::PaymentsResponseData::get_connector_metadata(&response)
                 .map(|secret| secret.expose()),
+            connector_intent_metadata: item.request.connector_intent_metadata,
+            payment_feature_metadata: item.request.feature_metadata,
+            // Full automatic capture uses the original payment settlement values.
+            feature_metadata: None,
             browser_info: None,
             metadata: None,
             capture_method: item.request.capture_method,
