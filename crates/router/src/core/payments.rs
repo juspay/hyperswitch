@@ -12354,6 +12354,9 @@ where
         .inspect_err(|err| {
             logger::error!(
                 error = ?err,
+                profile_id = %business_profile.get_id().get_string_repr(),
+                eligibility_bypassed = true,
+                fallback_connectors = ?core_routing::format_connectors_for_logging(&fallback_config),
                 "euclid: eligibility analysis failed, using fallback connectors"
             );
         })
