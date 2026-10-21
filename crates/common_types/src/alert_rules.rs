@@ -154,6 +154,26 @@ pub enum ComparisonOperator {
     LessThanOrEqualToThreshold,
 }
 
+impl ComparisonOperator {
+    pub fn symbol(self) -> &'static str {
+        match self {
+            Self::GreaterThanThreshold => ">",
+            Self::GreaterThanOrEqualToThreshold => ">=",
+            Self::LessThanThreshold => "<",
+            Self::LessThanOrEqualToThreshold => "<=",
+        }
+    }
+
+    pub fn breaches(self, value: f64, threshold: f64) -> bool {
+        match self {
+            Self::GreaterThanThreshold => value > threshold,
+            Self::GreaterThanOrEqualToThreshold => value >= threshold,
+            Self::LessThanThreshold => value < threshold,
+            Self::LessThanOrEqualToThreshold => value <= threshold,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "camelCase")]
 #[strum(serialize_all = "camelCase")]

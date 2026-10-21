@@ -86,7 +86,7 @@ impl SecretsHandler for EvaluatorSettings {
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let api_token = secret_management_client
-            .get_secret(value.get_inner().grafana.client.api_token.clone())
+            .get_secret(value.get_inner().grafana.api_token.clone())
             .await?;
         Ok(value.transition_state(|evaluator| evaluator.with_api_token(api_token)))
     }

@@ -189,8 +189,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn preserves_real_line_breaks_in_the_json_text() -> Result<(), Box<dyn std::error::Error>>
-    {
+    async fn preserves_real_line_breaks_in_the_json_text() {
         let server = MockServer::start().await;
         let text = "ALARM: test\n\nSeverity: CRITICAL\nState: OK → ALARM\n\nDimensions:\nLoadBalancer: app/test\n\nCondition: Sum >= 10\nLatest value: 16";
         Mock::given(method("POST"))
@@ -208,12 +207,10 @@ mod tests {
 
         let message_id = client_for(&server)
             .post_message(ChatMessage::new(text))
-            .await?;
+            .await
+            .unwrap();
 
-        if message_id != MessageId::ts("1503435956.000247") {
-            return Err("unexpected message id for multiline notification".into());
-        }
-        Ok(())
+        assert_eq!(message_id, MessageId::ts("1503435956.000247"));
     }
 
     #[tokio::test]
