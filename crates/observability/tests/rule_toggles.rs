@@ -234,6 +234,7 @@ fn state_with_store(store: Arc<dyn StorageInterface>) -> AppState {
         conf: Arc::new(conf),
         chat: Arc::new(Registry::default()),
         email: Arc::new(Registry::default()),
+        evaluator: None,
         store,
     }
 }

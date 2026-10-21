@@ -50,12 +50,54 @@
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
-use crate::domain::notifier::{
-    chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
-    email::EmailOutcome,
-    Outcome, Refusal,
+use crate::domain::{
+    evaluator::Level,
+    notifier::{
+        chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
+        email::EmailOutcome,
+        Outcome, Refusal,
+    },
 };
+
+#[derive(Debug, Serialize)]
+pub struct EvaluatorResponse {
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub evaluated_at: PrimitiveDateTime,
+    pub rules: Vec<RuleReport>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RuleReport {
+    pub id: String,
+    pub due: bool,
+    pub previous_level: Option<EvaluatorLevel>,
+    pub level: Option<EvaluatorLevel>,
+    pub message: Option<String>,
+    pub delivered: Option<bool>,
+    pub error: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EvaluatorLevel {
+    Normal,
+    Info,
+    Warning,
+    Critical,
+}
+
+impl From<Level> for EvaluatorLevel {
+    fn from(level: Level) -> Self {
+        match level {
+            Level::Normal => Self::Normal,
+            Level::Info => Self::Info,
+            Level::Warning => Self::Warning,
+            Level::Critical => Self::Critical,
+        }
+    }
+}
 
 /// The body of `POST /alerts/chat/notify/{destination}`.
 #[derive(Debug, Deserialize)]
@@ -238,6 +280,26 @@ mod tests {
 
     fn body_of<T: Serialize>(value: &T) -> serde_json::Value {
         serde_json::to_value(value).unwrap()
+    }
+
+    #[test]
+    fn evaluator_levels_serialize_in_lowercase() {
+        assert_eq!(body_of(&EvaluatorLevel::Normal), "normal");
+        assert_eq!(body_of(&EvaluatorLevel::Critical), "critical");
+    }
+
+    #[test]
+    fn evaluator_timestamp_uses_the_existing_iso8601_contract() -> Result<(), serde_json::Error> {
+        let response = EvaluatorResponse {
+            evaluated_at: time::macros::datetime!(2026-10-21 10:08:00),
+            rules: Vec::new(),
+        };
+        let body = serde_json::to_value(response)?;
+        assert_eq!(
+            body.get("evaluated_at").and_then(serde_json::Value::as_str),
+            Some("2026-10-21T10:08:00.000Z")
+        );
+        Ok(())
     }
 
     #[test]
