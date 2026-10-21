@@ -110,6 +110,7 @@ pub struct Settings<S: SecretState> {
     pub drainer: DrainerSettings,
     pub jwekey: SecretStateContainer<Jwekey, S>,
     pub webhooks: WebhooksSettings,
+    pub incoming_webhooks: IncomingWebhooksSettings,
     pub pm_filters: ConnectorFilters,
     pub customer_acceptance_support: CustomerAcceptanceSupportConfig,
     pub bank_config: BankRedirectConfig,
@@ -140,6 +141,7 @@ pub struct Settings<S: SecretState> {
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
     pub billing_connectors_invoice_sync: BillingConnectorInvoiceSyncCall,
+    pub billing_connectors_invoice_record_back: BillingConnectorInvoiceRecordBackCall,
     pub billing_connectors_dispute_record_back: BillingConnectorDisputeRecordBackCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
@@ -1133,6 +1135,8 @@ pub struct Locker {
     pub create_entity_on_merchant_create: bool,
     #[cfg(feature = "v2")]
     pub plain_fingerprint_response: bool,
+    #[cfg(feature = "v2")]
+    pub use_batched_fingerprint: bool,
 }
 
 impl Locker {
@@ -1323,6 +1327,12 @@ pub struct WebhooksSettings {
     pub redis_lock_expiry_seconds: u32,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct IncomingWebhooksSettings {
+    pub mtls_verified_header: Option<String>,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(default)]
 pub struct WebhookIgnoreErrorSettings {
@@ -1373,6 +1383,19 @@ pub struct BillingConnectorPaymentsSyncCall {
 pub struct BillingConnectorInvoiceSyncCall {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub billing_connectors_which_requires_invoice_sync_call: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct BillingConnectorInvoiceRecordBackCall {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub billing_connectors_which_require_invoice_record_back_call: HashSet<enums::Connector>,
+}
+
+impl BillingConnectorInvoiceRecordBackCall {
+    pub fn is_connector_eligible(&self, connector: enums::Connector) -> bool {
+        self.billing_connectors_which_require_invoice_record_back_call
+            .contains(&connector)
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1540,11 +1563,23 @@ impl Settings<SecuredSecret> {
             .with_list_parse_key("redis.cluster_urls")
             .with_list_parse_key("events.kafka.brokers")
             .with_list_parse_key("connectors.supported.wallets")
+            .with_list_parse_key("report_download_config.process_tracker.email_bcc")
+            .with_list_parse_key("report_download_config.process_tracker_reports")
             .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id");
 
         #[cfg(feature = "deja")]
         let environment_source =
             environment_source.with_list_parse_key("deja.recording.kafka.brokers");
+
+        #[cfg(feature = "olap")]
+        let environment_source = {
+            use strum::IntoEnumIterator;
+            analytics::reports::ReportKind::iter().fold(environment_source, |source, report| {
+                source.with_list_parse_key(&format!(
+                    "report_download_config.process_tracker.report_email_bcc.{report}"
+                ))
+            })
+        };
 
         let config = config
             .add_source(environment_source)

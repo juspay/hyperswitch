@@ -150,6 +150,20 @@ macro_rules! config {
     };
 }
 
+/// Superposition-only override, scoped by processor merchant and payment method.
+pub struct ShouldOverrideSetupFutureUsageToOffSession;
+
+impl superposition::Config for ShouldOverrideSetupFutureUsageToOffSession {
+    type Output = bool;
+    type TargetingKey = id_type::MerchantId;
+    const SUPERPOSITION_KEY: &'static str =
+        superposition_consts::SHOULD_OVERRIDE_SETUP_FUTURE_USAGE_TO_OFF_SESSION;
+
+    fn default_value() -> Self::Output {
+        false
+    }
+}
+
 config! {
     superposition_key = REQUIRES_CVV,
     output = bool,
@@ -534,6 +548,18 @@ impl DatabaseBackedConfig for ShouldTriggerFingerprintMigration {
             .get_provider_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
+}
+
+config! {
+    superposition_key = SHOULD_GENERATE_MERCHANT_SCOPED_PAYMENT_METHOD_FINGERPRINT,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldGenerateMerchantScopedPaymentMethodFingerprint {
+    const KEY: &'static str = "should_generate_merchant_scoped_payment_method_fingerprint";
 }
 
 config! {
@@ -964,6 +990,18 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
             })
             .map(|event| disabled_events.contains(&event))
     }
+}
+
+config! {
+    superposition_key = INCOMING_WEBHOOK_MTLS_VERIFICATION_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithConnector,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for IncomingWebhookMtlsVerificationEnabled {
+    const KEY: &'static str = "incoming_webhook_mtls_verification_enabled";
 }
 
 config! {
