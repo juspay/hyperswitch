@@ -224,7 +224,12 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         ThreeDsProcessingMode::UnifiedAuthenticationService(ref mca_data) => {
             let connector_name = mca_data.connector_name.clone();
             let network_verification = IncomingWebhookVerifier::new(&state.conf.incoming_webhooks)
-                .verify(&state, &mca_data.connector, request_details.headers)
+                .verify(
+                    &state,
+                    &mca_data.connector,
+                    &connector_name,
+                    request_details.headers,
+                )
                 .await?;
 
             let (uas_connector, _) =
@@ -246,7 +251,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             let connector = mca_data.connector.clone();
             let connector_name = mca_data.connector_name.clone();
             let network_verification = IncomingWebhookVerifier::new(&state.conf.incoming_webhooks)
-                .verify(&state, &connector, request_details.headers)
+                .verify(&state, &connector, &connector_name, request_details.headers)
                 .await?;
 
             let mca_ref = mca_data.merchant_connector_account.as_ref();
@@ -2611,6 +2616,7 @@ async fn update_payment_method_mandate_status(
         .await?;
         let mandate_response = api::mandates::MandateResponse {
             mandate_id: connector_mandate_id.clone(),
+            payment_id: Some(payment_id.clone()),
             status: mandate_status,
             payment_method_id: payment_method_id.to_string(),
             payment_method: payment_method_name,

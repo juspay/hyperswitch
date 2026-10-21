@@ -536,6 +536,9 @@ pub mod superposition {
     /// `should_call_pm_modular_service`: defaults to `true` for all merchants and can be set to
     /// `false` for specific merchants to force the SDK to skip tokenization.
     pub const SHOULD_PERFORM_SDK_VAULTING: &str = "vaulting.should_perform_sdk_vaulting";
+    /// Override applied future usage for merchant and payment method scoped contexts.
+    pub const SHOULD_OVERRIDE_SETUP_FUTURE_USAGE_TO_OFF_SESSION: &str =
+        "payments.should_override_setup_future_usage_to_off_session";
     /// dynamic fields configuration key for sdk config
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
     /// payout sync tracker configuration key
@@ -548,6 +551,12 @@ pub mod superposition {
     pub const THREEDS_ROUTING_REGION_UAS: &str = "routing.threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "webhooks.incoming_webhook_disabled_events";
+    /// Allowed incoming webhook source IPs/CIDRs, keyed by connector.
+    pub const INCOMING_WEBHOOK_ALLOWED_IP_RANGES: &str =
+        "webhooks.incoming_webhooks_allowed_ip_ranges";
+    /// Global incoming webhook IP verification kill switch, defaults to `false`.
+    pub const INCOMING_WEBHOOK_IP_VERIFICATION_ENABLED: &str =
+        "webhooks.incoming_webhooks_ip_verification_enabled";
     /// Whether incoming webhook mTLS verification is enabled, defaults to `false`.
     pub const INCOMING_WEBHOOK_MTLS_VERIFICATION_ENABLED: &str =
         "incoming_webhooks.mtls_verification_enabled";
