@@ -10847,6 +10847,16 @@ pub enum WorldpayxmlPaymentPurpose {
 #[serde(rename_all = "snake_case")]
 pub enum ConnectorMetadataResponse {
     Santander(SantanderData),
+    Revolv3(Revolv3Data),
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct Revolv3Data {
+    /// Name of the downstream processor Revolv3 routed the payment to.
+    #[schema(value_type = Option<String>, example = "Paysafe")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub processor: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]

@@ -2050,6 +2050,16 @@ impl PaymentAttempt {
                     })
                     .ok()
                     .map(api_models::payments::ConnectorMetadataResponse::Santander),
+                Connector::Revolv3 => metadata
+                    .parse_value::<api_models::payments::Revolv3Data>("Revolv3Data")
+                    .map_err(|_| {
+                        router_env::logger::warn!(
+                            "Failed to parse payment_attempt.connector_metadata to Revolv3Data"
+                        )
+                    })
+                    .ok()
+                    .filter(|revolv3_data| revolv3_data.processor.is_some())
+                    .map(api_models::payments::ConnectorMetadataResponse::Revolv3),
                 _ => None,
             })
     }
