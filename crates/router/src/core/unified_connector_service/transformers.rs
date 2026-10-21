@@ -227,6 +227,7 @@ pub(super) fn build_ucs_order_details(
                     unit_discount_amount: detail
                         .unit_discount_amount
                         .map(|amount| amount.get_amount_as_i64()),
+                    total_amount: detail.total_amount.map(|amount| amount.get_amount_as_i64()),
                     discount_name: detail.discount_name.clone(),
                     discount_percentage: detail
                         .discount_percentage
@@ -259,7 +260,12 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
     let discount_amount = l2_l3_data.and_then(|data| data.get_discount_amount());
     let shipping_cost = l2_l3_data.and_then(|data| data.get_shipping_cost());
     let duty_amount = l2_l3_data.and_then(|data| data.get_duty_amount());
+    let order_commodity_code = l2_l3_data.and_then(|data| data.get_order_commodity_code());
     let shipping_amount_tax = l2_l3_data.and_then(|data| data.get_shipping_amount_tax());
+    let value_added_tax_amount = l2_l3_data.and_then(|data| data.get_value_added_tax_amount());
+    let value_added_tax_percent = l2_l3_data.and_then(|data| data.get_value_added_tax_percent());
+    let vat_invoice_reference_number =
+        l2_l3_data.and_then(|data| data.get_vat_invoice_reference_number());
     let tax_status = l2_l3_data.and_then(|data| data.get_tax_status());
     let order_tax_amount = l2_l3_data.and_then(|data| data.get_order_tax_amount());
     let customer_tax_registration_id = l2_l3_data
@@ -268,6 +274,9 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
     let merchant_tax_registration_id = l2_l3_data
         .and_then(|data| data.get_merchant_tax_registration_id())
         .map(|tax_id| tax_id.peek().to_owned().into());
+    let merchant_vat_registration_id = l2_l3_data
+        .and_then(|data| data.get_merchant_vat_registration_id())
+        .map(|vat_id| vat_id.peek().to_owned().into());
 
     let order_info = l2_l3_data
         .and_then(|data| data.order_info.as_ref())
@@ -279,6 +288,7 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
             discount_amount: discount_amount.map(|amount| amount.get_amount_as_i64()),
             shipping_cost: shipping_cost.map(|amount| amount.get_amount_as_i64()),
             duty_amount: duty_amount.map(|amount| amount.get_amount_as_i64()),
+            order_commodity_code,
         });
 
     let tax_info = l2_l3_data
@@ -289,8 +299,12 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
                 .map(|tax_status| payments_grpc::TaxStatus::foreign_from(tax_status).into()),
             customer_tax_registration_id,
             merchant_tax_registration_id,
+            merchant_vat_registration_id,
             shipping_amount_tax: shipping_amount_tax.map(|amount| amount.get_amount_as_i64()),
             order_tax_amount: order_tax_amount.map(|tax| tax.get_amount_as_i64()),
+            value_added_tax_amount: value_added_tax_amount.map(|amount| amount.get_amount_as_i64()),
+            value_added_tax_percent,
+            vat_invoice_reference_number,
         });
 
     if order_info.is_none() && tax_info.is_none() {
@@ -387,6 +401,7 @@ impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::Addre
             city: details.city.as_ref().map(|s| s.clone().into()),
             state: details.state.clone(),
             zip_code: details.zip.clone(),
+            origin_zip: details.origin_zip.clone(),
             country_alpha2_code,
             email: None,
             phone_number: None,
@@ -5358,6 +5373,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                 city: details.and_then(|d| d.city.as_ref().map(|s| s.clone().into())),
                 state: details.and_then(|d| d.state.as_ref().map(|s| s.clone().expose().into())),
                 zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.clone().expose().into())),
+                origin_zip: details.and_then(|d| d.origin_zip.clone()),
                 country_alpha2_code: country,
                 email: address
                     .email
@@ -5393,6 +5409,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                 city: details.and_then(|d| d.city.as_ref().map(|s| s.clone().into())),
                 state: details.and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
                 zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
+                origin_zip: details.and_then(|d| d.origin_zip.clone()),
                 country_alpha2_code: country,
                 email: address.email.as_ref().map(|e| e.peek().to_string().into()),
                 phone_number: address
@@ -5431,6 +5448,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                         .and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
                     zip_code: details
                         .and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
+                    origin_zip: details.and_then(|d| d.origin_zip.clone()),
                     country_alpha2_code: country,
                     email: address
                         .email
@@ -5479,6 +5497,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::address::Address>
             city: details.and_then(|d| d.city.as_ref().map(|s| s.clone().into())),
             state: details.and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
             zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
+            origin_zip: details.and_then(|d| d.origin_zip.clone()),
             country_alpha2_code: country,
             email: address.email.as_ref().map(|e| e.peek().to_string().into()),
             phone_number: address

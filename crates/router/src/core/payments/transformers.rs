@@ -2135,6 +2135,8 @@ where
             let billing_address = unified_address.get_payment_billing();
             let merchant_tax_registration_id =
                 processor.get_account().get_merchant_tax_registration_id();
+            let merchant_vat_registration_id =
+                processor.get_account().get_merchant_vat_registration_id();
 
             Box::new(types::L2L3Data {
                 order_info: Some(types::OrderInfo {
@@ -2147,6 +2149,7 @@ where
                     discount_amount: payment_data.payment_intent.discount_amount,
                     shipping_cost: payment_data.payment_intent.shipping_cost,
                     duty_amount: payment_data.payment_intent.duty_amount,
+                    order_commodity_code: payment_data.payment_intent.order_commodity_code.clone(),
                 }),
                 tax_info: Some(types::TaxInfo {
                     tax_status: payment_data.payment_intent.tax_status,
@@ -2154,7 +2157,14 @@ where
                         .as_ref()
                         .and_then(|customer| customer.tax_registration_id.clone()),
                     merchant_tax_registration_id,
+                    merchant_vat_registration_id,
                     shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                    value_added_tax_amount: payment_data.payment_intent.value_added_tax_amount,
+                    value_added_tax_percent: payment_data.payment_intent.value_added_tax_percent,
+                    vat_invoice_reference_number: payment_data
+                        .payment_intent
+                        .vat_invoice_reference_number
+                        .clone(),
                     order_tax_amount: payment_data
                         .payment_attempt
                         .net_amount
