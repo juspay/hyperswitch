@@ -15,7 +15,7 @@ use hyperswitch_interfaces::webhooks::{IncomingWebhookRequestDetails, WebhookRes
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
-use super::{types, utils, MERCHANT_ID};
+use super::{source_verification::IncomingWebhookVerifier, types, utils, MERCHANT_ID};
 #[cfg(feature = "revenue_recovery")]
 use crate::core::webhooks::recovery_incoming;
 use crate::{
@@ -139,6 +139,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             connector_id,
             platform.get_processor().get_key_store(),
         )
+        .await?;
+
+    let network_verification = IncomingWebhookVerifier::new(&state.conf.incoming_webhooks)
+        .verify(&state, &connector, request_details.headers)
         .await?;
 
     let decoded_body = connector
@@ -282,6 +286,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .attach_printable("There was an issue in incoming webhook source verification")?
         };
 
+        let source_verified = network_verification.resolve_source_verified(source_verified);
         logger::info!(source_verified=?source_verified);
 
         if source_verified {
