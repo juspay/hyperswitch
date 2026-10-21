@@ -140,6 +140,11 @@ type RoutingResult<O> = oss_errors::CustomResult<O, errors::RoutingError>;
 
 type SessionRoutingConnectorKey = Option<common_utils::id_type::MerchantConnectorAccountId>;
 
+type MerchantConnectorGraphs = HashMap<
+    common_utils::id_type::MerchantConnectorAccountId,
+    hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>,
+>;
+
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
@@ -2316,7 +2321,7 @@ pub async fn get_merchant_cgraph(
     key_store: &domain::MerchantKeyStore,
     profile_id: &common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
-) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
+) -> RoutingResult<Arc<MerchantConnectorGraphs>> {
     let merchant_id = &key_store.merchant_id;
 
     let key = {
@@ -2346,12 +2351,10 @@ pub async fn get_merchant_cgraph(
         .store
         .caches()
         .cgraph
-        .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>>(
-            CacheKey {
-                key: key.clone(),
-                prefix: state.tenant.redis_key_prefix.clone(),
-            },
-        )
+        .get_val::<Arc<MerchantConnectorGraphs>>(CacheKey {
+            key: key.clone(),
+            prefix: state.tenant.redis_key_prefix.clone(),
+        })
         .await;
 
     let cgraph = if let Some(graph) = cached_cgraph {
@@ -2370,7 +2373,7 @@ pub async fn refresh_cgraph_cache(
     key: String,
     profile_id: &common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
-) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
+) -> RoutingResult<Arc<MerchantConnectorGraphs>> {
     // Fetch the MCA list from the DB here (only reached on a cache miss) rather than
     // reusing a caller-supplied snapshot, so the cached graph is always built from
     // live data and cannot be poisoned by a stale pre-eviction snapshot.
@@ -2416,7 +2419,10 @@ pub async fn refresh_cgraph_cache(
 
     let api_mcas = merchant_connector_accounts
         .into_iter()
-        .map(admin_api::MCACGraphData::foreign_try_from)
+        .map(|mca| {
+            let id = mca.get_id();
+            admin_api::MCACGraphData::foreign_try_from(mca).map(|graph_data| (id, graph_data))
+        })
         .collect::<Result<Vec<_>, _>>()
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
     let connector_configs = state
@@ -2450,11 +2456,10 @@ pub async fn refresh_cgraph_cache(
         connector_configs,
         default_configs,
     };
-    let cgraph = Arc::new(
-        mca_graph::make_mca_graph(api_mcas, &config_pm_filters)
-            .change_context(errors::RoutingError::KgraphCacheRefreshFailed)
-            .attach_printable("when construction cgraph")?,
-    );
+    let cgraph = Arc::new(build_merchant_connector_graphs(
+        api_mcas,
+        &config_pm_filters,
+    )?);
 
     state
         .store
@@ -2470,6 +2475,25 @@ pub async fn refresh_cgraph_cache(
         .await;
 
     Ok(cgraph)
+}
+
+fn build_merchant_connector_graphs(
+    accounts: Vec<(
+        common_utils::id_type::MerchantConnectorAccountId,
+        admin_api::MCACGraphData,
+    )>,
+    config: &CountryCurrencyFilter,
+) -> RoutingResult<MerchantConnectorGraphs> {
+    accounts
+        .into_iter()
+        .map(|(id, account)| {
+            // Separate graphs prevent one MCA from inheriting a sibling's payment methods.
+            mca_graph::make_mca_graph(vec![account], config)
+                .map(|graph| (id, graph))
+                .change_context(errors::RoutingError::KgraphCacheRefreshFailed)
+                .attach_printable("when constructing MCA eligibility graph")
+        })
+        .collect()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2505,36 +2529,53 @@ pub async fn perform_cgraph_filtering(
 
     let cached_cgraph = get_merchant_cgraph(state, key_store, profile_id, transaction_type).await?;
 
+    filter_connector_choices(
+        &cached_cgraph,
+        chosen,
+        &context,
+        eligible_connectors,
+        active_mca_ids,
+    )
+}
+
+fn filter_connector_choices(
+    graphs: &MerchantConnectorGraphs,
+    chosen: Vec<routing_types::RoutableConnectorChoice>,
+    context: &euclid_graph::AnalysisContext,
+    eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
+    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let mut final_selection = Vec::new();
 
     for choice in chosen {
-        let routable_connector = choice.connector;
+        let Some(mca_id) = choice.merchant_connector_id.as_ref() else {
+            continue;
+        };
+        if !active_mca_ids.contains(mca_id)
+            || eligible_connectors.is_some_and(|list| !list.contains(&choice.connector))
+        {
+            continue;
+        }
+        let Some(cgraph) = graphs.get(mca_id) else {
+            continue;
+        };
 
         let euclid_choice: ast::ConnectorChoice = choice.clone().foreign_into();
         let dir_val = euclid_choice
             .into_dir_value()
             .change_context(errors::RoutingError::KgraphAnalysisError)?;
 
-        let cgraph_eligible = cached_cgraph
+        let cgraph_eligible = cgraph
             .check_value_validity(
                 dir_val,
-                &context,
+                context,
                 &mut hyperswitch_constraint_graph::Memoization::new(),
                 &mut hyperswitch_constraint_graph::CycleCheck::new(),
                 None,
             )
             .change_context(errors::RoutingError::KgraphAnalysisError)?;
 
-        let filter_eligible =
-            eligible_connectors.is_none_or(|list| list.contains(&routable_connector));
-
-        let mca_active = choice
-            .merchant_connector_id
-            .as_ref()
-            .map(|id| active_mca_ids.contains(id))
-            .unwrap_or(false);
-
-        if cgraph_eligible && filter_eligible && mca_active {
+        if cgraph_eligible {
             final_selection.push(choice);
         }
     }
@@ -2692,9 +2733,6 @@ pub async fn perform_eligibility_analysis(
 }
 
 /// Fetches the merchant's default (fallback) list of routable connectors.
-///
-/// This is the ultimate degrade target for routing: it never applies cgraph/MCA
-/// filtering, so it can be returned as-is when the active MCA list is unavailable.
 #[cfg_attr(feature = "v2", allow(clippy::unused_async))]
 async fn get_fallback_config(
     state: &SessionState,
