@@ -1637,6 +1637,9 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        if payload.role_id.is_some() {
+            idle_session::check_idle_session(&state.session_state(), &payload.user_id).await?;
+        }
         authorization::check_tenant(
             payload.tenant_id.clone(),
             &state.session_state().tenant.tenant_id,
@@ -5506,13 +5509,7 @@ where
             &state.session_state().tenant.tenant_id,
         )?;
 
-        Ok((
-            (),
-            AuthenticationType::MerchantJwt {
-                merchant_id: payload.merchant_id,
-                user_id: Some(payload.user_id),
-            },
-        ))
+        Ok(((), AuthenticationType::NoAuth))
     }
 }
 
