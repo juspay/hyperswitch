@@ -249,7 +249,6 @@ impl<'a> IncomingWebhookVerifier<'a> {
 mod tests {
     use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
     use external_services::superposition::Config;
-    use hyperswitch_interfaces::api::ConnectorSpecifications;
 
     use super::{IncomingWebhookVerifier, NetworkVerification, VerificationStatus};
     use crate::{
