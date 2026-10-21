@@ -12932,6 +12932,14 @@
             ],
             "nullable": true
           },
+          "paypal": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
           "worldpayxml": {
             "allOf": [
               {
@@ -18755,6 +18763,11 @@
             "type": "string",
             "description": "The identifier for mandate"
           },
+          "payment_id": {
+            "type": "string",
+            "description": "The original setup payment associated with this mandate, when known.",
+            "nullable": true
+          },
           "status": {
             "$ref": "#/components/schemas/MandateStatus"
           },
@@ -24558,6 +24571,14 @@
             "description": "Email address associated with the wallet (e.g. PayPal email)",
             "example": "johntest@test.com",
             "nullable": true
+          },
+          "provider_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletProviderDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -25544,6 +25565,17 @@
             "properties": {
               "bank_debit": {
                 "$ref": "#/components/schemas/BankDebitDetailUpdate"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletDetailUpdate"
               }
             }
           }
@@ -28907,6 +28939,17 @@
           "authorize"
         ]
       },
+      "PaypalConnectorMetadata": {
+        "type": "object",
+        "description": "PayPal-specific metadata supplied with a payment request.",
+        "properties": {
+          "paypal_client_metadata_id": {
+            "type": "string",
+            "description": "FraudNet session identifier sent in the PAYPAL-CLIENT-METADATA-ID request header.",
+            "nullable": true
+          }
+        }
+      },
       "PaypalFlow": {
         "type": "string",
         "enum": [
@@ -28922,6 +28965,12 @@
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
+          },
+          "payer_id": {
+            "type": "string",
+            "description": "PayPal payer identifier.",
+            "example": "7DY7FRMPQ8CT6",
+            "nullable": true
           }
         }
       },
@@ -29013,6 +29062,18 @@
           "payer_id": {
             "type": "string",
             "description": "Unique identifier of the payer in PayPal",
+            "example": "7DY7FRMPQ8CT6",
+            "nullable": true
+          }
+        }
+      },
+      "PaypalWalletInfo": {
+        "type": "object",
+        "description": "PayPal-specific wallet details. Email belongs to the shared wallet model.",
+        "properties": {
+          "payer_id": {
+            "type": "string",
+            "description": "Unique identifier of the payer's PayPal account.",
             "example": "7DY7FRMPQ8CT6",
             "nullable": true
           }
@@ -37069,6 +37130,31 @@
           }
         ]
       },
+      "WalletDetailUpdate": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "pay_pal"
+            ],
+            "properties": {
+              "pay_pal": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "payer_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "WalletPaymentMethodData": {
         "oneOf": [
           {
@@ -37123,6 +37209,21 @@
             "properties": {
               "pay_pal": {
                 "$ref": "#/components/schemas/PaypalRedirection"
+              }
+            }
+          }
+        ]
+      },
+      "WalletProviderDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "PayPal"
+            ],
+            "properties": {
+              "PayPal": {
+                "$ref": "#/components/schemas/PaypalWalletInfo"
               }
             }
           }
