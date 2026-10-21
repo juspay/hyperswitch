@@ -110,6 +110,28 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
+    async fn find_payment_attempt_by_preprocessing_id_processor_merchant_id(
+        &self,
+        preprocessing_id: &str,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &MerchantKeyStore,
+    ) -> CustomResult<PaymentAttempt, StorageError> {
+        self.payment_attempts
+            .lock()
+            .await
+            .iter()
+            .find(|attempt| {
+                attempt.processor_merchant_id == *processor_merchant_id
+                    && attempt.preprocessing_step_id.as_deref() == Some(preprocessing_id)
+            })
+            .cloned()
+            .ok_or_else(|| {
+                StorageError::ValueNotFound("payment attempt not found".to_string()).into()
+            })
+    }
+
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_processor_merchant_id_connector_txn_id(
         &self,
         _processor_merchant_id: &common_utils::id_type::MerchantId,

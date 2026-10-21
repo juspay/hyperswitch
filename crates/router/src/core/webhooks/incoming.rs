@@ -646,6 +646,7 @@ async fn process_webhook_business_logic(
                 business_profile,
                 webhook_details,
                 source_verified,
+                webhook_resource_data,
             ))
             .await
             .attach_printable("Incoming bank-transfer webhook flow failed"),
@@ -3351,14 +3352,20 @@ async fn bank_transfer_webhook_flow(
     business_profile: domain::Profile,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
+    webhook_resource_data: Option<WebhookResourceData>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let (response, created_by, payment_attempt) = if source_verified {
-        let payment_attempt = get_payment_attempt_from_object_reference_id(
-            &state,
-            webhook_details.object_reference_id,
-            platform.get_processor(),
-        )
-        .await?;
+        let payment_attempt = match webhook_resource_data {
+            Some(WebhookResourceData::Payment { payment_attempt }) => payment_attempt,
+            _ => {
+                get_payment_attempt_from_object_reference_id(
+                    &state,
+                    webhook_details.object_reference_id,
+                    platform.get_processor(),
+                )
+                .await?
+            }
+        };
         let payment_id = payment_attempt.payment_id.clone();
         let created_by = payment_attempt.created_by.clone();
         let request = api::PaymentsRequest {
