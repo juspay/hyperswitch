@@ -452,15 +452,22 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        use diesel::{BoolExpressionMethods, ExpressionMethods};
+        use diesel_models::{
+            query::generics,
+            schema::payment_attempt::{dsl, table},
+        };
+
         let conn = pg_connection_read(self).await?;
         let key_manager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
 
-        DieselPaymentAttempt::find_by_processor_merchant_id_preprocessing_id(
+        generics::generic_find_one::<table, _, DieselPaymentAttempt>(
             &conn,
-            processor_merchant_id,
-            preprocessing_id,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::preprocessing_step_id.eq(preprocessing_id.to_owned())),
         )
         .await
         .map_err(|er| {
