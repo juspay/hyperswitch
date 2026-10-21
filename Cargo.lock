@@ -4947,6 +4947,7 @@ dependencies = [
  "futures 0.3.31",
  "http 0.2.12",
  "hyperswitch_masking",
+ "ip_network",
  "mime 0.3.17",
  "payment_link",
  "router_derive",
