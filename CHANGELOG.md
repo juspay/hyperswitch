@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.21.0
+
+### Bug Fixes
+
+- **ucs:** Complete Elavon PG hosted-page payments ([#14843](https://github.com/juspay/hyperswitch/pull/14843)) ([`9c347dc`](https://github.com/juspay/hyperswitch/commit/9c347dc076f7d346dc1de66f485f2dcae3d62b1e))
+
+**Full Changelog:** [`2026.10.20.0...2026.10.21.0`](https://github.com/juspay/hyperswitch/compare/2026.10.20.0...2026.10.21.0)
+
+- - -
+
 ## 2026.10.20.0
 
 ### Features
