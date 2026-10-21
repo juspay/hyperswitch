@@ -5467,19 +5467,15 @@ pub enum WalletData {
 impl WalletData {
     pub fn is_decrypted_flow(&self) -> bool {
         match self {
-            Self::ApplePay(apple_pay) => {
-                match apple_pay.payment_data {
-                    common_types::payments::ApplePayPaymentData::Decrypted(_) => true,
-                    common_types::payments::ApplePayPaymentData::Encrypted(_) => false,
-                }
-            }
-            Self::GooglePay(google_pay) => {
-                match google_pay.tokenization_data {
-                    common_types::payments::GpayTokenizationData::Decrypted(_) => true,
-                    common_types::payments::GpayTokenizationData::Encrypted(_) => false,
-                }
-            }
-            _ => false
+            Self::ApplePay(apple_pay) => match apple_pay.payment_data {
+                common_types::payments::ApplePayPaymentData::Decrypted(_) => true,
+                common_types::payments::ApplePayPaymentData::Encrypted(_) => false,
+            },
+            Self::GooglePay(google_pay) => match google_pay.tokenization_data {
+                common_types::payments::GpayTokenizationData::Decrypted(_) => true,
+                common_types::payments::GpayTokenizationData::Encrypted(_) => false,
+            },
+            _ => false,
         }
     }
 }

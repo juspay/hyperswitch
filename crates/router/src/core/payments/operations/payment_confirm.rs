@@ -1194,11 +1194,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 .as_ref()
                                 .and_then(|pmd| pmd.payment_method_data.as_ref())
                             {
-                                Some(api_models::payments::PaymentMethodData::Wallet(wallet_data)) => {
-                                    wallet_data.is_decrypted_flow() ||
-                                    req.setup_future_usage
-                                        .or(payment_data.payment_intent.setup_future_usage)
-                                        == Some(common_enums::FutureUsage::OffSession)
+                                Some(api_models::payments::PaymentMethodData::Wallet(
+                                    wallet_data,
+                                )) => {
+                                    wallet_data.is_decrypted_flow()
+                                        || req
+                                            .setup_future_usage
+                                            .or(payment_data.payment_intent.setup_future_usage)
+                                            == Some(common_enums::FutureUsage::OffSession)
                                 }
                                 Some(api_models::payments::PaymentMethodData::Card(_))
                                 | Some(api_models::payments::PaymentMethodData::CardWithNoCVC(_))
