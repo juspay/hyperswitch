@@ -1,17 +1,19 @@
 //! Module for managing file storage operations with support for multiple storage schemes.
 
-use std::{
-    fmt::{Display, Formatter},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use common_utils::errors::CustomResult;
 
-/// Includes functionality for AWS S3 storage operations.
-#[cfg(feature = "aws_s3")]
+/// Includes functionality for AWS S3 storage operations, and the S3 client that OCI Object
+/// Storage also uses.
+#[cfg(any(feature = "aws_s3", feature = "oci_object_storage"))]
 mod aws_s3;
 
 mod file_system;
+
+/// Includes functionality for OCI Object Storage, through its S3 Compatibility API.
+#[cfg(feature = "oci_object_storage")]
+mod oci_object_storage;
 
 /// Enum representing different file storage configurations, allowing for multiple storage schemes.
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -24,6 +26,12 @@ pub enum FileStorageConfig {
         /// Configuration for AWS S3 file storage.
         aws_s3: aws_s3::AwsFileStorageConfig,
     },
+    /// OCI Object Storage configuration.
+    #[cfg(feature = "oci_object_storage")]
+    OciObjectStorage {
+        /// Configuration for OCI Object Storage.
+        oci_object_storage: oci_object_storage::OciFileStorageConfig,
+    },
     /// Local file system storage configuration.
     #[default]
     FileSystem,
@@ -34,9 +42,13 @@ impl FileStorageConfig {
     pub fn validate(&self) -> Result<(), InvalidFileStorageConfig> {
         match self {
             #[cfg(feature = "aws_s3")]
-            Self::AwsS3 { aws_s3 } => aws_s3.validate(),
-            Self::FileSystem => Ok(()),
+            Self::AwsS3 { aws_s3 } => aws_s3.validate()?,
+            #[cfg(feature = "oci_object_storage")]
+            Self::OciObjectStorage { oci_object_storage } => oci_object_storage.validate()?,
+            Self::FileSystem => {}
         }
+
+        Ok(())
     }
 
     /// Retrieves the appropriate file storage client based on the file storage configuration.
@@ -44,6 +56,10 @@ impl FileStorageConfig {
         match self {
             #[cfg(feature = "aws_s3")]
             Self::AwsS3 { aws_s3 } => Arc::new(aws_s3::AwsFileStorageClient::new(aws_s3).await),
+            #[cfg(feature = "oci_object_storage")]
+            Self::OciObjectStorage { oci_object_storage } => {
+                Arc::new(oci_object_storage::client(oci_object_storage).await)
+            }
             Self::FileSystem => Arc::new(file_system::FileSystem),
         }
     }
@@ -109,15 +125,12 @@ pub trait FileStorageInterface: dyn_clone::DynClone + Sync + Send {
 dyn_clone::clone_trait_object!(FileStorageInterface);
 
 /// Error thrown when the file storage config is invalid
-#[derive(Debug, Clone)]
-pub struct InvalidFileStorageConfig(&'static str);
-
-impl std::error::Error for InvalidFileStorageConfig {}
-
-impl Display for InvalidFileStorageConfig {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "file_storage: {}", self.0)
-    }
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum InvalidFileStorageConfig {
+    /// The configuration of a cloud storage backend is invalid.
+    #[cfg(any(feature = "aws_s3", feature = "oci_object_storage"))]
+    #[error("file_storage: {0}")]
+    CloudStorage(#[from] cloud_services::storage::InvalidStorageConfig),
 }
 
 /// Represents errors that can occur during file storage operations.

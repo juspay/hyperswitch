@@ -182,6 +182,21 @@ pub struct CustomerData {
     pub date_of_birth: Option<Secret<time::Date>>,
 }
 
+#[cfg(feature = "v2")]
+impl From<api_models::payments::CustomerDetails> for CustomerData {
+    fn from(customer: api_models::payments::CustomerDetails) -> Self {
+        Self {
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            phone_country_code: customer.phone_country_code,
+            tax_registration_id: customer.tax_registration_id,
+            customer_document_details: customer.document_details,
+            date_of_birth: customer.date_of_birth,
+        }
+    }
+}
+
 impl CustomerData {
     pub fn fill_missing_fields(&mut self, other: &Self) {
         self.name = self.name.clone().or_else(|| other.name.clone());
@@ -246,6 +261,7 @@ pub struct PaymentIntentUpdateFields {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -299,6 +315,7 @@ pub struct PaymentIntentUpdateFields {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -534,6 +551,7 @@ pub struct PaymentIntentUpdateInternal {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub enable_avs_check: Option<bool>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -591,6 +609,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -643,6 +662,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -693,6 +713,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -743,6 +764,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -796,6 +818,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -839,6 +862,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     profile_acquirer_id,
                     external_surcharge_strategy,
                     external_surcharge_applicable,
+                    enable_avs_check,
                 } = *boxed_intent;
                 Ok(Self {
                     status: None,
@@ -891,6 +915,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     profile_acquirer_id,
                     external_surcharge_strategy,
                     external_surcharge_applicable,
+                    enable_avs_check,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
@@ -944,6 +969,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
             PaymentIntentUpdate::VoidUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -991,6 +1017,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
             PaymentIntentUpdate::AttemptGroupUpdate {
                 updated_by,
@@ -1041,6 +1068,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
             PaymentIntentUpdate::SplitPaymentStatusUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -1087,6 +1115,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
         }
     }
@@ -1371,6 +1400,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -1430,6 +1460,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
             },
         }
     }
@@ -1541,6 +1572,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     external_surcharge_applicable: None,
                     is_account_funded_transaction: value.is_account_funded_transaction,
                     recipient_details: value.recipient_details.map(Encryption::from),
+                    enable_avs_check: value.enable_avs_check,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1736,6 +1768,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details,
+            enable_avs_check,
         } = value;
         Self {
             amount,
@@ -1797,6 +1830,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details: recipient_details.map(Encryption::from),
+            enable_avs_check,
         }
     }
 }
@@ -2262,6 +2296,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details,
+            enable_avs_check,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -2378,6 +2413,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details: recipient_details.map(Encryption::from),
+            enable_avs_check,
         })
     }
     async fn convert_back(
@@ -2537,6 +2573,7 @@ impl behaviour::Conversion for PaymentIntent {
                 external_surcharge_applicable: storage_model.external_surcharge_applicable,
                 is_account_funded_transaction: storage_model.is_account_funded_transaction,
                 recipient_details: data.recipient_details,
+                enable_avs_check: storage_model.enable_avs_check,
             })
         }
         .await
@@ -2653,6 +2690,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable: self.external_surcharge_applicable,
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
+            enable_avs_check: self.enable_avs_check,
         })
     }
 }
@@ -2749,6 +2787,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable: self.external_surcharge_applicable,
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
+            enable_avs_check: self.enable_avs_check,
         })
     }
 
@@ -2871,6 +2910,7 @@ impl behaviour::Conversion for PaymentIntent {
                 external_surcharge_applicable: storage_model.external_surcharge_applicable,
                 is_account_funded_transaction: storage_model.is_account_funded_transaction,
                 recipient_details: data.recipient_details,
+                enable_avs_check: storage_model.enable_avs_check,
             })
         }
         .await
@@ -2965,6 +3005,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable: self.external_surcharge_applicable,
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
+            enable_avs_check: self.enable_avs_check,
         })
     }
 }
