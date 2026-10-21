@@ -53,6 +53,7 @@ pub struct DeleteUserRoleResponse {
 #[derive(Debug, serde::Serialize)]
 pub struct ListUsersInEntityResponse {
     pub email: pii::Email,
+    pub name: Secret<String>,
     pub roles: Vec<role::MinimalRoleInfo>,
 }
 
