@@ -1,31 +1,25 @@
 use std::collections::BTreeMap;
 
 use common_types::alert_rules::{
-    AlertQuery, CloudwatchQuery, CloudwatchQueryV1, CloudwatchStatistic, ComparisonOperator,
-    Severity, SeverityThresholdV1, TreatMissingData,
+    AlertThresholdsV1, CloudwatchQueryV1, CloudwatchStatistic, SeverityThresholdV1,
+    TreatMissingData,
 };
-use common_utils::{date_time::convert_to_pdt, errors::CustomResult};
+use common_utils::{date_time::convert_to_pdt, fp_utils::when};
 use error_stack::{Report, ResultExt};
-use external_services::grafana::{GrafanaClient, GrafanaConfig, MetricPoint, MetricSeries};
+use external_services::grafana::{
+    GrafanaClient, GrafanaConfig, MetricPoint, MetricSeries, QUERY_REF_ID,
+};
 use hyperswitch_interfaces::types::Proxy;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
 use super::{
-    AlertEvaluator, Evaluation, EvaluationPair, EvaluatorError, EvaluatorResult, Level,
+    AlertEvaluator, Breach, Evaluation, EvaluationPair, EvaluatorError, EvaluatorResult, Level,
     RuleDefinition,
 };
-use crate::errors::ConfigurationError;
 
 const SPARE_PERIODS: u32 = 5;
 const MAX_WINDOW_SECONDS: u32 = 86_400;
-
-#[derive(Clone, Debug, Deserialize)]
-pub struct GrafanaCloudwatchConfig {
-    #[serde(flatten)]
-    pub client: GrafanaConfig,
-    pub cloudwatch_datasource_uid: String,
-}
 
 #[derive(Debug, Clone)]
 pub struct GrafanaCloudwatchEvaluator {
@@ -34,28 +28,29 @@ pub struct GrafanaCloudwatchEvaluator {
 }
 
 impl GrafanaCloudwatchEvaluator {
-    pub fn new(config: GrafanaCloudwatchConfig, proxy: Proxy) -> Self {
+    pub fn new(config: GrafanaConfig, datasource_uid: String, proxy: Proxy) -> Self {
         Self {
-            client: GrafanaClient::new(config.client, proxy),
-            datasource_uid: config.cloudwatch_datasource_uid,
+            client: GrafanaClient::new(config, proxy),
+            datasource_uid,
         }
     }
 }
 
 #[async_trait::async_trait]
 impl AlertEvaluator for GrafanaCloudwatchEvaluator {
+    type Query = CloudwatchQueryV1;
+
     async fn evaluate(
         &self,
-        rule: &RuleDefinition,
+        query: &Self::Query,
+        thresholds: &AlertThresholdsV1,
+        interval_seconds: u32,
         now: PrimitiveDateTime,
     ) -> EvaluatorResult<EvaluationPair> {
-        let config = rule.config.inner();
-        let query = cloudwatch_query(rule);
         let range = fetch_range(
             query,
-            config.interval_seconds,
-            config
-                .thresholds
+            interval_seconds,
+            thresholds
                 .severities
                 .values()
                 .map(|threshold| threshold.evaluation_periods)
@@ -70,72 +65,87 @@ impl AlertEvaluator for GrafanaCloudwatchEvaluator {
             .await
             .change_context(EvaluatorError::DatasourceRequestFailed)?;
         let points = points_from_series(series)?;
-        evaluate_pair(rule, query, &points, range)
+        evaluate_pair(thresholds, query, &points, range)
     }
 }
 
-pub(crate) fn validate_config(config: &GrafanaCloudwatchConfig) -> Result<(), ConfigurationError> {
-    if !matches!(config.client.base_url.scheme(), "http" | "https") {
-        return Err(configuration_error(
-            "grafana.base_url",
-            "must use the http or https scheme",
-        ));
-    }
-    if config.cloudwatch_datasource_uid.trim().is_empty() {
-        return Err(configuration_error(
-            "grafana.cloudwatch_datasource_uid",
-            "must not be blank",
-        ));
-    }
-    Ok(())
+#[derive(Debug)]
+pub struct CloudwatchValidationError {
+    pub field: String,
+    pub requirement: &'static str,
 }
 
-pub(crate) fn validate_rule(rule: &RuleDefinition) -> CustomResult<(), ConfigurationError> {
-    let query = cloudwatch_query(rule);
-    if query.period == 0 {
-        return Err(rule_configuration_error(
-            rule,
-            "query.period",
-            "must be greater than zero",
-        ));
+impl CloudwatchValidationError {
+    fn new(field: impl Into<String>, requirement: &'static str) -> Self {
+        Self {
+            field: field.into(),
+            requirement,
+        }
     }
+}
+
+pub(crate) fn validate_query(query: &CloudwatchQueryV1) -> Result<(), CloudwatchValidationError> {
+    for (field, value) in [
+        ("region", &query.region),
+        ("namespace", &query.namespace),
+        ("metric_name", &query.metric_name),
+    ] {
+        when(value.trim().is_empty(), || {
+            Err(CloudwatchValidationError::new(
+                format!("config.query.{field}"),
+                "must not be blank",
+            ))
+        })?;
+    }
+    when(query.dimensions.len() > 30, || {
+        Err(CloudwatchValidationError::new(
+            "config.query.dimensions",
+            "must contain at most 30 dimensions",
+        ))
+    })?;
+    for (name, value) in &query.dimensions {
+        when(name.trim().is_empty() || value.trim().is_empty(), || {
+            Err(CloudwatchValidationError::new(
+                "config.query.dimensions",
+                "names and values must not be blank",
+            ))
+        })?;
+    }
+    let valid_period = [1, 5, 10, 20, 30].contains(&query.period)
+        || (query.period > 0 && query.period <= MAX_WINDOW_SECONDS && query.period % 60 == 0);
+    when(!valid_period, || {
+        Err(CloudwatchValidationError::new(
+            "config.query.period",
+            "must be 1, 5, 10, 20, 30, or a multiple of 60 up to 86400",
+        ))
+    })?;
+    when(query.end_offset_seconds > 3600, || {
+        Err(CloudwatchValidationError::new(
+            "config.query.end_offset_seconds",
+            "must not exceed 3600 seconds",
+        ))
+    })
+}
+
+pub(crate) fn validate_rule(
+    rule: &RuleDefinition,
+    query: &CloudwatchQueryV1,
+) -> Result<(), CloudwatchValidationError> {
     for (severity, threshold) in &rule.config.inner().thresholds.severities {
         let valid = threshold
             .evaluation_periods
             .checked_mul(query.period)
             .is_some_and(|seconds| seconds <= MAX_WINDOW_SECONDS);
-        if !valid {
-            return Err(rule_configuration_error(
-                rule,
-                &format!("thresholds.severities.{severity}.evaluation_periods × query.period"),
+        when(!valid, || {
+            Err(CloudwatchValidationError::new(
+                format!(
+                    "config.thresholds.severities.{severity}.evaluation_periods × config.query.period"
+                ),
                 "must not exceed 86400 seconds",
-            ));
-        }
+            ))
+        })?;
     }
     Ok(())
-}
-
-fn configuration_error(field: &str, requirement: &str) -> ConfigurationError {
-    ConfigurationError::ConfigParsingError(format!(
-        "invalid evaluator configuration: field `{field}` {requirement}"
-    ))
-}
-
-fn rule_configuration_error(
-    rule: &RuleDefinition,
-    field: &str,
-    requirement: &str,
-) -> Report<ConfigurationError> {
-    Report::new(ConfigurationError::ConfigParsingError(
-        "invalid evaluator rule".to_owned(),
-    ))
-    .attach_printable(format!("rule `{}` field `{field}` {requirement}", rule.id))
-}
-
-fn cloudwatch_query(rule: &RuleDefinition) -> &CloudwatchQueryV1 {
-    match &rule.config.inner().query {
-        AlertQuery::Cloudwatch(CloudwatchQuery::V1(query)) => query,
-    }
 }
 
 #[derive(Debug, Serialize)]
@@ -156,7 +166,7 @@ struct GrafanaQueryRequest<'a> {
 impl<'a> GrafanaQueryRequest<'a> {
     fn new(query: &'a CloudwatchQueryV1, datasource_uid: &'a str) -> Self {
         Self {
-            ref_id: "A",
+            ref_id: QUERY_REF_ID,
             datasource: GrafanaDatasource {
                 kind: "cloudwatch",
                 uid: datasource_uid,
@@ -249,19 +259,21 @@ fn last_complete_period_start(
     let shifted_seconds = at_seconds
         .checked_sub(i64::from(end_offset_seconds))
         .ok_or_else(invalid_time_range)?;
-    let mut last_seconds = shifted_seconds
+    let candidate = shifted_seconds
         .checked_div_euclid(period_seconds)
         .and_then(|value| value.checked_mul(period_seconds))
         .ok_or_else(invalid_time_range)?;
-    while last_seconds
+    let last_seconds = if candidate
         .checked_add(period_seconds)
         .ok_or_else(invalid_time_range)?
         > at_seconds
     {
-        last_seconds = last_seconds
+        candidate
             .checked_sub(period_seconds)
-            .ok_or_else(invalid_time_range)?;
-    }
+            .ok_or_else(invalid_time_range)?
+    } else {
+        candidate
+    };
     let timestamp = OffsetDateTime::from_unix_timestamp(last_seconds)
         .change_context(EvaluatorError::InvalidTimeRange)?;
     Ok(convert_to_pdt(timestamp))
@@ -297,59 +309,74 @@ fn points_from_series(series: Vec<MetricSeries>) -> EvaluatorResult<Vec<MetricPo
         return Err(Report::new(EvaluatorError::UnexpectedResponse)
             .attach_printable(format!("query returned {count} series; expected 1")));
     }
-    Ok(series
+    let mut points = series
         .into_iter()
         .flat_map(|metric_series| metric_series.points)
-        .collect())
+        .collect::<Vec<_>>();
+    points.sort_by_key(|point| point.timestamp);
+    Ok(points)
 }
 
 fn evaluate_pair(
-    rule: &RuleDefinition,
+    thresholds: &AlertThresholdsV1,
     query: &CloudwatchQueryV1,
     points: &[MetricPoint],
     range: FetchRange,
 ) -> EvaluatorResult<EvaluationPair> {
     Ok(EvaluationPair {
-        current: evaluate_at(rule, query, points, range.current_last)?,
-        previous: evaluate_at(rule, query, points, range.previous_last)?,
+        current: evaluate_at(query, thresholds, points, range.current_last)?,
+        previous: evaluate_at(query, thresholds, points, range.previous_last)?,
     })
 }
 
 fn evaluate_at(
-    rule: &RuleDefinition,
     query: &CloudwatchQueryV1,
+    thresholds: &AlertThresholdsV1,
     points: &[MetricPoint],
     last: PrimitiveDateTime,
 ) -> EvaluatorResult<Evaluation> {
-    let mut latest_point = None;
-    for (severity, level) in [
-        (Severity::Critical, Level::Critical),
-        (Severity::Warning, Level::Warning),
-        (Severity::Info, Level::Info),
-    ] {
-        let Some(threshold) = rule.config.inner().thresholds.severities.get(&severity) else {
+    for level in [Level::Critical, Level::Warning, Level::Info] {
+        let Some(threshold) = level
+            .severity()
+            .and_then(|severity| thresholds.severities.get(&severity))
+        else {
             continue;
         };
         let judged = evaluate_severity(threshold, points, last, query.period)?;
-        latest_point = newest_point(latest_point, judged.latest_point);
         if judged.breaching {
             let condition = condition(query, threshold);
             let metric_details = metric_details(query, threshold, &condition);
             return Ok(Evaluation {
                 level,
                 latest_value: judged.latest_point.map(|point| point.value),
-                condition: Some(condition),
-                description: Some(threshold.description.clone()),
-                metric_details: Some(metric_details),
+                breach: Some(Breach {
+                    condition,
+                    description: threshold.description.clone(),
+                    metric_details,
+                }),
             });
         }
     }
+    let range_start = thresholds
+        .severities
+        .values()
+        .map(|threshold| threshold.evaluation_periods)
+        .max()
+        .map(|periods| {
+            let seconds = evaluation_range_seconds(query.period, periods)?;
+            shift_timestamp(last, seconds.checked_neg().ok_or_else(invalid_time_range)?)
+        })
+        .transpose()?;
+    let latest_point = range_start.and_then(|start| {
+        points
+            .iter()
+            .rev()
+            .find(|point| (start..=last).contains(&point.timestamp))
+    });
     Ok(Evaluation {
         level: Level::Normal,
         latest_value: latest_point.map(|point| point.value),
-        condition: None,
-        description: None,
-        metric_details: None,
+        breach: None,
     })
 }
 
@@ -370,75 +397,46 @@ fn evaluate_severity<'a>(
         last,
         range_seconds.checked_neg().ok_or_else(invalid_time_range)?,
     )?;
-    let mut real = points
-        .iter()
-        .filter(|point| point.timestamp >= range_start && point.timestamp <= last)
-        .collect::<Vec<_>>();
-    real.sort_by_key(|point| point.timestamp);
-    let evaluation_periods = usize::try_from(threshold.evaluation_periods)
-        .change_context(EvaluatorError::UnexpectedResponse)
-        .attach_printable("evaluation_periods does not fit this platform")?;
-    let selected = real
-        .iter()
-        .rev()
-        .take(evaluation_periods)
-        .copied()
-        .collect::<Vec<_>>();
-    let real_breaches = selected
-        .iter()
-        .filter(|point| breaches(point.value, threshold))
-        .count();
-    let missing = evaluation_periods.saturating_sub(selected.len());
-    let filled_breaches = if threshold.treat_missing_data == TreatMissingData::Breaching {
-        missing
-    } else {
-        0
-    };
-    let breaching_points = real_breaches
-        .checked_add(filled_breaches)
-        .ok_or_else(invalid_time_range)?;
+    let evaluation_periods = usize::try_from(threshold.evaluation_periods).unwrap_or(usize::MAX);
     let datapoints_to_alarm = usize::try_from(
         threshold
             .datapoints_to_alarm
             .unwrap_or(threshold.evaluation_periods),
     )
-    .change_context(EvaluatorError::UnexpectedResponse)
-    .attach_printable("datapoints_to_alarm does not fit this platform")?;
+    .unwrap_or(usize::MAX);
+    let newest_first = points
+        .iter()
+        .rev()
+        .filter(|point| (range_start..=last).contains(&point.timestamp))
+        .take(evaluation_periods)
+        .collect::<Vec<_>>();
+    let filled = evaluation_periods.saturating_sub(newest_first.len());
+    let filled_breaches = match threshold.treat_missing_data {
+        TreatMissingData::Breaching => filled,
+        TreatMissingData::NotBreaching | TreatMissingData::Missing => 0,
+    };
+    let breaching_points = newest_first
+        .iter()
+        .filter(|point| {
+            threshold
+                .comparison_operator
+                .breaches(point.value, threshold.threshold)
+        })
+        .count()
+        .saturating_add(filled_breaches);
     Ok(SeverityEvaluation {
         breaching: breaching_points >= datapoints_to_alarm,
-        latest_point: selected.first().copied(),
+        latest_point: newest_first.first().copied(),
     })
 }
 
-fn newest_point<'a>(
-    first: Option<&'a MetricPoint>,
-    second: Option<&'a MetricPoint>,
-) -> Option<&'a MetricPoint> {
-    match (first, second) {
-        (Some(first), Some(second)) if first.timestamp >= second.timestamp => Some(first),
-        (_, Some(second)) => Some(second),
-        (Some(first), None) => Some(first),
-        (None, None) => None,
-    }
-}
-
-fn breaches(value: f64, threshold: &SeverityThresholdV1) -> bool {
-    match threshold.comparison_operator {
-        ComparisonOperator::GreaterThanThreshold => value > threshold.threshold,
-        ComparisonOperator::GreaterThanOrEqualToThreshold => value >= threshold.threshold,
-        ComparisonOperator::LessThanThreshold => value < threshold.threshold,
-        ComparisonOperator::LessThanOrEqualToThreshold => value <= threshold.threshold,
-    }
-}
-
 fn condition(query: &CloudwatchQueryV1, threshold: &SeverityThresholdV1) -> String {
-    let operator = match threshold.comparison_operator {
-        ComparisonOperator::GreaterThanThreshold => ">",
-        ComparisonOperator::GreaterThanOrEqualToThreshold => ">=",
-        ComparisonOperator::LessThanThreshold => "<",
-        ComparisonOperator::LessThanOrEqualToThreshold => "<=",
-    };
-    format!("{} {operator} {}", query.statistic, threshold.threshold)
+    format!(
+        "{} {} {}",
+        query.statistic,
+        threshold.comparison_operator.symbol(),
+        threshold.threshold
+    )
 }
 
 fn metric_details(
@@ -472,16 +470,17 @@ fn metric_details(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
-    use common_types::alert_rules::{AlertRuleConfig, AlertRuleConfigStoredV1, AlertThresholdsV1};
-    use hyperswitch_masking::Secret;
+    use common_types::alert_rules::{
+        AlertQuery, AlertRuleConfig, AlertRuleConfigStoredV1, AlertThresholdsV1, CloudwatchQuery,
+        ComparisonOperator, Severity,
+    };
+    use error_stack::{AttachmentKind, FrameKind};
     use serde_json::json;
     use time::macros::datetime;
-    use url::Url;
 
     use super::*;
-
-    type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
     fn base() -> PrimitiveDateTime {
         datetime!(2026-10-16 06:45:00)
@@ -556,6 +555,16 @@ mod tests {
         )
     }
 
+    fn query(rule: &RuleDefinition) -> &CloudwatchQueryV1 {
+        match &rule.config.inner().query {
+            AlertQuery::Cloudwatch(query) => query.inner(),
+        }
+    }
+
+    fn thresholds(rule: &RuleDefinition) -> &AlertThresholdsV1 {
+        &rule.config.inner().thresholds
+    }
+
     fn point(minute: i64, value: f64) -> MetricPoint {
         MetricPoint {
             timestamp: base() + Duration::minutes(minute),
@@ -563,29 +572,29 @@ mod tests {
         }
     }
 
-    fn assert_level_order(
-        data: Vec<Option<f64>>,
-        rule: RuleDefinition,
-        expected: &[Level],
-    ) -> TestResult {
-        let data_len = i64::try_from(data.len())?;
+    fn assert_level_order(data: Vec<Option<f64>>, rule: RuleDefinition, expected: &[Level]) {
+        let data_len = i64::try_from(data.len()).unwrap();
         let mut points = Vec::new();
         for (minute, value) in data.into_iter().enumerate() {
             if let Some(value) = value {
-                points.push(point(i64::try_from(minute)?, value));
+                points.push(point(i64::try_from(minute).unwrap(), value));
             }
         }
-        let query = cloudwatch_query(&rule);
+        let query = query(&rule);
         let mut actual = Vec::new();
         for minute in -1..=data_len + 10 {
-            let evaluation =
-                evaluate_at(&rule, query, &points, base() + Duration::minutes(minute))?;
+            let evaluation = evaluate_at(
+                query,
+                thresholds(&rule),
+                &points,
+                base() + Duration::minutes(minute),
+            )
+            .unwrap();
             if actual.last() != Some(&evaluation.level) {
                 actual.push(evaluation.level);
             }
         }
         assert_eq!(actual, expected);
-        Ok(())
     }
 
     fn dense_data(length: usize, value: impl Fn(usize) -> f64) -> Vec<Option<f64>> {
@@ -593,7 +602,7 @@ mod tests {
     }
 
     #[test]
-    fn s01_dense_sustained() -> TestResult {
+    fn s01_dense_sustained() {
         assert_level_order(
             dense_data(32, |minute| {
                 if (5..=9).contains(&minute) {
@@ -614,7 +623,7 @@ mod tests {
     }
 
     #[test]
-    fn s02_dense_one_minute_spike() -> TestResult {
+    fn s02_dense_one_minute_spike() {
         assert_level_order(
             dense_data(32, |minute| if minute == 5 { 95.0 } else { 50.0 }),
             critical_rule(
@@ -629,7 +638,7 @@ mod tests {
     }
 
     #[test]
-    fn s03_dense_sustained_n3() -> TestResult {
+    fn s03_dense_sustained_n3() {
         assert_level_order(
             dense_data(32, |minute| {
                 if (5..=10).contains(&minute) {
@@ -650,7 +659,7 @@ mod tests {
     }
 
     #[test]
-    fn s04_dense_short_n3() -> TestResult {
+    fn s04_dense_short_n3() {
         assert_level_order(
             dense_data(32, |minute| {
                 if (5..=6).contains(&minute) {
@@ -671,7 +680,7 @@ mod tests {
     }
 
     #[test]
-    fn s05_sparse_single_n1() -> TestResult {
+    fn s05_sparse_single_n1() {
         assert_level_order(
             (0..32).map(|minute| (minute == 5).then_some(4.0)).collect(),
             critical_rule(
@@ -686,7 +695,7 @@ mod tests {
     }
 
     #[test]
-    fn s06_sparse_single_n3() -> TestResult {
+    fn s06_sparse_single_n3() {
         assert_level_order(
             (0..32).map(|minute| (minute == 5).then_some(4.0)).collect(),
             critical_rule(
@@ -701,7 +710,7 @@ mod tests {
     }
 
     #[test]
-    fn s07_sparse_burst_n3() -> TestResult {
+    fn s07_sparse_burst_n3() {
         assert_level_order(
             (0..32)
                 .map(|minute| (5..=9).contains(&minute).then_some(3.0))
@@ -718,7 +727,7 @@ mod tests {
     }
 
     #[test]
-    fn s08_stops_breaching() -> TestResult {
+    fn s08_stops_breaching() {
         assert_level_order(
             (0..32)
                 .map(|minute| (minute <= 7).then_some(50.0))
@@ -735,7 +744,7 @@ mod tests {
     }
 
     #[test]
-    fn s09_stops_missing() -> TestResult {
+    fn s09_stops_missing() {
         assert_level_order(
             (0..32)
                 .map(|minute| (minute <= 7).then_some(50.0))
@@ -752,7 +761,7 @@ mod tests {
     }
 
     #[test]
-    fn s10_three_of_five() -> TestResult {
+    fn s10_three_of_five() {
         assert_level_order(
             dense_data(32, |minute| {
                 if [5, 7, 9].contains(&minute) {
@@ -773,7 +782,7 @@ mod tests {
     }
 
     #[test]
-    fn s11_ec2_every_five_minutes() -> TestResult {
+    fn s11_ec2_every_five_minutes() {
         assert_level_order(
             (0..32)
                 .map(|minute| (minute % 5 == 0).then_some(if minute == 15 { 90.0 } else { 50.0 }))
@@ -790,7 +799,7 @@ mod tests {
     }
 
     #[test]
-    fn s12_stops_while_alarm() -> TestResult {
+    fn s12_stops_while_alarm() {
         assert_level_order(
             (0..32)
                 .map(|minute| (minute <= 7).then_some(90.0))
@@ -807,7 +816,7 @@ mod tests {
     }
 
     #[test]
-    fn f2_sparse_burst_n3() -> TestResult {
+    fn f2_sparse_burst_n3() {
         assert_level_order(
             (0..16)
                 .map(|minute| (3..=7).contains(&minute).then_some(3.0))
@@ -824,7 +833,7 @@ mod tests {
     }
 
     #[test]
-    fn f3_three_of_five() -> TestResult {
+    fn f3_three_of_five() {
         assert_level_order(
             dense_data(16, |minute| {
                 if [3, 5, 7].contains(&minute) {
@@ -845,7 +854,7 @@ mod tests {
     }
 
     #[test]
-    fn f4_only_two_of_five() -> TestResult {
+    fn f4_only_two_of_five() {
         assert_level_order(
             dense_data(
                 16,
@@ -869,7 +878,7 @@ mod tests {
     }
 
     #[test]
-    fn f5_stops_breaching() -> TestResult {
+    fn f5_stops_breaching() {
         assert_level_order(
             (0..16)
                 .map(|minute| (minute <= 4).then_some(50.0))
@@ -886,16 +895,15 @@ mod tests {
     }
 
     #[test]
-    fn last_period_examples_never_use_unfinished_periods() -> TestResult {
+    fn last_period_examples_never_use_unfinished_periods() {
         assert_eq!(
-            last_complete_period_start(60, 180, datetime!(2026-10-16 10:08:00))?,
+            last_complete_period_start(60, 180, datetime!(2026-10-16 10:08:00)).unwrap(),
             datetime!(2026-10-16 10:05:00)
         );
         assert_eq!(
-            last_complete_period_start(300, 180, datetime!(2026-10-16 10:08:00))?,
+            last_complete_period_start(300, 180, datetime!(2026-10-16 10:08:00)).unwrap(),
             datetime!(2026-10-16 10:00:00)
         );
-        Ok(())
     }
 
     #[test]
@@ -908,7 +916,7 @@ mod tests {
     }
 
     #[test]
-    fn fetch_range_covers_previous_and_current_from_one_request() -> TestResult {
+    fn fetch_range_covers_previous_and_current_from_one_request() {
         let rule = rule(
             60,
             180,
@@ -937,20 +945,20 @@ mod tests {
             ],
         );
         let range = fetch_range(
-            cloudwatch_query(&rule),
+            query(&rule),
             rule.config.inner().interval_seconds,
             3,
             datetime!(2026-10-16 10:08:00),
-        )?;
+        )
+        .unwrap();
         assert_eq!(range.from, datetime!(2026-10-16 09:53:00));
         assert_eq!(range.to, datetime!(2026-10-16 10:06:00));
         assert_eq!(range.previous_last, datetime!(2026-10-16 10:00:00));
         assert_eq!(range.current_last, datetime!(2026-10-16 10:05:00));
-        Ok(())
     }
 
     #[test]
-    fn current_and_previous_share_points_and_ignore_future_points() -> TestResult {
+    fn current_and_previous_share_points_and_ignore_future_points() {
         let rule = critical_rule(
             80.0,
             ComparisonOperator::GreaterThanOrEqualToThreshold,
@@ -965,20 +973,20 @@ mod tests {
             current_last: base() + Duration::minutes(1),
         };
         let pair = evaluate_pair(
-            &rule,
-            cloudwatch_query(&rule),
+            thresholds(&rule),
+            query(&rule),
             &[point(0, 50.0), point(1, 90.0), point(2, 100.0)],
             range,
-        )?;
+        )
+        .unwrap();
         assert_eq!(pair.previous.level, Level::Normal);
         assert_eq!(pair.previous.latest_value, Some(50.0));
         assert_eq!(pair.current.level, Level::Critical);
         assert_eq!(pair.current.latest_value, Some(90.0));
-        Ok(())
     }
 
     #[test]
-    fn critical_wins_without_comparing_severity_values() -> TestResult {
+    fn critical_wins_without_comparing_severity_values() {
         let rule = rule(
             60,
             0,
@@ -1006,13 +1014,13 @@ mod tests {
                 ),
             ],
         );
-        let evaluation = evaluate_at(&rule, cloudwatch_query(&rule), &[point(0, 90.0)], base())?;
+        let evaluation =
+            evaluate_at(query(&rule), thresholds(&rule), &[point(0, 90.0)], base()).unwrap();
         assert_eq!(evaluation.level, Level::Critical);
-        Ok(())
     }
 
     #[test]
-    fn condition_and_latest_value_belong_to_chosen_severity() -> TestResult {
+    fn condition_and_latest_value_belong_to_chosen_severity() {
         let rule = critical_rule(
             90.0,
             ComparisonOperator::GreaterThanOrEqualToThreshold,
@@ -1021,19 +1029,20 @@ mod tests {
             TreatMissingData::Missing,
         );
         let evaluation = evaluate_at(
-            &rule,
-            cloudwatch_query(&rule),
+            query(&rule),
+            thresholds(&rule),
             &[point(0, 91.0), point(1, 50.0)],
             base() + Duration::minutes(1),
-        )?;
+        )
+        .unwrap();
         assert_eq!(evaluation.level, Level::Critical);
         assert_eq!(evaluation.latest_value, Some(50.0));
-        assert_eq!(evaluation.condition.as_deref(), Some("Average >= 90"));
+        let breach = evaluation.breach.as_ref().unwrap();
+        assert_eq!(breach.condition, "Average >= 90");
         assert_eq!(
-            evaluation.metric_details.as_deref(),
-            Some("Metric: Value\nNamespace: Test\nStatistic: Average\nRegion: us-east-1\n\nDimensions:\nNone\n\nCondition: Average >= 90\nEvaluation: 1 of 2 datapoints\nPeriod: 60 seconds\nMissing data: missing")
+            breach.metric_details,
+            "Metric: Value\nNamespace: Test\nStatistic: Average\nRegion: us-east-1\n\nDimensions:\nNone\n\nCondition: Average >= 90\nEvaluation: 1 of 2 datapoints\nPeriod: 60 seconds\nMissing data: missing"
         );
-        Ok(())
     }
 
     #[test]
@@ -1046,7 +1055,7 @@ mod tests {
                 ("AvailabilityZone".to_owned(), "ap-south-1a".to_owned()),
                 (
                     "LoadBalancer".to_owned(),
-                    "app/test-envoy-alb/0123456789abcdef".to_owned(),
+                    "app/example-alb/0123456789abcdef".to_owned(),
                 ),
             ]),
             statistic: CloudwatchStatistic::Sum,
@@ -1062,12 +1071,12 @@ mod tests {
         );
         assert_eq!(
             metric_details(&query, &threshold, &condition(&query, &threshold)),
-            "Metric: HTTPCode_Target_5XX_Count\nNamespace: AWS/ApplicationELB\nStatistic: Sum\nRegion: ap-south-1\n\nDimensions:\nAvailabilityZone: ap-south-1a\nLoadBalancer: app/test-envoy-alb/0123456789abcdef\n\nCondition: Sum >= 10\nEvaluation: 1 of 1 datapoints\nPeriod: 60 seconds\nMissing data: notBreaching"
+            "Metric: HTTPCode_Target_5XX_Count\nNamespace: AWS/ApplicationELB\nStatistic: Sum\nRegion: ap-south-1\n\nDimensions:\nAvailabilityZone: ap-south-1a\nLoadBalancer: app/example-alb/0123456789abcdef\n\nCondition: Sum >= 10\nEvaluation: 1 of 1 datapoints\nPeriod: 60 seconds\nMissing data: notBreaching"
         );
     }
 
     #[test]
-    fn normal_uses_latest_real_point_across_all_judged_severities() -> TestResult {
+    fn normal_uses_latest_real_point_across_all_judged_severities() {
         let rule = rule(
             60,
             0,
@@ -1096,20 +1105,19 @@ mod tests {
             ],
         );
         let evaluation = evaluate_at(
-            &rule,
-            cloudwatch_query(&rule),
+            query(&rule),
+            thresholds(&rule),
             &[point(0, 50.0), point(1, 60.0)],
             base() + Duration::minutes(1),
-        )?;
+        )
+        .unwrap();
         assert_eq!(evaluation.level, Level::Normal);
         assert_eq!(evaluation.latest_value, Some(60.0));
-        assert_eq!(evaluation.condition, None);
-        assert_eq!(evaluation.metric_details, None);
-        Ok(())
+        assert_eq!(evaluation.breach, None);
     }
 
     #[test]
-    fn all_missing_data_modes_and_default_m_follow_the_recipe() -> TestResult {
+    fn all_missing_data_modes_and_default_m_follow_the_recipe() {
         for (treatment, expected) in [
             (TreatMissingData::Breaching, Level::Critical),
             (TreatMissingData::NotBreaching, Level::Normal),
@@ -1122,15 +1130,14 @@ mod tests {
                 None,
                 treatment,
             );
-            let evaluation = evaluate_at(&rule, cloudwatch_query(&rule), &[], base())?;
+            let evaluation = evaluate_at(query(&rule), thresholds(&rule), &[], base()).unwrap();
             assert_eq!(evaluation.level, expected);
             assert_eq!(evaluation.latest_value, None);
         }
-        Ok(())
     }
 
     #[test]
-    fn comparison_operators_are_applied() -> TestResult {
+    fn comparison_operators_are_applied() {
         for (operator, value, expected) in [
             (ComparisonOperator::GreaterThanThreshold, 80.0, false),
             (
@@ -1143,38 +1150,66 @@ mod tests {
         ] {
             let rule = critical_rule(80.0, operator, 1, Some(1), TreatMissingData::Missing);
             let evaluation =
-                evaluate_at(&rule, cloudwatch_query(&rule), &[point(0, value)], base())?;
+                evaluate_at(query(&rule), thresholds(&rule), &[point(0, value)], base()).unwrap();
             assert_eq!(evaluation.level == Level::Critical, expected);
         }
-        Ok(())
     }
 
     #[test]
-    fn multiple_series_has_typed_context_and_safe_count() -> TestResult {
+    fn multiple_series_has_typed_context_and_safe_count() {
         let result = points_from_series(vec![
             MetricSeries { points: Vec::new() },
             MetricSeries { points: Vec::new() },
         ]);
-        let Err(error) = result else {
-            return Err("expected a multiple-series error".into());
-        };
+        let error = result.unwrap_err();
         assert!(matches!(
             error.current_context(),
             EvaluatorError::UnexpectedResponse
         ));
-        assert!(format!("{error:?}").contains("query returned 2 series; expected 1"));
-        Ok(())
+        assert!(error.frames().any(|frame| {
+            matches!(
+                frame.kind(),
+                FrameKind::Attachment(AttachmentKind::Printable(attachment))
+                    if attachment.to_string().contains("query returned 2 series; expected 1")
+            )
+        }));
     }
 
     #[test]
-    fn zero_series_is_zero_points() -> TestResult {
-        let points = points_from_series(Vec::new())?;
+    fn unsorted_source_points_are_ordered_before_evaluation() {
+        let rule = critical_rule(
+            80.0,
+            ComparisonOperator::GreaterThanThreshold,
+            1,
+            None,
+            TreatMissingData::Missing,
+        );
+        let points = points_from_series(vec![MetricSeries {
+            points: vec![point(1, 90.0), point(0, 50.0)],
+        }])
+        .unwrap();
+        assert!(points
+            .windows(2)
+            .all(|pair| pair[0].timestamp <= pair[1].timestamp));
+        let evaluation = evaluate_at(
+            query(&rule),
+            thresholds(&rule),
+            &points,
+            base() + Duration::minutes(1),
+        )
+        .unwrap();
+        assert_eq!(evaluation.level, Level::Critical);
+        assert_eq!(evaluation.latest_value, Some(90.0));
+    }
+
+    #[test]
+    fn zero_series_is_zero_points() {
+        let points = points_from_series(Vec::new()).unwrap();
         assert!(points.is_empty());
-        Ok(())
     }
 
     #[test]
-    fn wire_query_matches_the_grafana_cloudwatch_contract() -> TestResult {
+    fn wire_query_matches_the_grafana_cloudwatch_contract() {
         let mut rule = critical_rule(
             80.0,
             ComparisonOperator::GreaterThanOrEqualToThreshold,
@@ -1183,16 +1218,14 @@ mod tests {
             TreatMissingData::Missing,
         );
         let AlertRuleConfig::V1(config) = &mut rule.config;
-        let AlertQuery::Cloudwatch(CloudwatchQuery::V1(query)) = &mut config.query;
-        query.namespace = "AWS/EC2".to_owned();
-        query.metric_name = "CPUUtilization".to_owned();
-        query
+        let AlertQuery::Cloudwatch(CloudwatchQuery::V1(query_value)) = &mut config.query;
+        query_value.namespace = "AWS/EC2".to_owned();
+        query_value.metric_name = "CPUUtilization".to_owned();
+        query_value
             .dimensions
-            .insert("InstanceId".to_owned(), "i-0123".to_owned());
-        let value = serde_json::to_value(GrafanaQueryRequest::new(
-            cloudwatch_query(&rule),
-            "cloudwatch",
-        ))?;
+            .insert("InstanceId".to_owned(), "i-0123456789abcdef0".to_owned());
+        let value =
+            serde_json::to_value(GrafanaQueryRequest::new(query(&rule), "cloudwatch")).unwrap();
         assert_eq!(
             value,
             json!({
@@ -1204,7 +1237,7 @@ mod tests {
                 "region": "us-east-1",
                 "namespace": "AWS/EC2",
                 "metricName": "CPUUtilization",
-                "dimensions": {"InstanceId": ["i-0123"]},
+                "dimensions": {"InstanceId": ["i-0123456789abcdef0"]},
                 "statistic": "Average",
                 "period": "60",
                 "matchExact": true,
@@ -1212,90 +1245,5 @@ mod tests {
                 "expression": ""
             })
         );
-        Ok(())
-    }
-
-    #[test]
-    fn source_validators_report_typed_configuration_context() -> TestResult {
-        let bad_config = GrafanaCloudwatchConfig {
-            client: GrafanaConfig {
-                base_url: Url::parse("ftp://grafana.example")?,
-                api_token: Secret::new("token".to_owned()),
-            },
-            cloudwatch_datasource_uid: " ".to_owned(),
-        };
-        let Err(config_error) = validate_config(&bad_config) else {
-            return Err("expected invalid source config".into());
-        };
-        assert!(matches!(
-            config_error,
-            ConfigurationError::ConfigParsingError(_)
-        ));
-        assert!(format!("{config_error:?}").contains("grafana.base_url"));
-
-        let blank_uid_config = GrafanaCloudwatchConfig {
-            client: GrafanaConfig {
-                base_url: Url::parse("https://grafana.example")?,
-                api_token: Secret::new("token".to_owned()),
-            },
-            cloudwatch_datasource_uid: " ".to_owned(),
-        };
-        let Err(uid_error) = validate_config(&blank_uid_config) else {
-            return Err("expected a blank datasource uid error".into());
-        };
-        assert!(matches!(
-            uid_error,
-            ConfigurationError::ConfigParsingError(_)
-        ));
-        assert!(format!("{uid_error:?}").contains("cloudwatch_datasource_uid"));
-
-        let zero_period_rule = rule(
-            0,
-            0,
-            60,
-            vec![(
-                Severity::Critical,
-                threshold(
-                    80.0,
-                    ComparisonOperator::GreaterThanOrEqualToThreshold,
-                    1,
-                    Some(1),
-                    TreatMissingData::Missing,
-                ),
-            )],
-        );
-        let Err(period_error) = validate_rule(&zero_period_rule) else {
-            return Err("expected a zero-period rule error".into());
-        };
-        assert!(matches!(
-            period_error.current_context(),
-            ConfigurationError::ConfigParsingError(_)
-        ));
-        assert!(format!("{period_error:?}").contains("rule `rule-1` field `query.period`"));
-
-        let rule = rule(
-            43_201,
-            0,
-            60,
-            vec![(
-                Severity::Critical,
-                threshold(
-                    80.0,
-                    ComparisonOperator::GreaterThanOrEqualToThreshold,
-                    2,
-                    Some(1),
-                    TreatMissingData::Missing,
-                ),
-            )],
-        );
-        let Err(rule_error) = validate_rule(&rule) else {
-            return Err("expected invalid rule window".into());
-        };
-        assert!(matches!(
-            rule_error.current_context(),
-            ConfigurationError::ConfigParsingError(_)
-        ));
-        assert!(format!("{rule_error:?}").contains("rule `rule-1` field"));
-        Ok(())
     }
 }

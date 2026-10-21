@@ -16,6 +16,8 @@ use crate::http_client;
 
 const QUERY_TIMEOUT_SECONDS: u64 = 10;
 
+pub const QUERY_REF_ID: &str = "A";
+
 pub type GrafanaResult<T> = CustomResult<T, GrafanaError>;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -28,11 +30,16 @@ pub struct GrafanaConfig {
 pub struct GrafanaClient {
     config: GrafanaConfig,
     proxy: Proxy,
+    timeout_seconds: u64,
 }
 
 impl GrafanaClient {
     pub fn new(config: GrafanaConfig, proxy: Proxy) -> Self {
-        Self { config, proxy }
+        Self {
+            config,
+            proxy,
+            timeout_seconds: QUERY_TIMEOUT_SECONDS,
+        }
     }
 
     pub async fn fetch<Q>(
@@ -57,25 +64,28 @@ impl GrafanaClient {
             .headers(self.headers())
             .set_body(RequestContent::Json(Box::new(payload)))
             .build();
-        let response = match http_client::send_request(
-            &self.proxy,
-            request,
-            Some(QUERY_TIMEOUT_SECONDS),
-        )
-        .await
-        {
-            Ok(response) => response,
-            Err(error) if error.current_context() == &HttpClientError::RequestTimeoutReceived => {
-                return Err(error.change_context(GrafanaError::Timeout));
-            }
-            Err(error) => return Err(error.change_context(GrafanaError::Transport)),
-        };
+        let response =
+            match http_client::send_request(&self.proxy, request, Some(self.timeout_seconds)).await
+            {
+                Ok(response) => response,
+                Err(error)
+                    if error.current_context() == &HttpClientError::RequestTimeoutReceived =>
+                {
+                    return Err(error.change_context(GrafanaError::Timeout));
+                }
+                Err(error) => return Err(error.change_context(GrafanaError::Transport)),
+            };
         let status = response.status();
-        let body = response
-            .text()
-            .await
-            .change_context(GrafanaError::MalformedResponse)?;
-        parse_response(&body, status.as_u16(), status.is_success())
+        let body = match response.text().await {
+            Ok(body) => body,
+            Err(error) if error.is_timeout() => {
+                return Err(Report::from(error).change_context(GrafanaError::Timeout));
+            }
+            Err(error) => {
+                return Err(Report::from(error).change_context(GrafanaError::Transport));
+            }
+        };
+        parse_response(&body, status)
     }
 
     fn query_url(&self) -> String {
@@ -158,34 +168,39 @@ fn epoch_milliseconds(timestamp: PrimitiveDateTime) -> String {
     (timestamp.assume_utc().unix_timestamp_nanos() / 1_000_000).to_string()
 }
 
-fn parse_response(
-    body: &str,
-    status: u16,
-    status_is_success: bool,
-) -> GrafanaResult<Vec<MetricSeries>> {
+fn parse_response(body: &str, status: reqwest::StatusCode) -> GrafanaResult<Vec<MetricSeries>> {
     let response: QueryResponse = match serde_json::from_str(body) {
         Ok(response) => response,
-        Err(error) if !status_is_success => {
-            return Err(Report::from(error).change_context(GrafanaError::HttpStatus { status }));
+        Err(error) if !status.is_success() => {
+            return Err(
+                Report::from(error).change_context(GrafanaError::HttpStatus {
+                    status: status.as_u16(),
+                }),
+            );
         }
         Err(error) => {
             return Err(Report::from(error).change_context(GrafanaError::MalformedResponse));
         }
     };
-    let mut results = response.results;
+    let results = response.results;
     if let Some(reason) = results
-        .as_mut()
-        .and_then(|results| results.values_mut().find_map(|result| result.error.take()))
+        .as_ref()
+        .and_then(|results| results.values().find_map(|result| result.error.clone()))
     {
         return Err(Report::new(GrafanaError::QueryRefused { reason }));
     }
-    if !status_is_success {
-        return Err(Report::new(GrafanaError::HttpStatus { status }));
+    if !status.is_success() {
+        return Err(Report::new(GrafanaError::HttpStatus {
+            status: status.as_u16(),
+        }));
     }
-    let mut results = results.ok_or_else(|| malformed_response("response is missing results"))?;
     let result = results
-        .remove("A")
-        .ok_or_else(|| malformed_response("response is missing query result A"))?;
+        .ok_or_else(|| malformed_response("response is missing results"))?
+        .into_iter()
+        .find_map(|(ref_id, result)| (ref_id == QUERY_REF_ID).then_some(result))
+        .ok_or_else(|| {
+            malformed_response(format!("response is missing query result {QUERY_REF_ID}"))
+        })?;
     result
         .frames
         .into_iter()
@@ -203,20 +218,20 @@ fn parse_frame(frame: Frame) -> GrafanaResult<MetricSeries> {
     if values.is_empty() {
         return Ok(MetricSeries { points: Vec::new() });
     }
-    if values.len() != 2 {
-        return Err(malformed_response(format!(
-            "frame contains {} value arrays; expected 0 or 2",
-            values.len()
-        )));
-    }
-    let mut values = values.into_iter();
-    let timestamps = match values.next() {
-        Some(serde_json::Value::Array(values)) => values,
-        _ => return Err(malformed_response("timestamps are not an array")),
+    let [timestamps, metric_values]: [serde_json::Value; 2] =
+        values
+            .try_into()
+            .map_err(|values: Vec<serde_json::Value>| {
+                malformed_response(format!(
+                    "frame contains {} value arrays; expected 0 or 2",
+                    values.len()
+                ))
+            })?;
+    let serde_json::Value::Array(timestamps) = timestamps else {
+        return Err(malformed_response("timestamps are not an array"));
     };
-    let metric_values = match values.next() {
-        Some(serde_json::Value::Array(values)) => values,
-        _ => return Err(malformed_response("metric values are not an array")),
+    let serde_json::Value::Array(metric_values) = metric_values else {
+        return Err(malformed_response("metric values are not an array"));
     };
     if timestamps.len() != metric_values.len() {
         return Err(malformed_response(format!(
@@ -225,27 +240,28 @@ fn parse_frame(frame: Frame) -> GrafanaResult<MetricSeries> {
             metric_values.len()
         )));
     }
-    let mut points = Vec::new();
-    for (timestamp, value) in timestamps.into_iter().zip(metric_values) {
-        if value.is_null() {
-            continue;
-        }
-        let value = value
-            .as_f64()
-            .filter(|value| value.is_finite())
-            .ok_or_else(|| malformed_response("frame contains an invalid metric value"))?;
-        let milliseconds = timestamp
-            .as_i64()
-            .ok_or_else(|| malformed_response("frame contains an invalid timestamp"))?;
-        let timestamp =
-            OffsetDateTime::from_unix_timestamp_nanos(i128::from(milliseconds) * 1_000_000)
-                .change_context(GrafanaError::MalformedResponse)
-                .attach_printable("frame contains an out-of-range timestamp")?;
-        points.push(MetricPoint {
-            timestamp: convert_to_pdt(timestamp),
-            value,
-        });
-    }
+    let points = timestamps
+        .into_iter()
+        .zip(metric_values)
+        .filter(|(_, value)| !value.is_null())
+        .map(|(timestamp, value)| {
+            let value = value
+                .as_f64()
+                .filter(|value| value.is_finite())
+                .ok_or_else(|| malformed_response("frame contains an invalid metric value"))?;
+            let milliseconds = timestamp
+                .as_i64()
+                .ok_or_else(|| malformed_response("frame contains an invalid timestamp"))?;
+            let timestamp =
+                OffsetDateTime::from_unix_timestamp_nanos(i128::from(milliseconds) * 1_000_000)
+                    .change_context(GrafanaError::MalformedResponse)
+                    .attach_printable("frame contains an out-of-range timestamp")?;
+            Ok(MetricPoint {
+                timestamp: convert_to_pdt(timestamp),
+                value,
+            })
+        })
+        .collect::<GrafanaResult<Vec<_>>>()?;
     Ok(MetricSeries { points })
 }
 
@@ -254,11 +270,13 @@ fn malformed_response(detail: impl Into<String>) -> Report<GrafanaError> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
-    use std::collections::BTreeMap;
+    use std::time::Duration as StdDuration;
 
-    use serde::Serialize;
+    use error_stack::{AttachmentKind, FrameKind};
     use serde_json::json;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use wiremock::{
         matchers::{body_json, header, method, path},
         Mock, MockServer, ResponseTemplate,
@@ -266,72 +284,28 @@ mod tests {
 
     use super::*;
 
-    type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
-
     const TOKEN: &str = "grafana-test-token";
 
-    #[derive(Debug, Serialize)]
-    #[serde(rename_all = "camelCase")]
-    struct TestQuery {
-        ref_id: &'static str,
-        datasource: TestDatasource,
-        query_mode: &'static str,
-        metric_query_type: u8,
-        metric_editor_mode: u8,
-        region: &'static str,
-        namespace: &'static str,
-        metric_name: &'static str,
-        dimensions: BTreeMap<&'static str, Vec<&'static str>>,
-        statistic: &'static str,
-        period: &'static str,
-        match_exact: bool,
-        id: &'static str,
-        expression: &'static str,
+    fn query() -> serde_json::Value {
+        json!({"refId": QUERY_REF_ID})
     }
 
-    #[derive(Debug, Serialize)]
-    struct TestDatasource {
-        #[serde(rename = "type")]
-        kind: &'static str,
-        uid: &'static str,
+    fn client(server: &MockServer) -> GrafanaClient {
+        client_at(server.uri())
     }
 
-    fn query() -> TestQuery {
-        TestQuery {
-            ref_id: "A",
-            datasource: TestDatasource {
-                kind: "cloudwatch",
-                uid: "cloudwatch",
-            },
-            query_mode: "Metrics",
-            metric_query_type: 0,
-            metric_editor_mode: 0,
-            region: "us-east-1",
-            namespace: "AWS/EC2",
-            metric_name: "CPUUtilization",
-            dimensions: BTreeMap::from([("InstanceId", vec!["i-0123"])]),
-            statistic: "Average",
-            period: "60",
-            match_exact: true,
-            id: "",
-            expression: "",
-        }
-    }
-
-    fn client(server: &MockServer) -> TestResult<GrafanaClient> {
-        Ok(GrafanaClient::new(
+    fn client_at(base_url: String) -> GrafanaClient {
+        GrafanaClient::new(
             GrafanaConfig {
-                base_url: Url::parse(&server.uri())?,
+                base_url: Url::parse(&base_url).unwrap(),
                 api_token: Secret::new(TOKEN.to_owned()),
             },
             Proxy::default(),
-        ))
+        )
     }
 
-    fn timestamp(seconds: i64) -> TestResult<PrimitiveDateTime> {
-        Ok(convert_to_pdt(OffsetDateTime::from_unix_timestamp(
-            seconds,
-        )?))
+    fn timestamp(seconds: i64) -> PrimitiveDateTime {
+        convert_to_pdt(OffsetDateTime::from_unix_timestamp(seconds).unwrap())
     }
 
     async fn mount_response(server: &MockServer, status: u16, body: serde_json::Value) {
@@ -342,18 +316,27 @@ mod tests {
             .await;
     }
 
-    async fn fetch(server: &MockServer) -> TestResult<GrafanaResult<Vec<MetricSeries>>> {
-        let client = client(server)?;
+    async fn fetch(server: &MockServer) -> GrafanaResult<Vec<MetricSeries>> {
         let from = convert_to_pdt(OffsetDateTime::UNIX_EPOCH);
         let to = from + time::Duration::seconds(60);
-        Ok(client.fetch(query(), from, to).await)
+        client(server).fetch(query(), from, to).await
+    }
+
+    fn has_printable(error: &Report<GrafanaError>, expected: &str) -> bool {
+        error.frames().any(|frame| {
+            matches!(
+                frame.kind(),
+                FrameKind::Attachment(AttachmentKind::Printable(attachment))
+                    if attachment.to_string().contains(expected)
+            )
+        })
     }
 
     #[tokio::test]
-    async fn sends_one_query_in_the_common_envelope() -> TestResult {
+    async fn sends_one_query_in_the_common_envelope() {
         let server = MockServer::start().await;
-        let from = timestamp(1_700_000_000)?;
-        let to = timestamp(1_700_000_060)?;
+        let from = timestamp(1_700_000_000);
+        let to = timestamp(1_700_000_060);
         Mock::given(method("POST"))
             .and(path("/api/ds/query"))
             .and(header("authorization", format!("Bearer {TOKEN}").as_str()))
@@ -361,36 +344,19 @@ mod tests {
             .and(body_json(json!({
                 "from": "1700000000000",
                 "to": "1700000060000",
-                "queries": [{
-                    "refId": "A",
-                    "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
-                    "queryMode": "Metrics",
-                    "metricQueryType": 0,
-                    "metricEditorMode": 0,
-                    "region": "us-east-1",
-                    "namespace": "AWS/EC2",
-                    "metricName": "CPUUtilization",
-                    "dimensions": {"InstanceId": ["i-0123"]},
-                    "statistic": "Average",
-                    "period": "60",
-                    "matchExact": true,
-                    "id": "",
-                    "expression": ""
-                }]
+                "queries": [{"refId": QUERY_REF_ID}]
             })))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-                "results": {"A": {"frames": []}}
+                "results": {QUERY_REF_ID: {"frames": []}}
             })))
             .mount(&server)
             .await;
 
-        let result = client(&server)?.fetch(query(), from, to).await;
-        assert!(result.is_ok());
-        Ok(())
+        assert!(client(&server).fetch(query(), from, to).await.is_ok());
     }
 
     #[tokio::test]
-    async fn refused_query_under_empty_key_keeps_the_reason() -> TestResult {
+    async fn refused_query_under_empty_key_keeps_the_reason() {
         let server = MockServer::start().await;
         mount_response(
             &server,
@@ -403,157 +369,119 @@ mod tests {
         )
         .await;
 
-        let result = fetch(&server).await?;
-        let Err(error) = result else {
-            return Err("expected a refused query error".into());
-        };
+        let error = fetch(&server).await.unwrap_err();
         assert!(matches!(
             error.current_context(),
-            GrafanaError::QueryRefused { reason } if reason.contains("metric request error: X")
+            GrafanaError::QueryRefused { reason } if reason == "metric request error: X"
         ));
-        Ok(())
     }
 
     #[tokio::test]
-    async fn unauthorized_is_an_http_status_error() -> TestResult {
+    async fn unauthorized_is_an_http_status_error() {
         let server = MockServer::start().await;
         mount_response(&server, 401, json!({"message": "Unauthorized"})).await;
 
-        let result = fetch(&server).await?;
-        let Err(error) = result else {
-            return Err("expected an HTTP status error".into());
-        };
+        let error = fetch(&server).await.unwrap_err();
         assert!(matches!(
             error.current_context(),
             GrafanaError::HttpStatus { status: 401 }
         ));
-        Ok(())
     }
 
     #[tokio::test]
-    async fn no_frames_returns_no_series() -> TestResult {
-        let server = MockServer::start().await;
-        mount_response(&server, 200, json!({"results": {"A": {"frames": []}}})).await;
-
-        let result = fetch(&server).await?;
-        let Ok(series) = result else {
-            return Err("expected an empty series result".into());
-        };
-        assert!(series.is_empty());
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn absent_frames_returns_no_series() -> TestResult {
-        let server = MockServer::start().await;
-        mount_response(&server, 200, json!({"results": {"A": {}}})).await;
-
-        let result = fetch(&server).await?;
-        let Ok(series) = result else {
-            return Err("expected an empty series result".into());
-        };
-        assert!(series.is_empty());
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn empty_frame_values_returns_no_points() -> TestResult {
+    async fn no_frames_returns_no_series() {
         let server = MockServer::start().await;
         mount_response(
             &server,
             200,
-            json!({"results": {"A": {"frames": [{"data": {"values": []}}]}}}),
+            json!({"results": {QUERY_REF_ID: {"frames": []}}}),
         )
         .await;
 
-        let result = fetch(&server).await?;
-        let Ok(series) = result else {
-            return Err("expected one empty series".into());
-        };
-        let Some(series) = series.first() else {
-            return Err("expected one series".into());
-        };
-        assert!(series.points.is_empty());
-        Ok(())
+        assert!(fetch(&server).await.unwrap().is_empty());
     }
 
     #[tokio::test]
-    async fn null_values_are_dropped() -> TestResult {
+    async fn absent_frames_returns_no_series() {
+        let server = MockServer::start().await;
+        mount_response(&server, 200, json!({"results": {QUERY_REF_ID: {}}})).await;
+
+        assert!(fetch(&server).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn empty_frame_values_returns_no_points() {
         let server = MockServer::start().await;
         mount_response(
             &server,
             200,
-            json!({"results": {"A": {"frames": [{"data": {"values": [
+            json!({"results": {QUERY_REF_ID: {"frames": [{"data": {"values": []}}]}}}),
+        )
+        .await;
+
+        let series = fetch(&server).await.unwrap();
+        assert_eq!(series.len(), 1);
+        assert!(series[0].points.is_empty());
+    }
+
+    #[tokio::test]
+    async fn null_values_are_dropped() {
+        let server = MockServer::start().await;
+        mount_response(
+            &server,
+            200,
+            json!({"results": {QUERY_REF_ID: {"frames": [{"data": {"values": [
                 [1700000000000_i64, 1700000060000_i64],
                 [null, 42.5]
             ]}}]}}}),
         )
         .await;
 
-        let result = fetch(&server).await?;
-        let Ok(series) = result else {
-            return Err("expected one parsed series".into());
-        };
-        let Some(series) = series.first() else {
-            return Err("expected one series".into());
-        };
-        assert_eq!(series.points.len(), 1);
-        let Some(point) = series.points.first() else {
-            return Err("expected one point".into());
-        };
-        assert_eq!(point.value, 42.5);
-        assert_eq!(point.timestamp, timestamp(1_700_000_060)?);
-        Ok(())
+        let series = fetch(&server).await.unwrap();
+        assert_eq!(series[0].points.len(), 1);
+        assert_eq!(series[0].points[0].value, 42.5);
+        assert_eq!(series[0].points[0].timestamp, timestamp(1_700_000_060));
     }
 
     #[tokio::test]
-    async fn two_frames_return_two_series() -> TestResult {
+    async fn two_frames_return_two_series() {
         let server = MockServer::start().await;
         mount_response(
             &server,
             200,
-            json!({"results": {"A": {"frames": [
+            json!({"results": {QUERY_REF_ID: {"frames": [
                 {"data": {"values": []}},
                 {"data": {"values": []}}
             ]}}}),
         )
         .await;
 
-        let result = fetch(&server).await?;
-        let Ok(series) = result else {
-            return Err("expected two series".into());
-        };
-        assert_eq!(series.len(), 2);
-        Ok(())
+        assert_eq!(fetch(&server).await.unwrap().len(), 2);
     }
 
     #[tokio::test]
-    async fn mismatched_point_counts_are_malformed() -> TestResult {
+    async fn mismatched_point_counts_are_malformed() {
         let server = MockServer::start().await;
         mount_response(
             &server,
             200,
-            json!({"results": {"A": {"frames": [{"data": {"values": [
+            json!({"results": {QUERY_REF_ID: {"frames": [{"data": {"values": [
                 [1700000000000_i64, 1700000060000_i64],
                 [42.5]
             ]}}]}}}),
         )
         .await;
 
-        let result = fetch(&server).await?;
-        let Err(error) = result else {
-            return Err("expected mismatched point counts".into());
-        };
+        let error = fetch(&server).await.unwrap_err();
         assert!(matches!(
             error.current_context(),
             GrafanaError::MalformedResponse
         ));
-        assert!(format!("{error:?}").contains("2 timestamps and 1 metric values"));
-        Ok(())
+        assert!(has_printable(&error, "2 timestamps and 1 metric values"));
     }
 
     #[tokio::test]
-    async fn non_json_body_is_malformed() -> TestResult {
+    async fn non_json_body_is_malformed() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/api/ds/query"))
@@ -561,19 +489,15 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = fetch(&server).await?;
-        let Err(error) = result else {
-            return Err("expected a malformed response".into());
-        };
+        let error = fetch(&server).await.unwrap_err();
         assert!(matches!(
             error.current_context(),
             GrafanaError::MalformedResponse
         ));
-        Ok(())
     }
 
     #[tokio::test]
-    async fn non_json_server_error_keeps_http_status_context() -> TestResult {
+    async fn non_json_server_error_keeps_http_status_context() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/api/ds/query"))
@@ -581,36 +505,74 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = fetch(&server).await?;
-        let Err(error) = result else {
-            return Err("expected an HTTP status error".into());
-        };
+        let error = fetch(&server).await.unwrap_err();
         assert!(matches!(
             error.current_context(),
             GrafanaError::HttpStatus { status: 503 }
         ));
         assert!(error.contains::<serde_json::Error>());
-        Ok(())
     }
 
     #[tokio::test]
-    async fn missing_response_fields_are_malformed() -> TestResult {
+    async fn missing_response_fields_are_malformed() {
         let server = MockServer::start().await;
         mount_response(
             &server,
             200,
-            json!({"results": {"A": {"frames": [{"data": {}}]}}}),
+            json!({"results": {QUERY_REF_ID: {"frames": [{"data": {}}]}}}),
         )
         .await;
 
-        let result = fetch(&server).await?;
-        let Err(error) = result else {
-            return Err("expected a missing values error".into());
-        };
+        let error = fetch(&server).await.unwrap_err();
         assert!(matches!(
             error.current_context(),
             GrafanaError::MalformedResponse
         ));
-        Ok(())
+    }
+
+    #[tokio::test]
+    async fn body_read_failure_is_transport() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = [0_u8; 1024];
+            let _ = stream.read(&mut request).await.unwrap();
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n{}")
+                .await
+                .unwrap();
+        });
+        let from = convert_to_pdt(OffsetDateTime::UNIX_EPOCH);
+        let result = client_at(format!("http://{address}"))
+            .fetch(query(), from, from + time::Duration::seconds(60))
+            .await;
+
+        let error = result.unwrap_err();
+        assert!(matches!(error.current_context(), GrafanaError::Transport));
+    }
+
+    #[tokio::test]
+    async fn request_timeout_has_timeout_context() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/ds/query"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(StdDuration::from_secs(2))
+                    .set_body_json(json!({"results": {QUERY_REF_ID: {"frames": []}}})),
+            )
+            .mount(&server)
+            .await;
+
+        let client = GrafanaClient {
+            timeout_seconds: 1,
+            ..client(&server)
+        };
+        let error = client
+            .fetch(query(), timestamp(0), timestamp(60))
+            .await
+            .unwrap_err();
+        assert!(matches!(error.current_context(), GrafanaError::Timeout));
     }
 }

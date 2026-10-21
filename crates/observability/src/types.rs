@@ -53,7 +53,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::domain::{
-    evaluator::Level,
+    evaluator::{Delivery, Level, RuleDefinition, RuleRun},
     notifier::{
         chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
         email::EmailOutcome,
@@ -71,12 +71,26 @@ pub struct EvaluatorResponse {
 #[derive(Debug, Serialize)]
 pub struct RuleReport {
     pub id: String,
-    pub due: bool,
+    pub status: RuleStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub previous_level: Option<EvaluatorLevel>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub level: Option<EvaluatorLevel>,
-    pub message: Option<String>,
-    pub delivered: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delivered: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delivery_error: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RuleStatus {
+    Evaluated,
+    Failed,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -95,6 +109,38 @@ impl From<Level> for EvaluatorLevel {
             Level::Info => Self::Info,
             Level::Warning => Self::Warning,
             Level::Critical => Self::Critical,
+        }
+    }
+}
+
+impl From<(&RuleDefinition, RuleRun, Option<Delivery>)> for RuleReport {
+    fn from((rule, run, delivery): (&RuleDefinition, RuleRun, Option<Delivery>)) -> Self {
+        let delivered = delivery.as_ref().map(|delivery| delivery.delivered);
+        let delivery_error = delivery.and_then(|delivery| delivery.error);
+        match run {
+            RuleRun::Evaluated { pair, notification } => Self {
+                id: rule.id.clone(),
+                status: RuleStatus::Evaluated,
+                previous_level: Some(pair.previous.level.into()),
+                level: Some(pair.current.level.into()),
+                error: None,
+                message: notification.map(|notification| notification.message),
+                delivered,
+                delivery_error,
+            },
+            RuleRun::Failed {
+                error,
+                notification,
+            } => Self {
+                id: rule.id.clone(),
+                status: RuleStatus::Failed,
+                previous_level: None,
+                level: None,
+                error: Some(error),
+                message: Some(notification.message),
+                delivered,
+                delivery_error,
+            },
         }
     }
 }
@@ -289,17 +335,34 @@ mod tests {
     }
 
     #[test]
-    fn evaluator_timestamp_uses_the_existing_iso8601_contract() -> Result<(), serde_json::Error> {
+    fn evaluator_report_omits_absent_optional_fields() {
+        let body = body_of(&RuleReport {
+            id: "rule-1".to_owned(),
+            status: RuleStatus::Evaluated,
+            previous_level: None,
+            level: None,
+            error: None,
+            message: None,
+            delivered: None,
+            delivery_error: None,
+        });
+        assert_eq!(
+            body,
+            serde_json::json!({"id": "rule-1", "status": "evaluated"})
+        );
+    }
+
+    #[test]
+    fn evaluator_timestamp_uses_the_existing_iso8601_contract() {
         let response = EvaluatorResponse {
             evaluated_at: time::macros::datetime!(2026-10-21 10:08:00),
             rules: Vec::new(),
         };
-        let body = serde_json::to_value(response)?;
+        let body = serde_json::to_value(response).unwrap();
         assert_eq!(
             body.get("evaluated_at").and_then(serde_json::Value::as_str),
             Some("2026-10-21T10:08:00.000Z")
         );
-        Ok(())
     }
 
     #[test]

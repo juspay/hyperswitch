@@ -91,18 +91,20 @@ max_upload_bytes = 26214400 # 25 MiB
 [chat.destinations.smoke]
 type = "log"
 
+# [evaluator]
+# rules = '''[{"id":"kafka-broker-00-cpu","name":"Kafka broker 00 CPU","config":{"version":"v1","classification":"kafka-alerts","interval_seconds":60,"query":{"datasource":"cloudwatch","version":"v1","region":"us-east-1","namespace":"AWS/EC2","metric_name":"CPUUtilization","dimensions":{"InstanceId":"i-0123456789abcdef0"},"statistic":"Average","period":60,"end_offset_seconds":180},"thresholds":{"severities":{"critical":{"threshold":90,"comparison_operator":"GreaterThanOrEqualToThreshold","evaluation_periods":1,"datapoints_to_alarm":1,"treat_missing_data":"breaching","description":"CRITICAL: Kafka broker 00 CPU utilization is above 90%."}}}}}]'''
+#
 # [evaluator.grafana]
 # base_url = "http://127.0.0.1:3999"
 # api_token = "local_test_token"
-# cloudwatch_datasource_uid = "cloudwatch"
+#
+# [evaluator.datasources]
+# cloudwatch = "cloudwatch"
 #
 # [evaluator.destinations]
 # critical = "smoke"
 # warning = "smoke"
 # info = "smoke"
-#
-# [evaluator]
-# rules = '''[{"id":"kafka-broker-00-cpu","name":"Kafka broker 00 CPU","config":{"version":"v1","classification":"kafka-alerts","interval_seconds":60,"query":{"datasource":"cloudwatch","version":"v1","region":"us-east-1","namespace":"AWS/EC2","metric_name":"CPUUtilization","dimensions":{"InstanceId":"i-053c2d51a2fc3535d"},"statistic":"Average","period":60,"end_offset_seconds":180},"thresholds":{"severities":{"critical":{"threshold":90,"comparison_operator":"GreaterThanOrEqualToThreshold","evaluation_periods":1,"datapoints_to_alarm":1,"treat_missing_data":"breaching","description":"CRITICAL: Kafka broker 00 CPU utilization is above 90%."}}}}}]'''
 
 # A real Xyne destination looks like this. `base_url` defaults to production and `timeout_seconds`
 # and `max_message_chars` to the client's own defaults, so a channel and a credential are all that

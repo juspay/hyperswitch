@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 
-use common_types::alert_rules::{AlertDatasource, AlertRuleConfig};
-use common_utils::errors::CustomResult;
-use error_stack::{Report, ResultExt};
+use common_types::alert_rules::{AlertQuery, AlertRuleConfig, Severity};
+use common_utils::fp_utils::when;
+use error_stack::ResultExt;
+use external_services::grafana::GrafanaConfig;
 use hyperswitch_masking::Secret;
 use serde::{de::Error as _, Deserialize, Deserializer};
 
@@ -13,16 +14,30 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct EvaluatorSettings {
-    pub grafana: cloudwatch::GrafanaCloudwatchConfig,
+    pub grafana: GrafanaConfig,
+    pub datasources: EvaluatorDatasources,
     pub destinations: EvaluatorDestinations,
     #[serde(deserialize_with = "deserialize_rules")]
     rules: Vec<RuleDefinition>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
+pub struct EvaluatorDatasources {
+    pub cloudwatch: String,
+}
+
+impl EvaluatorDatasources {
+    pub(crate) fn configured_names(&self) -> Vec<&'static str> {
+        [("cloudwatch", &self.cloudwatch)]
+            .into_iter()
+            .filter(|(_, uid)| !uid.trim().is_empty())
+            .map(|(name, _)| name)
+            .collect()
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
 pub struct EvaluatorDestinations {
     pub critical: String,
     pub warning: String,
@@ -30,7 +45,6 @@ pub struct EvaluatorDestinations {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 struct ConfiguredRule {
     id: String,
     name: String,
@@ -49,18 +63,49 @@ impl From<ConfiguredRule> for RuleDefinition {
 
 impl EvaluatorSettings {
     pub(crate) fn validate(&self, chat: &ChatSettings) -> Result<(), ConfigurationError> {
-        cloudwatch::validate_config(&self.grafana)?;
+        when(
+            !matches!(self.grafana.base_url.scheme(), "http" | "https"),
+            || {
+                Err(configuration_error(
+                    None,
+                    "grafana.base_url",
+                    "must use the http or https scheme",
+                ))
+            },
+        )?;
+
+        when(self.datasources.cloudwatch.trim().is_empty(), || {
+            Err(configuration_error(
+                None,
+                "datasources.cloudwatch",
+                "must not be blank",
+            ))
+        })?;
+        let ids = self
+            .rules
+            .iter()
+            .map(|rule| &rule.id)
+            .collect::<HashSet<_>>();
+        when(ids.len() != self.rules.len(), || {
+            Err(configuration_error(None, "rules.id", "must be unique"))
+        })?;
+
         for (field, destination) in [
             ("destinations.critical", &self.destinations.critical),
             ("destinations.warning", &self.destinations.warning),
             ("destinations.info", &self.destinations.info),
         ] {
-            if !chat.destinations.contains_key(destination) {
-                return Err(configuration_error(
+            when(!chat.destinations.contains_key(destination), || {
+                Err(configuration_error(
+                    None,
                     field,
                     format!("names unconfigured chat destination `{destination}`"),
-                ));
-            }
+                ))
+            })?;
+        }
+
+        for rule in &self.rules {
+            validate_rule(rule, &self.datasources)?;
         }
         Ok(())
     }
@@ -70,18 +115,18 @@ impl EvaluatorSettings {
     }
 
     pub(crate) fn with_api_token(mut self, api_token: Secret<String>) -> Self {
-        self.grafana.client.api_token = api_token;
+        self.grafana.api_token = api_token;
         self
     }
 }
 
 impl EvaluatorDestinations {
-    pub(crate) fn get(&self, level: Level) -> Option<&str> {
-        match level {
-            Level::Critical => Some(&self.critical),
-            Level::Warning => Some(&self.warning),
-            Level::Info => Some(&self.info),
-            Level::Normal => None,
+    pub(crate) fn for_severity(&self, level: Level) -> &str {
+        match level.severity() {
+            Some(Severity::Critical) => &self.critical,
+            Some(Severity::Warning) => &self.warning,
+            Some(Severity::Info) => &self.info,
+            None => "",
         }
     }
 }
@@ -91,163 +136,103 @@ where
     D: Deserializer<'de>,
 {
     let raw = String::deserialize(deserializer)?;
-    parse_rules(&raw).map_err(|error| D::Error::custom(format!("{error:?}")))
+    parse_rules(&raw).map_err(|error| D::Error::custom(error.current_context()))
 }
 
-fn parse_rules(raw: &str) -> CustomResult<Vec<RuleDefinition>, ConfigurationError> {
-    let configured: Vec<ConfiguredRule> = serde_json::from_str(raw).change_context(
-        ConfigurationError::ConfigParsingError("invalid evaluator rules JSON".to_owned()),
-    )?;
-    let mut ids = HashSet::with_capacity(configured.len());
-    let mut rules = Vec::with_capacity(configured.len());
-    for configured_rule in configured {
-        let rule = RuleDefinition::from(configured_rule);
-        validate_rule(&rule, &mut ids)?;
-        rules.push(rule);
-    }
-    Ok(rules)
+fn parse_rules(raw: &str) -> error_stack::Result<Vec<RuleDefinition>, ConfigurationError> {
+    serde_json::from_str::<Vec<ConfiguredRule>>(raw)
+        .change_context(ConfigurationError::ConfigParsingError(
+            "invalid evaluator rules JSON".to_owned(),
+        ))
+        .map(|rules| rules.into_iter().map(RuleDefinition::from).collect())
 }
 
 fn validate_rule(
     rule: &RuleDefinition,
-    ids: &mut HashSet<String>,
-) -> CustomResult<(), ConfigurationError> {
-    if rule.id.trim().is_empty() {
-        return Err(rule_error(rule, "id", "must not be blank"));
-    }
-    if !ids.insert(rule.id.clone()) {
-        return Err(rule_error(rule, "id", "must be unique"));
-    }
+    _datasources: &EvaluatorDatasources,
+) -> Result<(), ConfigurationError> {
+    when(rule.id.trim().is_empty(), || {
+        Err(configuration_error(Some(rule), "id", "must not be blank"))
+    })?;
+
     let config = rule.config.inner();
-    if !(60..=86_400).contains(&config.interval_seconds) || config.interval_seconds % 60 != 0 {
-        return Err(rule_error(
-            rule,
+    when(config.interval_seconds != 60, || {
+        Err(configuration_error(
+            Some(rule),
             "config.interval_seconds",
-            "must be a whole number of minutes from 60 through 86400",
-        ));
-    }
-    if config.thresholds.severities.is_empty() {
-        return Err(rule_error(
-            rule,
+            "must equal 60",
+        ))
+    })?;
+    when(config.thresholds.severities.is_empty(), || {
+        Err(configuration_error(
+            Some(rule),
             "config.thresholds.severities",
             "must contain at least one severity",
-        ));
-    }
+        ))
+    })?;
+
     for (severity, threshold) in &config.thresholds.severities {
-        if threshold.evaluation_periods == 0 {
-            return Err(rule_error(
-                rule,
+        when(threshold.evaluation_periods == 0, || {
+            Err(configuration_error(
+                Some(rule),
                 &format!("config.thresholds.severities.{severity}.evaluation_periods"),
                 "must be at least 1",
-            ));
-        }
-        if threshold
-            .datapoints_to_alarm
-            .is_some_and(|datapoints| datapoints == 0 || datapoints > threshold.evaluation_periods)
-        {
-            return Err(rule_error(
-                rule,
-                &format!("config.thresholds.severities.{severity}.datapoints_to_alarm"),
-                "must be from 1 through evaluation_periods",
-            ));
-        }
+            ))
+        })?;
+        when(
+            threshold.datapoints_to_alarm.is_some_and(|datapoints| {
+                datapoints == 0 || datapoints > threshold.evaluation_periods
+            }),
+            || {
+                Err(configuration_error(
+                    Some(rule),
+                    &format!("config.thresholds.severities.{severity}.datapoints_to_alarm"),
+                    "must be from 1 through evaluation_periods",
+                ))
+            },
+        )?;
     }
-    match config.query.datasource() {
-        AlertDatasource::Cloudwatch => cloudwatch::validate_rule(rule)?,
+
+    match &config.query {
+        AlertQuery::Cloudwatch(query) => {
+            let invalid = |error: cloudwatch::CloudwatchValidationError| {
+                configuration_error(Some(rule), &error.field, error.requirement)
+            };
+            cloudwatch::validate_query(query.inner()).map_err(invalid)?;
+            cloudwatch::validate_rule(rule, query.inner()).map_err(invalid)?;
+        }
     }
     Ok(())
 }
 
-fn rule_error(rule: &RuleDefinition, field: &str, requirement: &str) -> Report<ConfigurationError> {
-    Report::new(ConfigurationError::ConfigParsingError(
-        "invalid evaluator rule".to_owned(),
-    ))
-    .attach_printable(format!("rule `{}` field `{field}` {requirement}", rule.id))
-}
-
-fn configuration_error(field: &str, requirement: String) -> ConfigurationError {
+fn configuration_error(
+    rule: Option<&RuleDefinition>,
+    field: &str,
+    requirement: impl Into<String>,
+) -> ConfigurationError {
+    let field = match rule {
+        Some(rule) => format!("rule `{}` field `{field}`", rule.id),
+        None => format!("field `{field}`"),
+    };
     ConfigurationError::ConfigParsingError(format!(
-        "invalid evaluator configuration: field `{field}` {requirement}"
+        "invalid evaluator configuration: {field} {}",
+        requirement.into()
     ))
 }
 
 #[cfg(test)]
-pub(crate) fn test_rule(
-    id: &str,
-    interval_seconds: u32,
-) -> CustomResult<RuleDefinition, ConfigurationError> {
-    let raw = serde_json::json!([{
-        "id": id,
-        "name": format!("Rule {id}"),
-        "config": {
-            "version": "v1",
-            "classification": "test-alerts",
-            "interval_seconds": interval_seconds,
-            "query": {
-                "datasource": "cloudwatch",
-                "version": "v1",
-                "region": "us-east-1",
-                "namespace": "Test",
-                "metric_name": "Value",
-                "dimensions": {"InstanceId": "i-0123"},
-                "statistic": "Average",
-                "period": 60,
-                "end_offset_seconds": 0
-            },
-            "thresholds": {"severities": {
-                "critical": {
-                    "threshold": 90,
-                    "comparison_operator": "GreaterThanOrEqualToThreshold",
-                    "evaluation_periods": 1,
-                    "datapoints_to_alarm": 1,
-                    "treat_missing_data": "missing",
-                    "description": "Critical description"
-                },
-                "warning": {
-                    "threshold": 80,
-                    "comparison_operator": "GreaterThanOrEqualToThreshold",
-                    "evaluation_periods": 1,
-                    "datapoints_to_alarm": 1,
-                    "treat_missing_data": "missing",
-                    "description": "Warning description"
-                },
-                "info": {
-                    "threshold": 70,
-                    "comparison_operator": "GreaterThanOrEqualToThreshold",
-                    "evaluation_periods": 1,
-                    "datapoints_to_alarm": 1,
-                    "treat_missing_data": "missing",
-                    "description": "Info description"
-                }
-            }}
-        }
-    }])
-    .to_string();
-    parse_rules(&raw)?
-        .into_iter()
-        .next()
-        .ok_or_else(|| rule_error_for_test(id))
-}
-
-#[cfg(test)]
-fn rule_error_for_test(id: &str) -> Report<ConfigurationError> {
-    Report::new(ConfigurationError::ConfigParsingError(
-        "invalid evaluator test rule".to_owned(),
-    ))
-    .attach_printable(format!("rule `{id}` was not parsed"))
-}
-
-#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use std::collections::HashMap;
+
+    use common_types::alert_rules::{AlertQuery, CloudwatchQuery};
+    use serde_json::{json, Value};
 
     use super::*;
     use crate::settings::ChatDestination;
 
-    type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
-
     fn valid_json() -> String {
-        serde_json::json!([{
+        json!([{
             "id": "rule-1",
             "name": "Rule 1",
             "config": {
@@ -260,9 +245,10 @@ mod tests {
                     "region": "us-east-1",
                     "namespace": "AWS/EC2",
                     "metric_name": "CPUUtilization",
-                    "dimensions": {"InstanceId": "i-0123"},
+                    "dimensions": {"InstanceId": "i-0123456789abcdef0"},
                     "statistic": "Average",
-                    "period": 60
+                    "period": 60,
+                    "end_offset_seconds": 0
                 },
                 "thresholds": {"severities": {"critical": {
                     "threshold": 90,
@@ -277,36 +263,21 @@ mod tests {
         .to_string()
     }
 
-    fn parse_error(raw: &str) -> TestResult<String> {
-        let Err(error) = parse_rules(raw) else {
-            return Err("expected invalid rules".into());
-        };
-        Ok(format!("{error:?}"))
-    }
-
-    fn mutate(pointer: &str, replacement: serde_json::Value) -> TestResult<String> {
-        let mut value: serde_json::Value = serde_json::from_str(&valid_json())?;
-        let Some(field) = value.pointer_mut(pointer) else {
-            return Err(format!("fixture is missing `{pointer}`").into());
-        };
-        *field = replacement;
-        parse_error(&value.to_string())
-    }
-
-    fn settings() -> TestResult<EvaluatorSettings> {
-        Ok(serde_json::from_value(serde_json::json!({
+    fn settings() -> EvaluatorSettings {
+        serde_json::from_value(json!({
             "grafana": {
                 "base_url": "https://grafana.example",
-                "api_token": "token",
-                "cloudwatch_datasource_uid": "cloudwatch"
+                "api_token": "token"
             },
+            "datasources": {"cloudwatch": "cloudwatch"},
             "destinations": {
                 "critical": "critical",
                 "warning": "warning",
                 "info": "info"
             },
             "rules": valid_json()
-        }))?)
+        }))
+        .unwrap()
     }
 
     fn chat(ids: &[&str]) -> ChatSettings {
@@ -319,125 +290,299 @@ mod tests {
         }
     }
 
-    #[test]
-    fn valid_rule_preserves_dimension_case() -> TestResult {
-        let rules = parse_rules(&valid_json())?;
-        assert_eq!(rules.len(), 1);
-        assert!(valid_json().contains("InstanceId"));
-        Ok(())
+    fn mutate(pointer: &str, replacement: Value) -> EvaluatorSettings {
+        let mut value: Value = serde_json::from_str(&valid_json()).unwrap();
+        *value.pointer_mut(pointer).unwrap() = replacement;
+        let mut settings = settings();
+        settings.rules = parse_rules(&value.to_string()).unwrap();
+        settings
+    }
+
+    fn validation_error(settings: &EvaluatorSettings) -> String {
+        settings
+            .validate(&chat(&["critical", "warning", "info"]))
+            .unwrap_err()
+            .to_string()
     }
 
     #[test]
-    fn blank_id_names_rule_and_field() -> TestResult {
-        let error = mutate("/0/id", serde_json::json!(" "))?;
-        assert!(error.contains("rule ` `") && error.contains("field `id`"));
-        Ok(())
+    fn valid_rule_preserves_dimension_case() {
+        let rules = parse_rules(&valid_json()).unwrap();
+        let AlertQuery::Cloudwatch(CloudwatchQuery::V1(query)) = &rules[0].config.inner().query;
+        assert!(query.dimensions.contains_key("InstanceId"));
+        assert!(!query.dimensions.contains_key("instanceid"));
     }
 
     #[test]
-    fn duplicate_id_names_rule_and_field() -> TestResult {
-        let mut value: serde_json::Value = serde_json::from_str(&valid_json())?;
-        let Some(duplicate) = value.as_array().and_then(|rules| rules.first()).cloned() else {
-            return Err("rules fixture has no first rule".into());
-        };
-        let Some(rules) = value.as_array_mut() else {
-            return Err("rules fixture is not an array".into());
-        };
-        rules.push(duplicate);
-        let error = parse_error(&value.to_string())?;
-        assert!(error.contains("rule `rule-1`") && error.contains("field `id`"));
-        Ok(())
+    fn blank_region_is_rejected() {
+        assert!(
+            validation_error(&mutate("/0/config/query/region", json!(" ")))
+                .contains("config.query.region")
+        );
     }
 
     #[test]
-    fn invalid_intervals_name_rule_and_field() -> TestResult {
-        for interval in [0, 30, 86_401] {
-            let error = mutate("/0/config/interval_seconds", serde_json::json!(interval))?;
-            assert!(error.contains("rule `rule-1`") && error.contains("interval_seconds"));
-        }
-        Ok(())
+    fn blank_namespace_is_rejected() {
+        assert!(
+            validation_error(&mutate("/0/config/query/namespace", json!(" ")))
+                .contains("config.query.namespace")
+        );
     }
 
     #[test]
-    fn empty_severities_name_rule_and_field() -> TestResult {
-        let error = mutate("/0/config/thresholds/severities", serde_json::json!({}))?;
-        assert!(error.contains("rule `rule-1`") && error.contains("severities"));
-        Ok(())
+    fn blank_metric_name_is_rejected() {
+        assert!(
+            validation_error(&mutate("/0/config/query/metric_name", json!(" ")))
+                .contains("config.query.metric_name")
+        );
     }
 
     #[test]
-    fn zero_evaluation_periods_names_rule_and_field() -> TestResult {
-        let error = mutate(
+    fn too_many_dimensions_are_rejected() {
+        let dimensions = (0..31)
+            .map(|index| (format!("Dimension{index}"), json!("value")))
+            .collect::<serde_json::Map<_, _>>();
+        assert!(
+            validation_error(&mutate("/0/config/query/dimensions", json!(dimensions)))
+                .contains("config.query.dimensions")
+        );
+    }
+
+    #[test]
+    fn thirty_dimensions_are_accepted() {
+        let dimensions = (0..30)
+            .map(|index| (format!("Dimension{index}"), json!("value")))
+            .collect::<serde_json::Map<_, _>>();
+        mutate("/0/config/query/dimensions", json!(dimensions))
+            .validate(&chat(&["critical", "warning", "info"]))
+            .unwrap();
+    }
+
+    #[test]
+    fn blank_dimension_name_is_rejected() {
+        assert!(
+            validation_error(&mutate("/0/config/query/dimensions", json!({" ": "value"})))
+                .contains("config.query.dimensions")
+        );
+    }
+
+    #[test]
+    fn blank_dimension_value_is_rejected() {
+        assert!(
+            validation_error(&mutate("/0/config/query/dimensions/InstanceId", json!(" ")))
+                .contains("config.query.dimensions")
+        );
+    }
+
+    #[test]
+    fn unsupported_period_is_rejected() {
+        assert!(
+            validation_error(&mutate("/0/config/query/period", json!(25)))
+                .contains("config.query.period")
+        );
+    }
+
+    #[test]
+    fn period_above_one_day_is_rejected() {
+        assert!(
+            validation_error(&mutate("/0/config/query/period", json!(86460)))
+                .contains("config.query.period")
+        );
+    }
+
+    #[test]
+    fn one_second_period_is_accepted() {
+        mutate("/0/config/query/period", json!(1))
+            .validate(&chat(&["critical", "warning", "info"]))
+            .unwrap();
+    }
+
+    #[test]
+    fn five_second_period_is_accepted() {
+        mutate("/0/config/query/period", json!(5))
+            .validate(&chat(&["critical", "warning", "info"]))
+            .unwrap();
+    }
+
+    #[test]
+    fn ten_second_period_is_accepted() {
+        mutate("/0/config/query/period", json!(10))
+            .validate(&chat(&["critical", "warning", "info"]))
+            .unwrap();
+    }
+
+    #[test]
+    fn twenty_second_period_is_accepted() {
+        mutate("/0/config/query/period", json!(20))
+            .validate(&chat(&["critical", "warning", "info"]))
+            .unwrap();
+    }
+
+    #[test]
+    fn thirty_second_period_is_accepted() {
+        mutate("/0/config/query/period", json!(30))
+            .validate(&chat(&["critical", "warning", "info"]))
+            .unwrap();
+    }
+
+    #[test]
+    fn one_day_period_is_accepted() {
+        mutate("/0/config/query/period", json!(86400))
+            .validate(&chat(&["critical", "warning", "info"]))
+            .unwrap();
+    }
+
+    #[test]
+    fn one_day_evaluation_window_is_accepted() {
+        mutate(
             "/0/config/thresholds/severities/critical/evaluation_periods",
-            serde_json::json!(0),
-        )?;
-        assert!(error.contains("rule `rule-1`") && error.contains("evaluation_periods"));
-        Ok(())
+            json!(1440),
+        )
+        .validate(&chat(&["critical", "warning", "info"]))
+        .unwrap();
     }
 
     #[test]
-    fn invalid_datapoints_to_alarm_names_rule_and_field() -> TestResult {
-        for datapoints in [0, 2] {
-            let error = mutate(
-                "/0/config/thresholds/severities/critical/datapoints_to_alarm",
-                serde_json::json!(datapoints),
-            )?;
-            assert!(error.contains("rule `rule-1`") && error.contains("datapoints_to_alarm"));
-        }
-        Ok(())
+    fn end_offset_above_one_hour_is_rejected() {
+        assert!(
+            validation_error(&mutate("/0/config/query/end_offset_seconds", json!(3601)))
+                .contains("config.query.end_offset_seconds")
+        );
     }
 
     #[test]
-    fn oversized_period_product_names_rule_and_field() -> TestResult {
-        let mut value: serde_json::Value = serde_json::from_str(&valid_json())?;
-        let Some(period) = value.pointer_mut("/0/config/query/period") else {
-            return Err("fixture is missing query period".into());
-        };
-        *period = serde_json::json!(43_201);
-        let Some(evaluation_periods) =
-            value.pointer_mut("/0/config/thresholds/severities/critical/evaluation_periods")
-        else {
-            return Err("fixture is missing evaluation periods".into());
-        };
-        *evaluation_periods = serde_json::json!(2);
-        let error = parse_error(&value.to_string())?;
-        assert!(error.contains("rule `rule-1`") && error.contains("query.period"));
-        Ok(())
+    fn one_hour_end_offset_is_accepted() {
+        mutate("/0/config/query/end_offset_seconds", json!(3600))
+            .validate(&chat(&["critical", "warning", "info"]))
+            .unwrap();
     }
 
     #[test]
-    fn missing_destination_fails_configuration_validation() -> TestResult {
-        let error = settings()?.validate(&chat(&["critical", "warning"]));
-        let Err(error) = error else {
-            return Err("expected a missing destination error".into());
-        };
-        assert!(format!("{error:?}").contains("destinations.info"));
-        Ok(())
+    fn blank_id_is_rejected() {
+        let error = validation_error(&mutate("/0/id", json!(" ")));
+        assert!(error.contains("rule ` ` field `id`"));
     }
 
     #[test]
-    fn configured_destinations_are_accepted() -> TestResult {
-        settings()?.validate(&chat(&["critical", "warning", "info"]))?;
-        Ok(())
+    fn duplicate_id_is_rejected() {
+        let mut settings = settings();
+        settings.rules.push(settings.rules[0].clone());
+        let error = validation_error(&settings);
+        assert!(error.contains("field `rules.id`"));
     }
 
     #[test]
-    fn configured_rule_deserializes_from_one_json_string() -> TestResult {
-        let value = serde_json::json!({
-            "grafana": {
-                "base_url": "https://grafana.example",
-                "api_token": "token",
-                "cloudwatch_datasource_uid": "cloudwatch"
-            },
-            "destinations": {
-                "critical": "critical",
-                "warning": "warning",
-                "info": "info"
-            },
-            "rules": valid_json()
-        });
-        let parsed: EvaluatorSettings = serde_json::from_value(value)?;
-        assert_eq!(parsed.rules().len(), 1);
-        Ok(())
+    fn non_sixty_second_interval_is_rejected() {
+        let error = validation_error(&mutate("/0/config/interval_seconds", json!(300)));
+        assert!(error.contains("interval_seconds"));
+    }
+
+    #[test]
+    fn empty_severities_are_rejected() {
+        let error = validation_error(&mutate("/0/config/thresholds/severities", json!({})));
+        assert!(error.contains("severities"));
+    }
+
+    #[test]
+    fn zero_evaluation_periods_are_rejected() {
+        let error = validation_error(&mutate(
+            "/0/config/thresholds/severities/critical/evaluation_periods",
+            json!(0),
+        ));
+        assert!(error.contains("evaluation_periods"));
+    }
+
+    #[test]
+    fn zero_datapoints_to_alarm_is_rejected() {
+        let error = validation_error(&mutate(
+            "/0/config/thresholds/severities/critical/datapoints_to_alarm",
+            json!(0),
+        ));
+        assert!(error.contains("datapoints_to_alarm"));
+    }
+
+    #[test]
+    fn datapoints_above_evaluation_periods_are_rejected() {
+        let error = validation_error(&mutate(
+            "/0/config/thresholds/severities/critical/datapoints_to_alarm",
+            json!(2),
+        ));
+        assert!(error.contains("datapoints_to_alarm"));
+    }
+
+    #[test]
+    fn zero_period_is_rejected() {
+        let error = validation_error(&mutate("/0/config/query/period", json!(0)));
+        assert!(error.contains("config.query.period"));
+    }
+
+    #[test]
+    fn oversized_period_product_is_rejected() {
+        let error = validation_error(&mutate(
+            "/0/config/thresholds/severities/critical/evaluation_periods",
+            json!(1441),
+        ));
+        assert!(error.contains("evaluation_periods × config.query.period"));
+    }
+
+    #[test]
+    fn missing_destination_fails_validation() {
+        let error = settings()
+            .validate(&chat(&["critical", "warning"]))
+            .unwrap_err();
+        assert!(error.to_string().contains("destinations.info"));
+    }
+
+    #[test]
+    fn configured_destinations_are_accepted() {
+        settings()
+            .validate(&chat(&["critical", "warning", "info"]))
+            .unwrap();
+    }
+
+    #[test]
+    fn bad_grafana_scheme_is_rejected() {
+        let mut settings = settings();
+        settings.grafana.base_url = url::Url::parse("ftp://grafana.example").unwrap();
+        let error = validation_error(&settings);
+        assert!(error.contains("grafana.base_url"));
+    }
+
+    #[test]
+    fn blank_cloudwatch_uid_is_rejected() {
+        let mut settings = settings();
+        settings.datasources.cloudwatch = " ".to_owned();
+        let error = validation_error(&settings);
+        assert!(error.contains("datasources.cloudwatch"));
+    }
+
+    #[test]
+    fn blank_uid_is_rejected_even_without_rules() {
+        let mut settings = settings();
+        settings.rules.clear();
+        settings.datasources.cloudwatch.clear();
+        assert!(validation_error(&settings).contains("datasources.cloudwatch"));
+    }
+
+    #[test]
+    fn configured_datasource_names_follow_settings() {
+        let mut settings = settings();
+        assert_eq!(settings.datasources.configured_names(), vec!["cloudwatch"]);
+        settings.datasources.cloudwatch.clear();
+        assert!(settings.datasources.configured_names().is_empty());
+    }
+
+    #[test]
+    fn destinations_use_the_domain_level_conversion() {
+        let destinations = settings().destinations;
+        assert_eq!(destinations.for_severity(Level::Critical), "critical");
+        assert_eq!(destinations.for_severity(Level::Warning), "warning");
+        assert_eq!(destinations.for_severity(Level::Info), "info");
+        assert_eq!(destinations.for_severity(Level::Normal), "");
+    }
+
+    #[test]
+    fn configured_rule_deserializes_from_one_json_string() {
+        assert_eq!(settings().rules().len(), 1);
     }
 }

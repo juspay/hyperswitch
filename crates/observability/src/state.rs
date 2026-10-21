@@ -2,7 +2,6 @@
 
 use std::{collections::HashMap, sync::Arc};
 
-use common_types::alert_rules::AlertDatasource;
 use external_services::{
     chat_service::{slack::SlackClient, xyne::XyneClient},
     email::{
@@ -20,7 +19,8 @@ use crate::{
     db::{StorageInterface, Store},
     domain::{
         evaluator::{
-            cloudwatch::GrafanaCloudwatchEvaluator, AlertEvaluator, ConfigRuleSource, RuleSource,
+            cloudwatch::GrafanaCloudwatchEvaluator, ConfigRuleSource, Evaluators, RuleEvaluator,
+            RuleSource,
         },
         notifier::{
             chat::{ChatClientNotifier, ChatNotifier, LogChatNotifier},
@@ -43,13 +43,6 @@ use crate::{
 /// configuration failure out of boot and into the delivery path — which is the one place a
 /// service like this must not be discovering problems.
 #[derive(Clone)]
-pub struct EvaluatorRuntime {
-    pub rule_source: Arc<dyn RuleSource>,
-    pub evaluators: Arc<Registry<dyn AlertEvaluator>>,
-    pub destinations: EvaluatorDestinations,
-}
-
-#[derive(Clone)]
 pub struct AppState {
     /// The resolved configuration.
     pub conf: Arc<Settings<RawSecret>>,
@@ -59,9 +52,16 @@ pub struct AppState {
     pub chat: Arc<Registry<dyn ChatNotifier>>,
     /// Email destinations, by the id a request names.
     pub email: Arc<Registry<dyn EmailNotifier>>,
-    pub evaluator: Option<Arc<EvaluatorRuntime>>,
+    pub evaluator: Option<EvaluatorRuntime>,
     /// The observability database.
     pub store: Arc<dyn StorageInterface>,
+}
+
+#[derive(Clone)]
+pub struct EvaluatorRuntime {
+    pub rule_source: Arc<dyn RuleSource>,
+    pub evaluator: Arc<dyn RuleEvaluator>,
+    pub destinations: EvaluatorDestinations,
 }
 
 impl AppState {
@@ -95,13 +95,21 @@ impl AppState {
         let email = build_email_registry(&raw_conf.email, &raw_conf.proxy)
             .await
             .expect("Failed to build the email destinations");
-        let evaluator = build_evaluator_runtime(
-            raw_conf
-                .evaluator
-                .as_ref()
-                .map(SecretStateContainer::get_inner),
-            &raw_conf.proxy,
-        );
+        let evaluator_settings = raw_conf
+            .evaluator
+            .as_ref()
+            .map(SecretStateContainer::get_inner);
+        let evaluator = build_evaluator_runtime(evaluator_settings, &raw_conf.proxy);
+
+        match evaluator_settings {
+            Some(settings) => logger::info!(
+                tag = "evaluator_configured",
+                rules = settings.rules().len(),
+                datasources = ?settings.datasources.configured_names(),
+                "Evaluator configured"
+            ),
+            None => logger::info!(tag = "evaluator_disabled", "Evaluator is disabled"),
+        }
 
         if chat.is_empty() && email.is_empty() {
             logger::warn!(
@@ -148,21 +156,20 @@ impl AppState {
 fn build_evaluator_runtime(
     settings: Option<&EvaluatorSettings>,
     proxy: &Proxy,
-) -> Option<Arc<EvaluatorRuntime>> {
+) -> Option<EvaluatorRuntime> {
     let settings = settings?;
-    let evaluator: Arc<dyn AlertEvaluator> = Arc::new(GrafanaCloudwatchEvaluator::new(
-        settings.grafana.clone(),
-        proxy.clone(),
-    ));
-    let evaluators = Registry::new(HashMap::from([(
-        AlertDatasource::Cloudwatch.to_string(),
-        evaluator,
-    )]));
-    Some(Arc::new(EvaluatorRuntime {
+    let evaluator: Arc<dyn RuleEvaluator> = Arc::new(Evaluators {
+        cloudwatch: GrafanaCloudwatchEvaluator::new(
+            settings.grafana.clone(),
+            settings.datasources.cloudwatch.clone(),
+            proxy.clone(),
+        ),
+    });
+    Some(EvaluatorRuntime {
         rule_source: Arc::new(ConfigRuleSource::new(settings.rules().to_vec())),
-        evaluators: Arc::new(evaluators),
+        evaluator,
         destinations: settings.destinations.clone(),
-    }))
+    })
 }
 
 /// Turn configured chat destinations into the notifiers that serve them.
