@@ -3727,8 +3727,6 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            additional_amount: None,
-            network_transaction_id: None,
             test_mode: router_data.test_mode,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.total_amount,
