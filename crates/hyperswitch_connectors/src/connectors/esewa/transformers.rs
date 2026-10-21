@@ -29,8 +29,6 @@ use crate::{
 
 /// eSewa signs these request fields, in this order, joined as `key=value` pairs with commas.
 const SIGNED_FIELD_NAMES: &str = "total_amount,transaction_uuid,product_code";
-/// Tax and charges are not itemised; eSewa requires them as explicit zeros.
-const ZERO_AMOUNT: &str = "0";
 
 pub struct EsewaRouterData<T> {
     pub amount: StringMajorUnit,
@@ -71,12 +69,13 @@ impl TryFrom<&ConnectorAuthType> for EsewaAuthType {
 #[derive(Debug, Serialize)]
 pub struct EsewaPaymentsRequest {
     amount: StringMajorUnit,
-    tax_amount: &'static str,
+    /// Tax and charges are not itemised, but eSewa requires them; they are sent as zero.
+    tax_amount: StringMajorUnit,
     total_amount: StringMajorUnit,
     transaction_uuid: String,
     product_code: Secret<String>,
-    product_service_charge: &'static str,
-    product_delivery_charge: &'static str,
+    product_service_charge: StringMajorUnit,
+    product_delivery_charge: StringMajorUnit,
     success_url: String,
     failure_url: String,
     signed_field_names: &'static str,
@@ -121,12 +120,12 @@ impl TryFrom<&EsewaRouterData<&PaymentsAuthorizeRouterData>> for EsewaPaymentsRe
 
         Ok(Self {
             amount: item.amount.clone(),
-            tax_amount: ZERO_AMOUNT,
+            tax_amount: StringMajorUnit::zero(),
             total_amount: item.amount.clone(),
             transaction_uuid,
             product_code: auth.product_code,
-            product_service_charge: ZERO_AMOUNT,
-            product_delivery_charge: ZERO_AMOUNT,
+            product_service_charge: StringMajorUnit::zero(),
+            product_delivery_charge: StringMajorUnit::zero(),
             success_url: return_url.clone(),
             failure_url: return_url,
             signed_field_names: SIGNED_FIELD_NAMES,
@@ -262,28 +261,28 @@ impl TryFrom<ResponseRouterData<PSync, EsewaSyncResponse, PaymentsSyncData, Paym
             EsewaSyncResponse::Status(response) => response,
             // Keep the current status: the payment may still complete.
             EsewaSyncResponse::Error(error) => {
+                let error = error.into_error_response(item.http_code, Some(item.data.status));
                 return Ok(Self {
-                    response: Err(error.into_error_response(item.http_code, None)),
+                    response: Err(error),
                     ..item.data
-                })
+                });
             }
         };
 
         let status = AttemptStatus::from(response.status);
         let response_data = if status == AttemptStatus::Failure {
+            let message = match response.status {
+                EsewaPaymentStatus::NotFound => "Payment not found or eSewa session expired",
+                _ => "Payment canceled by eSewa",
+            };
             Err(ErrorResponse {
                 status_code: item.http_code,
                 code: serde_json::to_value(response.status)
                     .ok()
                     .and_then(|value| value.as_str().map(str::to_owned))
                     .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                message: match response.status {
-                    EsewaPaymentStatus::NotFound => {
-                        "Payment not found or eSewa session expired".to_string()
-                    }
-                    _ => "Payment canceled by eSewa".to_string(),
-                },
-                reason: None,
+                message: message.to_string(),
+                reason: Some(message.to_string()),
                 attempt_status: Some(status),
                 connector_transaction_id: Some(response.transaction_uuid),
                 connector_response_reference_id: None,
@@ -452,5 +451,19 @@ mod tests {
         )
         .expect("status error");
         assert!(matches!(status_error, EsewaSyncResponse::Error(_)));
+    }
+
+    // An outage during PSync must not fail the attempt: core treats a 2xx error without an
+    // attempt status as a payment failure.
+    #[test]
+    fn outage_error_keeps_attempt_status() {
+        let outage: EsewaErrorResponse = serde_json::from_str(
+            r#"{"code":0,"error_message":"Service is currently unavailable"}"#,
+        )
+        .expect("status error");
+        let error = outage.into_error_response(200, Some(AttemptStatus::AuthenticationPending));
+        assert_eq!(error.code, "0");
+        assert_eq!(error.reason.as_deref(), Some("Service is currently unavailable"));
+        assert_eq!(error.attempt_status, Some(AttemptStatus::AuthenticationPending));
     }
 }
