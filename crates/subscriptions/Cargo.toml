@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-async-trait = "0.1.88"
+async-trait = "0.1.92"
 dyn-clone = "1.0.19"
 error-stack = "0.4.1"
 hyperswitch_masking = "0.0.1"

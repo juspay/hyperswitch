@@ -8,6 +8,15 @@ import getConnectorDetails, {
 
 let globalState;
 
+// Stripe now returns a payment_account_reference (PAR) for Amex cards as well
+// (a Stripe-side behaviour change), so for Stripe this is a second positive
+// scenario. Connectors whose card returns no PAR keep the genuine negative
+// scenario.
+const parVariantContext =
+  Cypress.env("CONNECTOR") === "stripe"
+    ? "PAR positive - Amex card returning payment_account_reference"
+    : "PAR negative - card without payment_account_reference";
+
 describe("Card - Payment Account Reference and auth_code validation", () => {
   before("seed global state", function () {
     let skip = false;
@@ -108,7 +117,7 @@ describe("Card - Payment Account Reference and auth_code validation", () => {
     });
   });
 
-  context("PAR negative - card without payment_account_reference", () => {
+  context(parVariantContext, () => {
     before(function () {
       if (
         shouldIncludeConnector(
