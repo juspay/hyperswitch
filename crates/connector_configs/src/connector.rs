@@ -175,6 +175,7 @@ pub struct ConfigMetadata {
     pub three_ds_requestor_name: Option<InputData>,
     pub three_ds_requestor_id: Option<InputData>,
     pub pull_mechanism_for_external_3ds_enabled: Option<InputData>,
+    pub enable_stc: Option<InputData>,
     pub klarna_region: Option<InputData>,
     pub region: Option<InputData>,
     pub pricing_type: Option<InputData>,
@@ -343,6 +344,7 @@ pub struct ConnectorConfig {
     pub gigadat_payout: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
     pub globalpayments_heartland: Option<ConnectorTomlConfig>,
+    pub globalpayments_realex: Option<ConnectorTomlConfig>,
     pub globepay: Option<ConnectorTomlConfig>,
     pub gocardless: Option<ConnectorTomlConfig>,
     pub gotyme_sanlam: Option<ConnectorTomlConfig>,
@@ -363,6 +365,8 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub loonio_payout: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub mifinity_payout: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
     pub moneris: Option<ConnectorTomlConfig>,
     pub mpgs: Option<ConnectorTomlConfig>,
@@ -508,6 +512,7 @@ impl ConnectorConfig {
             PayoutConnectors::Itaubank => Ok(connector_data.itaubank_payout),
             PayoutConnectors::Santander => Ok(connector_data.santander_payout),
             PayoutConnectors::GotymeSanlam => Ok(connector_data.gotyme_sanlam_payout),
+            PayoutConnectors::Mifinity => Ok(connector_data.mifinity_payout),
         }
     }
 
@@ -637,6 +642,7 @@ impl ConnectorConfig {
             Connector::Gigadat => Ok(connector_data.gigadat),
             Connector::Globalpay => Ok(connector_data.globalpay),
             Connector::GlobalpaymentsHeartland => Ok(connector_data.globalpayments_heartland),
+            Connector::GlobalpaymentsRealex => Ok(connector_data.globalpayments_realex),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
             Connector::GotymeSanlam => Ok(connector_data.gotyme_sanlam),

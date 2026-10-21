@@ -366,11 +366,13 @@ where
         card: &domain::CardDetail,
         optional_cvc: Option<Secret<String>>,
     ) -> RouterResult<NetworkTokenizationResponse> {
-        network_tokenization::make_card_network_tokenization_request(
-            self.state,
-            card,
-            optional_cvc,
-            customer_id,
+        Box::pin(
+            network_tokenization::make_card_network_tokenization_request(
+                self.state,
+                card,
+                optional_cvc,
+                customer_id,
+            ),
         )
         .await
         .map_err(|err| {

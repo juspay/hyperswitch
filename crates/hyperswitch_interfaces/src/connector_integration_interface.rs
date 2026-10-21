@@ -580,6 +580,20 @@ impl ConnectorValidation for ConnectorEnum {
     }
 }
 impl ConnectorSpecifications for ConnectorEnum {
+    fn is_webhook_ip_verification_required(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_webhook_ip_verification_required(),
+            Self::New(connector) => connector.is_webhook_ip_verification_required(),
+        }
+    }
+
+    fn is_webhook_mtls_required(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_webhook_mtls_required(),
+            Self::New(connector) => connector.is_webhook_mtls_required(),
+        }
+    }
+
     fn is_balance_check_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_balance_check_flow_required(current_flow),
@@ -712,6 +726,17 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.is_sdk_client_token_generation_enabled(),
             Self::New(connector) => connector.is_sdk_client_token_generation_enabled(),
+        }
+    }
+
+    fn should_allow_mit_when_connector_mandate_status_is_inactive(&self) -> Option<bool> {
+        match self {
+            Self::Old(connector) => {
+                connector.should_allow_mit_when_connector_mandate_status_is_inactive()
+            }
+            Self::New(connector) => {
+                connector.should_allow_mit_when_connector_mandate_status_is_inactive()
+            }
         }
     }
 

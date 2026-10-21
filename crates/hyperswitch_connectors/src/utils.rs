@@ -6846,6 +6846,7 @@ pub enum PaymentMethodDataType {
     SamsungPay,
     TwintRedirect,
     VippsRedirect,
+    WeroRedirect,
     TouchNGoRedirect,
     WeChatPayRedirect,
     WeChatPayQr,
@@ -7002,6 +7003,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::SamsungPay(_) => Self::SamsungPay,
                 payment_method_data::WalletData::TwintRedirect {} => Self::TwintRedirect,
                 payment_method_data::WalletData::VippsRedirect {} => Self::VippsRedirect,
+                payment_method_data::WalletData::WeroRedirect {} => Self::WeroRedirect,
                 payment_method_data::WalletData::TouchNGoRedirect(_) => Self::TouchNGoRedirect,
                 payment_method_data::WalletData::WeChatPayRedirect(_) => Self::WeChatPayRedirect,
                 payment_method_data::WalletData::WeChatPayQr(_) => Self::WeChatPayQr,
@@ -7770,6 +7772,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         recipient_details: data.request.recipient_details.clone(),
         business_country: data.request.business_country,
         connector_intent_metadata: data.request.connector_intent_metadata.clone(),
+        enable_avs_check: data.request.enable_avs_check,
     }
 }
 

@@ -48,7 +48,7 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 use url::Url;
 
-#[cfg(all(feature = "v1", feature = "olap"))]
+#[cfg(feature = "v1")]
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
 use crate::{
@@ -177,15 +177,6 @@ pub trait PaymentAttemptInterface {
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error>;
-
-    #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-        &self,
-        preprocessing_id: &str,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
-    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_attempts_by_processor_merchant_id_payment_id(
@@ -373,6 +364,49 @@ pub struct ErrorDetails {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+    /// The standardised code from the global status map record for this error.
+    /// Persisted in the `error_details` column, under `unified_details`.
+    pub standardised_code: Option<common_enums::StandardisedCode>,
+}
+
+/// The `error_details` column for a v2 attempt error: connector, issuer and unified (GSM) details.
+#[cfg(feature = "v2")]
+impl From<&ErrorDetails> for diesel_models::payment_attempt::ErrorDetails {
+    fn from(error: &ErrorDetails) -> Self {
+        let unified_details = (error.unified_message.is_some()
+            || error.standardised_code.is_some())
+        .then(|| diesel_models::payment_attempt::UnifiedErrorDetails {
+            category: None,
+            message: error.unified_message.clone(),
+            standardised_code: error.standardised_code,
+            description: None,
+            user_guidance_message: None,
+            recommended_action: None,
+        });
+        let issuer_details = (error.network_decline_code.is_some()
+            || error.network_error_message.is_some()
+            || error.network_advice_code.is_some())
+        .then(|| diesel_models::payment_attempt::IssuerErrorDetails {
+            code: error.network_decline_code.clone(),
+            message: error.network_error_message.clone(),
+            network_details: error.network_advice_code.clone().map(|advice_code| {
+                diesel_models::payment_attempt::NetworkErrorDetails {
+                    name: None,
+                    advice_code: Some(advice_code),
+                    advice_message: None,
+                }
+            }),
+        });
+        Self {
+            unified_details,
+            issuer_details,
+            connector_details: Some(diesel_models::payment_attempt::ConnectorErrorDetails {
+                code: Some(error.code.clone()),
+                message: Some(error.message.clone()),
+                reason: error.reason.clone(),
+            }),
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -1784,6 +1818,17 @@ impl PaymentAttempt {
 
 #[cfg(feature = "v1")]
 impl PaymentAttempt {
+    /// Uses the attempt's applied future usage, falling back to the intent only when absent.
+    pub fn get_setup_future_usage_with_fallback(
+        &self,
+        payment_intent: &PaymentIntent,
+    ) -> Option<storage_enums::FutureUsage> {
+        match self.setup_future_usage_applied {
+            Some(setup_future_usage) => Some(setup_future_usage),
+            None => payment_intent.setup_future_usage,
+        }
+    }
+
     /// Capture method actually used with the connector for this attempt.
     ///
     /// `capture_method` keeps what the payment requested; when the profile's
@@ -2005,6 +2050,16 @@ impl PaymentAttempt {
                     })
                     .ok()
                     .map(api_models::payments::ConnectorMetadataResponse::Santander),
+                Connector::Revolv3 => metadata
+                    .parse_value::<api_models::payments::Revolv3Data>("Revolv3Data")
+                    .map_err(|_| {
+                        router_env::logger::warn!(
+                            "Failed to parse payment_attempt.connector_metadata to Revolv3Data"
+                        )
+                    })
+                    .ok()
+                    .filter(|revolv3_data| revolv3_data.processor.is_some())
+                    .map(api_models::payments::ConnectorMetadataResponse::Revolv3),
                 _ => None,
             })
     }
@@ -2062,6 +2117,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
     },
     ConfirmUpdate {
+        setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         net_amount: NetAmount,
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
@@ -2413,6 +2469,7 @@ impl PaymentAttemptUpdate {
                 updated_by,
             },
             Self::ConfirmUpdate {
+                setup_future_usage_applied,
                 net_amount,
                 currency,
                 status,
@@ -2457,6 +2514,7 @@ impl PaymentAttemptUpdate {
                 applied_overrides,
                 active_frm_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
+                setup_future_usage_applied,
                 amount: net_amount.get_order_amount(),
                 currency,
                 status,

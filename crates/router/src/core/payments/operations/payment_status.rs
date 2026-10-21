@@ -487,34 +487,40 @@ async fn get_tracker_for_sync<
 
     let key_manager_state = &(state).into();
 
-    let authentication_store =
-        if let Some(ref authentication_id) = payment_attempt.authentication_id {
-            let authentication = db
-                .find_authentication_by_processor_merchant_id_authentication_id(
-                    platform.get_processor().get_account().get_id(),
-                    authentication_id,
-                    platform.get_processor().get_key_store(),
-                    key_manager_state,
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable_lazy(|| {
-                    format!(
-                        "Error while fetching authentication record with authentication_id {}",
-                        authentication_id.get_string_repr()
-                    )
-                })?;
+    // When the authentication micro-service is enabled, the authentication record lives in that
+    // service and is never stored locally, so there is nothing to fetch here.
+    let authentication_id = payment_attempt
+        .authentication_id
+        .as_ref()
+        .filter(|_| state.conf.micro_services.authentication_service.is_none());
 
-            Some(
+    let authentication_store = if let Some(authentication_id) = authentication_id {
+        let authentication = db
+            .find_authentication_by_processor_merchant_id_authentication_id(
+                platform.get_processor().get_account().get_id(),
+                authentication_id,
+                platform.get_processor().get_key_store(),
+                key_manager_state,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Error while fetching authentication record with authentication_id {}",
+                    authentication_id.get_string_repr()
+                )
+            })?;
+
+        Some(
             hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                 authentication,
                 cavv: None, // marking this as None since we don't need authentication value in payment status flow
             },
         )
-        } else {
-            None
-        };
+    } else {
+        None
+    };
 
     let payment_link_data = payment_intent
         .payment_link_id
@@ -709,25 +715,6 @@ pub async fn get_payment_intent_payment_attempt(
                         key_store,
                     )
                     .await?;
-                pi = db
-                    .find_payment_intent_by_payment_id_processor_merchant_id(
-                        &pa.payment_id,
-                        processor_merchant_id,
-                        key_store,
-                        storage_scheme,
-                    )
-                    .await?;
-            }
-            api_models::payments::PaymentIdType::PreprocessingId(ref id) => {
-                pa = db
-                    .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-                        id,
-                        processor_merchant_id,
-                        storage_scheme,
-                        key_store,
-                    )
-                    .await?;
-
                 pi = db
                     .find_payment_intent_by_payment_id_processor_merchant_id(
                         &pa.payment_id,
