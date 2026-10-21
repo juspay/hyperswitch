@@ -437,6 +437,7 @@ pub enum AdyenStatus {
     Cancelled,
     ChallengeShopper,
     Error,
+    IdentifyShopper,
     Pending,
     Received,
     RedirectShopper,
@@ -496,6 +497,7 @@ fn get_adyen_payment_status(
         },
         AdyenStatus::Cancelled => storage_enums::AttemptStatus::Voided,
         AdyenStatus::ChallengeShopper
+        | AdyenStatus::IdentifyShopper
         | AdyenStatus::RedirectShopper
         | AdyenStatus::PresentToShopper => storage_enums::AttemptStatus::AuthenticationPending,
         AdyenStatus::Error | AdyenStatus::Refused => storage_enums::AttemptStatus::Failure,
@@ -7307,5 +7309,46 @@ impl
             }),
             ..item.data
         })
+    }
+}
+
+#[cfg(test)]
+mod adyen_status_tests {
+    use super::*;
+
+    /// `IdentifyShopper` is the 3DS2 device-fingerprint result code. Before it was a variant it fell to
+    /// `#[serde(other)] Unknown`, and the mapper's `Unknown` arm retains the previous status — so a
+    /// payment awaiting a fingerprint silently kept whatever status it already had.
+    #[test]
+    fn identify_shopper_is_authentication_pending_not_the_previous_status() {
+        let parsed: Result<AdyenStatus, _> =
+            serde_json::from_value(serde_json::json!("IdentifyShopper"));
+        let status = parsed.unwrap_or(AdyenStatus::Unknown);
+        assert!(
+            matches!(status, AdyenStatus::IdentifyShopper),
+            "IdentifyShopper must have its own variant, not fall through to Unknown"
+        );
+
+        let prev = storage_enums::AttemptStatus::Started;
+        assert_eq!(
+            get_adyen_payment_status(false, status, None, prev),
+            storage_enums::AttemptStatus::AuthenticationPending
+        );
+    }
+
+    /// The sibling result codes keep their mapping, so the new arm did not widen anything.
+    #[test]
+    fn the_other_shopper_action_codes_are_unchanged() {
+        let prev = storage_enums::AttemptStatus::Started;
+        for status in [
+            AdyenStatus::ChallengeShopper,
+            AdyenStatus::RedirectShopper,
+            AdyenStatus::PresentToShopper,
+        ] {
+            assert_eq!(
+                get_adyen_payment_status(false, status, None, prev),
+                storage_enums::AttemptStatus::AuthenticationPending
+            );
+        }
     }
 }
