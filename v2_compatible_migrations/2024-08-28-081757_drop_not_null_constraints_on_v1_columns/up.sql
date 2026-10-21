@@ -48,7 +48,7 @@ ALTER TABLE payment_intent
     ALTER COLUMN active_attempt_id DROP NOT NULL,
     ALTER COLUMN active_attempt_id DROP DEFAULT;
 -- This is done to nullify the effects of dropping primary key for v1
-CREATE INDEX idx_payment_intent_payment_id_merchant_id ON payment_intent (payment_id, merchant_id);
+CREATE UNIQUE INDEX idx_payment_intent_payment_id_merchant_id ON payment_intent (payment_id, merchant_id);
 
 ---------------------- Payment Attempt ----------------------
 ALTER TABLE payment_attempt 
@@ -56,7 +56,7 @@ ALTER TABLE payment_attempt
     ALTER COLUMN attempt_id DROP NOT NULL,
     ALTER COLUMN amount DROP NOT NULL;
 -- This is done to nullify the effects of dropping primary key for v1
-CREATE INDEX idx_payment_attempt_attempt_id_merchant_id ON payment_attempt (attempt_id, merchant_id);
+CREATE UNIQUE INDEX idx_payment_attempt_attempt_id_merchant_id ON payment_attempt (attempt_id, merchant_id);
 
 ALTER TABLE payment_attempt
     ALTER COLUMN confirm DROP NOT NULL;
