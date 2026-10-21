@@ -27,3 +27,40 @@ impl IncomingWebhookIpRange {
         self.0.contains(source_ip)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use ip_network::IpNetwork;
+
+    use super::IncomingWebhookIpRange;
+
+    #[test]
+    fn parses_ip_addresses_and_cidr_ranges() {
+        for (value, expected) in [
+            ("198.51.100.10", "198.51.100.10/32"),
+            (" 198.51.100.10 ", "198.51.100.10/32"),
+            ("2001:db8::10", "2001:db8::10/128"),
+            ("195.35.90.0/25", "195.35.90.0/25"),
+            ("2001:db8::/64", "2001:db8::/64"),
+        ] {
+            let range = value.parse::<IncomingWebhookIpRange>().unwrap();
+            assert_eq!(range.0, expected.parse::<IpNetwork>().unwrap());
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_ips_and_cidr_ranges() {
+        for value in [
+            "invalid",
+            "198.51.100.10:46532",
+            "198.51.100.10/33",
+            "198.51.100.10/24",
+            "2001:db8::1/64",
+        ] {
+            assert!(
+                value.parse::<IncomingWebhookIpRange>().is_err(),
+                "accepted {value}"
+            );
+        }
+    }
+}
