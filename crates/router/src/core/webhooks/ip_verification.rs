@@ -1,8 +1,5 @@
 //! Incoming webhook source IP validation
-use std::{
-    collections::HashMap,
-    net::{IpAddr, SocketAddr},
-};
+use std::net::{IpAddr, SocketAddr};
 
 use actix_web::http::header::HeaderMap;
 use api_models::enums::Connector;
@@ -10,7 +7,7 @@ use common_utils::errors::ErrorSwitch;
 use ip_network::IpNetwork;
 use router_env::logger;
 
-use super::source_verification::NetworkVerification;
+use super::source_verification::VerificationStatus;
 use crate::{core::errors, headers};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, strum::IntoStaticStr)]
@@ -40,58 +37,59 @@ impl ErrorSwitch<errors::ApiErrorResponse> for VerificationFailure {
 /// { "envoy": ["198.51.100.10", "195.35.90.0/25", "2001:db8::/64"] }
 /// ```
 /// Each connector maps to a nonempty list of individual IPs or CIDR ranges.
+/// CIDRs must use the range's base address, with no host bits set.
 /// An empty object disables IP checks for all connectors.
 fn parse_allowed_ip_ranges(
     value: serde_json::Value,
-) -> Result<HashMap<Connector, Vec<IpNetwork>>, VerificationFailure> {
-    let entries: HashMap<Connector, Vec<String>> =
-        serde_json::from_value(value).map_err(|error| {
-            logger::error!(
-                ?error,
-                "Failed to deserialize incoming webhook allowed IP ranges"
-            );
-            VerificationFailure::InvalidConfig
-        })?;
-    entries
-        .into_iter()
-        .map(|(connector, entries)| {
-            if entries.is_empty() {
-                Err(VerificationFailure::InvalidConfig)
-            } else {
-                let allowed_ip_ranges = entries
-                    .into_iter()
-                    .map(|entry| {
-                        let entry = entry.trim();
-                        IpNetwork::from_str_truncate(entry)
-                            .or_else(|_| entry.parse::<IpAddr>().map(IpNetwork::from))
-                            .map_err(|_| VerificationFailure::InvalidConfig)
-                    })
-                    .collect::<Result<Vec<_>, _>>()?;
-                Ok((connector, allowed_ip_ranges))
-            }
-        })
-        .collect()
+) -> Result<Vec<IpNetwork>, VerificationFailure> {
+    let entries: Vec<String> = serde_json::from_value(value).map_err(|error| {
+        logger::error!(
+            ?error,
+            "Failed to deserialize incoming webhook allowed IP ranges"
+        );
+        VerificationFailure::InvalidConfig
+    })?;
+    if entries.is_empty() {
+        Err(VerificationFailure::InvalidConfig)
+    } else {
+        entries
+            .into_iter()
+            .map(|entry| {
+                let entry = entry.trim();
+                entry
+                    .parse::<IpNetwork>()
+                    .or_else(|_| entry.parse::<IpAddr>().map(IpNetwork::from))
+                    .map_err(|_| VerificationFailure::InvalidConfig)
+            })
+            .collect()
+    }
 }
 
 pub(super) fn validate_source_ip_against_allowed_ip_ranges(
     policy: serde_json::Value,
     connector_name: &str,
     request_headers: &HeaderMap,
-) -> Result<NetworkVerification, VerificationFailure> {
-    let policy = parse_allowed_ip_ranges(policy)?;
+) -> Result<VerificationStatus, VerificationFailure> {
+    let policy = policy
+        .as_object()
+        .ok_or(VerificationFailure::InvalidConfig)?;
     let connector = connector_name
         .parse::<Connector>()
         .map_err(|_| VerificationFailure::InvalidConnectorName)?;
-    let connector_allowed_ip_ranges = policy.get(&connector).map(Vec::as_slice);
-    validate_source_ip(connector_allowed_ip_ranges, request_headers)
+    let connector_allowed_ip_ranges = policy
+        .get(&connector.to_string())
+        .cloned()
+        .map(parse_allowed_ip_ranges)
+        .transpose()?;
+    validate_source_ip(connector_allowed_ip_ranges.as_deref(), request_headers)
 }
 
 fn validate_source_ip(
     allowed_ip_ranges: Option<&[IpNetwork]>,
     request_headers: &HeaderMap,
-) -> Result<NetworkVerification, VerificationFailure> {
+) -> Result<VerificationStatus, VerificationFailure> {
     match allowed_ip_ranges {
-        None => Ok(NetworkVerification::NotRequired),
+        None => Ok(VerificationStatus::NotRequired),
         Some(allowed_ip_ranges) => {
             let mut values = request_headers.get_all(headers::TRUE_CLIENT_IP);
             let value = values.next().ok_or(VerificationFailure::MissingHeader)?;
@@ -99,22 +97,19 @@ fn validate_source_ip(
             if values.next().is_some() {
                 Err(VerificationFailure::InvalidHeader)
             } else {
-                let source = value
+                let value = value
                     .to_str()
-                    .ok()
-                    .and_then(|value| {
-                        value
-                            .parse::<IpAddr>()
-                            .or_else(|_| value.parse::<SocketAddr>().map(|address| address.ip()))
-                            .ok()
-                    })
-                    .ok_or(VerificationFailure::InvalidHeader)?;
+                    .map_err(|_| VerificationFailure::InvalidHeader)?;
+                let source = value
+                    .parse::<IpAddr>()
+                    .or_else(|_| value.parse::<SocketAddr>().map(|address| address.ip()))
+                    .map_err(|_| VerificationFailure::InvalidHeader)?;
 
                 if allowed_ip_ranges
                     .iter()
                     .any(|ip_range| ip_range.contains(source))
                 {
-                    Ok(NetworkVerification::Verified)
+                    Ok(VerificationStatus::Verified)
                 } else {
                     Err(VerificationFailure::IpNotAllowed)
                 }
@@ -126,19 +121,20 @@ fn validate_source_ip(
 #[cfg(test)]
 mod tests {
     use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
-    use api_models::enums::Connector;
     use common_utils::errors::ErrorSwitch;
     use external_services::superposition::Config;
+    use hyperswitch_interfaces::api::ConnectorCommon;
     use ip_network::IpNetwork;
     use serde_json::json;
 
     use super::{
         parse_allowed_ip_ranges, validate_source_ip, validate_source_ip_against_allowed_ip_ranges,
-        NetworkVerification, VerificationFailure,
+        VerificationFailure, VerificationStatus,
     };
     use crate::{
         core::{configs::dimension_config::IncomingWebhookAllowedIpRanges, errors},
         headers,
+        types::api::ConnectorData,
     };
 
     fn headers_with(values: &[&str]) -> HeaderMap {
@@ -163,7 +159,7 @@ mod tests {
         ] {
             assert_eq!(
                 validate_source_ip(Some(&allowed_ip_ranges), &headers_with(&[value])),
-                Ok(NetworkVerification::Verified)
+                Ok(VerificationStatus::Verified)
             );
         }
         for value in ["198.51.100.11", "198.51.100.11:46532"] {
@@ -191,7 +187,7 @@ mod tests {
                     Some(&allowed_ip_ranges),
                     &headers_with(&[&format!("{address}:46532")])
                 ),
-                Ok(NetworkVerification::Verified)
+                Ok(VerificationStatus::Verified)
             );
         }
         for address in ["195.35.89.255", "195.35.90.128", "195.35.91.128"] {
@@ -211,7 +207,7 @@ mod tests {
         for value in ["2001:db8::10", "[2001:db8::10]:46532", "2001:db8::10:443"] {
             assert_eq!(
                 validate_source_ip(Some(&allowed_ip_ranges), &headers_with(&[value])),
-                Ok(NetworkVerification::Verified)
+                Ok(VerificationStatus::Verified)
             );
         }
         for value in ["2001:db8:1::10", "[2001:db8:1::10]:46532"] {
@@ -282,7 +278,7 @@ mod tests {
         );
         assert_eq!(
             validate_source_ip(Some(&allowed_ip_ranges), &request_headers),
-            Ok(NetworkVerification::Verified)
+            Ok(VerificationStatus::Verified)
         );
         request_headers.insert(
             HeaderName::from_static(headers::TRUE_CLIENT_IP),
@@ -298,11 +294,11 @@ mod tests {
     fn leaves_unconfigured_connectors_unchanged_and_empty_lists_deny_all() {
         assert_eq!(
             validate_source_ip(None, &HeaderMap::new()),
-            Ok(NetworkVerification::NotRequired)
+            Ok(VerificationStatus::NotRequired)
         );
         assert_eq!(
             validate_source_ip(None, &headers_with(&["invalid"])),
-            Ok(NetworkVerification::NotRequired)
+            Ok(VerificationStatus::NotRequired)
         );
         assert_eq!(
             validate_source_ip(Some(&[]), &headers_with(&["198.51.100.10:46532"])),
@@ -312,16 +308,14 @@ mod tests {
 
     #[test]
     fn reads_superposition_ip_range_arrays() {
-        let policy = parse_allowed_ip_ranges(json!({
-            "envoy": ["198.51.100.10", "195.35.90.0/25", "2001:db8::/64"]
-        }))
-        .unwrap();
-        assert_eq!(policy[&Connector::Envoy].len(), 3);
+        let allowed_ip_ranges =
+            parse_allowed_ip_ranges(json!(["198.51.100.10", "195.35.90.0/25", "2001:db8::/64"]))
+                .unwrap();
+        assert_eq!(allowed_ip_ranges.len(), 3);
         assert_eq!(
-            policy[&Connector::Envoy][0],
+            allowed_ip_ranges[0],
             "198.51.100.10/32".parse::<IpNetwork>().unwrap()
         );
-        assert!(parse_allowed_ip_ranges(json!({})).unwrap().is_empty());
     }
 
     #[test]
@@ -329,19 +323,83 @@ mod tests {
         for value in [
             json!(null),
             json!([]),
+            json!({"envoy": null}),
             json!({"envoy": []}),
             json!({"envoy": "198.51.100.10"}),
+            json!({"envoy": {"range": "198.51.100.10"}}),
+            json!({"envoy": [123]}),
             json!({"envoy": [""]}),
             json!({"envoy": ["198.51.100.10", "invalid"]}),
             json!({"envoy": ["198.51.100.10/33"]}),
             json!({"envoy": ["198.51.100.10:46532"]}),
-            json!({"unknown_connector": ["198.51.100.10"]}),
         ] {
             assert_eq!(
-                parse_allowed_ip_ranges(value.clone()),
+                validate_source_ip_against_allowed_ip_ranges(
+                    value.clone(),
+                    "envoy",
+                    &HeaderMap::new()
+                ),
                 Err(VerificationFailure::InvalidConfig),
                 "accepted {value}"
             );
+        }
+    }
+
+    #[test]
+    fn rejects_cidr_ranges_with_host_bits_set() {
+        for entry in [
+            "198.51.100.1/8",
+            "198.51.100.10/24",
+            "195.35.90.1/25",
+            "2001:db8::1/64",
+        ] {
+            assert_eq!(
+                parse_allowed_ip_ranges(json!([entry])),
+                Err(VerificationFailure::InvalidConfig),
+                "accepted noncanonical CIDR {entry}"
+            );
+        }
+    }
+
+    #[test]
+    fn invalid_entries_do_not_affect_other_connectors() {
+        for mut policy in [
+            json!({"envoy": []}),
+            json!({"envoy": null}),
+            json!({"envoy": "invalid"}),
+            json!({"envoy": {"range": "invalid"}}),
+            json!({"envoy": [123]}),
+            json!({"envoy": ["198.51.100.10/33"]}),
+            json!({"envoy": ["198.51.100.1/8"]}),
+            json!({"stirpe": ["invalid"]}),
+        ] {
+            assert_eq!(
+                validate_source_ip_against_allowed_ip_ranges(
+                    policy.clone(),
+                    "stripe",
+                    &HeaderMap::new()
+                ),
+                Ok(VerificationStatus::NotRequired)
+            );
+
+            policy["stripe"] = json!(["198.51.100.10"]);
+            for (address, expected) in [
+                ("198.51.100.10:46532", Ok(VerificationStatus::Verified)),
+                (
+                    "198.51.100.11:46532",
+                    Err(VerificationFailure::IpNotAllowed),
+                ),
+            ] {
+                assert_eq!(
+                    validate_source_ip_against_allowed_ip_ranges(
+                        policy.clone(),
+                        "stripe",
+                        &headers_with(&[address])
+                    ),
+                    expected,
+                    "policy: {policy}"
+                );
+            }
         }
     }
 
@@ -354,7 +412,7 @@ mod tests {
                 "envoy",
                 &HeaderMap::new()
             ),
-            Ok(NetworkVerification::NotRequired)
+            Ok(VerificationStatus::NotRequired)
         );
         assert_eq!(
             validate_source_ip_against_allowed_ip_ranges(json!({"envoy": []}), "envoy", &headers),
@@ -374,6 +432,40 @@ mod tests {
                 errors::ApiErrorResponse::WebhookAuthenticationFailed
             ));
         }
+    }
+
+    #[test]
+    fn uses_the_canonical_connector_name_for_adapter_ip_policy() {
+        let connector_name = "ctp_visa";
+        let connector = ConnectorData::convert_connector(connector_name).unwrap();
+        assert_ne!(connector.id(), connector_name);
+
+        assert_eq!(
+            validate_source_ip_against_allowed_ip_ranges(
+                json!({}),
+                connector_name,
+                &HeaderMap::new()
+            ),
+            Ok(VerificationStatus::NotRequired)
+        );
+
+        let policy = json!({"ctp_visa": ["198.51.100.10"]});
+        assert_eq!(
+            validate_source_ip_against_allowed_ip_ranges(
+                policy.clone(),
+                connector_name,
+                &headers_with(&["198.51.100.10:46532"])
+            ),
+            Ok(VerificationStatus::Verified)
+        );
+        assert_eq!(
+            validate_source_ip_against_allowed_ip_ranges(
+                policy,
+                connector_name,
+                &headers_with(&["198.51.100.11:46532"])
+            ),
+            Err(VerificationFailure::IpNotAllowed)
+        );
     }
 
     #[test]
@@ -403,7 +495,7 @@ mod tests {
                 "envoy",
                 &headers
             ),
-            Ok(NetworkVerification::Verified)
+            Ok(VerificationStatus::Verified)
         );
         assert_eq!(
             validate_source_ip_against_allowed_ip_ranges(
@@ -419,11 +511,11 @@ mod tests {
                 "stripe",
                 &HeaderMap::new()
             ),
-            Ok(NetworkVerification::NotRequired)
+            Ok(VerificationStatus::NotRequired)
         );
         assert_eq!(
             validate_source_ip_against_allowed_ip_ranges(json!({}), "envoy", &HeaderMap::new()),
-            Ok(NetworkVerification::NotRequired)
+            Ok(VerificationStatus::NotRequired)
         );
     }
 }

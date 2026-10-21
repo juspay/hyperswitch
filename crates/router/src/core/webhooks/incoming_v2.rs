@@ -142,7 +142,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .await?;
 
     let network_verification = IncomingWebhookVerifier::new(&state.conf.incoming_webhooks)
-        .verify(&state, &connector, request_details.headers)
+        .verify(&state, &connector, &connector_name, request_details.headers)
         .await?;
 
     let decoded_body = connector
