@@ -214,10 +214,7 @@ impl RevenueRecoveryPaymentIntentStatus {
                     payment_intent,
                     &platform,
                     profile,
-                    recovery_payment_attempt
-                        .attempt_id
-                        .get_string_repr()
-                        .to_string(),
+                    &psync_response.payment_attempt,
                     payments_response
                 ))
                 .await?;
@@ -293,10 +290,7 @@ impl RevenueRecoveryPaymentIntentStatus {
                     payment_intent,
                     &platform,
                     profile,
-                    recovery_payment_attempt
-                        .attempt_id
-                        .get_string_repr()
-                        .to_string(),
+                    &psync_response.payment_attempt,
                     payments_response
                 ))
                 .await?;
@@ -385,7 +379,7 @@ impl RevenueRecoveryPaymentIntentStatus {
                     &psync_response.payment_intent,
                     &platform,
                     profile,
-                    psync_response.payment_attempt.id.get_string_repr().to_string(),
+                    &psync_response.payment_attempt,
                     payments_response,
                 ))
                 .await?;
@@ -670,7 +664,7 @@ impl Action {
                         payment_intent,
                         &platform,
                         profile,
-                        payment_data.payment_attempt.id.get_string_repr().to_string(),
+                        &payment_data.payment_attempt,
                         payments_response
                     ))
                     .await?;
@@ -713,7 +707,7 @@ impl Action {
                         payment_intent,
                         &platform,
                         profile,
-                        payment_data.payment_attempt.id.get_string_repr().to_string(),
+                        &payment_data.payment_attempt,
                         payments_response
                     ))
                     .await?;
@@ -812,7 +806,7 @@ impl Action {
                             &payment_data.payment_intent,
                             &platform,
                             profile,
-                            payment_data.payment_attempt.id.get_string_repr().to_string(),
+                            &payment_data.payment_attempt,
                             payments_response,
                         ))
                         .await?;
@@ -1062,7 +1056,7 @@ impl Action {
                     &payment_data.payment_intent,
                     &platform,
                     profile,
-                    payment_data.payment_attempt.id.get_string_repr().to_string(),
+                    &payment_data.payment_attempt,
                     payments_response,
                 ))
                 .await?;
@@ -1834,9 +1828,21 @@ impl RevenueRecoveryOutgoingWebhook {
         payment_intent: &PaymentIntent,
         platform: &domain::Platform,
         profile: &domain::Profile,
-        payment_attempt_id: String,
+        payment_attempt: &PaymentAttempt,
         payments_response: ApplicationResponse<api_models::payments::PaymentsResponse>,
     ) -> RecoveryResult<()> {
+        if utils::is_external_recovery_attempt(payment_attempt.feature_metadata.as_ref())
+            || !utils::recovery_webhook_status_enabled(
+                profile
+                    .webhook_details
+                    .as_ref()
+                    .and_then(|details| details.revenue_recovery_statuses_enabled.as_deref()),
+                Some(event_status),
+            )
+        {
+            return Ok(());
+        }
+
         match payments_response {
             ApplicationResponse::JsonWithHeaders((response, _headers)) => {
                 let outgoing_webhook_content =
@@ -1858,7 +1864,7 @@ impl RevenueRecoveryOutgoingWebhook {
                     platform.clone(),
                     event_status,
                     event_class,
-                    payment_attempt_id,
+                    payment_attempt.id.get_string_repr().to_string(),
                     common_enums::EventObjectType::PaymentDetails,
                     outgoing_webhook_content,
                     payment_intent.created_at,

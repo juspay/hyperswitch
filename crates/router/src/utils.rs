@@ -1173,12 +1173,22 @@ where
 {
     let status = payment_data.get_payment_intent().status;
 
-    // Trigger an outgoing webhook regardless of the current payment intent status if nothing is
-    // configured in the profile.
-    let should_trigger_webhook = business_profile
-        .get_configured_payment_webhook_statuses()
-        .map(|statuses| statuses.contains(&status))
-        .unwrap_or(true);
+    // Recovery payments use their own opt-in; ordinary payments retain the
+    // existing default-enabled status policy.
+    let should_trigger_webhook = webhooks_core::utils::recovery_webhook_eligibility(
+        payment_data.get_payment_attempt().feature_metadata.as_ref(),
+        business_profile
+            .webhook_details
+            .as_ref()
+            .and_then(|details| details.revenue_recovery_statuses_enabled.as_deref()),
+        status.into(),
+    )
+    .unwrap_or_else(|| {
+        business_profile
+            .get_configured_payment_webhook_statuses()
+            .map(|statuses| statuses.contains(&status))
+            .unwrap_or(true)
+    });
 
     if !should_trigger_webhook {
         return Ok(());
