@@ -402,6 +402,13 @@ impl RedisTokenManager {
         Ok(())
     }
 
+    /// Retries against a card are counted, and the invoices queued once the card's limits are
+    /// exhausted, only in production. Transactions made in the other environments are test
+    /// traffic and must not use up the limits.
+    pub fn should_count_retries(state: &SessionState) -> bool {
+        matches!(state.conf.env, router_env::env::Env::Production)
+    }
+
     /// Normalize retry window to exactly `RETRY_WINDOW_DAYS` days (today to `RETRY_WINDOW_DAYS - 1` days ago).
     pub fn normalize_retry_window(
         payment_processor_token: &mut PaymentProcessorTokenStatus,
@@ -508,6 +515,15 @@ impl RedisTokenManager {
         token: &PaymentProcessorTokenStatus,
         network_type: Option<CardNetwork>,
     ) -> TokenRetryInfo {
+        // Outside production the counts are not used, so that a card is never treated as
+        // exhausted by the history that is already stored for it.
+        if !Self::should_count_retries(state) {
+            return TokenRetryInfo {
+                monthly_wait_hours: 0,
+                daily_wait_hours: 0,
+                total_30_day_retries: 0,
+            };
+        }
         let card_config = &state.conf.revenue_recovery.card_config;
         let card_network_config = card_config.get_network_config(network_type);
 
@@ -585,6 +601,11 @@ impl RedisTokenManager {
         connector_customer_id: &str,
         token_data: PaymentProcessorTokenStatus,
     ) -> CustomResult<bool, errors::StorageError> {
+        let count_retries = Self::should_count_retries(state);
+        let mut token_data = token_data;
+        if !count_retries {
+            token_data.daily_retry_history.clear();
+        }
         let mut token_map =
             Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
                 .await?;
@@ -610,12 +631,14 @@ impl RedisTokenManager {
             .map(|existing_token| {
                 Self::normalize_retry_window(existing_token, reference_time);
 
-                for (date, &value) in &token_data.daily_retry_history {
-                    existing_token
-                        .daily_retry_history
-                        .entry(*date)
-                        .and_modify(|v| *v += value)
-                        .or_insert(value);
+                if count_retries {
+                    for (date, &value) in &token_data.daily_retry_history {
+                        existing_token
+                            .daily_retry_history
+                            .entry(*date)
+                            .and_modify(|v| *v += value)
+                            .or_insert(value);
+                    }
                 }
                 existing_token.account_update_history = token_data.account_update_history.clone();
                 existing_token.payment_processor_token_details =
@@ -713,14 +736,16 @@ impl RedisTokenManager {
                 match token.error_code {
                     None => token.daily_retry_history.clear(),
                     Some(_) => {
-                        let current_count = token
-                            .daily_retry_history
-                            .get(&reference_time)
-                            .copied()
-                            .unwrap_or(INITIAL_RETRY_COUNT);
-                        token
-                            .daily_retry_history
-                            .insert(reference_time, current_count + 1);
+                        if Self::should_count_retries(state) {
+                            let current_count = token
+                                .daily_retry_history
+                                .get(&reference_time)
+                                .copied()
+                                .unwrap_or(INITIAL_RETRY_COUNT);
+                            token
+                                .daily_retry_history
+                                .insert(reference_time, current_count + 1);
+                        }
                     }
                 }
 
