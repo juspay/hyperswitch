@@ -6,22 +6,15 @@ use crate::{
 };
 
 /// A global id that can be used to identify a payment method
-#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, diesel::expression::AsExpression)]
-#[diesel(sql_type = diesel::sql_types::Text)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize)]
+#[cfg_attr(feature = "diesel", derive(diesel::expression::AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Text))]
 pub struct GlobalPaymentMethodId(GlobalId);
 
 /// A global id that can be used to identify a payment method session
-#[derive(
-    Debug,
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    diesel::expression::AsExpression,
-)]
-#[diesel(sql_type = diesel::sql_types::Text)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "diesel", derive(diesel::expression::AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Text))]
 pub struct GlobalPaymentMethodSessionId(GlobalId);
 
 #[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
@@ -120,6 +113,7 @@ impl<'de> serde::Deserialize<'de> for GlobalPaymentMethodId {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> diesel::Queryable<diesel::sql_types::Text, DB> for GlobalPaymentMethodId
 where
     DB: diesel::backend::Backend,
@@ -131,6 +125,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> diesel::serialize::ToSql<diesel::sql_types::Text, DB> for GlobalPaymentMethodId
 where
     DB: diesel::backend::Backend,
@@ -144,6 +139,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Text, DB> for GlobalPaymentMethodId
 where
     DB: diesel::backend::Backend,
@@ -155,6 +151,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> diesel::Queryable<diesel::sql_types::Text, DB> for GlobalPaymentMethodSessionId
 where
     DB: diesel::backend::Backend,
@@ -166,6 +163,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> diesel::serialize::ToSql<diesel::sql_types::Text, DB> for GlobalPaymentMethodSessionId
 where
     DB: diesel::backend::Backend,
@@ -179,6 +177,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Text, DB> for GlobalPaymentMethodSessionId
 where
     DB: diesel::backend::Backend,
