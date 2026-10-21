@@ -8,19 +8,19 @@ use serde::{Deserialize, Serialize};
 #[diesel(sql_type = Jsonb)]
 #[serde(tag = "version", rename_all = "snake_case")]
 pub enum AlertRuleConfig {
-    V1(AlertRuleConfigV1),
+    V1(AlertRuleConfigStoredV1),
 }
 
 impl_to_sql_from_sql_json!(AlertRuleConfig);
 
 impl AlertRuleConfig {
-    pub fn inner(&self) -> &AlertRuleConfigV1 {
+    pub fn inner(&self) -> &AlertRuleConfigStoredV1 {
         match self {
             Self::V1(config) => config,
         }
     }
 
-    pub fn into_inner(self) -> AlertRuleConfigV1 {
+    pub fn into_inner(self) -> AlertRuleConfigStoredV1 {
         match self {
             Self::V1(config) => config,
         }
@@ -29,7 +29,7 @@ impl AlertRuleConfig {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct AlertRuleConfigV1 {
+pub struct AlertRuleConfigStoredV1 {
     pub classification: String,
     pub interval_seconds: u32,
     pub query: AlertQuery,
@@ -37,9 +37,18 @@ pub struct AlertRuleConfigV1 {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AlertRuleConfigV1 {
+    pub classification: String,
+    pub interval_seconds: u32,
+    pub query: AlertQueryV1,
+    pub thresholds: AlertThresholdsV1,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "datasource", rename_all = "snake_case")]
 pub enum AlertQuery {
-    Cloudwatch(CloudwatchQueryV1),
+    Cloudwatch(CloudwatchQuery),
 }
 
 impl AlertQuery {
@@ -48,6 +57,32 @@ impl AlertQuery {
             Self::Cloudwatch(_) => AlertDatasource::Cloudwatch,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum CloudwatchQuery {
+    V1(CloudwatchQueryV1),
+}
+
+impl CloudwatchQuery {
+    pub fn inner(&self) -> &CloudwatchQueryV1 {
+        match self {
+            Self::V1(query) => query,
+        }
+    }
+
+    pub fn into_inner(self) -> CloudwatchQueryV1 {
+        match self {
+            Self::V1(query) => query,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "datasource", rename_all = "snake_case")]
+pub enum AlertQueryV1 {
+    Cloudwatch(CloudwatchQueryV1),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

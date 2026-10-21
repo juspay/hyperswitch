@@ -1,7 +1,8 @@
 use api_models::observability::alert_manager::alert_rules as api;
 use common_enums::AlertRuleStatus;
 use common_types::alert_rules::{
-    AlertQuery, AlertRuleConfig, AlertRuleConfigV1, AlertThresholdsV1, CloudwatchQueryV1,
+    AlertQuery, AlertQueryV1, AlertRuleConfig, AlertRuleConfigStoredV1, AlertRuleConfigV1,
+    AlertThresholdsV1, CloudwatchQuery, CloudwatchQueryV1,
 };
 use diesel_models::observability::alert_manager::alert_rules as storage;
 use error_stack::report;
@@ -185,10 +186,46 @@ fn validate_config(config: &AlertRuleConfigV1) -> ObservabilityApiResult<()> {
     )?;
     validate_interval_seconds(config.interval_seconds)?;
     match &config.query {
-        AlertQuery::Cloudwatch(query) => {
+        AlertQueryV1::Cloudwatch(query) => {
             validate_query(query)?;
             validate_thresholds(&config.thresholds, query.period)
         }
+    }
+}
+
+fn into_stored_config(config: AlertRuleConfigV1) -> AlertRuleConfig {
+    let AlertRuleConfigV1 {
+        classification,
+        interval_seconds,
+        query,
+        thresholds,
+    } = config;
+    let query = match query {
+        AlertQueryV1::Cloudwatch(query) => AlertQuery::Cloudwatch(CloudwatchQuery::V1(query)),
+    };
+    AlertRuleConfig::V1(AlertRuleConfigStoredV1 {
+        classification,
+        interval_seconds,
+        query,
+        thresholds,
+    })
+}
+
+fn into_api_config(config: AlertRuleConfig) -> AlertRuleConfigV1 {
+    let AlertRuleConfigStoredV1 {
+        classification,
+        interval_seconds,
+        query,
+        thresholds,
+    } = config.into_inner();
+    let query = match query {
+        AlertQuery::Cloudwatch(query) => AlertQueryV1::Cloudwatch(query.into_inner()),
+    };
+    AlertRuleConfigV1 {
+        classification,
+        interval_seconds,
+        query,
+        thresholds,
     }
 }
 
@@ -203,7 +240,7 @@ impl TryFrom<api::AlertRuleCreateRequest> for AlertRuleNew {
         Ok(Self {
             id: request.id,
             name: request.name,
-            config: AlertRuleConfig::V1(request.config),
+            config: into_stored_config(request.config),
             status: request.status.unwrap_or(AlertRuleStatus::Active),
         })
     }
@@ -225,7 +262,7 @@ impl TryFrom<api::AlertRuleUpdateRequest> for AlertRuleUpdate {
 
         Ok(Self::Update {
             name: request.name,
-            config: request.config.map(AlertRuleConfig::V1),
+            config: request.config.map(into_stored_config),
             status: request.status,
         })
     }
@@ -282,7 +319,7 @@ impl From<AlertRule> for api::AlertRuleResponse {
         Self {
             id: rule.id,
             name: rule.name,
-            config: rule.config.into_inner(),
+            config: into_api_config(rule.config),
             status: rule.status,
             next_run_at: rule.next_run_at,
             last_evaluated_at: rule.last_evaluated_at,
@@ -354,7 +391,7 @@ mod tests {
 
     fn cloudwatch_mut(request: &mut api::AlertRuleCreateRequest) -> &mut CloudwatchQueryV1 {
         match &mut request.config.query {
-            AlertQuery::Cloudwatch(query) => query,
+            AlertQueryV1::Cloudwatch(query) => query,
         }
     }
 
@@ -371,10 +408,15 @@ mod tests {
     }
 
     #[test]
-    fn stored_json_round_trips_and_api_shape_hides_version() {
+    fn stored_json_round_trips_and_api_shape_hides_versions() {
         let mut stored_json = api_config_json();
         stored_json["version"] = json!("v1");
+        stored_json["query"]["version"] = json!("v1");
         let stored: AlertRuleConfig = serde_json::from_value(stored_json.clone()).unwrap();
+        assert!(matches!(
+            &stored.inner().query,
+            AlertQuery::Cloudwatch(CloudwatchQuery::V1(_))
+        ));
         assert_eq!(serde_json::to_value(&stored).unwrap(), stored_json);
 
         let timestamp = datetime!(2026-09-15 09:45:00);
@@ -390,6 +432,7 @@ mod tests {
         });
         let response_json = serde_json::to_value(response).unwrap();
         assert!(response_json["config"].get("version").is_none());
+        assert!(response_json["config"]["query"].get("version").is_none());
         assert_eq!(response_json["config"]["query"]["datasource"], "cloudwatch");
     }
 
@@ -409,7 +452,7 @@ mod tests {
             .unwrap()
             .remove("datapoints_to_alarm");
         let config: AlertRuleConfigV1 = serde_json::from_value(defaulted).unwrap();
-        let AlertQuery::Cloudwatch(query) = config.query;
+        let AlertQueryV1::Cloudwatch(query) = config.query;
         assert_eq!(query.end_offset_seconds, 180);
         assert_eq!(
             config.thresholds.severities[&Severity::Warning].treat_missing_data,
@@ -453,20 +496,36 @@ mod tests {
         datasource["query"]["datasource"] = json!("prometheus");
         assert!(serde_json::from_value::<AlertRuleConfigV1>(datasource).is_err());
 
-        let mut version = api_config_json();
-        version["version"] = json!("v2");
-        assert!(
-            serde_json::from_value::<api::AlertRuleCreateRequest>(json!({
-                "id": "rule",
-                "name": "Rule",
-                "config": version
-            }))
-            .is_err()
-        );
+        for path in ["config", "query"] {
+            let mut versioned_api = api_config_json();
+            match path {
+                "config" => versioned_api["version"] = json!("v1"),
+                "query" => versioned_api["query"]["version"] = json!("v1"),
+                _ => unreachable!(),
+            }
+            assert!(
+                serde_json::from_value::<api::AlertRuleCreateRequest>(json!({
+                    "id": "rule",
+                    "name": "Rule",
+                    "config": versioned_api
+                }))
+                .is_err()
+            );
+        }
+
         assert!(serde_json::from_value::<AlertRuleConfig>(json!({
             "version": "v2"
         }))
         .is_err());
+
+        let mut unknown_query_version = api_config_json();
+        unknown_query_version["version"] = json!("v1");
+        unknown_query_version["query"]["version"] = json!("v9");
+        assert!(serde_json::from_value::<AlertRuleConfig>(unknown_query_version).is_err());
+
+        let mut missing_query_version = api_config_json();
+        missing_query_version["version"] = json!("v1");
+        assert!(serde_json::from_value::<AlertRuleConfig>(missing_query_version).is_err());
     }
 
     #[test]

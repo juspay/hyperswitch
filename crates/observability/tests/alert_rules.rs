@@ -426,6 +426,7 @@ async fn create_list_and_whole_config_update_use_plain_api_and_id_ordering() {
     assert_eq!(alpha["last_evaluated_at"], Value::Null);
     assert_eq!(alpha["config"]["query"]["end_offset_seconds"], 180);
     assert!(alpha["config"].get("version").is_none());
+    assert!(alpha["config"]["query"].get("version").is_none());
 
     let (_, listed) = call(
         state.clone(),
@@ -524,6 +525,8 @@ async fn validation_unknown_fields_and_old_enum_values_return_400() {
     too_long["config"]["thresholds"]["severities"]["critical"]["evaluation_periods"] = json!(1441);
     let mut api_version = create_payload("versioned", "Versioned");
     api_version["config"]["version"] = json!("v1");
+    let mut api_query_version = create_payload("query-versioned", "Query versioned");
+    api_query_version["config"]["query"]["version"] = json!("v1");
     let mut unknown_datasource = create_payload("source", "Source");
     unknown_datasource["config"]["query"]["datasource"] = json!("prometheus");
 
@@ -552,6 +555,11 @@ async fn validation_unknown_fields_and_old_enum_values_return_400() {
             actix_web::http::Method::POST,
             COLLECTION_URI.to_owned(),
             api_version,
+        ),
+        (
+            actix_web::http::Method::POST,
+            COLLECTION_URI.to_owned(),
+            api_query_version,
         ),
         (
             actix_web::http::Method::POST,
@@ -807,6 +815,7 @@ async fn postgres_repository() {
     let stored_config = serde_json::to_value(&stored.config).unwrap();
     assert_eq!(stored_config["version"], "v1");
     assert_eq!(stored_config["query"]["datasource"], "cloudwatch");
+    assert_eq!(stored_config["query"]["version"], "v1");
     assert_eq!(stored_config["query"]["end_offset_seconds"], 180);
     let original = stored.clone();
 
@@ -825,6 +834,7 @@ async fn postgres_repository() {
         .find(|row| row["id"] == ids[0])
         .unwrap();
     assert!(response["config"].get("version").is_none());
+    assert!(response["config"]["query"].get("version").is_none());
 
     let (status, updated) = call(
         state.clone(),
