@@ -486,7 +486,7 @@ pub async fn get_token_pm_type_mandate_details(
             mandate_data.clone(),
             None,
             None,
-            None,
+            pm_info,
         ),
         Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             match &request.recurring_details {
@@ -5161,6 +5161,7 @@ mod tests {
             profile_acquirer_id: None,
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
+            enable_avs_check: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -5257,6 +5258,7 @@ mod tests {
             profile_acquirer_id: None,
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
+            enable_avs_check: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -5351,6 +5353,7 @@ mod tests {
             profile_acquirer_id: None,
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
+            enable_avs_check: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())

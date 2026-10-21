@@ -1,9 +1,6 @@
 //! Module for managing file storage operations with support for multiple storage schemes.
 
-use std::{
-    fmt::{Display, Formatter},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use common_utils::errors::CustomResult;
 
@@ -45,11 +42,13 @@ impl FileStorageConfig {
     pub fn validate(&self) -> Result<(), InvalidFileStorageConfig> {
         match self {
             #[cfg(feature = "aws_s3")]
-            Self::AwsS3 { aws_s3 } => aws_s3.validate(),
+            Self::AwsS3 { aws_s3 } => aws_s3.validate()?,
             #[cfg(feature = "oci_object_storage")]
-            Self::OciObjectStorage { oci_object_storage } => oci_object_storage.validate(),
-            Self::FileSystem => Ok(()),
+            Self::OciObjectStorage { oci_object_storage } => oci_object_storage.validate()?,
+            Self::FileSystem => {}
         }
+
+        Ok(())
     }
 
     /// Retrieves the appropriate file storage client based on the file storage configuration.
@@ -126,15 +125,12 @@ pub trait FileStorageInterface: dyn_clone::DynClone + Sync + Send {
 dyn_clone::clone_trait_object!(FileStorageInterface);
 
 /// Error thrown when the file storage config is invalid
-#[derive(Debug, Clone)]
-pub struct InvalidFileStorageConfig(&'static str);
-
-impl std::error::Error for InvalidFileStorageConfig {}
-
-impl Display for InvalidFileStorageConfig {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "file_storage: {}", self.0)
-    }
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum InvalidFileStorageConfig {
+    /// The configuration of a cloud storage backend is invalid.
+    #[cfg(any(feature = "aws_s3", feature = "oci_object_storage"))]
+    #[error("file_storage: {0}")]
+    CloudStorage(#[from] cloud_services::storage::InvalidStorageConfig),
 }
 
 /// Represents errors that can occur during file storage operations.
