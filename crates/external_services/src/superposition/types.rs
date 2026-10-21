@@ -8,6 +8,7 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 
 use super::SuperpositionClient;
+use crate::consts;
 
 /// Trait for converting Rust types to Superposition Document for write operations
 pub trait ToDocument {
@@ -66,13 +67,6 @@ impl TryFrom<open_feature::StructValue> for JsonValue {
     }
 }
 
-/// Polling interval used when neither `polling_interval_milliseconds` nor the deprecated
-/// `polling_interval` is configured
-const DEFAULT_POLLING_INTERVAL_MILLISECONDS: u64 = 15_000;
-
-/// Converts the deprecated seconds-based `polling_interval` and `request_timeout`
-const MILLISECONDS_PER_SECOND: u64 = 1_000;
-
 /// Configuration for Superposition integration
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(default)]
@@ -85,16 +79,16 @@ pub struct SuperpositionClientConfig {
     pub org_id: String,
     /// Workspace ID in Superposition
     pub workspace_id: String,
-    /// Polling interval in milliseconds for configuration updates (default: 15000)
-    pub polling_interval_milliseconds: Option<u64>,
-    /// Request timeout in milliseconds for Superposition API calls (None = no timeout)
-    pub request_timeout_milliseconds: Option<u64>,
-    /// Deprecated: polling interval in seconds. Only read when
-    /// `polling_interval_milliseconds` is not set.
-    pub polling_interval: Option<u64>,
-    /// Deprecated: request timeout in seconds. Only read when
-    /// `request_timeout_milliseconds` is not set.
+    /// Polling interval in seconds for configuration updates
+    pub polling_interval: u64,
+    /// Request timeout in seconds for Superposition API calls (None = no timeout)
     pub request_timeout: Option<u64>,
+    /// Polling interval in milliseconds for configuration updates.
+    /// Takes precedence over `polling_interval` when set
+    pub polling_interval_milliseconds: Option<u64>,
+    /// Request timeout in milliseconds for Superposition API calls.
+    /// Takes precedence over `request_timeout` when set
+    pub request_timeout_milliseconds: Option<u64>,
     /// Path to a TOML backup config file on PVC/EFS.
     /// Used as fallback if the primary HTTP init fails at startup.
     pub backup_file_path: Option<std::path::PathBuf>,
@@ -107,10 +101,10 @@ impl Default for SuperpositionClientConfig {
             token: Secret::new(String::new()),
             org_id: String::new(),
             workspace_id: String::new(),
+            polling_interval: 15,
+            request_timeout: None,
             polling_interval_milliseconds: None,
             request_timeout_milliseconds: None,
-            polling_interval: None,
-            request_timeout: None,
             backup_file_path: None,
         }
     }
@@ -152,40 +146,22 @@ pub struct ConfigContext {
 }
 
 impl SuperpositionClientConfig {
-    /// Polling interval in milliseconds. `polling_interval_milliseconds` wins, then the
-    /// deprecated seconds-based `polling_interval`, then the default.
+    /// Polling interval in milliseconds. `polling_interval_milliseconds` wins when set,
+    /// otherwise `polling_interval` (seconds) is converted.
     pub fn effective_polling_interval_milliseconds(&self) -> u64 {
-        self.polling_interval_milliseconds
-            .or_else(|| {
-                self.polling_interval
-                    .map(|seconds| seconds.saturating_mul(MILLISECONDS_PER_SECOND))
-            })
-            .unwrap_or(DEFAULT_POLLING_INTERVAL_MILLISECONDS)
-    }
-
-    /// Request timeout in milliseconds. `request_timeout_milliseconds` wins, then the
-    /// deprecated seconds-based `request_timeout`.
-    pub fn effective_request_timeout_milliseconds(&self) -> Option<u64> {
-        self.request_timeout_milliseconds.or_else(|| {
-            self.request_timeout
-                .map(|seconds| seconds.saturating_mul(MILLISECONDS_PER_SECOND))
+        self.polling_interval_milliseconds.unwrap_or_else(|| {
+            self.polling_interval
+                .saturating_mul(consts::MILLISECONDS_PER_SECOND)
         })
     }
 
-    /// Warn about each deprecated seconds-based key that is set
-    pub fn warn_on_deprecated_keys(&self) {
-        if self.polling_interval.is_some() {
-            router_env::logger::warn!(
-                polling_interval_milliseconds_set = self.polling_interval_milliseconds.is_some(),
-                "superposition.polling_interval (seconds) is deprecated, use superposition.polling_interval_milliseconds"
-            );
-        }
-        if self.request_timeout.is_some() {
-            router_env::logger::warn!(
-                request_timeout_milliseconds_set = self.request_timeout_milliseconds.is_some(),
-                "superposition.request_timeout (seconds) is deprecated, use superposition.request_timeout_milliseconds"
-            );
-        }
+    /// Request timeout in milliseconds. `request_timeout_milliseconds` wins when set,
+    /// otherwise `request_timeout` (seconds) is converted.
+    pub fn effective_request_timeout_milliseconds(&self) -> Option<u64> {
+        self.request_timeout_milliseconds.or_else(|| {
+            self.request_timeout
+                .map(|seconds| seconds.saturating_mul(consts::MILLISECONDS_PER_SECOND))
+        })
     }
 
     /// Create and return a Superposition client.
@@ -282,69 +258,5 @@ impl hyperswitch_interfaces::secrets_interface::secret_handler::SecretsHandler
             token,
             ..superposition_config
         }))
-    }
-}
-
-#[cfg(test)]
-#[allow(clippy::unwrap_used)]
-mod tests {
-    use super::*;
-
-    fn parse(json: &str) -> SuperpositionClientConfig {
-        serde_json::from_str(json).unwrap()
-    }
-
-    #[test]
-    fn defaults_to_fifteen_seconds_and_no_timeout() {
-        let config = SuperpositionClientConfig::default();
-        assert_eq!(config.effective_polling_interval_milliseconds(), 15_000);
-        assert_eq!(config.effective_request_timeout_milliseconds(), None);
-    }
-
-    #[test]
-    fn millisecond_keys_are_used_as_is() {
-        let config = parse(
-            r#"{"polling_interval_milliseconds": 2500, "request_timeout_milliseconds": 750}"#,
-        );
-        assert_eq!(config.effective_polling_interval_milliseconds(), 2_500);
-        assert_eq!(config.effective_request_timeout_milliseconds(), Some(750));
-    }
-
-    #[test]
-    fn deprecated_second_keys_are_converted_to_milliseconds() {
-        let config = parse(r#"{"polling_interval": 300, "request_timeout": 60}"#);
-        assert_eq!(config.effective_polling_interval_milliseconds(), 300_000);
-        assert_eq!(
-            config.effective_request_timeout_milliseconds(),
-            Some(60_000)
-        );
-    }
-
-    #[test]
-    fn millisecond_keys_win_over_deprecated_second_keys() {
-        let config = parse(
-            r#"{
-                "polling_interval": 300,
-                "request_timeout": 60,
-                "polling_interval_milliseconds": 2500,
-                "request_timeout_milliseconds": 750
-            }"#,
-        );
-        assert_eq!(config.effective_polling_interval_milliseconds(), 2_500);
-        assert_eq!(config.effective_request_timeout_milliseconds(), Some(750));
-    }
-
-    #[test]
-    fn deprecated_second_keys_do_not_overflow() {
-        let config = parse(&format!(
-            r#"{{"polling_interval": {}, "request_timeout": {}}}"#,
-            u64::MAX,
-            u64::MAX
-        ));
-        assert_eq!(config.effective_polling_interval_milliseconds(), u64::MAX);
-        assert_eq!(
-            config.effective_request_timeout_milliseconds(),
-            Some(u64::MAX)
-        );
     }
 }

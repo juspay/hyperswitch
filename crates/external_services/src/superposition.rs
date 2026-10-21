@@ -723,7 +723,6 @@ impl SuperpositionClient {
         config: SuperpositionClientConfig,
         service_name: &'static str,
     ) -> CustomResult<Self, SuperpositionError> {
-        config.warn_on_deprecated_keys();
         let polling_interval_milliseconds = config.effective_polling_interval_milliseconds();
         let request_timeout_milliseconds = config.effective_request_timeout_milliseconds();
 

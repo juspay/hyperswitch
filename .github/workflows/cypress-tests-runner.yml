@@ -434,7 +434,7 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
           # Apply seeded Superposition config quickly in CI (default is 300s).
-          ROUTER__SUPERPOSITION__POLLING_INTERVAL_MILLISECONDS: 10000
+          ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
           SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
         run: |
           # Start the server in the background
@@ -694,7 +694,7 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
           # Apply seeded Superposition config quickly in CI (default is 300s).
-          ROUTER__SUPERPOSITION__POLLING_INTERVAL_MILLISECONDS: 10000
+          ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
           SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
         run: |
           # Start the server in the background
@@ -1100,7 +1100,7 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
           # Apply seeded Superposition config quickly in CI (default is 300s).
-          ROUTER__SUPERPOSITION__POLLING_INTERVAL_MILLISECONDS: 10000
+          ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
           ROUTER__PROXY__HTTPS_URL: "http://127.0.0.1:8888"
           ROUTER__PROXY__HTTP_URL: "http://127.0.0.1:8888"
           ROUTER__PROXY__MITM_ENABLED: "true"
@@ -1412,7 +1412,7 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
           # Apply seeded Superposition config quickly in CI (default is 300s).
-          ROUTER__SUPERPOSITION__POLLING_INTERVAL_MILLISECONDS: 10000
+          ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
         run: |
           touch "${{ env.SERVER_LOG_PATH }}"
           # Start the server in the background
@@ -1629,7 +1629,7 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
           # Apply seeded Superposition config quickly in CI (default is 300s).
-          ROUTER__SUPERPOSITION__POLLING_INTERVAL_MILLISECONDS: 10000
+          ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
         run: |
           # Set base URLs for alpha connectors to point to mock servers
           for connector in ${{ env.ALPHA_PAYMENTS_CONNECTORS }}; do
@@ -1890,7 +1890,7 @@ jobs:
         env:
           LLVM_PROFILE_FILE: "coverage.profraw"
           # Apply seeded Superposition config quickly in CI (default is 300s).
-          ROUTER__SUPERPOSITION__POLLING_INTERVAL_MILLISECONDS: 10000
+          ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
         run: |
           # Start the server in the background
           target/debug/router &
