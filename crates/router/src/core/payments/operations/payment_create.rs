@@ -1801,16 +1801,8 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting connector_metadata to Value")?;
 
-        let mut feature_metadata = request.feature_metadata.clone();
-        if let Some(settlement_conclusion_applied) = request.settlement_conclusion_applied {
-            feature_metadata
-                .get_or_insert_with(Default::default)
-                .settlement_conclusion_applied = Some(settlement_conclusion_applied);
-        }
-        let feature_metadata = feature_metadata
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
+        let feature_metadata = request
+            .get_feature_metadata_as_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting feature_metadata to Value")?;
 
@@ -2028,6 +2020,9 @@ impl PaymentCreate {
             external_surcharge_strategy: request.external_surcharge_strategy,
             external_surcharge_applicable: None,
             enable_avs_check: request.enable_avs_check,
+            settlement_conclusion_applied: Some(
+                request.settlement_conclusion_applied.unwrap_or(false),
+            ),
         })
     }
 }

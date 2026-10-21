@@ -519,12 +519,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?
             .map(hyperswitch_masking::Secret::new);
-        if let Some(settlement_conclusion_applied) = request.settlement_conclusion_applied {
-            payment_intent
-                .set_settlement_conclusion_applied(settlement_conclusion_applied)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to persist settlement_conclusion_applied")?;
-        }
+        payment_intent.settlement_conclusion_applied = request
+            .settlement_conclusion_applied
+            .or(payment_intent.settlement_conclusion_applied);
 
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
@@ -3182,6 +3179,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .external_surcharge_applicable,
                         enable_avs_check: payment_data.payment_intent.enable_avs_check,
+                        settlement_conclusion_applied: payment_data
+                            .payment_intent
+                            .settlement_conclusion_applied,
                     })),
                     &m_key_store,
                     storage_scheme,

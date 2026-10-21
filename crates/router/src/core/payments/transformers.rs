@@ -6527,10 +6527,6 @@ impl Diff for api_payments::FeatureMetadata {
                 &stored.finix_additional_details,
                 requested.finix_additional_details,
             ),
-            settlement_conclusion_applied: changed(
-                &stored.settlement_conclusion_applied,
-                requested.settlement_conclusion_applied,
-            ),
         };
 
         if diffed.multi_currency_processing.is_none()
@@ -6541,7 +6537,6 @@ impl Diff for api_payments::FeatureMetadata {
             && diffed.boleto_additional_details.is_none()
             && diffed.pix_automatico_additional_details.is_none()
             && diffed.finix_additional_details.is_none()
-            && diffed.settlement_conclusion_applied.is_none()
         {
             None
         } else {

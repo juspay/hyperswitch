@@ -12897,10 +12897,6 @@ pub struct FeatureMetadata {
     /// Datatrans multi-currency processing settlement amount, currency and conversion details.
     #[smithy(value_type = "Option<MultiCurrencyProcessingData>")]
     pub multi_currency_processing: Option<MultiCurrencyProcessingData>,
-    /// Persisted settlement conclusion flag; prevents tax and surcharge pipelines
-    /// from changing merchant-concluded amounts across later payment operations.
-    #[smithy(value_type = "Option<bool>")]
-    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -12958,9 +12954,6 @@ impl FeatureMetadata {
                 finix_additional_details: self
                     .finix_additional_details
                     .or(other.finix_additional_details),
-                settlement_conclusion_applied: self
-                    .settlement_conclusion_applied
-                    .or(other.settlement_conclusion_applied),
             }
         } else {
             self

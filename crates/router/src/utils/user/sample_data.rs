@@ -311,6 +311,7 @@ pub async fn generate_sample_data(
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
             enable_avs_check: None,
+            settlement_conclusion_applied: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());

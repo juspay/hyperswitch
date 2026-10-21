@@ -25033,11 +25033,6 @@
               }
             ],
             "nullable": true
-          },
-          "settlement_conclusion_applied": {
-            "type": "boolean",
-            "description": "Persisted settlement conclusion flag; prevents tax and surcharge pipelines\nfrom changing merchant-concluded amounts across later payment operations.",
-            "nullable": true
           }
         }
       },

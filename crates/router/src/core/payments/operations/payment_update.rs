@@ -126,26 +126,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )?;
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
-        // Resolve the setting before amount calculations, including update-and-confirm.
-        let stored_feature_metadata = payment_intent
-            .get_optional_feature_metadata()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let feature_metadata = match request.feature_metadata.clone() {
-            Some(metadata) => Some(metadata.merge(stored_feature_metadata)),
-            None => stored_feature_metadata,
-        };
-        payment_intent.feature_metadata = feature_metadata
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .map(hyperswitch_masking::Secret::new);
-        if let Some(settlement_conclusion_applied) = request.settlement_conclusion_applied {
-            payment_intent
-                .set_settlement_conclusion_applied(settlement_conclusion_applied)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to persist settlement_conclusion_applied")?;
-        }
+        // Resolve the stored flag before update-and-confirm amount calculations.
+        payment_intent.settlement_conclusion_applied = request
+            .settlement_conclusion_applied
+            .or(payment_intent.settlement_conclusion_applied);
 
         payment_intent.order_details = request
             .get_order_details_as_value()
@@ -1354,8 +1338,13 @@ impl PaymentUpdate {
             .clone()
             .or(payment_data.payment_intent.metadata.clone());
 
-        // Request metadata and the top-level settlement flag were merged in get_trackers.
-        let feature_metadata = payment_intent_feature_metadata;
+        let feature_metadata = match (
+            request.feature_metadata.clone(),
+            payment_intent_feature_metadata,
+        ) {
+            (Some(request_meta), intent_meta) => Some(request_meta.merge(intent_meta)),
+            (None, intent_meta) => intent_meta,
+        };
 
         let feature_metadata_value = feature_metadata
             .as_ref()
@@ -1427,6 +1416,9 @@ impl PaymentUpdate {
                     .payment_intent
                     .external_surcharge_applicable,
                 enable_avs_check: payment_data.payment_intent.enable_avs_check,
+                settlement_conclusion_applied: payment_data
+                    .payment_intent
+                    .settlement_conclusion_applied,
             }));
 
         Ok((payment_data, attempt_update, intent_update))

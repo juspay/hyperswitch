@@ -5165,6 +5165,7 @@ mod tests {
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
             enable_avs_check: None,
+            settlement_conclusion_applied: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -5262,6 +5263,7 @@ mod tests {
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
             enable_avs_check: None,
+            settlement_conclusion_applied: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -5357,6 +5359,7 @@ mod tests {
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
             enable_avs_check: None,
+            settlement_conclusion_applied: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
