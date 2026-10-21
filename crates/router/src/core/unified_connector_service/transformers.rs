@@ -1619,6 +1619,12 @@ impl
             .transpose()?;
 
         Ok(Self {
+            setup_future_usage: None,
+            customer_acceptance: None,
+            enable_partial_authorization: None,
+            payment_channel: None,
+            billing_descriptor: None,
+            l2_l3_data: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
                 .request
@@ -1735,6 +1741,12 @@ impl
             .transpose()?;
 
         Ok(Self {
+            setup_future_usage: None,
+            customer_acceptance: None,
+            enable_partial_authorization: None,
+            payment_channel: None,
+            billing_descriptor: None,
+            l2_l3_data: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
                 .request
@@ -2067,6 +2079,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            session_token: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -2178,6 +2191,7 @@ impl
             .map(|s| s.into());
 
         Ok(Self {
+            session_token: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -3255,6 +3269,7 @@ impl
         };
 
         Ok(Self {
+            session_token: None,
             merchant_charge_id: Some(router_data.connector_request_reference_id.clone()),
             connector_recurring_payment_id,
             payment_method,
@@ -3531,6 +3546,7 @@ impl
         )?;
 
         Ok(Self {
+            session_token: None,
             split_settlement: None,
             split_payments: router_data
                 .request

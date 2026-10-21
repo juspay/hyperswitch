@@ -1563,7 +1563,7 @@ dependencies = [
  "bitflags 2.9.0",
  "cexpr",
  "clang-sys",
- "itertools 0.11.0",
+ "itertools 0.10.5",
  "log 0.4.27",
  "prettyplease",
  "proc-macro2",
@@ -2319,7 +2319,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.09.0#11f50032a292f16bd5e0a18db4b3555e2f27567b"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.19.0#9e4be7a405d669fce39e051883bad980557e63cb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4333,7 +4333,7 @@ checksum = "32619942b8be646939eaf3db0602b39f5229b74575b67efc897811ded1db4e57"
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.09.0#11f50032a292f16bd5e0a18db4b3555e2f27567b"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.19.0#9e4be7a405d669fce39e051883bad980557e63cb"
 dependencies = [
  "axum 0.8.4",
  "bytes 1.10.1",
@@ -5702,7 +5702,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if 1.0.0",
- "windows-targets 0.53.5",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -7320,7 +7320,7 @@ dependencies = [
  "regex-cache",
  "serde",
  "serde_derive",
- "strum 0.26.3",
+ "strum 0.25.0",
  "thiserror 1.0.69",
 ]
 
@@ -7647,8 +7647,8 @@ version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "343d3bd7056eda839b03204e68deff7d1b13aba7af2b2fd16890697274262ee7"
 dependencies = [
- "heck 0.5.0",
- "itertools 0.11.0",
+ "heck 0.4.1",
+ "itertools 0.10.5",
  "log 0.4.27",
  "multimap",
  "petgraph",
@@ -7669,7 +7669,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.11.0",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -7682,7 +7682,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27c6023962132f4b30eb4c172c91ce92d933da334c59c23cddee82358ddafb0b"
 dependencies = [
  "anyhow",
- "itertools 0.11.0",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -8700,7 +8700,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.09.0#11f50032a292f16bd5e0a18db4b3555e2f27567b"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.19.0#9e4be7a405d669fce39e051883bad980557e63cb"
 dependencies = [
  "grpc-api-types",
 ]
@@ -11653,7 +11653,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.09.0#11f50032a292f16bd5e0a18db4b3555e2f27567b"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.19.0#9e4be7a405d669fce39e051883bad980557e63cb"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
@@ -11669,7 +11669,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.09.0#11f50032a292f16bd5e0a18db4b3555e2f27567b"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.19.0#9e4be7a405d669fce39e051883bad980557e63cb"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -11680,7 +11680,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.09.0#11f50032a292f16bd5e0a18db4b3555e2f27567b"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.19.0#9e4be7a405d669fce39e051883bad980557e63cb"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -12535,7 +12535,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

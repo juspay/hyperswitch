@@ -421,13 +421,13 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
         let connector_name = ctx.connector_name.clone();
         let merchant_event_id = build_merchant_event_id(ctx);
 
+        let event_type = ctx
+            .ucs_event_type
+            .unwrap_or(IncomingWebhookEvent::EventNotSupported);
         let reference = match ctx.ucs_reference.as_ref() {
             Some(r) => event_reference_to_object_ref(r)?,
             None => None,
         };
-        let event_type = ctx
-            .ucs_event_type
-            .unwrap_or(IncomingWebhookEvent::EventNotSupported);
 
         let outcome = match FilterDecision::evaluate(event_type, ctx).await {
             FilterDecision::Skip => WebhookOutcome::Skipped {
@@ -927,6 +927,10 @@ fn event_reference_to_object_ref(
             if let Some(merchant_txn_id) = payment.merchant_transaction_id.as_ref() {
                 Some(ObjectReferenceId::PaymentId(
                     api_payments::PaymentIdType::PaymentAttemptId(merchant_txn_id.clone()),
+                ))
+            } else if let Some(preprocessing_id) = payment.connector_preprocessing_id.as_ref() {
+                Some(ObjectReferenceId::PaymentId(
+                    api_payments::PaymentIdType::PreprocessingId(preprocessing_id.clone()),
                 ))
             } else {
                 payment.connector_transaction_id.as_ref().map(|ctx_id| {
