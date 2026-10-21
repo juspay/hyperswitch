@@ -2187,6 +2187,7 @@ dependencies = [
  "serde_json",
  "smithy",
  "smithy-core",
+ "strum 0.26.3",
  "time 0.3.41",
  "utoipa",
 ]
@@ -6487,6 +6488,7 @@ dependencies = [
  "api_models",
  "async-trait",
  "clap 4.5.38",
+ "common_types",
  "common_utils",
  "config",
  "error-stack 0.4.1",
@@ -6500,6 +6502,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "sha2",
+ "strum 0.26.3",
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",

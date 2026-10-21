@@ -2,6 +2,7 @@
 
 use std::{collections::HashMap, sync::Arc};
 
+use common_types::alert_rules::AlertDatasource;
 use external_services::{
     chat_service::{slack::SlackClient, xyne::XyneClient},
     email::{
@@ -10,20 +11,28 @@ use external_services::{
     },
 };
 use hyperswitch_interfaces::{
-    secrets_interface::secret_state::{RawSecret, SecuredSecret},
+    secrets_interface::secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     types::Proxy,
 };
 
 use crate::{
     core::router_client::RouterClient,
-    domain::notifier::{
-        chat::{ChatClientNotifier, ChatNotifier, LogChatNotifier},
-        email::{EmailNotifier, EmailServiceNotifier},
-        Registry,
+    domain::{
+        evaluator::{
+            cloudwatch::GrafanaCloudwatchEvaluator, AlertEvaluator, ConfigRuleSource, RuleSource,
+        },
+        notifier::{
+            chat::{ChatClientNotifier, ChatNotifier, LogChatNotifier},
+            email::{EmailNotifier, EmailServiceNotifier},
+            Registry,
+        },
     },
     errors::ConfigurationError,
     logger, secrets_transformers,
-    settings::{ChatDestination, ChatSettings, EmailSettings, Settings},
+    settings::{
+        evaluator::{EvaluatorDestinations, EvaluatorSettings},
+        ChatDestination, ChatSettings, EmailSettings, Settings,
+    },
 };
 
 /// Everything a request handler needs, cloned per worker.
@@ -32,6 +41,13 @@ use crate::{
 /// validated endpoint and a connection-pool-backed client, so building it per request would move a
 /// configuration failure out of boot and into the delivery path — which is the one place a
 /// service like this must not be discovering problems.
+#[derive(Clone)]
+pub struct EvaluatorRuntime {
+    pub rule_source: Arc<dyn RuleSource>,
+    pub evaluators: Arc<Registry<dyn AlertEvaluator>>,
+    pub destinations: EvaluatorDestinations,
+}
+
 #[derive(Clone)]
 pub struct AppState {
     /// The resolved configuration.
@@ -42,6 +58,7 @@ pub struct AppState {
     pub chat: Arc<Registry<dyn ChatNotifier>>,
     /// Email destinations, by the id a request names.
     pub email: Arc<Registry<dyn EmailNotifier>>,
+    pub evaluator: Option<Arc<EvaluatorRuntime>>,
 }
 
 impl AppState {
@@ -74,6 +91,13 @@ impl AppState {
         let email = build_email_registry(&raw_conf.email, &raw_conf.proxy)
             .await
             .expect("Failed to build the email destinations");
+        let evaluator = build_evaluator_runtime(
+            raw_conf
+                .evaluator
+                .as_ref()
+                .map(SecretStateContainer::get_inner),
+            &raw_conf.proxy,
+        );
 
         if chat.is_empty() && email.is_empty() {
             logger::warn!(
@@ -107,8 +131,29 @@ impl AppState {
             router_transport,
             chat: Arc::new(chat),
             email: Arc::new(email),
+            evaluator,
         }
     }
+}
+
+fn build_evaluator_runtime(
+    settings: Option<&EvaluatorSettings>,
+    proxy: &Proxy,
+) -> Option<Arc<EvaluatorRuntime>> {
+    let settings = settings?;
+    let evaluator: Arc<dyn AlertEvaluator> = Arc::new(GrafanaCloudwatchEvaluator::new(
+        settings.grafana.clone(),
+        proxy.clone(),
+    ));
+    let evaluators = Registry::new(HashMap::from([(
+        AlertDatasource::Cloudwatch.to_string(),
+        evaluator,
+    )]));
+    Some(Arc::new(EvaluatorRuntime {
+        rule_source: Arc::new(ConfigRuleSource::new(settings.rules().to_vec())),
+        evaluators: Arc::new(evaluators),
+        destinations: settings.destinations.clone(),
+    }))
 }
 
 /// Turn configured chat destinations into the notifiers that serve them.

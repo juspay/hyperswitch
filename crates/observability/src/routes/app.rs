@@ -16,7 +16,7 @@ use super::monitoring;
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{health_check, notify},
+    routes::{evaluator, health_check, notify},
     state::AppState,
 };
 
@@ -53,6 +53,13 @@ impl Alerts {
             .service(web::scope("/email").service(
                 web::resource("/notify/{destination}").route(web::post().to(notify::email)),
             ))
+            .service(
+                web::scope("/cloudwatch")
+                    .service(web::resource("/notify").route(web::post().to(evaluator::notify)))
+                    .service(web::resource("/evaluate").route(web::get().to(evaluator::evaluate))),
+            )
+
+
     }
 }
 

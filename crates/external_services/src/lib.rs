@@ -13,6 +13,8 @@ pub mod email;
 pub mod file_storage;
 #[cfg(feature = "gcp_kms")]
 pub mod gcp_kms;
+#[allow(missing_docs)]
+pub mod grafana;
 /// Building grpc clients to communicate with the server
 pub mod grpc_client;
 #[cfg(feature = "hashicorp-vault")]

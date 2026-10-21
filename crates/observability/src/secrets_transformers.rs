@@ -15,7 +15,9 @@ use hyperswitch_interfaces::secrets_interface::{
     SecretManagementInterface, SecretsManagementError,
 };
 
-use crate::settings::{AuthSettings, ChatDestination, ChatSettings, Settings};
+use crate::settings::{
+    evaluator::EvaluatorSettings, AuthSettings, ChatDestination, ChatSettings, Settings,
+};
 
 #[async_trait::async_trait]
 impl SecretsHandler for AuthSettings {
@@ -77,6 +79,19 @@ impl SecretsHandler for ChatSettings {
     }
 }
 
+#[async_trait::async_trait]
+impl SecretsHandler for EvaluatorSettings {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let api_token = secret_management_client
+            .get_secret(value.get_inner().grafana.client.api_token.clone())
+            .await?;
+        Ok(value.transition_state(|evaluator| evaluator.with_api_token(api_token)))
+    }
+}
+
 /// Resolve every secret in the configuration.
 ///
 /// # Panics
@@ -108,6 +123,15 @@ pub async fn fetch_raw_secrets(
         .await
         .expect("Failed to decrypt a chat destination credential");
 
+    #[allow(clippy::expect_used)]
+    let evaluator = match conf.evaluator {
+        Some(evaluator) => Some(
+            EvaluatorSettings::convert_to_raw_secret(evaluator, secret_management_client)
+                .await
+                .expect("Failed to decrypt the evaluator API token"),
+        ),
+        None => None,
+    };
     Settings {
         server: conf.server,
         log: conf.log,
@@ -117,6 +141,7 @@ pub async fn fetch_raw_secrets(
         secrets_management: conf.secrets_management,
         proxy: conf.proxy,
         chat,
+        evaluator,
         email: conf.email,
     }
 }

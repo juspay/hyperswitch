@@ -2,6 +2,7 @@
 //! module per area holds the handlers.
 
 pub mod app;
+pub mod evaluator;
 pub mod health_check;
 #[cfg(feature = "v1")]
 pub mod monitoring;
