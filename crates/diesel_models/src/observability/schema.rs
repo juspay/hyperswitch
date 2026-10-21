@@ -65,31 +65,26 @@ diesel::table! {
 }
 
 diesel::table! {
-    alert_rule_configurations (id) {
-        #[max_length = 64]
-        id -> Varchar,
-        #[max_length = 255]
-        name -> Varchar,
-        #[max_length = 64]
-        classification -> Varchar,
-        #[max_length = 64]
-        datasource -> Varchar,
-        query -> Jsonb,
-        thresholds -> Jsonb,
-        interval_seconds -> Int4,
+    alert_rule_toggles (rule_id) {
+        rule_id -> Text,
         is_enabled -> Bool,
-        next_run_at -> Timestamp,
-        last_evaluated_at -> Nullable<Timestamp>,
-        created_at -> Timestamp,
+        updated_by -> Text,
         last_updated_at -> Timestamp,
     }
 }
 
 diesel::table! {
-    alert_rule_toggles (rule_id) {
-        rule_id -> Text,
-        is_enabled -> Bool,
-        updated_by -> Text,
+    alert_rules (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 255]
+        name -> Varchar,
+        config -> Jsonb,
+        #[max_length = 32]
+        status -> Varchar,
+        next_run_at -> Timestamp,
+        last_evaluated_at -> Nullable<Timestamp>,
+        created_at -> Timestamp,
         last_updated_at -> Timestamp,
     }
 }
@@ -398,8 +393,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     alert_dictionary,
     alert_lifecycle_events,
     alert_metadata,
-    alert_rule_configurations,
     alert_rule_toggles,
+    alert_rules,
     alerts_dicts,
     alerts_info,
     alerts_intermediate,

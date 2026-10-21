@@ -91,8 +91,8 @@ pub enum ObservabilityError {
     #[error("The request body is invalid")]
     InvalidRequest,
 
-    #[error("Alert rule configuration not found")]
-    AlertRuleConfigurationNotFound,
+    #[error("Alert rule not found")]
+    AlertRuleNotFound,
 
     /// Creating or resurrecting a threshold would exceed the active-rule cap.
     #[error("The active threshold rule limit has been reached")]
@@ -153,11 +153,9 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 4,
                 "The request body could not be parsed",
             )),
-            Self::AlertRuleConfigurationNotFound => ApiErrorResponse::NotFound(ApiError::new(
-                "IR",
-                9,
-                "Alert rule configuration not found",
-            )),
+            Self::AlertRuleNotFound => {
+                ApiErrorResponse::NotFound(ApiError::new("IR", 9, "Alert rule not found"))
+            }
             Self::ActiveRuleLimitReached => ApiErrorResponse::TooManyRequests(ApiError::new(
                 "IR",
                 5,
@@ -219,10 +217,7 @@ mod tests {
         );
         assert_eq!(status_of(&ObservabilityError::Unauthorized), 401);
         assert_eq!(status_of(&ObservabilityError::InvalidRequest), 400);
-        assert_eq!(
-            status_of(&ObservabilityError::AlertRuleConfigurationNotFound),
-            404
-        );
+        assert_eq!(status_of(&ObservabilityError::AlertRuleNotFound), 404);
         assert_eq!(status_of(&ObservabilityError::ActiveRuleLimitReached), 429);
         assert_eq!(
             status_of(&ObservabilityError::BlacklistActiveRuleLimitReached),

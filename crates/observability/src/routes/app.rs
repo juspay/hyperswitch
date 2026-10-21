@@ -17,7 +17,7 @@ use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
     routes::{
-        alert_rule_configurations, alerts_info, blacklist, cloudwatch, dictionary, health_check,
+        alert_rules, alerts_info, blacklist, cloudwatch, dictionary, health_check,
         lifecycle_events, metadata, notify, rule_toggles, thresholds,
     },
     state::AppState,
@@ -95,13 +95,12 @@ impl Alerts {
                 web::scope("/alerts_manager")
                     .service(web::resource("/info").route(web::post().to(alerts_info::create)))
                     .service(
-                        web::resource("/rule_configurations")
-                            .route(web::post().to(alert_rule_configurations::create))
-                            .route(web::get().to(alert_rule_configurations::list)),
+                        web::resource("/rules")
+                            .route(web::post().to(alert_rules::create))
+                            .route(web::get().to(alert_rules::list)),
                     )
                     .service(
-                        web::resource("/rule_configurations/{id}")
-                            .route(web::put().to(alert_rule_configurations::update)),
+                        web::resource("/rules/{id}").route(web::put().to(alert_rules::update)),
                     ),
             )
     }

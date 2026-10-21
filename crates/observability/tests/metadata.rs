@@ -52,40 +52,32 @@ impl observability::db::lifecycle_events::LifecycleEventsInterface for MemorySto
 }
 
 #[async_trait::async_trait]
-impl observability::db::alert_rule_configurations::AlertRuleConfigurationInterface for MemoryStore {
-    async fn insert_alert_rule_configuration(
+impl observability::db::alert_rules::AlertRuleInterface for MemoryStore {
+    async fn insert_alert_rule(
         &self,
-        _new: observability::domain_models::alert_rule_configurations::AlertRuleConfigurationNew,
-    ) -> StorageResult<
-        observability::domain_models::alert_rule_configurations::AlertRuleConfiguration,
-    > {
+        _new: observability::domain_models::alert_rules::AlertRuleNew,
+    ) -> StorageResult<observability::domain_models::alert_rules::AlertRule> {
         Err(report!(DatabaseError::Others))
     }
 
-    async fn update_alert_rule_configuration(
+    async fn update_alert_rule(
         &self,
         _id: String,
-        _update: observability::domain_models::alert_rule_configurations::AlertRuleConfigurationUpdate,
-    ) -> StorageResult<
-        observability::domain_models::alert_rule_configurations::AlertRuleConfiguration,
-    > {
+        _update: observability::domain_models::alert_rules::AlertRuleUpdate,
+    ) -> StorageResult<observability::domain_models::alert_rules::AlertRule> {
         Err(report!(DatabaseError::Others))
     }
 
-    async fn list_alert_rule_configurations(
+    async fn list_alert_rules(
         &self,
-    ) -> StorageResult<
-        observability::domain_models::alert_rule_configurations::AlertRuleConfigurationListing,
-    > {
+    ) -> StorageResult<Vec<observability::domain_models::alert_rules::AlertRule>> {
         Err(report!(DatabaseError::Others))
     }
 
-    async fn list_due_alert_rule_configurations(
+    async fn list_due_alert_rules(
         &self,
         _now: PrimitiveDateTime,
-    ) -> StorageResult<
-        observability::domain_models::alert_rule_configurations::AlertRuleConfigurationListing,
-    > {
+    ) -> StorageResult<Vec<observability::domain_models::alert_rules::AlertRule>> {
         Err(report!(DatabaseError::Others))
     }
 
@@ -126,42 +118,32 @@ impl observability::db::lifecycle_events::LifecycleEventsInterface for FailingSt
 }
 
 #[async_trait::async_trait]
-impl observability::db::alert_rule_configurations::AlertRuleConfigurationInterface
-    for FailingStore
-{
-    async fn insert_alert_rule_configuration(
+impl observability::db::alert_rules::AlertRuleInterface for FailingStore {
+    async fn insert_alert_rule(
         &self,
-        _new: observability::domain_models::alert_rule_configurations::AlertRuleConfigurationNew,
-    ) -> StorageResult<
-        observability::domain_models::alert_rule_configurations::AlertRuleConfiguration,
-    > {
+        _new: observability::domain_models::alert_rules::AlertRuleNew,
+    ) -> StorageResult<observability::domain_models::alert_rules::AlertRule> {
         Err(report!(DatabaseError::Others))
     }
 
-    async fn update_alert_rule_configuration(
+    async fn update_alert_rule(
         &self,
         _id: String,
-        _update: observability::domain_models::alert_rule_configurations::AlertRuleConfigurationUpdate,
-    ) -> StorageResult<
-        observability::domain_models::alert_rule_configurations::AlertRuleConfiguration,
-    > {
+        _update: observability::domain_models::alert_rules::AlertRuleUpdate,
+    ) -> StorageResult<observability::domain_models::alert_rules::AlertRule> {
         Err(report!(DatabaseError::Others))
     }
 
-    async fn list_alert_rule_configurations(
+    async fn list_alert_rules(
         &self,
-    ) -> StorageResult<
-        observability::domain_models::alert_rule_configurations::AlertRuleConfigurationListing,
-    > {
+    ) -> StorageResult<Vec<observability::domain_models::alert_rules::AlertRule>> {
         Err(report!(DatabaseError::Others))
     }
 
-    async fn list_due_alert_rule_configurations(
+    async fn list_due_alert_rules(
         &self,
         _now: PrimitiveDateTime,
-    ) -> StorageResult<
-        observability::domain_models::alert_rule_configurations::AlertRuleConfigurationListing,
-    > {
+    ) -> StorageResult<Vec<observability::domain_models::alert_rules::AlertRule>> {
         Err(report!(DatabaseError::Others))
     }
 

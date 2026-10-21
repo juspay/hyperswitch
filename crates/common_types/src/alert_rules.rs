@@ -1,7 +1,54 @@
 use std::collections::BTreeMap;
 
+use common_utils::impl_to_sql_from_sql_json;
+use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
-use time::PrimitiveDateTime;
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Jsonb)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum AlertRuleConfig {
+    V1(AlertRuleConfigV1),
+}
+
+impl_to_sql_from_sql_json!(AlertRuleConfig);
+
+impl AlertRuleConfig {
+    pub fn inner(&self) -> &AlertRuleConfigV1 {
+        match self {
+            Self::V1(config) => config,
+        }
+    }
+
+    pub fn into_inner(self) -> AlertRuleConfigV1 {
+        match self {
+            Self::V1(config) => config,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AlertRuleConfigV1 {
+    pub classification: String,
+    pub interval_seconds: u32,
+    pub query: AlertQuery,
+    pub thresholds: AlertThresholdsV1,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "datasource", rename_all = "snake_case")]
+pub enum AlertQuery {
+    Cloudwatch(CloudwatchQueryV1),
+}
+
+impl AlertQuery {
+    pub fn datasource(&self) -> AlertDatasource {
+        match self {
+            Self::Cloudwatch(_) => AlertDatasource::Cloudwatch,
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -25,7 +72,7 @@ fn default_end_offset_seconds() -> u32 {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct AlertRuleThresholdsV1 {
+pub struct AlertThresholdsV1 {
     pub severities: BTreeMap<Severity, SeverityThresholdV1>,
 }
 
@@ -43,7 +90,16 @@ pub struct SeverityThresholdV1 {
 }
 
 #[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    strum::Display,
+    strum::EnumString,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -60,14 +116,14 @@ pub enum CloudwatchStatistic {
 }
 
 #[derive(
-    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, strum::Display,
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, strum::Display,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Severity {
-    Sev1,
-    Sev2,
-    Sev3,
+    Critical,
+    Warning,
+    Info,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
@@ -86,54 +142,4 @@ pub enum TreatMissingData {
     NotBreaching,
     #[default]
     Missing,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct AlertRuleConfigurationCreateRequest {
-    pub id: String,
-    pub name: String,
-    pub classification: String,
-    pub datasource: AlertDatasource,
-    pub query: CloudwatchQueryV1,
-    pub thresholds: AlertRuleThresholdsV1,
-    pub interval_seconds: u32,
-    pub is_enabled: Option<bool>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct AlertRuleConfigurationUpdateRequest {
-    pub name: Option<String>,
-    pub classification: Option<String>,
-    pub query: Option<CloudwatchQueryV1>,
-    pub thresholds: Option<AlertRuleThresholdsV1>,
-    pub interval_seconds: Option<u32>,
-    pub is_enabled: Option<bool>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct AlertRuleConfigurationResponse {
-    pub id: String,
-    pub name: String,
-    pub classification: String,
-    pub datasource: AlertDatasource,
-    pub query: CloudwatchQueryV1,
-    pub thresholds: AlertRuleThresholdsV1,
-    pub interval_seconds: u32,
-    pub is_enabled: bool,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub next_run_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub last_evaluated_at: Option<PrimitiveDateTime>,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub last_updated_at: PrimitiveDateTime,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct AlertRuleConfigurationListResponse {
-    pub rule_configurations: Vec<AlertRuleConfigurationResponse>,
-    pub unreadable_ids: Vec<String>,
 }

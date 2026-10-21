@@ -456,6 +456,27 @@ pub enum RecommendedAction {
 pub enum GsmFeature {
     Retry,
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum AlertRuleStatus {
+    Active,
+    Inactive,
+}
+
 #[derive(
     Clone,
     Copy,

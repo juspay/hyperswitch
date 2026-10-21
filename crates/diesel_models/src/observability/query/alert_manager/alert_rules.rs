@@ -1,4 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
+use common_enums::AlertRuleStatus;
 use diesel::{associations::HasTable, prelude::*};
 use error_stack::report;
 use time::PrimitiveDateTime;
@@ -6,41 +7,40 @@ use time::PrimitiveDateTime;
 use crate::{
     errors::DatabaseError,
     observability::{
-        alert_manager::alert_rule_configurations::{
-            AlertRuleConfiguration, AlertRuleConfigurationNew, AlertRuleConfigurationUpdate,
-            AlertRuleConfigurationUpdateInternal,
+        alert_manager::alert_rules::{
+            AlertRule, AlertRuleNew, AlertRuleUpdate, AlertRuleUpdateInternal,
         },
-        schema::alert_rule_configurations::dsl,
+        schema::alert_rules::dsl,
     },
     query::generics,
     DatabaseConnectionWithContext, StorageResult,
 };
 
-impl AlertRuleConfigurationNew {
+impl AlertRuleNew {
     pub async fn insert(
         self,
         conn: &DatabaseConnectionWithContext<'_>,
-    ) -> StorageResult<AlertRuleConfiguration> {
+    ) -> StorageResult<AlertRule> {
         generics::generic_insert(conn, self).await
     }
 }
 
-impl AlertRuleConfiguration {
+impl AlertRule {
     pub async fn update_by_id(
         conn: &DatabaseConnectionWithContext<'_>,
         id: String,
-        update: AlertRuleConfigurationUpdate,
+        update: AlertRuleUpdate,
     ) -> StorageResult<Self> {
         generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             id,
-            AlertRuleConfigurationUpdateInternal::from(update),
+            AlertRuleUpdateInternal::from(update),
         )
         .await
     }
 
     pub async fn list(conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Vec<Self>> {
-        dsl::alert_rule_configurations
+        dsl::alert_rules
             .order(dsl::id)
             .select(Self::as_select())
             .load_async(conn.raw_connection())
@@ -52,8 +52,12 @@ impl AlertRuleConfiguration {
         conn: &DatabaseConnectionWithContext<'_>,
         now: PrimitiveDateTime,
     ) -> StorageResult<Vec<Self>> {
-        dsl::alert_rule_configurations
-            .filter(dsl::is_enabled.and(dsl::next_run_at.le(now)))
+        dsl::alert_rules
+            .filter(
+                dsl::status
+                    .eq(AlertRuleStatus::Active)
+                    .and(dsl::next_run_at.le(now)),
+            )
             .order(dsl::next_run_at)
             .select(Self::as_select())
             .load_async(conn.raw_connection())
