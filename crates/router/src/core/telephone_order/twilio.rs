@@ -1,7 +1,10 @@
 use api_models::telephone_order::twilio::{
     TwilioGenericPayRequest, TwilioGenericPayResponse, TwilioPayMethod,
 };
-use common_utils::types::{AmountConvertor, StringMajorUnitForConnector};
+use common_utils::{
+    fp_utils,
+    types::{AmountConvertor, StringMajorUnitForConnector},
+};
 
 use crate::core::telephone_order::{
     self, Context, Failure, Parameters, ResponseParameters, TelephoneOrderAdapter,
@@ -47,19 +50,22 @@ impl TelephoneOrderAdapter for TwilioGenericPay {
         request: &Self::Request,
         context: Context,
     ) -> Result<api_models::payments::PaymentsRequest, Failure> {
-        if request.method != TwilioPayMethod::Charge {
-            return Err(Failure::new(
+        fp_utils::when(request.method != TwilioPayMethod::Charge, || {
+            Err(Failure::new(
                 error_codes::TOKENIZE_UNSUPPORTED,
                 "Tokenization is not supported on this endpoint",
-            ));
-        }
+            ))
+        })?;
 
-        if request.bankaccountnumber.is_some() || request.routingnumber.is_some() {
-            return Err(Failure::new(
-                error_codes::BANK_ACCOUNT_UNSUPPORTED,
-                "Bank account payments are not supported on this endpoint",
-            ));
-        }
+        fp_utils::when(
+            request.bankaccountnumber.is_some() || request.routingnumber.is_some(),
+            || {
+                Err(Failure::new(
+                    error_codes::BANK_ACCOUNT_UNSUPPORTED,
+                    "Bank account payments are not supported on this endpoint",
+                ))
+            },
+        )?;
 
         let card = extract_card(request)?;
 

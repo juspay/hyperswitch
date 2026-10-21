@@ -2870,8 +2870,6 @@ impl ThreeDsDecisionRule {
     }
 }
 
-/// `/telephone_order/{provider}/{merchant_id}` — one scope for every inbound telephone order provider.
-/// Adding one touches no routing: the handler matches the segment onto a `TelephoneOrderProvider`.
 pub struct TelephoneOrder;
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
@@ -2880,7 +2878,7 @@ impl TelephoneOrder {
         web::scope("/telephone_order")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/{provider}/{merchant_id}")
+                web::resource("/{merchant_id}/{provider}")
                     .route(web::post().to(telephone_order::telephone_order_charge)),
             )
     }

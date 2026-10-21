@@ -185,37 +185,13 @@ pub trait TelephoneOrderAdapter {
     fn resolve_payment_id(
         request: &Self::Request,
     ) -> Result<Option<common_utils::id_type::PaymentId>, Failure> {
-        if let Some(supplied) = extract_id(Self::parameters(request), "payment_id")? {
-            return Ok(Some(supplied));
-        }
-
-        Ok(Self::idempotency_reference(request).and_then(derive_payment_id))
-    }
-
-    /// Locks the payment this request becomes, so a provider's retry waits for the charge in
-    /// flight instead of racing it. `NotApplicable` only when there is no id to lock on at all.
-    fn locking_action<F>(request: &Self::Request, flow: F) -> api_locking::LockAction
-    where
-        F: router_env::types::FlowMetric,
-        lock_utils::ApiIdentifier: From<F>,
-    {
-        Self::resolve_payment_id(request)
-            // An unusable id is rejected with `INVALID_REQUEST` in `charge`; there is no key here.
-            .ok()
-            .flatten()
-            .map_or(api_locking::LockAction::NotApplicable, |payment_id| {
-                api_locking::LockAction::Hold {
-                    input: api_locking::LockingInput {
-                        unique_locking_key: payment_id.get_string_repr().to_owned(),
-                        api_identifier: lock_utils::ApiIdentifier::from(flow),
-                        override_lock_retries: None,
-                    },
-                }
-            })
+        extract_id(Self::parameters(request), "payment_id").map(|supplied| {
+            supplied.or_else(|| Self::idempotency_reference(request).and_then(derive_payment_id))
+        })
     }
 
     /// Answers the provider with a failure, leaving a log line behind to explain it.
-    fn reject(
+    fn report_failure(
         transaction_reference: &str,
         failure: Failure,
     ) -> ApplicationResponse<Self::Response> {
@@ -238,87 +214,72 @@ pub trait TelephoneOrderAdapter {
     ) -> RouterResponse<Self::Response> {
         let transaction_reference = Self::transaction_reference(&request);
 
-        let payment_id = match Self::resolve_payment_id(&request) {
-            Ok(payment_id) => payment_id,
-            Err(failure) => return Ok(Self::reject(&transaction_reference, failure)),
-        };
+        let payments_request = Self::resolve_payment_id(&request)
+            .and_then(|payment_id| build_context(&auth, Self::parameters(&request), payment_id))
+            .and_then(|context| Self::build_payments_request(&request, context))
+            .and_then(finalize_payments_request);
 
-        let context = match build_context(&auth, Self::parameters(&request), payment_id) {
-            Ok(context) => context,
-            Err(failure) => return Ok(Self::reject(&transaction_reference, failure)),
-        };
+        let outcome = match payments_request {
+            Err(failure) => Err(failure),
+            Ok(payments_request) => {
+                let profile_id = payments_request.profile_id.clone();
 
-        // Passed to the payments core alongside the request, which carries it too.
-        let profile_id = context.profile_id.clone();
+                let payments_response = Box::pin(payments::payments_core::<
+                    api::Authorize,
+                    api::PaymentsResponse,
+                    _,
+                    _,
+                    _,
+                    payments::PaymentData<api::Authorize>,
+                >(
+                    state.clone(),
+                    req_state.clone(),
+                    auth.platform.clone(),
+                    profile_id,
+                    payments::PaymentCreate,
+                    payments_request,
+                    services::api::AuthFlow::Merchant,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    None,
+                    HeaderPayload::with_source(common_enums::PaymentSource::MerchantServer),
+                    None,
+                ))
+                .await;
 
-        let payments_request = match Self::build_payments_request(&request, context)
-            .and_then(finalize_payments_request)
-        {
-            Ok(payments_request) => payments_request,
-            Err(failure) => return Ok(Self::reject(&transaction_reference, failure)),
-        };
-
-        let payments_response = Box::pin(payments::payments_core::<
-            api::Authorize,
-            api::PaymentsResponse,
-            _,
-            _,
-            _,
-            payments::PaymentData<api::Authorize>,
-        >(
-            state.clone(),
-            req_state.clone(),
-            auth.platform.clone(),
-            profile_id,
-            payments::PaymentCreate,
-            payments_request,
-            services::api::AuthFlow::Merchant,
-            payments::CallConnectorAction::Trigger,
-            None,
-            None,
-            HeaderPayload::with_source(common_enums::PaymentSource::MerchantServer),
-            None,
-        ))
-        .await;
-
-        let payment = match payments_response {
-            Ok(ApplicationResponse::Json(payment))
-            | Ok(ApplicationResponse::JsonWithHeaders((payment, _))) => payment,
-            Ok(other) => {
-                logger::error!(
-                    transaction_reference = %transaction_reference,
-                    "Unexpected response variant from payments core: {other:?}"
-                );
-                return Ok(Self::reject(
-                    &transaction_reference,
-                    Failure::processing_error(),
-                ));
-            }
-            // The one error with a payment behind it. Answered with that charge's own outcome, so
-            // the retry does not read as a decline and send the caller round for a second card.
-            Err(error) => match error.current_context() {
-                errors::ApiErrorResponse::DuplicatePayment { payment_id } => {
-                    logger::info!(
-                        transaction_reference = %transaction_reference,
-                        payment_id = %payment_id.get_string_repr(),
-                        "A charge that already exists was retried; replaying its outcome"
-                    );
-
-                    match retrieve_payment(&state, req_state, &auth, payment_id).await {
-                        Ok(payment) => payment,
-                        Err(failure) => {
-                            return Ok(Self::reject(&transaction_reference, failure));
-                        }
+                match payments_response {
+                    Ok(ApplicationResponse::Json(payment))
+                    | Ok(ApplicationResponse::JsonWithHeaders((payment, _))) => Ok(payment),
+                    Ok(other) => {
+                        logger::error!(
+                            transaction_reference = %transaction_reference,
+                            "Unexpected response variant from payments core: {other:?}"
+                        );
+                        Err(Failure::processing_error())
                     }
+                    // The one error with a payment behind it. Answered with that charge's own
+                    // outcome, so the retry does not read as a decline and send the caller round
+                    // for a second card.
+                    Err(error) => match error.current_context() {
+                        errors::ApiErrorResponse::DuplicatePayment { payment_id } => {
+                            logger::info!(
+                                transaction_reference = %transaction_reference,
+                                payment_id = %payment_id.get_string_repr(),
+                                "A charge that already exists was retried; replaying its outcome"
+                            );
+
+                            retrieve_payment(&state, req_state, &auth, payment_id).await
+                        }
+                        _ => Err(classify_core_error(&transaction_reference, &error)),
+                    },
                 }
-                _ => {
-                    let failure = classify_core_error(&transaction_reference, &error);
-                    return Ok(Self::reject(&transaction_reference, failure));
-                }
-            },
+            }
         };
 
-        Ok(Self::answer(&transaction_reference, &payment))
+        Ok(match outcome {
+            Ok(payment) => Self::answer(&transaction_reference, &payment),
+            Err(failure) => Self::report_failure(&transaction_reference, failure),
+        })
     }
 
     /// Reads a finished payment back to the provider.
@@ -331,7 +292,7 @@ pub trait TelephoneOrderAdapter {
                 payment,
                 outcome_parameters(payment),
             )),
-            Outcome::Declined(failure) => Self::reject(transaction_reference, failure),
+            Outcome::Declined(failure) => Self::report_failure(transaction_reference, failure),
             // Logged louder than a decline: nobody has to act on a declined card, and somebody
             // has to act on an authorization the caller was not told about.
             Outcome::Indeterminate(failure) => {
@@ -342,10 +303,32 @@ pub trait TelephoneOrderAdapter {
                     "Telephone order charge has no outcome that can be read to the caller; \
                      funds may be held at the connector"
                 );
-                Self::reject(transaction_reference, failure)
+                Self::report_failure(transaction_reference, failure)
             }
         }
     }
+}
+
+/// Locks the payment this request becomes, so a provider's retry waits for the charge in flight
+/// instead of racing it. `NotApplicable` only when there is no id to lock on at all — the route
+/// resolves the id once, records it on the span and hands it here.
+pub fn locking_action<F>(
+    payment_id: Option<&common_utils::id_type::PaymentId>,
+    flow: F,
+) -> api_locking::LockAction
+where
+    F: router_env::types::FlowMetric,
+    lock_utils::ApiIdentifier: From<F>,
+{
+    payment_id.map_or(api_locking::LockAction::NotApplicable, |payment_id| {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: payment_id.get_string_repr().to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    })
 }
 
 /// Reads the ids the IVR passed through. The profile was resolved by authentication, the payment
@@ -392,18 +375,17 @@ where
     I: TryFrom<std::borrow::Cow<'static, str>>,
     <I as TryFrom<std::borrow::Cow<'static, str>>>::Error: std::fmt::Display,
 {
-    let Some(value) = parameters.and_then(|parameters| parameters.get(key)) else {
-        return Ok(None);
-    };
-
-    I::try_from(std::borrow::Cow::Owned(value.clone()))
-        .map(Some)
-        .map_err(|error| {
-            Failure::new(
-                error_codes::INVALID_REQUEST,
-                format!("parameters.{key} is not a valid {key}: {error}"),
-            )
+    parameters
+        .and_then(|parameters| parameters.get(key))
+        .map(|value| {
+            I::try_from(std::borrow::Cow::Owned(value.clone())).map_err(|error| {
+                Failure::new(
+                    error_codes::INVALID_REQUEST,
+                    format!("parameters.{key} is not a valid {key}: {error}"),
+                )
+            })
         })
+        .transpose()
 }
 
 /// Carries the IVR's parameters through to the payment, for reconciliation. Lands in
@@ -555,7 +537,8 @@ fn classify_core_error(
             format!("{field_name} is not in the expected format: {expected_format}"),
         ),
 
-        // A failure we cannot classify is reported as a decline and investigated from the logs.
+        // A failure we cannot classify is reported as `PROCESSING_ERROR` — ours, not the card's —
+        // and investigated from the logs.
         _ => {
             logger::error!(
                 transaction_reference = %transaction_reference,
@@ -653,6 +636,10 @@ fn outcome_parameters(payment: &api_models::payments::PaymentsResponse) -> Respo
     // A missing value drops its key: Twilio raises a JSON mapping exception on a non-string, which
     // would break the whole response rather than this one field.
     let optional = [
+        (
+            "merchant_order_reference_id",
+            payment.merchant_order_reference_id.clone(),
+        ),
         ("connector", payment.connector.clone()),
         (
             "connector_transaction_id",
