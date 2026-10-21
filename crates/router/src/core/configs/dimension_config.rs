@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums;
@@ -992,11 +992,15 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
     }
 }
 
-// IP verification is opt-in: an absent config defaults to no configured connectors.
+/// Parse only the selected connector's ranges so malformed entries remain isolated.
+pub type IncomingWebhookIpRangesConfig = HashMap<String, serde_json::Value>;
+
+// An absent config defaults to an empty object; enabled, required checks reject missing ranges.
 config! {
     superposition_key = INCOMING_WEBHOOK_ALLOWED_IP_RANGES,
-    output = serde_json::Value,
+    output = IncomingWebhookIpRangesConfig,
     default = serde_json::json!({}),
+    object = true,
     requires = dimension_state::DimensionsGlobal,
     targeting_key = id_type::MerchantId
 }

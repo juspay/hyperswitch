@@ -1331,6 +1331,7 @@ pub struct WebhooksSettings {
 #[serde(default)]
 pub struct IncomingWebhooksSettings {
     pub mtls_verified_header: Option<String>,
+    pub source_ip_header: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

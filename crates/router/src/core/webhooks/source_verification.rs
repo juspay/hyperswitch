@@ -25,15 +25,25 @@ pub(super) struct IncomingWebhookVerifier<'a> {
     settings: &'a IncomingWebhooksSettings,
 }
 
-/// The outcome of an individual incoming webhook network check.
+/// The outcome of an incoming webhook network verification check.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum VerificationStatus {
     /// The source passed this check.
     Verified,
-    /// Required verification was disabled; the source remains unverified.
-    Skipped,
+    /// The connector requires this check, but runtime config disables it; the source remains unverified.
+    RequiredButDisabled,
     /// The connector does not require this check.
     NotRequired,
+}
+
+impl VerificationStatus {
+    fn is_verified(self) -> bool {
+        self == Self::Verified
+    }
+
+    fn is_required_but_disabled(self) -> bool {
+        self == Self::RequiredButDisabled
+    }
 }
 
 /// Retains each network check's outcome until connector source verification is resolved.
@@ -44,13 +54,12 @@ pub(super) struct NetworkVerification {
 }
 
 impl NetworkVerification {
-    /// A skipped requirement keeps the source unverified even when another check passes.
+    /// A required check disabled by config keeps the source unverified even when another check passes.
     /// Use connector source verification only when no network check is required.
     pub(super) fn resolve_source_verified(self, connector_source_verified: bool) -> bool {
-        let statuses = [self.mtls, self.source_ip];
-        if statuses.contains(&VerificationStatus::Skipped) {
+        if self.mtls.is_required_but_disabled() || self.source_ip.is_required_but_disabled() {
             false
-        } else if statuses.contains(&VerificationStatus::Verified) {
+        } else if self.mtls.is_verified() || self.source_ip.is_verified() {
             true
         } else {
             connector_source_verified
@@ -75,7 +84,7 @@ impl<'a> IncomingWebhookVerifier<'a> {
         Ok(NetworkVerification {
             mtls: self.verify_mtls(state, connector, request_headers).await?,
             source_ip: self
-                .verify_source_ip(state, connector_name, request_headers)
+                .verify_source_ip(state, connector, connector_name, request_headers)
                 .await?,
         })
     }
@@ -83,34 +92,41 @@ impl<'a> IncomingWebhookVerifier<'a> {
     /// Read the incoming webhooks allowed IP ranges config and validate that the IP is allowed for
     /// this connector.
     ///
+    /// Only connectors requiring IP verification consult the config.
     /// The global IP verification toggle defaults to false and bypasses policy lookup when disabled.
-    /// A missing policy defaults to an empty object, disabling IP checks for all connectors.
-    /// An invalid policy root or current connector's IP ranges is a configuration error.
+    /// A missing or invalid policy or current connector's IP ranges is a configuration error.
     /// Entries for other connectors do not affect this request.
     async fn verify_source_ip(
         &self,
         state: &SessionState,
+        connector: &ConnectorEnum,
         connector_name: &str,
         request_headers: &HeaderMap,
     ) -> RouterResult<VerificationStatus> {
-        let dimensions = dimension_state::Dimensions::new();
-        let enabled = dimensions
-            .get_incoming_webhook_ip_verification_enabled(
-                state.store.as_ref(),
-                state.superposition_service.as_ref(),
-                None,
-            )
-            .await;
-        if enabled {
-            let policy = dimensions
-                .get_incoming_webhook_allowed_ip_ranges(
+        if connector.is_webhook_ip_verification_required() {
+            let dimensions = dimension_state::Dimensions::new();
+            let enabled = dimensions
+                .get_incoming_webhook_ip_verification_enabled(
                     state.store.as_ref(),
                     state.superposition_service.as_ref(),
                     None,
                 )
                 .await;
+            if enabled {
+                let policy = dimensions
+                    .get_incoming_webhook_allowed_ip_ranges(
+                        state.store.as_ref(),
+                        state.superposition_service.as_ref(),
+                        None,
+                    )
+                    .await;
 
-            validate_source_ip_against_allowed_ip_ranges(policy, connector_name, request_headers)
+                validate_source_ip_against_allowed_ip_ranges(
+                    policy,
+                    connector_name,
+                    request_headers,
+                    self.settings.source_ip_header.as_deref(),
+                )
                 .map_err(|reason| {
                     let error: errors::ApiErrorResponse = reason.switch();
                     let reason: &'static str = reason.into();
@@ -125,8 +141,14 @@ impl<'a> IncomingWebhookVerifier<'a> {
                         "Webhook source IP verification failed: {reason}"
                     ))
                 })
+            } else {
+                logger::info!(
+                    connector = %connector_name,
+                    "Skipping incoming webhook IP verification because webhooks.incoming_webhooks_ip_verification_enabled is disabled"
+                );
+                Ok(VerificationStatus::RequiredButDisabled)
+            }
         } else {
-            // Disabling IP verification must preserve the connector's existing trust decision.
             Ok(VerificationStatus::NotRequired)
         }
     }
@@ -160,7 +182,7 @@ impl<'a> IncomingWebhookVerifier<'a> {
                     connector = %connector_name,
                     "Skipping incoming webhook mTLS verification because incoming_webhooks.mtls_verification_enabled is disabled"
                 );
-                Ok(VerificationStatus::Skipped)
+                Ok(VerificationStatus::RequiredButDisabled)
             }
         } else {
             Ok(VerificationStatus::NotRequired)
@@ -224,6 +246,7 @@ impl<'a> IncomingWebhookVerifier<'a> {
 mod tests {
     use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
     use external_services::superposition::Config;
+    use hyperswitch_interfaces::api::ConnectorSpecifications;
 
     use super::{IncomingWebhookVerifier, NetworkVerification, VerificationStatus};
     use crate::{
@@ -243,6 +266,7 @@ mod tests {
     fn settings() -> IncomingWebhooksSettings {
         IncomingWebhooksSettings {
             mtls_verified_header: Some(TEST_MTLS_HEADER.to_string()),
+            ..Default::default()
         }
     }
 
@@ -267,24 +291,32 @@ mod tests {
     }
 
     #[test]
+    fn ip_verification_requirement_follows_connector_specifications() {
+        assert!(connector("envoy").is_webhook_ip_verification_required());
+        for name in ["stripe", "worldpayxml", "santander"] {
+            assert!(!connector(name).is_webhook_ip_verification_required());
+        }
+    }
+
+    #[test]
     fn mtls_verification_is_disabled_by_default() {
         assert!(!IncomingWebhookMtlsVerificationEnabled::default_value());
     }
 
     #[test]
     fn resolves_source_verification_from_all_network_checks() {
-        use VerificationStatus::{NotRequired, Skipped, Verified};
+        use VerificationStatus::{NotRequired, RequiredButDisabled, Verified};
 
         for (mtls, source_ip, expected) in [
             (NotRequired, NotRequired, None),
             (NotRequired, Verified, Some(true)),
-            (NotRequired, Skipped, Some(false)),
+            (NotRequired, RequiredButDisabled, Some(false)),
             (Verified, NotRequired, Some(true)),
             (Verified, Verified, Some(true)),
-            (Verified, Skipped, Some(false)),
-            (Skipped, NotRequired, Some(false)),
-            (Skipped, Verified, Some(false)),
-            (Skipped, Skipped, Some(false)),
+            (Verified, RequiredButDisabled, Some(false)),
+            (RequiredButDisabled, NotRequired, Some(false)),
+            (RequiredButDisabled, Verified, Some(false)),
+            (RequiredButDisabled, RequiredButDisabled, Some(false)),
         ] {
             for connector_source_verified in [false, true] {
                 let verification = NetworkVerification { mtls, source_ip };
@@ -354,6 +386,7 @@ mod tests {
     fn uses_only_the_configured_header() {
         let settings = IncomingWebhooksSettings {
             mtls_verified_header: Some("x-custom-mtls-verified".to_string()),
+            ..Default::default()
         };
         let verifier = IncomingWebhookVerifier::new(&settings);
         let connector = connector("santander");
