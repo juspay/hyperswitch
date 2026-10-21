@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.07.0-hotfix3
+
+### Bug Fixes
+
+- **routing:** Validate eligibility per merchant connector account ([#14902](https://github.com/juspay/hyperswitch/pull/14902)) ([`997fec9`](https://github.com/juspay/hyperswitch/commit/997fec98391d96ab983b7dbc4c8cd94f1d695b8e))
+
+**Full Changelog:** [`2026.10.07.0-hotfix2...2026.10.07.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.10.07.0-hotfix2...2026.10.07.0-hotfix3)
+
+- - -
+
 ## 2026.10.07.0-hotfix2
 
 ### Bug Fixes
