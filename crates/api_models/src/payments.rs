@@ -14988,6 +14988,19 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = RecoveryTransactionStatus, example = "failure")]
     pub transaction_status: common_payments_types::RecoveryTransactionStatus,
 
+    /// Amount captured by the transaction, in the lowest denomination of the currency. It is
+    /// required when `transaction_status` is `partial_charged`, where it must be greater than
+    /// zero and less than the order amount. For `charged` it may be omitted, and if sent it
+    /// must equal the order amount. It must not be sent for a `failure`.
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub amount_captured: Option<MinorUnit>,
+
+    /// Whether the customer was present, and so able to authenticate, when the transaction was
+    /// made. Defaults to `false`, which marks the transaction as merchant initiated.
+    #[serde(default)]
+    #[schema(default = false, example = false)]
+    pub customer_present: bool,
+
     /// The billing details of the transaction.
     pub billing: Option<Address>,
 
@@ -15024,10 +15037,6 @@ pub struct RecoveryPaymentsCreate {
 
     /// payment method token units at payment processor end.
     pub payment_method_data: CustomRecoveryPaymentMethodData,
-
-    /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
-    #[schema(value_type = RecoveryPaymentsAction, example = "schedule_failed_payment")]
-    pub action: common_payments_types::RecoveryPaymentsAction,
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]

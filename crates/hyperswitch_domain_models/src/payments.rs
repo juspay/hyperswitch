@@ -1340,6 +1340,7 @@ impl PaymentIntent {
         let amount = self.amount_details.get_order_amount_for_recovery_data()?;
         Ok(revenue_recovery::RevenueRecoveryAttemptData {
             amount,
+            amount_captured: None,
             currency: self.amount_details.currency,
             merchant_reference_id,
             connector_transaction_id: None, // No connector id

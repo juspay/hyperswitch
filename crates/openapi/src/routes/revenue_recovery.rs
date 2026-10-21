@@ -77,7 +77,6 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                                 "card_exp_year": "2026"
                             }
                         },
-                        "action": "schedule_failed_payment"
                     })
                 )
             ),
