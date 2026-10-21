@@ -1600,6 +1600,12 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
+            setup_future_usage: None,
+            customer_acceptance: None,
+            enable_partial_authorization: None,
+            payment_channel: None,
+            billing_descriptor: None,
+            l2_l3_data: None,
         })
     }
 }
@@ -1724,6 +1730,12 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
+            setup_future_usage: None,
+            customer_acceptance: None,
+            enable_partial_authorization: None,
+            payment_channel: None,
+            billing_descriptor: None,
+            l2_l3_data: None,
         })
     }
 }
@@ -2047,6 +2059,7 @@ impl
             // below silently leaves the field None and the connector rejects the session.
             connector_order_id: router_data.request.order_id.clone(),
             test_mode: router_data.test_mode,
+            session_token: None,
         })
     }
 }
@@ -2153,6 +2166,7 @@ impl
             // hosted-payment-page 3DS opens its payment session against that Order resource.
             connector_order_id: router_data.request.order_id.clone(),
             test_mode: router_data.test_mode,
+            session_token: None,
         })
     }
 }
@@ -3284,6 +3298,7 @@ impl
             is_account_funding_transaction: None,
             recipient_details: None,
             additional_connector_details: None,
+            session_token: None,
         })
     }
 }
@@ -3601,6 +3616,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            session_token: None,
         })
     }
 }
@@ -3718,6 +3734,8 @@ impl
             }),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             merchant_authorization_id: Some(router_data.connector_request_reference_id.clone()),
+            additional_amount: None,
+            network_transaction_id: None,
             reason: router_data.request.reason.clone(),
             connector_feature_data: router_data
                 .request
