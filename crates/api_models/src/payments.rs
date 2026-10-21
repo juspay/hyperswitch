@@ -1678,6 +1678,13 @@ pub struct PaymentsRequest {
     #[schema(default = false, example = true)]
     #[smithy(value_type = "Option<bool>")]
     pub enable_avs_check: Option<bool>,
+
+    /// Indicates that the merchant has concluded settlement and supplied final amounts.
+    /// When true, Hyperswitch skips tax and surcharge calculations that would change
+    /// those amounts. Omit this field on updates or confirmation to preserve the setting.
+    #[schema(default = false, example = false)]
+    #[smithy(value_type = "Option<bool>")]
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -6780,6 +6787,7 @@ pub struct MultiCurrencyProcessingAmountData {
     #[schema(value_type = i64)]
     #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
+    #[schema(value_type = Currency)]
     #[smithy(value_type = "Currency")]
     pub currency: api_enums::Currency,
 }
@@ -10959,6 +10967,7 @@ pub struct BraintreeData {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MultiCurrencyProcessingData {
     /// The merchant settlement currency, i.e. the currency the merchant is paid out in.
+    #[schema(value_type = Currency)]
     #[smithy(value_type = "Currency")]
     pub currency: api_enums::Currency,
     /// The merchant settlement amount, expressed in `currency`. The merchant converts the
@@ -12854,6 +12863,10 @@ pub struct FeatureMetadata {
     /// Datatrans multi-currency processing settlement amount, currency and conversion details.
     #[smithy(value_type = "Option<MultiCurrencyProcessingData>")]
     pub multi_currency_processing: Option<MultiCurrencyProcessingData>,
+    /// Persisted settlement conclusion flag; prevents tax and surcharge pipelines
+    /// from changing merchant-concluded amounts across later payment operations.
+    #[smithy(value_type = "Option<bool>")]
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -12911,6 +12924,9 @@ impl FeatureMetadata {
                 finix_additional_details: self
                     .finix_additional_details
                     .or(other.finix_additional_details),
+                settlement_conclusion_applied: self
+                    .settlement_conclusion_applied
+                    .or(other.settlement_conclusion_applied),
             }
         } else {
             self

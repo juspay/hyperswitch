@@ -126,6 +126,27 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )?;
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
+        // Resolve the setting before amount calculations, including update-and-confirm.
+        let stored_feature_metadata = payment_intent
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let feature_metadata = match request.feature_metadata.clone() {
+            Some(metadata) => Some(metadata.merge(stored_feature_metadata)),
+            None => stored_feature_metadata,
+        };
+        payment_intent.feature_metadata = feature_metadata
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .map(hyperswitch_masking::Secret::new);
+        if let Some(settlement_conclusion_applied) = request.settlement_conclusion_applied {
+            payment_intent
+                .set_settlement_conclusion_applied(settlement_conclusion_applied)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to persist settlement_conclusion_applied")?;
+        }
+
         payment_intent.order_details = request
             .get_order_details_as_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -398,7 +419,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         .surcharge_details
                         .as_ref()
                         .map(RequestSurchargeDetails::get_total_surcharge_amount)
-                        .or(payment_attempt.get_total_surcharge_amount());
+                        .or_else(|| {
+                            if payment_intent.is_settlement_conclusion_applied() {
+                                None
+                            } else {
+                                payment_attempt.get_total_surcharge_amount()
+                            }
+                        });
                     amount + surcharge_amount.unwrap_or_default()
                 };
                 (Box::new(operations::PaymentConfirm), amount.into())
@@ -501,9 +528,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .installment_options
             .clone()
             .or(payment_intent.installment_options);
+        let order_tax_amount = if payment_intent.is_settlement_conclusion_applied() {
+            request.order_tax_amount
+        } else {
+            request.order_tax_amount.or(order_tax_amount)
+        };
         payment_attempt
             .net_amount
-            .set_order_tax_amount(request.order_tax_amount.or(order_tax_amount));
+            .set_order_tax_amount(order_tax_amount);
 
         let payment_data = PaymentData {
             capture_feature_metadata: None,
@@ -694,7 +726,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .payment_intent
             .skip_external_tax_calculation
             .unwrap_or(false);
-        if is_tax_connector_enabled && !skip_external_tax_calculation {
+        if is_tax_connector_enabled
+            && !skip_external_tax_calculation
+            && !payment_data
+                .payment_intent
+                .is_settlement_conclusion_applied()
+        {
             let db = state.store.as_ref();
 
             let merchant_connector_id = business_profile
@@ -1317,13 +1354,8 @@ impl PaymentUpdate {
             .clone()
             .or(payment_data.payment_intent.metadata.clone());
 
-        let feature_metadata = match (
-            request.feature_metadata.clone(),
-            payment_intent_feature_metadata,
-        ) {
-            (Some(request_meta), intent_meta) => Some(request_meta.merge(intent_meta)),
-            (None, intent_meta) => intent_meta,
-        };
+        // Request metadata and the top-level settlement flag were merged in get_trackers.
+        let feature_metadata = payment_intent_feature_metadata;
 
         let feature_metadata_value = feature_metadata
             .as_ref()

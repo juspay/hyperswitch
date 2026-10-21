@@ -330,6 +330,9 @@ pub struct FeatureMetadata {
     pub finix_additional_details: Option<FinixAdditionalDetails>,
     /// Merchant settlement amount, currency and conversion details.
     pub multi_currency_processing: Option<MultiCurrencyProcessingData>,
+    /// Prevent tax and surcharge pipelines from changing merchant-concluded amounts.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]

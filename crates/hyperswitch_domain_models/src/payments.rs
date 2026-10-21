@@ -561,6 +561,30 @@ impl PaymentIntent {
             .transpose()
     }
 
+    /// Whether tax and surcharge pipelines must preserve the merchant's final amounts.
+    #[cfg(feature = "v1")]
+    pub fn is_settlement_conclusion_applied(&self) -> bool {
+        self.get_optional_feature_metadata()
+            .ok()
+            .flatten()
+            .and_then(|metadata| metadata.settlement_conclusion_applied)
+            .unwrap_or(false)
+    }
+
+    /// Store the setting in the intent's JSON feature metadata for subsequent flows.
+    #[cfg(feature = "v1")]
+    pub fn set_settlement_conclusion_applied(
+        &mut self,
+        settlement_conclusion_applied: bool,
+    ) -> CustomResult<(), common_utils::errors::ParsingError> {
+        use common_utils::ext_traits::Encode;
+
+        let mut feature_metadata = self.get_optional_feature_metadata()?.unwrap_or_default();
+        feature_metadata.settlement_conclusion_applied = Some(settlement_conclusion_applied);
+        self.feature_metadata = Some(Secret::new(feature_metadata.encode_to_value()?));
+        Ok(())
+    }
+
     #[cfg(feature = "v1")]
     pub fn into_payment_method_list_intent_data(
         self,

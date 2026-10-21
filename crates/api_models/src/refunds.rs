@@ -7,7 +7,7 @@ use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use super::payments::AmountFilter;
+use super::payments::{AmountFilter, MultiCurrencyProcessingAmountData};
 #[cfg(feature = "v1")]
 use crate::admin;
 use crate::{admin::MerchantConnectorInfo, enums};
@@ -18,7 +18,7 @@ use crate::{admin::MerchantConnectorInfo, enums};
 pub struct RefundFeatureMetadata {
     /// Settlement amount and currency for this refund.
     #[smithy(value_type = "Option<MultiCurrencyProcessingAmountData>")]
-    pub multi_currency_processing: Option<super::payments::MultiCurrencyProcessingAmountData>,
+    pub multi_currency_processing: Option<MultiCurrencyProcessingAmountData>,
 }
 
 #[cfg(feature = "v1")]

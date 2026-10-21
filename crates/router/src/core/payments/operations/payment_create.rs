@@ -835,7 +835,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .payment_intent
             .skip_external_tax_calculation
             .unwrap_or(false);
-        if is_tax_connector_enabled && !skip_external_tax_calculation {
+        if is_tax_connector_enabled
+            && !skip_external_tax_calculation
+            && !payment_data
+                .payment_intent
+                .is_settlement_conclusion_applied()
+        {
             let db = state.store.as_ref();
 
             let merchant_connector_id = business_profile
@@ -1796,8 +1801,16 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting connector_metadata to Value")?;
 
-        let feature_metadata = request
-            .get_feature_metadata_as_value()
+        let mut feature_metadata = request.feature_metadata.clone();
+        if let Some(settlement_conclusion_applied) = request.settlement_conclusion_applied {
+            feature_metadata
+                .get_or_insert_with(Default::default)
+                .settlement_conclusion_applied = Some(settlement_conclusion_applied);
+        }
+        let feature_metadata = feature_metadata
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting feature_metadata to Value")?;
 
