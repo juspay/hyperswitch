@@ -40,6 +40,7 @@ base64 = "0.22.1"
 error-stack = "0.4.1"
 futures = "0.3.31"
 http = "0.2.12"
+ip_network = { version = "0.4.1", default-features = false }
 mime = "0.3.17"
 rustc-hash = "1.1.0"
 serde = { version = "1.0.219", features = ["derive"] }

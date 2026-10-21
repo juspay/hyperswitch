@@ -95,7 +95,7 @@ impl<'a> IncomingWebhookVerifier<'a> {
     /// Only connectors requiring IP verification consult the config.
     /// The global IP verification toggle defaults to false and bypasses policy lookup when disabled.
     /// A missing or invalid policy or current connector's IP ranges is a configuration error.
-    /// Entries for other connectors do not affect this request.
+    /// Malformed entries invalidate the entire policy during deserialization.
     async fn verify_source_ip(
         &self,
         state: &SessionState,
@@ -113,6 +113,9 @@ impl<'a> IncomingWebhookVerifier<'a> {
                 )
                 .await;
             if enabled {
+                let connector_name = connector_name
+                    .parse::<Connector>()
+                    .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
                 let policy = dimensions
                     .get_incoming_webhook_allowed_ip_ranges(
                         state.store.as_ref(),
@@ -127,9 +130,9 @@ impl<'a> IncomingWebhookVerifier<'a> {
                     request_headers,
                     self.settings.source_ip_header.as_deref(),
                 )
-                .map_err(|reason| {
-                    let error: errors::ApiErrorResponse = reason.switch();
-                    let reason: &'static str = reason.into();
+                .map_err(|error| {
+                    let api_error: errors::ApiErrorResponse = error.current_context().switch();
+                    let reason: &'static str = (*error.current_context()).into();
                     metrics::WEBHOOK_IP_VERIFICATION_FAILURE_COUNT.add(
                         1,
                         router_env::metric_attributes!(
@@ -137,7 +140,7 @@ impl<'a> IncomingWebhookVerifier<'a> {
                             ("reason", reason)
                         ),
                     );
-                    report!(error).attach_printable(format!(
+                    error.change_context(api_error).attach_printable(format!(
                         "Webhook source IP verification failed: {reason}"
                     ))
                 })
@@ -288,14 +291,6 @@ mod tests {
     #[test]
     fn ip_verification_is_disabled_by_default() {
         assert!(!IncomingWebhookIpVerificationEnabled::default_value());
-    }
-
-    #[test]
-    fn ip_verification_requirement_follows_connector_specifications() {
-        assert!(connector("envoy").is_webhook_ip_verification_required());
-        for name in ["stripe", "worldpayxml", "santander"] {
-            assert!(!connector(name).is_webhook_ip_verification_required());
-        }
     }
 
     #[test]

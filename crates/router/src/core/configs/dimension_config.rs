@@ -1,8 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::webhooks::IncomingWebhookEvent;
-use common_enums;
+use common_enums::{self, connector_enums};
 use external_services::superposition;
+use hyperswitch_domain_models::webhooks::IncomingWebhookIpRange;
 use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{dimension_state, fetch_db_config_for_dimensions, ConfigContext, DatabaseBackedConfig};
@@ -992,8 +993,9 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
     }
 }
 
-/// Parse only the selected connector's ranges so malformed entries remain isolated.
-pub type IncomingWebhookIpRangesConfig = HashMap<String, serde_json::Value>;
+/// Incoming webhook allowed IP ranges, keyed by connector.
+pub type IncomingWebhookIpRangesConfig =
+    HashMap<connector_enums::Connector, Vec<IncomingWebhookIpRange>>;
 
 // An absent config defaults to an empty object; enabled, required checks reject missing ranges.
 config! {

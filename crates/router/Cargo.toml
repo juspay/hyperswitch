@@ -222,7 +222,6 @@ hex = "0.4.3"
 hkdf = "0.12.4"
 http = "0.2.12"
 infer = "0.15.0"
-ip_network = { version = "0.4.1", default-features = false }
 josekit = "0.8.7"
 jsonwebtoken = "9.3.1"
 libm = "0.2"
