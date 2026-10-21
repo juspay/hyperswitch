@@ -12430,42 +12430,26 @@ where
     let (connectors, routing_approach, requires_eligibility) =
         routing_outcome.unwrap_or(fallback_outcome);
 
-    let final_connectors = match active_mca_ids {
-        Some(ids_result) if requires_eligibility => {
-            let eligibility_result = match ids_result {
-                Ok(ids) => {
-                    routing::perform_eligibility_analysis_with_fallback(
-                        &state,
-                        processor.get_key_store(),
-                        connectors.clone(),
-                        &txn,
-                        eligible_connectors.clone(),
-                        business_profile,
-                        Some(&ids),
-                    )
-                    .await
-                }
-                Err(error) => {
-                    logger::error!(error=?error, "euclid_routing: failed to fetch active merchant connector accounts; degrading to fallback config");
-                    routing::get_eligibility_fallback_config(
-                        &state,
-                        &txn,
-                        eligible_connectors.clone(),
-                        business_profile,
-                    )
-                    .await
-                }
-            };
-            eligibility_result
-                .inspect_err(|err| {
-                    logger::error!(
-                        error = ?err,
-                        "euclid: eligibility analysis failed, using fallback connectors"
-                    );
-                })
-                .unwrap_or_else(|_| fallback_config.clone())
-        }
-        _ => connectors,
+    let final_connectors = if requires_eligibility {
+        routing::perform_eligibility_analysis_with_fallback(
+            &state,
+            processor.get_key_store(),
+            connectors,
+            &txn,
+            eligible_connectors,
+            business_profile,
+            active_mca_ids
+                .as_ref()
+                .and_then(|result| result.as_ref().ok()),
+        )
+        .await
+        .inspect_err(|err| {
+            logger::error!(error = ?err, "euclid: eligibility analysis failed");
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed eligibility analysis and fallback")?
+    } else {
+        connectors
     };
 
     core_routing::log_connectors("eligibility", &final_connectors);
