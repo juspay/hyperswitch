@@ -3988,6 +3988,7 @@ pub fn log_connectors(stage: &str, connectors: &[routing::RoutableConnectorChoic
     let names: Vec<String> = connectors.iter().map(|c| c.connector.to_string()).collect();
 
     router_env::logger::debug!(
+        connectors = ?connectors,
         "euclid: connectors after {} = {{{}}}",
         stage,
         names.join(", ")

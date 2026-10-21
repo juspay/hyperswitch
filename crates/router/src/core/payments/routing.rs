@@ -2856,12 +2856,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
             {
                 Ok(merchant_connector_accounts) => merchant_connector_accounts.get_ids(),
                 Err(err) => {
-                    logger::error!(
-                        error = ?err,
-                        "euclid_routing: failed to fetch active merchant connector accounts; \
-                         degrading to eligibility-filtered fallback config"
-                    );
-                    return get_fallback_config(state, transaction_data, business_profile)
+                    let fallback = get_fallback_config(state, transaction_data, business_profile)
                         .await
                         .map(|mut fallback_config| {
                             if let Some(eligible) = eligible_connectors {
@@ -2870,6 +2865,15 @@ pub async fn perform_eligibility_analysis_with_fallback(
                             }
                             fallback_config
                         });
+                    logger::error!(
+                        error = ?err,
+                        profile_id = %business_profile.get_id().get_string_repr(),
+                        eligibility_bypassed = true,
+                        fallback_connectors = ?fallback.as_ref().ok(),
+                        "euclid_routing: failed to fetch active merchant connector accounts; \
+                         degrading to fallback config without MCA eligibility checks"
+                    );
+                    return fallback;
                 }
             };
 

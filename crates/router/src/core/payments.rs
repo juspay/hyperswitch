@@ -12446,20 +12446,30 @@ where
                     .await
                 }
                 Err(error) => {
-                    logger::error!(error=?error, "euclid_routing: failed to fetch active merchant connector accounts; degrading to fallback config");
-                    routing::get_eligibility_fallback_config(
+                    let fallback = routing::get_eligibility_fallback_config(
                         &state,
                         &txn,
                         eligible_connectors.clone(),
                         business_profile,
                     )
-                    .await
+                    .await;
+                    logger::error!(
+                        error = ?error,
+                        profile_id = %business_profile.get_id().get_string_repr(),
+                        eligibility_bypassed = true,
+                        fallback_connectors = ?fallback.as_ref().ok(),
+                        "euclid_routing: failed to fetch active merchant connector accounts; degrading to fallback config"
+                    );
+                    fallback
                 }
             };
             eligibility_result
                 .inspect_err(|err| {
                     logger::error!(
                         error = ?err,
+                        profile_id = %business_profile.get_id().get_string_repr(),
+                        eligibility_bypassed = true,
+                        fallback_connectors = ?fallback_config,
                         "euclid: eligibility analysis failed, using fallback connectors"
                     );
                 })
