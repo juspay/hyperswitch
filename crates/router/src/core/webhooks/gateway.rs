@@ -1058,6 +1058,7 @@ mod tests {
                 payments_grpc::PaymentEventReference {
                     connector_transaction_id: connector_transaction_id.map(str::to_string),
                     merchant_transaction_id: merchant_transaction_id.map(str::to_string),
+                    connector_preprocessing_id: None,
                 },
             )),
         }
