@@ -29,7 +29,6 @@ use hyperswitch_domain_models::{
             SetupMandate, Void,
         },
         refunds::{Execute, RSync},
-        unified_authentication_service::{Authenticate, PostAuthenticate},
         Accept, Defend, Evidence, GiftCardBalanceCheck, Retrieve, Upload,
     },
     router_request_types::{
@@ -37,11 +36,10 @@ use hyperswitch_domain_models::{
             ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
-        GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsExtendAuthorizationData, PaymentsPostAuthenticateData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, RetrieveFileRequestData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, RetrieveFileRequestData,
+        SetupMandateRequestData, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::{
@@ -467,19 +465,6 @@ impl api::MandateSetup for Adyen {}
 impl api::ConnectorAccessToken for Adyen {}
 impl api::PaymentToken for Adyen {}
 impl api::PaymentsGiftCardBalanceCheck for Adyen {}
-// Card 3DS runs as separate Authenticate / PostAuthenticate legs only on the Unified Connector
-// Service path (see `is_authentication_flow_required_for_execution_path` and
-// `is_post_authentication_flow_required_for_execution_path` below), where UCS makes the
-// connector calls. The Direct path keeps 3DS inside Authorize and never selects these legs.
-impl api::PaymentsAuthenticate for Adyen {}
-impl api::PaymentsPostAuthenticate for Adyen {}
-
-impl ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData> for Adyen {}
-
-impl ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
-    for Adyen
-{
-}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Adyen
@@ -3454,90 +3439,7 @@ static ADYEN_SUPPORTED_WEBHOOK_FLOWS: &[enums::EventClass] = &[
     enums::EventClass::Mandates,
 ];
 
-impl Adyen {
-    /// Card 3DS is split into Authenticate / PostAuthenticate legs only on the Unified Connector
-    /// Service path; the Direct path performs 3DS inside Authorize.
-    fn is_ucs_card_three_ds(
-        auth_type: enums::AuthenticationType,
-        is_card: bool,
-        execution_path: enums::ExecutionPath,
-    ) -> bool {
-        is_card
-            && auth_type == enums::AuthenticationType::ThreeDs
-            && !execution_path.is_direct_gateway()
-    }
-}
-
 impl ConnectorSpecifications for Adyen {
-    fn is_authentication_flow_required_for_execution_path(
-        &self,
-        current_flow: api::CurrentFlowInfo,
-        execution_path: enums::ExecutionPath,
-    ) -> bool {
-        match current_flow {
-            api::CurrentFlowInfo::Authorize {
-                auth_type,
-                request_data,
-            } => {
-                // Merchant-supplied external 3DS data goes straight to Authorize (mpiData);
-                // running the Authenticate leg as well would challenge the shopper twice.
-                Self::is_ucs_card_three_ds(
-                    auth_type,
-                    matches!(
-                        request_data.payment_method_data,
-                        payment_method_data::PaymentMethodData::Card(_)
-                    ),
-                    execution_path,
-                ) && request_data.authentication_data.is_none()
-            }
-            api::CurrentFlowInfo::CompleteAuthorize { .. }
-            | api::CurrentFlowInfo::SetupMandate { .. }
-            | api::CurrentFlowInfo::Psync { .. }
-            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
-        }
-    }
-    fn is_post_authentication_flow_required_for_execution_path(
-        &self,
-        current_flow: api::CurrentFlowInfo,
-        execution_path: enums::ExecutionPath,
-    ) -> bool {
-        match current_flow {
-            api::CurrentFlowInfo::CompleteAuthorize {
-                auth_type,
-                payment_method,
-                ..
-            } => Self::is_ucs_card_three_ds(
-                auth_type,
-                payment_method == Some(enums::PaymentMethod::Card),
-                execution_path,
-            ),
-            api::CurrentFlowInfo::Authorize { .. }
-            | api::CurrentFlowInfo::SetupMandate { .. }
-            | api::CurrentFlowInfo::Psync { .. }
-            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
-        }
-    }
-    fn should_continue_after_authenticate(
-        &self,
-        has_redirection_data: bool,
-        status: enums::AttemptStatus,
-        execution_path: enums::ExecutionPath,
-    ) -> bool {
-        // A frictionless authentication (no challenge redirect) continues to Authorize; a
-        // challenge returns to complete-authorize, and a failed or already-settled leg stops.
-        !has_redirection_data
-            && !matches!(
-                status,
-                enums::AttemptStatus::AuthenticationFailed
-                    | enums::AttemptStatus::Failure
-                    | enums::AttemptStatus::Charged
-                    | enums::AttemptStatus::PartialCharged
-                    | enums::AttemptStatus::Authorized
-            )
-            && !execution_path.is_direct_gateway()
-    }
     fn is_balance_check_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { request_data, .. } => {

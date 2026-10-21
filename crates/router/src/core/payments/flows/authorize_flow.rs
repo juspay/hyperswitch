@@ -632,16 +632,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     where
         Self: Sized,
     {
-        if connector
-            .connector
-            .is_authentication_flow_required_for_execution_path(
-                api_interface::CurrentFlowInfo::Authorize {
-                    auth_type: self.auth_type,
-                    request_data: Box::new(self.request.clone()),
-                },
-                gateway_context.execution_path,
-            )
-        {
+        if connector.connector.is_authentication_flow_required(
+            api_interface::CurrentFlowInfo::Authorize {
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
+            },
+        ) {
             logger::info!(
                 "Authentication flow is required for connector: {}",
                 connector.connector_name
@@ -757,11 +753,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                             && payment_status
                             && !gateway_context.execution_path.is_direct_gateway()
                     }
-                    _ => connector.connector.should_continue_after_authenticate(
-                        redirection_data.is_some(),
-                        authorize_router_data.status,
-                        gateway_context.execution_path,
-                    ),
+                    _ => false,
                 },
                 _ => false,
             };

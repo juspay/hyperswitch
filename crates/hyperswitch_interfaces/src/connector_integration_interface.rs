@@ -617,55 +617,6 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.is_post_authentication_flow_required(current_flow),
         }
     }
-    fn is_authentication_flow_required_for_execution_path(
-        &self,
-        current_flow: CurrentFlowInfo,
-        execution_path: common_enums::ExecutionPath,
-    ) -> bool {
-        match self {
-            Self::Old(connector) => connector
-                .is_authentication_flow_required_for_execution_path(current_flow, execution_path),
-            Self::New(connector) => connector
-                .is_authentication_flow_required_for_execution_path(current_flow, execution_path),
-        }
-    }
-    fn is_post_authentication_flow_required_for_execution_path(
-        &self,
-        current_flow: CurrentFlowInfo,
-        execution_path: common_enums::ExecutionPath,
-    ) -> bool {
-        match self {
-            Self::Old(connector) => connector
-                .is_post_authentication_flow_required_for_execution_path(
-                    current_flow,
-                    execution_path,
-                ),
-            Self::New(connector) => connector
-                .is_post_authentication_flow_required_for_execution_path(
-                    current_flow,
-                    execution_path,
-                ),
-        }
-    }
-    fn should_continue_after_authenticate(
-        &self,
-        has_redirection_data: bool,
-        status: common_enums::AttemptStatus,
-        execution_path: common_enums::ExecutionPath,
-    ) -> bool {
-        match self {
-            Self::Old(connector) => connector.should_continue_after_authenticate(
-                has_redirection_data,
-                status,
-                execution_path,
-            ),
-            Self::New(connector) => connector.should_continue_after_authenticate(
-                has_redirection_data,
-                status,
-                execution_path,
-            ),
-        }
-    }
     fn is_settlement_split_call_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_settlement_split_call_required(current_flow),
