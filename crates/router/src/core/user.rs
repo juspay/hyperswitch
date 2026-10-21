@@ -470,15 +470,22 @@ pub async fn get_user_merchant_details(
     }))
 }
 
+/// Clears the user's recent 2FA verification state and blacklists every token
+/// issued to them so far. Used by signout and when a Dashboard session expires
+/// from inactivity.
+pub async fn end_user_sessions(state: &SessionState, user_id: &str) -> UserResult<()> {
+    tfa_utils::delete_totp_from_redis(state, user_id).await?;
+    tfa_utils::delete_recovery_code_from_redis(state, user_id).await?;
+    tfa_utils::delete_totp_secret_from_redis(state, user_id).await?;
+
+    auth::blacklist::insert_user_in_blacklist(state, user_id).await
+}
+
 pub async fn signout(
     state: SessionState,
     user_from_token: auth::UserIdFromAuth,
 ) -> UserResponse<()> {
-    tfa_utils::delete_totp_from_redis(&state, &user_from_token.user_id).await?;
-    tfa_utils::delete_recovery_code_from_redis(&state, &user_from_token.user_id).await?;
-    tfa_utils::delete_totp_secret_from_redis(&state, &user_from_token.user_id).await?;
-
-    auth::blacklist::insert_user_in_blacklist(&state, &user_from_token.user_id).await?;
+    end_user_sessions(&state, &user_from_token.user_id).await?;
     auth::cookies::remove_cookie_response()
 }
 

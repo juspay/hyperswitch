@@ -1019,7 +1019,7 @@ pub struct UserSettings {
     pub base_url: String,
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
-    pub idle_session_timeout_in_secs: Option<i64>,
+    pub idle_session_timeout_in_secs: Option<u32>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
