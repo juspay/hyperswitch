@@ -179,15 +179,6 @@ pub trait PaymentAttemptInterface {
     ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error>;
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-        &self,
-        preprocessing_id: &str,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
-    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
-
-    #[cfg(feature = "v1")]
     async fn find_attempts_by_processor_merchant_id_payment_id(
         &self,
         processor_merchant_id: &id_type::MerchantId,

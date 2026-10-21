@@ -233,6 +233,9 @@ pub async fn find_payment_intent_from_payment_id_type(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         }
+        payments::PaymentIdType::PreprocessingId(_) => {
+            Err(errors::ApiErrorResponse::PaymentNotFound)?
+        }
     }
 }
 

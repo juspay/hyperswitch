@@ -20,7 +20,7 @@ use crate::{
     consts,
     core::{
         configs::dimension_state,
-        errors::{self, utils::ConnectorErrorExt, RouterResult, StorageErrorExt},
+        errors::{self, utils::ConnectorErrorExt, RouterResult},
         metrics,
         unified_connector_service::{
             self, build_unified_connector_service_auth_metadata,
@@ -425,16 +425,13 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
             .ucs_event_type
             .unwrap_or(IncomingWebhookEvent::EventNotSupported);
         let reference = match ctx.ucs_reference.as_ref() {
-            Some(r) => event_reference_to_webhook_reference(r)?,
+            Some(r) => event_reference_to_object_ref(r)?,
             None => None,
         };
 
         let outcome = match FilterDecision::evaluate(event_type, ctx).await {
             FilterDecision::Skip => WebhookOutcome::Skipped {
-                reference: reference.and_then(|reference| match reference {
-                    UcsWebhookReference::Object(reference) => Some(reference),
-                    UcsWebhookReference::PreprocessingId(_) => None,
-                }),
+                reference,
                 event_type,
                 ack_response: WebhookResponse::StatusOk,
             },
@@ -445,7 +442,6 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                             "UCS ParseEvent produced no object reference for a non-filtered event",
                         )
                 })?;
-                let (reference, webhook_resource_data) = reference.resolve(ctx).await?;
                 let mca = resolve_mca(ctx, &reference).await?;
                 #[cfg(feature = "v1")]
                 let webhook_secrets = build_webhook_secrets_from_merchant_connector_account(
@@ -466,8 +462,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     "Failed to resolve webhook secrets from merchant connector account",
                 )?;
 
-                let event_context =
-                    build_event_context(ctx, &reference, webhook_resource_data.as_ref()).await;
+                let event_context = build_event_context(ctx, &reference).await;
 
                 let handle_request = build_handle_event_request(
                     request,
@@ -528,7 +523,9 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     content: WebhookContent::UnifiedConnectorService(bytes),
                     // UCS uses the raw request body — no decoded_body needed.
                     decoded_body: None,
-                    webhook_resource_data: Box::new(webhook_resource_data),
+                    // UCS path does not pre-fetch resource data; the downstream
+                    // flow will fetch it on demand.
+                    webhook_resource_data: Box::new(None),
                     masked_log_payload,
                     merchant_connector_account: Box::new(mca),
                     ack_response,
@@ -915,51 +912,9 @@ fn build_merchant_event_id(ctx: &WebhookGatewayContext) -> String {
     )
 }
 
-enum UcsWebhookReference {
-    Object(ObjectReferenceId),
-    PreprocessingId(String),
-}
-
-impl UcsWebhookReference {
-    async fn resolve(
-        self,
-        ctx: &WebhookGatewayContext,
-    ) -> RouterResult<(ObjectReferenceId, Option<WebhookResourceData>)> {
-        match self {
-            Self::Object(reference) => Ok((reference, None)),
-            Self::PreprocessingId(preprocessing_id) => {
-                let processor = ctx.platform.get_processor();
-                let payment_attempt = ctx
-                    .state
-                    .store
-                    .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-                        &preprocessing_id,
-                        processor.get_account().get_id(),
-                        processor.get_account().storage_scheme,
-                        processor.get_key_store(),
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?;
-
-                // Keep preprocessing IDs internal to UCS webhooks. Downstream flows
-                // resolve the normal attempt ID instead of reviving a public API variant.
-                let reference = ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PaymentAttemptId(
-                        payment_attempt.attempt_id.clone(),
-                    ),
-                );
-                Ok((
-                    reference,
-                    Some(WebhookResourceData::Payment { payment_attempt }),
-                ))
-            }
-        }
-    }
-}
-
-fn event_reference_to_webhook_reference(
+fn event_reference_to_object_ref(
     reference: &payments_grpc::EventReference,
-) -> RouterResult<Option<UcsWebhookReference>> {
+) -> RouterResult<Option<ObjectReferenceId>> {
     use api_models::{payments as api_payments, webhooks as api_webhooks};
     use payments_grpc::event_reference::Resource;
 
@@ -974,9 +929,9 @@ fn event_reference_to_webhook_reference(
                     api_payments::PaymentIdType::PaymentAttemptId(merchant_txn_id.clone()),
                 ))
             } else if let Some(preprocessing_id) = payment.connector_preprocessing_id.as_ref() {
-                return Ok(Some(UcsWebhookReference::PreprocessingId(
-                    preprocessing_id.clone(),
-                )));
+                Some(ObjectReferenceId::PaymentId(
+                    api_payments::PaymentIdType::PreprocessingId(preprocessing_id.clone()),
+                ))
             } else {
                 payment.connector_transaction_id.as_ref().map(|ctx_id| {
                     ObjectReferenceId::PaymentId(
@@ -1030,25 +985,23 @@ fn event_reference_to_webhook_reference(
         Resource::Payout(_) => None,
     };
 
-    Ok(out.map(UcsWebhookReference::Object))
+    Ok(out)
 }
 
 async fn build_event_context(
     ctx: &WebhookGatewayContext,
     reference: &ObjectReferenceId,
-    webhook_resource_data: Option<&WebhookResourceData>,
 ) -> Option<payments_grpc::EventContext> {
     let payment_attempt = match reference {
-        reference @ ObjectReferenceId::PaymentId(_) => match webhook_resource_data {
-            Some(resource) => resource.get_payment_attempt().clone(),
-            None => get_payment_attempt_from_object_reference_id(
+        reference @ ObjectReferenceId::PaymentId(_) => {
+            get_payment_attempt_from_object_reference_id(
                 &ctx.state,
                 reference.clone(),
                 ctx.platform.get_processor(),
             )
             .await
-            .ok()?,
-        },
+            .ok()?
+        }
         _ => return None,
     };
 
