@@ -18,6 +18,40 @@ pub fn is_global_ip(address: IpAddr) -> bool {
     ip_network::IpNetwork::from(address).is_global()
 }
 
+/// Whether a destination matches the configured proxy bypass hosts or IP networks.
+pub fn matches_proxy_bypass_hosts(url: &Url, bypass_proxy_hosts: Option<&str>) -> bool {
+    let host = url.host();
+    bypass_proxy_hosts
+        .unwrap_or_default()
+        .split(',')
+        .map(str::trim)
+        .filter(|entry| !entry.trim_matches('.').is_empty())
+        .any(|entry| match host.as_ref() {
+            Some(Host::Domain(domain)) => {
+                let host = domain.trim_end_matches('.').to_ascii_lowercase();
+                let entry = entry.trim_matches('.').to_ascii_lowercase();
+                entry == "*"
+                    || host == entry
+                    || host
+                        .strip_suffix(&entry)
+                        .is_some_and(|prefix| prefix.ends_with('.'))
+            }
+            Some(Host::Ipv4(address)) => {
+                let address = IpAddr::V4(*address);
+                entry.parse::<IpAddr>().is_ok_and(|ip| ip == address)
+                    || ip_network::IpNetwork::from_str_truncate(entry)
+                        .is_ok_and(|network| network.contains(address))
+            }
+            Some(Host::Ipv6(address)) => {
+                let address = IpAddr::V6(*address);
+                entry.parse::<IpAddr>().is_ok_and(|ip| ip == address)
+                    || ip_network::IpNetwork::from_str_truncate(entry)
+                        .is_ok_and(|network| network.contains(address))
+            }
+            None => false,
+        })
+}
+
 /// An absolute HTTP or HTTPS URL with a publicly routable IP literal, if supplied.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize)]
 #[serde(into = "String")]
@@ -59,41 +93,14 @@ impl SafeOutboundUrl {
         &self,
         bypass_proxy_hosts: Option<&str>,
     ) -> CustomResult<(), ValidationError> {
-        let host = self.0.host();
-        let is_blocked = bypass_proxy_hosts
-            .unwrap_or_default()
-            .split(',')
-            .map(str::trim)
-            .filter(|entry| !entry.trim_matches('.').is_empty())
-            .any(|entry| match host.as_ref() {
-                Some(Host::Domain(domain)) => {
-                    let host = domain.trim_end_matches('.').to_ascii_lowercase();
-                    let entry = entry.trim_matches('.').to_ascii_lowercase();
-                    entry == "*"
-                        || host == entry
-                        || host
-                            .strip_suffix(&entry)
-                            .is_some_and(|prefix| prefix.ends_with('.'))
-                }
-                Some(Host::Ipv4(address)) => {
-                    let address = IpAddr::V4(*address);
-                    entry.parse::<IpAddr>().is_ok_and(|ip| ip == address)
-                        || ip_network::IpNetwork::from_str_truncate(entry)
-                            .is_ok_and(|network| network.contains(address))
-                }
-                Some(Host::Ipv6(address)) => {
-                    let address = IpAddr::V6(*address);
-                    entry.parse::<IpAddr>().is_ok_and(|ip| ip == address)
-                        || ip_network::IpNetwork::from_str_truncate(entry)
-                            .is_ok_and(|network| network.contains(address))
-                }
-                None => false,
-            });
-        when(is_blocked, || {
-            Err(Report::new(ValidationError::InvalidValue {
-                message: "URL matches a configured proxy bypass host".to_string(),
-            }))
-        })
+        when(
+            matches_proxy_bypass_hosts(&self.0, bypass_proxy_hosts),
+            || {
+                Err(Report::new(ValidationError::InvalidValue {
+                    message: "URL matches a configured proxy bypass host".to_string(),
+                }))
+            },
+        )
     }
 
     /// Get the normalized URL string.
@@ -122,7 +129,24 @@ impl hyperswitch_masking::SerializableSecret for SafeOutboundUrl {}
 
 #[cfg(test)]
 mod tests {
-    use super::SafeOutboundUrl;
+    use super::{matches_proxy_bypass_hosts, SafeOutboundUrl};
+
+    #[test]
+    fn proxy_bypass_matches_domains_and_ip_networks_without_matching_lookalikes() {
+        let url = url::Url::parse("https://api.connector.example/path").expect("URL");
+        assert!(matches_proxy_bypass_hosts(&url, Some(".connector.example")));
+        assert!(!matches_proxy_bypass_hosts(&url, None));
+        let lookalike = url::Url::parse("https://notconnector.example/").expect("URL");
+        assert!(!matches_proxy_bypass_hosts(
+            &lookalike,
+            Some("connector.example")
+        ));
+
+        let ipv4 = url::Url::parse("http://127.0.0.1/").expect("IPv4 URL");
+        assert!(matches_proxy_bypass_hosts(&ipv4, Some("127.0.0.0/8")));
+        let ipv6 = url::Url::parse("http://[::1]/").expect("IPv6 URL");
+        assert!(matches_proxy_bypass_hosts(&ipv6, Some("::1/128")));
+    }
 
     #[test]
     fn typed_url_validates_syntax_and_preserves_the_json_string() {

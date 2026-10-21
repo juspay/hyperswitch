@@ -543,8 +543,11 @@ impl common_utils::events::ApiEventMetric for KillSwitchStatusResponse {}
 pub async fn reset(state: SessionState, listed_key: String) -> errors::RouterResponse<()> {
     let rollout_scope = rollout_scope_in(&listed_key);
     let (conn, key) = if listed_key == consts::UCS_SHADOW_KILL_SWITCH_REDIS_KEY {
+        // The MITM proxy and its shadow counter are shared across tenants. Read,
+        // increment and reset that counter through the same global Redis namespace.
         (state.global_store.get_redis_conn(), listed_key.clone())
     } else {
+        // Primary UCS counters belong to a tenant's merchant rollout scope.
         (state.store.get_redis_conn(), counter_key(rollout_scope))
     };
     let reply = conn
@@ -864,11 +867,10 @@ mod tests {
     }
 }
 
-/// Disable shadow proxying after qualifying HS request failures reach a shared threshold.
+/// Disable shadow proxying after confirmed proxy failures reach a shared threshold.
+/// The proxy is shared across tenants, so its counter uses `global_store` consistently
+/// for increments, enforcement, status and reset. Primary UCS counters use tenant `store`.
 pub mod shadow {
-    use std::error::Error;
-
-    use common_enums::ApiClientError;
     use hyperswitch_domain_models::router_data::ErrorResponse;
     use hyperswitch_interfaces::{api::gateway::GetRouterData, errors::ConnectorError};
     use router_env::logger;
@@ -900,57 +902,48 @@ pub mod shadow {
             .map_or(1, |config| config.shadow_kill_switch_threshold)
     }
 
-    // Check typed transport errors rather than treating every processing/decoding error
-    // or connector HTTP 5xx as a proxy failure. Transport errors cannot always identify
-    // whether the proxy or the upstream connector caused the failure.
-    fn is_transport_error(error: &error_stack::Report<ConnectorError>) -> bool {
-        error.downcast_ref::<ApiClientError>().is_some_and(|error| {
-            error.is_upstream_timeout()
-                || error.is_connection_closed_before_message_could_complete()
-        }) || error.current_context().is_connector_timeout()
-            || error.downcast_ref::<reqwest::Error>().is_some_and(|error| {
-                !error.is_builder()
-                    && (error.is_connect()
-                        || error.is_timeout()
-                        || error.is_body()
-                        || std::iter::successors(error.source(), |source| (*source).source())
-                            .any(|source| source.is::<std::io::Error>()))
-            })
-            || error.downcast_ref::<http::StatusCode>()
-                == Some(&http::StatusCode::PROXY_AUTHENTICATION_REQUIRED)
+    fn proxy_failure_reason(error: &error_stack::Report<ConnectorError>) -> Option<&'static str> {
+        if error.downcast_ref::<http::StatusCode>()
+            == Some(&http::StatusCode::PROXY_AUTHENTICATION_REQUIRED)
+        {
+            return Some("proxy_authentication_required");
+        }
+        error
+            .downcast_ref::<external_services::http_client::proxy::ConfirmedProxyFailure>()
+            .map(|failure| failure.reason())
     }
 
-    fn is_proxy_or_timeout_response(error: &ErrorResponse) -> bool {
+    fn is_proxy_auth_response(error: &ErrorResponse) -> bool {
         error.status_code == 407
-            || (error.status_code == 504
-                && error.code == hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_CODE
-                && error.message == hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_MESSAGE)
     }
 
-    /// Called only on the shadow path; record HS transport/proxy failures.
+    /// Called only on the shadow path; check and record confirmed proxy failures.
+    /// Generic connector/read timeouts alone, response-body errors and ordinary 5xx
+    /// responses do not establish that the proxy failed and must not disable shadow fleet-wide.
     /// Redis commands use the application's existing configured timeout.
-    pub async fn record_failure<F, Req, Resp, Output>(
+    pub async fn check_record_failure<F, Req, Resp, Output>(
         state: &SessionState,
         payment_id: &str,
         result: &common_utils::errors::CustomResult<Output, ConnectorError>,
     ) where
         Output: GetRouterData<F, Req, Resp>,
     {
-        let qualifying = match result {
-            Err(error) => is_transport_error(error),
+        let reason = match result {
+            Err(error) => proxy_failure_reason(error),
             Ok(output) => {
                 let router_data = output.get_router_data();
-                router_data.connector_http_status_code == Some(407)
+                (router_data.connector_http_status_code == Some(407)
                     || router_data
                         .response
                         .as_ref()
                         .err()
-                        .is_some_and(is_proxy_or_timeout_response)
+                        .is_some_and(is_proxy_auth_response))
+                .then_some("proxy_authentication_required")
             }
         };
-        if !qualifying {
+        let Some(reason) = reason else {
             return;
-        }
+        };
         let write = async {
             let conn = state.global_store.get_redis_conn()?;
             write_hash_counter(
@@ -963,12 +956,31 @@ pub mod shadow {
         }
         .await;
         match write {
-            Ok(counts) => logger::warn!(
-                payment_id,
-                request_id = ?state.request_id,
-                count = ?counts.first(),
-                "SHADOW_KILL_SWITCH_COUNTER_INCREMENTED"
-            ),
+            Ok(counts) => {
+                let count = counts.first().and_then(|count| u64::try_from(*count).ok());
+                logger::warn!(
+                    payment_id,
+                    request_id = ?state.request_id,
+                    count = ?count,
+                    reason,
+                    "SHADOW_KILL_SWITCH_COUNTER_INCREMENTED"
+                );
+
+                let configured_threshold = threshold(state);
+                // The atomic Redis increment returns the threshold value to only one
+                // request, so concurrent failures do not repeat the trip event.
+                if let Some(count) = count.filter(|count| *count == configured_threshold) {
+                    logger::warn!(
+                        key = COUNTER_KEY,
+                        payment_id,
+                        request_id = ?state.request_id,
+                        count,
+                        threshold = configured_threshold,
+                        reason,
+                        "SHADOW_KILL_SWITCH_TRIPPED"
+                    );
+                }
+            }
             Err(error) => logger::warn!(
                 payment_id,
                 request_id = ?state.request_id,
@@ -991,6 +1003,38 @@ pub mod shadow {
                 );
                 true
             }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn proxy_authentication_is_distinct_from_connector_timeout_and_5xx() {
+            let proxy_auth = ErrorResponse {
+                status_code: 407,
+                ..Default::default()
+            };
+            assert!(is_proxy_auth_response(&proxy_auth));
+            for status_code in [500, 502, 503, 504] {
+                let response = ErrorResponse {
+                    status_code,
+                    code: hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_CODE.to_owned(),
+                    message: hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_MESSAGE
+                        .to_owned(),
+                    ..Default::default()
+                };
+                assert!(!is_proxy_auth_response(&response));
+            }
+        }
+
+        #[test]
+        fn connector_timeout_without_a_proxy_cause_does_not_count() {
+            let error =
+                error_stack::Report::new(common_enums::ApiClientError::RequestTimeoutReceived)
+                    .change_context(ConnectorError::RequestTimeoutReceived);
+            assert_eq!(proxy_failure_reason(&error), None);
         }
     }
 }

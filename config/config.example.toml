@@ -1715,3 +1715,6 @@ use_legacy_locker = false           # Boolean to enable legacy locker
 
 # Set shadow_kill_switch_threshold = 1 under the existing [comparison_service] section.
 # Override using ROUTER__COMPARISON_SERVICE__SHADOW_KILL_SWITCH_THRESHOLD.
+# Counts confirmed proxy DNS/connection failures and proxy authentication errors.
+# Connector/read timeouts alone and ordinary upstream 5xx responses do not increment it.
+# A connection failure or timeout may take up to 2 additional seconds to confirm proxy reachability.
