@@ -510,7 +510,7 @@ impl RedisTokenManager {
     ) -> TokenRetryInfo {
         // The retries are still recorded in every environment, but the limits are enforced only
         // in production: test traffic in the other environments must not exhaust a card.
-        if !state.conf.env.is_production() {
+        if !matches!(router_env::env::which(), router_env::env::Env::Production) {
             return TokenRetryInfo {
                 monthly_wait_hours: 0,
                 daily_wait_hours: 0,

@@ -45,13 +45,6 @@ pub enum Env {
     Production,
 }
 
-impl Env {
-    /// Whether this is the production environment.
-    pub fn is_production(self) -> bool {
-        matches!(self, Self::Production)
-    }
-}
-
 /// Name of current environment. Either "development", "sandbox" or "production".
 pub fn which() -> Env {
     #[cfg(debug_assertions)]
