@@ -2611,6 +2611,7 @@ async fn update_payment_method_mandate_status(
         .await?;
         let mandate_response = api::mandates::MandateResponse {
             mandate_id: connector_mandate_id.clone(),
+            payment_id: Some(payment_id.clone()),
             status: mandate_status,
             payment_method_id: payment_method_id.to_string(),
             payment_method: payment_method_name,
