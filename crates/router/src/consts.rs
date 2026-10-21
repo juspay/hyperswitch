@@ -554,6 +554,9 @@ pub mod superposition {
     /// Allowed incoming webhook source IPs/CIDRs, keyed by connector.
     pub const INCOMING_WEBHOOK_ALLOWED_IP_RANGES: &str =
         "webhooks.incoming_webhooks_allowed_ip_ranges";
+    /// Global incoming webhook IP verification kill switch, defaults to `false`.
+    pub const INCOMING_WEBHOOK_IP_VERIFICATION_ENABLED: &str =
+        "webhooks.incoming_webhooks_ip_verification_enabled";
     /// Whether incoming webhook mTLS verification is enabled, defaults to `false`.
     pub const INCOMING_WEBHOOK_MTLS_VERIFICATION_ENABLED: &str =
         "incoming_webhooks.mtls_verification_enabled";

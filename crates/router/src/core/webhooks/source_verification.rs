@@ -83,6 +83,7 @@ impl<'a> IncomingWebhookVerifier<'a> {
     /// Read the incoming webhooks allowed IP ranges config and validate that the IP is allowed for
     /// this connector.
     ///
+    /// The global IP verification toggle defaults to false and bypasses policy lookup when disabled.
     /// A missing policy defaults to an empty object, disabling IP checks for all connectors.
     /// An invalid policy root or current connector's IP ranges is a configuration error.
     /// Entries for other connectors do not affect this request.
@@ -92,28 +93,42 @@ impl<'a> IncomingWebhookVerifier<'a> {
         connector_name: &str,
         request_headers: &HeaderMap,
     ) -> RouterResult<VerificationStatus> {
-        let policy = dimension_state::Dimensions::new()
-            .get_incoming_webhook_allowed_ip_ranges(
+        let dimensions = dimension_state::Dimensions::new();
+        let enabled = dimensions
+            .get_incoming_webhook_ip_verification_enabled(
                 state.store.as_ref(),
                 state.superposition_service.as_ref(),
                 None,
             )
             .await;
+        if enabled {
+            let policy = dimensions
+                .get_incoming_webhook_allowed_ip_ranges(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
 
-        validate_source_ip_against_allowed_ip_ranges(policy, connector_name, request_headers)
-            .map_err(|reason| {
-                let error: errors::ApiErrorResponse = reason.switch();
-                let reason: &'static str = reason.into();
-                metrics::WEBHOOK_IP_VERIFICATION_FAILURE_COUNT.add(
-                    1,
-                    router_env::metric_attributes!(
-                        ("connector", connector_name.to_string()),
-                        ("reason", reason)
-                    ),
-                );
-                report!(error)
-                    .attach_printable(format!("Webhook source IP verification failed: {reason}"))
-            })
+            validate_source_ip_against_allowed_ip_ranges(policy, connector_name, request_headers)
+                .map_err(|reason| {
+                    let error: errors::ApiErrorResponse = reason.switch();
+                    let reason: &'static str = reason.into();
+                    metrics::WEBHOOK_IP_VERIFICATION_FAILURE_COUNT.add(
+                        1,
+                        router_env::metric_attributes!(
+                            ("connector", connector_name.to_string()),
+                            ("reason", reason)
+                        ),
+                    );
+                    report!(error).attach_printable(format!(
+                        "Webhook source IP verification failed: {reason}"
+                    ))
+                })
+        } else {
+            // Disabling IP verification must preserve the connector's existing trust decision.
+            Ok(VerificationStatus::NotRequired)
+        }
     }
 
     /// Enforce mTLS before processing when enabled in Superposition for the connector.
@@ -213,7 +228,12 @@ mod tests {
     use super::{IncomingWebhookVerifier, NetworkVerification, VerificationStatus};
     use crate::{
         configs::settings::IncomingWebhooksSettings,
-        core::{configs::dimension_config::IncomingWebhookMtlsVerificationEnabled, errors},
+        core::{
+            configs::dimension_config::{
+                IncomingWebhookIpVerificationEnabled, IncomingWebhookMtlsVerificationEnabled,
+            },
+            errors,
+        },
         services::connector_integration_interface::ConnectorEnum,
         types::api::ConnectorData,
     };
@@ -239,6 +259,11 @@ mod tests {
             );
         }
         request_headers
+    }
+
+    #[test]
+    fn ip_verification_is_disabled_by_default() {
+        assert!(!IncomingWebhookIpVerificationEnabled::default_value());
     }
 
     #[test]

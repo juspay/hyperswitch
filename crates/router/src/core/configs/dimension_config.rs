@@ -1006,6 +1006,23 @@ impl DatabaseBackedConfig for IncomingWebhookAllowedIpRanges {
 }
 
 config! {
+    superposition_key = INCOMING_WEBHOOK_IP_VERIFICATION_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for IncomingWebhookIpVerificationEnabled {
+    const KEY: &'static str = "incoming_webhook_ip_verification_enabled";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Keep the global kill switch in Superposition without a database fallback.
+        None
+    }
+}
+
+config! {
     superposition_key = INCOMING_WEBHOOK_MTLS_VERIFICATION_ENABLED,
     output = bool,
     default = false,
