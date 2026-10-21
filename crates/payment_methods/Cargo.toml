@@ -8,7 +8,7 @@ license.workspace = true
 [dependencies]
 actix-multipart = "0.6.2"
 actix-web = "4.11.0"
-async-trait = "0.1.88"
+async-trait = "0.1.92"
 bytes = "1.10.1"
 csv = "1.3.1"
 dyn-clone = "1.0.19"

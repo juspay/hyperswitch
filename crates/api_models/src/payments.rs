@@ -277,6 +277,9 @@ pub struct PaymentsCreateIntentRequest {
     /// The billing details of the payment. This address will be used for invoicing.
     pub billing: Option<Address>,
 
+    /// Payer details stored with the payment intent; does not create or attach a customer.
+    pub customer_details: Option<CustomerDetails>,
+
     /// The shipping address for the payment
     pub shipping: Option<Address>,
 
@@ -380,6 +383,10 @@ pub struct PaymentsCreateIntentRequest {
     /// Details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
+
+    /// Request address verification using the billing address for supported card payments.
+    #[schema(default = false, example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -568,6 +575,11 @@ pub struct PaymentsUpdateIntentRequest {
     /// Details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
+
+    /// Request address verification using the billing address for supported card payments.
+    /// Omit this field on updates or confirmation to preserve the existing setting.
+    #[schema(default = false, example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -603,6 +615,7 @@ impl PaymentsUpdateIntentRequest {
             enable_partial_authorization: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            enable_avs_check: None,
         }
     }
 }
@@ -759,6 +772,10 @@ pub struct PaymentsIntentResponse {
     /// Partially masked details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<MaskedRecipientDetails>)]
     pub recipient_details: Option<MaskedRecipientDetails>,
+
+    /// Whether address verification was requested for this payment.
+    #[schema(example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -1658,6 +1675,12 @@ pub struct PaymentsRequest {
     /// The strategy to use when applying surcharge for this payment.
     #[schema(value_type = Option<SurchargeStrategy>)]
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+
+    /// Request address verification using the billing address for supported card payments.
+    /// Omit this field on updates or confirmation to preserve the existing setting.
+    #[schema(default = false, example = true)]
+    #[smithy(value_type = "Option<bool>")]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -5797,6 +5820,21 @@ pub struct PaypalRedirection {
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
+    /// PayPal payer identifier.
+    #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
+    #[smithy(value_type = "Option<String>")]
+    pub payer_id: Option<Secret<String>>,
+}
+
+impl From<payment_methods::PaymentMethodDataWalletInfo> for PaypalRedirection {
+    fn from(info: payment_methods::PaymentMethodDataWalletInfo) -> Self {
+        Self {
+            email: info.email,
+            payer_id: info.provider_details.and_then(|details| match details {
+                payment_methods::WalletProviderDetails::PayPal(info) => info.payer_id,
+            }),
+        }
+    }
 }
 
 #[derive(
@@ -8106,6 +8144,11 @@ pub struct PaymentsResponse {
     )]
     #[smithy(value_type = "Option<String>")]
     pub sender_payment_instrument_id: Option<String>,
+
+    /// Whether address verification was requested for this payment.
+    #[schema(example = true)]
+    #[smithy(value_type = "Option<bool>")]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -8407,6 +8450,11 @@ pub struct PaymentsConfirmIntentRequest {
     /// The webhook endpoint URL to receive payment status notifications
     #[schema(value_type = Option<String>, example = "https://merchant.example.com/webhooks/payment")]
     pub webhook_url: Option<common_utils::types::Url>,
+
+    /// Request address verification using the billing address for supported card payments.
+    /// Omit this field on updates or confirmation to preserve the existing setting.
+    #[schema(default = false, example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -8512,6 +8560,9 @@ pub struct PaymentsRequest {
 
     /// The billing details of the payment. This address will be used for invoicing.
     pub billing: Option<Address>,
+
+    /// Payer details stored with the payment intent; does not create or attach a customer.
+    pub customer_details: Option<CustomerDetails>,
 
     /// The shipping address for the payment
     pub shipping: Option<Address>,
@@ -8649,6 +8700,11 @@ pub struct PaymentsRequest {
     /// Details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
+
+    /// Request address verification using the billing address for supported card payments.
+    /// Omit this field on updates or confirmation to preserve the existing setting.
+    #[schema(default = false, example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -8661,6 +8717,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             capture_method: request.capture_method,
             authentication_type: request.authentication_type,
             billing: request.billing.clone(),
+            customer_details: request.customer_details.clone(),
             shipping: request.shipping.clone(),
             customer_id: request.customer_id.clone(),
             customer_present: request.customer_present,
@@ -8686,6 +8743,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             enable_partial_authorization: request.enable_partial_authorization,
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: request.recipient_details.clone(),
+            enable_avs_check: request.enable_avs_check,
         }
     }
 }
@@ -8707,6 +8765,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             return_raw_connector_response: request.return_raw_connector_response,
             split_payment_method_data: None,
             webhook_url: request.webhook_url.clone(),
+            enable_avs_check: request.enable_avs_check,
         }
     }
 }
@@ -9016,6 +9075,10 @@ pub struct PaymentsResponse {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Whether address verification was requested for this payment.
+    #[schema(example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -10668,12 +10731,24 @@ pub struct ConnectorMetadata {
     pub peachpayments: Option<PeachpaymentsData>,
     #[smithy(value_type = "Option<SantanderData>")]
     pub santander: Option<SantanderConnectorMetadataData>,
+    #[smithy(value_type = "Option<PaypalConnectorMetadata>")]
+    pub paypal: Option<PaypalConnectorMetadata>,
     #[smithy(value_type = "Option<WorldpayxmlData>")]
     pub worldpayxml: Option<WorldpayxmlData>,
     #[smithy(value_type = "Option<CheckoutData>")]
     pub checkout: Option<CheckoutData>,
     #[smithy(value_type = "Option<StripeConnectorMetadata>")]
     pub stripe: Option<StripeConnectorMetadata>,
+}
+
+/// PayPal-specific metadata supplied with a payment request.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PaypalConnectorMetadata {
+    /// FraudNet session identifier sent in the PAYPAL-CLIENT-METADATA-ID request header.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub paypal_client_metadata_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -14304,6 +14379,7 @@ mod billing_from_payment_method_data {
         let paypal_wallet_payment_method_data =
             PaymentMethodData::Wallet(WalletData::PaypalRedirect(PaypalRedirection {
                 email: Some(test_email.clone()),
+                payer_id: None,
             }));
 
         let billing_address = paypal_wallet_payment_method_data
@@ -14728,6 +14804,9 @@ pub struct RecoveryPaymentsCreate {
 
     /// The billing details of the transaction.
     pub billing: Option<Address>,
+
+    /// Payer details stored with the payment intent; does not create or attach a customer.
+    pub customer_details: Option<CustomerDetails>,
 
     /// The payment method subtype used for the transaction.
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
