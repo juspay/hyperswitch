@@ -2730,6 +2730,9 @@ pub async fn perform_eligibility_analysis(
 }
 
 /// Fetches the merchant's default (fallback) list of routable connectors.
+///
+/// This is the ultimate degrade target for routing: it never applies cgraph/MCA
+/// filtering, so it can be returned as-is when the active MCA list is unavailable.
 #[cfg_attr(feature = "v2", allow(clippy::unused_async))]
 async fn get_fallback_config(
     state: &SessionState,
@@ -2796,6 +2799,25 @@ pub async fn perform_fallback_routing(
     .await
 }
 
+pub(super) async fn get_eligibility_fallback_config(
+    state: &SessionState,
+    transaction_data: &routing::TransactionData<'_>,
+    eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
+    business_profile: &domain::Profile,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    #[cfg(feature = "v1")]
+    let eligible_connectors =
+        update_eligible_connectors_for_installments(state, transaction_data, eligible_connectors);
+    get_fallback_config(state, transaction_data, business_profile)
+        .await
+        .map(|mut fallback| {
+            if let Some(eligible) = eligible_connectors {
+                fallback.retain(|choice| eligible.contains(&choice.connector));
+            }
+            fallback
+        })
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_eligibility_analysis_with_fallback(
     state: &SessionState,
@@ -2814,15 +2836,43 @@ pub async fn perform_eligibility_analysis_with_fallback(
     let eligible_connectors =
         update_eligible_connectors_for_installments(state, transaction_data, eligible_connectors);
 
+    // If the active-MCA fetch fails (e.g. a transient DB error), degrade to the
+    // merchant's fallback config instead of aborting the payment — log and return the
+    // fallback config, still restricted to the caller-specified eligible connectors
+    // (already intersected for installments) so a requested connector is never silently
+    // swapped for an arbitrary default. Hard failure can still occur downstream (e.g. a
+    // cold-cache refresh errors after this fetch succeeded); only the MCA-fetch failure
+    // is degraded here. Never populate the cgraph cache from a failed fetch.
     let fetched_ids;
     let active_mca_ids = match fetched_mca_ids {
         Some(ids) => ids,
         None => {
-            fetched_ids =
-                get_active_merchant_connector_accounts(state, key_store, business_profile.get_id())
-                    .await
-                    .attach_printable("cannot establish eligible MCAs for payment routing")?
-                    .get_ids();
+            fetched_ids = match get_active_merchant_connector_accounts(
+                state,
+                key_store,
+                business_profile.get_id(),
+            )
+            .await
+            {
+                Ok(merchant_connector_accounts) => merchant_connector_accounts.get_ids(),
+                Err(err) => {
+                    logger::error!(
+                        error = ?err,
+                        "euclid_routing: failed to fetch active merchant connector accounts; \
+                         degrading to eligibility-filtered fallback config"
+                    );
+                    return get_fallback_config(state, transaction_data, business_profile)
+                        .await
+                        .map(|mut fallback_config| {
+                            if let Some(eligible) = eligible_connectors {
+                                fallback_config
+                                    .retain(|choice| eligible.contains(&choice.connector));
+                            }
+                            fallback_config
+                        });
+                }
+            };
+
             &fetched_ids
         }
     };
