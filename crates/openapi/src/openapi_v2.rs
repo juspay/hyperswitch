@@ -179,6 +179,7 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for Revenue Recovery flow under Process Tracker
         routes::revenue_recovery::revenue_recovery_pt_retrieve_api,
         routes::revenue_recovery::revenue_recovery_payments_create,
+        routes::revenue_recovery::revenue_recovery_cancel,
 
         // Routes for proxy
         routes::proxy::proxy_core,
@@ -327,6 +328,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodDeleteResponse,
         api_models::payment_methods::PaymentMethodUpdate,
         api_models::payment_methods::PaymentMethodUpdateData,
+        api_models::payment_methods::WalletDetailUpdate,
         api_models::payment_methods::CardDetailFromLocker,
         api_models::payment_methods::PaymentMethodCreateData,
         api_models::payment_methods::BankDebitDetail,
@@ -349,6 +351,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodGetTokenDetailsResponse,
         api_models::payment_methods::RawCardWithNTDetails,
         api_models::payment_methods::PaymentMethodDataWalletInfo,
+        api_models::payment_methods::WalletProviderDetails,
+        api_models::payment_methods::PaypalWalletInfo,
         api_models::payment_methods::WalletPaymentMethodData,
         api_models::merchant_connector_webhook_management::Scope,
         api_models::merchant_connector_webhook_management::ScopeIdentifier,
@@ -523,6 +527,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::BankRedirectBilling,
         api_models::payments::BankRedirectBilling,
         api_models::payments::ConnectorMetadata,
+        api_models::payments::PaypalConnectorMetadata,
         api_models::payments::ConnectorMetadataResponse,
         api_models::payments::SantanderData,
         api_models::payments::SantanderJourneyName,
@@ -938,6 +943,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::blocklist::ToggleBlocklistResponse,
         api_models::blocklist::ListBlocklistQuery,
         api_models::enums::BlocklistDataKind,
+        api_models::enums::BlocklistTransactionType,
         api_models::enums::ErrorCategory,
         api_models::webhook_events::EventListItemResponse,
         api_models::webhook_events::EventRetrieveResponse,

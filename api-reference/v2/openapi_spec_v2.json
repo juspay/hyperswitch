@@ -4977,6 +4977,75 @@
         ]
       }
     },
+    "/v2/recovery/{merchant_reference_id}/cancel": {
+      "post": {
+        "tags": [
+          "Revenue Recovery"
+        ],
+        "summary": "Revenue Recovery - Cancel",
+        "description": "Cancel the revenue recovery workflow of an invoice that is still in recovery: its scheduled\nretries are stopped and no further recovery attempts are made. A `failed` payment moves to\n`cancelled`, and a partially captured payment moves to `cancelled_post_capture`. The request\nis refused with `400` when the payment is in any other state, when a retry is in progress,\nor when recovery already reached a terminal status. The invoice is looked up by its merchant\nreference id within the business profile given in the `X-Profile-Id` header.",
+        "operationId": "Cancel a Revenue Recovery Workflow",
+        "parameters": [
+          {
+            "name": "merchant_reference_id",
+            "in": "path",
+            "description": "Merchant reference id of the invoice whose revenue recovery workflow should be cancelled",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Unique identifier of the business profile under which the invoice is processed.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revenue Recovery workflow cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryPaymentsResponse"
+                },
+                "example": {
+                  "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                  "intent_status": "cancelled",
+                  "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The invoice cannot be cancelled: its payment is not failed or partially captured, a retry is in progress, or recovery already reached a terminal status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Invoice not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/proxy": {
       "post": {
         "tags": [
@@ -10640,6 +10709,7 @@
         "required": [
           "fingerprint_id",
           "data_kind",
+          "transaction_type",
           "created_at"
         ],
         "properties": {
@@ -10648,6 +10718,9 @@
           },
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/BlocklistTransactionType"
           },
           "created_at": {
             "type": "string",
@@ -10659,6 +10732,14 @@
             "nullable": true
           }
         }
+      },
+      "BlocklistTransactionType": {
+        "type": "string",
+        "description": "The transaction namespace of a blocklist entry, stored as text.",
+        "enum": [
+          "payment",
+          "payout"
+        ]
       },
       "BoletoAdditionalDetails": {
         "type": "object",
@@ -12581,6 +12662,7 @@
           "givepayments",
           "globalpay",
           "globalpayments_heartland",
+          "globalpayments_realex",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -12846,6 +12928,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SantanderConnectorMetadataData"
+              }
+            ],
+            "nullable": true
+          },
+          "paypal": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalConnectorMetadata"
               }
             ],
             "nullable": true
@@ -16752,7 +16842,7 @@
       },
       "FutureUsage": {
         "type": "string",
-        "description": "Specifies how the payment method can be used for future payments.\n- `off_session`: The payment method can be used for future payments when the customer is not present.\n- `on_session`: The payment method is intended for use only when the customer is present during checkout.\nIf omitted, defaults to `on_session`.",
+        "description": "Specifies how the payment method can be used for future payments.\n- `off_session`: The payment method can be used for future payments when the customer is not present.\n- `on_session`: The payment method is intended for use only when the customer is present during checkout.\n\nIf omitted, defaults to `on_session`.",
         "enum": [
           "off_session",
           "on_session"
@@ -18415,6 +18505,9 @@
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
           },
+          "transaction_type": {
+            "$ref": "#/components/schemas/BlocklistTransactionType"
+          },
           "limit": {
             "type": "integer",
             "format": "int32",
@@ -18669,6 +18762,11 @@
           "mandate_id": {
             "type": "string",
             "description": "The identifier for mandate"
+          },
+          "payment_id": {
+            "type": "string",
+            "description": "The original setup payment associated with this mandate, when known.",
+            "nullable": true
           },
           "status": {
             "$ref": "#/components/schemas/MandateStatus"
@@ -24473,6 +24571,14 @@
             "description": "Email address associated with the wallet (e.g. PayPal email)",
             "example": "johntest@test.com",
             "nullable": true
+          },
+          "provider_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletProviderDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24801,6 +24907,12 @@
                 "$ref": "#/components/schemas/AcknowledgementStatus"
               }
             ],
+            "nullable": true
+          },
+          "fingerprint_id": {
+            "type": "string",
+            "description": "A merchant-scoped fingerprint of the card, identical for the same card saved against\ndifferent customers of the merchant. Present only when payment method fingerprinting is\nenabled.",
+            "example": "wyH7yWdtaRhxDkVE1cvs",
             "nullable": true
           }
         }
@@ -25455,6 +25567,17 @@
                 "$ref": "#/components/schemas/BankDebitDetailUpdate"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletDetailUpdate"
+              }
+            }
           }
         ]
       },
@@ -25881,6 +26004,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
               }
             ],
             "nullable": true
@@ -26720,6 +26851,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
               }
             ],
             "nullable": true
@@ -28800,6 +28939,17 @@
           "authorize"
         ]
       },
+      "PaypalConnectorMetadata": {
+        "type": "object",
+        "description": "PayPal-specific metadata supplied with a payment request.",
+        "properties": {
+          "paypal_client_metadata_id": {
+            "type": "string",
+            "description": "FraudNet session identifier sent in the PAYPAL-CLIENT-METADATA-ID request header.",
+            "nullable": true
+          }
+        }
+      },
       "PaypalFlow": {
         "type": "string",
         "enum": [
@@ -28815,6 +28965,12 @@
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
+          },
+          "payer_id": {
+            "type": "string",
+            "description": "PayPal payer identifier.",
+            "example": "7DY7FRMPQ8CT6",
+            "nullable": true
           }
         }
       },
@@ -28906,6 +29062,18 @@
           "payer_id": {
             "type": "string",
             "description": "Unique identifier of the payer in PayPal",
+            "example": "7DY7FRMPQ8CT6",
+            "nullable": true
+          }
+        }
+      },
+      "PaypalWalletInfo": {
+        "type": "object",
+        "description": "PayPal-specific wallet details. Email belongs to the shared wallet model.",
+        "properties": {
+          "payer_id": {
+            "type": "string",
+            "description": "Unique identifier of the payer's PayPal account.",
             "example": "7DY7FRMPQ8CT6",
             "nullable": true
           }
@@ -31323,6 +31491,14 @@
             ],
             "nullable": true
           },
+          "customer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
+          },
           "payment_method_sub_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
           },
@@ -32404,6 +32580,20 @@
             "example": "5",
             "minimum": 0
           },
+          "grace_period_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Grace period, in days from the invoice's billing start, within which retries are allowed\nfor invoices of this `billing connector`. Defaults to 30 days when not provided.",
+            "default": 30,
+            "example": "30",
+            "minimum": 0
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for payments recovered through this `billing connector`.\nA value passed in the recovery payments API request takes priority over this. Defaults to\n`false` when not provided.",
+            "default": false,
+            "example": false
+          },
           "billing_account_reference": {
             "type": "integer",
             "format": "int32",
@@ -32584,6 +32774,7 @@
           "givepayments",
           "globalpay",
           "globalpayments_heartland",
+          "globalpayments_realex",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -36939,6 +37130,31 @@
           }
         ]
       },
+      "WalletDetailUpdate": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "pay_pal"
+            ],
+            "properties": {
+              "pay_pal": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "payer_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "WalletPaymentMethodData": {
         "oneOf": [
           {
@@ -36993,6 +37209,21 @@
             "properties": {
               "pay_pal": {
                 "$ref": "#/components/schemas/PaypalRedirection"
+              }
+            }
+          }
+        ]
+      },
+      "WalletProviderDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "PayPal"
+            ],
+            "properties": {
+              "PayPal": {
+                "$ref": "#/components/schemas/PaypalWalletInfo"
               }
             }
           }
