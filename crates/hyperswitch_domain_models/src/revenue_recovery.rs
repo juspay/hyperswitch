@@ -66,8 +66,6 @@ pub struct RevenueRecoveryAttemptData {
     pub charge_id: Option<String>,
     /// Additional card details
     pub card_info: api_payments::AdditionalCardInfo,
-    /// Billing address the transaction was made with, if the source reports it.
-    pub billing_address: Option<api_payments::Address>,
 }
 
 /// This is unified struct for Revenue Recovery Invoice Data and it is constructed from billing connectors
@@ -254,7 +252,6 @@ impl
             charge_id: billing_connector_payment_details.charge_id.clone(),
             invoice_billing_started_at_time: invoice_details.billing_started_at,
             card_info: billing_connector_payment_details.card_info.clone(),
-            billing_address: None,
         }
     }
 }

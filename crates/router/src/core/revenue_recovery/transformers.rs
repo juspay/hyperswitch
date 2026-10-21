@@ -113,7 +113,6 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             invoice_billing_started_at_time: Some(data.billing_started_at),
             card_info: data.payment_method_data.payment_method_metadata.clone(),
             charge_id: None,
-            billing_address: data.billing.clone(),
         }
     }
 }

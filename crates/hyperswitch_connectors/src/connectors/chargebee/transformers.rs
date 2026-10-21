@@ -927,7 +927,6 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             // This field is none because it is specific to stripebilling.
             charge_id: None,
             card_info,
-            billing_address: None,
         })
     }
 }
