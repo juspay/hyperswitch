@@ -1,15 +1,16 @@
 //! Payout related types.
 
+#[cfg(feature = "diesel")]
 use common_utils::impl_to_sql_from_sql_json;
+#[cfg(feature = "diesel")]
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 /// Billing descriptor information for a payout.
-#[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct PayoutsBillingDescriptor {
     /// Reference displayed on the beneficiary's bank statement.
     pub reference: Option<String>,
@@ -17,4 +18,5 @@ pub struct PayoutsBillingDescriptor {
     pub statement_descriptor: Option<String>,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(PayoutsBillingDescriptor);

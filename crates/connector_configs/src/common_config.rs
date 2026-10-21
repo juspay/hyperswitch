@@ -124,6 +124,7 @@ pub struct ApiModelMetaData {
     pub merchant_street_address: Option<String>,
     pub customer_service_phone_number: Option<String>,
     pub merchant_url: Option<String>,
+    pub enable_stc: Option<bool>,
 }
 
 #[serde_with::skip_serializing_none]
