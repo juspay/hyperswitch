@@ -1358,7 +1358,7 @@ async fn process_capture_flow(
     );
 
     // Call capture request
-    let post_capture_router_data = super::call_capture_request(
+    let post_capture_router_data = Box::pin(super::call_capture_request(
         capture_router_data,
         state,
         connector,
@@ -1366,7 +1366,7 @@ async fn process_capture_flow(
         business_profile,
         header_payload,
         gateway_context,
-    )
+    ))
     .await;
 
     // Process capture response
