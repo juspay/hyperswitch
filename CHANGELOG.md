@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.07.0-hotfix4
+
+### Features
+
+- **connector:**
+  - Migrate Fiuu connector to fiuu.com domain ([#14897](https://github.com/juspay/hyperswitch/pull/14897)) ([`15de0ac`](https://github.com/juspay/hyperswitch/commit/15de0acb8b8410afaeb8396ae774b5065341152c))
+  - [SANTANDER] Implemented MIT webhooks for PixAutomaticoPush & PixAutomaticoQr ([#14899](https://github.com/juspay/hyperswitch/pull/14899)) ([`7b49368`](https://github.com/juspay/hyperswitch/commit/7b49368a52b78ba7a1a613c3c6317427095227eb))
+
+### Bug Fixes
+
+- **webhooks:**
+  - Preserve setup payment id for Santander mandate API events ([#14900](https://github.com/juspay/hyperswitch/pull/14900)) ([`3347dba`](https://github.com/juspay/hyperswitch/commit/3347dba90f737d04b3ee2ab52a948c43ba4693ae))
+  - Include setup payment ID in outgoing mandate bodies ([#14921](https://github.com/juspay/hyperswitch/pull/14921)) ([`90d8fc1`](https://github.com/juspay/hyperswitch/commit/90d8fc11cdb010ae08b1175f30bf01606bafbf73))
+
+**Full Changelog:** [`2026.10.07.0-hotfix3...2026.10.07.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.10.07.0-hotfix3...2026.10.07.0-hotfix4)
+
+- - -
+
 ## 2026.10.07.0-hotfix3
 
 ### Bug Fixes
