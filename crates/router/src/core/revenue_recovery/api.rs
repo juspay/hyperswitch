@@ -468,7 +468,7 @@ pub async fn cancel_revenue_recovery_core(
     merchant_reference_id: id_type::PaymentReferenceId,
 ) -> RouterResponse<api_payments::RecoveryPaymentsResponse> {
     let db = &*state.store;
-    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+    let storage_scheme = platform.get_processor().get_storage_scheme();
 
     let payment_intent = db
         .find_payment_intent_by_merchant_reference_id_profile_id(

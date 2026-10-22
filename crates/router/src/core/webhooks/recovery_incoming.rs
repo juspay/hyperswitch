@@ -1713,7 +1713,7 @@ impl RecoveryAction {
             common_types::payments::RecoveryAction::CancelInvoice => {
                 let (_, recovery_intent) = recovery_tuple;
                 let key_store = platform.get_processor().get_key_store();
-                let storage_scheme = platform.get_processor().get_account().storage_scheme;
+                let storage_scheme = platform.get_processor().get_storage_scheme();
                 let payment_intent = state
                     .store
                     .find_payment_intent_by_id(
