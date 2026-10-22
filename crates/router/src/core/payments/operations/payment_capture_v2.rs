@@ -10,7 +10,7 @@ use crate::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
-            helpers,
+            helpers::{self, MultiCurrencyProcessingData},
             operations::{self, ValidateStatusForOperation},
         },
     },
@@ -205,24 +205,19 @@ impl<F: Send + Clone> GetTracker<F, PaymentCaptureData<F>, PaymentsCaptureReques
             .feature_metadata
             .as_ref()
             .map(api_models::payments::FeatureMetadata::foreign_from);
-        let amount = payment_attempt.amount_details.get_net_amount();
         let capture_connector = payment_attempt
             .connector
             .as_deref()
             .get_required_value("connector")?;
-        let capture_settlement = crate::core::utils::multi_currency_processing::resolve_operation_multi_currency_processing(
-            capture_connector,
-            payment_feature_metadata.as_ref(),
-            request
-                .feature_metadata
-                .as_ref()
-                .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
-            payment_attempt
-                .amount_details
-                .get_amount_to_capture()
-                .unwrap_or(amount),
-            amount,
-        )?;
+        let capture_settlement =
+            MultiCurrencyProcessingData::resolve_operation_multi_currency_processing(
+                capture_connector,
+                payment_feature_metadata.as_ref(),
+                request
+                    .feature_metadata
+                    .as_ref()
+                    .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
+            )?;
         let capture_feature_metadata = capture_settlement
             .map(
                 |multi_currency_processing| api_models::payments::CaptureFeatureMetadata {

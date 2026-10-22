@@ -11,7 +11,12 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{self, helpers, operations, types::MultipleCaptureData},
+        payments::{
+            self,
+            helpers::{self, MultiCurrencyProcessingData},
+            operations,
+            types::MultipleCaptureData,
+        },
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
@@ -120,18 +125,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             .connector
             .as_deref()
             .get_required_value("connector")?;
-        let capture_settlement = crate::core::utils::multi_currency_processing::resolve_operation_multi_currency_processing(
-            capture_connector,
-            payment_feature_metadata.as_ref(),
-            request
-                .feature_metadata
-                .as_ref()
-                .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
-            request
-                .amount_to_capture
-                .unwrap_or(payment_attempt.get_total_amount()),
-            payment_attempt.get_total_amount(),
-        )?;
+        let capture_settlement =
+            MultiCurrencyProcessingData::resolve_operation_multi_currency_processing(
+                capture_connector,
+                payment_feature_metadata.as_ref(),
+                request
+                    .feature_metadata
+                    .as_ref()
+                    .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
+            )?;
         let capture_feature_metadata = capture_settlement
             .clone()
             .map(
@@ -163,7 +165,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
 
             // The route holds the payment lock while loading and reserving captures.
             // Started captures reserve settlement money; validate before inserting this one.
-            crate::core::utils::multi_currency_processing::validate_capture_settlement(
+            MultiCurrencyProcessingData::validate_capture_settlement(
                 capture_connector,
                 payment_feature_metadata.as_ref(),
                 capture_settlement.as_ref(),

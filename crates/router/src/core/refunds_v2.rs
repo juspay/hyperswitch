@@ -21,7 +21,11 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, StorageErrorExt},
-        payments::{self, access_token, gateway::context as gateway_context, helpers},
+        payments::{
+            self, access_token,
+            gateway::context as gateway_context,
+            helpers::{self, MultiCurrencyProcessingData},
+        },
         utils::{self as core_utils, refunds_validator},
     },
     db, logger,
@@ -1232,12 +1236,10 @@ pub async fn validate_and_create_refund(
         .as_ref()
         .map(api_models::payments::FeatureMetadata::foreign_from);
     let refund_settlement =
-        refunds_validator::validate_multi_currency_processing_refund_settlement(
+        MultiCurrencyProcessingData::validate_multi_currency_processing_refund_settlement(
             &connector,
             payment_feature_metadata.as_ref(),
             req.feature_metadata.as_ref(),
-            refund_amount,
-            payment_attempt.get_total_amount(),
             &all_refunds,
         )?;
     let refund_feature_metadata = refund_settlement

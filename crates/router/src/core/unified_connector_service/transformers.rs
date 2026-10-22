@@ -62,7 +62,10 @@ use unified_connector_service_client::payments::{
 };
 
 use crate::{
-    core::{mandate::MandateBehaviour, unified_connector_service},
+    core::{
+        mandate::MandateBehaviour, payments::helpers::MultiCurrencyProcessingData,
+        unified_connector_service,
+    },
     types::{
         api,
         transformers::{self, ForeignFrom},
@@ -102,12 +105,11 @@ fn convert_currency_conversion_data(
     Option<payments_grpc::CurrencyConversionData>,
     error_stack::Report<UnifiedConnectorServiceError>,
 > {
-    let supported = crate::core::utils::multi_currency_processing::is_supported(connector)
-        .map_err(|error| {
-            error_stack::report!(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(error.to_string(),)
-            )
-        })?;
+    let supported = MultiCurrencyProcessingData::is_supported(connector).map_err(|error| {
+        error_stack::report!(
+            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(error.to_string(),)
+        )
+    })?;
     if !supported {
         return Ok(None);
     }
@@ -164,43 +166,37 @@ fn convert_currency_conversion_data(
         .transpose()
 }
 
-/// Use a merchant-supplied settlement leg for partial operations; never prorate a quote.
+/// Require explicit MCP amounts for captures and refunds of MCP payments.
 pub(crate) fn convert_operation_currency_conversion_data(
     connector: &str,
     payment_feature_metadata: Option<&api_models::payments::FeatureMetadata>,
-    operation_multi_currency_processing: Option<
-        &api_models::payments::MultiCurrencyProcessingAmountData,
-    >,
-    customer_amount: MinorUnit,
-    payment_amount: MinorUnit,
+    requested_operation_mcp: Option<&api_models::payments::MultiCurrencyProcessingAmountData>,
 ) -> Result<
     Option<payments_grpc::CurrencyConversionData>,
     error_stack::Report<UnifiedConnectorServiceError>,
 > {
-    let settlement =
-        crate::core::utils::multi_currency_processing::resolve_operation_multi_currency_processing(
+    let resolved_operation_mcp =
+        MultiCurrencyProcessingData::resolve_operation_multi_currency_processing(
             connector,
             payment_feature_metadata,
-            operation_multi_currency_processing,
-            customer_amount,
-            payment_amount,
+            requested_operation_mcp,
         )
         .map_err(|error| {
             error_stack::report!(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(error.to_string(),)
             )
         })?;
-    let Some(settlement) = settlement else {
+    let Some(resolved_operation_mcp) = resolved_operation_mcp else {
         return Ok(None);
     };
     Ok(Some(payments_grpc::CurrencyConversionData {
         decision: payments_grpc::CurrencyConversionDecision::NotApplicable.into(),
         quote: Some(payments_grpc::CurrencyConversionQuote {
             merchant_order_amount: Some(payments_grpc::Money {
-                minor_amount: settlement.amount.get_amount_as_i64(),
+                minor_amount: resolved_operation_mcp.amount.get_amount_as_i64(),
                 currency:
                     <payments_grpc::Currency as transformers::ForeignTryFrom<_>>::foreign_try_from(
-                        settlement.currency,
+                        resolved_operation_mcp.currency,
                     )?
                     .into(),
             }),
@@ -2411,8 +2407,6 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .feature_metadata
                 .as_ref()
                 .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
-            router_data.request.minor_amount_to_capture,
-            router_data.request.minor_payment_amount,
         )?;
 
         Ok(Self {
@@ -8681,8 +8675,6 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .feature_metadata
                 .as_ref()
                 .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
-            router_data.request.minor_refund_amount,
-            router_data.request.minor_payment_amount,
         )?;
 
         Ok(Self {

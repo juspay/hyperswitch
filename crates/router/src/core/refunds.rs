@@ -32,8 +32,10 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
         payments::{
-            self, access_token, gateway::context as gateway_context, helpers,
-            helpers::MerchantConnectorAccountType, PaymentIntentStateMetadataExt,
+            self, access_token,
+            gateway::context as gateway_context,
+            helpers::{self, MerchantConnectorAccountType, MultiCurrencyProcessingData},
+            PaymentIntentStateMetadataExt,
         },
         refunds::transformers::SplitRefundInput,
         unified_connector_service,
@@ -1742,14 +1744,13 @@ pub async fn validate_and_create_refund(
     let payment_feature_metadata = payment_intent
         .get_optional_feature_metadata()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let refund_settlement = validator::validate_multi_currency_processing_refund_settlement(
-        &connector,
-        payment_feature_metadata.as_ref(),
-        req.feature_metadata.as_ref(),
-        refund_amount,
-        payment_attempt.get_total_amount(),
-        &all_refunds,
-    )?;
+    let refund_settlement =
+        MultiCurrencyProcessingData::validate_multi_currency_processing_refund_settlement(
+            &connector,
+            payment_feature_metadata.as_ref(),
+            req.feature_metadata.as_ref(),
+            &all_refunds,
+        )?;
     let refund_feature_metadata = refund_settlement
         .map(
             |multi_currency_processing| api_models::refunds::RefundFeatureMetadata {
