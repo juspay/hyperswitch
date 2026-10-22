@@ -82,11 +82,6 @@ pub mod date_time {
 
 /// Crate specific constants
 pub mod consts {
-    /// Converts the seconds-based Superposition `polling_interval` and `request_timeout`
-    /// to the milliseconds the provider works in.
-    #[cfg(feature = "superposition")]
-    pub(crate) const MILLISECONDS_PER_SECOND: u64 = 1_000;
-
     /// Default per-RPC timeout (seconds) for unified connector service calls.
     pub(crate) const DEFAULT_UCS_REQUEST_TIMEOUT_SECS: u64 = 35;
 

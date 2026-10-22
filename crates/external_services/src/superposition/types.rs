@@ -8,7 +8,6 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 
 use super::SuperpositionClient;
-use crate::consts;
 
 /// Trait for converting Rust types to Superposition Document for write operations
 pub trait ToDocument {
@@ -79,15 +78,9 @@ pub struct SuperpositionClientConfig {
     pub org_id: String,
     /// Workspace ID in Superposition
     pub workspace_id: String,
-    /// Polling interval in seconds for configuration updates
-    pub polling_interval: u64,
-    /// Request timeout in seconds for Superposition API calls (None = no timeout)
-    pub request_timeout: Option<u64>,
-    /// Polling interval in milliseconds for configuration updates.
-    /// Takes precedence over `polling_interval` when set
-    pub polling_interval_milliseconds: Option<u64>,
-    /// Request timeout in milliseconds for Superposition API calls.
-    /// Takes precedence over `request_timeout` when set
+    /// Polling interval in milliseconds for configuration updates
+    pub polling_interval_milliseconds: u64,
+    /// Request timeout in milliseconds for Superposition API calls (None = no timeout)
     pub request_timeout_milliseconds: Option<u64>,
     /// Path to a TOML backup config file on PVC/EFS.
     /// Used as fallback if the primary HTTP init fails at startup.
@@ -101,9 +94,7 @@ impl Default for SuperpositionClientConfig {
             token: Secret::new(String::new()),
             org_id: String::new(),
             workspace_id: String::new(),
-            polling_interval: 15,
-            request_timeout: None,
-            polling_interval_milliseconds: None,
+            polling_interval_milliseconds: 15_000,
             request_timeout_milliseconds: None,
             backup_file_path: None,
         }
@@ -146,24 +137,6 @@ pub struct ConfigContext {
 }
 
 impl SuperpositionClientConfig {
-    /// Polling interval in milliseconds. `polling_interval_milliseconds` wins when set,
-    /// otherwise `polling_interval` (seconds) is converted.
-    pub fn effective_polling_interval_milliseconds(&self) -> u64 {
-        self.polling_interval_milliseconds.unwrap_or_else(|| {
-            self.polling_interval
-                .saturating_mul(consts::MILLISECONDS_PER_SECOND)
-        })
-    }
-
-    /// Request timeout in milliseconds. `request_timeout_milliseconds` wins when set,
-    /// otherwise `request_timeout` (seconds) is converted.
-    pub fn effective_request_timeout_milliseconds(&self) -> Option<u64> {
-        self.request_timeout_milliseconds.or_else(|| {
-            self.request_timeout
-                .map(|seconds| seconds.saturating_mul(consts::MILLISECONDS_PER_SECOND))
-        })
-    }
-
     /// Create and return a Superposition client.
     pub async fn get_superposition_client(
         &self,
