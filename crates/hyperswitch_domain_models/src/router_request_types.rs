@@ -883,6 +883,9 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             webhook_url: data.webhook_url,
             force_3ds_challenge: data.force_3ds_challenge,
             router_return_url: data.router_return_url,
+            // Nothing to resume: a ladder that reaches the Authenticate leg from Authorize is
+            // on its first call, and `metadata` here is the merchant's own, not connector state.
+            connector_meta: None,
         })
     }
 }
@@ -906,6 +909,10 @@ pub struct PaymentsAuthenticateData {
     pub force_3ds_challenge: Option<bool>,
     /// Merchant return URL, forwarded to the authentication leg.
     pub router_return_url: Option<String>,
+    /// Opaque connector state the preceding leg of a multi-leg authentication left behind, so
+    /// this leg can resume the ladder rather than start a new one. Adyen native 3DS2 carries its
+    /// `paymentData` here; it reaches the gateway as `connector_feature_data`.
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -932,6 +939,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             webhook_url: None,
             force_3ds_challenge: data.force_3ds_challenge,
             router_return_url: data.router_return_url,
+            connector_meta: data.connector_meta,
         })
     }
 }

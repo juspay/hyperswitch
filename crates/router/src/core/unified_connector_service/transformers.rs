@@ -1669,7 +1669,18 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
-            connector_feature_data: None,
+            // Resume a multi-leg authentication where the previous leg stopped, by forwarding
+            // the connector state that leg returned. The CompleteAuthorize builder already does
+            // this; without it here, a connector whose ladder spans two API calls (Adyen native
+            // 3DS2) cannot tell leg 2 from a fresh start.
+            connector_feature_data: router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(|s| s.into()),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
@@ -1899,7 +1910,16 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
-            connector_feature_data: None,
+            // Same as the Authenticate builder: forward the preceding leg's connector state.
+            // `TryFrom<CompleteAuthorizeData>` parks it in `metadata` for this flow.
+            connector_feature_data: router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(|metadata| serde_json::to_string(metadata.peek()))
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(|s| s.into()),
             connector_order_reference_id: router_data
                 .request
                 .order_id
