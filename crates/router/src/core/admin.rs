@@ -4674,19 +4674,35 @@ impl ProfileWrapper {
     pub fn new(profile: domain::Profile) -> Self {
         Self { profile }
     }
-    fn get_routing_config_cache_key(self) -> storage_impl::redis::cache::CacheKind<'static> {
+    /// Builds the `ROUTING_CACHE` key for this profile.
+    ///
+    /// `ROUTING_CACHE` stores the active algorithm under a different key per transaction type (see
+    /// [`crate::core::payments::routing::ensure_algorithm_cached_v1`]), so the key we invalidate here
+    /// has to be derived from the same `transaction_type` that selected the column being written.
+    fn get_routing_config_cache_key(
+        self,
+        transaction_type: &storage::enums::TransactionType,
+    ) -> storage_impl::redis::cache::CacheKind<'static> {
         let merchant_id = self.profile.merchant_id.clone();
 
         let profile_id = self.profile.get_id().to_owned();
 
-        storage_impl::redis::cache::CacheKind::Routing(
-            format!(
+        let key = match transaction_type {
+            storage::enums::TransactionType::Payment => format!(
                 "routing_config_{}_{}",
                 merchant_id.get_string_repr(),
                 profile_id.get_string_repr()
-            )
-            .into(),
-        )
+            ),
+            #[cfg(feature = "payouts")]
+            storage::enums::TransactionType::Payout => format!(
+                "routing_config_po_{}_{}",
+                merchant_id.get_string_repr(),
+                profile_id.get_string_repr()
+            ),
+            storage::enums::TransactionType::ThreeDsAuthentication => todo!(),
+        };
+
+        storage_impl::redis::cache::CacheKind::Routing(key.into())
     }
 
     pub async fn update_profile_and_invalidate_routing_config_for_active_algorithm_id_update(
@@ -4697,7 +4713,7 @@ impl ProfileWrapper {
         algorithm_id: id_type::RoutingId,
         transaction_type: &storage::enums::TransactionType,
     ) -> RouterResult<()> {
-        let routing_cache_key = self.clone().get_routing_config_cache_key();
+        let routing_cache_key = self.clone().get_routing_config_cache_key(transaction_type);
 
         let (routing_algorithm_id, payout_routing_algorithm_id) = match transaction_type {
             storage::enums::TransactionType::Payment => (Some(algorithm_id), None),
