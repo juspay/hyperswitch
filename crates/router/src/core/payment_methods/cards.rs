@@ -2753,7 +2753,7 @@ pub async fn update_customer_payment_method(
 ) -> errors::RouterResponse<api::CustomerPaymentMethodUpdateResponse> {
     let db = state.store.as_ref();
 
-    let mut pm = if let Some(pm) = pm_data {
+    let pm = if let Some(pm) = pm_data {
         pm
     } else {
         db.find_payment_method(
@@ -2770,24 +2770,30 @@ pub async fn update_customer_payment_method(
     if let Some(cs) = &req.client_secret {
         let is_client_secret_expired = authenticate_pm_client_secret_and_check_expiry(cs, &pm)?;
 
-        if is_client_secret_expired {
-            return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
-        };
+        utils::when(is_client_secret_expired, || {
+            Err(errors::ApiErrorResponse::ClientSecretExpired)
+        })
+        .attach_printable("Cannot update payment method with an expired client secret")?;
     };
 
     // Currently update is supported only for cards and wallets
-    let mut response = if let Some(card_update) = req.card.clone() {
-        if pm.status == enums::PaymentMethodStatus::AwaitingData {
-            return Err(report!(errors::ApiErrorResponse::NotSupported {
-                message: "Payment method is awaiting data so it cannot be updated".into()
-            }));
-        }
+    let (pm, response) = if let Some(card_update) = req.card.clone() {
+        utils::when(
+            pm.status == enums::PaymentMethodStatus::AwaitingData,
+            || {
+                Err(errors::ApiErrorResponse::NotSupported {
+                    message: "Payment method is awaiting data so it cannot be updated".into(),
+                })
+            },
+        )
+        .attach_printable("Cannot update a payment method awaiting data")?;
 
-        if pm.payment_method_data.is_none() {
-            return Err(report!(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "payment_method_data not found".to_string()
-            }));
-        }
+        utils::when(pm.payment_method_data.is_none(), || {
+            Err(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "payment_method_data not found".to_string(),
+            })
+        })
+        .attach_printable("Cannot update card details without payment method data")?;
 
         // Fetch the existing payment method data from db
         let existing_card_data = deserialize_saved_payment_method_data(&pm)?
@@ -2866,7 +2872,7 @@ pub async fn update_customer_payment_method(
                 .await?;
 
             // Add the updated payment method data to locker
-            let (mut add_card_resp, _) = Box::pin(cards.add_card_to_locker(
+            let (add_card_resp, _) = Box::pin(cards.add_card_to_locker(
                 new_pm.clone(),
                 &updated_card_details,
                 &customer_id,
@@ -2935,10 +2941,6 @@ pub async fn update_customer_payment_method(
                     .map(|last_modified_by| last_modified_by.to_string()),
             };
 
-            add_card_resp
-                .payment_method_id
-                .clone_from(&pm.payment_method_id);
-
             let compat_action = super::payment_method_modular_forward_compat_action(
                 &state,
                 &pm.merchant_id,
@@ -2947,7 +2949,7 @@ pub async fn update_customer_payment_method(
             )
             .await;
 
-            pm = db
+            let pm = db
                 .update_payment_method(
                     provider.get_key_store(),
                     pm.clone(),
@@ -2959,10 +2961,10 @@ pub async fn update_customer_payment_method(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment method in db")?;
 
-            api::CustomerPaymentMethodUpdateResponse {
+            let response = api::CustomerPaymentMethodUpdateResponse {
                 merchant_id: add_card_resp.merchant_id,
                 customer_id: add_card_resp.customer_id,
-                payment_method_id: add_card_resp.payment_method_id,
+                payment_method_id: pm.payment_method_id.clone(),
                 payment_method: add_card_resp.payment_method,
                 payment_method_type: add_card_resp.payment_method_type,
                 #[cfg(feature = "payouts")]
@@ -2976,19 +2978,25 @@ pub async fn update_customer_payment_method(
                 payment_experience: add_card_resp.payment_experience,
                 last_used_at: Some(pm.last_used_at),
                 client_secret: add_card_resp.client_secret,
-            }
+            };
+            Ok((pm, response))
         } else {
             // Return existing payment method data as response without any changes
             // since locker is not called, no metadata is merged to payment method metadata
-            customer_payment_method_update_response(&pm, Some(existing_card_data), None)
+            let response =
+                customer_payment_method_update_response(&pm, Some(existing_card_data), None);
+            Ok((pm, response))
         }
     } else if let Some(wallet_update) = req.wallet.clone() {
-        if pm.payment_method != Some(common_enums::PaymentMethod::Wallet) {
-            return Err((errors::ApiErrorResponse::InvalidRequestData {
-                message: "The Payment Method is not wallet".to_string(),
-            })
-            .into());
-        }
+        utils::when(
+            pm.payment_method != Some(common_enums::PaymentMethod::Wallet),
+            || {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "The Payment Method is not wallet".to_string(),
+                })
+            },
+        )
+        .attach_printable("Cannot update wallet details for a non-wallet payment method")?;
 
         let updated_pmd = PaymentMethodsData::WalletDetails(wallet_update);
         let key_manager_state = (&state).into();
@@ -3018,7 +3026,7 @@ pub async fn update_customer_payment_method(
         )
         .await;
 
-        pm = db
+        let pm = db
             .update_payment_method(
                 provider.get_key_store(),
                 pm.clone(),
@@ -3030,7 +3038,8 @@ pub async fn update_customer_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;
 
-        customer_payment_method_update_response(&pm, None, req.wallet.clone())
+        let response = customer_payment_method_update_response(&pm, None, req.wallet.clone());
+        Ok((pm, response))
     } else if req.update_last_used_at.is_some() {
         let payment_method_data = deserialize_saved_payment_method_data(&pm)?;
         let (card, wallet) = match payment_method_data {
@@ -3040,14 +3049,16 @@ pub async fn update_customer_payment_method(
             Some(PaymentMethodsData::WalletDetails(wallet)) => (None, Some(wallet)),
             _ => (None, None),
         };
-        customer_payment_method_update_response(&pm, card, wallet)
+        let response = customer_payment_method_update_response(&pm, card, wallet);
+        Ok((pm, response))
     } else {
-        return Err(report!(errors::ApiErrorResponse::NotSupported {
+        Err(report!(errors::ApiErrorResponse::NotSupported {
             message: "Payment method update for the given payment method is not supported".into()
-        }));
-    };
+        }))
+        .attach_printable("No supported payment method update was provided")
+    }?;
 
-    if req.update_last_used_at == Some(true) {
+    let response = if req.update_last_used_at == Some(true) {
         let updated_payment_method = update_last_used_at(
             &pm,
             &state,
@@ -3056,8 +3067,13 @@ pub async fn update_customer_payment_method(
         )
         .await
         .attach_printable("Failed to update saved payment method last_used_at")?;
-        response.last_used_at = Some(updated_payment_method.last_used_at);
-    }
+        api::CustomerPaymentMethodUpdateResponse {
+            last_used_at: Some(updated_payment_method.last_used_at),
+            ..response
+        }
+    } else {
+        response
+    };
 
     Ok(services::ApplicationResponse::Json(response))
 }
