@@ -4872,7 +4872,7 @@
           "Revenue Recovery"
         ],
         "summary": "Revenue Recovery - Create",
-        "description": "Record a transaction made outside of Hyperswitch against a billing connector invoice.\nThe transaction is synced with the payment connector and the recovery action, such as\nscheduling a retry for a failed payment or recording an externally successful payment, is\ndecided from the status it reports. The reported `transaction_status` is used when the\nconnector cannot be synced.",
+        "description": "Record a transaction made outside of Hyperswitch against a billing connector invoice.\nThe transaction is synced with the payment connector and is then handled based on the\nstatus it reports, for example by scheduling a retry for a failed payment or recording an\nexternally successful payment. The reported `transaction_status` is used when the\nconnector cannot be synced.",
         "operationId": "Create a Revenue Recovery Payment",
         "parameters": [
           {

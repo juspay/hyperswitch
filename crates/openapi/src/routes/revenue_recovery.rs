@@ -25,9 +25,9 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
 /// Revenue Recovery - Create
 ///
 /// Record a transaction made outside of Hyperswitch against a billing connector invoice.
-/// The transaction is synced with the payment connector and the recovery action, such as
-/// scheduling a retry for a failed payment or recording an externally successful payment, is
-/// decided from the status it reports. The reported `transaction_status` is used when the
+/// The transaction is synced with the payment connector and is then handled based on the
+/// status it reports, for example by scheduling a retry for a failed payment or recording an
+/// externally successful payment. The reported `transaction_status` is used when the
 /// connector cannot be synced.
 #[utoipa::path(
     post,
