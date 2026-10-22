@@ -227,11 +227,8 @@ pub trait ValueExt {
     where
         T: serde::de::DeserializeOwned;
 
-    /// Replace every leaf of the `serde_json::Value` with the name of its datatype,
-    /// keeping the structure intact. Useful for logging the shape of a payload
-    /// without logging its (possibly sensitive) values.
-    ///
-    /// `{"abc": "123", "n": 1}` becomes `{"abc": "String", "n": "Number"}`
+    /// Replace every leaf value with its datatype name, keeping the structure intact
+    /// e.g. `{"abc": "123"}` becomes `{"abc": "String"}`
     fn to_type_schema(&self) -> serde_json::Value;
 }
 
