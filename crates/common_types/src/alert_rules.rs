@@ -16,14 +16,6 @@ pub enum AlertQuery {
     GrafanaCloudwatch(GrafanaCloudwatchQuery),
 }
 
-impl AlertQuery {
-    pub fn metric_source(&self) -> MetricSource {
-        match self {
-            Self::GrafanaCloudwatch(_) => MetricSource::GrafanaCloudwatch,
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GrafanaCloudwatchQuery {
@@ -34,13 +26,11 @@ pub struct GrafanaCloudwatchQuery {
     pub dimensions: BTreeMap<String, String>,
     pub statistic: CloudwatchStatistic,
     pub period: u32,
-    #[serde(default = "default_end_offset_seconds")]
+    #[serde(default = "DEFAULT_END_OFFSET_SECONDS")]
     pub end_offset_seconds: u32,
 }
 
-fn default_end_offset_seconds() -> u32 {
-    180
-}
+const DEFAULT_END_OFFSET_SECONDS: fn() -> u32 = || 180;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -85,22 +75,17 @@ pub enum Severity {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 pub enum ComparisonOperator {
+    #[strum(to_string = ">")]
     GreaterThanThreshold,
+    #[strum(to_string = ">=")]
     GreaterThanOrEqualToThreshold,
+    #[strum(to_string = "<")]
     LessThanThreshold,
+    #[strum(to_string = "<=")]
     LessThanOrEqualToThreshold,
 }
 
 impl ComparisonOperator {
-    pub fn symbol(self) -> &'static str {
-        match self {
-            Self::GreaterThanThreshold => ">",
-            Self::GreaterThanOrEqualToThreshold => ">=",
-            Self::LessThanThreshold => "<",
-            Self::LessThanOrEqualToThreshold => "<=",
-        }
-    }
-
     pub fn breaches(self, value: f64, threshold: f64) -> bool {
         match self {
             Self::GreaterThanThreshold => value > threshold,
@@ -114,6 +99,48 @@ impl ComparisonOperator {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn comparison_display_preserves_wire_names_and_threshold_boundaries() {
+        for (operator, symbol, wire, above, equal) in [
+            (
+                ComparisonOperator::GreaterThanThreshold,
+                ">",
+                "GreaterThanThreshold",
+                true,
+                false,
+            ),
+            (
+                ComparisonOperator::GreaterThanOrEqualToThreshold,
+                ">=",
+                "GreaterThanOrEqualToThreshold",
+                true,
+                true,
+            ),
+            (
+                ComparisonOperator::LessThanThreshold,
+                "<",
+                "LessThanThreshold",
+                false,
+                false,
+            ),
+            (
+                ComparisonOperator::LessThanOrEqualToThreshold,
+                "<=",
+                "LessThanOrEqualToThreshold",
+                false,
+                true,
+            ),
+        ] {
+            assert_eq!(operator.to_string(), symbol);
+            assert_eq!(
+                serde_json::to_string(&operator).unwrap(),
+                format!("\"{wire}\"")
+            );
+            assert_eq!(operator.breaches(11.0, 10.0), above);
+            assert_eq!(operator.breaches(10.0, 10.0), equal);
+        }
+    }
 
     #[test]
     fn cloudwatch_end_offset_defaults_to_three_minutes() {

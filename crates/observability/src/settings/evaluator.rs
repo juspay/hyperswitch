@@ -7,7 +7,7 @@ use external_services::metrics_provider::{
     grafana::{cloudwatch::GrafanaCloudwatch, GrafanaConfig},
     MetricsError, MetricsProvider,
 };
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::PeekInterface;
 use serde::{de::Error as _, Deserialize, Deserializer};
 
 use crate::{
@@ -20,7 +20,7 @@ pub struct AlertSettings {
     pub grafana: GrafanaConfig,
     pub datasources: HashMap<MetricSource, DatasourceSettings>,
     #[serde(deserialize_with = "deserialize_rules")]
-    rules: Vec<RuleDefinition>,
+    pub(crate) rules: Vec<RuleDefinition>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -36,28 +36,23 @@ impl AlertSettings {
                 !url::Url::parse(&self.grafana.base_url)
                     .is_ok_and(|url| matches!(url.scheme(), "http" | "https")),
                 || {
-                    Err(configuration_error(
-                        None,
-                        "grafana.base_url",
-                        "must be a valid http or https URL",
+                    Err(ConfigurationError::ConfigParsingError(
+                        "invalid alert configuration: field `grafana.base_url` must be a valid http or https URL".to_owned(),
                     ))
                 },
             )?;
             when(self.grafana.api_token.peek().trim().is_empty(), || {
-                Err(configuration_error(
-                    None,
-                    "grafana.api_token",
-                    "must not be blank",
+                Err(ConfigurationError::ConfigParsingError(
+                    "invalid alert configuration: field `grafana.api_token` must not be blank"
+                        .to_owned(),
                 ))
             })?;
         }
         for (kind, datasource) in &self.datasources {
             when(datasource.uid.trim().is_empty(), || {
-                Err(configuration_error(
-                    None,
-                    &format!("datasources.{kind}.uid"),
-                    "must not be blank",
-                ))
+                Err(ConfigurationError::ConfigParsingError(format!(
+                    "invalid alert configuration: field `datasources.{kind}.uid` must not be blank"
+                )))
             })?;
         }
         let ids = self
@@ -66,103 +61,67 @@ impl AlertSettings {
             .map(|rule| &rule.id)
             .collect::<HashSet<_>>();
         when(ids.len() != self.rules.len(), || {
-            Err(configuration_error(None, "rules.id", "must be unique"))
+            Err(ConfigurationError::ConfigParsingError(
+                "invalid alert configuration: field `rules.id` must be unique".to_owned(),
+            ))
         })?;
         for rule in &self.rules {
             when(rule.id.trim().is_empty(), || {
-                Err(configuration_error(Some(rule), "id", "must not be blank"))
+                Err(ConfigurationError::ConfigParsingError(format!(
+                    "invalid alert configuration: rule `{}` field `id` must not be blank",
+                    rule.id
+                )))
             })?;
             when(rule.config.interval_seconds != 60, || {
-                Err(configuration_error(
-                    Some(rule),
-                    "config.interval_seconds",
-                    "must equal 60",
-                ))
+                Err(ConfigurationError::ConfigParsingError(format!(
+                    "invalid alert configuration: rule `{}` field `config.interval_seconds` must equal 60", rule.id
+                )))
             })?;
-            when(
-                self.datasource_uid(rule.config.query.metric_source())
-                    .is_none(),
-                || {
-                    Err(configuration_error(
-                        Some(rule),
-                        "config.query.datasource",
-                        "requires its configured provider/datasource UID",
-                    ))
-                },
-            )?;
             when(rule.config.thresholds.severities.is_empty(), || {
-                Err(configuration_error(
-                    Some(rule),
-                    "config.thresholds.severities",
-                    "must contain at least one severity",
-                ))
+                Err(ConfigurationError::ConfigParsingError(format!(
+                    "invalid alert configuration: rule `{}` field `config.thresholds.severities` must contain at least one severity", rule.id
+                )))
             })?;
             for (severity, threshold) in &rule.config.thresholds.severities {
                 when(!threshold.threshold.is_finite(), || {
-                    Err(configuration_error(
-                        Some(rule),
-                        &format!("config.thresholds.severities.{severity}.threshold"),
-                        "must be finite",
-                    ))
+                    Err(ConfigurationError::ConfigParsingError(format!(
+                        "invalid alert configuration: rule `{}` field `config.thresholds.severities.{severity}.threshold` must be finite", rule.id
+                    )))
                 })?;
                 when(
                     threshold.destination.trim().is_empty()
                         || !chat.destinations.contains_key(&threshold.destination),
                     || {
-                        Err(configuration_error(
-                            Some(rule),
-                            &format!("config.thresholds.severities.{severity}.destination"),
-                            "must name an existing notifier destination ID",
-                        ))
+                        Err(ConfigurationError::ConfigParsingError(format!(
+                            "invalid alert configuration: rule `{}` field `config.thresholds.severities.{severity}.destination` must name an existing notifier destination ID", rule.id
+                        )))
                     },
                 )?;
             }
-            let uid = self
-                .datasource_uid(rule.config.query.metric_source())
-                .ok_or_else(|| {
-                    configuration_error(
-                        Some(rule),
-                        "config.query.datasource",
-                        "requires its configured provider/datasource UID",
-                    )
-                })?;
-            if let Err(error) = GrafanaCloudwatch::validate_request(&rule.metric_request(uid)) {
+            let datasource = self.datasources.get(&MetricSource::GrafanaCloudwatch)
+                .ok_or_else(|| ConfigurationError::ConfigParsingError(format!(
+                    "invalid alert configuration: rule `{}` field `config.query.datasource` requires its configured provider/datasource UID", rule.id
+                )))?;
+            if let Err(error) =
+                GrafanaCloudwatch::validate_query(&rule.metrics_query(&datasource.uid))
+            {
                 let (field, requirement) = match error.current_context() {
-                    MetricsError::InvalidRequest { field, requirement } => (*field, *requirement),
-                    _ => ("query", "must be a valid provider request"),
+                    MetricsError::InvalidQuery { field, requirement } => (*field, *requirement),
+                    _ => ("query", "must be a valid metric query"),
                 };
-                return Err(configuration_error(
-                    Some(rule),
-                    &format!("config.query.{field}"),
-                    requirement,
-                ));
+                return Err(ConfigurationError::ConfigParsingError(format!(
+                    "invalid alert configuration: rule `{}` field `config.query.{field}` {requirement}", rule.id
+                )));
             }
             let common_types::alert_rules::AlertQuery::GrafanaCloudwatch(query) =
                 &rule.config.query;
             when(query.end_offset_seconds > 3600, || {
-                Err(configuration_error(
-                    Some(rule),
-                    "config.query.end_offset_seconds",
-                    "must not exceed 3600 seconds",
-                ))
+                Err(ConfigurationError::ConfigParsingError(format!(
+                    "invalid alert configuration: rule `{}` field `config.query.end_offset_seconds` must not exceed 3600 seconds", rule.id
+                )))
             })?;
         }
         Ok(())
-    }
-
-    pub(crate) fn rules(&self) -> &[RuleDefinition] {
-        &self.rules
-    }
-
-    pub(crate) fn datasource_uid(&self, datasource: MetricSource) -> Option<&str> {
-        self.datasources
-            .get(&datasource)
-            .map(|settings| settings.uid.as_str())
-    }
-
-    pub(crate) fn with_api_token(mut self, api_token: Secret<String>) -> Self {
-        self.grafana.api_token = api_token;
-        self
     }
 }
 
@@ -188,13 +147,13 @@ mod tests {
     #[test]
     fn alert_settings_default_to_no_rules_or_provider_configuration() {
         let settings: AlertSettings = serde_json::from_str("{}").unwrap();
-        assert!(settings.rules().is_empty());
+        assert!(settings.rules.is_empty());
         assert!(settings.datasources.is_empty());
         assert!(settings.grafana.base_url.is_empty());
     }
 
     #[test]
-    fn configured_rules_reuse_provider_request_validation() {
+    fn configured_rules_reuse_provider_query_validation() {
         let settings: AlertSettings = serde_json::from_value(serde_json::json!({
             "grafana": { "base_url": "http://localhost:3000", "api_token": "token" },
             "datasources": { "grafana_cloudwatch": { "uid": "cloudwatch" } },
@@ -231,19 +190,4 @@ mod tests {
         assert!(error.contains("config.query.region"));
         assert!(error.contains("must not be blank"));
     }
-}
-
-fn configuration_error(
-    rule: Option<&RuleDefinition>,
-    field: &str,
-    requirement: impl Into<String>,
-) -> ConfigurationError {
-    let field = match rule {
-        Some(rule) => format!("rule `{}` field `{field}`", rule.id),
-        None => format!("field `{field}`"),
-    };
-    ConfigurationError::ConfigParsingError(format!(
-        "invalid alert configuration: {field} {}",
-        requirement.into()
-    ))
 }

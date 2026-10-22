@@ -1,8 +1,8 @@
 pub mod cloudwatch;
 
-use common_types::alert_rules::{AlertQuery, Severity};
+use common_types::alert_rules::{AlertQuery, MetricSource, Severity};
 use common_utils::date_time;
-use error_stack::{AttachmentKind, FrameKind, Report};
+use error_stack::{AttachmentKind, FrameKind, Report, ResultExt};
 use external_services::metrics_provider::grafana::cloudwatch::GrafanaCloudwatch;
 use futures::future::join_all;
 use hyperswitch_masking::Secret;
@@ -34,7 +34,7 @@ async fn evaluate_alert_rules(
     let now = date_time::now();
     let provider = GrafanaCloudwatch::new(settings.grafana.clone(), state.conf.proxy.clone());
     let rules = settings
-        .rules()
+        .rules
         .iter()
         .map(|rule| {
             let destination = [Severity::Critical, Severity::Warning, Severity::Info]
@@ -59,16 +59,15 @@ async fn evaluate_alert_rules(
         let state = state.clone();
         async move {
             let result = async {
-                let uid = settings
-                    .datasource_uid(rule.config.query.metric_source())
-                    .ok_or_else(|| {
-                        Report::new(EvaluatorError::UnexpectedResponse)
-                            .attach_printable("rule metric source is not configured")
-                    })?;
                 let AlertQuery::GrafanaCloudwatch(query) = &rule.config.query;
+                let datasource = settings
+                    .datasources
+                    .get(&MetricSource::GrafanaCloudwatch)
+                    .ok_or(EvaluatorError::UnexpectedResponse)
+                    .attach_printable("rule metric source is not configured")?;
                 let evaluation = cloudwatch::evaluate(
                     provider,
-                    rule.metric_request(uid),
+                    rule.metrics_query(&datasource.uid),
                     query,
                     &rule.config.thresholds,
                     now,
@@ -76,7 +75,11 @@ async fn evaluate_alert_rules(
                 .await?;
                 let notification = match (&evaluation.breach, evaluation.latest_value) {
                     (Some(threshold), Some(value)) => {
-                        Some(chat::alarm(rule, query, &evaluation, threshold, value, now))
+                        Some(chat::create_notification(
+                            rule,
+                            now,
+                            chat::ChatBody::Alarm { evaluation: &evaluation, threshold, value },
+                        ))
                     }
                     (Some(_), None) => {
                         return Err(Report::new(EvaluatorError::UnexpectedResponse)
@@ -96,12 +99,20 @@ async fn evaluate_alert_rules(
                     let error = format_error_report(&error);
                     logger::error!(tag = "evaluator_rule_error", rule_id = %rule.id, error = %error, "Rule evaluation failed");
                     RuleRun::Failed {
-                        notification: chat::rule_error(rule, now, &error, error_destination),
+                        notification: chat::create_notification(
+                            rule,
+                            now,
+                            chat::ChatBody::RuleError { error: &error, destination: error_destination },
+                        ),
                         error,
                     }
                 }
             };
-            let delivery = match (deliver, run.notification()) {
+            let notification = match &run {
+                RuleRun::Evaluated { notification, .. } => notification.as_ref(),
+                RuleRun::Failed { notification, .. } => Some(notification),
+            };
+            let delivery = match (deliver, notification) {
                 (true, Some(notification)) => {
                     Some(deliver_notification(state, notification).await)
                 }

@@ -5,6 +5,7 @@ version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+readme = "README.md"
 
 [features]
 # `observability` has no v1/v2 API semantics of its own and uses no version-flavoured type. These

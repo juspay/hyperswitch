@@ -3,7 +3,7 @@ use common_types::alert_rules::{
 };
 use common_utils::errors::CustomResult;
 use external_services::metrics_provider::{
-    grafana::cloudwatch::{CloudwatchMetricRequest, CloudwatchStatistic as ProviderStatistic},
+    grafana::cloudwatch::{CloudwatchMetricsQuery, CloudwatchStatistic as ProviderStatistic},
     MetricRange,
 };
 use serde::Deserialize;
@@ -17,9 +17,9 @@ pub struct RuleDefinition {
 }
 
 impl RuleDefinition {
-    pub fn metric_request(&self, datasource_uid: &str) -> CloudwatchMetricRequest {
+    pub fn metrics_query(&self, datasource_uid: &str) -> CloudwatchMetricsQuery {
         let AlertQuery::GrafanaCloudwatch(query) = &self.config.query;
-        CloudwatchMetricRequest {
+        CloudwatchMetricsQuery {
             datasource_uid: datasource_uid.to_owned(),
             region: query.region.clone(),
             namespace: query.namespace.clone(),
@@ -72,15 +72,6 @@ pub enum RuleRun {
         error: String,
         notification: Notification,
     },
-}
-
-impl RuleRun {
-    pub fn notification(&self) -> Option<&Notification> {
-        match self {
-            Self::Evaluated { notification, .. } => notification.as_ref(),
-            Self::Failed { notification, .. } => Some(notification),
-        }
-    }
 }
 
 pub struct Delivery {

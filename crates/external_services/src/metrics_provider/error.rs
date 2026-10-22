@@ -1,7 +1,7 @@
 #[derive(Debug, thiserror::Error)]
 pub enum MetricsError {
-    #[error("invalid metric request field {field}: {requirement}")]
-    InvalidRequest {
+    #[error("invalid metric query field {field}: {requirement}")]
+    InvalidQuery {
         field: &'static str,
         requirement: &'static str,
     },

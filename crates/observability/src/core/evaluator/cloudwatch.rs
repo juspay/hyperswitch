@@ -2,7 +2,7 @@ use common_types::alert_rules::{AlertThresholds, GrafanaCloudwatchQuery, Severit
 use common_utils::date_time::convert_to_pdt;
 use error_stack::{Report, ResultExt};
 use external_services::metrics_provider::{
-    grafana::cloudwatch::CloudwatchMetricRequest, MetricRange, MetricSeries, MetricsError,
+    grafana::cloudwatch::CloudwatchMetricsQuery, MetricRange, MetricSeries, MetricsError,
     MetricsProvider,
 };
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
@@ -15,21 +15,19 @@ const LOOKBACK_SECONDS: u32 = 300;
 
 pub async fn evaluate<P>(
     provider: &P,
-    request: CloudwatchMetricRequest,
+    metrics_query: CloudwatchMetricsQuery,
     query: &GrafanaCloudwatchQuery,
     thresholds: &AlertThresholds,
     now: PrimitiveDateTime,
 ) -> EvaluatorResult<Evaluation>
 where
-    P: MetricsProvider<
-        Request = CloudwatchMetricRequest,
-        Response = Vec<MetricSeries>,
-        Error = MetricsError,
-    >,
+    P: MetricsProvider<MetricsQuery = CloudwatchMetricsQuery, MetricsError = MetricsError>,
 {
     let (window, last) = evaluation_window(query.period, query.end_offset_seconds, now)?;
+    let request = P::build_request(metrics_query, window)
+        .change_context(EvaluatorError::DatasourceRequestFailed)?;
     let series = provider
-        .fetch(request, window)
+        .fetch_metrics(request)
         .await
         .change_context(EvaluatorError::DatasourceRequestFailed)?;
     evaluate_series(series, thresholds, window, last)
@@ -104,19 +102,23 @@ fn evaluation_window(
     let at_seconds = at.assume_utc().unix_timestamp();
     let shifted_seconds = at_seconds
         .checked_sub(i64::from(end_offset_seconds))
-        .ok_or_else(invalid_time_range)?;
+        .ok_or(EvaluatorError::InvalidTimeRange)
+        .attach_printable("query evaluation time range is outside supported bounds")?;
     let candidate = shifted_seconds
         .checked_div_euclid(period_seconds)
         .and_then(|value| value.checked_mul(period_seconds))
-        .ok_or_else(invalid_time_range)?;
+        .ok_or(EvaluatorError::InvalidTimeRange)
+        .attach_printable("query evaluation time range is outside supported bounds")?;
     let last_seconds = if candidate
         .checked_add(period_seconds)
-        .ok_or_else(invalid_time_range)?
+        .ok_or(EvaluatorError::InvalidTimeRange)
+        .attach_printable("query evaluation time range is outside supported bounds")?
         > at_seconds
     {
         candidate
             .checked_sub(period_seconds)
-            .ok_or_else(invalid_time_range)?
+            .ok_or(EvaluatorError::InvalidTimeRange)
+            .attach_printable("query evaluation time range is outside supported bounds")?
     } else {
         candidate
     };
@@ -125,18 +127,15 @@ fn evaluation_window(
         .change_context(EvaluatorError::InvalidTimeRange)?;
     let to = last
         .checked_add(Duration::seconds(period_seconds))
-        .ok_or_else(invalid_time_range)?;
+        .ok_or(EvaluatorError::InvalidTimeRange)
+        .attach_printable("query evaluation time range is outside supported bounds")?;
     let from = to
         .checked_sub(Duration::seconds(
             i64::from(LOOKBACK_SECONDS).max(period_seconds),
         ))
-        .ok_or_else(invalid_time_range)?;
+        .ok_or(EvaluatorError::InvalidTimeRange)
+        .attach_printable("query evaluation time range is outside supported bounds")?;
     Ok((MetricRange { from, to }, last))
-}
-
-fn invalid_time_range() -> Report<EvaluatorError> {
-    Report::new(EvaluatorError::InvalidTimeRange)
-        .attach_printable("query evaluation time range is outside supported bounds")
 }
 
 #[cfg(test)]
@@ -168,10 +167,6 @@ mod tests {
         }
     }
 
-    fn point(timestamp: PrimitiveDateTime, value: f64) -> MetricPoint {
-        MetricPoint { timestamp, value }
-    }
-
     #[test]
     fn period_and_offset_define_the_expected_complete_windows() {
         let now = datetime!(2026-03-18 10:08:00);
@@ -195,9 +190,18 @@ mod tests {
         let result = evaluate_series(
             vec![MetricSeries {
                 points: vec![
-                    point(datetime!(2026-03-18 10:05:00), 90.0),
-                    point(datetime!(2026-03-18 10:04:00), 100.0),
-                    point(datetime!(2026-03-18 10:06:00), 200.0),
+                    MetricPoint {
+                        timestamp: datetime!(2026-03-18 10:05:00),
+                        value: 90.0,
+                    },
+                    MetricPoint {
+                        timestamp: datetime!(2026-03-18 10:04:00),
+                        value: 100.0,
+                    },
+                    MetricPoint {
+                        timestamp: datetime!(2026-03-18 10:06:00),
+                        value: 200.0,
+                    },
                 ],
             }],
             &thresholds(&[
@@ -240,7 +244,10 @@ mod tests {
         assert_eq!(
             evaluate_series(
                 vec![MetricSeries {
-                    points: vec![point(datetime!(2026-03-18 10:05:00), 10.0)]
+                    points: vec![MetricPoint {
+                        timestamp: datetime!(2026-03-18 10:05:00),
+                        value: 10.0
+                    }]
                 }],
                 &configured,
                 window,
@@ -274,8 +281,14 @@ mod tests {
         assert!(evaluate_series(
             vec![MetricSeries {
                 points: vec![
-                    point(datetime!(2026-03-18 10:05:00), 1.0),
-                    point(datetime!(2026-03-18 10:05:00), 2.0),
+                    MetricPoint {
+                        timestamp: datetime!(2026-03-18 10:05:00),
+                        value: 1.0
+                    },
+                    MetricPoint {
+                        timestamp: datetime!(2026-03-18 10:05:00),
+                        value: 2.0
+                    },
                 ]
             }],
             &configured,
