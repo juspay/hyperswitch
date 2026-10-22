@@ -34,14 +34,16 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 
-pub use self::recipient::{
-    MaskedRecipientAccount, MaskedRecipientBankAccount, MaskedRecipientDetails, RecipientAccount,
-    RecipientBankAccount, RecipientDetails,
-};
-pub use self::sender::{
-    CorporateSenderDetails, IndividualSenderDetails, MaskedCorporateSenderDetails,
-    MaskedIndividualSenderDetails, MaskedSenderDetails, MaskedSenderPhoneDetails, SenderAddress,
-    SenderDetails,
+pub use self::{
+    recipient::{
+        MaskedRecipientAccount, MaskedRecipientBankAccount, MaskedRecipientDetails,
+        RecipientAccount, RecipientBankAccount, RecipientDetails,
+    },
+    sender::{
+        CorporateSenderDetails, IndividualSenderDetails, MaskedCorporateSenderDetails,
+        MaskedIndividualSenderDetails, MaskedSenderDetails, MaskedSenderPhoneDetails,
+        SenderAddress, SenderDetails,
+    },
 };
 use crate::customers::CustomerDocumentDetails;
 
