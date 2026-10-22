@@ -410,10 +410,22 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("connector_request_reference_id not found in payment_attempt")?;
 
-    let email = customer
+    let customer_details = payment_data
+        .payment_intent
+        .get_customer_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to extract customer details from payment_intent")?;
+    let email = customer_details
         .as_ref()
-        .and_then(|customer| customer.email.clone())
-        .map(pii::Email::from);
+        .and_then(|details| details.email.clone())
+        .or_else(|| {
+            customer
+                .as_ref()
+                .and_then(|customer| customer.email.clone())
+                .map(pii::Email::from)
+        });
+    let customer_document_details =
+        customer_details.and_then(|details| details.customer_document_details);
 
     let browser_info = payment_data
         .payment_attempt
@@ -436,6 +448,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .and_then(|noon| noon.order_category.clone())
     });
 
+    // v2 derives off_session purely from mandate presence (unchanged semantics).
     let is_off_session = get_off_session(payment_data.mandate_data.as_ref(), None);
 
     // Account funded transaction details are merchant supplied and are always read
@@ -618,7 +631,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        customer_document_details: None,
+        customer_document_details,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -886,8 +899,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
             .get_required_value("external vault proxy payment_method_data")?,
         setup_future_usage: payment_data
             .payment_attempt
-            .setup_future_usage_applied
-            .or(payment_data.payment_intent.setup_future_usage),
+            .get_setup_future_usage_with_fallback(&payment_data.payment_intent),
         mandate_id: payment_data.mandate_id.clone(),
         off_session: None,
         setup_mandate_details: None,
@@ -4383,6 +4395,8 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?
             .map(api_models::payments::MaskedRecipientDetails::from);
+        let setup_future_usage =
+            payment_attempt.get_setup_future_usage_with_fallback(&payment_intent);
         let payments_response = api::PaymentsResponse {
             // Populated only for server integrations, by the update-context enrichment.
             payment_method_list: None,
@@ -4416,9 +4430,7 @@ where
             captures: captures_response,
             mandate_id,
             mandate_data,
-            setup_future_usage: payment_attempt
-                .setup_future_usage_applied
-                .or(payment_intent.setup_future_usage),
+            setup_future_usage,
             off_session: payment_intent.off_session,
             capture_on: None,
             capture_method: payment_attempt.capture_method,
@@ -4827,6 +4839,7 @@ fn applied_offer_response(
 #[cfg(feature = "v1")]
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
+        let setup_future_usage = pa.get_setup_future_usage_with_fallback(&pi);
         let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
         let capture_method_applied = pa
             .applied_overrides
@@ -4911,7 +4924,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             business_label: pi.business_label,
             business_country: pi.business_country,
             business_sub_label: pa.business_sub_label,
-            setup_future_usage: pa.setup_future_usage_applied.or(pi.setup_future_usage),
+            setup_future_usage,
             capture_method: pa.capture_method,
             capture_method_applied,
             authentication_type: pa.authentication_type,
@@ -5392,6 +5405,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             complete_authorize_url,
             setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
             mandate_id: payment_data.mandate_id.clone(),
+            // v2 derives off_session purely from mandate presence (unchanged semantics).
             off_session: get_off_session(payment_data.mandate_id.as_ref(), None),
             customer_acceptance: None,
             setup_mandate_details: None,
@@ -5448,6 +5462,31 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
     }
 }
 
+// Previous approach (reverted):
+// The request's `off_session` is passed to the connector verbatim; mandate
+// flows are validation-gated to carry `Some(true)` (see validate_recurring_mandate).
+// This failed because token-MIT routing attaches a mandate internally without requiring
+// an explicit off_session flag. Stripe rejected the resulting NTI MIT exemption with
+// off_session unset, and the retry then failed because the payment token was consumed.
+// Restore mandate-based inference while preserving explicit false and the saved-wallet
+// flag, since reusing a wallet credential can still be customer-initiated.
+#[cfg(feature = "v1")]
+fn get_off_session(
+    mandate_id: Option<&MandateIds>,
+    off_session_flag: Option<bool>,
+    token_data: Option<&storage::PaymentTokenData>,
+) -> Option<bool> {
+    match token_data {
+        Some(storage::PaymentTokenData::WalletToken(_)) => off_session_flag,
+        _ => match (mandate_id, off_session_flag) {
+            (_, Some(false)) => Some(false),
+            (Some(_), _) | (_, Some(true)) => Some(true),
+            (None, None) => None,
+        },
+    }
+}
+
+#[cfg(feature = "v2")]
 fn get_off_session(
     mandate_id: Option<&MandateIds>,
     off_session_flag: Option<bool>,
@@ -5628,6 +5667,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         let is_off_session = get_off_session(
             payment_data.mandate_id.as_ref(),
             payment_data.payment_intent.off_session,
+            payment_data.token_data.as_ref(),
         );
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
@@ -5644,8 +5684,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data
                 .payment_attempt
-                .setup_future_usage_applied
-                .or(payment_data.payment_intent.setup_future_usage),
+                .get_setup_future_usage_with_fallback(&payment_data.payment_intent),
             mandate_id: payment_data.mandate_id.clone(),
             off_session: is_off_session,
             setup_mandate_details: payment_data.setup_mandate.clone(),
@@ -5796,6 +5835,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse feature metadata")?;
 
+        let setup_future_usage = payment_data
+            .payment_attempt
+            .get_setup_future_usage_with_fallback(&payment_data.payment_intent);
+
         Ok(Self {
             amount,
             integrity_object: None,
@@ -5824,10 +5867,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 .payment_attempt
                 .connector_response_reference_id
                 .clone(),
-            setup_future_usage: payment_data
-                .payment_attempt
-                .setup_future_usage_applied
-                .or(payment_data.payment_intent.setup_future_usage),
+            setup_future_usage,
             feature_metadata,
             connector_mandate_id: payment_data
                 .payment_attempt
@@ -6408,8 +6448,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSess
             shipping_cost: payment_data.payment_intent.shipping_cost,
             setup_future_usage: payment_data
                 .payment_attempt
-                .setup_future_usage_applied
-                .or(payment_data.payment_intent.setup_future_usage),
+                .get_setup_future_usage_with_fallback(&payment_data.payment_intent),
             router_return_url,
         })
     }
@@ -7294,6 +7333,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
         let is_off_session = get_off_session(
             payment_data.mandate_id.as_ref(),
             payment_data.payment_intent.off_session,
+            payment_data.token_data.as_ref(),
         );
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
@@ -7321,8 +7361,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .get_required_value("payment_method_data")?),
             setup_future_usage: payment_data
                 .payment_attempt
-                .setup_future_usage_applied
-                .or(payment_data.payment_intent.setup_future_usage),
+                .get_setup_future_usage_with_fallback(&payment_data.payment_intent),
             off_session: is_off_session,
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
@@ -7512,6 +7551,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
         let is_off_session = get_off_session(
             payment_data.mandate_id.as_ref(),
             payment_data.payment_intent.off_session,
+            payment_data.token_data.as_ref(),
         );
 
         let router_return_url = Some(helpers::create_redirect_url(
@@ -7532,6 +7572,25 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .get_connector_metadata_from_intent()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse connector metadata")?;
+        let order_details = payment_data
+            .payment_intent
+            .order_details
+            .as_ref()
+            .map(|order_details| {
+                order_details
+                    .iter()
+                    .map(|data| {
+                        data.to_owned()
+                            .parse_value("OrderDetailsWithAmount")
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "OrderDetailsWithAmount".into(),
+                            })
+                            .attach_printable("Unable to parse OrderDetailsWithAmount")
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
+        let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
         let connector = api_models::enums::Connector::from_str(connector_name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -7559,8 +7618,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
         Ok(Self {
             setup_future_usage: payment_data
                 .payment_attempt
-                .setup_future_usage_applied
-                .or(payment_data.payment_intent.setup_future_usage),
+                .get_setup_future_usage_with_fallback(&payment_data.payment_intent),
             mandate_id: payment_data.mandate_id.clone(),
             off_session: is_off_session,
             setup_mandate_details: payment_data.setup_mandate.clone(),
@@ -7613,6 +7671,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 .force_3ds_challenge_trigger
                 .filter(|trigger| *trigger)
                 .or(payment_data.payment_intent.force_3ds_challenge),
+            customer_id: additional_data.customer_id.clone(),
+            billing_descriptor,
+            payment_channel: payment_data.payment_intent.payment_channel,
+            enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+            order_details,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
         })
     }
