@@ -51,7 +51,7 @@ pub static GRANULAR_GATEWAY_SUPPORTED_FLOWS: sync::LazyLock<Vec<&'static str>> =
         ]
     });
 
-/// Execute a payment gateway and record confirmed proxy failures on the shadow path.
+/// Execute a payment gateway and record qualifying request failures on the shadow path.
 pub fn execute_payment_gateway<'a, F, ConnectorData, Req, Resp, Context, FlowOutput>(
     state: &'a SessionState,
     connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,

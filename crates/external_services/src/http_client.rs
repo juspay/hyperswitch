@@ -12,8 +12,6 @@ pub mod client;
 pub mod metrics;
 /// outbound_destination module
 pub mod outbound_destination;
-/// Proxy failure attribution for callers protecting shadow traffic.
-pub mod proxy;
 /// request module
 pub mod request;
 
@@ -189,19 +187,10 @@ pub async fn send_request(
         option_timeout_secs.unwrap_or(consts::REQUEST_TIME_OUT),
     ));
 
-    // Attribute proxy failures while the request URL and transport cause are available.
-    // Retain typed evidence across higher-level error conversions, including retries.
-    let map_request_error = |error: reqwest::Error| async move {
-        let proxy_failure = Box::pin(proxy::failure_reason(&error, client_proxy)).await;
+    // Retain the typed cause so callers can distinguish transport errors from
+    // request-construction errors within RequestNotSent, including on retries.
+    let map_request_error = |error: reqwest::Error| {
         let context = match &error {
-            // Keep confirmed proxy connection timeouts out of the generic timeout
-            // conversion, which returns a 504 and discards the original error chain.
-            _ if proxy_failure.is_some() => {
-                if error.is_timeout() {
-                    metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
-                }
-                HttpClientError::RequestNotSent(error.to_string())
-            }
             error if error.is_timeout() => {
                 metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
                 HttpClientError::RequestTimeoutReceived
@@ -212,28 +201,24 @@ pub async fn send_request(
             }
             _ => HttpClientError::RequestNotSent(error.to_string()),
         };
-        let report = error_stack::Report::new(error).change_context(context);
-        match proxy_failure {
-            Some(reason) => report.attach(proxy::ConfirmedProxyFailure(reason)),
-            None => report,
-        }
+        error_stack::Report::new(error).change_context(context)
     };
 
     // We cannot clone the request type, because it has Form trait which is not cloneable. So we are cloning the request builder here.
     let cloned_send_request = request.try_clone().map(|cloned_request| async {
-        match cloned_request.send().await {
-            Ok(response) => Ok(response),
-            Err(error) => Err(map_request_error(error).await)
-                .attach_printable("Unable to send request to connector"),
-        }
+        cloned_request
+            .send()
+            .await
+            .map_err(map_request_error)
+            .attach_printable("Unable to send request to connector")
     });
 
     let send_request = async {
-        match request.send().await {
-            Ok(response) => Ok(response),
-            Err(error) => Err(map_request_error(error).await)
-                .attach_printable("Unable to send request to connector"),
-        }
+        request
+            .send()
+            .await
+            .map_err(map_request_error)
+            .attach_printable("Unable to send request to connector")
     };
 
     let response = common_utils::metrics::utils::record_operation_time(

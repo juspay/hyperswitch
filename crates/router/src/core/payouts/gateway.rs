@@ -16,7 +16,7 @@ use hyperswitch_interfaces::{
 
 use crate::{core::unified_connector_service::kill_switch, services, types, SessionState};
 
-/// Execute a payout gateway and record confirmed proxy failures on the shadow path.
+/// Execute a payout gateway and record qualifying request failures on the shadow path.
 pub fn execute_payout_gateway<'a, F, ConnectorData, Req, Resp, Context, FlowOutput>(
     state: &'a SessionState,
     connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,

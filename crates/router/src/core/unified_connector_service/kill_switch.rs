@@ -867,10 +867,13 @@ mod tests {
     }
 }
 
-/// Disable shadow proxying after confirmed proxy failures reach a shared threshold.
+/// Disable shadow proxying after qualifying request failures reach a shared threshold.
 /// The proxy is shared across tenants, so its counter uses `global_store` consistently
 /// for increments, enforcement, status and reset. Primary UCS counters use tenant `store`.
 pub mod shadow {
+    use std::{error::Error, io::ErrorKind};
+
+    use common_enums::ApiClientError;
     use hyperswitch_domain_models::router_data::ErrorResponse;
     use hyperswitch_interfaces::{api::gateway::GetRouterData, errors::ConnectorError};
     use router_env::logger;
@@ -902,24 +905,62 @@ pub mod shadow {
             .map_or(1, |config| config.shadow_kill_switch_threshold)
     }
 
-    fn proxy_failure_reason(error: &error_stack::Report<ConnectorError>) -> Option<&'static str> {
+    fn request_failure_reason(error: &error_stack::Report<ConnectorError>) -> Option<&'static str> {
+        if error
+            .downcast_ref::<ApiClientError>()
+            .is_some_and(ApiClientError::is_upstream_timeout)
+            || error.current_context().is_connector_timeout()
+        {
+            return Some("request_timeout");
+        }
         if error.downcast_ref::<http::StatusCode>()
             == Some(&http::StatusCode::PROXY_AUTHENTICATION_REQUIRED)
         {
             return Some("proxy_authentication_required");
         }
-        error
-            .downcast_ref::<external_services::http_client::proxy::ConfirmedProxyFailure>()
-            .map(|failure| failure.reason())
+        let error = error.downcast_ref::<reqwest::Error>()?;
+        if error.is_timeout() {
+            return Some("request_timeout");
+        }
+        if !error.is_connect() {
+            return None;
+        }
+        std::iter::successors(error.source(), |source| (*source).source()).find_map(|cause| {
+            if cause
+                .downcast_ref::<std::io::Error>()
+                .is_some_and(|error| error.kind() == ErrorKind::ConnectionRefused)
+            {
+                return Some("connection_refused");
+            }
+            // Hyper 0.14's private DNS error type exposes this fixed prefix.
+            let message = cause.to_string();
+            if message.starts_with("dns error:") || message == "dns error" {
+                Some("dns_failure")
+            } else if message == "proxy authentication required" {
+                Some("proxy_authentication_required")
+            } else {
+                None
+            }
+        })
     }
 
-    fn is_proxy_auth_response(error: &ErrorResponse) -> bool {
-        error.status_code == 407
+    fn response_failure_reason(error: &ErrorResponse) -> Option<&'static str> {
+        if error.status_code == 407 {
+            Some("proxy_authentication_required")
+        } else if error.status_code == 504
+            && error.code == hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_CODE
+            && error.message == hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_MESSAGE
+        {
+            Some("request_timeout")
+        } else {
+            None
+        }
     }
 
-    /// Called only on the shadow path; check and record confirmed proxy failures.
-    /// Generic connector/read timeouts alone, response-body errors and ordinary 5xx
-    /// responses do not establish that the proxy failed and must not disable shadow fleet-wide.
+    /// Called only on the shadow path; classify the original request result and record
+    /// timeouts, DNS failures, connection refused or explicit proxy authentication failures.
+    /// These errors do not establish whether the proxy or upstream connector failed.
+    /// Body/decoding errors and ordinary connector 5xx responses do not count.
     /// Redis commands use the application's existing configured timeout.
     pub async fn check_record_failure<F, Req, Resp, Output>(
         state: &SessionState,
@@ -929,16 +970,18 @@ pub mod shadow {
         Output: GetRouterData<F, Req, Resp>,
     {
         let reason = match result {
-            Err(error) => proxy_failure_reason(error),
+            Err(error) => request_failure_reason(error),
             Ok(output) => {
                 let router_data = output.get_router_data();
-                (router_data.connector_http_status_code == Some(407)
-                    || router_data
+                if router_data.connector_http_status_code == Some(407) {
+                    Some("proxy_authentication_required")
+                } else {
+                    router_data
                         .response
                         .as_ref()
                         .err()
-                        .is_some_and(is_proxy_auth_response))
-                .then_some("proxy_authentication_required")
+                        .and_then(response_failure_reason)
+                }
             }
         };
         let Some(reason) = reason else {
@@ -1011,30 +1054,97 @@ pub mod shadow {
         use super::*;
 
         #[test]
-        fn proxy_authentication_is_distinct_from_connector_timeout_and_5xx() {
-            let proxy_auth = ErrorResponse {
+        fn proxy_authentication_and_request_timeout_responses_count() {
+            let response = ErrorResponse {
                 status_code: 407,
                 ..Default::default()
             };
-            assert!(is_proxy_auth_response(&proxy_auth));
+            assert_eq!(
+                response_failure_reason(&response),
+                Some("proxy_authentication_required")
+            );
+            let response = ErrorResponse {
+                status_code: 504,
+                code: hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_CODE.to_owned(),
+                message: hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_owned(),
+                ..Default::default()
+            };
+            assert_eq!(response_failure_reason(&response), Some("request_timeout"));
+        }
+
+        #[test]
+        fn ordinary_upstream_5xx_responses_do_not_count() {
             for status_code in [500, 502, 503, 504] {
                 let response = ErrorResponse {
                     status_code,
-                    code: hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_CODE.to_owned(),
-                    message: hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_MESSAGE
-                        .to_owned(),
                     ..Default::default()
                 };
-                assert!(!is_proxy_auth_response(&response));
+                assert_eq!(response_failure_reason(&response), None);
             }
         }
 
         #[test]
-        fn connector_timeout_without_a_proxy_cause_does_not_count() {
-            let error =
-                error_stack::Report::new(common_enums::ApiClientError::RequestTimeoutReceived)
-                    .change_context(ConnectorError::RequestTimeoutReceived);
-            assert_eq!(proxy_failure_reason(&error), None);
+        fn typed_request_timeouts_count_directly() {
+            let error = error_stack::Report::new(ApiClientError::RequestTimeoutReceived)
+                .change_context(ConnectorError::ProcessingStepFailed(None));
+            assert_eq!(request_failure_reason(&error), Some("request_timeout"));
+            let error = error_stack::Report::new(ConnectorError::RequestTimeoutReceived);
+            assert_eq!(request_failure_reason(&error), Some("request_timeout"));
+        }
+
+        #[test]
+        fn arbitrary_io_and_connection_closed_errors_do_not_count() {
+            let error = error_stack::Report::new(std::io::Error::from(ErrorKind::ConnectionReset))
+                .change_context(ConnectorError::ProcessingStepFailed(None));
+            assert_eq!(request_failure_reason(&error), None);
+            let error = error_stack::Report::new(ApiClientError::ConnectionClosedIncompleteMessage)
+                .change_context(ConnectorError::ProcessingStepFailed(None));
+            assert_eq!(request_failure_reason(&error), None);
+        }
+
+        #[tokio::test]
+        async fn connection_refused_counts_from_the_original_request() {
+            // Reserve the port without listening, so another test cannot claim it.
+            let socket = tokio::net::TcpSocket::new_v4().expect("socket");
+            socket
+                .bind("127.0.0.1:0".parse().expect("address"))
+                .expect("bind");
+            let error = reqwest::Client::builder()
+                .no_proxy()
+                .build()
+                .expect("client")
+                .get(format!("http://{}/", socket.local_addr().expect("address")))
+                .send()
+                .await
+                .expect_err("connection refused");
+            let error = error_stack::Report::new(error)
+                .change_context(ConnectorError::ProcessingStepFailed(None));
+            assert_eq!(request_failure_reason(&error), Some("connection_refused"));
+        }
+
+        #[tokio::test]
+        async fn request_timeout_counts_without_an_endpoint_probe() {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+                .await
+                .expect("bind");
+            let address = listener.local_addr().expect("address");
+            let server = tokio::spawn(async move {
+                let (_connection, _) = listener.accept().await.expect("accept");
+                std::future::pending::<()>().await;
+            });
+            let error = reqwest::Client::builder()
+                .no_proxy()
+                .timeout(std::time::Duration::from_millis(100))
+                .build()
+                .expect("client")
+                .get(format!("http://{address}/"))
+                .send()
+                .await
+                .expect_err("request timeout");
+            let error = error_stack::Report::new(error)
+                .change_context(ConnectorError::ProcessingStepFailed(None));
+            assert_eq!(request_failure_reason(&error), Some("request_timeout"));
+            server.abort();
         }
     }
 }
