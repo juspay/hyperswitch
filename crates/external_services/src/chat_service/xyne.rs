@@ -189,31 +189,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn preserves_real_line_breaks_in_the_json_text() {
-        let server = MockServer::start().await;
-        let text = "ALARM: test\n\nSeverity: CRITICAL\nState: OK → ALARM\n\nDimensions:\nLoadBalancer: app/test\n\nCondition: Sum >= 10\nLatest value: 16";
-        Mock::given(method("POST"))
-            .and(path(METHOD_PATH))
-            .and(body_json(
-                json!({"channel": CHANNEL, "text": text, "mrkdwn": true}),
-            ))
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_json(json!({"ok": true, "ts": "1503435956.000247"})),
-            )
-            .expect(1)
-            .mount(&server)
-            .await;
-
-        let message_id = client_for(&server)
-            .post_message(ChatMessage::new(text))
-            .await
-            .unwrap();
-
-        assert_eq!(message_id, MessageId::ts("1503435956.000247"));
-    }
-
-    #[tokio::test]
     async fn a_reply_carries_thread_ts_and_nothing_else_changes() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))

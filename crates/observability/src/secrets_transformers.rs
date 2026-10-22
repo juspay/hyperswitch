@@ -16,7 +16,7 @@ use hyperswitch_interfaces::secrets_interface::{
 };
 
 use crate::settings::{
-    evaluator::EvaluatorSettings, AuthSettings, ChatDestination, ChatSettings, Database, Settings,
+    evaluator::AlertSettings, AuthSettings, ChatDestination, ChatSettings, Database, Settings,
 };
 
 #[async_trait::async_trait]
@@ -80,7 +80,7 @@ impl SecretsHandler for ChatSettings {
 }
 
 #[async_trait::async_trait]
-impl SecretsHandler for EvaluatorSettings {
+impl SecretsHandler for AlertSettings {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
         secret_management_client: &dyn SecretManagementInterface,
@@ -142,14 +142,14 @@ pub async fn fetch_raw_secrets(
         .expect("Failed to decrypt a chat destination credential");
 
     #[allow(clippy::expect_used)]
-    let evaluator = match conf.evaluator {
-        Some(evaluator) => Some(
-            EvaluatorSettings::convert_to_raw_secret(evaluator, secret_management_client)
-                .await
-                .expect("Failed to decrypt the evaluator API token"),
-        ),
-        None => None,
-    };
+    let alert = AlertSettings::convert_to_raw_secret(conf.alert, secret_management_client)
+        .await
+        .expect("Failed to decrypt the alert API token");
+    #[allow(clippy::expect_used)]
+    alert
+        .get_inner()
+        .validate(chat.get_inner())
+        .expect("Decrypted alert configuration is unusable");
 
     #[allow(clippy::expect_used)]
     let database = Database::convert_to_raw_secret(conf.database, secret_management_client)
@@ -165,7 +165,7 @@ pub async fn fetch_raw_secrets(
         secrets_management: conf.secrets_management,
         proxy: conf.proxy,
         chat,
-        evaluator,
+        alert,
         email: conf.email,
         database,
     }

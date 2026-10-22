@@ -41,7 +41,8 @@ async fn state() -> AppState {
 async fn state_with_max(max_upload_bytes: usize) -> AppState {
     let conf = serde_json::from_value(json!({
         "auth": { "internal_api_key": API_KEY },
-        "chat": { "max_upload_bytes": max_upload_bytes }
+        "chat": { "max_upload_bytes": max_upload_bytes },
+        "alert": { "grafana": { "base_url": "http://127.0.0.1:3999", "api_token": "unused_fixture_token" }, "datasources": {}, "rules": "[]" }
     }))
     .expect("the test configuration should deserialize");
 
@@ -60,7 +61,6 @@ async fn state_with_max(max_upload_bytes: usize) -> AppState {
         conf: Arc::new(conf),
         chat: Arc::new(Registry::new(HashMap::from([(CHAT.to_owned(), chat)]))),
         email: Arc::new(Registry::new(HashMap::from([(EMAIL.to_owned(), email)]))),
-        evaluator: None,
         store: Arc::new(lazy_store().await),
     }
 }

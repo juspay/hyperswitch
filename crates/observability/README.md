@@ -333,6 +333,47 @@ proxies. Verify the public Router host is allowed by the proxy before deployment
 No upstream error body is retained or logged. The client does not independently decode or validate
 the JWT.
 
+## Config-sourced metric alerts
+
+`[alert]` is required, including Grafana connection settings, a datasource-kind-to-UID registry and
+`rules` as a JSON string. See `config/observability.toml`; environment overrides use the
+`OBSERVABILITY__ALERT__` prefix. Each datasource value contains only `uid`; its map key identifies
+the provider/datasource kind. Each threshold's `destination` is an existing notifier ID,
+not a channel ID or a second severity mapping. Invalid/unknown IDs fail startup. Empty rule lists
+are allowed; missing alert settings are not.
+
+- `POST /alerts/grafana/notify` evaluates and delivers; `GET /alerts/grafana/evaluate` never sends.
+  Both require the existing `X-Internal-Api-Key` authentication.
+- Alerts use simple text containing the rule, metric/value, threshold, severity and evaluation window.
+  Banner colors, attachment blocks and decorative templates are deferred.
+- Each rule compares its configured statistic's newest complete sample within a five-minute window.
+  A longer metric period uses one complete period. Critical takes priority over warning, then info.
+  Every breached evaluation sends ALARM, including repeated evaluations of the same breach.
+- Successful empty/all-null windows report `level: "nodata"` without sending; actual query/auth/
+  timeout/response failures report an error and send RULE ERROR to that rule's highest-priority
+  configured threshold destination. Delivery failures remain in the report; later rules continue.
+- There is no stored lifecycle, previous-window recomputation, M-of-N, missing-slot filling or
+  automatic RESOLVED. The five-minute lookback is not a consecutive-missing timer or a promise
+  to deliver every transient breach between polls.
+- `end_offset_seconds` retains its timestamp-cutoff semantics: period 60/offset 180 at 10:08 selects
+  periods through the one starting 10:05, ending 10:06; it does not wait a further 180 seconds after
+  that period completes. Message times use the captured shared UTC clock and display as
+  `YYYY-MM-DD HH:mm:ss UTC`.
+- Notifications retain the original multiline text layout: severity/state/time, description,
+  metric details, per-line dimensions, condition, latest value and definition ID. State is the
+  current `ALARM`, not a fabricated transition; evaluation is one actual datapoint. Missing data
+  is `NoData` with no notification, and the removed classification field is not rendered.
+
+Rule JSON is unversioned and uses `datasource: "grafana_cloudwatch"`. Remove the old version,
+classification, evaluation-period/datapoint/missing-slot fields and global `[evaluator.destinations]`.
+Migrate the previous `[evaluator]` configuration section and `OBSERVABILITY__EVALUATOR__` environment
+variables to `[alert]` and `OBSERVABILITY__ALERT__`; remove the redundant `provider`/`datasource`
+fields from registry values. No legacy configuration aliases are provided.
+The Grafana plugin wire type remains `cloudwatch`. Update the infrastructure CronJob URL from
+`/alerts/cloudwatch/notify` to `/alerts/grafana/notify` in coordination with service rollout;
+there is no old-route alias. Separate JSONB table consumers need their own storage conversion
+before integration. This foundation has no new database dependency or migration.
+
 ## Layout
 
 ```

@@ -23,11 +23,10 @@ use crate::core::router_client::RouterClient;
 async fn test_state(client: Option<&RouterClient>) -> AppState {
     use crate::{db::Store, domain::notifier::Registry, settings::Database};
     AppState {
-        conf: Arc::new(serde_json::from_value(json!({"monitoring": {"destinations": {"payment_logs": "https://cc.example/api/observability-plane/grafana/explore?orgId=1&left=logs"}}})).unwrap()),
+        conf: Arc::new(serde_json::from_value(json!({"monitoring": {"destinations": {"payment_logs": "https://cc.example/api/observability-plane/grafana/explore?orgId=1&left=logs"}}, "alert": {"grafana": {"base_url": "http://127.0.0.1:3999", "api_token": "unused_fixture_token"}, "datasources": {}, "rules": "[]"}})).unwrap()),
         router_transport: client.cloned().map(Arc::new),
         chat: Arc::new(Registry::default()),
         email: Arc::new(Registry::default()),
-        evaluator: None,
         // No idle connections: monitoring never touches the database.
         store: Arc::new(
             Store::new(&Database {
