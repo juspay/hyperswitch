@@ -4,8 +4,8 @@
 //! in-process. UCS-backed providers instead have their risk evaluation executed
 //! by the connector-service, which owns the provider-specific transformation.
 //!
-//! This module holds what has no payments analogue: the access-token fetch for
-//! bearer-authenticated providers and the lifecycle notification sender. The
+//! This module holds what has no payments analogue: the lifecycle notification
+//! sender. Access tokens are handled in `core::fraud_check::access_token`. The
 //! `RouterData ──▶ FrmServicePreRiskCheckRequest` builder lives with every other
 //! request builder in `transformers.rs`, the verdict handler with its siblings
 //! in the parent module, and the gRPC call itself in `core::fraud_check::gateway`.
@@ -13,131 +13,18 @@
 use common_utils::{id_type, types::MinorUnit};
 use error_stack::ResultExt;
 use external_services::grpc_client::LineageIds;
-use hyperswitch_domain_models::{
-    platform::Processor,
-    router_data::{AccessToken, RouterData},
-    router_flow_types::{fraud_check as frm_api, AccessTokenAuth},
-    router_request_types::{fraud_check::FraudCheckCheckoutData, AccessTokenRequestData},
-    router_response_types::fraud_check::FraudCheckResponseData,
-};
-use hyperswitch_interfaces::api::gateway;
+use hyperswitch_domain_models::platform::Processor;
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::{build_unified_connector_service_auth_metadata, get_ucs_client};
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payments::{self, helpers::MerchantConnectorAccountType},
+        payments::helpers::MerchantConnectorAccountType,
     },
     routes::SessionState,
-    services,
-    types::{api::FraudCheckConnectorData, transformers::ForeignTryFrom},
+    types::transformers::ForeignTryFrom,
 };
-
-/// Fetch (and cache) the OAuth token a bearer-authenticated FRM provider needs.
-///
-/// Kount's risk API is bearer-authenticated: the connector-service reads the token from
-/// `state.access_token` and cannot mint one itself on the plain FRM service.
-/// Reads Redis first, falling back to UCS `CreateServerAuthenticationToken`.
-/// Providers using a static key (nSure) never reach this — `should_do_access_token`
-/// is connector-side, so we gate on whether UCS returns a token at all.
-#[cfg(feature = "v1")]
-pub async fn get_frm_access_token(
-    state: &SessionState,
-    router_data: &RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>,
-    gateway_context: &payments::gateway::context::RouterGatewayContext,
-) -> RouterResult<Option<AccessToken>> {
-    let processor = &gateway_context.processor;
-    let merchant_connector_account = &gateway_context.merchant_connector_account;
-    let merchant_id = processor.get_account().get_id();
-    let connector_name = router_data.connector.as_str();
-
-    // Scope the cached token to the merchant connector account, the way the
-    // payments path does (`access_token::get_cached_access_token_for_ucs`).
-    // Keying on the connector name alone would make two accounts for the same
-    // FRM provider under one merchant share a token.
-    let merchant_connector_id = match merchant_connector_account {
-        MerchantConnectorAccountType::DbVal(mca) => Some(mca.get_id()),
-        MerchantConnectorAccountType::CacheVal(_) => None,
-    };
-
-    let access_token_key = common_utils::access_token::get_default_access_token_key(
-        merchant_id,
-        merchant_connector_id
-            .as_ref()
-            .map(|id| id.get_string_repr().to_string())
-            .unwrap_or_else(|| connector_name.to_string()),
-    );
-
-    if let Ok(Some(token)) = state.store.get_access_token(access_token_key.clone()).await {
-        router_env::logger::debug!(connector = connector_name, "FRM access token cache hit");
-        return Ok(Some(token));
-    }
-
-    // Same gateway the payments path uses for `create_access_token`, so the
-    // FRM token fetch runs under `ucs_logging_wrapper_granular` and gets the
-    // same request/response/timing event. The router data is re-typed to the
-    // access-token flow first (as `add_access_token` does); the gateway picks
-    // the `PaymentVas` connector namespace from the FRM connector name.
-    let access_token_request =
-        AccessTokenRequestData::try_from(router_data.connector_auth_type.clone())
-            .attach_printable(
-                "Could not create FRM access token request from connector credentials",
-            )?;
-    let access_token_router_data =
-        payments::helpers::router_data_type_conversion::<_, AccessTokenAuth, _, _, _, AccessToken>(
-            router_data.clone(),
-            access_token_request,
-            Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-        );
-
-    let connector = FraudCheckConnectorData::get_connector_by_name(connector_name)?;
-    let connector_integration: services::BoxedAccessTokenConnectorIntegrationInterface<
-        AccessTokenAuth,
-        AccessTokenRequestData,
-        AccessToken,
-    > = connector.connector.get_connector_integration();
-
-    // The token fetch is a sub-step of the UCS pre-risk check, so it runs
-    // under the same gateway context that brought us here — same execution
-    // path, mode and account. Nothing to re-decide.
-    let token_result = gateway::execute_payment_gateway(
-        state,
-        connector_integration,
-        &access_token_router_data,
-        payments::CallConnectorAction::Trigger,
-        None,
-        None,
-        gateway_context.clone(),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("UCS create_access_token gateway call failed for FRM")?
-    .response;
-    match token_result {
-        Ok(token) => {
-            // Best-effort cache; a write failure only costs an extra token call.
-            let _ = super::set_access_token_for_ucs(
-                state,
-                processor,
-                connector_name,
-                token.clone(),
-                merchant_connector_id.as_ref(),
-                None,
-            )
-            .await;
-            Ok(Some(token))
-        }
-        Err(err) => {
-            router_env::logger::error!(
-                connector = connector_name,
-                error = ?err,
-                "UCS returned an error for the FRM access token"
-            );
-            Ok(None)
-        }
-    }
-}
 
 // Lifecycle notifications: the connector-service exposes four FRM events
 // (payment succeeded/failure, refund processed, chargeback received) on one
@@ -196,10 +83,10 @@ pub struct FrmNotificationContext<'a> {
 /// and this handles auth metadata, `x-frm-connector` routing, and the gRPC
 /// call.
 ///
-/// Not yet wired to a call site. Before it is, bearer-authenticated providers
-/// (Kount) need the access token threaded into `NotifyConnectorRequest.state`
-/// via [`get_frm_access_token`], the way the pre-risk-check gateway does —
-/// without it the notification reaches the provider unauthenticated.
+/// No access token is sent. Before a bearer-authenticated provider is
+/// onboarded, thread one into `NotifyConnectorRequest.state` (see
+/// `core::fraud_check::access_token`) — without it the notification reaches
+/// the provider unauthenticated.
 #[cfg(feature = "v1")]
 pub async fn call_unified_connector_service_for_frm_notification(
     state: &SessionState,

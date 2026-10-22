@@ -11318,7 +11318,9 @@ impl
             customer_info,
             payment_method,
             browser_info,
-            merchant_transaction_id: Some(router_data.attempt_id.clone()),
+            // Carries the `fraud_check` row id (see the checkout flow), which
+            // providers key their dedup/correlation on.
+            merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
             order_details,
             address: Some(payments_grpc::PaymentAddress::foreign_try_from(
                 router_data.address.clone(),
