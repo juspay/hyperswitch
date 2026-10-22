@@ -1,0 +1,1313 @@
+/**
+ * scenario-mix.js — a single k6 load test that mixes all payment scenarios
+ * with configurable traffic percentages (example: 50% guest, 40% CIT
+ * off-session, 10% metadata-changed).
+ *
+ * Scenario catalogue and request semantics mirror loadtest/runner (see
+ * loadtest/runner/lib/scenarios.js and loadtest/runner/k6/*.js), but unlike
+ * the runner there is no separate fixture stage: every iteration is
+ * self-contained — it creates everything it needs (customer, payment-method
+ * session, saved card, payment) and times each step individually.
+ *
+ * Usage:
+ *   cp config.example.json config.json   # fill in endpoints + credentials
+ *   k6 run scenario-mix.js
+ * or:
+ *   SCENARIO_MIX_CONFIG=/path/to/config.json k6 run scenario-mix.js
+ *
+ * Load shape: either flat (load.total_rps for load.duration_seconds) or a
+ * stepped ramp (load.phases, same knobs as loadtest/runner's loadPhases) that
+ * holds each RPS level and reports per-phase percentiles — useful for finding
+ * the application's maximum sustainable RPS.
+ */
+import http from "k6/http";
+import {serverLatency,latencyHeaders} from "./server-latency.mjs";
+import { sleep } from "k6";
+import { Counter, Trend } from "k6/metrics";
+import exec from "k6/execution";
+import encoding from "k6/encoding";
+import recorder from "./recording-client.js";
+
+// ---------------------------------------------------------------------------
+// Configuration loading and validation (fails fast, before any traffic)
+// ---------------------------------------------------------------------------
+
+const configPath = __ENV.SCENARIO_MIX_CONFIG || "./config.json";
+// Directory prefix for every file this script writes itself (SUMMARY_OUTPUT).
+// Defaults to "output" (checked into the repo alongside this script) rather
+// than cwd, so a plain `k6 run scenario-mix.js` doesn't scatter files loose
+// next to the source. k6 VU/init code can't create directories — the actual
+// file write happens in k6's Go runtime after handleSummary returns, and it
+// fails outright if the directory doesn't already exist — so a non-default
+// OUTPUT_DIR must be created ahead of time (`mkdir -p "$OUTPUT_DIR"`) before
+// running. Same constraint applies to any path passed to --console-output or
+// --out web-dashboard=export=..., which are k6 CLI flags this script has no
+// control over; see README "Collecting everything into one output directory".
+const outputDir = __ENV.OUTPUT_DIR || "output";
+const recordingEnabled = Boolean(__ENV.SQLITE_RECORDER_REQUIRED) && !__ENV.RECORDING_DISABLED;
+
+function joinPath(dir, file) {
+  if (!dir) return file;
+  return dir.endsWith("/") ? `${dir}${file}` : `${dir}/${file}`;
+}
+
+function fail(message) {
+  throw new Error(`scenario-mix: ${message}`);
+}
+
+let config;
+try {
+  config = JSON.parse(open(configPath));
+} catch (error) {
+  fail(`cannot read config at "${configPath}" (set SCENARIO_MIX_CONFIG): ${error}`);
+}
+
+const MERCHANT_PATHS = new Set(["non_modular", "modular"]);
+
+// Behavior table ported from loadtest/runner/lib/scenarios.js. Keep in sync.
+const SCENARIOS = {
+  // No customer and no saved card; modular sessions use volatile storage.
+  guest: { requiresCustomer: false, setupFutureUsage: null, storageType: "volatile" },
+  // Customer-initiated save-card flows, vaulted inline at confirm.
+  cit_on_session: { requiresCustomer: true, setupFutureUsage: "on_session", storageType: "persistent" },
+  cit_off_session: { requiresCustomer: true, setupFutureUsage: "off_session", storageType: "persistent" },
+  // Payment-to-vault: the session stays volatile, acceptance is recorded, and
+  // the card is promoted to persistent storage after authorization.
+  ptv_on_session: { requiresCustomer: true, setupFutureUsage: "on_session", storageType: "volatile", modularOnly: true },
+  ptv_off_session: { requiresCustomer: true, setupFutureUsage: "off_session", storageType: "volatile", modularOnly: true },
+  // Saves a card in the iteration's baseline step, then the measured confirm
+  // resubmits the same PAN with changed metadata (expiry/holder name) to
+  // exercise vault metadata replacement. Non-modular only.
+  cit_metadata_changed: { requiresCustomer: true, requiresSavedCard: true, metadataChanged: true, setupFutureUsage: "off_session", storageType: "persistent" },
+  // Replicates the Hyperswitch SDK's pre-confirm calls (payment method list,
+  // wallet session tokens, BIN eligibility check) ahead of a guest-style
+  // confirm. Router (non_modular) only — the v2/modular payment-method
+  // service does not expose 1:1 equivalents of these endpoints yet.
+  sdk_checkout: { requiresCustomer: false, setupFutureUsage: null, storageType: "volatile", nonModularOnly: true, sdkFlow: true },
+  // Merchant-initiated transaction: the customer is not present. A baseline
+  // step first saves a card via a CIT confirm (off_session, like
+  // cit_metadata_changed), then the measured request is a single
+  // POST /payments with confirm:true, off_session:true, and
+  // recurring_details.payment_method_id pointing at the saved payment
+  // method — no card data on the wire, no separate payment_create call.
+  // Mirrors cypress-tests' create-pm-id-mit.json / MandatesUsingPMID flow.
+  // Non-modular only (router recurring-payments API).
+  mit: { requiresCustomer: true, requiresSavedCard: true, setupFutureUsage: null, storageType: "persistent", nonModularOnly: true, mitFlow: true },
+  // Returning-customer checkout: a baseline step first saves a card via a
+  // CIT confirm (off_session, like cit_metadata_changed/mit), then the
+  // measured request creates a fresh payment intent and calls the combined
+  // payment-method-list endpoint (GET /payments/{payment_id}/client — the
+  // same SDK-facing call sdk_checkout's payment_method_list step makes) to
+  // obtain the saved card's payment_token from its customer_payment_methods,
+  // then confirms with that token — no card data on the wire for the
+  // measured confirm. Mirrors cypress-tests' 14-SaveCardFlow.cy.js
+  // (listCustomerPMCallTest + saveCardConfirmCallTest), adapted to the
+  // combined list endpoint. Non-modular only, and needs
+  // merchant.publishable_key for the SDK Authorization header, same as
+  // sdk_checkout.
+  saved_card_checkout: { requiresCustomer: true, requiresSavedCard: true, savedCardCheckout: true, setupFutureUsage: null, storageType: "persistent", nonModularOnly: true },
+};
+
+// Payment statuses considered a successful measured confirm (workload.js).
+const SUCCESS_STATUSES = new Set(["succeeded", "requires_capture", "processing"]);
+
+function numberOr(value, fallback) {
+  if (value === undefined || value === null) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) fail(`expected a number, got "${value}"`);
+  return parsed;
+}
+
+function statusCode(response) {
+  return response.status || "invalid";
+}
+
+function buildPlan(entry, index) {
+  if (!entry || typeof entry !== "object") fail(`scenarios[${index}] must be an object`);
+  const name = String(entry.name || "");
+  if (!/^[A-Za-z0-9_]+$/.test(name)) {
+    fail(`scenarios[${index}]: "name" must be non-empty and use only letters, digits and underscores (it becomes part of metric names), got "${entry.name}"`);
+  }
+  const merchantPath = String(entry.merchant_path || "").toLowerCase();
+  if (!MERCHANT_PATHS.has(merchantPath)) {
+    fail(`scenario "${name}": merchant_path must be non_modular or modular, got "${entry.merchant_path}"`);
+  }
+  const scenarioName = String(entry.scenario || "").toLowerCase();
+  const scenario = SCENARIOS[scenarioName];
+  if (!scenario) {
+    fail(`scenario "${name}": unknown scenario "${entry.scenario}" (known: ${Object.keys(SCENARIOS).join(", ")})`);
+  }
+  if (scenario.metadataChanged && merchantPath !== "non_modular") {
+    fail(`scenario "${name}": ${scenarioName} supports only the non_modular merchant path`);
+  }
+  if (scenario.modularOnly && merchantPath !== "modular") {
+    fail(`scenario "${name}": ${scenarioName} supports only the modular merchant path`);
+  }
+  if (scenario.nonModularOnly && merchantPath !== "non_modular") {
+    fail(`scenario "${name}": ${scenarioName} supports only the non_modular merchant path`);
+  }
+  const weight = numberOr(entry.weight, NaN);
+  if (!(weight >= 0)) fail(`scenario "${name}": weight must be a number >= 0`);
+  return {
+    name,
+    weight,
+    merchantPath,
+    scenarioName,
+    usesPmService: merchantPath === "modular",
+    ...scenario,
+  };
+}
+
+const load = config.load || {};
+const paymentConfig = config.payment || {};
+
+const requestTimeoutMs = numberOr(load.request_timeout_ms, 30000);
+if (!(requestTimeoutMs >= 100)) fail("load.request_timeout_ms must be >= 100");
+const thinkTimeMs = numberOr(load.think_time_ms, 0);
+if (thinkTimeMs < 0) fail("load.think_time_ms must be >= 0");
+const preAllocatedVusMultiplier = numberOr(load.pre_allocated_vus_multiplier, 3);
+// Each iteration is a multi-request flow (up to ~6 sequential requests) and
+// flow duration balloons as the system saturates — exactly when VU headroom
+// matters, so keep the ceiling generous. It is a ceiling: VUs beyond
+// preAllocatedVUs are only used when needed.
+const maxVusMultiplier = numberOr(load.max_vus_multiplier, 10);
+if (!(maxVusMultiplier >= preAllocatedVusMultiplier && preAllocatedVusMultiplier > 0)) {
+  fail("load VU multipliers must satisfy 0 < pre_allocated_vus_multiplier <= max_vus_multiplier");
+}
+
+// Flat mode: fixed load.total_rps for load.duration_seconds.
+// Ramp mode: load.phases describes ONE continuous ramping-arrival-rate curve
+// (hold at starting_rps, smoothly ramp to target_rps, hold at target_rps) -
+// a single persistent k6 scenario per traffic entry for the whole test.
+//
+// 2026-09-24: restructured from the previous discrete-step design (a brand
+// new constant-arrival-rate scenario, with its own fresh VU pool and
+// connections, spun up at every phase boundary). That design was root-
+// caused as the trigger for a k6-client-side connection-establishment
+// failure burst: two full 1000 TPS runs both aborted within ~40s of the
+// transition into the final (highest-rate) phase specifically, while
+// server-side p95 latency (Envoy/router/PMM) stayed completely flat
+// through the whole test both times - ruling out any real hyperswitch-side
+// cause and pointing at the burst of brand-new VUs/connections created at
+// each phase boundary (up to ~3000 at once, across 3 scenarios) as the
+// actual trigger. ramping-arrival-rate keeps ONE VU pool/connection set
+// alive for the scenario's entire lifetime and interpolates smoothly
+// between stages instead of jumping in discrete steps, eliminating that
+// churn at the design level (not just raising a failure-count threshold).
+//
+// load.stages generalizes the same single-executor design to any number of
+// stages (e.g. calibration -> ramp -> hold -> ramp -> hold, which load.phases'
+// one-ramp shape cannot express): an ordered list of
+// { name, target_rps, duration_seconds }, still ONE ramping-arrival-rate
+// scenario per traffic entry. Each stage's target_rps is the rate reached at
+// the END of that stage, interpolated linearly from the previous stage's
+// target (k6 semantics); a stage whose target equals the previous one is a
+// flat hold. load.start_rps (default: first stage's target_rps) is the rate
+// at t=0, so a first stage with the same target is a flat hold from the start.
+// load.phases is converted to the equivalent stage list below, so the
+// executor/summary code has a single path.
+let rampPlan = null;
+let flatTotalRps = null;
+let flatDurationSeconds = null;
+if (load.stages !== undefined) {
+  if (load.phases !== undefined || load.total_rps !== undefined || load.duration_seconds !== undefined) {
+    fail("load.stages cannot be combined with load.phases, load.total_rps or load.duration_seconds");
+  }
+  if (!Array.isArray(load.stages) || !load.stages.length) fail("load.stages must be a non-empty array");
+  const stages = load.stages.map((stage, index) => {
+    if (!stage || typeof stage !== "object") fail(`load.stages[${index}] must be an object`);
+    const targetRps = numberOr(stage.target_rps, NaN);
+    if (!(targetRps > 0)) fail(`load.stages[${index}].target_rps must be a number > 0`);
+    const durationSeconds = numberOr(stage.duration_seconds, NaN);
+    if (!(durationSeconds >= 1)) fail(`load.stages[${index}].duration_seconds must be >= 1`);
+    return { name: String(stage.name || `stage_${index + 1}`), targetRps, durationSeconds };
+  });
+  const startRps = numberOr(load.start_rps, stages[0].targetRps);
+  if (!(startRps >= 0)) fail("load.start_rps must be a number >= 0");
+  rampPlan = {
+    startRps,
+    stages,
+    strict: true,
+    totalSeconds: stages.reduce((sum, stage) => sum + stage.durationSeconds, 0),
+    peakRps: Math.max(startRps, ...stages.map((stage) => stage.targetRps)),
+  };
+} else if (load.phases && typeof load.phases === "object") {
+  if (load.total_rps !== undefined || load.duration_seconds !== undefined) {
+    fail("load.total_rps and load.duration_seconds cannot be combined with load.phases");
+  }
+  const startRps = numberOr(load.phases.starting_rps, NaN);
+  if (!(startRps > 0)) fail("load.phases.starting_rps must be a number > 0");
+  const targetRps = numberOr(load.phases.target_rps, startRps);
+  if (startRps > targetRps) fail("load.phases.starting_rps cannot exceed load.phases.target_rps");
+  // initial_hold_seconds/final_hold_seconds keep their existing names/
+  // semantics from the previous design. hold_seconds (no initial_/final_
+  // prefix) is accepted as a fallback for initial_hold_seconds only, for
+  // continuity with older configs; it no longer sizes anything else since
+  // there are no more discrete ramp steps to hold.
+  const initialHoldSeconds = numberOr(load.phases.initial_hold_seconds, numberOr(load.phases.hold_seconds, NaN));
+  if (!(initialHoldSeconds >= 1)) fail("load.phases.initial_hold_seconds (or hold_seconds) must be >= 1");
+  const finalHoldSeconds = numberOr(load.phases.final_hold_seconds, initialHoldSeconds);
+  if (!(finalHoldSeconds >= 1)) fail("load.phases.final_hold_seconds must be >= 1");
+  // New knob replacing step_rps: the ramp is one smooth interpolation from
+  // starting_rps to target_rps over this many seconds, not a staircase of
+  // step_rps-sized jumps each held for hold_seconds.
+  const rampDurationSeconds = numberOr(load.phases.ramp_duration_seconds, startRps < targetRps ? NaN : 0);
+  if (startRps < targetRps && !(rampDurationSeconds >= 1)) {
+    fail("load.phases.ramp_duration_seconds must be >= 1 when target_rps exceeds starting_rps");
+  }
+  const idleSeconds = numberOr(load.phases.idle_seconds, 0);
+  if (idleSeconds < 0) fail("load.phases.idle_seconds must be >= 0");
+  const legacyStages = [{ name: "initial_hold", targetRps: startRps, durationSeconds: initialHoldSeconds }];
+  if (targetRps > startRps) legacyStages.push({ name: "ramp", targetRps, durationSeconds: rampDurationSeconds });
+  legacyStages.push({ name: "final_hold", targetRps, durationSeconds: finalHoldSeconds });
+  rampPlan = {
+    startRps,
+    targetRps,
+    initialHoldSeconds,
+    rampDurationSeconds,
+    finalHoldSeconds,
+    idleSeconds,
+    stages: legacyStages,
+    strict: false,
+    // Same window formula the summary always used for load.phases, kept as-is
+    // so legacy configs print identical numbers.
+    totalSeconds: initialHoldSeconds + rampDurationSeconds + finalHoldSeconds,
+    peakRps: targetRps,
+  };
+} else {
+  flatTotalRps = numberOr(load.total_rps, NaN);
+  if (!(flatTotalRps > 0)) {
+    fail("load.total_rps must be a number > 0 (or configure load.phases for a stepped ramp)");
+  }
+  flatDurationSeconds = numberOr(load.duration_seconds, NaN);
+  if (!(flatDurationSeconds >= 1)) fail("load.duration_seconds must be >= 1");
+}
+
+const loadDescription = rampPlan
+  ? (rampPlan.strict
+    ? `stages: start ${rampPlan.startRps} rps -> ${rampPlan.stages.map((stage) => `${stage.name} ${stage.targetRps} rps/${stage.durationSeconds}s`).join(" -> ")} (total ${rampPlan.totalSeconds}s)`
+    : `ramp: hold ${rampPlan.startRps} rps x ${rampPlan.initialHoldSeconds}s -> ramp to ${rampPlan.targetRps} rps over ${rampPlan.rampDurationSeconds}s -> hold ${rampPlan.targetRps} rps x ${rampPlan.finalHoldSeconds}s (total ${rampPlan.totalSeconds}s)`)
+  : `total_rps=${flatTotalRps} | duration=${flatDurationSeconds}s`;
+
+const entries = Array.isArray(config.scenarios) ? config.scenarios : [];
+if (!entries.length) fail("scenarios must contain at least one entry");
+const plans = entries.map(buildPlan);
+const seenNames = new Set();
+for (const plan of plans) {
+  if (seenNames.has(plan.name)) fail(`duplicate scenario name "${plan.name}"`);
+  seenNames.add(plan.name);
+}
+const weightSum = plans.reduce((sum, plan) => sum + plan.weight, 0);
+if (Math.abs(weightSum - 100) > 1e-6) {
+  fail(`scenario weights must add up to 100 (got ${weightSum})`);
+}
+const enabledPlans = plans.filter((plan) => plan.weight > 0);
+if (!enabledPlans.length) fail("at least one scenario must have weight > 0");
+
+const services = config.services || {};
+const targetHeaders = config.target_headers || {};
+const merchant = config.merchant || {};
+const merchantPoolConfig = config.merchant_pool || null;
+
+if (!services.router) fail("services.router is required");
+const routerUrl = services.router.replace(/\/$/, "");
+// Customers are created through the payment-method service even for
+// non-modular scenarios, matching the runner's fixture stage. Known
+// tradeoff (explicit choice, 2026-09-15): a customer created this way is
+// v2-native, and a card saved for it via a non-modular (v1) CIT confirm
+// only becomes usable for MIT through Router's async
+// PaymentMethodModularForwardCompatWorkflow process-tracker job
+// (crates/router/src/core/payment_methods.rs:704-724) — there's no inline
+// path for this direction. Running mit immediately after its baseline
+// confirm can race that job and intermittently fail with IR_39 ("no
+// eligible connector found for token-based MIT payment"); accepted as a
+// known limitation rather than adding retry/delay logic here.
+const needsModularPm = enabledPlans.some((plan) => plan.usesPmService || plan.requiresCustomer);
+// The modular path needs it for payment-method-session confirm auth;
+// sdk_checkout and saved_card_checkout both need it to build the SDK
+// Authorization header (see sdkAuthorizationHeader()) for the combined
+// payment-method-list call.
+const needsPublishableKey = enabledPlans.some((plan) => plan.usesPmService || plan.sdkFlow || plan.savedCardCheckout);
+let modularPmUrl = null;
+if (needsModularPm) {
+  if (!services.modular_pm) {
+    fail("services.modular_pm is required: an enabled scenario uses the modular path or creates customers through the payment-method service");
+  }
+  modularPmUrl = services.modular_pm.replace(/\/$/, "");
+}
+
+// merchant_pool: an array of { merchant_id, api_key, publishable_key,
+// profile_id } entries (see provision-merchants.mjs), one picked at random
+// per iteration (pickMerchant() below) so traffic spreads evenly across
+// every merchant in the pool over the run — independent of VU/executor
+// topology, unlike trying to synthesize a cross-scenario global counter.
+// Falls back to the single top-level `merchant` block when merchant_pool
+// isn't configured (unchanged single-merchant behavior).
+let merchantPool = null;
+if (merchantPoolConfig) {
+  if (!merchantPoolConfig.file) fail("merchant_pool.file is required when merchant_pool is set");
+  let raw;
+  try {
+    raw = open(merchantPoolConfig.file);
+  } catch (error) {
+    fail(`cannot read merchant_pool.file at "${merchantPoolConfig.file}": ${error}`);
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    fail(`merchant_pool.file "${merchantPoolConfig.file}" is not valid JSON: ${error}`);
+  }
+  if (!Array.isArray(parsed) || !parsed.length) {
+    fail(`merchant_pool.file "${merchantPoolConfig.file}" must be a non-empty JSON array`);
+  }
+  parsed.forEach((entry, index) => {
+    if (!entry || !entry.api_key || !entry.profile_id) {
+      fail(`merchant_pool.file "${merchantPoolConfig.file}": entry [${index}] must have api_key and profile_id`);
+    }
+    if (needsPublishableKey && !entry.publishable_key) {
+      fail(`merchant_pool.file "${merchantPoolConfig.file}": entry [${index}] is missing publishable_key, required by the modular path and/or sdk_checkout`);
+    }
+  });
+  merchantPool = parsed;
+} else {
+  if (!merchant.api_key) fail("merchant.api_key is required (or configure merchant_pool)");
+  if (!merchant.profile_id) fail("merchant.profile_id is required (set on every payment create, or configure merchant_pool)");
+  if (needsPublishableKey && !merchant.publishable_key) {
+    fail("merchant.publishable_key is required for the modular merchant path (payment-method session confirm) and for sdk_checkout (SDK Authorization header), or configure merchant_pool");
+  }
+}
+
+function pickMerchant() {
+  if (!merchantPool) return merchant;
+  return merchantPool[Math.floor(Math.random() * merchantPool.length)];
+}
+
+if (!paymentConfig.card || !paymentConfig.card.card_number) fail("payment.card with card_number is required");
+const cardPool = Array.isArray(paymentConfig.card_pool) && paymentConfig.card_pool.length
+  ? paymentConfig.card_pool
+  : [paymentConfig.card];
+for (const [index, card] of cardPool.entries()) {
+  if (!card || !card.card_number) fail(`payment.card_pool[${index}] requires card_number`);
+}
+const metadataChangedUsed = enabledPlans.some((plan) => plan.metadataChanged);
+if (metadataChangedUsed && (!paymentConfig.metadata_update || typeof paymentConfig.metadata_update !== "object")) {
+  fail("payment.metadata_update is required when cit_metadata_changed is enabled");
+}
+const metadataUpdate = paymentConfig.metadata_update || {};
+
+const paymentAmount = numberOr(paymentConfig.amount, 1000);
+const paymentCurrency = paymentConfig.currency || "USD";
+const sessionExpiry = numberOr(paymentConfig.session_expiry, 900);
+// mit's single create+confirm call passes a return_url the way cypress-tests'
+// MIT fixtures do, even though an off_session recurring charge won't
+// normally redirect anywhere.
+const mitReturnUrl = paymentConfig.return_url || "https://example.com";
+
+// Wallets requested by sdk_checkout's session call (POST /payments/session_tokens).
+// Empty is valid and is the default — most test merchants have no wallet connectors.
+const sdkConfig = config.sdk || {};
+const sdkWallets = Array.isArray(sdkConfig.wallets) ? sdkConfig.wallets : [];
+
+// ---------------------------------------------------------------------------
+// k6 options: one constant-arrival-rate executor per traffic entry. The split
+// is deterministic: rate = total_rps * weight / 100.
+// ---------------------------------------------------------------------------
+
+const scenarios = {};
+const planByName = {};
+
+function rateFor(plan, phaseRps) {
+  return (phaseRps * plan.weight) / 100;
+}
+
+// constant-arrival-rate requires an integer iteration count; fractional
+// rates are expressed with a longer timeUnit (0.5/s -> 1 iteration / 2s).
+function arrivalRate(ratePerSecond) {
+  const rounded = Math.round(ratePerSecond * 1e6) / 1e6;
+  for (let timeUnitSeconds = 1; timeUnitSeconds <= 36000; timeUnitSeconds += 1) {
+    const iterations = rounded * timeUnitSeconds;
+    const nearest = Math.round(iterations);
+    if (nearest >= 1 && Math.abs(iterations - nearest) < 1e-9) {
+      return { rate: nearest, timeUnit: `${timeUnitSeconds}s` };
+    }
+  }
+  fail(`cannot express rate ${ratePerSecond}/s as an integer arrival rate`);
+}
+
+// Flat-mode only now (ramp mode uses rampingExecutor below) - a single
+// constant-arrival-rate scenario for the whole flat-RPS test.
+function executor(name, plan, ratePerSecond, durationSeconds) {
+  const arrival = arrivalRate(ratePerSecond);
+  const preAllocatedVUs = Math.max(1, Math.ceil(ratePerSecond * preAllocatedVusMultiplier));
+  scenarios[name] = {
+    executor: "constant-arrival-rate",
+    exec: "runScenario",
+    rate: arrival.rate,
+    timeUnit: arrival.timeUnit,
+    duration: `${durationSeconds}s`,
+    preAllocatedVUs,
+    maxVUs: Math.max(preAllocatedVUs, Math.ceil(ratePerSecond * maxVusMultiplier)),
+    // An iteration runs several sequential requests; allow ramp-down to cover
+    // roughly a worst-case full flow.
+    gracefulStop: `${Math.ceil((requestTimeoutMs * 8) / 1000)}s`,
+    env: { SCENARIO_NAME: plan.name },
+    tags: { traffic_scenario: plan.name },
+  };
+}
+
+// Ramp mode: ONE ramping-arrival-rate scenario per traffic entry, alive for
+// the whole test - hold at startRps, smoothly ramp to targetRps, hold at
+// targetRps. preAllocatedVUs/maxVUs are sized off the PEAK rate (targetRps)
+// since the same pool must cover the scenario's busiest moment; raising
+// load.pre_allocated_vus_multiplier gives this pool more headroom allocated
+// up front (at scenario start, not reactively mid-ramp) - the second half
+// of this session's fix, alongside the single-scenario restructure itself.
+//
+// Stage rates are integers per scenario. load.phases keeps its historical
+// Math.max(1, round(...)) clamp; load.stages (rp.strict) instead refuses to
+// run when a stage's per-scenario rates round to 0 or no longer add up to the
+// stage's total, rather than silently inflating a low-rate stage.
+function stageRate(plan, rp, rps) {
+  const rate = Math.round(rateFor(plan, rps));
+  return rp.strict ? rate : Math.max(1, rate);
+}
+
+function validateStageRates(rp) {
+  for (const rps of [rp.startRps, ...rp.stages.map((stage) => stage.targetRps)]) {
+    let sum = 0;
+    for (const plan of enabledPlans) {
+      const rate = stageRate(plan, rp, rps);
+      if (rate < 1 && rps !== 0) {
+        fail(`${rps} rps gives scenario "${plan.name}" (weight ${plan.weight}%) an arrival rate of ${rate}/s; raise that stage's rate or weight`);
+      }
+      sum += rate;
+    }
+    if (sum !== rps) {
+      fail(`${rps} rps splits across the enabled scenarios into integer rates summing to ${sum}, not ${rps}; use a rate that divides evenly by the weights`);
+    }
+  }
+}
+
+function rampingExecutor(name, plan, rp) {
+  const startRate = stageRate(plan, rp, rp.startRps);
+  const peakRate = stageRate(plan, rp, rp.peakRps);
+  const preAllocatedVUs = Math.max(1, Math.ceil(peakRate * preAllocatedVusMultiplier));
+  const stages = rp.stages.map((stage) => ({
+    target: stageRate(plan, rp, stage.targetRps),
+    duration: `${stage.durationSeconds}s`,
+  }));
+  scenarios[name] = {
+    executor: "ramping-arrival-rate",
+    exec: "runScenario",
+    startRate,
+    timeUnit: "1s",
+    preAllocatedVUs,
+    maxVUs: Math.max(preAllocatedVUs, Math.ceil(peakRate * maxVusMultiplier)),
+    stages,
+    gracefulStop: `${Math.ceil((requestTimeoutMs * 8) / 1000)}s`,
+    env: { SCENARIO_NAME: plan.name },
+    tags: { traffic_scenario: plan.name },
+  };
+}
+
+if (rampPlan) {
+  if (rampPlan.strict && !__ENV.SQLITE_RECORDER_CONTROL_FILE) validateStageRates(rampPlan);
+  for (const plan of enabledPlans) {
+    rampingExecutor(plan.name, plan, rampPlan);
+  }
+} else {
+  for (const plan of enabledPlans) {
+    executor(plan.name, plan, rateFor(plan, flatTotalRps), flatDurationSeconds);
+  }
+}
+for (const plan of enabledPlans) planByName[plan.name] = plan;
+// Console runs use native Go admission pacing and a persistent VU pool. The
+// CLI keeps k6's arrival-rate executors. No HTTP round trip occurs per flow.
+if (__ENV.SQLITE_RECORDER_CONTROL_FILE) {
+  const peak = rampPlan ? rampPlan.peakRps : flatTotalRps;
+  for (const plan of enabledPlans) {
+    const vus = Math.max(1,Math.ceil(rateFor(plan,peak)*maxVusMultiplier));
+    scenarios[plan.name] = {executor:'externally-controlled',exec:'runScenario',duration:'0s',vus,maxVUs:vus,
+      env:{SCENARIO_NAME:plan.name},tags:{traffic_scenario:plan.name}};
+  }
+}
+
+export const options = {
+  scenarios,
+  thresholds: config.thresholds && typeof config.thresholds === "object" ? config.thresholds : {},
+  summaryTrendStats: ["count", "avg", "med", "p(75)", "p(90)", "p(99)", "max"],
+};
+
+// ---------------------------------------------------------------------------
+// Metrics: per-scenario Trends so the summary splits percentiles per traffic
+// entry, plus one cross-scenario confirm trend and success/failure counters.
+// ---------------------------------------------------------------------------
+
+const globalPaymentConfirm = new Trend("payment_confirm_latency_ms", true);
+const globalServerConfirm = new Trend("payment_confirm_server_latency_ms", true);
+
+function stepNames(plan) {
+  const steps = [];
+  if (plan.requiresCustomer) steps.push("customer_create");
+  if (plan.usesPmService) steps.push("pm_session_create");
+  if (plan.requiresSavedCard) steps.push("baseline_create", "baseline_confirm");
+  // mit's measured request is a single POST /payments with confirm:true —
+  // there is no separate payment_create call to time.
+  if (!plan.mitFlow) steps.push("payment_create");
+  if (plan.sdkFlow) steps.push("payment_method_list", "session", "eligibility");
+  // saved_card_checkout calls the same combined list endpoint as
+  // sdk_checkout's payment_method_list step, but on its own (no session/
+  // eligibility calls) — see Step 4c in runFlow().
+  if (plan.savedCardCheckout) steps.push("payment_method_list");
+  if (plan.usesPmService) steps.push("pm_session_confirm");
+  steps.push("payment_confirm");
+  return steps;
+}
+
+for (const plan of enabledPlans) {
+  plan.trends = {};
+  for (const step of stepNames(plan)) {
+    plan.trends[step] = new Trend(`${step}_ms_${plan.name}`, true);
+  }
+  plan.serverConfirmTrend = new Trend(`payment_confirm_server_ms_${plan.name}`, true);
+  plan.trends.total_flow = new Trend(`total_flow_ms_${plan.name}`, true);
+  plan.successCounter = new Counter(`scenario_success_${plan.name}`);
+  plan.failureCounter = new Counter(`scenario_failure_${plan.name}`);
+  // 2026-09-24: per-phase (_p<N>) breakdown removed along with the discrete-
+  // step scenario design (see the ramp-mode parsing block's comment above) -
+  // there's no longer a discrete phase boundary to slice metrics by under
+  // ramping-arrival-rate's continuous interpolation. plan.phases stays null
+  // in both modes now; the aggregate trends/counters above (and the whole-
+  // scenario achieved-TPS reporting in handleSummary) are what's left.
+  plan.phases = null;
+}
+
+// ---------------------------------------------------------------------------
+// Request helpers (header shapes ported from loadtest/runner/k6/headers.js)
+// ---------------------------------------------------------------------------
+
+function json(response) {
+  try { return response.json(); } catch (_) { return {}; }
+}
+
+function requestParams(headers, operation) {
+  return { headers, timeout: `${requestTimeoutMs}ms`, redirects: 0, tags: { operation, name: operation } };
+}
+
+// VU-local flow context. Every request, including polling, passes through here.
+let flowContext = null;
+let lastEvent = null;
+function request(method, url, body, headers, operation) {
+  const started = Date.now();
+  let response;
+  let transportError;
+  let attemptId = null;
+  if (recordingEnabled) {
+    // Primitive arguments avoid constructing/exporting a second response object per call.
+    try { attemptId = recorder.begin(flowContext.flow_id,flowContext.merchant_id || null,operation,method,url,
+      body?.customer_id || flowContext.customer_id || null,body?.merchant_reference_id || null,
+      flowContext.payment_id || null,Number.isSafeInteger(body?.amount) ? body.amount : null,started); } catch (error) {
+      exec.test.abort(`SQLite recorder cannot begin request: ${error.message || error}`); throw error;
+    }
+  }
+  try {
+    response = http.request(method,url,body === null ? null : JSON.stringify(body),requestParams(headers,operation));
+  } catch (error) { transportError = error; }
+  if (!recordingEnabled) { if (transportError) throw transportError; return response; }
+  let record;
+  try { record = recorder.complete(attemptId,response || null,transportError?.message || ""); } catch (error) {
+    // runScenario catches ordinary flow errors; recorder failures must stop every VU.
+    exec.test.abort(`SQLite recording failed: ${error.message || error}`); throw error;
+  }
+  lastEvent = { attempt_id: attemptId, flow_id: flowContext.flow_id, operation, request_id: record.request_id };
+  if (record.entity_type === "customer" && record.customer_id) flowContext.customer_id = record.customer_id;
+  if (record.entity_type === "payment" && record.payment_id && record.role === "measured") flowContext.payment_id = record.payment_id;
+  if (transportError) throw transportError;
+  return response;
+}
+function post(url, body, headers, operation) { return request("POST",url,body,headers,operation); }
+function get(url, headers, operation) { return request("GET",url,null,headers,operation); }
+
+function apiKeyHeaders(merchant) {
+  return {
+    ...latencyHeaders(targetHeaders.router),
+    "api-key": merchant.api_key,
+    "content-type": "application/json",
+  };
+}
+
+function modularApiKeyHeaders(merchant) {
+  return {
+    ...(targetHeaders.modular_pm || {}),
+    Authorization: `api-key=${merchant.api_key}`,
+    "x-profile-id": merchant.profile_id,
+    "content-type": "application/json",
+  };
+}
+
+function modularSessionHeaders(merchant, clientSecret) {
+  return {
+    ...(targetHeaders.modular_pm || {}),
+    Authorization: `publishable-key=${merchant.publishable_key},client-secret=${clientSecret}`,
+    "x-profile-id": merchant.profile_id,
+    "content-type": "application/json",
+  };
+}
+
+// Base64 (standard, padded) of comma-separated key=value pairs, decoded by
+// SdkAuthorization::decode (crates/hyperswitch_domain_models/src/sdk_auth.rs).
+// Replicates the Authorization header the Hyperswitch SDK sends on
+// payment_method_list / session / eligibility once it holds a payment_id and
+// client_secret from payment create.
+function sdkAuthorizationHeader(merchant, payment) {
+  const parts = [
+    `profile_id=${merchant.profile_id}`,
+    `publishable_key=${merchant.publishable_key}`,
+    `client_secret=${payment.client_secret}`,
+    `payment_id=${payment.payment_id}`,
+  ];
+  return encoding.b64encode(parts.join(","));
+}
+
+function sdkAuthHeaders(merchant, payment) {
+  return {
+    ...latencyHeaders(targetHeaders.router),
+    Authorization: sdkAuthorizationHeader(merchant, payment),
+    "content-type": "application/json",
+  };
+}
+
+function customerAcceptance() {
+  return {
+    acceptance_type: "online",
+    accepted_at: new Date().toISOString(),
+    online: { ip_address: "127.0.0.1", user_agent: "k6-scenario-mix" },
+  };
+}
+
+function pickCard(iteration) {
+  return cardPool[iteration % cardPool.length];
+}
+
+function paymentCreateBody(merchant, plan, customerId, description) {
+  return {
+    amount: paymentAmount,
+    currency: paymentCurrency,
+    confirm: false,
+    capture_method: "automatic",
+    profile_id: merchant.profile_id,
+    session_expiry: sessionExpiry,
+    description,
+    ...(customerId ? { customer_id: customerId } : {}),
+    ...(plan.setupFutureUsage ? { setup_future_usage: plan.setupFutureUsage } : {}),
+  };
+}
+
+// mit's measured request: a single create+confirm call against a previously
+// saved payment method, no card data on the wire. Mirrors cypress-tests'
+// create-pm-id-mit.json fixture and the recurring_details.payment_method_id
+// flow it exercises (cypress-tests/cypress/e2e/spec/Payment/20-MandatesUsingPMID.cy.js).
+// Router requires confirm:true, off_session:true and customer_id together
+// with recurring_details (validate_recurring_mandate in
+// crates/router/src/core/payments/operations/payment_confirm.rs).
+function mitConfirmBody(merchant, customerId, savedPaymentMethodId, description) {
+  return {
+    amount: paymentAmount,
+    currency: paymentCurrency,
+    confirm: true,
+    capture_method: "automatic",
+    profile_id: merchant.profile_id,
+    session_expiry: sessionExpiry,
+    description,
+    customer_id: customerId,
+    off_session: true,
+    recurring_details: { type: "payment_method_id", data: savedPaymentMethodId },
+    return_url: mitReturnUrl,
+  };
+}
+
+// One JSON record per failed iteration, via console.error. k6 VU code cannot
+// write files directly (open() is read-only, init-stage only), so the way to
+// get a durable failures file is k6's own console-output redirection: run
+// with `k6 run --console-output=failures.log` (or `K6_CONSOLE_OUTPUT=failures.log`)
+// and every console.error call below lands there as its own line instead of
+// the terminal — see README "Logging failures to a file".
+function logFailure(merchant, plan, phaseInfo, reason, response, errorMessage, flowMs) {
+  // SQLite preserves every failure. Per-flow terminal output can throttle a failure storm.
+  if (recordingEnabled && load.log_failures !== true) return;
+  const record = {
+    time: new Date().toISOString(),
+    scenario: plan.name,
+    merchant_path: plan.merchantPath,
+    scenario_type: plan.scenarioName,
+    // Only meaningful (and present) in merchant_pool mode — the single
+    // top-level `merchant` config block has no merchant_id field.
+    merchant_id: merchant.merchant_id,
+    phase: phaseInfo ? phaseInfo.index : undefined,
+    vu: __VU,
+    iteration: exec.scenario.iterationInTest,
+    reason,
+    // Wall-clock age of the iteration at the moment it failed, so a post-hoc
+    // report can bucket the failure by when the flow STARTED (time - flow_ms),
+    // the same basis RECON success lines use (ts - flow_ms).
+    flow_ms: flowMs,
+  };
+  if (response) {
+    record.status = response.status;
+    record.url = response.url;
+    record.error = response.error || undefined;
+    record.event = lastEvent;
+    // Without the SQLite recorder the console line is the only record of a failure, so keep the
+    // response headers/body there (with the recorder they live in SQLite, see request()).
+    if (!recordingEnabled) {
+      record.headers = response.headers;
+      record.body = response.body;
+    }
+    // payment_id when the failing request carries one (confirm/retrieve URLs,
+    // or a create response body), so failures can be reconciled against the
+    // database the same way RECON success lines are.
+    const urlMatch = /\/payments\/(pay_[A-Za-z0-9_]+)/.exec(response.url || "");
+    if (urlMatch) {
+      record.payment_id = urlMatch[1];
+    } else {
+      try {
+        const parsedBody = JSON.parse(response.body);
+        if (parsedBody && parsedBody.payment_id) record.payment_id = parsedBody.payment_id;
+      } catch (_) { /* non-JSON error body: no payment_id to record */ }
+    }
+  }
+  if (errorMessage) record.error_message = errorMessage;
+  console.error(JSON.stringify(record));
+}
+
+function failIteration(merchant, plan, startedAt, reason, phaseInfo, response, errorMessage) {
+  plan.failureCounter.add(1, { reason });
+  if (phaseInfo) phaseInfo.failureCounter.add(1, { reason });
+  plan.trends.total_flow.add(Date.now() - startedAt);
+  logFailure(merchant, plan, phaseInfo, reason, response, errorMessage, Date.now() - startedAt);
+}
+
+// Card persistence can complete shortly after a successful confirm. Poll the
+// payment until the saved payment method surfaces (fixtures.js behavior).
+function findSavedPaymentMethod(merchant, paymentId) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const response = get(`${routerUrl}/payments/${paymentId}`, apiKeyHeaders(merchant), "baseline_poll");
+    const paymentMethodId = json(response).payment_method_id;
+    if (paymentMethodId) return paymentMethodId;
+    sleep(0.1);
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Measured traffic
+// ---------------------------------------------------------------------------
+
+// Runs once, after init and immediately before the first scenario starts, so
+// this line is the closest wall-clock anchor to t=0 of the load curve. An
+// orchestrator scheduling faults/stage windows against the curve should use
+// it rather than the moment it launched k6 (init + VU pre-allocation shift
+// the two by seconds). One line per host; both hosts of a split run print
+// their own, and the gap between them is the cross-host start skew.
+export function setup() {
+  console.log(`RUNSTART ts=${new Date().toISOString()} epoch_ms=${Date.now()}`);
+}
+
+export function runScenario() {
+  const plan = planByName[__ENV.SCENARIO_NAME];
+  const controlled = Boolean(__ENV.SQLITE_RECORDER_CONTROL_FILE);
+  if (controlled && !recorder.enter(plan.name)) return;
+  const phaseInfo = plan.phases ? plan.phases[Number(__ENV.PHASE_INDEX || 0)] : null;
+  const startedAt = Date.now();
+  // Resolved once per iteration (not per request) so every request in the
+  // flow — and a mid-flow exception's failure record — uses the same
+  // merchant, and so a merchant_pool run is a uniform-random pick over the
+  // whole pool per iteration rather than per request.
+  let merchant;
+  try {
+  merchant = pickMerchant();
+  flowContext = { flow_id: `${__ENV.SQLITE_RECORDER_RUN_ID || "unrecorded"}:${exec.scenario.name}:${__VU}:${exec.scenario.iterationInTest}`,
+    merchant_id: merchant.merchant_id, customer_id: null, payment_id: null };
+  lastEvent = null;
+  // Never let an unexpected exception kill an iteration invisibly: k6 would
+  // count it as complete with no success/failure recorded, silently
+  // understating the failure rate.
+    runFlow(merchant, plan, phaseInfo, startedAt);
+  } catch (error) {
+    failIteration(merchant, plan, startedAt, `exception_${(error && error.name) || "error"}`, phaseInfo, null, error && error.message);
+  } finally { if (controlled) recorder.leave(); }
+}
+
+function runFlow(merchant, plan, phaseInfo, startedAt) {
+  const iteration = exec.scenario.iterationInTest;
+  const card = pickCard(iteration);
+
+  // Step 1: customer (CIT and saved-card scenarios only; guests skip this).
+  // Always through the payment-method service, regardless of merchant_path
+  // — explicit choice (2026-09-15) accepting that mit/cit_metadata_changed's
+  // baseline card save (v1 confirm) then relies on Router's async
+  // PaymentMethodModularForwardCompatWorkflow process-tracker job to make
+  // the card usable for the measured MIT/recurring confirm; no inline path
+  // exists for that sync, so running the measured request immediately after
+  // the baseline can race it and intermittently return IR_39.
+  let customerId = null;
+  if (plan.requiresCustomer) {
+    const reference = `customer_mix_${plan.name}_${iteration}_${__VU}_${Date.now()}`;
+    const response = post(
+      `${modularPmUrl}/customers`,
+      {
+        merchant_reference_id: reference,
+        name: "Loadtest User",
+        phone: "6168205362",
+        email: `${reference}@example.com`,
+        phone_country_code: "+1",
+      },
+      modularApiKeyHeaders(merchant),
+      "customer_create",
+    );
+    plan.trends.customer_create.add(response.timings.duration);
+    const body = json(response);
+    customerId = body.id || body.customer_id;
+    if (response.status < 200 || response.status >= 300 || !customerId) {
+      failIteration(merchant, plan, startedAt, `customer_create_${statusCode(response)}`, phaseInfo, response);
+      return;
+    }
+  }
+
+  // Step 2: payment-method session (modular merchant path only).
+  let pmSessionId = null;
+  let pmSessionClientSecret = null;
+  if (plan.usesPmService) {
+    const response = post(
+      `${modularPmUrl}/payment-method-sessions`,
+      {
+        ...(customerId ? { customer_id: customerId } : {}),
+        expires_in: sessionExpiry,
+        storage_type: plan.storageType,
+      },
+      modularApiKeyHeaders(merchant),
+      "pm_session_create",
+    );
+    plan.trends.pm_session_create.add(response.timings.duration);
+    const body = json(response);
+    pmSessionId = body.id;
+    pmSessionClientSecret = body.client_secret;
+    if (response.status < 200 || response.status >= 300 || !pmSessionId || !pmSessionClientSecret) {
+      failIteration(merchant, plan, startedAt, `pm_session_create_${statusCode(response)}`, phaseInfo, response);
+      return;
+    }
+  }
+
+  // Step 3: baseline saved card (cit_metadata_changed, mit,
+  // saved_card_checkout). The measured confirm later either resubmits the
+  // same PAN with changed metadata (cit_metadata_changed), charges the saved
+  // payment_method_id directly (mit), or looks the card back up through the
+  // combined payment-method-list endpoint (saved_card_checkout, Step 4c
+  // below).
+  let savedPaymentMethodId = null;
+  // Payment token the measured confirm's `payment_token` field uses —
+  // sourced from either Step 4c below (saved_card_checkout) or the modular
+  // pm-session confirm (Step 5).
+  let token = null;
+  if (plan.requiresSavedCard) {
+    const createResponse = post(
+      `${routerUrl}/payments`,
+      paymentCreateBody(merchant, plan, customerId, `scenario-mix baseline ${plan.merchantPath}:${plan.scenarioName}`),
+      apiKeyHeaders(merchant),
+      "baseline_create",
+    );
+    plan.trends.baseline_create.add(createResponse.timings.duration);
+    const baseline = json(createResponse);
+    if (createResponse.status < 200 || createResponse.status >= 300 || !baseline.payment_id) {
+      failIteration(merchant, plan, startedAt, `baseline_create_${statusCode(createResponse)}`, phaseInfo, createResponse);
+      return;
+    }
+    const confirmResponse = post(
+      `${routerUrl}/payments/${baseline.payment_id}/confirm`,
+      {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: { card },
+        // The baseline must finish storing the card before measured traffic.
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance(),
+      },
+      apiKeyHeaders(merchant),
+      "baseline_confirm",
+    );
+    plan.trends.baseline_confirm.add(confirmResponse.timings.duration);
+    savedPaymentMethodId = json(confirmResponse).payment_method_id
+      || findSavedPaymentMethod(merchant, baseline.payment_id);
+    if (confirmResponse.status < 200 || confirmResponse.status >= 300 || !savedPaymentMethodId) {
+      failIteration(merchant, plan, startedAt, `baseline_confirm_${statusCode(confirmResponse)}`, phaseInfo, confirmResponse);
+      return;
+    }
+  }
+
+  // Optional settling pause between preparation and the measured requests.
+  if (thinkTimeMs > 0) sleep(thinkTimeMs / 1000);
+
+  // Step 4: create the payment that the measured confirm operates on. mit
+  // skips this — its measured step is a single create+confirm call (Step 6).
+  let payment = null;
+  if (!plan.mitFlow) {
+    const createResponse = post(
+      `${routerUrl}/payments`,
+      paymentCreateBody(merchant, plan, customerId, `scenario-mix ${plan.merchantPath}:${plan.scenarioName}`),
+      apiKeyHeaders(merchant),
+      "payment_create",
+    );
+    plan.trends.payment_create.add(createResponse.timings.duration);
+    payment = json(createResponse);
+    if (createResponse.status < 200 || createResponse.status >= 300 || !payment.payment_id) {
+      failIteration(merchant, plan, startedAt, `payment_create_${statusCode(createResponse)}`, phaseInfo, createResponse);
+      return;
+    }
+  }
+
+  // Step 4b: SDK pre-confirm calls (sdk_checkout only) — replicates what the
+  // Hyperswitch SDK does between intent creation and confirm: list available
+  // payment methods, fetch wallet session tokens, and run an eligibility
+  // check for the card the shopper is about to submit.
+  if (plan.sdkFlow) {
+    const pmListResponse = get(
+      `${routerUrl}/payments/${payment.payment_id}/client`,
+      sdkAuthHeaders(merchant, payment),
+      "payment_method_list",
+    );
+    plan.trends.payment_method_list.add(pmListResponse.timings.duration);
+    if (pmListResponse.status < 200 || pmListResponse.status >= 300) {
+      failIteration(merchant, plan, startedAt, `payment_method_list_${statusCode(pmListResponse)}`, phaseInfo, pmListResponse);
+      return;
+    }
+
+    const sessionResponse = post(
+      `${routerUrl}/payments/session_tokens`,
+      { payment_id: payment.payment_id, client_secret: payment.client_secret, wallets: sdkWallets },
+      sdkAuthHeaders(merchant, payment),
+      "session",
+    );
+    plan.trends.session.add(sessionResponse.timings.duration);
+    if (sessionResponse.status < 200 || sessionResponse.status >= 300) {
+      failIteration(merchant, plan, startedAt, `session_${statusCode(sessionResponse)}`, phaseInfo, sessionResponse);
+      return;
+    }
+
+    const eligibilityResponse = post(
+      `${routerUrl}/payments/${payment.payment_id}/eligibility`,
+      {
+        payment_method_type: "card",
+        payment_method_subtype: "credit",
+        payment_method_data: { card },
+      },
+      sdkAuthHeaders(merchant, payment),
+      "eligibility",
+    );
+    plan.trends.eligibility.add(eligibilityResponse.timings.duration);
+    if (eligibilityResponse.status < 200 || eligibilityResponse.status >= 300) {
+      failIteration(merchant, plan, startedAt, `eligibility_${statusCode(eligibilityResponse)}`, phaseInfo, eligibilityResponse);
+      return;
+    }
+  }
+
+  // Step 4c: combined payment-method list (saved_card_checkout only) — the
+  // same GET /payments/{id}/client endpoint sdk_checkout's payment_method_list
+  // step calls, but here the intent carries a customer_id, so the response's
+  // customer_payment_methods includes the card saved in the baseline step;
+  // its payment_token is what the measured confirm below spends. Mirrors
+  // cypress-tests' listCustomerPMCallTest, adapted to the combined list
+  // endpoint per SDK usage rather than the merchant-facing
+  // /customers/{id}/payment_methods endpoint.
+  if (plan.savedCardCheckout) {
+    const response = get(
+      `${routerUrl}/payments/${payment.payment_id}/client`,
+      sdkAuthHeaders(merchant, payment),
+      "payment_method_list",
+    );
+    plan.trends.payment_method_list.add(response.timings.duration);
+    token = json(response).customer_payment_methods?.[0]?.payment_token;
+    let listResponse = response;
+    // A 2xx with an empty customer_payment_methods means the baseline's v1
+    // CIT confirm hasn't synced into the v2 payment-method store this
+    // endpoint reads from yet — the same async
+    // PaymentMethodModularForwardCompatWorkflow race called out for mit's
+    // IR_39 above, just surfacing here as an empty list instead of a hard
+    // error. Poll briefly rather than failing on the first empty response
+    // (mirrors findSavedPaymentMethod above, and the "wait a moment and
+    // re-send this request" the nomod-saved-card-scenario Postman
+    // collection's own test script calls out for this exact request).
+    if (listResponse.status >= 200 && listResponse.status < 300 && !token) {
+      for (let attempt = 0; attempt < 50 && !token; attempt += 1) {
+        sleep(0.1);
+        listResponse = get(`${routerUrl}/payments/${payment.payment_id}/client`, sdkAuthHeaders(merchant, payment), "payment_method_list_poll");
+        token = json(listResponse).customer_payment_methods?.[0]?.payment_token;
+      }
+    }
+    if (listResponse.status < 200 || listResponse.status >= 300 || !token) {
+      failIteration(merchant, plan, startedAt, `payment_method_list_${statusCode(listResponse)}`, phaseInfo, listResponse);
+      return;
+    }
+  }
+
+  // Step 5: confirm the payment-method session to obtain a payment token
+  // (modular merchant path only).
+  if (plan.usesPmService) {
+    const body = {
+      payment_method_data: { card },
+      payment_method_type: "card",
+      payment_method_subtype: "credit",
+    };
+    // PM Modular persists a session-backed card only after recording the
+    // customer's acceptance. Guest sessions intentionally remain volatile.
+    if (plan.setupFutureUsage) body.customer_acceptance = customerAcceptance();
+    const response = post(
+      `${modularPmUrl}/payment-method-sessions/${pmSessionId}/confirm`,
+      body,
+      modularSessionHeaders(merchant, pmSessionClientSecret),
+      "pm_session_confirm",
+    );
+    plan.trends.pm_session_confirm.add(response.timings.duration);
+    const pmBody = json(response);
+    token = pmBody.associated_payment_methods?.[0]?.payment_method_token;
+    if (token && typeof token === "object") token = token.data;
+    if (response.status < 200 || response.status >= 300 || !token) {
+      failIteration(merchant, plan, startedAt, `pm_session_confirm_${statusCode(response)}`, phaseInfo, response);
+      return;
+    }
+  }
+
+  // Step 6: measured payment confirm. mit is a single create+confirm call
+  // against the saved payment method (no payment.payment_id to confirm
+  // against, no card data) rather than confirming the Step 4 intent.
+  let confirmResponse;
+  if (plan.mitFlow) {
+    confirmResponse = post(
+      `${routerUrl}/payments`,
+      mitConfirmBody(merchant, customerId, savedPaymentMethodId, `scenario-mix ${plan.merchantPath}:${plan.scenarioName}`),
+      apiKeyHeaders(merchant),
+      "payment_confirm",
+    );
+  } else {
+    const measuredCard = plan.metadataChanged ? { ...card, ...metadataUpdate } : card;
+    let confirmBody;
+    if (plan.savedCardCheckout) {
+      // Repeat-customer confirm: payment_token references the locker-held
+      // PAN, payment_method_data.card_token supplies the fresh CVC (never
+      // stored server-side) plus the holder name — the currently-recommended
+      // shape (api_models::payments' top-level `card_cvc` field is being
+      // deprecated in favor of `payment_method_data.card_token`). This is a
+      // different request shape from the modular pm-session token confirm
+      // below on purpose: it's what drives router's make_pm_data /
+      // retrieve_payment_method_with_token merge (CardToken + locker PAN),
+      // not a bare payment_token + payment_method_type pair.
+      confirmBody = {
+        payment_token: token,
+        payment_method: "card",
+        payment_method_data: {
+          card_token: {
+            card_holder_name: card.card_holder_name,
+            card_cvc: card.card_cvc,
+          },
+        },
+      };
+    } else if (plan.usesPmService) {
+      confirmBody = { payment_token: token, payment_method: "card", payment_method_type: "credit" };
+    } else {
+      confirmBody = { payment_method: "card", payment_method_type: "credit", payment_method_data: { card: measuredCard } };
+    }
+    if (plan.setupFutureUsage) {
+      confirmBody.setup_future_usage = plan.setupFutureUsage;
+      confirmBody.customer_acceptance = customerAcceptance();
+    }
+    confirmResponse = post(
+      `${routerUrl}/payments/${payment.payment_id}/confirm`,
+      confirmBody,
+      apiKeyHeaders(merchant),
+      "payment_confirm",
+    );
+  }
+  plan.trends.payment_confirm.add(confirmResponse.timings.duration);
+  globalPaymentConfirm.add(confirmResponse.timings.duration);
+  const serverMs=serverLatency(confirmResponse.headers);
+  if (phaseInfo) phaseInfo.confirmTrend.add(confirmResponse.timings.duration);
+  const status = json(confirmResponse).status || "failed";
+  const succeeded = confirmResponse.status >= 200
+    && confirmResponse.status < 300
+    && SUCCESS_STATUSES.has(status);
+  if (!succeeded) {
+    failIteration(merchant, plan, startedAt, `payment_confirm_${statusCode(confirmResponse)}_${status}`, phaseInfo, confirmResponse);
+    return;
+  }
+  if(serverMs!==null){globalServerConfirm.add(serverMs);plan.serverConfirmTrend.add(serverMs);}
+  plan.successCounter.add(1);
+  if (phaseInfo) phaseInfo.successCounter.add(1);
+  // Payment-id-level success record for post-hoc reconciliation against
+  // AlloyDB (scripts/alloydb-reconcile-ledger.sh in the hyperswitch-infra
+  // repo). `payment` is null for mitFlow (single-call create+confirm, no
+  // separate create step) - fall back to the confirm response body's own
+  // payment_id, which is always present on a successful confirm either way.
+  const reconPaymentId = (payment && payment.payment_id) || json(confirmResponse).payment_id || "unknown";
+  // merchant_id only meaningful in merchant_pool mode (empty string in
+  // single-merchant mode, matching logFailure's own merchant_id field above)
+  // - lets a per-merchant success/failure breakdown be computed straight
+  // from this console log, same source as everything else, no separate
+  // metric-tag plumbing needed (TC-09).
+  if (!__ENV.LOADTEST_CONSOLE_JOB) console.log(`RECON payment_id=${reconPaymentId} status=${confirmResponse.status} merchant_id=${merchant.merchant_id || ""} confirm_ms=${confirmResponse.timings.duration.toFixed(1)} flow_ms=${Date.now() - startedAt} ts=${new Date().toISOString()}`);
+  plan.trends.total_flow.add(Date.now() - startedAt);
+}
+
+// ---------------------------------------------------------------------------
+// Summary: per-scenario percentile table plus optional full JSON export.
+// ---------------------------------------------------------------------------
+
+function metricValues(data, name) {
+  const metric = data.metrics[name];
+  return metric ? metric.values : null;
+}
+
+function countOf(values) {
+  return values ? values.count : 0;
+}
+
+// The custom summary output replaces k6's default end-of-test summary, so it
+// must surface the signals that say whether the test itself was valid:
+// dropped_iterations > 0 means the client could not sustain the requested
+// rate (raise the VU multipliers and rerun — numbers below are unreliable).
+function globalSummaryRow(data) {
+  const droppedCount = countOf(metricValues(data, "dropped_iterations"));
+  const httpFailed = metricValues(data, "http_req_failed");
+  const failedRate = httpFailed ? (httpFailed.rate * 100).toFixed(2) : "0.00";
+  const warning = droppedCount > 0
+    ? "  WARNING: reports at the requested rate were NOT all achieved; raise VU multipliers and rerun"
+    : "";
+  const peak = peakIterationRateRaw(data);
+  const peakStr = peak === null ? "-" : `${peak.toFixed(2)}/s`;
+  return `global | iterations=${countOf(metricValues(data, "iterations"))} | peak_iteration_rate=${peakStr} | dropped_iterations=${droppedCount}${warning} | http_reqs=${countOf(metricValues(data, "http_reqs"))} | http_req_failed=${failedRate}%`;
+}
+
+// The highest iteration rate (all iterations, success or failure — same
+// thing k6's own "Iteration Rate" dashboard tile measures) sustained across
+// the run: in ramp mode, the max over phases of (that phase's total
+// iterations across every scenario / that phase's hold_seconds); in flat
+// mode, the single sustained rate across the whole run. This intentionally
+// counts every iteration, not just successes — it answers "how many
+// flows/sec did this actually push," distinct from achieved TPS above
+// (business-success throughput). It only reflects handleSummary's final
+// aggregate, not a live per-second trace — k6 doesn't expose a live-readable
+// iteration counter from VU code, and the web dashboard's live/exported
+// charts are a separate output plugin this script has no way to add panels
+// to (see README), so this can only ever show up in the stdout summary and
+// SUMMARY_OUTPUT below, never inside timeseries.html itself.
+// 2026-09-24: simplified alongside the per-phase removal above - ramp mode
+// no longer has discrete phases to take a max over, so this is just the
+// whole-scenario average iteration rate in both modes now (in ramp mode,
+// that UNDERSTATES the true peak near target_rps, since it's averaged over
+// the whole hold+ramp+hold window - a real limitation of losing the
+// per-phase breakdown, noted here rather than silently hidden).
+function peakIterationRateRaw(data) {
+  const totalIterationsAt = (suffix) => enabledPlans.reduce((sum, plan) => sum
+    + countOf(metricValues(data, `scenario_success_${plan.name}${suffix}`))
+    + countOf(metricValues(data, `scenario_failure_${plan.name}${suffix}`)), 0);
+  const windowSeconds = rampPlan
+    ? rampPlan.totalSeconds
+    : flatDurationSeconds;
+  return achievedTpsRaw(totalIterationsAt(""), windowSeconds);
+}
+
+function fmt(values, key) {
+  if (!values || values[key] === undefined || values.count === 0) return "-";
+  return values[key].toFixed(2);
+}
+
+// Achieved TPS is successful transactions / wall-clock window — distinct
+// from "target rps" (the offered/requested iteration rate): if any measured
+// confirms fail or iterations are dropped, achieved TPS falls below target.
+// Raw numeric form (null when the window is unknown) feeds both the text
+// table below and the synthetic gauge metrics injected for the HTML report;
+// k6's own Counter.rate can't be reused for this because in ramp mode it
+// divides by the whole test's wall-clock time, not a single phase's
+// hold_seconds.
+function achievedTpsRaw(successCount, windowSeconds) {
+  return windowSeconds > 0 ? successCount / windowSeconds : null;
+}
+
+function achievedTps(successCount, windowSeconds) {
+  const raw = achievedTpsRaw(successCount, windowSeconds);
+  return raw === null ? "-" : raw.toFixed(2);
+}
+
+// SUMMARY_OUTPUT's JSON dump only contains whatever is in data.metrics;
+// achieved TPS is a value this script derives (success count / window)
+// rather than something k6 tracks natively, so it has no metric to show
+// without this. handleSummary's `data` is a plain, still-mutable JS object
+// at this point (not yet serialized), so adding entries here is enough for
+// JSON.stringify(data) below to pick them up. Shape is k6's gauge format:
+// values.value/min/max (min/max just mirror value — there's only one sample).
+function injectAchievedTpsMetrics(data) {
+  const setGauge = (name, value) => {
+    data.metrics[name] = { type: "gauge", contains: "default", values: { value, min: value, max: value } };
+  };
+  const windowSeconds = rampPlan
+    ? rampPlan.totalSeconds
+    : flatDurationSeconds;
+  for (const plan of enabledPlans) {
+    const successValues = metricValues(data, `scenario_success_${plan.name}`);
+    const tps = achievedTpsRaw(countOf(successValues), windowSeconds);
+    if (tps !== null) setGauge(`achieved_tps_${plan.name}`, tps);
+  }
+  const peak = peakIterationRateRaw(data);
+  if (peak !== null) setGauge("peak_iteration_rate", peak);
+}
+
+// 2026-09-24: handles both modes now (was flat-only; the ramp-mode
+// per-phase table above is gone along with the discrete-step design).
+// "target rps" is the scenario's peak rate (target_rps in ramp mode, the
+// flat rate otherwise); "achieved tps" is averaged over the whole
+// hold+ramp+hold window in ramp mode, which understates the true peak near
+// target_rps - see peakIterationRateRaw's comment for the same caveat.
+function summaryRow(data, plan) {
+  const confirmValues = metricValues(data, `payment_confirm_ms_${plan.name}`);
+  const flowValues = metricValues(data, `total_flow_ms_${plan.name}`);
+  const successValues = metricValues(data, `scenario_success_${plan.name}`);
+  const failureValues = metricValues(data, `scenario_failure_${plan.name}`);
+  const successCount = successValues ? successValues.count : 0;
+  const targetRate = rampPlan ? rateFor(plan, rampPlan.peakRps) : rateFor(plan, flatTotalRps);
+  const windowSeconds = rampPlan
+    ? rampPlan.totalSeconds
+    : flatDurationSeconds;
+  return [
+    plan.name,
+    String(plan.weight),
+    targetRate.toFixed(2),
+    achievedTps(successCount, windowSeconds),
+    fmt(confirmValues, "med"),
+    fmt(confirmValues, "p(90)"),
+    fmt(confirmValues, "p(99)"),
+    fmt(flowValues, "med"),
+    fmt(flowValues, "p(90)"),
+    String(successCount),
+    failureValues ? String(failureValues.count) : "0",
+  ].join(" | ");
+}
+
+export function handleSummary(data) {
+  injectAchievedTpsMetrics(data);
+  const header = `scenario-mix | config=${configPath} | ${loadDescription}`;
+  const rows = [header, globalSummaryRow(data)];
+  if (!__ENV.RECORDING_DISABLED && __ENV.SQLITE_RECORDER_REQUIRED) rows.push(`recorder: ${JSON.stringify(recorder.stats())}`);
+  const columns = [
+    "scenario", "weight%", "target rps", "achieved tps",
+    "confirm p50", "confirm p90", "confirm p99",
+    "flow p50", "flow p90",
+    "success", "failure",
+  ];
+  rows.push(columns.join(" | "));
+  rows.push(columns.map((column) => "-".repeat(column.length)).join(" | "));
+  for (const plan of enabledPlans) rows.push(summaryRow(data, plan));
+  const output = { stdout: `\n${rows.join("\n")}\n` };
+  if (__ENV.SUMMARY_OUTPUT) {
+    output[joinPath(outputDir, __ENV.SUMMARY_OUTPUT)] = JSON.stringify(data, null, 2);
+  }
+  return output;
+}
