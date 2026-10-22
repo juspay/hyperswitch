@@ -3,10 +3,6 @@ import { getCurrency, getCustomExchange } from "./Modifiers";
 
 export const OFFER_QUOTE_ID_PLACEHOLDER = "OFFER_QUOTE_ID_FROM_STATE";
 
-// Amounts (minor units) used by PaymentIntentWithShippingCost
-export const SHIPPING_COST_PAYMENT_AMOUNT = 6000;
-export const SHIPPING_COST = 50;
-
 export const blockedPaymentErrorBodyForIssuingCountry = {
   status: 200,
   expectBlockedPayment: true,
@@ -2394,14 +2390,14 @@ export const connectorDetails = {
     PaymentIntentWithShippingCost: getCustomExchange({
       Request: {
         currency: "USD",
-        shipping_cost: SHIPPING_COST,
+        shipping_cost: 50,
       },
       Response: {
         status: 200,
         body: {
           status: "requires_payment_method",
-          shipping_cost: SHIPPING_COST,
-          amount: SHIPPING_COST_PAYMENT_AMOUNT,
+          shipping_cost: 50,
+          amount: 6000,
         },
       },
     }),
