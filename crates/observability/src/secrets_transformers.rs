@@ -92,7 +92,10 @@ impl SecretsHandler for AlertSettings {
         let api_token = secret_management_client
             .get_secret(value.get_inner().grafana.api_token.clone())
             .await?;
-        Ok(value.transition_state(|evaluator| evaluator.with_api_token(api_token)))
+        Ok(value.transition_state(|mut alert| {
+            alert.grafana.api_token = api_token;
+            alert
+        }))
     }
 }
 

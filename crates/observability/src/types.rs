@@ -41,9 +41,10 @@
 //! Sizes are logged where they are useful — the chat client already emits `chars` per request — so
 //! nothing diagnostic is lost by redacting here.
 //!
-//! ## Nothing here renders
+//! ## Generic delivery does not render
 //!
-//! `text`, `subject` and `body` are delivered exactly as they arrive. The caller decides what its
+//! Evaluator response messages are constructed separately by `services::chat`.
+//! Generic `text`, `subject` and `body` are delivered exactly as they arrive. The caller decides what its
 //! message looks like, in whatever markup its destination reads. `body` is HTML, because both email
 //! backends in `external_services` hardcode an HTML body and there is no plain-text path to reach.
 

@@ -261,6 +261,13 @@ fn get_or_create_proxy_client(
 }
 
 fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpClientError> {
+    // Unit tests drop their Tokio runtimes independently; do not share cached dispatch tasks.
+    if cfg!(test) {
+        return apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
+            .build()
+            .change_context(HttpClientError::ClientConstructionFailed)
+            .attach_printable("Failed to construct test client");
+    }
     // Check if proxy configuration is provided using trait method
     if let Some(cache_key) = proxy_config.cache_key() {
         logger::debug!(
