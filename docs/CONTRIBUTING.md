@@ -203,6 +203,14 @@ Before making a large change, it is usually a good idea to first open an issue
 describing the change to solicit feedback and guidance.
 This will increase the likelihood of the PR getting merged.
 
+### Deja ART replay
+
+When the pull request's final commit is ready, add the `deja-art` label to
+request a replay. The gate checks for a replay result on that commit, not for
+the label itself; any completed verdict counts, including a divergence. The
+label is removed after the request so adding it again retries the replay.
+A later push needs a new replay result on the new commit.
+
 ### Cargo Commands
 
 Due to the extensive use of features in hyperswitch, you will often need to add
