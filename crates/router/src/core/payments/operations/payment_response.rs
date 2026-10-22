@@ -2602,6 +2602,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .clone(),
                             recommended_action: Some(merchant_advice.map(|m| m.recommended_action)),
                             card_network: payment_data.payment_attempt.extract_card_network(),
+                            connector_label: payment_data.payment_attempt.connector_label.clone(),
                         }),
                         option_gsm.and_then(|option_gsm| option_gsm.error_category),
                     )
@@ -2652,6 +2653,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             connector_response_reference_id: None,
                             recommended_action: None,
                             card_network: payment_data.payment_attempt.extract_card_network(),
+                            connector_label: payment_data.payment_attempt.connector_label.clone(),
                         }),
                         None,
                     )
@@ -2958,6 +2960,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .sender_payment_instrument_id
                                             .clone(),
                                         payment_account_reference,
+                                        connector_label: payment_data
+                                            .payment_attempt
+                                            .connector_label
+                                            .clone(),
                                     }),
                                 ),
                             };

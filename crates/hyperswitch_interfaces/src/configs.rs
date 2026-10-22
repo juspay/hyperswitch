@@ -206,9 +206,9 @@ impl MerchantConnectorAccountType {
     }
 
     #[cfg(feature = "v1")]
-    pub fn get_business_details(&self) -> Option<(common_enums::CountryAlpha2, String)> {
+    pub fn get_connector_label(&self) -> Option<String> {
         match self {
-            Self::DbVal(db_val) => db_val.business_country.zip(db_val.business_label.clone()),
+            Self::DbVal(db_val) => db_val.connector_label.clone(),
             Self::CacheVal(_) => None,
         }
     }

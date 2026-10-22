@@ -651,6 +651,7 @@ where
                     .get_payment_attempt()
                     .payment_account_reference
                     .clone(),
+                connector_label: payment_data.get_payment_attempt().connector_label.clone(),
             };
 
             #[cfg(feature = "v1")]
@@ -723,6 +724,7 @@ where
                 advice_message: Some(merchant_advice.map(|m| m.description.clone())),
                 recommended_action: Some(merchant_advice.map(|m| m.recommended_action)),
                 card_network: payment_data.get_payment_attempt().extract_card_network(),
+                connector_label: payment_data.get_payment_attempt().connector_label.clone(),
             };
 
             #[cfg(feature = "v1")]
@@ -893,6 +895,7 @@ pub fn make_new_auto_retry_payment_attempt(
         sender_payment_instrument_id: Default::default(),
         payment_account_reference: Default::default(),
         active_frm_id: old_payment_attempt.active_frm_id,
+        connector_label: None,
     }
 }
 
