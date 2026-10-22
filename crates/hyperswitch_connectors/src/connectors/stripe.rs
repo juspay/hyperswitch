@@ -86,9 +86,7 @@ use self::transformers as stripe;
 use crate::utils::{PayoutsData as OtherPayoutsData, RouterData as OtherRouterData};
 use crate::{
     connectors::stripe::transformers::get_stripe_compatible_connect_account_header,
-    constants::headers::{
-        AUTHORIZATION, CONTENT_TYPE, IDEMPOTENCY_KEY, STRIPE_COMPATIBLE_CONNECT_ACCOUNT,
-    },
+    constants::headers::{AUTHORIZATION, CONTENT_TYPE, STRIPE_COMPATIBLE_CONNECT_ACCOUNT},
     types::{
         AcceptDisputeRouterData, ResponseRouterData, RetrieveFileRouterData,
         SubmitEvidenceRouterData, UploadFileRouterData,
@@ -3271,14 +3269,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Strip
             STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
             customer_account.into_masked(),
         )];
-        // The payout attempt reference is stable across fulfillment retries. Scope it to this
-        // operation so Stripe cannot create a second payout for the same fulfillment.
-        let mut idempotency_header = vec![(
-            IDEMPOTENCY_KEY.to_string(),
-            format!("payout_fulfill_{}", req.connector_request_reference_id).into(),
-        )];
         headers.append(&mut customer_account_header);
-        headers.append(&mut idempotency_header);
         Ok(headers)
     }
 
