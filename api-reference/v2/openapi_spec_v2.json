@@ -4872,7 +4872,7 @@
           "Revenue Recovery"
         ],
         "summary": "Revenue Recovery - Create",
-        "description": "Record a transaction made outside of Hyperswitch against a billing connector invoice,\nand take the requested recovery action on it, such as scheduling a retry for a failed payment\nor recording an externally successful payment.",
+        "description": "Record a transaction made outside of Hyperswitch against a billing connector invoice.\nThe transaction is synced with the payment connector and is then handled based on the\nstatus it reports, for example by scheduling a retry for a failed payment or recording an\nexternally successful payment. The reported `transaction_status` is used when the\nconnector cannot be synced.",
         "operationId": "Create a Revenue Recovery Payment",
         "parameters": [
           {
@@ -4895,10 +4895,21 @@
               "examples": {
                 "Record a failed transaction and schedule a retry": {
                   "value": {
-                    "action": "schedule_failed_payment",
                     "amount_details": {
                       "currency": "USD",
                       "order_amount": 6540
+                    },
+                    "billing": {
+                      "address": {
+                        "city": "San Francisco",
+                        "country": "US",
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "line1": "1467 Harrison Street",
+                        "state": "California",
+                        "zip": "94122"
+                      },
+                      "email": "john@example.com"
                     },
                     "billing_merchant_connector_id": "mca_billing_1234567890",
                     "billing_started_at": "2022-09-10T10:11:12Z",
@@ -31443,14 +31454,6 @@
           }
         }
       },
-      "RecoveryPaymentsAction": {
-        "type": "string",
-        "description": "Action to be taken on the transaction reported through the revenue recovery API",
-        "enum": [
-          "schedule_failed_payment",
-          "success_payment_external"
-        ]
-      },
       "RecoveryPaymentsCreate": {
         "type": "object",
         "required": [
@@ -31459,14 +31462,13 @@
           "billing_merchant_connector_id",
           "payment_merchant_connector_id",
           "transaction_status",
+          "payment_method_type",
           "payment_method_sub_type",
           "transaction_created_at",
-          "payment_method_type",
           "connector_customer_id",
           "billing_started_at",
           "connector_transaction_id",
-          "payment_method_data",
-          "action"
+          "payment_method_data"
         ],
         "properties": {
           "amount_details": {
@@ -31500,6 +31502,19 @@
           "transaction_status": {
             "$ref": "#/components/schemas/RecoveryTransactionStatus"
           },
+          "amount_captured": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Amount captured by the transaction, in the lowest denomination of the currency. It is\nrequired when `transaction_status` is `partial_charged`, where it must be greater than\nzero and less than the order amount. For `charged` it may be omitted, and if sent it\nmust equal the order amount. It must not be sent for a `failure`.",
+            "example": 6540,
+            "nullable": true
+          },
+          "customer_present": {
+            "type": "boolean",
+            "description": "Whether the customer was present, and so able to authenticate, when the transaction was\nmade. Defaults to `false`, which marks the transaction as merchant initiated.",
+            "default": false,
+            "example": false
+          },
           "billing": {
             "allOf": [
               {
@@ -31516,6 +31531,9 @@
             ],
             "nullable": true
           },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
           "payment_method_sub_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
           },
@@ -31524,9 +31542,6 @@
             "format": "date-time",
             "description": "The time at which the transaction was created at the payment connector.",
             "example": "2022-09-10T10:11:12Z"
-          },
-          "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethod"
           },
           "connector_customer_id": {
             "type": "string",
@@ -31546,9 +31561,6 @@
           },
           "payment_method_data": {
             "$ref": "#/components/schemas/CustomRecoveryPaymentMethodData"
-          },
-          "action": {
-            "$ref": "#/components/schemas/RecoveryPaymentsAction"
           },
           "enable_partial_authorization": {
             "type": "boolean",
@@ -31602,8 +31614,7 @@
         "enum": [
           "charged",
           "failure",
-          "partial_charged",
-          "partial_charged_and_chargeable"
+          "partial_charged"
         ]
       },
       "RecurringDetails": {
