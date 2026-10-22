@@ -14783,6 +14783,10 @@ pub struct RecoveryPaymentsCreate {
     /// The billing details of the transaction.
     pub billing: Option<Address>,
 
+    /// Payment method type used for the transaction.
+    #[schema(value_type = PaymentMethod, example = "wallet")]
+    pub payment_method_type: common_enums::PaymentMethod,
+
     /// The payment method subtype used for the transaction.
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_sub_type: api_enums::PaymentMethodType,
@@ -14791,10 +14795,6 @@ pub struct RecoveryPaymentsCreate {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub transaction_created_at: PrimitiveDateTime,
-
-    /// Payment method type used for the transaction.
-    #[schema(value_type = PaymentMethod, example = "wallet")]
-    pub payment_method_type: common_enums::PaymentMethod,
 
     /// Unique identifier of the customer at the payment connector, with which the payment
     /// method token used for the transaction is associated.
