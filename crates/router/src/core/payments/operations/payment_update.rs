@@ -126,10 +126,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )?;
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
+        helpers::validate_merchant_only_mcp_fields(auth_flow, request, "update")?;
         // Resolve the stored flag before update-and-confirm amount calculations.
-        payment_intent.settlement_conclusion_applied = request
-            .settlement_conclusion_applied
-            .or(payment_intent.settlement_conclusion_applied);
+        helpers::validate_and_update_settlement_conclusion(
+            auth_flow,
+            request,
+            &mut payment_intent,
+            "update",
+        )?;
 
         payment_intent.order_details = request
             .get_order_details_as_value()

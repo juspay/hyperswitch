@@ -565,13 +565,7 @@ pub async fn construct_refund_router_data<'a, F>(
                 .feature_metadata
                 .as_ref()
                 .map(api_models::payments::FeatureMetadata::foreign_from),
-            feature_metadata: refund
-                .feature_metadata
-                .as_ref()
-                .map(|metadata| metadata.clone().parse_value("RefundFeatureMetadata"))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse refund feature metadata")?,
+            feature_metadata: refund.feature_metadata.clone(),
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
             refund_amount: refund.refund_amount.get_amount_as_i64(),
             minor_refund_amount: refund.refund_amount,
@@ -803,13 +797,7 @@ pub async fn construct_refund_router_data<'a, F>(
                 .get_optional_feature_metadata()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse payment feature metadata")?,
-            feature_metadata: refund
-                .feature_metadata
-                .as_ref()
-                .map(|metadata| metadata.clone().parse_value("RefundFeatureMetadata"))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse refund feature metadata")?,
+            feature_metadata: refund.feature_metadata.clone(),
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
             refund_amount: refund.refund_amount.get_amount_as_i64(),
             minor_refund_amount: refund.refund_amount,

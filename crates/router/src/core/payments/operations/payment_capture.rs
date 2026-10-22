@@ -173,12 +173,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             )?;
             let mut capture_new = payment_attempt
                 .make_new_capture(amount_to_capture, enums::CaptureStatus::Started)?;
-            capture_new.feature_metadata = capture_feature_metadata
-                .as_ref()
-                .map(serde_json::to_value)
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to serialize capture feature metadata")?;
+            capture_new.feature_metadata = capture_feature_metadata.clone();
             let capture = db
                 .insert_capture(capture_new, storage_scheme)
                 .await

@@ -71,7 +71,7 @@ pub struct Refund {
     pub created_by: Option<String>,
     /// Settlement metadata supplied for this operation, retained across status updates.
     #[serde(default)]
-    pub feature_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
 }
 
 impl Refund {
@@ -163,7 +163,7 @@ pub struct Refund {
     pub connector_id: Option<id_type::MerchantConnectorAccountId>,
     /// Settlement metadata supplied for this operation, retained across status updates.
     #[serde(default)]
-    pub feature_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -215,7 +215,7 @@ pub struct RefundNew {
     pub created_by: Option<String>,
     /// Settlement metadata supplied for this operation, retained across status updates.
     #[serde(default)]
-    pub feature_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -267,7 +267,7 @@ pub struct RefundNew {
     pub created_by: Option<String>,
     /// Settlement metadata supplied for this operation, retained across status updates.
     #[serde(default)]
-    pub feature_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]

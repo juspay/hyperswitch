@@ -13,6 +13,7 @@ use common_enums::enums::PaymentConnectorTransmission;
 #[cfg(feature = "v1")]
 pub use common_enums::FingerprintType;
 use common_enums::{self, GooglePayCardFundingSource, ProductType};
+pub use common_types::payments::{CaptureFeatureMetadata, MultiCurrencyProcessingAmountData};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -6793,40 +6794,6 @@ pub struct PhoneDetails {
     #[schema(example = "+1")]
     #[smithy(value_type = "Option<String>")]
     pub country_code: Option<String>,
-}
-
-/// Merchant settlement leg for a single capture or refund. No conversion is recomputed.
-#[derive(
-    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-#[serde(deny_unknown_fields)]
-pub struct MultiCurrencyProcessingAmountData {
-    #[schema(value_type = i64)]
-    #[smithy(value_type = "i64")]
-    pub amount: MinorUnit,
-    #[schema(value_type = Currency)]
-    #[smithy(value_type = "Currency")]
-    pub currency: api_enums::Currency,
-}
-
-#[derive(
-    Debug,
-    Default,
-    Clone,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    ToSchema,
-    SmithyModel,
-)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-#[serde(deny_unknown_fields)]
-pub struct CaptureFeatureMetadata {
-    /// Settlement amount and currency for this capture.
-    #[smithy(value_type = "Option<MultiCurrencyProcessingAmountData>")]
-    pub multi_currency_processing: Option<MultiCurrencyProcessingAmountData>,
 }
 
 #[cfg(feature = "v1")]

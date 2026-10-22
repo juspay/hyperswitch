@@ -1265,11 +1265,7 @@ pub async fn validate_and_create_refund(
         modified_at: common_utils::date_time::now(),
         refund_status: enums::RefundStatus::Pending,
         metadata: req.metadata,
-        feature_metadata: refund_feature_metadata
-            .map(serde_json::to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to serialize refund feature metadata")?,
+        feature_metadata: refund_feature_metadata,
         description: req.reason.clone(),
         attempt_id: payment_attempt.id.clone(),
         refund_reason: req.reason,

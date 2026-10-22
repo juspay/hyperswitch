@@ -7,19 +7,11 @@ use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use super::payments::{AmountFilter, MultiCurrencyProcessingAmountData};
+use super::payments::AmountFilter;
 #[cfg(feature = "v1")]
 use crate::admin;
 use crate::{admin::MerchantConnectorInfo, enums};
-
-#[derive(Default, Debug, ToSchema, Clone, PartialEq, Eq, Deserialize, Serialize, SmithyModel)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-#[serde(deny_unknown_fields)]
-pub struct RefundFeatureMetadata {
-    /// Settlement amount and currency for this refund.
-    #[smithy(value_type = "Option<MultiCurrencyProcessingAmountData>")]
-    pub multi_currency_processing: Option<MultiCurrencyProcessingAmountData>,
-}
+pub use common_types::refunds::RefundFeatureMetadata;
 
 #[cfg(feature = "v1")]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize, SmithyModel)]
@@ -387,7 +379,7 @@ pub struct RefundResponse {
     /// Feature metadata persisted for this operation.
     #[schema(value_type = Option<RefundFeatureMetadata>)]
     #[cfg_attr(feature = "v1", smithy(value_type = "Option<RefundFeatureMetadata>"))]
-    pub feature_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -452,7 +444,7 @@ pub struct RefundResponse {
     /// Feature metadata persisted for this operation.
     #[schema(value_type = Option<RefundFeatureMetadata>)]
     #[cfg_attr(feature = "v1", smithy(value_type = "Option<RefundFeatureMetadata>"))]
-    pub feature_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]

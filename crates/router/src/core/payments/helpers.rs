@@ -7042,6 +7042,67 @@ pub async fn get_additional_payment_data(
 }
 
 #[cfg(feature = "v1")]
+pub fn validate_merchant_only_mcp_fields(
+    auth_flow: services::AuthFlow,
+    request: &api::PaymentsRequest,
+    operation: &'static str,
+) -> Result<(), errors::ApiErrorResponse> {
+    if auth_flow == services::AuthFlow::Client
+        && request
+            .feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.multi_currency_processing.as_ref())
+            .is_some()
+    {
+        logger::error!(
+            error_status_code = 400,
+            error_status_class = "4xx",
+            error_category = "invalid_integration",
+            operation,
+            "Invalid integration: MCP data supplied with client authentication"
+        );
+        metrics::CLIENT_MCP_UPDATE_REJECTED
+            .add(1, router_env::metric_attributes!(("operation", operation)));
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "feature_metadata.multi_currency_processing can only be updated with merchant authentication".to_string(),
+        });
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+pub fn validate_and_update_settlement_conclusion(
+    auth_flow: services::AuthFlow,
+    request: &api::PaymentsRequest,
+    payment_intent: &mut PaymentIntent,
+    operation: &'static str,
+) -> Result<(), errors::ApiErrorResponse> {
+    if auth_flow == services::AuthFlow::Client && request.settlement_conclusion_applied.is_some() {
+        logger::error!(
+            error_status_code = 400,
+            error_status_class = "4xx",
+            error_category = "invalid_integration",
+            operation,
+            "Invalid integration: settlement_conclusion_applied supplied with client authentication"
+        );
+        metrics::CLIENT_SETTLEMENT_CONCLUSION_UPDATE_REJECTED
+            .add(1, router_env::metric_attributes!(("operation", operation)));
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message:
+                "settlement_conclusion_applied can only be updated with merchant authentication"
+                    .to_string(),
+        });
+    }
+
+    payment_intent.settlement_conclusion_applied = request
+        .settlement_conclusion_applied
+        .or(payment_intent.settlement_conclusion_applied);
+
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
 pub fn validate_customer_access(
     payment_intent: &PaymentIntent,
     auth_flow: services::AuthFlow,
@@ -10477,21 +10538,7 @@ impl MultiCurrencyProcessingData {
         let previous_capture_mcp = capture
             .feature_metadata
             .as_ref()
-            .map(|metadata| {
-                metadata
-                    .clone()
-                    .parse_value::<api_models::payments::CaptureFeatureMetadata>(
-                        "CaptureFeatureMetadata",
-                    )
-            })
-            .transpose()
-            .inspect_err(|_| {
-                logger::error!(
-                    "Failed to parse stored MCP feature metadata for a previous capture"
-                );
-            })
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .and_then(|metadata| metadata.multi_currency_processing)
+            .and_then(|metadata| metadata.multi_currency_processing.clone())
             .ok_or_else(|| {
                 logger::error!("Missing MCP feature metadata for a previous capture");
                 report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
@@ -10522,26 +10569,11 @@ impl MultiCurrencyProcessingData {
         payment_feature_metadata: Option<&api_models::payments::FeatureMetadata>,
         refund: &diesel_models::refund::Refund,
     ) -> RouterResult<api_models::payments::MultiCurrencyProcessingAmountData> {
-        let metadata = refund
-            .feature_metadata
-            .as_ref()
-            .map(|value| {
-                value
-                    .clone()
-                    .parse_value::<api_models::refunds::RefundFeatureMetadata>(
-                        "RefundFeatureMetadata",
-                    )
-            })
-            .transpose()
-            .inspect_err(|_| {
-                logger::error!("Failed to parse stored MCP feature metadata for a previous refund");
-            })
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
         Self::resolve_operation_multi_currency_processing(
             connector,
             payment_feature_metadata,
-            metadata
+            refund
+                .feature_metadata
                 .as_ref()
                 .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
         )?

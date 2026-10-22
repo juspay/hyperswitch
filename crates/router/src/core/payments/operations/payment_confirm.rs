@@ -169,6 +169,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
+        helpers::validate_merchant_only_mcp_fields(auth_flow, request, "confirm")?;
+        helpers::validate_and_update_settlement_conclusion(
+            auth_flow,
+            request,
+            &mut payment_intent,
+            "confirm",
+        )?;
+
         let customer_details =
             helpers::get_customer_details_from_request_or_pm_table(request, None, None)?;
 
@@ -519,10 +527,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?
             .map(hyperswitch_masking::Secret::new);
-        payment_intent.settlement_conclusion_applied = request
-            .settlement_conclusion_applied
-            .or(payment_intent.settlement_conclusion_applied);
-
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
         payment_intent.request_incremental_authorization = request
