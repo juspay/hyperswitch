@@ -5,8 +5,8 @@ on:
   # context of the target repository.
   # Avoid checking out the head of the pull request or building code from the
   # pull request whenever this trigger is used.
-  # Since we do not have a checkout step in this workflow, this is an
-  # acceptable use of this trigger.
+  # Checkout only trusted base-branch code when files from the repository are
+  # required. Never checkout the pull request head in this workflow.
   pull_request_target:
     types:
       - opened
@@ -14,6 +14,8 @@ on:
       - reopened
       - ready_for_review
       - synchronize
+      - labeled
+      - unlabeled
 
   merge_group:
     types:
@@ -129,6 +131,38 @@ jobs:
               exit 1
             fi
           done <<< "${linked_issues}"
+
+  pr_size_policy_check:
+    name: Verify PR size policy
+    if: ${{ github.event_name == 'pull_request_target' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout trusted base branch
+        # pull_request_target workflows must use trusted base-branch code only.
+        # The PR size script and policy are read from the base commit, not the PR head.
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Generate GitHub app token
+        id: generate_app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.event.repository.owner.login }}
+
+      - name: Verify PR size policy
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: .github/scripts/check_pr_size.sh
 
   pr_labeler:
     name: Attach suitable labels to PR
