@@ -48,6 +48,7 @@ pub mod transformers;
 pub mod type_encryption;
 pub mod types;
 pub mod vault;
+pub mod webhooks;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}
@@ -1399,6 +1400,7 @@ impl From<&api_models::payments::RecordAttemptErrorDetails>
             network_advice_code: error.network_advice_code.clone(),
             network_decline_code: error.network_decline_code.clone(),
             network_error_message: error.network_error_message.clone(),
+            standardised_code: None,
         }
     }
 }

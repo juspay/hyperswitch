@@ -48,7 +48,7 @@ describe("Superposition Config Tests (Requires CVV)", () => {
       });
 
       it("Set requires_cvv=true via superposition", () => {
-        cy.setSuperpositionConfig(globalState, "requires_cvv", true, {
+        cy.setSuperpositionConfig(globalState, "payments.requires_cvv", true, {
           provider_merchant_id: globalState.get("merchantId"),
           processor_merchant_id: globalState.get("merchantId"),
         });
@@ -144,7 +144,7 @@ describe("Superposition Config Tests (Requires CVV)", () => {
       });
 
       it("Set requires_cvv=false via superposition", () => {
-        cy.setSuperpositionConfig(globalState, "requires_cvv", false, {
+        cy.setSuperpositionConfig(globalState, "payments.requires_cvv", false, {
           provider_merchant_id: globalState.get("merchantId"),
           processor_merchant_id: globalState.get("merchantId"),
         });

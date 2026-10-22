@@ -508,6 +508,15 @@ impl RedisTokenManager {
         token: &PaymentProcessorTokenStatus,
         network_type: Option<CardNetwork>,
     ) -> TokenRetryInfo {
+        // The retries are still recorded in every environment, but the limits are enforced only
+        // in production: test traffic in the other environments must not exhaust a card.
+        if !matches!(router_env::env::which(), router_env::env::Env::Production) {
+            return TokenRetryInfo {
+                monthly_wait_hours: 0,
+                daily_wait_hours: 0,
+                total_30_day_retries: 0,
+            };
+        }
         let card_config = &state.conf.revenue_recovery.card_config;
         let card_network_config = card_config.get_network_config(network_type);
 

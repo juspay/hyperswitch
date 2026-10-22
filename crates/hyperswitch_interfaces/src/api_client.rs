@@ -295,7 +295,7 @@ where
                         None,
                     )
                     .await;
-                    let external_latency = current_time.elapsed().as_millis();
+                    let external_latency = common_utils::elapsed::millis_since(current_time);
                     logger::info!(raw_connector_request=?masked_request_body);
                     let status_code = response
                         .as_ref()

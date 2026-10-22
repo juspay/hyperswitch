@@ -1145,12 +1145,12 @@ pub async fn link_routing_config(
         Ok(routing_algorithm) => routing_algorithm,
         Err(error) => {
             // DE-only rule ids (e.g. created on the DE dashboard) activate directly on the DE.
-            if let Some((business_profile, record)) = find_de_record_for_algorithm(
+            if let Some((business_profile, record)) = Box::pin(find_de_record_for_algorithm(
                 &state,
                 &platform,
                 authentication_profile_id.clone(),
                 &algorithm_id,
-            )
+            ))
             .await?
             {
                 utils::when(record.algorithm_for != transaction_type, || {
@@ -1665,12 +1665,12 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
         Ok(routing_algorithm) => routing_algorithm,
         Err(error) => {
             // DE-only rules have no HS row; serve them from the DE.
-            if let Some((_business_profile, record)) = find_de_record_for_algorithm(
+            if let Some((_business_profile, record)) = Box::pin(find_de_record_for_algorithm(
                 &state,
                 &platform,
                 authentication_profile_id.clone(),
                 &algorithm_id,
-            )
+            ))
             .await?
             {
                 let response = de_record_to_merchant_routing_algorithm(record)?;
@@ -3314,6 +3314,7 @@ impl RoutableConnectors {
             &TransactionData::Payment(payments_dsl_input),
             None,
             business_profile,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3983,10 +3984,34 @@ pub fn transaction_type_from_payments_dsl(input: &PaymentsDslInput<'_>) -> enums
     enums::TransactionType::from(&txn_data)
 }
 
+pub fn format_connector_for_logging(
+    connector: impl std::fmt::Display,
+    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
+) -> String {
+    format!(
+        "{connector}:{}",
+        merchant_connector_id
+            .map(|id| id.get_string_repr())
+            .unwrap_or("<unresolved>")
+    )
+}
+
+pub fn format_connectors_for_logging(
+    connectors: &[routing::RoutableConnectorChoice],
+) -> Vec<String> {
+    connectors
+        .iter()
+        .map(|choice| {
+            format_connector_for_logging(choice.connector, choice.merchant_connector_id.as_ref())
+        })
+        .collect()
+}
+
 pub fn log_connectors(stage: &str, connectors: &[routing::RoutableConnectorChoice]) {
-    let names: Vec<String> = connectors.iter().map(|c| c.connector.to_string()).collect();
+    let names = format_connectors_for_logging(connectors);
 
     router_env::logger::debug!(
+        connectors = ?names,
         "euclid: connectors after {} = {{{}}}",
         stage,
         names.join(", ")
