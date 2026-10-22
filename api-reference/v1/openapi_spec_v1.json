@@ -27182,21 +27182,19 @@
       "IndividualSenderDetails": {
         "type": "object",
         "description": "An individual providing the funds in an account funded transaction.",
-        "required": [
-          "first_name",
-          "last_name"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
-            "description": "The sender's first name.",
+            "description": "The sender's first name. When neither the first nor the last name is provided, the name\nfrom the billing address of the payment method is used instead.",
             "example": "John",
+            "nullable": true,
             "maxLength": 255
           },
           "last_name": {
             "type": "string",
-            "description": "The sender's last name.",
+            "description": "The sender's last name. When neither the first nor the last name is provided, the name\nfrom the billing address of the payment method is used instead.",
             "example": "Doe",
+            "nullable": true,
             "maxLength": 255
           },
           "date_of_birth": {
@@ -28074,20 +28072,18 @@
       "MaskedIndividualSenderDetails": {
         "type": "object",
         "description": "A partially masked view of `IndividualSenderDetails`, safe to return in API responses.",
-        "required": [
-          "first_name",
-          "last_name"
-        ],
         "properties": {
           "first_name": {
             "type": "string",
             "description": "The sender's first name.",
-            "example": "John"
+            "example": "John",
+            "nullable": true
           },
           "last_name": {
             "type": "string",
             "description": "The sender's last name.",
-            "example": "Doe"
+            "example": "Doe",
+            "nullable": true
           },
           "address": {
             "allOf": [
