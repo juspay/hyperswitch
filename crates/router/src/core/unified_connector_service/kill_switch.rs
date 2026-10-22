@@ -934,38 +934,40 @@ pub mod shadow {
             .is_some_and(ApiClientError::is_upstream_timeout);
         let connector_timeout = error.current_context().is_connector_timeout();
         if client_timeout || connector_timeout {
-            return ShadowFailureReason::RequestTimeout;
-        }
-        if error.downcast_ref::<http::StatusCode>()
+            ShadowFailureReason::RequestTimeout
+        } else if error.downcast_ref::<http::StatusCode>()
             == Some(&http::StatusCode::PROXY_AUTHENTICATION_REQUIRED)
         {
-            return ShadowFailureReason::ProxyAuthenticationRequired;
-        }
-        match error.downcast_ref::<reqwest::Error>() {
-            Some(error) if error.is_timeout() => ShadowFailureReason::RequestTimeout,
-            Some(error) if error.is_connect() => connection_failure_reason(error),
-            _ => ShadowFailureReason::Ignored,
+            ShadowFailureReason::ProxyAuthenticationRequired
+        } else {
+            match error.downcast_ref::<reqwest::Error>() {
+                Some(error) if error.is_timeout() => ShadowFailureReason::RequestTimeout,
+                Some(error) if error.is_connect() => connection_failure_reason(error),
+                _ => ShadowFailureReason::Ignored,
+            }
         }
     }
 
     fn connection_failure_reason(error: &reqwest::Error) -> ShadowFailureReason {
-        for cause in std::iter::successors(error.source(), |source| (*source).source()) {
-            if cause
-                .downcast_ref::<std::io::Error>()
-                .is_some_and(|error| error.kind() == ErrorKind::ConnectionRefused)
-            {
-                return ShadowFailureReason::ConnectionRefused;
-            }
-            // Hyper 0.14's private DNS error type exposes this fixed prefix.
-            let message = cause.to_string();
-            if message.starts_with("dns error:") || message == "dns error" {
-                return ShadowFailureReason::DnsFailure;
-            }
-            if message == "proxy authentication required" {
-                return ShadowFailureReason::ProxyAuthenticationRequired;
-            }
-        }
-        ShadowFailureReason::Ignored
+        std::iter::successors(error.source(), |source| (*source).source())
+            .map(|cause| {
+                let connection_refused = cause
+                    .downcast_ref::<std::io::Error>()
+                    .is_some_and(|error| error.kind() == ErrorKind::ConnectionRefused);
+                // Hyper 0.14's private DNS error type exposes this fixed prefix.
+                match cause.to_string().as_str() {
+                    _ if connection_refused => ShadowFailureReason::ConnectionRefused,
+                    "proxy authentication required" => {
+                        ShadowFailureReason::ProxyAuthenticationRequired
+                    }
+                    message if message == "dns error" || message.starts_with("dns error:") => {
+                        ShadowFailureReason::DnsFailure
+                    }
+                    _ => ShadowFailureReason::Ignored,
+                }
+            })
+            .find(|reason| *reason != ShadowFailureReason::Ignored)
+            .unwrap_or(ShadowFailureReason::Ignored)
     }
 
     fn response_failure_reason(error: &ErrorResponse) -> ShadowFailureReason {
@@ -1008,52 +1010,51 @@ pub mod shadow {
                 }
             }
         };
-        if !reason.should_increment_counter() {
-            return;
-        }
-        let write = async {
-            let conn = state.global_store.get_redis_conn()?;
-            write_hash_counter(
-                &conn,
-                COUNTER_KEY,
-                COUNTER_FIELD,
-                UCS_SHADOW_KILL_SWITCH_TTL_IN_SECONDS,
-            )
-            .await
-        }
-        .await;
-        match write {
-            Ok(counts) => {
-                let count = counts.first().and_then(|count| u64::try_from(*count).ok());
-                logger::warn!(
-                    payment_id,
-                    request_id = ?state.request_id,
-                    count = ?count,
-                    reason = %reason,
-                    "SHADOW_KILL_SWITCH_COUNTER_INCREMENTED"
-                );
-
-                let configured_threshold = threshold(state);
-                // The atomic Redis increment returns the threshold value to only one
-                // request, so concurrent failures do not repeat the trip event.
-                if let Some(count) = count.filter(|count| *count == configured_threshold) {
+        if reason.should_increment_counter() {
+            let write = async {
+                let conn = state.global_store.get_redis_conn()?;
+                write_hash_counter(
+                    &conn,
+                    COUNTER_KEY,
+                    COUNTER_FIELD,
+                    UCS_SHADOW_KILL_SWITCH_TTL_IN_SECONDS,
+                )
+                .await
+            }
+            .await;
+            match write {
+                Ok(counts) => {
+                    let count = counts.first().and_then(|count| u64::try_from(*count).ok());
                     logger::warn!(
-                        key = COUNTER_KEY,
                         payment_id,
                         request_id = ?state.request_id,
-                        count,
-                        threshold = configured_threshold,
+                        count = ?count,
                         reason = %reason,
-                        "SHADOW_KILL_SWITCH_TRIPPED"
+                        "SHADOW_KILL_SWITCH_COUNTER_INCREMENTED"
                     );
+
+                    let configured_threshold = threshold(state);
+                    // The atomic Redis increment returns the threshold value to only one
+                    // request, so concurrent failures do not repeat the trip event.
+                    if let Some(count) = count.filter(|count| *count == configured_threshold) {
+                        logger::warn!(
+                            key = COUNTER_KEY,
+                            payment_id,
+                            request_id = ?state.request_id,
+                            count,
+                            threshold = configured_threshold,
+                            reason = %reason,
+                            "SHADOW_KILL_SWITCH_TRIPPED"
+                        );
+                    }
                 }
+                Err(error) => logger::warn!(
+                    payment_id,
+                    request_id = ?state.request_id,
+                    ?error,
+                    "Shadow kill switch counter increment failed"
+                ),
             }
-            Err(error) => logger::warn!(
-                payment_id,
-                request_id = ?state.request_id,
-                ?error,
-                "Shadow kill switch counter increment failed"
-            ),
         }
     }
 
