@@ -70,6 +70,8 @@ where
         None => Ok(None),
     }
 }
+#[cfg(feature = "v1")]
+use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
 #[cfg(any(feature = "v1", feature = "v2"))]
@@ -11412,8 +11414,7 @@ pub enum VaultDetailsResponse {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct HyperswitchVaultData {
     /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
-    #[schema(value_type = String)]
-    pub sdk_authorization: Secret<String>,
+    pub sdk_authorization: String,
 }
 
 #[cfg(feature = "v1")]
@@ -11437,14 +11438,14 @@ impl From<VaultDetails> for Option<VaultDetailsResponse> {
             })),
             Some(VaultSessionDetails::HyperswitchVault(hs)) => {
                 Some(VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
-                    sdk_authorization: hs.sdk_authorization,
+                    sdk_authorization: hs.sdk_authorization.expose(),
                 }))
             }
             // No external vault configured (the SaaS default): fall back to the internal
             // Hyperswitch vault SDK authorization.
             None => details.internal_vault.map(|internal| {
                 VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
-                    sdk_authorization: Secret::new(internal.sdk_authorization),
+                    sdk_authorization: internal.sdk_authorization,
                 })
             }),
         }
