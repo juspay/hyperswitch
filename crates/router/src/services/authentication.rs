@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, str::FromStr};
 
-use actix_web::http::header::HeaderMap;
+use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodIntentConfirm;
 #[cfg(feature = "v1")]
@@ -2557,6 +2557,47 @@ where
                 merchant_id: self.0.clone(),
             },
         ))
+    }
+}
+
+#[derive(Debug)]
+#[cfg(feature = "v1")]
+pub struct ApiKeyBasicAuthWithMerchantIdFromRoute {
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: Option<id_type::ProfileId>,
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for ApiKeyBasicAuthWithMerchantIdFromRoute
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let (_username, api_key) = parse_basic_auth_credentials(request_headers)?;
+
+        let mut api_key = HeaderValue::from_str(api_key.peek())
+            .change_context(errors::ApiErrorResponse::InvalidBasicAuth)
+            .attach_printable("API key in the Basic auth password is not a valid header value")?;
+        // Keeps the key out of any debug rendering of the header map.
+        api_key.set_sensitive(true);
+
+        let mut request_headers = request_headers.clone();
+        request_headers.insert(HeaderName::from_static("api-key"), api_key);
+
+        if let Some(profile_id) = &self.profile_id {
+            let profile_id = HeaderValue::from_str(profile_id.get_string_repr())
+                .change_context(errors::ApiErrorResponse::InvalidBasicAuth)
+                .attach_printable("Profile ID is not a valid header value")?;
+            request_headers.insert(HeaderName::from_static("x-profile-id"), profile_id);
+        }
+
+        api_key_auth_with_merchant_id_from_route(&self.merchant_id, false, &request_headers, state)
+            .await
     }
 }
 

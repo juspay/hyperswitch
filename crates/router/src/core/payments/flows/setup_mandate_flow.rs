@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     router_flow_types, router_request_types, router_response_types,
 };
 use hyperswitch_interfaces::{
-    api::{self as api_interface, gateway, ConnectorSpecifications},
+    api::{self as api_interface, ConnectorSpecifications},
     consts as interface_consts,
 };
 use router_env::logger;
@@ -20,7 +20,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, gateway as payments_gateway,
+            self, access_token, customers, gateway, gateway as payments_gateway,
             gateway::context as gateway_context, helpers, session_token, tokenization,
             transformers, PaymentData,
         },
