@@ -1018,7 +1018,7 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
             transaction_category_code,
             holder_name: item
                 .get_optional_billing_full_name()
-                .or_else(|| card_holder_name)
+                .or(card_holder_name)
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "payment_method_data.billing.address.first_name".into(),
                 })?,
