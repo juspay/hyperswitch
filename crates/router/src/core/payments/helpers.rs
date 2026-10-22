@@ -7078,28 +7078,29 @@ pub fn validate_and_update_settlement_conclusion(
     payment_intent: &mut PaymentIntent,
     operation: &'static str,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if auth_flow == services::AuthFlow::Client && request.settlement_conclusion_applied.is_some() {
-        logger::error!(
-            error_status_code = 400,
-            error_status_class = "4xx",
-            error_category = "invalid_integration",
-            operation,
-            "Invalid integration: settlement_conclusion_applied supplied with client authentication"
-        );
-        metrics::CLIENT_SETTLEMENT_CONCLUSION_UPDATE_REJECTED
-            .add(1, router_env::metric_attributes!(("operation", operation)));
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message:
-                "settlement_conclusion_applied can only be updated with merchant authentication"
-                    .to_string(),
-        });
+    match (auth_flow, request.settlement_conclusion_applied) {
+        (services::AuthFlow::Client, Some(_)) => {
+            logger::error!(
+                error_status_code = 400,
+                error_status_class = "4xx",
+                error_category = "invalid_integration",
+                operation,
+                "Invalid integration: settlement_conclusion_applied supplied with client authentication"
+            );
+            metrics::CLIENT_SETTLEMENT_CONCLUSION_UPDATE_REJECTED
+                .add(1, router_env::metric_attributes!(("operation", operation)));
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "settlement_conclusion_applied can only be updated with merchant authentication"
+                        .to_string(),
+            })
+        }
+        (services::AuthFlow::Merchant, Some(settlement_conclusion_applied)) => {
+            payment_intent.settlement_conclusion_applied = Some(settlement_conclusion_applied);
+            Ok(())
+        }
+        (services::AuthFlow::Client | services::AuthFlow::Merchant, None) => Ok(()),
     }
-
-    payment_intent.settlement_conclusion_applied = request
-        .settlement_conclusion_applied
-        .or(payment_intent.settlement_conclusion_applied);
-
-    Ok(())
 }
 
 #[cfg(feature = "v1")]
