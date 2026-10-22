@@ -72,6 +72,8 @@ pub mod superposition_proxy;
 #[cfg(feature = "v1")]
 pub mod superposition_sdk_config;
 pub mod surcharge_decision_config;
+#[cfg(feature = "v1")]
+pub mod telephone_order;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
 pub mod unified_authentication_service;
