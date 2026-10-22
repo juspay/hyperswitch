@@ -611,6 +611,7 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
+    VOID_PAYMENT_SYNC: ["zift"],
     // Spec 54's saved-card client-list assertions run only where the
     // environment is verified to surface saved cards (the mock fiuu env
     // does not); extend as connector runs prove support.
@@ -838,6 +839,14 @@ export const CONNECTOR_LISTS = {
     ZERO_AUTH_MANDATE: ["peachpayments"],
     BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
     ERROR_ON_REQUIRES_ACTION: ["stripe"],
+    AUTO_FALLBACK_CAPTURE_METHOD: [
+      "trustpay",
+      "cryptopay",
+      "facilitapay",
+      "payjustnow",
+      "placetopay",
+      "iatapay",
+    ],
     AFT_PURPOSE_OF_PAYMENT: ["checkout"],
     AFT_FUNDING_TRANSACTION_TYPE: ["worldpayxml"],
     PEACHPAYMENTS_CONNECTOR_METADATA: ["peachpayments"],
