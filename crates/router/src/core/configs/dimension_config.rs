@@ -1,8 +1,9 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use api_models::webhooks::IncomingWebhookEvent;
-use common_enums;
+use common_enums::{self, connector_enums};
 use external_services::superposition;
+use hyperswitch_domain_models::webhooks::IncomingWebhookIpRange;
 use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{dimension_state, fetch_db_config_for_dimensions, ConfigContext, DatabaseBackedConfig};
@@ -989,6 +990,41 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
                 .ok()
             })
             .map(|event| disabled_events.contains(&event))
+    }
+}
+
+/// Incoming webhook allowed IP ranges, keyed by connector.
+pub type IncomingWebhookIpRangesConfig =
+    HashMap<connector_enums::Connector, Vec<IncomingWebhookIpRange>>;
+
+// An absent config defaults to an empty object; enabled, required checks reject missing ranges.
+config! {
+    superposition_key = INCOMING_WEBHOOK_ALLOWED_IP_RANGES,
+    output = IncomingWebhookIpRangesConfig,
+    default = serde_json::json!({}),
+    object = true,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for IncomingWebhookAllowedIpRanges {
+    const KEY: &'static str = "incoming_webhooks_allowed_ip_ranges";
+}
+
+config! {
+    superposition_key = INCOMING_WEBHOOK_IP_VERIFICATION_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for IncomingWebhookIpVerificationEnabled {
+    const KEY: &'static str = "incoming_webhook_ip_verification_enabled";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Keep the global kill switch in Superposition without a database fallback.
+        None
     }
 }
 

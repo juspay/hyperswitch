@@ -4,6 +4,38 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.22.0
+
+### Features
+
+- **analytics:** Generate analytics reports on the process tracker ([#14751](https://github.com/juspay/hyperswitch/pull/14751)) ([`402b628`](https://github.com/juspay/hyperswitch/commit/402b6280127ba8a98b32b2f0f4a6243f92f1cafd))
+- **connector:** [Revolv3] Expose processor name in payment response metadata ([#14893](https://github.com/juspay/hyperswitch/pull/14893)) ([`bd21483`](https://github.com/juspay/hyperswitch/commit/bd21483e408944b0af321cf57f6722c71ac5d693))
+- **webhooks:** Introduce IP based whitelisting for incoming webhooks ([#14828](https://github.com/juspay/hyperswitch/pull/14828)) ([`f3d1c0d`](https://github.com/juspay/hyperswitch/commit/f3d1c0d42e9c6d359d082bd928705c1cd220e25a))
+
+### Bug Fixes
+
+- **authentication:** Skip authentication table fetch when modular auth service is enabled ([#14908](https://github.com/juspay/hyperswitch/pull/14908)) ([`b89e8ae`](https://github.com/juspay/hyperswitch/commit/b89e8ae4173f148d6126fd3a6323d5436c4960d2))
+- **connector:** [JPMorgan] Configure JWT OAuth credentials for UCS ([#14808](https://github.com/juspay/hyperswitch/pull/14808)) ([`0b53577`](https://github.com/juspay/hyperswitch/commit/0b53577a5b31f1771a2ec157aadd97499609749b))
+- **migrations:** Create unique indexes on payment intent and attempt in v2 compatible migrations ([#14901](https://github.com/juspay/hyperswitch/pull/14901)) ([`b0bc2ca`](https://github.com/juspay/hyperswitch/commit/b0bc2ca6a909a58adefa861285f07f985af10f66))
+- **routing:** Validate eligibility per merchant connector account ([#14895](https://github.com/juspay/hyperswitch/pull/14895)) ([`ef9e8b9`](https://github.com/juspay/hyperswitch/commit/ef9e8b9c697b234587f8795c5e4561f434298b95))
+- **webhooks:** Include setup payment ID in outgoing mandate bodies ([#14875](https://github.com/juspay/hyperswitch/pull/14875)) ([`c380760`](https://github.com/juspay/hyperswitch/commit/c380760bc93f638be7065dc0f04a462c1c502161))
+
+**Full Changelog:** [`2026.10.21.1...2026.10.22.0`](https://github.com/juspay/hyperswitch/compare/2026.10.21.1...2026.10.22.0)
+
+- - -
+
+## 2026.10.21.1
+
+### Features
+
+- **connector:**
+  - [Paypal] Returning Customer Flow ([#14673](https://github.com/juspay/hyperswitch/pull/14673)) ([`6ed6928`](https://github.com/juspay/hyperswitch/commit/6ed69284f01601861b56e0c9d76bde046c5aa34c))
+  - [Mifinity] make brand_id optional in metadata ([#14833](https://github.com/juspay/hyperswitch/pull/14833)) ([`48498d2`](https://github.com/juspay/hyperswitch/commit/48498d2a29a08f0d5bf0c55057d87f3865efbe7d))
+
+**Full Changelog:** [`2026.10.21.0...2026.10.21.1`](https://github.com/juspay/hyperswitch/compare/2026.10.21.0...2026.10.21.1)
+
+- - -
+
 ## 2026.10.21.0
 
 ### Bug Fixes
