@@ -559,25 +559,6 @@ fn build_checkout_recipient(
     })
 }
 
-fn build_checkout_sender_address_from_billing(
-    router_data: &PaymentsAuthorizeRouterData,
-) -> Result<CheckoutAddress, error_stack::Report<errors::ConnectorError>> {
-    let country = router_data.get_billing_country()?;
-
-    Ok(CheckoutAddress {
-        address_line1: Some(router_data.get_billing_line1()?),
-        address_line2: router_data.get_optional_billing_line2(),
-        city: Some(router_data.get_billing_city()?),
-        state: get_checkout_aft_state(
-            router_data.get_optional_billing_state(),
-            country,
-            "payment_method_data.billing.address.state",
-        )?,
-        zip: Some(router_data.get_billing_zip()?),
-        country: Some(country),
-    })
-}
-
 fn build_checkout_sender_address(
     address: &api_models::payments::SenderAddress,
 ) -> Result<CheckoutAddress, error_stack::Report<errors::ConnectorError>> {
@@ -619,34 +600,38 @@ fn build_checkout_sender(
 ) -> Result<CheckoutSender, error_stack::Report<errors::ConnectorError>> {
     use api_models::payments::SenderDetails;
 
-    let sender_details = router_data.request.sender_details.as_ref();
+    // The sender details are filled in from the billing address of the payment method in core,
+    // so any field missing here is missing from both.
+    let sender_details = router_data
+        .request
+        .sender_details
+        .as_ref()
+        .ok_or_else(utils::missing_field_err("sender_details"))?;
 
-    // The sender's address is used only when at least one of its fields is provided; otherwise
-    // the billing address of the payment method is used in its entirety.
-    let address = match sender_details
-        .and_then(SenderDetails::get_address)
-        .filter(|address| !address.is_empty())
-    {
-        Some(address) => build_checkout_sender_address(address)?,
-        None => build_checkout_sender_address_from_billing(router_data)?,
-    };
+    let address = sender_details
+        .get_address()
+        .ok_or_else(utils::missing_field_err("sender_details.address"))
+        .and_then(build_checkout_sender_address)?;
 
     match sender_details {
-        // Without sender details, the sender defaults to an individual identified by the billing
-        // details of the payment method.
-        None => Ok(CheckoutSender::Individual {
-            first_name: router_data.get_billing_first_name()?,
-            last_name: router_data.get_billing_last_name()?,
-            date_of_birth: None,
+        SenderDetails::Individual(individual) => Ok(CheckoutSender::Individual {
+            first_name: individual
+                .first_name
+                .clone()
+                .ok_or_else(utils::missing_field_err("sender_details.first_name"))?,
+            last_name: individual
+                .last_name
+                .clone()
+                .ok_or_else(utils::missing_field_err("sender_details.last_name"))?,
+            // For backward compatibility, fall back to the customer's date of birth, which was
+            // the only source of the sender's date of birth before sender details were added.
+            date_of_birth: Some(match individual.date_of_birth.clone() {
+                Some(date_of_birth) => date_of_birth,
+                None => router_data.get_customer_date_of_birth()?,
+            }),
             address,
         }),
-        Some(SenderDetails::Individual(individual)) => Ok(CheckoutSender::Individual {
-            first_name: individual.first_name.clone(),
-            last_name: individual.last_name.clone(),
-            date_of_birth: individual.date_of_birth.clone(),
-            address,
-        }),
-        Some(SenderDetails::Corporate(corporate)) => Ok(CheckoutSender::Corporate {
+        SenderDetails::Corporate(corporate) => Ok(CheckoutSender::Corporate {
             company_name: corporate.company_name.clone(),
             address,
         }),

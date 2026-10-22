@@ -459,11 +459,15 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse recipient details")?;
 
-    let sender_details = payment_data
+    let intent_sender_details = payment_data
         .payment_intent
         .get_sender_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse sender details")?;
+    let sender_details = helpers::get_sender_details_with_billing_fallback(
+        intent_sender_details,
+        payment_data.payment_address.get_payment_method_billing(),
+    );
 
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
@@ -1836,11 +1840,15 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse recipient details")?;
 
-    let sender_details = payment_data
+    let intent_sender_details = payment_data
         .payment_intent
         .get_sender_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse sender details")?;
+    let sender_details = helpers::get_sender_details_with_billing_fallback(
+        intent_sender_details,
+        payment_data.payment_address.get_payment_method_billing(),
+    );
 
     // TODO: few fields are repeated in both routerdata and request
     let request = types::SetupMandateRequestData {
@@ -5413,11 +5421,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?;
 
-        let sender_details = payment_data
+        let intent_sender_details = payment_data
             .payment_intent
             .get_sender_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse sender details")?;
+        let sender_details = helpers::get_sender_details_with_billing_fallback(
+            intent_sender_details,
+            payment_data.address.get_payment_method_billing(),
+        );
 
         let merchant_order_reference_id = payment_data
             .payment_intent
@@ -5717,11 +5729,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?;
 
-        let sender_details = payment_data
+        let intent_sender_details = payment_data
             .payment_intent
             .get_sender_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse sender details")?;
+        let sender_details = helpers::get_sender_details_with_billing_fallback(
+            intent_sender_details,
+            payment_data.address.get_payment_method_billing(),
+        );
 
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
@@ -7383,11 +7399,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?;
 
-        let sender_details = payment_data
+        let intent_sender_details = payment_data
             .payment_intent
             .get_sender_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse sender details")?;
+        let sender_details = helpers::get_sender_details_with_billing_fallback(
+            intent_sender_details,
+            payment_data.address.get_payment_method_billing(),
+        );
 
         let merchant_order_reference_id = payment_data
             .payment_intent
@@ -7611,11 +7631,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?;
 
-        let sender_details = payment_data
+        let intent_sender_details = payment_data
             .payment_intent
             .get_sender_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse sender details")?;
+        let sender_details = helpers::get_sender_details_with_billing_fallback(
+            intent_sender_details,
+            payment_data.address.get_payment_method_billing(),
+        );
 
         let connector_intent_metadata = payment_data
             .payment_intent

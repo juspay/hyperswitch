@@ -48,13 +48,15 @@ impl SenderAddress {
 /// An individual providing the funds in an account funded transaction.
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct IndividualSenderDetails {
-    /// The sender's first name.
-    #[schema(value_type = String, max_length = 255, example = "John")]
-    pub first_name: Secret<String>,
+    /// The sender's first name. When neither the first nor the last name is provided, the name
+    /// from the billing address of the payment method is used instead.
+    #[schema(value_type = Option<String>, max_length = 255, example = "John")]
+    pub first_name: Option<Secret<String>>,
 
-    /// The sender's last name.
-    #[schema(value_type = String, max_length = 255, example = "Doe")]
-    pub last_name: Secret<String>,
+    /// The sender's last name. When neither the first nor the last name is provided, the name
+    /// from the billing address of the payment method is used instead.
+    #[schema(value_type = Option<String>, max_length = 255, example = "Doe")]
+    pub last_name: Option<Secret<String>>,
 
     /// The sender's date of birth, in the format yyyy-mm-dd.
     #[schema(value_type = Option<Date>, example = "1990-01-31")]
@@ -106,13 +108,16 @@ pub enum SenderDetails {
 }
 
 impl SenderDetails {
-    /// The names identifying the sender, keyed by their field path, for validation.
+    /// The names identifying the sender that are provided, keyed by their field path, for validation.
     pub fn get_name_fields(&self) -> Vec<(&'static str, &Secret<String>)> {
         match self {
-            Self::Individual(individual) => vec![
-                ("sender_details.first_name", &individual.first_name),
-                ("sender_details.last_name", &individual.last_name),
-            ],
+            Self::Individual(individual) => [
+                ("sender_details.first_name", individual.first_name.as_ref()),
+                ("sender_details.last_name", individual.last_name.as_ref()),
+            ]
+            .into_iter()
+            .filter_map(|(field_name, value)| value.map(|value| (field_name, value)))
+            .collect(),
             Self::Corporate(corporate) => {
                 vec![("sender_details.company_name", &corporate.company_name)]
             }
@@ -144,12 +149,12 @@ pub struct MaskedSenderPhoneDetails {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MaskedIndividualSenderDetails {
     /// The sender's first name.
-    #[schema(value_type = String, example = "John")]
-    pub first_name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "John")]
+    pub first_name: Option<Secret<String>>,
 
     /// The sender's last name.
-    #[schema(value_type = String, example = "Doe")]
-    pub last_name: Secret<String>,
+    #[schema(value_type = Option<String>, example = "Doe")]
+    pub last_name: Option<Secret<String>>,
 
     /// The sender's address.
     #[schema(value_type = Option<SenderAddress>)]
