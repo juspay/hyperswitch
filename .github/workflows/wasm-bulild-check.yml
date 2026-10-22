@@ -55,9 +55,16 @@ jobs:
           tool: wasm-pack
           checksum: true
 
-      - name: wasm build
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: wasm build and routing tests
         shell: bash
-        run: make euclid-wasm
+        run: |
+          make euclid-wasm
+          node --test crates/euclid_wasm/tests/run_program.mjs
 
       - name: payment-link wasm build
         shell: bash
