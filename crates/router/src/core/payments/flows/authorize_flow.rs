@@ -621,7 +621,31 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     }) => redirection_data.is_none(),
                     _ => false,
                 },
-                _ => false,
+                // Anything else asks the connector, so a connector-specific decision does
+                // not have to live in core.
+                _ => match &authorize_router_data.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        connector_metadata,
+                        redirection_data,
+                        ..
+                    }) => {
+                        let has_three_ds_invoke = connector_metadata
+                            .clone()
+                            .and_then(|metadata| {
+                                metadata
+                                    .parse_value::<api_models::payments::PaymentsConnectorThreeDsInvokeData>(
+                                        "PaymentsConnectorThreeDsInvokeData",
+                                    )
+                                    .ok()
+                            })
+                            .is_some();
+                        connector.connector.should_continue_after_preauthenticate(
+                            redirection_data.is_some(),
+                            has_three_ds_invoke,
+                        )
+                    }
+                    _ => false,
+                },
             };
             Ok((authorize_router_data, should_continue_after_preauthenticate))
         } else {
@@ -1545,7 +1569,7 @@ fn transform_response_for_pre_authenticate_flow(
         // Hyperswitch, potentially through dedicated fields in the gRPC response or a unified
         // authentication data structure that covers all 3DS scenarios.
         (
-            enums::connector_enums::Connector::Redsys,
+            enums::connector_enums::Connector::Adyen | enums::connector_enums::Connector::Redsys,
             router_response_types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,

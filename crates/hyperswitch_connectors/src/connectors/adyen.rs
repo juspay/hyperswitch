@@ -3439,7 +3439,62 @@ static ADYEN_SUPPORTED_WEBHOOK_FLOWS: &[enums::EventClass] = &[
     enums::EventClass::Mandates,
 ];
 
+impl Adyen {
+    /// Native 3DS2 is per-merchant opt-in, read from the merchant connector account metadata, so
+    /// turning it on never changes an existing merchant's flow. It is never keyed on the
+    /// execution path: the Direct and Unified Connector Service paths must run the same legs, or
+    /// shadow mode compares two different payments.
+    fn is_native_three_ds_enabled(
+        connector_meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> bool {
+        adyen::AdyenConnectorMetadataObject::try_from(connector_meta_data)
+            .ok()
+            .and_then(|meta| meta.native_three_ds)
+            .unwrap_or(false)
+    }
+}
+
 impl ConnectorSpecifications for Adyen {
+    /// Standalone authentication leg 1: `POST /payments` with
+    /// `authenticationData.authenticationOnly`, which moves no money. It answers with the device
+    /// fingerprint instruction, a challenge, or a finished authentication whose result the
+    /// following Authorize sends as `mpiData`.
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+                connector_meta_data,
+            } => {
+                Self::is_native_three_ds_enabled(&connector_meta_data)
+                    && auth_type == enums::AuthenticationType::ThreeDs
+                    && matches!(
+                        request_data.payment_method_data,
+                        payment_method_data::PaymentMethodData::Card(_)
+                    )
+                    // merchant-supplied external 3DS already carries mpiData, so authenticating
+                    // again would challenge the shopper twice
+                    && request_data.authentication_data.is_none()
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
+    /// The PreAuthenticate leg only authenticates - it carries `authenticationOnly`, so no money
+    /// moves there. Continue to the Authorize that sends the result as `mpiData` once the shopper
+    /// has nothing left to do; break while a challenge or a device fingerprint is outstanding.
+    fn should_continue_after_preauthenticate(
+        &self,
+        has_redirection_data: bool,
+        has_three_ds_invoke: bool,
+    ) -> bool {
+        !has_redirection_data && !has_three_ds_invoke
+    }
+
     fn is_balance_check_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { request_data, .. } => {
