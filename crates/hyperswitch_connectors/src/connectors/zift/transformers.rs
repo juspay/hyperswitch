@@ -300,7 +300,13 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         account_accessory: card.get_expiry_date_as_mmyy()?,
                         transaction_industry_type: TransactionIndustryType::Ecommerce,
                         transaction_category_code: TransactionCategoryCode::Ecommerce,
-                        holder_name: item.router_data.get_billing_full_name()?,
+                        holder_name: item
+                            .router_data
+                            .get_optional_billing_full_name()
+                            .or_else(|| card.card_holder_name.clone())
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "payment_method_data.billing.address.first_name".into(),
+                            })?,
                         amount: item.amount.to_owned(),
                         account_type: AccountType::PaymentCard,
                         holder_type: HolderType::Personal,
@@ -322,7 +328,13 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         account_accessory: card.get_expiry_date_as_mmyy()?,
                         transaction_industry_type: TransactionIndustryType::Ecommerce,
                         transaction_category_code: TransactionCategoryCode::Ecommerce,
-                        holder_name: item.router_data.get_billing_full_name()?,
+                        holder_name: item
+                            .router_data
+                            .get_optional_billing_full_name()
+                            .or_else(|| card.card_holder_name.clone())
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "payment_method_data.billing.address.first_name".into(),
+                            })?,
                         amount: item.amount.to_owned(),
                         account_type: AccountType::PaymentCard,
                         holder_type: HolderType::Personal,
@@ -976,7 +988,7 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
         }
         let auth = ZiftAuthType::try_from(&item.connector_auth_type)?;
 
-        let (transaction_industry_type, transaction_category_code, payment_method_details) =
+        let (transaction_industry_type, transaction_category_code, payment_method_details, card_holder_name) =
             match &item.request.payment_method_data {
                 PaymentMethodData::Card(card) => (
                     TransactionIndustryType::Ecommerce,
@@ -987,6 +999,7 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
                         account_accessory: card.get_expiry_date_as_mmyy()?,
                         csc: card.card_cvc.clone(),
                     }),
+                    card.card_holder_name.clone(),
                 ),
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: "Only card supported for mandate setup".to_string(),
@@ -999,7 +1012,12 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
             auth,
             transaction_industry_type,
             transaction_category_code,
-            holder_name: item.get_billing_full_name()?,
+            holder_name: item
+                .get_optional_billing_full_name()
+                .or_else(|| card_holder_name)
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method_data.billing.address.first_name".into(),
+                })?,
             holder_type: HolderType::Personal,
             transaction_code: item.connector_request_reference_id.clone(),
             payment_method_details,
