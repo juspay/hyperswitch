@@ -1,6 +1,8 @@
 #[cfg(feature = "v2")]
 pub mod account_updater;
 pub mod admin;
+#[cfg(feature = "olap")]
+pub mod analytics_report;
 pub mod api_keys;
 pub mod api_locking;
 #[cfg(feature = "v1")]
