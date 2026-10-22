@@ -988,24 +988,28 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
         }
         let auth = ZiftAuthType::try_from(&item.connector_auth_type)?;
 
-        let (transaction_industry_type, transaction_category_code, payment_method_details, card_holder_name) =
-            match &item.request.payment_method_data {
-                PaymentMethodData::Card(card) => (
-                    TransactionIndustryType::Ecommerce,
-                    TransactionCategoryCode::Ecommerce,
-                    SetupMandatePaymentMethod::Card(CardVerificationDetails {
-                        account_type: AccountType::PaymentCard,
-                        account_number: card.card_number.clone(),
-                        account_accessory: card.get_expiry_date_as_mmyy()?,
-                        csc: card.card_cvc.clone(),
-                    }),
-                    card.card_holder_name.clone(),
-                ),
-                _ => Err(errors::ConnectorError::NotSupported {
-                    message: "Only card supported for mandate setup".to_string(),
-                    connector: "Zift".into(),
-                })?,
-            };
+        let (
+            transaction_industry_type,
+            transaction_category_code,
+            payment_method_details,
+            card_holder_name,
+        ) = match &item.request.payment_method_data {
+            PaymentMethodData::Card(card) => (
+                TransactionIndustryType::Ecommerce,
+                TransactionCategoryCode::Ecommerce,
+                SetupMandatePaymentMethod::Card(CardVerificationDetails {
+                    account_type: AccountType::PaymentCard,
+                    account_number: card.card_number.clone(),
+                    account_accessory: card.get_expiry_date_as_mmyy()?,
+                    csc: card.card_cvc.clone(),
+                }),
+                card.card_holder_name.clone(),
+            ),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Only card supported for mandate setup".to_string(),
+                connector: "Zift".into(),
+            })?,
+        };
 
         Ok(Self {
             request_type: RequestType::AccountVerification,
