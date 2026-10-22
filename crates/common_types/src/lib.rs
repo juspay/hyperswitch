@@ -7,6 +7,7 @@ pub mod alert_rules;
 pub mod consts;
 pub mod customers;
 pub mod domain;
+pub mod observability;
 pub mod payment_methods;
 pub mod payments;
 pub mod payouts;
