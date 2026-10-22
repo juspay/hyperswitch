@@ -118,6 +118,7 @@ fn to_client_pm(pm: CustomerPaymentMethod) -> CustomerPaymentMethodForClient {
     let payment_method_data = pm
         .card
         .map(|card| CustomerPaymentMethodDataForClient::Card(Box::new(card)))
+        .or_else(|| pm.wallets.map(CustomerPaymentMethodDataForClient::Wallet))
         .or_else(|| bank_redirect_data_for_client(pm.payment_method, pm.bank));
 
     CustomerPaymentMethodForClient {
@@ -610,7 +611,14 @@ async fn filter_customer_pms_by_blocklist(
     let blocked_bins = if bins.is_empty() {
         std::collections::HashSet::new()
     } else {
-        blocklist_utils::get_blocked_bins(state, processor, profile_id, bins).await
+        blocklist_utils::get_blocked_bins(
+            state,
+            processor,
+            common_enums::BlocklistTransactionType::Payment,
+            profile_id,
+            bins,
+        )
+        .await
     };
 
     if blocked_bins.is_empty() {

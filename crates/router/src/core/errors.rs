@@ -123,18 +123,6 @@ pub enum HealthCheckOutGoing {
     OutGoingFailed { message: String },
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum AwsKmsError {
-    #[error("Failed to base64 decode input data")]
-    Base64DecodingFailed,
-    #[error("Failed to AWS KMS decrypt input data")]
-    DecryptionFailed,
-    #[error("Missing plaintext AWS KMS decryption output")]
-    MissingPlaintextDecryptionOutput,
-    #[error("Failed to UTF-8 decode decryption output")]
-    Utf8DecodingFailed,
-}
-
 #[derive(Debug, thiserror::Error, serde::Serialize)]
 pub enum WebhooksFlowError {
     #[error("Merchant webhook config not found")]
@@ -460,6 +448,8 @@ pub enum RevenueRecoveryError {
     TransactionWebhookProcessingFailed,
     #[error("Failed to create payment intent")]
     PaymentIntentCreateFailed,
+    #[error("Failed to update payment intent")]
+    PaymentIntentUpdateFailed,
     #[error("Source verification failed for billing connector")]
     WebhookAuthenticationFailed,
     #[error("Payment merchant connector account {id} not found using account reference id")]
@@ -523,7 +513,8 @@ impl common_utils::errors::ErrorSwitch<ApiErrorResponse> for RevenueRecoveryErro
             Self::PaymentAttemptIdNotFound | Self::RetryAlgorithmTypeNotFound => {
                 ApiErrorResponse::WebhookResourceNotFound
             }
-            Self::PaymentIntentFetchFailed
+            Self::PaymentIntentUpdateFailed
+            | Self::PaymentIntentFetchFailed
             | Self::PaymentAttemptFetchFailed
             | Self::PaymentIntentCreateFailed
             | Self::ScheduleTimeFetchFailed

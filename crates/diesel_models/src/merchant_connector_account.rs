@@ -325,6 +325,11 @@ pub struct MerchantConnectorAccountFeatureMetadata {
 common_utils::impl_to_sql_from_sql_json!(MerchantConnectorAccountFeatureMetadata);
 
 #[cfg(feature = "v2")]
+fn default_grace_period_days() -> u16 {
+    30
+}
+
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct RevenueRecoveryMetadata {
     /// The maximum number of retries allowed for an invoice. This limit is set by the merchant for each `billing connector`.Once this limit is reached, no further retries will be attempted.
@@ -333,6 +338,13 @@ pub struct RevenueRecoveryMetadata {
     pub billing_connector_retry_threshold: u16,
     #[serde(default)]
     pub max_hybrid_cascading_retry_count: u16,
+    /// Grace period, in days from the invoice's billing start, within which retries are allowed.
+    /// Defaults to 30 days when not set.
+    #[serde(default = "default_grace_period_days")]
+    pub grace_period_days: u16,
+    /// Whether payments recovered through this billing connector allow partial authorization.
+    #[serde(default)]
+    pub enable_partial_authorization: bool,
     /// Billing account reference id is payment gateway id at billing connector end.
     /// Merchants need to provide a mapping between these merchant connector account and the corresponding  
     /// account reference IDs for each `billing connector`.

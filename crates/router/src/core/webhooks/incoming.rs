@@ -38,7 +38,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing::Instrument};
 use unified_connector_service_client::payments as payments_grpc;
 
-use super::{types, MERCHANT_ID};
+use super::{source_verification::IncomingWebhookVerifier, types, MERCHANT_ID};
 use crate::{
     consts,
     core::{
@@ -217,12 +217,21 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .await?;
 
     // Each arm resolves its path (UAS vs Direct/UCS) and returns a
-    // `WebhookOutcome` plus the connector/name used for acks, errors, and
-    // logging. Downstream filter interception and business-logic dispatch are
-    // identical for both and run once after the match.
-    let (connector, connector_name, outcome) = match three_ds_execution_path {
+    // `WebhookOutcome`, the network verification decision, and the connector/name
+    // used for acks, errors, and logging. Downstream filter interception and
+    // business-logic dispatch are identical for both and run once after the match.
+    let (connector, connector_name, network_verification, outcome) = match three_ds_execution_path {
         ThreeDsProcessingMode::UnifiedAuthenticationService(ref mca_data) => {
             let connector_name = mca_data.connector_name.clone();
+            let network_verification = IncomingWebhookVerifier::new(&state.conf.incoming_webhooks)
+                .verify(
+                    &state,
+                    &mca_data.connector,
+                    &connector_name,
+                    request_details.headers,
+                )
+                .await?;
+
             let (uas_connector, _) =
                 get_connector_by_connector_name(&state, UNIFIED_AUTHENTICATION_SERVICE, None)?;
 
@@ -236,11 +245,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 ))
                 .await;
 
-            (uas_connector, connector_name, outcome)
+            (uas_connector, connector_name, network_verification, outcome)
         }
         ThreeDsProcessingMode::Direct(ref mca_data) => {
             let connector = mca_data.connector.clone();
             let connector_name = mca_data.connector_name.clone();
+            let network_verification = IncomingWebhookVerifier::new(&state.conf.incoming_webhooks)
+                .verify(&state, &connector, &connector_name, request_details.headers)
+                .await?;
+
             let mca_ref = mca_data.merchant_connector_account.as_ref();
 
             let connector_enum = Connector::from_str(&connector_name)
@@ -335,7 +348,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             let outcome =
                 super::gateway::execute_incoming_webhook_gateway(&ctx, &request_details).await;
 
-            (connector, connector_name, outcome)
+            (connector, connector_name, network_verification, outcome)
         }
     };
 
@@ -381,6 +394,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             merchant_connector_account: processed_mca,
             ack_response,
         }) => {
+            let source_verified = network_verification.resolve_source_verified(source_verified);
             // Reconstruct request_details with the decoded body when available
             // (Direct and UAS paths), so downstream connector methods that parse
             // request_details.body (get_dispute_details, get_webhook_mandate_details,
@@ -2420,6 +2434,7 @@ async fn update_connector_managed_mandate_by_connector_txn_id(
         &platform,
         &business_profile,
         payment_method,
+        setup_attempt.payment_id,
         &merchant_connector_account.get_id(),
         event_type,
     )
@@ -2494,6 +2509,7 @@ async fn update_payment_method_mandate_status(
     platform: &domain::Platform,
     business_profile: &domain::Profile,
     payment_method: domain::PaymentMethod,
+    payment_id: common_utils::id_type::PaymentId,
     merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     event_type: webhooks::IncomingWebhookEvent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
@@ -2599,6 +2615,7 @@ async fn update_payment_method_mandate_status(
         .await?;
         let mandate_response = api::mandates::MandateResponse {
             mandate_id: connector_mandate_id.clone(),
+            payment_id: Some(payment_id.clone()),
             status: mandate_status,
             payment_method_id: payment_method_id.to_string(),
             payment_method: payment_method_name,
@@ -2629,6 +2646,7 @@ async fn update_payment_method_mandate_status(
     Ok(WebhookResponseTracker::PaymentMethod {
         payment_method_id,
         status: tracker_status,
+        payment_id: Some(payment_id),
     })
 }
 

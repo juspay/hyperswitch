@@ -293,9 +293,13 @@ where
                         (None, None)
                     };
 
-                    // #2 - Fill payment method data for cards
-                    let payment_method_data =
-                        request_payment_method_data.and_then(|method_data| match method_data {
+                    // #2 - Fill request details, falling back to connector-disclosed PayPal data.
+                    let wallet_update = resp
+                        .connector_returned_payment_method_details
+                        .as_ref()
+                        .and_then(PaymentMethodUpdateData::from_connector_details);
+                    let payment_method_data = request_payment_method_data
+                        .and_then(|method_data| match method_data {
                             domain::PaymentMethodData::CardToken(card) => {
                                 Some(PaymentMethodUpdateData::Card(CardDetailUpdate {
                                     card_holder_name: card.card_holder_name.clone(),
@@ -314,7 +318,8 @@ where
                                 },
                             )),
                             _ => None,
-                        });
+                        })
+                        .or(wallet_update);
                     let acknowledgement_status =
                         Some(common_enums::AcknowledgementStatus::Authenticated);
 
@@ -511,7 +516,7 @@ where
             .and_then(|record| record.connector_mandate_status);
 
         let is_off_session = matches!(
-            payment_intent.setup_future_usage,
+            payment_attempt.get_setup_future_usage_with_fallback(payment_intent),
             Some(common_enums::FutureUsage::OffSession)
         );
 
@@ -3973,7 +3978,7 @@ async fn create_or_update_payment_method_from_payment_response<F: Clone>(
     storage_scheme: enums::MerchantStorageScheme,
     organization_id: &common_utils::id_type::OrganizationId,
     initiator: Option<&domain::Initiator>,
-    additional_payment_method_data: Option<
+    connector_returned_payment_method_details: Option<
         &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     >,
     merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
@@ -3987,7 +3992,7 @@ async fn create_or_update_payment_method_from_payment_response<F: Clone>(
             attempt_status,
             platform,
             business_profile,
-            additional_payment_method_data,
+            connector_returned_payment_method_details,
         )
         .await
         {
@@ -4083,28 +4088,29 @@ async fn create_or_update_payment_method_from_payment_response<F: Clone>(
             last_modified_by,
         };
 
-        let additional_data_update =
-            if let Some(payment_method_data_update) = additional_payment_method_data {
-                payment_methods::cards::prepare_payment_method_update_from_connector_details(
-                    state,
-                    platform,
-                    &payment_method,
-                    merchant_connector_id,
-                    payment_method_data_update,
-                    business_profile,
-                )
-                .await
-                .inspect_err(|error| {
-                    logger::error!(
-                        ?error,
-                        payment_method_id = %id,
-                        "Failed to prepare payment method details from PSync response"
-                    );
-                })
-                .ok()
-            } else {
-                None
-            };
+        let additional_data_update = if let Some(connector_returned_payment_method_details) =
+            connector_returned_payment_method_details
+        {
+            payment_methods::cards::prepare_payment_method_update_from_connector_details(
+                state,
+                platform,
+                &payment_method,
+                merchant_connector_id,
+                connector_returned_payment_method_details,
+                business_profile,
+            )
+            .await
+            .inspect_err(|error| {
+                logger::error!(
+                    ?error,
+                    payment_method_id = %id,
+                    "Failed to prepare payment method details from PSync response"
+                );
+            })
+            .ok()
+        } else {
+            None
+        };
 
         let pm_update = combine_payment_method_updates(pm_update, additional_data_update);
         let compat_action = payment_methods::payment_method_modular_forward_compat_action(

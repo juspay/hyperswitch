@@ -289,6 +289,17 @@ pub async fn get_profile_superposition_sdk_config(
         serde_json::Value::String(merchant_account.get_id().get_string_repr().to_string()),
     );
     dimension_filter.insert(
+        "provider_merchant_id".to_string(),
+        serde_json::Value::String(
+            platform
+                .get_provider()
+                .get_provider_merchant_id()
+                .inner()
+                .get_string_repr()
+                .to_string(),
+        ),
+    );
+    dimension_filter.insert(
         "organization_id".to_string(),
         serde_json::Value::String(merchant_account.get_org_id().get_string_repr().to_string()),
     );
@@ -384,6 +395,17 @@ pub async fn get_superposition_sdk_config(
     dimension_filter.insert(
         "processor_merchant_id".to_string(),
         serde_json::Value::String(merchant_account.get_id().get_string_repr().to_string()),
+    );
+    dimension_filter.insert(
+        "provider_merchant_id".to_string(),
+        serde_json::Value::String(
+            platform
+                .get_provider()
+                .get_provider_merchant_id()
+                .inner()
+                .get_string_repr()
+                .to_string(),
+        ),
     );
     dimension_filter.insert(
         "organization_id".to_string(),

@@ -23,6 +23,8 @@ use hyperswitch_domain_models::payouts::{
 };
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::platform::Initiator;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use hyperswitch_domain_models::platform::ProviderMerchantId;
 use hyperswitch_domain_models::{
     authentication::AuthenticationInterface,
     cards_info::CardsInfoInterface,
@@ -30,9 +32,7 @@ use hyperswitch_domain_models::{
     invoice::{Invoice as DomainInvoice, InvoiceInterface, InvoiceUpdate as DomainInvoiceUpdate},
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
-    platform::{
-        ProcessorKeyStore, ProcessorMerchantId, ProcessorStorageScheme, ProviderMerchantId,
-    },
+    platform::{ProcessorKeyStore, ProcessorMerchantId, ProcessorStorageScheme},
     refunds,
     subscription::{
         Subscription as DomainSubscription, SubscriptionInterface,
