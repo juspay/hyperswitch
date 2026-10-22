@@ -368,8 +368,16 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
             }
         }
 
-        Ok(customer_payment_methods)
+        Ok(filter_latest_wallet_methods(customer_payment_methods))
     }
+}
+
+fn filter_latest_wallet_methods(
+    payment_methods: Vec<CustomerPaymentMethodForClient>,
+) -> Vec<CustomerPaymentMethodForClient> {
+    cards::filter_latest_wallet_methods(payment_methods, |pm| {
+        (pm.payment_method, pm.payment_method_type, pm.last_used_at)
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -821,4 +829,168 @@ pub async fn list_payment_methods_client(
             intent_data,
         },
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use common_enums::{PaymentMethod, PaymentMethodType};
+
+    use super::{filter_latest_wallet_methods, CustomerPaymentMethodForClient};
+
+    fn saved_payment_method(
+        token: &str,
+        payment_method: PaymentMethod,
+        payment_method_type: Option<PaymentMethodType>,
+        last_used_days: Option<i64>,
+    ) -> CustomerPaymentMethodForClient {
+        CustomerPaymentMethodForClient {
+            payment_token: token.to_owned(),
+            payment_method,
+            payment_method_type,
+            default_payment_method_set: false,
+            requires_cvv: false,
+            recurring_enabled: Some(true),
+            created: None,
+            last_used_at: last_used_days
+                .map(|days| time::Date::MIN.midnight() + time::Duration::days(days)),
+            payment_method_data: None,
+        }
+    }
+
+    #[test]
+    fn latest_wallet_methods_keeps_most_recent_of_ten_apple_pay_methods() {
+        let methods = (0..10)
+            .rev()
+            .map(|days| {
+                saved_payment_method(
+                    &format!("apple_{days}"),
+                    PaymentMethod::Wallet,
+                    Some(PaymentMethodType::ApplePay),
+                    Some(days),
+                )
+            })
+            .collect();
+        let expected = saved_payment_method(
+            "apple_9",
+            PaymentMethod::Wallet,
+            Some(PaymentMethodType::ApplePay),
+            Some(9),
+        );
+
+        assert_eq!(filter_latest_wallet_methods(methods), vec![expected]);
+    }
+
+    #[test]
+    fn latest_wallet_methods_filters_each_wallet_type_and_preserves_other_methods() {
+        let methods = vec![
+            saved_payment_method("card_1", PaymentMethod::Card, None, Some(1)),
+            saved_payment_method(
+                "apple_old",
+                PaymentMethod::Wallet,
+                Some(PaymentMethodType::ApplePay),
+                Some(1),
+            ),
+            saved_payment_method(
+                "google_new",
+                PaymentMethod::Wallet,
+                Some(PaymentMethodType::GooglePay),
+                Some(5),
+            ),
+            saved_payment_method(
+                "paypal_1",
+                PaymentMethod::Wallet,
+                Some(PaymentMethodType::Paypal),
+                Some(1),
+            ),
+            saved_payment_method(
+                "apple_new",
+                PaymentMethod::Wallet,
+                Some(PaymentMethodType::ApplePay),
+                Some(4),
+            ),
+            saved_payment_method(
+                "google_old",
+                PaymentMethod::Wallet,
+                Some(PaymentMethodType::GooglePay),
+                Some(2),
+            ),
+            saved_payment_method("card_2", PaymentMethod::Card, None, Some(2)),
+            saved_payment_method(
+                "paypal_2",
+                PaymentMethod::Wallet,
+                Some(PaymentMethodType::Paypal),
+                Some(2),
+            ),
+        ];
+        let tokens: Vec<_> = filter_latest_wallet_methods(methods)
+            .into_iter()
+            .map(|pm| pm.payment_token)
+            .collect();
+
+        assert_eq!(
+            tokens,
+            vec![
+                "card_1",
+                "paypal_1",
+                "card_2",
+                "paypal_2",
+                "apple_new",
+                "google_new"
+            ]
+        );
+    }
+
+    #[test]
+    fn latest_wallet_methods_handles_missing_timestamps_and_keeps_first_on_ties() {
+        for last_used_days in [None, Some(3)] {
+            let first = saved_payment_method(
+                "first",
+                PaymentMethod::Wallet,
+                Some(PaymentMethodType::ApplePay),
+                last_used_days,
+            );
+            let second = saved_payment_method(
+                "second",
+                PaymentMethod::Wallet,
+                Some(PaymentMethodType::ApplePay),
+                last_used_days,
+            );
+            assert_eq!(
+                filter_latest_wallet_methods(vec![first.clone(), second]),
+                vec![first]
+            );
+        }
+
+        let missing = saved_payment_method(
+            "missing",
+            PaymentMethod::Wallet,
+            Some(PaymentMethodType::ApplePay),
+            None,
+        );
+        let dated = saved_payment_method(
+            "dated",
+            PaymentMethod::Wallet,
+            Some(PaymentMethodType::ApplePay),
+            Some(1),
+        );
+        assert_eq!(
+            filter_latest_wallet_methods(vec![missing, dated.clone()]),
+            vec![dated]
+        );
+    }
+
+    #[test]
+    fn latest_wallet_methods_preserves_empty_and_single_wallet_lists() {
+        assert!(filter_latest_wallet_methods(Vec::new()).is_empty());
+        let method = saved_payment_method(
+            "only",
+            PaymentMethod::Wallet,
+            Some(PaymentMethodType::ApplePay),
+            Some(1),
+        );
+        assert_eq!(
+            filter_latest_wallet_methods(vec![method.clone()]),
+            vec![method]
+        );
+    }
 }
