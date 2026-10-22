@@ -1645,16 +1645,22 @@ fn transform_response_for_pre_authenticate_flow(
                                 Box::new(None),
                             )
                         } else {
-                            // 3DS exempt or challenge - keep redirection_data, no special connector_metadata
-                            (None, redirection_data)
+                            // 3DS exempt or challenge - keep redirection_data, and keep the
+                            // connector state with it. A gateway that answers leg 1 with a
+                            // challenge rather than a fingerprint (Adyen native 3DS2 does for
+                            // an already-fingerprinted device) parks the rest of its ladder
+                            // here; dropping it abandons the authentication after the shopper
+                            // has completed it, and the money leg then starts a second,
+                            // unrelated 3DS flow - the shopper is challenged twice.
+                            (connector_state, redirection_data)
                         }
                     } else {
                         // Not a Form type redirect
-                        (None, redirection_data)
+                        (connector_state, redirection_data)
                     }
                 } else {
                     // No redirection data
-                    (None, redirection_data)
+                    (connector_state, redirection_data)
                 };
 
             Ok(
