@@ -886,6 +886,29 @@ pub mod shadow {
         routes::SessionState,
     };
 
+    /// Classification is separate from the explicit counter eligibility policy.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display)]
+    #[strum(serialize_all = "snake_case")]
+    enum ShadowFailureReason {
+        RequestTimeout,
+        DnsFailure,
+        ConnectionRefused,
+        ProxyAuthenticationRequired,
+        Ignored,
+    }
+
+    impl ShadowFailureReason {
+        fn should_increment_counter(self) -> bool {
+            match self {
+                Self::RequestTimeout
+                | Self::DnsFailure
+                | Self::ConnectionRefused
+                | Self::ProxyAuthenticationRequired => true,
+                Self::Ignored => false,
+            }
+        }
+    }
+
     pub(super) async fn read_counter(
         state: &SessionState,
     ) -> error_stack::Result<u64, storage_impl::errors::RedisError> {
@@ -905,55 +928,56 @@ pub mod shadow {
             .map_or(1, |config| config.shadow_kill_switch_threshold)
     }
 
-    fn request_failure_reason(error: &error_stack::Report<ConnectorError>) -> Option<&'static str> {
-        if error
+    fn request_failure_reason(error: &error_stack::Report<ConnectorError>) -> ShadowFailureReason {
+        let client_timeout = error
             .downcast_ref::<ApiClientError>()
-            .is_some_and(ApiClientError::is_upstream_timeout)
-            || error.current_context().is_connector_timeout()
-        {
-            return Some("request_timeout");
+            .is_some_and(ApiClientError::is_upstream_timeout);
+        let connector_timeout = error.current_context().is_connector_timeout();
+        if client_timeout || connector_timeout {
+            return ShadowFailureReason::RequestTimeout;
         }
         if error.downcast_ref::<http::StatusCode>()
             == Some(&http::StatusCode::PROXY_AUTHENTICATION_REQUIRED)
         {
-            return Some("proxy_authentication_required");
+            return ShadowFailureReason::ProxyAuthenticationRequired;
         }
-        let error = error.downcast_ref::<reqwest::Error>()?;
-        if error.is_timeout() {
-            return Some("request_timeout");
+        match error.downcast_ref::<reqwest::Error>() {
+            Some(error) if error.is_timeout() => ShadowFailureReason::RequestTimeout,
+            Some(error) if error.is_connect() => connection_failure_reason(error),
+            _ => ShadowFailureReason::Ignored,
         }
-        if !error.is_connect() {
-            return None;
-        }
-        std::iter::successors(error.source(), |source| (*source).source()).find_map(|cause| {
+    }
+
+    fn connection_failure_reason(error: &reqwest::Error) -> ShadowFailureReason {
+        for cause in std::iter::successors(error.source(), |source| (*source).source()) {
             if cause
                 .downcast_ref::<std::io::Error>()
                 .is_some_and(|error| error.kind() == ErrorKind::ConnectionRefused)
             {
-                return Some("connection_refused");
+                return ShadowFailureReason::ConnectionRefused;
             }
             // Hyper 0.14's private DNS error type exposes this fixed prefix.
             let message = cause.to_string();
             if message.starts_with("dns error:") || message == "dns error" {
-                Some("dns_failure")
-            } else if message == "proxy authentication required" {
-                Some("proxy_authentication_required")
-            } else {
-                None
+                return ShadowFailureReason::DnsFailure;
             }
-        })
+            if message == "proxy authentication required" {
+                return ShadowFailureReason::ProxyAuthenticationRequired;
+            }
+        }
+        ShadowFailureReason::Ignored
     }
 
-    fn response_failure_reason(error: &ErrorResponse) -> Option<&'static str> {
-        if error.status_code == 407 {
-            Some("proxy_authentication_required")
-        } else if error.status_code == 504
-            && error.code == hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_CODE
-            && error.message == hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_MESSAGE
-        {
-            Some("request_timeout")
-        } else {
-            None
+    fn response_failure_reason(error: &ErrorResponse) -> ShadowFailureReason {
+        match error.status_code {
+            407 => ShadowFailureReason::ProxyAuthenticationRequired,
+            504 if error.code == hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_CODE
+                && error.message
+                    == hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_MESSAGE =>
+            {
+                ShadowFailureReason::RequestTimeout
+            }
+            _ => ShadowFailureReason::Ignored,
         }
     }
 
@@ -974,19 +998,19 @@ pub mod shadow {
             Ok(output) => {
                 let router_data = output.get_router_data();
                 if router_data.connector_http_status_code == Some(407) {
-                    Some("proxy_authentication_required")
+                    ShadowFailureReason::ProxyAuthenticationRequired
                 } else {
                     router_data
                         .response
                         .as_ref()
                         .err()
-                        .and_then(response_failure_reason)
+                        .map_or(ShadowFailureReason::Ignored, response_failure_reason)
                 }
             }
         };
-        let Some(reason) = reason else {
+        if !reason.should_increment_counter() {
             return;
-        };
+        }
         let write = async {
             let conn = state.global_store.get_redis_conn()?;
             write_hash_counter(
@@ -1005,7 +1029,7 @@ pub mod shadow {
                     payment_id,
                     request_id = ?state.request_id,
                     count = ?count,
-                    reason,
+                    reason = %reason,
                     "SHADOW_KILL_SWITCH_COUNTER_INCREMENTED"
                 );
 
@@ -1019,7 +1043,7 @@ pub mod shadow {
                         request_id = ?state.request_id,
                         count,
                         threshold = configured_threshold,
-                        reason,
+                        reason = %reason,
                         "SHADOW_KILL_SWITCH_TRIPPED"
                     );
                 }
@@ -1061,15 +1085,19 @@ pub mod shadow {
             };
             assert_eq!(
                 response_failure_reason(&response),
-                Some("proxy_authentication_required")
+                ShadowFailureReason::ProxyAuthenticationRequired
             );
+            assert!(response_failure_reason(&response).should_increment_counter());
             let response = ErrorResponse {
                 status_code: 504,
                 code: hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_CODE.to_owned(),
                 message: hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_owned(),
                 ..Default::default()
             };
-            assert_eq!(response_failure_reason(&response), Some("request_timeout"));
+            assert_eq!(
+                response_failure_reason(&response),
+                ShadowFailureReason::RequestTimeout
+            );
         }
 
         #[test]
@@ -1079,7 +1107,9 @@ pub mod shadow {
                     status_code,
                     ..Default::default()
                 };
-                assert_eq!(response_failure_reason(&response), None);
+                let reason = response_failure_reason(&response);
+                assert_eq!(reason, ShadowFailureReason::Ignored);
+                assert!(!reason.should_increment_counter());
             }
         }
 
@@ -1087,19 +1117,32 @@ pub mod shadow {
         fn typed_request_timeouts_count_directly() {
             let error = error_stack::Report::new(ApiClientError::RequestTimeoutReceived)
                 .change_context(ConnectorError::ProcessingStepFailed(None));
-            assert_eq!(request_failure_reason(&error), Some("request_timeout"));
+            assert_eq!(
+                request_failure_reason(&error),
+                ShadowFailureReason::RequestTimeout
+            );
             let error = error_stack::Report::new(ConnectorError::RequestTimeoutReceived);
-            assert_eq!(request_failure_reason(&error), Some("request_timeout"));
+            assert_eq!(
+                request_failure_reason(&error),
+                ShadowFailureReason::RequestTimeout
+            );
+            assert!(request_failure_reason(&error).should_increment_counter());
+            assert_eq!(
+                request_failure_reason(&error).to_string(),
+                "request_timeout"
+            );
         }
 
         #[test]
         fn arbitrary_io_and_connection_closed_errors_do_not_count() {
             let error = error_stack::Report::new(std::io::Error::from(ErrorKind::ConnectionReset))
                 .change_context(ConnectorError::ProcessingStepFailed(None));
-            assert_eq!(request_failure_reason(&error), None);
+            let reason = request_failure_reason(&error);
+            assert_eq!(reason, ShadowFailureReason::Ignored);
+            assert!(!reason.should_increment_counter());
             let error = error_stack::Report::new(ApiClientError::ConnectionClosedIncompleteMessage)
                 .change_context(ConnectorError::ProcessingStepFailed(None));
-            assert_eq!(request_failure_reason(&error), None);
+            assert_eq!(request_failure_reason(&error), ShadowFailureReason::Ignored);
         }
 
         #[tokio::test]
@@ -1119,7 +1162,11 @@ pub mod shadow {
                 .expect_err("connection refused");
             let error = error_stack::Report::new(error)
                 .change_context(ConnectorError::ProcessingStepFailed(None));
-            assert_eq!(request_failure_reason(&error), Some("connection_refused"));
+            assert_eq!(
+                request_failure_reason(&error),
+                ShadowFailureReason::ConnectionRefused
+            );
+            assert!(request_failure_reason(&error).should_increment_counter());
         }
 
         #[tokio::test]
@@ -1143,7 +1190,10 @@ pub mod shadow {
                 .expect_err("request timeout");
             let error = error_stack::Report::new(error)
                 .change_context(ConnectorError::ProcessingStepFailed(None));
-            assert_eq!(request_failure_reason(&error), Some("request_timeout"));
+            assert_eq!(
+                request_failure_reason(&error),
+                ShadowFailureReason::RequestTimeout
+            );
             server.abort();
         }
     }
