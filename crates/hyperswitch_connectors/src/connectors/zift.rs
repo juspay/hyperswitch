@@ -214,19 +214,15 @@ impl ConnectorCommon for Zift {
             && response.failure_code.is_none()
             && response.failure_message.is_none()
         {
-            match serde_json::from_slice::<serde_json::Value>(&res.response)
+            let value = serde_json::from_slice::<serde_json::Value>(&res.response)
                 .ok()
                 .or_else(|| serde_urlencoded::from_bytes::<serde_json::Value>(&res.response).ok())
-            {
-                Some(value) => router_env::logger::info!(
-                    "Zift connector returned an unexpected error response with structure: {}",
-                    value.to_type_schema()
-                ),
-                None => router_env::logger::info!(
-                    "Zift connector returned an unexpected error response: {:?}",
-                    String::from_utf8_lossy(&res.response)
-                ),
-            }
+                .ok_or_else(|| report!(errors::ConnectorError::ResponseDeserializationFailed))
+                .attach_printable("Failed to parse the Zift error response")?;
+            router_env::logger::info!(
+                "Zift connector returned an unexpected error response with structure: {}",
+                value.to_type_schema()
+            );
         }
 
         event_builder.map(|i| i.set_response_body(&response));
