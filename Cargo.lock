@@ -6493,6 +6493,7 @@ dependencies = [
  "config",
  "error-stack 0.4.1",
  "external_services",
+ "futures 0.3.31",
  "hyperswitch_interfaces",
  "hyperswitch_masking",
  "mime 0.3.17",

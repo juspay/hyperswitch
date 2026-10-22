@@ -1,0 +1,8 @@
+RULE ERROR: {rule_name}
+
+Evaluated: {evaluated_at} UTC
+
+Error:
+{error}
+
+Definition: {rule_id}

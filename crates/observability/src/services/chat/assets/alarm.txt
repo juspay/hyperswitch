@@ -1,0 +1,24 @@
+ALARM: {rule_name}
+
+Severity: {severity}
+State: ALARM
+Evaluated: {evaluated_at} UTC
+
+Description:
+{description}
+
+Metric: {metric}
+Namespace: {namespace}
+Statistic: {statistic}
+Region: {region}
+
+Dimensions:
+{dimensions}
+
+Condition: {statistic} {operator} {threshold}
+Evaluation: 1 of 1 datapoints
+Period: {period} seconds
+Missing data: NoData (no notification)
+Latest value: {value}
+
+Definition: {rule_id}
