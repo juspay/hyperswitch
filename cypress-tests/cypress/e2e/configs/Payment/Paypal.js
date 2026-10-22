@@ -1,5 +1,15 @@
 import { getCustomExchange, getIframeRedirectionConfig } from "./Modifiers";
-import { standardBillingAddress } from "./Commons";
+import {
+  SHIPPING_COST,
+  SHIPPING_COST_PAYMENT_AMOUNT,
+  standardBillingAddress,
+} from "./Commons";
+
+// PayPal reports the order total (amount + shipping cost) in major units
+const shippingCostOrderTotal = (
+  (SHIPPING_COST_PAYMENT_AMOUNT + SHIPPING_COST) /
+  100
+).toFixed(2);
 
 const successfulNo3DSCardDetails = {
   card_number: "4012000033330026",
@@ -101,8 +111,7 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code: "AMOUNT_MISMATCH",
-          error_message:
-            "description - Should equal item_total + tax_total + shipping + handling + insurance + gratuity + additional_charges - shipping_discount - discount., value - 60.50, field - value;",
+          error_message: `description - Should equal item_total + tax_total + shipping + handling + insurance + gratuity + additional_charges - shipping_discount - discount., value - ${shippingCostOrderTotal}, field - value;`,
         },
       },
     },
