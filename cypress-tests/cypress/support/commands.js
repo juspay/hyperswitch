@@ -8177,7 +8177,7 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
   }
   cy.request({
     method: "GET",
-    url: `${globalState.get("baseUrl")}/payouts/${payout_id}`,
+    url: `${globalState.get("baseUrl")}/payouts/${payout_id}?force_sync=true`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
