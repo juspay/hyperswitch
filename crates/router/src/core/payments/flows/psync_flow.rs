@@ -3,14 +3,13 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use common_enums;
 use hyperswitch_domain_models::payments as domain_payments;
-use hyperswitch_interfaces::api::gateway;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     connector::utils::RouterData,
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, helpers, transformers, PaymentData},
+        payments::{self, access_token, gateway, helpers, transformers, PaymentData},
     },
     routes::SessionState,
     services::{self, api::ConnectorValidation, logger},
@@ -175,7 +174,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         connector: &api::ConnectorData,
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
-        gateway_context: &payments::gateway::context::RouterGatewayContext,
+        gateway_context: &gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         let current_flow = Some(hyperswitch_interfaces::api::CurrentFlowInfo::Psync {
             request_data: Box::new(self.request.clone()),

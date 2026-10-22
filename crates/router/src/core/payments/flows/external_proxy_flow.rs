@@ -10,7 +10,6 @@ use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse, payments as domain_payments,
 };
-use hyperswitch_interfaces::api::gateway;
 use hyperswitch_masking::ExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -19,7 +18,7 @@ use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         payments::{
-            self, access_token, customers, gateway::context as gateway_context, helpers,
+            self, access_token, customers, gateway, gateway::context as gateway_context, helpers,
             session_token, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{self, ucs_logging_wrapper},
@@ -159,7 +158,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         connector: &api::ConnectorData,
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
-        gateway_context: &payments::gateway::context::RouterGatewayContext,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,

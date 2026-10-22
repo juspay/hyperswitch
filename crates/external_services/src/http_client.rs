@@ -187,22 +187,29 @@ pub async fn send_request(
         option_timeout_secs.unwrap_or(consts::REQUEST_TIME_OUT),
     ));
 
+    // Retain the typed cause so callers can distinguish transport errors from
+    // request-construction errors within RequestNotSent, including on retries.
+    let map_request_error = |error: reqwest::Error| {
+        let context = match &error {
+            error if error.is_timeout() => {
+                metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
+                HttpClientError::RequestTimeoutReceived
+            }
+            error if is_connection_closed_before_message_could_complete(error) => {
+                metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
+                HttpClientError::ConnectionClosedIncompleteMessage
+            }
+            _ => HttpClientError::RequestNotSent(error.to_string()),
+        };
+        error_stack::Report::new(error).change_context(context)
+    };
+
     // We cannot clone the request type, because it has Form trait which is not cloneable. So we are cloning the request builder here.
     let cloned_send_request = request.try_clone().map(|cloned_request| async {
         cloned_request
             .send()
             .await
-            .map_err(|error| match error {
-                error if error.is_timeout() => {
-                    metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
-                    HttpClientError::RequestTimeoutReceived
-                }
-                error if is_connection_closed_before_message_could_complete(&error) => {
-                    metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
-                    HttpClientError::ConnectionClosedIncompleteMessage
-                }
-                _ => HttpClientError::RequestNotSent(error.to_string()),
-            })
+            .map_err(map_request_error)
             .attach_printable("Unable to send request to connector")
     });
 
@@ -210,17 +217,7 @@ pub async fn send_request(
         request
             .send()
             .await
-            .map_err(|error| match error {
-                error if error.is_timeout() => {
-                    metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
-                    HttpClientError::RequestTimeoutReceived
-                }
-                error if is_connection_closed_before_message_could_complete(&error) => {
-                    metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
-                    HttpClientError::ConnectionClosedIncompleteMessage
-                }
-                _ => HttpClientError::RequestNotSent(error.to_string()),
-            })
+            .map_err(map_request_error)
             .attach_printable("Unable to send request to connector")
     };
 
