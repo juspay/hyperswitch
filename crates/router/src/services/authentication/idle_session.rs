@@ -5,11 +5,8 @@ use router_env::logger;
 
 #[cfg(feature = "olap")]
 use crate::{
-    core::{
-        errors::{UserErrors, UserResult},
-        user::end_user_sessions,
-    },
-    utils::user::get_redis_connection_for_global_tenant,
+    core::errors::{UserErrors, UserResult},
+    utils::user::{end_user_sessions, get_redis_connection_for_global_tenant},
 };
 use crate::{
     consts::USER_IDLE_SESSION_PREFIX,
