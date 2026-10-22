@@ -36,6 +36,8 @@ use common_utils::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v1")]
+use external_services::superposition::Config;
 use futures::future::Either;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
@@ -80,6 +82,7 @@ use super::{
 use crate::core::mandate::helpers::MandateGenericData;
 #[cfg(feature = "v1")]
 use crate::core::{
+    configs::dimension_config::ShouldOverrideSetupFutureUsageToOffSession,
     payments::{OperationSessionGetters, OperationSessionSetters},
     utils as core_utils,
 };
@@ -486,7 +489,7 @@ pub async fn get_token_pm_type_mandate_details(
             mandate_data.clone(),
             None,
             None,
-            None,
+            pm_info,
         ),
         Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             match &request.recurring_details {
@@ -2026,6 +2029,87 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     todo!()
 }
 
+/// Resolves the Superposition flag that decides whether a customer identifier supplied in a
+/// request should be interpreted as the customer's `merchant_reference_id`.
+///
+/// Merchants creating customers via the v2 customers API get a global id as the `customer_id`, but
+/// can continue sending their own `merchant_reference_id` in request fields that historically
+/// accepted `customer_id`. This function only resolves the provider-merchant and organization
+/// scoped configuration; each caller remains responsible for applying it to its lookup flow.
+#[cfg(any(feature = "v1", feature = "v2"))]
+pub async fn should_use_merchant_reference_id_as_customer_id(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    customer_id: Option<&id_type::CustomerId>,
+) -> bool {
+    dimensions
+        .get_use_merchant_reference_id_as_customer_id(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
+/// Convenience wrapper over [`should_use_merchant_reference_id_as_customer_id`] for the common
+/// case where only a `Provider` (and no additional dimensions) is available.
+#[cfg(any(feature = "v1", feature = "v2"))]
+pub async fn should_use_merchant_reference_id_as_customer_id_for_provider(
+    state: &SessionState,
+    provider: &domain::Provider,
+    customer_id: Option<&id_type::CustomerId>,
+) -> bool {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(provider.get_provider_merchant_id())
+        .with_organization_id(provider.get_account().organization_id.clone());
+
+    should_use_merchant_reference_id_as_customer_id(state, &dimensions, customer_id).await
+}
+
+/// Resolves the customer id received in a payments request to the id of the customer record, so
+/// that it can be compared with ids that are stored against the customer (like the customer id of
+/// a payment method). When the customer cannot be resolved, the id is returned as it is.
+#[cfg(feature = "v1")]
+pub async fn resolve_request_customer_id(
+    state: &SessionState,
+    provider: &domain::Provider,
+    customer_id: &id_type::CustomerId,
+) -> id_type::CustomerId {
+    let use_merchant_reference_id = should_use_merchant_reference_id_as_customer_id_for_provider(
+        state,
+        provider,
+        Some(customer_id),
+    )
+    .await;
+
+    // Skip the customer-table lookup entirely for the (overwhelming) majority of merchants who
+    // don't have this config enabled: the request's `customer_id` is already correct for them, and
+    // this function sits on the hot path of every payment create/confirm.
+    if use_merchant_reference_id {
+        state
+            .store
+            .find_customer_optional_by_customer_id_merchant_id(
+                customer_id,
+                provider.get_account().get_id(),
+                provider.get_key_store(),
+                provider.get_account().storage_scheme,
+                use_merchant_reference_id,
+            )
+            .await
+            .inspect_err(|error| {
+                logger::error!(
+                    ?error,
+                    "Failed to resolve the customer using the merchant reference id"
+                )
+            })
+            .ok()
+            .flatten()
+            .map_or_else(|| customer_id.clone(), |customer| customer.get_id().clone())
+    } else {
+        customer_id.clone()
+    }
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
@@ -2053,12 +2137,22 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     let key_manager_state = &state.into();
     let optional_customer = match customer_id {
         Some(customer_id) => {
+            let use_merchant_reference_id = should_use_merchant_reference_id_as_customer_id(
+                state,
+                &dimensions
+                    .without_profile_id()
+                    .without_processor_merchant_id()
+                    .with_organization_id(provider.get_account().organization_id.clone()),
+                Some(&customer_id),
+            )
+            .await;
             let customer_data = db
                 .find_customer_optional_by_customer_id_merchant_id(
                     &customer_id,
                     merchant_id,
                     key_store,
                     storage_scheme,
+                    use_merchant_reference_id,
                 )
                 .await?;
             let key = key_store.key.get_inner().peek();
@@ -2174,8 +2268,10 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                                 .map(|last_modified_by| last_modified_by.to_string()),
                         };
 
+                        // The id of the fetched record is used for the update, because the id
+                        // received in the request can be the `merchant_reference_id`.
                         db.update_customer_by_customer_id_merchant_id(
-                            customer_id,
+                            c.get_id().clone(),
                             merchant_id.to_owned(),
                             c,
                             customer_update,
@@ -2202,7 +2298,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             )
                             .await;
 
-                    if should_block_implicit_customer_creation {
+                    // A customer looked up through the `merchant_reference_id` has to exist already,
+                    // because it can only be created via the v2 customers API. Creating a v1 customer
+                    // with the reference id as the `customer_id` would leave it unreachable by the
+                    // same lookup.
+                    if should_block_implicit_customer_creation || use_merchant_reference_id {
                         Err(report!(errors::StorageError::ValueNotFound(
                             "customer".to_owned()
                         )))?
@@ -2335,12 +2435,21 @@ pub async fn get_customer_if_exists(
 
     match customer_id {
         Some(customer_id) => {
+            let use_merchant_reference_id =
+                should_use_merchant_reference_id_as_customer_id_for_provider(
+                    state,
+                    provider,
+                    Some(customer_id),
+                )
+                .await;
+
             let customer = db
                 .find_customer_by_customer_id_merchant_id(
                     customer_id,
                     provider.get_account().get_id(),
                     provider.get_key_store(),
                     provider.get_account().storage_scheme,
+                    use_merchant_reference_id,
                 )
                 .await?;
             Ok(Some(customer))
@@ -5161,6 +5270,7 @@ mod tests {
             profile_acquirer_id: None,
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
+            enable_avs_check: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -5257,6 +5367,7 @@ mod tests {
             profile_acquirer_id: None,
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
+            enable_avs_check: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -5351,6 +5462,7 @@ mod tests {
             profile_acquirer_id: None,
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
+            enable_avs_check: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -9538,6 +9650,55 @@ where
     )
 }
 
+/// Override the attempt's applied future usage during routing, preserving the intent's usage.
+/// Missing or unavailable configuration
+/// leaves the usage unchanged. Direct connector mandate support checks still run afterward.
+#[cfg(feature = "v1")]
+pub async fn override_setup_future_usage_to_off_session<F, D>(
+    state: &SessionState,
+    payment_data: &mut D,
+) where
+    F: Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
+{
+    let payment_attempt = payment_data.get_payment_attempt();
+    if let Some(payment_method) = payment_attempt.get_payment_method() {
+        let merchant_id = &payment_data.get_payment_intent().processor_merchant_id;
+        let context = setup_future_usage_override_context(
+            merchant_id,
+            payment_method,
+            payment_attempt.get_payment_method_type(),
+        );
+        if ShouldOverrideSetupFutureUsageToOffSession::fetch(
+            state.superposition_service.as_ref(),
+            Some(&context),
+            Some(merchant_id),
+        )
+        .await
+        .unwrap_or_else(|_| ShouldOverrideSetupFutureUsageToOffSession::default_value())
+        {
+            logger::debug!("Override setup_future_usage_applied to off_session based on Superposition configuration");
+            payment_data
+                .set_setup_future_usage_applied_in_payment_attempt(enums::FutureUsage::OffSession);
+        }
+    }
+}
+
+fn setup_future_usage_override_context(
+    merchant_id: &id_type::MerchantId,
+    payment_method: enums::PaymentMethod,
+    payment_method_type: Option<enums::PaymentMethodType>,
+) -> external_services::superposition::ConfigContext {
+    // Payment method dimensions use PascalCase values in the Superposition seed schema.
+    let mut context = external_services::superposition::ConfigContext::new()
+        .with("processor_merchant_id", merchant_id.get_string_repr())
+        .with("payment_method", &format!("{payment_method:?}"));
+    if let Some(payment_method_type) = payment_method_type {
+        context = context.with("payment_method_type", &format!("{payment_method_type:?}"));
+    }
+    context
+}
+
 pub async fn config_skip_saving_wallet_at_connector(
     db: &dyn StorageInterface,
     merchant_id: &id_type::MerchantId,
@@ -9561,6 +9722,20 @@ pub async fn config_skip_saving_wallet_at_connector(
     })
 }
 
+/// Apply the off-session override before the merchant's on-session override.
+#[cfg(feature = "v1")]
+pub async fn override_setup_feature_usage<F, D>(
+    state: &SessionState,
+    payment_data: &mut D,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    F: Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
+{
+    override_setup_future_usage_to_off_session(state, payment_data).await;
+    override_setup_future_usage_to_on_session(state.store.as_ref(), payment_data).await
+}
+
 #[cfg(feature = "v1")]
 pub async fn override_setup_future_usage_to_on_session<F, D>(
     db: &dyn StorageInterface,
@@ -9570,7 +9745,10 @@ where
     F: Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
-    if payment_data.get_payment_intent().setup_future_usage == Some(enums::FutureUsage::OffSession)
+    if payment_data
+        .get_payment_attempt()
+        .get_setup_future_usage_with_fallback(payment_data.get_payment_intent())
+        == Some(enums::FutureUsage::OffSession)
     {
         let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(
             db,
@@ -9583,9 +9761,10 @@ where
                 payment_data.get_payment_attempt().get_payment_method_type()
             {
                 if skip_saving_wallet_at_connector.contains(&payment_method_type) {
-                    logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
-                    payment_data
-                        .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
+                    logger::debug!("Override setup_future_usage_applied from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
+                    payment_data.set_setup_future_usage_applied_in_payment_attempt(
+                        enums::FutureUsage::OnSession,
+                    );
                 }
             }
         };

@@ -95,11 +95,19 @@ async fn get_payment_context(
             pi.customer_id
                 .as_ref()
                 .async_and_then(|cust| async {
+                    let use_merchant_reference_id =
+                        helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                            state,
+                            platform.get_provider(),
+                            Some(cust),
+                        )
+                        .await;
                     db.find_customer_by_customer_id_merchant_id(
                         cust,
                         &pi.merchant_id,
                         platform.get_provider().get_key_store(),
                         platform.get_provider().get_account().storage_scheme,
+                        use_merchant_reference_id,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -289,6 +297,17 @@ pub async fn get_profile_superposition_sdk_config(
         serde_json::Value::String(merchant_account.get_id().get_string_repr().to_string()),
     );
     dimension_filter.insert(
+        "provider_merchant_id".to_string(),
+        serde_json::Value::String(
+            platform
+                .get_provider()
+                .get_provider_merchant_id()
+                .inner()
+                .get_string_repr()
+                .to_string(),
+        ),
+    );
+    dimension_filter.insert(
         "organization_id".to_string(),
         serde_json::Value::String(merchant_account.get_org_id().get_string_repr().to_string()),
     );
@@ -384,6 +403,17 @@ pub async fn get_superposition_sdk_config(
     dimension_filter.insert(
         "processor_merchant_id".to_string(),
         serde_json::Value::String(merchant_account.get_id().get_string_repr().to_string()),
+    );
+    dimension_filter.insert(
+        "provider_merchant_id".to_string(),
+        serde_json::Value::String(
+            platform
+                .get_provider()
+                .get_provider_merchant_id()
+                .inner()
+                .get_string_repr()
+                .to_string(),
+        ),
     );
     dimension_filter.insert(
         "organization_id".to_string(),

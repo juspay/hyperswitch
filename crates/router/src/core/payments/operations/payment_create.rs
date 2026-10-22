@@ -1359,8 +1359,18 @@ impl PaymentCreate {
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
 
+        // The customer id in the request can be the `merchant_reference_id` of the customer, while
+        // the payment method holds the id of the customer record.
+        let request_customer_id = match req.get_customer_id() {
+            Some(customer_id) => Some(
+                helpers::resolve_request_customer_id(state, platform.get_provider(), customer_id)
+                    .await,
+            ),
+            None => None,
+        };
+
         utils::when(
-            req.get_customer_id().is_some_and(|customer_id| {
+            request_customer_id.as_ref().is_some_and(|customer_id| {
                 pm_info.payment_method.customer_id.as_ref() != Some(customer_id)
             }),
             || {
@@ -2013,6 +2023,7 @@ impl PaymentCreate {
             profile_acquirer_id: request.profile_acquirer_id.clone(),
             external_surcharge_strategy: request.external_surcharge_strategy,
             external_surcharge_applicable: None,
+            enable_avs_check: request.enable_avs_check,
         })
     }
 }
