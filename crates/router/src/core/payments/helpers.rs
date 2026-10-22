@@ -3983,6 +3983,62 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     Ok((operation, payment_method, pm_id))
 }
 
+/// Private continuation reference; this is not evidence that the PM was saved.
+#[cfg(feature = "v1")]
+pub(super) fn deferred_payment_method_key(payment_attempt: &PaymentAttempt) -> String {
+    format!(
+        "deferred_pm_{}_{}",
+        payment_attempt.processor_merchant_id.get_string_repr(),
+        payment_attempt.attempt_id,
+    )
+}
+
+#[cfg(feature = "v1")]
+pub(super) async fn retrieve_deferred_payment_method_info(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_attempt: &PaymentAttempt,
+) -> RouterResult<Option<domain::PaymentMethod>> {
+    if payment_attempt.payment_method_id.is_none()
+        && payment_methods::resolve_payment_method_integration_type(state, platform).await
+            == crate::types::payment_methods::PaymentMethodIntegrationType::PayThenVault
+    {
+        let redis = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let reference = redis
+            .get_key::<Option<String>>(&deferred_payment_method_key(payment_attempt).into())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        match reference {
+            Some(reference) => {
+                let payment_method_id: String = serde_json::from_str(&reference)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Invalid deferred payment method reference")?;
+                let payment_method = Box::pin(
+                    payment_methods::transformers::fetch_payment_method_from_modular_service(
+                        state,
+                        platform,
+                        &payment_attempt.profile_id,
+                        &payment_method_id,
+                        None,
+                        false,
+                        false,
+                    ),
+                )
+                .await?
+                .payment_method;
+                Ok(Some(payment_method))
+            }
+            None => Ok(None),
+        }
+    } else {
+        Ok(None)
+    }
+}
+
 #[cfg(feature = "v1")]
 pub async fn store_in_vault_and_generate_ppmt(
     state: &SessionState,

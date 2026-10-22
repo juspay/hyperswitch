@@ -205,6 +205,32 @@ where
 
         match (is_guest_volatile_payment_method, payment_method_id) {
             (false, Some(pm_id)) => {
+                if should_defer_payment_method_id_update
+                    && payment_data.payment_attempt.payment_method_id.is_none()
+                {
+                    // Keep the PM addressable across pending/redirect responses without
+                    // publishing it as the successfully saved PM on the attempt.
+                    let cache_reference = async {
+                        let redis = state
+                            .store
+                            .get_redis_conn()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                        redis
+                            .serialize_and_set_key_with_expiry(
+                                &payments_helpers::deferred_payment_method_key(
+                                    &payment_data.payment_attempt,
+                                )
+                                .into(),
+                                &pm_id,
+                                consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                    };
+                    if let Err(error) = cache_reference.await {
+                        logger::error!(?error, "Failed to retain deferred PM reference");
+                    }
+                }
                 let should_update = resp.status.should_update_payment_method();
 
                 let payment_method_type = payment_data

@@ -117,6 +117,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        let deferred_payment_method_info = if payment_attempt.payment_method_id.is_none() {
+            helpers::retrieve_deferred_payment_method_info(state, platform, &payment_attempt)
+                .await
+                .unwrap_or_else(|error| {
+                    router_env::logger::warn!(
+                        ?error,
+                        "Deferred PM metadata unavailable during complete authorization"
+                    );
+                    None
+                })
+        } else {
+            None
+        };
+
         let mandate_type = m_helpers::get_mandate_type(
             request.mandate_data.clone(),
             request.off_session,
@@ -143,12 +157,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform,
             payment_attempt.payment_method_id.clone(),
             payment_intent.customer_id.as_ref(),
-            None,
+            deferred_payment_method_info.clone(),
         ))
         .await?;
 
+        let payment_method_info = payment_method_info.or(deferred_payment_method_info);
+
         // Priority: request > payment_attempt > payment_method_info
-        // If payment_method_info is present but customer_acceptance is missing/invalid, return an error
         let customer_acceptance: Option<CustomerAcceptance> =
             if let Some(ca) = request.customer_acceptance.clone() {
                 Some(ca)
@@ -160,9 +175,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             "Failed to deserialize customer_acceptance from payment_attempt",
                         )?,
                 )
-            } else if let Some(pm) = payment_method_info.clone() {
+            } else if let Some(customer_acceptance) = payment_method_info
+                .as_ref()
+                .and_then(|pm| pm.customer_acceptance.clone())
+            {
                 Some(
-                    pm.customer_acceptance
+                    customer_acceptance
                         .parse_value::<CustomerAcceptance>("CustomerAcceptance")
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable(

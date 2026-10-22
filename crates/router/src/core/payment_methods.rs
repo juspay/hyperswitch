@@ -6924,15 +6924,12 @@ pub async fn update_payment_method_core(
                 })?;
                 Some(payment_method.payment_method)
             }
-            Err(error)
-                if matches!(
-                    error.current_context(),
-                    errors::ApiErrorResponse::GenericNotFoundError { .. }
-                ) =>
-            {
+            Err(error) => {
+                // A volatile-cache failure must not block an already persisted PM.
+                // The promotion guard above still rejects records marked unsafe to save.
+                logger::warn!(?error, "Volatile PM lookup failed; trying persisted PM");
                 None
             }
-            Err(error) => Err(error)?,
         }
     } else {
         None

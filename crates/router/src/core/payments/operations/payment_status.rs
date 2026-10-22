@@ -482,7 +482,13 @@ async fn get_tracker_for_sync<
                 }
             }
         } else {
-            None
+            // Missing public PM ID is expected while a PtV payment is pending.
+            helpers::retrieve_deferred_payment_method_info(state, platform, &payment_attempt)
+                .await
+                .unwrap_or_else(|error| {
+                    logger::warn!(?error, "Deferred PM metadata unavailable during sync");
+                    None
+                })
         };
 
     let key_manager_state = &(state).into();
