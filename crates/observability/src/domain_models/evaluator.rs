@@ -1,8 +1,11 @@
-pub mod cloudwatch;
-pub mod message;
-
-use common_types::alert_rules::{AlertRuleConfig, Severity, SeverityThreshold};
+use common_types::alert_rules::{
+    AlertQuery, AlertRuleConfig, CloudwatchStatistic, Severity, SeverityThreshold,
+};
 use common_utils::errors::CustomResult;
+use external_services::metrics_provider::{
+    grafana::cloudwatch::{CloudwatchMetricRequest, CloudwatchStatistic as ProviderStatistic},
+    MetricRange,
+};
 use serde::Deserialize;
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -13,9 +16,30 @@ pub struct RuleDefinition {
     pub config: AlertRuleConfig,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, strum::Display)]
+impl RuleDefinition {
+    pub fn metric_request(&self, datasource_uid: &str) -> CloudwatchMetricRequest {
+        let AlertQuery::GrafanaCloudwatch(query) = &self.config.query;
+        CloudwatchMetricRequest {
+            datasource_uid: datasource_uid.to_owned(),
+            region: query.region.clone(),
+            namespace: query.namespace.clone(),
+            metric_name: query.metric_name.clone(),
+            dimensions: query.dimensions.clone(),
+            statistic: match query.statistic {
+                CloudwatchStatistic::Average => ProviderStatistic::Average,
+                CloudwatchStatistic::Maximum => ProviderStatistic::Maximum,
+                CloudwatchStatistic::Minimum => ProviderStatistic::Minimum,
+                CloudwatchStatistic::Sum => ProviderStatistic::Sum,
+            },
+            period: query.period,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, strum::Display, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-pub enum Level {
+pub enum AlertEvaluationLevel {
     Normal,
     NoData,
     Info,
@@ -23,7 +47,7 @@ pub enum Level {
     Critical,
 }
 
-impl From<Severity> for Level {
+impl From<Severity> for AlertEvaluationLevel {
     fn from(severity: Severity) -> Self {
         match severity {
             Severity::Critical => Self::Critical,
@@ -66,10 +90,10 @@ pub struct Delivery {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Evaluation {
-    pub level: Level,
+    pub level: AlertEvaluationLevel,
     pub latest_value: Option<f64>,
     pub breach: Option<SeverityThreshold>,
-    pub window: external_services::metrics_provider::MetricRange,
+    pub window: MetricRange,
 }
 
 #[derive(Debug, thiserror::Error)]

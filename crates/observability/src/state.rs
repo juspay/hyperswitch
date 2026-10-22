@@ -78,14 +78,6 @@ impl AppState {
         let email = build_email_registry(&raw_conf.email, &raw_conf.proxy)
             .await
             .expect("Failed to build the email destinations");
-        let settings = raw_conf.alert.get_inner();
-        logger::info!(
-            tag = "evaluator_configured",
-            rules = settings.rules().len(),
-            datasources = ?settings.configured_names(),
-            "Evaluator configured"
-        );
-
         if chat.is_empty() && email.is_empty() {
             logger::warn!(
                 "No chat or email destinations are configured; every notify request will be \

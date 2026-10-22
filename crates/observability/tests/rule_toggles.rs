@@ -226,8 +226,7 @@ impl RuleTogglesInterface for FailingStore {
 
 fn state_with_store(store: Arc<dyn StorageInterface>) -> AppState {
     let conf: observability::Settings = serde_json::from_value(json!({
-        "auth": { "internal_api_key": API_KEY },
-        "alert": { "grafana": { "base_url": "http://127.0.0.1:3999", "api_token": "unused_fixture_token" }, "datasources": {}, "rules": "[]" }
+        "auth": { "internal_api_key": API_KEY }
     }))
     .unwrap();
     AppState {

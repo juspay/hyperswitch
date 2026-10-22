@@ -57,7 +57,7 @@ impl Alerts {
                 web::resource("/notify/{destination}").route(web::post().to(notify::email)),
             ))
             .service(
-                web::scope("/grafana")
+                web::scope("/grafana/cloudwatch")
                     .service(web::resource("/notify").route(web::post().to(evaluator::notify)))
                     .service(web::resource("/evaluate").route(web::get().to(evaluator::evaluate))),
             )

@@ -8,27 +8,42 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use actix_web::{
     http::StatusCode,
     test::{self, TestRequest},
     App,
 };
+use error_stack::report;
 use external_services::email::no_email::NoEmailClient;
+use hyperswitch_masking::PeekInterface;
 use observability::{
     auth::X_INTERNAL_API_KEY,
     db::Store,
     domain::notifier::{
-        chat::{ChatNotifier, LogChatNotifier},
+        chat::{
+            ChatFileOutcome, ChatFileUpload, ChatNotification, ChatNotifier, ChatOutcome,
+            ChatReceipt, LogChatNotifier,
+        },
         email::{EmailNotifier, EmailServiceNotifier},
         Registry,
     },
+    errors::ObservabilityError,
     routes::Alerts,
     settings::Database,
     state::AppState,
 };
 use serde_json::{json, Value};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpListener,
+    sync::{mpsc, Semaphore},
+    time::{timeout, Duration},
+};
 
 const API_KEY: &str = "test_internal_key";
 const CHAT: &str = "sr_alerts";
@@ -41,8 +56,7 @@ async fn state() -> AppState {
 async fn state_with_max(max_upload_bytes: usize) -> AppState {
     let conf = serde_json::from_value(json!({
         "auth": { "internal_api_key": API_KEY },
-        "chat": { "max_upload_bytes": max_upload_bytes },
-        "alert": { "grafana": { "base_url": "http://127.0.0.1:3999", "api_token": "unused_fixture_token" }, "datasources": {}, "rules": "[]" }
+        "chat": { "max_upload_bytes": max_upload_bytes }
     }))
     .expect("the test configuration should deserialize");
 
@@ -79,6 +93,235 @@ async fn lazy_store() -> Store {
     .expect("a pool with no idle connections builds without a database")
 }
 
+#[derive(Clone, Copy)]
+enum MetricReply {
+    Value(f64),
+    NoData,
+    Failure,
+}
+
+#[derive(Debug)]
+enum MetricEvent {
+    Started(String),
+    Completed(String),
+}
+
+async fn metric_server(
+    replies: HashMap<String, MetricReply>,
+    gated: bool,
+) -> (
+    String,
+    mpsc::Receiver<MetricEvent>,
+    HashMap<String, Arc<Semaphore>>,
+) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = format!("http://{}", listener.local_addr().unwrap());
+    let (events_tx, events_rx) = mpsc::channel(replies.len() * 2);
+    let gates = replies
+        .keys()
+        .map(|metric| (metric.clone(), Arc::new(Semaphore::new(0))))
+        .collect::<HashMap<_, _>>();
+    let server_gates = gates.clone();
+    tokio::spawn(async move {
+        for _ in 0..replies.len() {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let replies = replies.clone();
+            let gates = server_gates.clone();
+            let events = events_tx.clone();
+            tokio::spawn(async move {
+                let mut request = Vec::new();
+                let mut buffer = [0_u8; 4096];
+                let body_start = loop {
+                    let read = stream.read(&mut buffer).await.unwrap();
+                    assert!(read > 0, "metric request closed before headers completed");
+                    request.extend_from_slice(&buffer[..read]);
+                    if let Some(position) = request.windows(4).position(|part| part == b"\r\n\r\n")
+                    {
+                        break position + 4;
+                    }
+                };
+                let headers = std::str::from_utf8(&request[..body_start]).unwrap();
+                let content_length = headers
+                    .lines()
+                    .find_map(|line| {
+                        let (name, value) = line.split_once(':')?;
+                        name.eq_ignore_ascii_case("content-length")
+                            .then(|| value.trim().parse::<usize>().unwrap())
+                    })
+                    .unwrap();
+                while request.len() - body_start < content_length {
+                    let read = stream.read(&mut buffer).await.unwrap();
+                    assert!(read > 0, "metric request closed before body completed");
+                    request.extend_from_slice(&buffer[..read]);
+                }
+                let body: Value =
+                    serde_json::from_slice(&request[body_start..body_start + content_length])
+                        .unwrap();
+                let metric = body["queries"][0]["metricName"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned();
+                let _ = events.send(MetricEvent::Started(metric.clone())).await;
+                if gated {
+                    gates[&metric].acquire().await.unwrap().forget();
+                }
+                let (status, response) = match replies[&metric] {
+                    MetricReply::Value(value) => {
+                        let to = body["to"].as_str().unwrap().parse::<i64>().unwrap();
+                        let period = body["queries"][0]["period"]
+                            .as_str()
+                            .unwrap()
+                            .parse::<i64>()
+                            .unwrap();
+                        let timestamp = to - period * 1000;
+                        (
+                            "200 OK",
+                            json!({"results":{"A":{"frames":[{"data":{"values":[[timestamp],[value]]}}]}}}),
+                        )
+                    }
+                    MetricReply::NoData => ("200 OK", json!({"results":{"A":{"frames":[]}}})),
+                    MetricReply::Failure => (
+                        "500 Internal Server Error",
+                        json!({"message":"synthetic failure"}),
+                    ),
+                };
+                let bytes = serde_json::to_vec(&response).unwrap();
+                stream
+                    .write_all(
+                        format!(
+                            "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+                            bytes.len()
+                        )
+                        .as_bytes(),
+                    )
+                    .await
+                    .unwrap();
+                stream.write_all(&bytes).await.unwrap();
+                stream.shutdown().await.unwrap();
+                let _ = events.send(MetricEvent::Completed(metric)).await;
+            });
+        }
+    });
+    (address, events_rx, gates)
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ChatReply {
+    Delivered,
+    Refused,
+    Failed,
+}
+
+#[derive(Debug)]
+struct RecordingChatNotifier {
+    reply: ChatReply,
+    calls: Arc<Mutex<Vec<String>>>,
+}
+
+#[async_trait::async_trait]
+impl ChatNotifier for RecordingChatNotifier {
+    async fn notify(
+        &self,
+        notification: ChatNotification,
+    ) -> observability::errors::ObservabilityApiResult<ChatOutcome> {
+        self.calls
+            .lock()
+            .unwrap()
+            .push(notification.text.peek().clone());
+        match self.reply {
+            ChatReply::Delivered => Ok(observability::domain::notifier::Outcome::Delivered(
+                ChatReceipt {
+                    message_id: Some("synthetic-message".to_owned()),
+                },
+            )),
+            ChatReply::Refused => Ok(observability::domain::notifier::Outcome::Refused(
+                observability::domain::notifier::Refusal::new("synthetic_refusal"),
+            )),
+            ChatReply::Failed => Err(report!(ObservabilityError::ProviderUnavailable {
+                destination: "synthetic".to_owned(),
+            })),
+        }
+    }
+
+    async fn upload_file(
+        &self,
+        _upload: ChatFileUpload,
+    ) -> observability::errors::ObservabilityApiResult<ChatFileOutcome> {
+        unreachable!("evaluator tests never upload files")
+    }
+}
+
+fn alert_rule(id: &str, metric: &str, destination: &str, threshold: f64) -> Value {
+    json!({
+        "id": id,
+        "name": id,
+        "config": {
+            "interval_seconds": 60,
+            "query": {
+                "datasource": "grafana_cloudwatch",
+                "region": "us-east-1",
+                "namespace": "Synthetic/Test",
+                "metric_name": metric,
+                "statistic": "Sum",
+                "period": 60,
+                "end_offset_seconds": 180
+            },
+            "thresholds": {"severities": {"critical": {
+                "threshold": threshold,
+                "comparison_operator": "GreaterThanOrEqualToThreshold",
+                "description": "synthetic local test",
+                "destination": destination
+            }}}
+        }
+    })
+}
+
+async fn evaluator_state(
+    base_url: &str,
+    rules: Vec<Value>,
+    destinations: &[(&str, ChatReply)],
+) -> (AppState, HashMap<String, Arc<Mutex<Vec<String>>>>) {
+    let conf: observability::Settings = serde_json::from_value(json!({
+        "auth": { "internal_api_key": API_KEY },
+        "alert": {
+            "grafana": { "base_url": base_url, "api_token": "synthetic-local-token" },
+            "datasources": { "grafana_cloudwatch": { "uid": "synthetic-cloudwatch" } },
+            "rules": serde_json::to_string(&rules).unwrap()
+        }
+    }))
+    .unwrap();
+    let mut calls = HashMap::new();
+    let chat = destinations
+        .iter()
+        .map(|(destination, reply)| {
+            let destination_calls = Arc::new(Mutex::new(Vec::new()));
+            calls.insert((*destination).to_owned(), Arc::clone(&destination_calls));
+            let notifier: Arc<dyn ChatNotifier> = Arc::new(RecordingChatNotifier {
+                reply: *reply,
+                calls: destination_calls,
+            });
+            ((*destination).to_owned(), notifier)
+        })
+        .collect();
+    (
+        AppState {
+            router_transport: None,
+            conf: Arc::new(conf),
+            chat: Arc::new(Registry::new(chat)),
+            email: Arc::new(Registry::default()),
+            store: Arc::new(lazy_store().await),
+        },
+        calls,
+    )
+}
+
+async fn event(receiver: &mut mpsc::Receiver<MetricEvent>) -> MetricEvent {
+    timeout(Duration::from_secs(2), receiver.recv())
+        .await
+        .expect("metric mock deadlock")
+        .expect("metric mock ended early")
+}
+
 async fn call(request: TestRequest) -> (StatusCode, Value) {
     call_with_state(request, state().await).await
 }
@@ -111,6 +354,324 @@ fn upload_body(file: &str) -> String {
     format!(
         "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"report.pdf\"\r\nContent-Type: application/pdf\r\n\r\n{file}\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nDaily report\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"reply_to\"\r\n\r\n1.2\r\n--BOUNDARY--\r\n"
     )
+}
+
+#[actix_web::test]
+async fn cloudwatch_evaluator_uses_the_new_authenticated_path_only() {
+    let app = test::init_service(App::new().service(Alerts::server(state().await))).await;
+
+    let authorized = TestRequest::get()
+        .uri("/alerts/grafana/cloudwatch/evaluate")
+        .insert_header((X_INTERNAL_API_KEY, API_KEY))
+        .to_request();
+    assert_eq!(
+        test::call_service(&app, authorized).await.status(),
+        StatusCode::OK
+    );
+
+    let unauthorized = TestRequest::get()
+        .uri("/alerts/grafana/cloudwatch/evaluate")
+        .to_request();
+    assert_eq!(
+        test::call_service(&app, unauthorized).await.status(),
+        StatusCode::UNAUTHORIZED
+    );
+
+    let legacy = TestRequest::get()
+        .uri("/alerts/grafana/evaluate")
+        .insert_header((X_INTERNAL_API_KEY, API_KEY))
+        .to_request();
+    assert_eq!(
+        test::call_service(&app, legacy).await.status(),
+        StatusCode::NOT_FOUND
+    );
+}
+
+#[actix_web::test]
+async fn evaluator_overlaps_requests_and_preserves_rule_order_after_reverse_completion() {
+    let (base_url, mut events, gates) = metric_server(
+        HashMap::from([
+            ("first".to_owned(), MetricReply::Value(10.0)),
+            ("second".to_owned(), MetricReply::Value(20.0)),
+        ]),
+        true,
+    )
+    .await;
+    let (state, _) = evaluator_state(
+        &base_url,
+        vec![
+            alert_rule("rule-first", "first", "unused", 1.0),
+            alert_rule("rule-second", "second", "unused", 1.0),
+        ],
+        &[],
+    )
+    .await;
+    let evaluation = tokio::spawn(async move {
+        observability::core::evaluator::evaluate(state, ())
+            .await
+            .unwrap()
+    });
+
+    let mut started = vec![event(&mut events).await, event(&mut events).await]
+        .into_iter()
+        .map(|event| match event {
+            MetricEvent::Started(metric) => metric,
+            MetricEvent::Completed(metric) => panic!("{metric} completed before release"),
+        })
+        .collect::<Vec<_>>();
+    started.sort();
+    assert_eq!(started, ["first", "second"]);
+
+    gates["second"].add_permits(1);
+    assert!(
+        matches!(event(&mut events).await, MetricEvent::Completed(metric) if metric == "second")
+    );
+    gates["first"].add_permits(1);
+    assert!(
+        matches!(event(&mut events).await, MetricEvent::Completed(metric) if metric == "first")
+    );
+
+    let response = timeout(Duration::from_secs(2), evaluation)
+        .await
+        .expect("concurrent evaluator deadlocked")
+        .unwrap();
+    assert_eq!(response.rules[0].id, "rule-first");
+    assert_eq!(response.rules[1].id, "rule-second");
+}
+
+#[actix_web::test]
+async fn provider_failure_does_not_cancel_later_breach_and_both_notifications_are_attempted() {
+    let (base_url, _, _) = metric_server(
+        HashMap::from([
+            ("fails".to_owned(), MetricReply::Failure),
+            ("breaches".to_owned(), MetricReply::Value(10.0)),
+        ]),
+        false,
+    )
+    .await;
+    let mut failed_rule = alert_rule("failed-rule", "fails", "critical-errors", 1.0);
+    failed_rule["config"]["thresholds"]["severities"]["info"] = json!({
+        "threshold": 0.5,
+        "comparison_operator": "GreaterThanOrEqualToThreshold",
+        "description": "lower-priority synthetic threshold",
+        "destination": "info-errors"
+    });
+    let (state, calls) = evaluator_state(
+        &base_url,
+        vec![
+            failed_rule,
+            alert_rule("breach-rule", "breaches", "alarm", 1.0),
+        ],
+        &[
+            ("critical-errors", ChatReply::Delivered),
+            ("info-errors", ChatReply::Delivered),
+            ("alarm", ChatReply::Delivered),
+        ],
+    )
+    .await;
+
+    let body = serde_json::to_value(
+        observability::core::evaluator::notify(state, ())
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(body["rules"][0]["id"], "failed-rule");
+    assert_eq!(body["rules"][0]["status"], "failed");
+    assert!(body["rules"][0]["error"]
+        .as_str()
+        .unwrap()
+        .contains("data source request failed"));
+    assert!(body["rules"][0]["message"]
+        .as_str()
+        .unwrap()
+        .contains("RULE ERROR"));
+    assert_eq!(body["rules"][0]["delivered"], true);
+    assert_eq!(body["rules"][1]["id"], "breach-rule");
+    assert_eq!(body["rules"][1]["status"], "evaluated");
+    assert_eq!(body["rules"][1]["level"], "critical");
+    assert!(body["rules"][1]["message"]
+        .as_str()
+        .unwrap()
+        .contains("ALARM"));
+    assert_eq!(calls["critical-errors"].lock().unwrap().len(), 1);
+    assert!(calls["info-errors"].lock().unwrap().is_empty());
+    assert_eq!(calls["alarm"].lock().unwrap().len(), 1);
+}
+
+#[actix_web::test]
+async fn dry_run_never_delivers_breaches_or_rule_errors() {
+    let (base_url, _, _) = metric_server(
+        HashMap::from([
+            ("fails".to_owned(), MetricReply::Failure),
+            ("breaches".to_owned(), MetricReply::Value(10.0)),
+        ]),
+        false,
+    )
+    .await;
+    let (state, calls) = evaluator_state(
+        &base_url,
+        vec![
+            alert_rule("failed-rule", "fails", "errors", 1.0),
+            alert_rule("breach-rule", "breaches", "alarm", 1.0),
+        ],
+        &[
+            ("errors", ChatReply::Delivered),
+            ("alarm", ChatReply::Delivered),
+        ],
+    )
+    .await;
+
+    let response = observability::core::evaluator::evaluate(state, ())
+        .await
+        .unwrap();
+    assert_eq!(response.rules.len(), 2);
+    assert!(calls.values().all(|calls| calls.lock().unwrap().is_empty()));
+}
+
+#[actix_web::test]
+async fn no_data_and_normal_are_silent_and_keep_the_exact_wire_shape() {
+    let (base_url, _, _) = metric_server(
+        HashMap::from([
+            ("empty".to_owned(), MetricReply::NoData),
+            ("normal".to_owned(), MetricReply::Value(1.0)),
+        ]),
+        false,
+    )
+    .await;
+    let (state, calls) = evaluator_state(
+        &base_url,
+        vec![
+            alert_rule("empty-rule", "empty", "oncall", 10.0),
+            alert_rule("normal-rule", "normal", "oncall", 10.0),
+        ],
+        &[("oncall", ChatReply::Delivered)],
+    )
+    .await;
+
+    let body = serde_json::to_value(
+        observability::core::evaluator::notify(state, ())
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(body["rules"][0]["level"], "nodata");
+    assert!(body["rules"][0].get("message").is_none());
+    assert!(body["rules"][0].get("delivered").is_none());
+    assert!(body["rules"][0].get("delivery_error").is_none());
+    assert_eq!(body["rules"][1]["level"], "normal");
+    assert!(calls["oncall"].lock().unwrap().is_empty());
+}
+
+#[actix_web::test]
+async fn refused_failed_and_successful_deliveries_are_isolated_and_ordered() {
+    let (base_url, _, _) = metric_server(
+        HashMap::from([
+            ("refused".to_owned(), MetricReply::Value(10.0)),
+            ("failed".to_owned(), MetricReply::Value(10.0)),
+            ("delivered".to_owned(), MetricReply::Value(10.0)),
+        ]),
+        false,
+    )
+    .await;
+    let (state, calls) = evaluator_state(
+        &base_url,
+        vec![
+            alert_rule("refused-rule", "refused", "refused-chat", 1.0),
+            alert_rule("failed-rule", "failed", "failed-chat", 1.0),
+            alert_rule("delivered-rule", "delivered", "delivered-chat", 1.0),
+        ],
+        &[
+            ("refused-chat", ChatReply::Refused),
+            ("failed-chat", ChatReply::Failed),
+            ("delivered-chat", ChatReply::Delivered),
+        ],
+    )
+    .await;
+
+    let body = serde_json::to_value(
+        observability::core::evaluator::notify(state, ())
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(body["rules"][0]["id"], "refused-rule");
+    assert_eq!(body["rules"][0]["status"], "evaluated");
+    assert_eq!(body["rules"][0]["delivered"], false);
+    assert!(body["rules"][0]["delivery_error"]
+        .as_str()
+        .unwrap()
+        .contains("refused"));
+    assert_eq!(body["rules"][1]["id"], "failed-rule");
+    assert_eq!(body["rules"][1]["status"], "evaluated");
+    assert_eq!(body["rules"][1]["delivered"], false);
+    assert!(body["rules"][1]["delivery_error"]
+        .as_str()
+        .unwrap()
+        .contains("could not be reached"));
+    assert_eq!(body["rules"][2]["id"], "delivered-rule");
+    assert_eq!(body["rules"][2]["status"], "evaluated");
+    assert_eq!(body["rules"][2]["delivered"], true);
+    assert!(body["rules"][2].get("delivery_error").is_none());
+    assert!(calls.values().all(|calls| calls.lock().unwrap().len() == 1));
+}
+
+#[actix_web::test]
+async fn cloudwatch_notify_route_enforces_auth_verbs_and_legacy_removal_with_a_real_rule() {
+    let (base_url, _, _) = metric_server(
+        HashMap::from([("breach".to_owned(), MetricReply::Value(10.0))]),
+        false,
+    )
+    .await;
+    let (state, calls) = evaluator_state(
+        &base_url,
+        vec![alert_rule("breach-rule", "breach", "oncall", 1.0)],
+        &[("oncall", ChatReply::Delivered)],
+    )
+    .await;
+    let app = test::init_service(App::new().service(Alerts::server(state))).await;
+
+    let unauthorized = TestRequest::post()
+        .uri("/alerts/grafana/cloudwatch/notify")
+        .to_request();
+    assert_eq!(
+        test::call_service(&app, unauthorized).await.status(),
+        StatusCode::UNAUTHORIZED
+    );
+    let wrong_verb = TestRequest::get()
+        .uri("/alerts/grafana/cloudwatch/notify")
+        .insert_header((X_INTERNAL_API_KEY, API_KEY))
+        .to_request();
+    assert_eq!(
+        test::call_service(&app, wrong_verb).await.status(),
+        StatusCode::METHOD_NOT_ALLOWED
+    );
+    let wrong_evaluate_verb = TestRequest::post()
+        .uri("/alerts/grafana/cloudwatch/evaluate")
+        .insert_header((X_INTERNAL_API_KEY, API_KEY))
+        .to_request();
+    assert_eq!(
+        test::call_service(&app, wrong_evaluate_verb).await.status(),
+        StatusCode::METHOD_NOT_ALLOWED
+    );
+    let old_path = TestRequest::post()
+        .uri("/alerts/grafana/notify")
+        .insert_header((X_INTERNAL_API_KEY, API_KEY))
+        .to_request();
+    assert_eq!(
+        test::call_service(&app, old_path).await.status(),
+        StatusCode::NOT_FOUND
+    );
+    let authorized = TestRequest::post()
+        .uri("/alerts/grafana/cloudwatch/notify")
+        .insert_header((X_INTERNAL_API_KEY, API_KEY))
+        .to_request();
+    let response = test::call_service(&app, authorized).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let body: Value = test::read_body_json(response).await;
+    assert_eq!(body["rules"][0]["status"], "evaluated");
+    assert_eq!(body["rules"][0]["delivered"], true);
+    assert_eq!(calls["oncall"].lock().unwrap().len(), 1);
 }
 
 #[actix_web::test]

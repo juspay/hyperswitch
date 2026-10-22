@@ -14,6 +14,7 @@ use hyperswitch_interfaces::secrets_interface::{
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };
+use hyperswitch_masking::PeekInterface;
 
 use crate::settings::{
     evaluator::AlertSettings, AuthSettings, ChatDestination, ChatSettings, Database, Settings,
@@ -85,6 +86,9 @@ impl SecretsHandler for AlertSettings {
         value: SecretStateContainer<Self, SecuredSecret>,
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        if value.get_inner().grafana.api_token.peek().is_empty() {
+            return Ok(value.transition_state(|alert| alert));
+        }
         let api_token = secret_management_client
             .get_secret(value.get_inner().grafana.api_token.clone())
             .await?;

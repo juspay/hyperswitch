@@ -17,9 +17,9 @@ pub enum AlertQuery {
 }
 
 impl AlertQuery {
-    pub fn datasource(&self) -> AlertDatasourceKind {
+    pub fn metric_source(&self) -> MetricSource {
         match self {
-            Self::GrafanaCloudwatch(_) => AlertDatasourceKind::GrafanaCloudwatch,
+            Self::GrafanaCloudwatch(_) => MetricSource::GrafanaCloudwatch,
         }
     }
 }
@@ -60,7 +60,7 @@ pub struct SeverityThreshold {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum AlertDatasourceKind {
+pub enum MetricSource {
     GrafanaCloudwatch,
 }
 
@@ -108,5 +108,25 @@ impl ComparisonOperator {
             Self::LessThanThreshold => value < threshold,
             Self::LessThanOrEqualToThreshold => value <= threshold,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cloudwatch_end_offset_defaults_to_three_minutes() {
+        let query: AlertQuery = serde_json::from_value(serde_json::json!({
+            "datasource": "grafana_cloudwatch",
+            "region": "us-east-1",
+            "namespace": "AWS/ApplicationELB",
+            "metric_name": "RequestCount",
+            "statistic": "Sum",
+            "period": 60
+        }))
+        .unwrap();
+        let AlertQuery::GrafanaCloudwatch(query) = query;
+        assert_eq!(query.end_offset_seconds, 180);
     }
 }

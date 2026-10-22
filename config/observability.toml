@@ -91,7 +91,7 @@ max_upload_bytes = 26214400 # 25 MiB
 [chat.destinations.smoke]
 type = "log"
 
-# Required evaluator settings. Credentials here are local placeholders; override them at deployment.
+# Configure this section to enable evaluation. Credentials are local placeholders; override at deployment.
 # Rules remain a JSON string for OBSERVABILITY__ALERT__RULES / Helm delivery.
 # Every breach sends to its threshold's existing notifier destination ID (smoke is log-only).
 # The newest complete sample in a five-minute window is evaluated. An empty window reports

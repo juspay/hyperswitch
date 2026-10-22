@@ -52,28 +52,28 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::domain::{
-    evaluator::{Delivery, Level, RuleDefinition, RuleRun},
-    notifier::{
+use crate::{
+    domain::notifier::{
         chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
         email::EmailOutcome,
         Outcome, Refusal,
     },
+    domain_models::evaluator::{AlertEvaluationLevel, Delivery, RuleDefinition, RuleRun},
 };
 
 #[derive(Debug, Serialize)]
-pub struct EvaluatorResponse {
+pub struct AlertEvaluationResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub evaluated_at: PrimitiveDateTime,
-    pub rules: Vec<RuleReport>,
+    pub rules: Vec<AlertRuleEvaluationResponse>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct RuleReport {
+pub struct AlertRuleEvaluationResponse {
     pub id: String,
-    pub status: RuleStatus,
+    pub status: AlertRuleEvaluationStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub level: Option<EvaluatorLevel>,
+    pub level: Option<AlertEvaluationLevel>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -86,34 +86,12 @@ pub struct RuleReport {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum RuleStatus {
+pub enum AlertRuleEvaluationStatus {
     Evaluated,
     Failed,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum EvaluatorLevel {
-    Normal,
-    NoData,
-    Info,
-    Warning,
-    Critical,
-}
-
-impl From<Level> for EvaluatorLevel {
-    fn from(level: Level) -> Self {
-        match level {
-            Level::Normal => Self::Normal,
-            Level::NoData => Self::NoData,
-            Level::Info => Self::Info,
-            Level::Warning => Self::Warning,
-            Level::Critical => Self::Critical,
-        }
-    }
-}
-
-impl From<(&RuleDefinition, RuleRun, Option<Delivery>)> for RuleReport {
+impl From<(&RuleDefinition, RuleRun, Option<Delivery>)> for AlertRuleEvaluationResponse {
     fn from((rule, run, delivery): (&RuleDefinition, RuleRun, Option<Delivery>)) -> Self {
         let delivered = delivery.as_ref().map(|delivery| delivery.delivered);
         let delivery_error = delivery.and_then(|delivery| delivery.error);
@@ -123,8 +101,8 @@ impl From<(&RuleDefinition, RuleRun, Option<Delivery>)> for RuleReport {
                 notification,
             } => Self {
                 id: rule.id.clone(),
-                status: RuleStatus::Evaluated,
-                level: Some(evaluation.level.into()),
+                status: AlertRuleEvaluationStatus::Evaluated,
+                level: Some(evaluation.level),
                 error: None,
                 message: notification.map(|notification| notification.message),
                 delivered,
@@ -135,7 +113,7 @@ impl From<(&RuleDefinition, RuleRun, Option<Delivery>)> for RuleReport {
                 notification,
             } => Self {
                 id: rule.id.clone(),
-                status: RuleStatus::Failed,
+                status: AlertRuleEvaluationStatus::Failed,
                 level: None,
                 error: Some(error),
                 message: Some(notification.message),

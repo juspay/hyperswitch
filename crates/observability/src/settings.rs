@@ -46,40 +46,31 @@ pub struct CmdLineConf {
 }
 
 /// The whole configuration of the service.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct Settings<S: SecretState> {
     /// Listener configuration. Meaningful only in standalone mode — when the crate is mounted in
     /// the router, the router owns the listener and this section is ignored.
-    #[serde(default)]
     pub server: Server,
     /// Logging and telemetry.
-    #[serde(default)]
     pub log: Log,
     /// Credentials guarding this service's routes.
-    #[serde(default)]
     pub auth: SecretStateContainer<AuthSettings, S>,
     /// Router dependency for the Grafana gateway authorization endpoint.
-    #[serde(default)]
     pub router: Option<RouterSettings>,
     /// Configured Grafana embed targets, keyed by IDs such as payment_logs.
-    #[serde(default)]
     pub monitoring: MonitoringSettings,
     /// How secret values in this file are resolved at boot.
-    #[serde(default)]
     pub secrets_management: SecretsManagementConfig,
     /// Outbound HTTP proxy. A deployment fact rather than a property of any destination, which is
     /// why it sits here and is handed to every chat client rather than repeated per destination.
-    #[serde(default)]
     pub proxy: Proxy,
     /// Chat destinations this service can deliver to.
-    #[serde(default)]
     pub chat: SecretStateContainer<ChatSettings, S>,
     pub alert: SecretStateContainer<evaluator::AlertSettings, S>,
     /// Email destinations this service can deliver to.
-    #[serde(default)]
     pub email: EmailSettings,
     /// The observability database, which holds alert state. Separate from `hyperswitch_db`.
-    #[serde(default)]
     pub database: SecretStateContainer<Database, S>,
 }
 
@@ -441,5 +432,125 @@ impl Settings<SecuredSecret> {
             ));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn monitoring_destinations_default_empty_and_support_environment_overrides() {
+        let defaults: Settings<SecuredSecret> = serde_json::from_str("{}").unwrap();
+        assert!(defaults.monitoring.destinations.is_empty());
+        let environment = HashMap::from([(
+            "OBSERVABILITY__MONITORING__DESTINATIONS__PAYMENT_LOGS".to_owned(),
+            "https://cc.example/api/observability-plane/grafana/explore?orgId=1&left=logs"
+                .to_owned(),
+        )]);
+        let settings: Settings<SecuredSecret> = config::Config::builder()
+            .add_source(
+                config::Environment::with_prefix("OBSERVABILITY")
+                    .prefix_separator("__")
+                    .separator("__")
+                    .source(Some(environment)),
+            )
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+        assert_eq!(
+            settings.monitoring.destinations["payment_logs"].query(),
+            Some("orgId=1&left=logs")
+        );
+        assert!(
+            validate_config_ids(&settings.monitoring.destinations, "monitoring destination")
+                .is_ok()
+        );
+        assert!(serde_json::from_value::<MonitoringSettings>(
+            serde_json::json!({"destinations":{"payment_logs":"not a URL"}})
+        )
+        .is_err());
+    }
+
+    fn chat_with_ids(ids: &[&str]) -> ChatSettings {
+        ChatSettings {
+            destinations: ids
+                .iter()
+                .map(|id| ((*id).to_owned(), ChatDestination::Log))
+                .collect(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn router_origin_is_optional_and_typed() {
+        assert!(serde_json::from_str::<Settings<SecuredSecret>>("{}")
+            .unwrap()
+            .router
+            .is_none());
+        assert!(serde_json::from_str::<Settings<SecuredSecret>>(
+            r#"{"router":{"base_url":"not a URL"}}"#,
+        )
+        .is_err());
+        assert!(serde_json::from_str::<Settings<SecuredSecret>>(
+            r#"{"router":{"base_url":"http://localhost:8080"}}"#,
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn a_usable_destination_id_is_accepted() {
+        chat_with_ids(&["sr_alerts", "zero-volume", "oncall2"])
+            .validate()
+            .unwrap();
+    }
+
+    /// Each of these is a lookup that would silently miss when the id came from the environment,
+    /// because `config` lowercases keys and splits on `__`.
+    #[test]
+    fn ids_that_cannot_round_trip_through_the_environment_are_rejected() {
+        for id in ["SR_ALERTS", "sr__alerts", ""] {
+            assert!(
+                chat_with_ids(&[id]).validate().is_err(),
+                "`{id}` should be rejected"
+            );
+        }
+    }
+
+    /// The tag is what makes Xyne and Slack two variants of one client rather than two
+    /// integrations, and `log` has to sit in the same enum or the delivery path grows a branch.
+    #[test]
+    fn a_zero_upload_cap_is_rejected() {
+        let settings = ChatSettings {
+            max_upload_bytes: 0,
+            ..Default::default()
+        };
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn a_destination_is_selected_by_its_type_tag() {
+        let destinations: HashMap<String, ChatDestination> =
+            serde_json::from_value(serde_json::json!({
+                "sr_alerts": { "type": "xyne", "app_jwt": "jwt", "channel": "C123" },
+                "escalation": { "type": "slack", "bot_token": "xoxb-1", "channel": "C456" },
+                "smoke": { "type": "log" },
+            }))
+            .unwrap();
+
+        assert!(matches!(
+            destinations.get("sr_alerts"),
+            Some(ChatDestination::Xyne(_))
+        ));
+        assert!(matches!(
+            destinations.get("escalation"),
+            Some(ChatDestination::Slack(_))
+        ));
+        assert!(matches!(
+            destinations.get("smoke"),
+            Some(ChatDestination::Log)
+        ));
     }
 }
