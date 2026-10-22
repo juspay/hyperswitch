@@ -153,7 +153,7 @@ impl CustomerPaymentMethodsFetcher for DbCustomerPaymentMethodsFetcher {
         customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
-        let customer_payment_methods_response = Box::pin(cards::list_customer_payment_method(
+        let candidates = Box::pin(cards::fetch_customer_payment_method_candidates(
             state,
             platform,
             payment_intent,
@@ -162,14 +162,12 @@ impl CustomerPaymentMethodsFetcher for DbCustomerPaymentMethodsFetcher {
             None, // limit
             dimensions,
         ))
-        .await?;
+        .await
+        .attach_printable("Failed to fetch saved payment method candidates for client")?;
 
-        let response_body = match customer_payment_methods_response {
-            services::ApplicationResponse::Json(response_body) => response_body,
-            _ => {
-                return Err(errors::ApiErrorResponse::InternalServerError.into());
-            }
-        };
+        let response_body = candidates
+            .into_response(state, platform, payment_intent, payment_attempt)
+            .await?;
 
         let intent_fulfillment_time = self.intent_fulfillment_time;
 
@@ -546,6 +544,26 @@ async fn fetch_enabled_payment_methods(
 // fetch_customer_payment_methods  — saved PMs for the payment's customer
 // ---------------------------------------------------------------------------
 
+async fn filter_customer_payment_methods<F, Fut>(
+    customer_pms: Vec<CustomerPaymentMethodForClient>,
+    enabled: &[ResponsePaymentMethodsEnabledForClient],
+    filter_blocklisted: F,
+) -> Vec<CustomerPaymentMethodForClient>
+where
+    F: FnOnce(Vec<CustomerPaymentMethodForClient>) -> Fut,
+    Fut: std::future::Future<Output = Vec<CustomerPaymentMethodForClient>>,
+{
+    // 4. Filter customer PMs to only those whose (payment_method, payment_method_type)
+    //    combination is present in the merchant-enabled list.
+    let customer_pms = filter_customer_pms_by_enabled(customer_pms, enabled);
+    // 5. Drop saved cards whose BIN is blocklisted for this merchant/profile (no-op unless
+    //    the merchant has the blocklist guard enabled).
+    let customer_pms = filter_blocklisted(customer_pms).await;
+    cards::filter_latest_wallet_methods(customer_pms, |pm| {
+        (pm.payment_method, pm.payment_method_type, pm.last_used_at)
+    })
+}
+
 /// Filter `customer_payment_methods` to only those whose `(payment_method, payment_method_type)`
 /// combination is present in `payment_methods_enabled`.
 fn filter_customer_pms_by_enabled(
@@ -629,6 +647,13 @@ async fn filter_customer_pms_by_blocklist(
         .await
     };
 
+    filter_customer_pms_by_blocked_bins(customer_pms, &blocked_bins)
+}
+
+fn filter_customer_pms_by_blocked_bins(
+    customer_pms: Vec<CustomerPaymentMethodForClient>,
+    blocked_bins: &std::collections::HashSet<String>,
+) -> Vec<CustomerPaymentMethodForClient> {
     if blocked_bins.is_empty() {
         customer_pms
     } else {
@@ -768,18 +793,17 @@ pub async fn list_payment_methods_client(
     let customer_payment_methods =
         fetch_customer_payment_methods(&state, &platform, &payment_intent_context).await?;
 
-    // 4. Filter customer PMs to only those whose (payment_method, payment_method_type)
-    //    combination is present in the merchant-enabled list.
-    let customer_payment_methods_filtered =
-        filter_customer_pms_by_enabled(customer_payment_methods, &payment_methods_enabled);
-
-    // 5. Drop saved cards whose BIN is blocklisted for this merchant/profile (no-op unless
-    //    the merchant has the blocklist guard enabled).
-    let customer_payment_methods_filtered = filter_customer_pms_by_blocklist(
-        &state,
-        &platform,
-        payment_intent_context.business_profile.get_id(),
-        customer_payment_methods_filtered,
+    let customer_payment_methods_filtered = filter_customer_payment_methods(
+        customer_payment_methods,
+        &payment_methods_enabled,
+        |customer_pms| {
+            filter_customer_pms_by_blocklist(
+                &state,
+                &platform,
+                payment_intent_context.business_profile.get_id(),
+                customer_pms,
+            )
+        },
     )
     .await;
 
@@ -831,4 +855,295 @@ pub async fn list_payment_methods_client(
             intent_data,
         },
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashSet, future::ready};
+
+    use api_models::payment_methods::CardDetailFromLocker;
+    use common_enums::{PaymentMethod, PaymentMethodType};
+
+    use super::{
+        cards, filter_customer_payment_methods, filter_customer_pms_by_blocked_bins, to_client_pm,
+        CustomerPaymentMethod, CustomerPaymentMethodDataForClient, CustomerPaymentMethodForClient,
+        ResponsePaymentMethodsEnabledForClient,
+    };
+
+    fn saved_method(
+        token: &str,
+        payment_method: PaymentMethod,
+        payment_method_type: Option<PaymentMethodType>,
+        days: Option<i64>,
+    ) -> CustomerPaymentMethodForClient {
+        CustomerPaymentMethodForClient {
+            payment_token: token.to_owned(),
+            payment_method,
+            payment_method_type,
+            default_payment_method_set: false,
+            requires_cvv: false,
+            recurring_enabled: Some(true),
+            created: None,
+            last_used_at: days.map(|days| time::Date::MIN.midnight() + time::Duration::days(days)),
+            payment_method_data: None,
+        }
+    }
+
+    fn saved_wallet(
+        token: &str,
+        subtype: PaymentMethodType,
+        days: Option<i64>,
+    ) -> CustomerPaymentMethodForClient {
+        saved_method(token, PaymentMethod::Wallet, Some(subtype), days)
+    }
+
+    fn enabled_method(
+        method: PaymentMethod,
+        subtype: PaymentMethodType,
+    ) -> ResponsePaymentMethodsEnabledForClient {
+        ResponsePaymentMethodsEnabledForClient {
+            payment_method: method,
+            payment_method_type: subtype,
+            data: None,
+            payment_experience: None,
+            collect_shipping_details_from_wallets: None,
+            collect_billing_details_from_wallets: None,
+            customer_acceptance_support: Default::default(),
+        }
+    }
+
+    fn saved_card_data(card_isin: Option<&str>) -> CustomerPaymentMethodDataForClient {
+        CustomerPaymentMethodDataForClient::Card(Box::new(CardDetailFromLocker {
+            scheme: None,
+            issuer_country: None,
+            issuer_country_code: None,
+            last4_digits: None,
+            card_number: None,
+            expiry_month: None,
+            expiry_year: None,
+            card_token: None,
+            card_holder_name: None,
+            card_fingerprint: None,
+            nick_name: None,
+            card_network: None,
+            card_isin: card_isin.map(str::to_owned),
+            card_issuer: None,
+            card_type: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            saved_to_locker: true,
+        }))
+    }
+
+    fn enabled_wallets() -> Vec<ResponsePaymentMethodsEnabledForClient> {
+        [
+            PaymentMethodType::ApplePay,
+            PaymentMethodType::GooglePay,
+            PaymentMethodType::Paypal,
+        ]
+        .into_iter()
+        .map(|subtype| enabled_method(PaymentMethod::Wallet, subtype))
+        .collect()
+    }
+
+    fn legacy_method(method: CustomerPaymentMethodForClient) -> CustomerPaymentMethod {
+        let (card, wallets, bank) = match method.payment_method_data {
+            Some(CustomerPaymentMethodDataForClient::Card(card)) => (Some(*card), None, None),
+            Some(CustomerPaymentMethodDataForClient::Wallet(wallet)) => (None, Some(wallet), None),
+            Some(CustomerPaymentMethodDataForClient::BankRedirect(bank)) => {
+                (None, None, Some(bank))
+            }
+            Some(CustomerPaymentMethodDataForClient::BankDebit(_)) | None => (None, None, None),
+        };
+        CustomerPaymentMethod {
+            payment_method_id: method.payment_token.clone(),
+            payment_token: method.payment_token,
+            customer_id: Default::default(),
+            payment_method: method.payment_method,
+            payment_method_type: method.payment_method_type,
+            payment_method_issuer: None,
+            payment_method_issuer_code: None,
+            recurring_enabled: method.recurring_enabled,
+            installment_payment_enabled: None,
+            payment_experience: None,
+            card,
+            wallets,
+            metadata: None,
+            created: method.created,
+            #[cfg(feature = "payouts")]
+            bank_transfer: None,
+            bank,
+            surcharge_details: None,
+            requires_cvv: method.requires_cvv,
+            last_used_at: method.last_used_at,
+            default_payment_method_set: method.default_payment_method_set,
+            billing: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn customer_pm_filtering_keeps_latest_of_ten_apple_pay_methods() {
+        let mut methods: Vec<_> = (0..10)
+            .map(|days| {
+                saved_wallet(
+                    &format!("apple_{days}"),
+                    PaymentMethodType::ApplePay,
+                    Some(days),
+                )
+            })
+            .collect();
+        methods.rotate_left(4);
+        let expected = saved_wallet("apple_9", PaymentMethodType::ApplePay, Some(9));
+        let result = filter_customer_payment_methods(methods, &enabled_wallets(), ready).await;
+        assert_eq!(result, vec![expected]);
+    }
+
+    #[tokio::test]
+    async fn customer_pm_filtering_matches_legacy_and_modular_candidates() {
+        let mut blocked = saved_method(
+            "blocked_card",
+            PaymentMethod::Card,
+            Some(PaymentMethodType::Credit),
+            Some(5),
+        );
+        blocked.payment_method_data = Some(saved_card_data(Some("411111")));
+        let allowed_card = saved_method("allowed_card", PaymentMethod::Card, None, Some(1));
+        let paypal = saved_wallet("paypal", PaymentMethodType::Paypal, Some(2));
+        let mut latest_apple = saved_wallet("apple_new", PaymentMethodType::ApplePay, Some(3));
+        latest_apple.default_payment_method_set = true;
+        latest_apple.created = latest_apple.last_used_at;
+        let methods = vec![
+            blocked,
+            saved_wallet("apple_old", PaymentMethodType::ApplePay, Some(1)),
+            allowed_card.clone(),
+            latest_apple.clone(),
+            saved_wallet("disabled_google", PaymentMethodType::GooglePay, Some(6)),
+            paypal.clone(),
+        ];
+        let enabled = vec![
+            enabled_method(PaymentMethod::Card, PaymentMethodType::Credit),
+            enabled_method(PaymentMethod::Wallet, PaymentMethodType::ApplePay),
+            enabled_method(PaymentMethod::Wallet, PaymentMethodType::Paypal),
+        ];
+        let legacy_methods = methods
+            .clone()
+            .into_iter()
+            .map(legacy_method)
+            .map(to_client_pm)
+            .collect();
+        for candidates in [methods, legacy_methods] {
+            let result = filter_customer_payment_methods(candidates, &enabled, |methods| {
+                assert!(methods
+                    .iter()
+                    .all(|pm| pm.payment_method_type != Some(PaymentMethodType::GooglePay)));
+                assert_eq!(
+                    methods
+                        .iter()
+                        .filter(|pm| pm.payment_method_type == Some(PaymentMethodType::ApplePay))
+                        .count(),
+                    2
+                );
+                ready(filter_customer_pms_by_blocked_bins(
+                    methods,
+                    &HashSet::from(["411111".to_owned()]),
+                ))
+            })
+            .await;
+            assert_eq!(
+                result,
+                vec![allowed_card.clone(), paypal.clone(), latest_apple.clone()]
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn customer_pm_filtering_preserves_legacy_wallet_selection_and_other_methods() {
+        let methods = vec![
+            saved_wallet("apple_old", PaymentMethodType::ApplePay, Some(1)),
+            saved_wallet("google_new", PaymentMethodType::GooglePay, Some(6)),
+            saved_wallet("paypal_1", PaymentMethodType::Paypal, Some(1)),
+            saved_wallet("apple_new", PaymentMethodType::ApplePay, Some(4)),
+            saved_wallet("google_old", PaymentMethodType::GooglePay, Some(2)),
+            saved_wallet("paypal_2", PaymentMethodType::Paypal, Some(3)),
+        ];
+        let legacy_methods = methods.clone().into_iter().map(legacy_method).collect();
+        let legacy_result: Vec<_> = cards::filter_latest_wallet_methods(legacy_methods, |pm| {
+            (pm.payment_method, pm.payment_method_type, pm.last_used_at)
+        })
+        .into_iter()
+        .map(to_client_pm)
+        .collect();
+        let result = filter_customer_payment_methods(methods, &enabled_wallets(), ready).await;
+        assert_eq!(result, legacy_result);
+        let tokens: Vec<_> = result.into_iter().map(|pm| pm.payment_token).collect();
+        assert_eq!(tokens, ["paypal_1", "paypal_2", "apple_new", "google_new"]);
+    }
+
+    #[tokio::test]
+    async fn customer_pm_filtering_handles_missing_and_equal_timestamps() {
+        let enabled = enabled_wallets();
+        for days in [None, Some(3)] {
+            let first = saved_wallet("first", PaymentMethodType::ApplePay, days);
+            let second = saved_wallet("second", PaymentMethodType::ApplePay, days);
+            assert_eq!(
+                filter_customer_payment_methods(vec![first.clone(), second], &enabled, ready).await,
+                vec![first]
+            );
+        }
+        let missing = saved_wallet("missing", PaymentMethodType::ApplePay, None);
+        let dated = saved_wallet("dated", PaymentMethodType::ApplePay, Some(1));
+        assert_eq!(
+            filter_customer_payment_methods(vec![missing, dated.clone()], &enabled, ready).await,
+            vec![dated]
+        );
+    }
+
+    #[tokio::test]
+    async fn customer_pm_filtering_handles_empty_single_and_disabled_lists() {
+        let enabled = enabled_wallets();
+        assert!(filter_customer_payment_methods(Vec::new(), &enabled, ready)
+            .await
+            .is_empty());
+        let method = saved_wallet("only", PaymentMethodType::ApplePay, Some(1));
+        assert_eq!(
+            filter_customer_payment_methods(vec![method.clone()], &enabled, ready).await,
+            vec![method.clone()]
+        );
+        assert!(filter_customer_payment_methods(vec![method], &[], ready)
+            .await
+            .is_empty());
+        let unknown_wallet = saved_method("unknown", PaymentMethod::Wallet, None, None);
+        assert!(
+            filter_customer_payment_methods(vec![unknown_wallet], &enabled, ready)
+                .await
+                .is_empty()
+        );
+    }
+
+    #[tokio::test]
+    async fn customer_pm_filtering_preserves_cards_without_blocked_bins() {
+        let mut allowed = saved_method(
+            "allowed_card",
+            PaymentMethod::Card,
+            Some(PaymentMethodType::Credit),
+            Some(1),
+        );
+        allowed.payment_method_data = Some(saved_card_data(Some("555555")));
+        let mut missing_bin = allowed.clone();
+        missing_bin.payment_token = "missing_bin".to_owned();
+        missing_bin.payment_method_data = Some(saved_card_data(None));
+        let methods = vec![allowed, missing_bin];
+        let enabled = [enabled_method(
+            PaymentMethod::Card,
+            PaymentMethodType::Credit,
+        )];
+        for blocked_bins in [HashSet::new(), HashSet::from(["411111".to_owned()])] {
+            let result = filter_customer_payment_methods(methods.clone(), &enabled, |methods| {
+                ready(filter_customer_pms_by_blocked_bins(methods, &blocked_bins))
+            })
+            .await;
+            assert_eq!(result, methods);
+        }
+    }
 }

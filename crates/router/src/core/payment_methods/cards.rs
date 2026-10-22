@@ -6388,14 +6388,22 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
 /// Filters customer payment methods to keep only the latest Apple Pay and Google Pay method
 /// when multiple DPANs exist. All other payment methods are returned unchanged.
 #[cfg(feature = "v1")]
-fn filter_latest_wallet_methods(
-    payment_methods: Vec<api::CustomerPaymentMethod>,
-) -> Vec<api::CustomerPaymentMethod> {
+pub(super) fn filter_latest_wallet_methods<T: Clone>(
+    payment_methods: Vec<T>,
+    wallet_details: impl Fn(
+        &T,
+    ) -> (
+        api_enums::PaymentMethod,
+        Option<api_enums::PaymentMethodType>,
+        Option<time::PrimitiveDateTime>,
+    ),
+) -> Vec<T> {
     let (wallet_methods, other_methods): (Vec<_>, Vec<_>) =
         payment_methods.into_iter().partition(|pm| {
-            pm.payment_method == api_enums::PaymentMethod::Wallet
-                && (pm.payment_method_type == Some(api_enums::PaymentMethodType::ApplePay)
-                    || pm.payment_method_type == Some(api_enums::PaymentMethodType::GooglePay))
+            let (payment_method, payment_method_type, _) = wallet_details(pm);
+            payment_method == api_enums::PaymentMethod::Wallet
+                && (payment_method_type == Some(api_enums::PaymentMethodType::ApplePay)
+                    || payment_method_type == Some(api_enums::PaymentMethodType::GooglePay))
         });
 
     if wallet_methods.is_empty() {
@@ -6410,13 +6418,13 @@ fn filter_latest_wallet_methods(
     ] {
         let type_methods: Vec<_> = wallet_methods
             .iter()
-            .filter(|pm| pm.payment_method_type == Some(wallet_type))
+            .filter(|pm| wallet_details(pm).1 == Some(wallet_type))
             .cloned()
             .collect();
 
         if type_methods.len() > 1 {
             let mut sorted = type_methods;
-            sorted.sort_by_key(|b| std::cmp::Reverse(b.last_used_at));
+            sorted.sort_by_key(|pm| std::cmp::Reverse(wallet_details(pm).2));
             if let Some(latest) = sorted.into_iter().next() {
                 result.push(latest);
             }
@@ -6466,6 +6474,41 @@ fn get_saved_wallet_details_for_client(
 }
 
 #[cfg(feature = "v1")]
+pub(super) struct CustomerPaymentMethodCandidates {
+    pub(super) payment_methods: Vec<api::CustomerPaymentMethod>,
+    business_profile: Option<Profile>,
+}
+
+#[cfg(feature = "v1")]
+impl CustomerPaymentMethodCandidates {
+    pub(super) async fn into_response(
+        self,
+        state: &routes::SessionState,
+        platform: &domain::Platform,
+        payment_intent: Option<&storage::PaymentIntent>,
+        payment_attempt: Option<&storage::PaymentAttempt>,
+    ) -> errors::RouterResult<api::CustomerPaymentMethodsListResponse> {
+        let mut response = api::CustomerPaymentMethodsListResponse {
+            customer_payment_methods: self.payment_methods,
+            is_guest_customer: payment_intent.as_ref().map(|_| false), //to return this key only when the request is tied to a payment intent
+        };
+
+        Box::pin(perform_surcharge_ops(
+            payment_intent,
+            payment_attempt,
+            state,
+            platform,
+            self.business_profile,
+            &mut response,
+        ))
+        .await
+        .attach_printable("Failed to apply saved payment method surcharges")?;
+
+        Ok(response)
+    }
+}
+
+#[cfg(feature = "v1")]
 pub async fn list_customer_payment_method(
     state: &routes::SessionState,
     platform: &domain::Platform,
@@ -6475,6 +6518,39 @@ pub async fn list_customer_payment_method(
     limit: Option<i64>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
+    let mut candidates = Box::pin(fetch_customer_payment_method_candidates(
+        state,
+        platform,
+        payment_intent,
+        payment_attempt,
+        customer_id,
+        limit,
+        dimensions,
+    ))
+    .await
+    .attach_printable("Failed to fetch saved payment method candidates")?;
+
+    // // Filter to keep only the latest Apple Pay method if duplicates exist
+    candidates.payment_methods = filter_latest_wallet_methods(candidates.payment_methods, |pm| {
+        (pm.payment_method, pm.payment_method_type, pm.last_used_at)
+    });
+
+    candidates
+        .into_response(state, platform, payment_intent, payment_attempt)
+        .await
+        .map(services::ApplicationResponse::Json)
+}
+
+#[cfg(feature = "v1")]
+pub(super) async fn fetch_customer_payment_method_candidates(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    payment_intent: Option<&storage::PaymentIntent>,
+    payment_attempt: Option<&storage::PaymentAttempt>,
+    customer_id: &id_type::CustomerId,
+    limit: Option<i64>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+) -> errors::RouterResult<CustomerPaymentMethodCandidates> {
     let db = &*state.store;
     let off_session_payment_flag = payment_intent
         .as_ref()
@@ -6730,25 +6806,10 @@ pub async fn list_customer_payment_method(
         }
     }
 
-    // // Filter to keep only the latest Apple Pay method if duplicates exist
-    let filtered_customer_pms = filter_latest_wallet_methods(customer_pms);
-
-    let mut response = api::CustomerPaymentMethodsListResponse {
-        customer_payment_methods: filtered_customer_pms,
-        is_guest_customer: payment_intent.as_ref().map(|_| false), //to return this key only when the request is tied to a payment intent
-    };
-
-    Box::pin(perform_surcharge_ops(
-        payment_intent,
-        payment_attempt,
-        state,
-        platform,
+    Ok(CustomerPaymentMethodCandidates {
+        payment_methods: customer_pms,
         business_profile,
-        &mut response,
-    ))
-    .await?;
-
-    Ok(services::ApplicationResponse::Json(response))
+    })
 }
 
 #[cfg(feature = "v1")]
