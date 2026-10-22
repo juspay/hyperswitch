@@ -7125,11 +7125,6 @@ pub async fn delete_payment_method_core(
         .get_required_value("GlobalCustomerId")?;
 
     when(
-        payment_method.status == enums::PaymentMethodStatus::Inactive,
-        || Err(errors::ApiErrorResponse::PaymentMethodNotFound),
-    )?;
-
-    when(
         payment_method.status == enums::PaymentMethodStatus::Redacted,
         || Err(errors::ApiErrorResponse::PaymentMethodRedacted),
     )?;

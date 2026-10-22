@@ -925,7 +925,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_resources_new(
+        Box::pin(self.find_resources_new(
             key_store,
             PaymentMethod::find_by_auxiliary_fingerprint_id_and_status(
                 &conn,
@@ -934,7 +934,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
                 auxiliary_fingerprint_id,
                 status,
             ),
-        )
+        ))
         .await
     }
 }
