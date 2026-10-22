@@ -2411,6 +2411,7 @@ async fn update_connector_managed_mandate_by_connector_txn_id(
         &platform,
         &business_profile,
         payment_method,
+        setup_attempt.payment_id,
         &merchant_connector_account.get_id(),
         event_type,
     )
@@ -2485,6 +2486,7 @@ async fn update_payment_method_mandate_status(
     platform: &domain::Platform,
     business_profile: &domain::Profile,
     payment_method: domain::PaymentMethod,
+    payment_id: common_utils::id_type::PaymentId,
     merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     event_type: webhooks::IncomingWebhookEvent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
@@ -2620,6 +2622,7 @@ async fn update_payment_method_mandate_status(
     Ok(WebhookResponseTracker::PaymentMethod {
         payment_method_id,
         status: tracker_status,
+        payment_id: Some(payment_id),
     })
 }
 
