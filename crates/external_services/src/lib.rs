@@ -13,8 +13,6 @@ pub mod email;
 pub mod file_storage;
 #[cfg(feature = "gcp_kms")]
 pub mod gcp_kms;
-#[allow(missing_docs)]
-pub mod grafana;
 /// Building grpc clients to communicate with the server
 pub mod grpc_client;
 #[cfg(feature = "hashicorp-vault")]
@@ -24,6 +22,8 @@ pub mod http_client;
 /// hubspot_proxy module
 pub mod hubspot_proxy;
 pub mod managers;
+#[allow(missing_docs)]
+pub mod metrics_provider;
 pub mod no_encryption;
 #[cfg(feature = "superposition")]
 pub mod superposition;
