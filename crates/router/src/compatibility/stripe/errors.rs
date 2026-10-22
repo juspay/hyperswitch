@@ -735,8 +735,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
 }
 
 impl actix_web::ResponseError for StripeErrorCode {
-    fn status_code(&self) -> reqwest::StatusCode {
-        use reqwest::StatusCode;
+    fn status_code(&self) -> actix_web::http::StatusCode {
+        use actix_web::http::StatusCode;
 
         match self {
             Self::Unauthorized

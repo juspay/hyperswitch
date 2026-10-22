@@ -1,4 +1,4 @@
-use common_utils::errors::ErrorSwitch;
+use common_utils::{errors::ErrorSwitch, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
 use external_services::http_client::client;
 use hyperswitch_masking::{ExposeInterface, Secret};
@@ -164,11 +164,11 @@ async fn get_oidc_reqwest_client(
     request: oidc::HttpRequest,
 ) -> Result<oidc::HttpResponse, ApiClientError> {
     let client = client::create_client(&state.conf.proxy, None, None, None)
-        .map_err(|e| e.current_context().switch())?;
+        .map_err(|error| error.current_context().switch())?;
 
-    let mut request_builder = client
-        .request(request.method, request.url)
-        .body(request.body);
+    let method = reqwest::Method::from_bytes(request.method.as_str().as_bytes())
+        .map_err(|_| ApiClientError::ClientConstructionFailed)?;
+    let mut request_builder = client.request(method, request.url).body(request.body);
     for (name, value) in &request.headers {
         request_builder = request_builder.header(name.as_str(), value.as_bytes());
     }
@@ -182,8 +182,10 @@ async fn get_oidc_reqwest_client(
         .map_err(|_| ApiClientError::RequestNotSent("OpenIDConnect".to_string()))?;
 
     Ok(oidc::HttpResponse {
-        status_code: response.status(),
-        headers: response.headers().to_owned(),
+        status_code: http::StatusCode::from_u16(response.status().as_u16())
+            .map_err(|_| ApiClientError::ResponseDecodingFailed)?,
+        headers: http::HeaderMap::foreign_try_from(response.headers())
+            .map_err(|error| error.current_context().clone())?,
         body: response
             .bytes()
             .await
