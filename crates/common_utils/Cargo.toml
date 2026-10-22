@@ -49,7 +49,7 @@ phonenumber = "0.3.7"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"
 regex = "1.11.1"
-reqwest = { version = "0.11.27", features = ["json", "native-tls", "gzip", "multipart"] }
+reqwest = { version = "0.12.7", features = ["json", "native-tls", "gzip", "multipart"] }
 ring = { version = "0.17.14", features = ["std", "wasm32_unknown_unknown_js"] }
 rsa = {version = "0.9.8", features = ["sha2"]}
 rust_decimal = "1.37"

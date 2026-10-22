@@ -5,9 +5,13 @@ use std::str::FromStr;
 
 use base64::Engine;
 use error_stack::ResultExt;
-use http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 use hyperswitch_masking::{PeekInterface, StrongSecret};
 use once_cell::sync::OnceCell;
+pub use reqwest::Method;
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue},
+    StatusCode,
+};
 use router_env::{
     global_meter, histogram_metric_f64, instrument, logger, metric_attributes, tracing,
 };
