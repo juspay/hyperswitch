@@ -4082,7 +4082,7 @@ where
             if let UnifiedConnectorServiceError::ConnectorError(inner) = error.current_context() {
                 // Fire kill switch for connector errors
                 if let Ok(flow_name) = get_flow_name::<T>() {
-                    kill_switch::record_failure(
+                    kill_switch::check_record_failure(
                         state,
                         kill_switch::UcsFailureContext {
                             merchant_id: merchant_id.get_string_repr(),
@@ -4123,7 +4123,7 @@ where
                 // Fire kill switch for non-connector UCS errors
                 match get_flow_name::<T>() {
                     Ok(flow_name) => {
-                        kill_switch::record_failure(
+                        kill_switch::check_record_failure(
                             state,
                             kill_switch::UcsFailureContext {
                                 merchant_id: merchant_id.get_string_repr(),
@@ -4323,7 +4323,7 @@ where
             if let UnifiedConnectorServiceError::ConnectorError(inner) = error.current_context() {
                 // Fire kill switch for connector errors
                 if let Ok(flow_name) = get_flow_name::<T>() {
-                    kill_switch::record_failure(
+                    kill_switch::check_record_failure(
                         state,
                         kill_switch::UcsFailureContext {
                             merchant_id: merchant_id.get_string_repr(),
@@ -4365,7 +4365,7 @@ where
                 // typed, so this is the one place the kill switch has to observe.
                 match get_flow_name::<T>() {
                     Ok(flow_name) => {
-                        kill_switch::record_failure(
+                        kill_switch::check_record_failure(
                             state,
                             kill_switch::UcsFailureContext {
                                 merchant_id: merchant_id.get_string_repr(),

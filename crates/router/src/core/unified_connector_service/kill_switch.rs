@@ -267,7 +267,7 @@ struct TrippableFailure {
 /// Records a connector decline: UCS answered gRPC OK with a connector 2xx, and the
 /// connector still refused the payment.
 ///
-/// Separate entry point from [`record_failure`] because there is no
+/// Separate entry point from [`check_record_failure`] because there is no
 /// `UnifiedConnectorServiceError` to classify on this path — the refusal arrives as
 /// `router_data.response` being `Err`. Counts only when the scope sets
 /// `connector_decline_threshold`.
@@ -291,7 +291,7 @@ pub async fn record_decline(
 /// Records a qualifying UCS failure by incrementing its scope's counter.
 ///
 /// Never returns an error: it runs on an already-failing path and must not fail the request.
-pub async fn record_failure(
+pub async fn check_record_failure(
     state: &SessionState,
     context: UcsFailureContext<'_>,
     settings: RolloutSettings,
