@@ -3194,7 +3194,8 @@ where
             ) => {
                 fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
-                });
+                })
+                .attach_printable("Client secret resource ID mismatch")?;
             }
 
             (
@@ -3203,7 +3204,8 @@ where
             ) => {
                 fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
-                });
+                })
+                .attach_printable("Client secret resource ID mismatch")?;
             }
 
             (
@@ -3212,7 +3214,8 @@ where
             ) => {
                 fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
-                });
+                })
+                .attach_printable("Client secret resource ID mismatch")?;
             }
 
             _ => {
@@ -3933,7 +3936,8 @@ where
             ) => {
                 fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
-                });
+                })
+                .attach_printable("Client secret resource ID mismatch")?;
             }
             (
                 common_utils::types::authentication::ResourceId::Customer(self_id),
@@ -3941,7 +3945,8 @@ where
             ) => {
                 fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
-                });
+                })
+                .attach_printable("Client secret resource ID mismatch")?;
             }
             (
                 common_utils::types::authentication::ResourceId::PaymentMethodSession(self_id),
@@ -3949,7 +3954,8 @@ where
             ) => {
                 fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
-                });
+                })
+                .attach_printable("Client secret resource ID mismatch")?;
             }
             _ => {
                 return Err(errors::ApiErrorResponse::Unauthorized.into());
