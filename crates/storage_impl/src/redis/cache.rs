@@ -945,17 +945,25 @@ where
     // The redis connection is acquired only when this caller is the one populating, so an
     // in-memory hit answers during a redis outage rather than erroring, and concurrent
     // misses for one key cost a single redis round trip between them.
-    cache
-        .get_or_populate_in_memory(cache_key, async {
-            let redis = store
-                .get_redis_conn()
-                .change_context(StorageError::RedisError(
-                    RedisError::RedisConnectionError.into(),
-                ))
-                .attach_printable("Failed to get redis connection")?;
-            get_or_populate_redis(&redis, key, redis_ttl, fun).await
-        })
+    // Keep the nested population futures on the heap: large values such as business profiles
+    // otherwise inflate the debug poll frames enough to overflow a payment worker's stack.
+    let populate_future = Box::pin(fun);
+    Box::pin(cache.get_or_populate_in_memory(cache_key, async {
+        let redis = store
+            .get_redis_conn()
+            .change_context(StorageError::RedisError(
+                RedisError::RedisConnectionError.into(),
+            ))
+            .attach_printable("Failed to get redis connection")?;
+        Box::pin(get_or_populate_redis(
+            &redis,
+            key,
+            redis_ttl,
+            populate_future,
+        ))
         .await
+    }))
+    .await
 }
 
 #[instrument(skip_all)]
