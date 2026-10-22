@@ -1,5 +1,7 @@
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
+
+use crate::core::payouts::gateway as payout_gateway;
 pub mod access_token;
 pub mod gateway;
 #[cfg(feature = "v1")]
@@ -41,7 +43,6 @@ use external_services::grpc_client;
 #[cfg(feature = "olap")]
 use futures::future::join_all;
 use hyperswitch_domain_models::{self as domain_models, payment_methods::PaymentMethod};
-use hyperswitch_interfaces::api::gateway as payout_gateway;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;

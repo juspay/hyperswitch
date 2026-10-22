@@ -23,7 +23,6 @@ use hyperswitch_domain_models::{
     payment_method_data::{get_applepay_wallet_info, get_googlepay_wallet_info},
     transformers::ForeignFrom as _,
 };
-use hyperswitch_interfaces::api::gateway;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
@@ -39,7 +38,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::{self, cards::PmCards, network_tokenization},
-        payments::{self, gateway::context as gateway_context},
+        payments::{self, gateway, gateway::context as gateway_context},
         utils::create_encrypted_data,
     },
     logger,
