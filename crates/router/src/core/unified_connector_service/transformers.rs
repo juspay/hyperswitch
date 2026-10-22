@@ -3028,7 +3028,7 @@ impl
                 .request
                 .mit_category
                 .map(payments_grpc::MitCategory::foreign_from)
-                .map(|category| category as i32),
+                .map(i32::from),
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
