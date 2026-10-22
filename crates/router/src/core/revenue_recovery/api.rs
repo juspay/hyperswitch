@@ -369,7 +369,7 @@ pub async fn custom_revenue_recovery_core(
             .to_string(),
         })?;
 
-    let (revenue_recovery_attempt_data, updated_recovery_intent) =
+    let (revenue_recovery_attempt_data, updated_recovery_intent) = Box::pin(
         recovery_incoming::RevenueRecoveryAttempt::load_recovery_attempt_from_api(
             request.clone(),
             &state,
@@ -378,28 +378,29 @@ pub async fn custom_revenue_recovery_core(
             &profile,
             recovery_intent.clone(),
             payment_merchant_connector_account,
-        )
-        .await
-        .map_err(|error| {
-            let api_error = match error.current_context() {
-                errors::RevenueRecoveryError::PaymentAttemptAlreadyRecorded => {
-                    errors::ApiErrorResponse::GenericDuplicateError {
-                        message: format!(
-                            "The transaction {} is already recorded against the invoice {}",
-                            request.connector_transaction_id,
-                            request.merchant_reference_id.get_string_repr()
-                        ),
-                    }
-                }
-                _ => errors::ApiErrorResponse::GenericNotFoundError {
+        ),
+    )
+    .await
+    .map_err(|error| {
+        let api_error = match error.current_context() {
+            errors::RevenueRecoveryError::PaymentAttemptAlreadyRecorded => {
+                errors::ApiErrorResponse::GenericDuplicateError {
                     message: format!(
-                        "Failed to load recovery attempt for merchant reference id : {:?}",
-                        request.merchant_reference_id.to_owned()
+                        "The transaction {} is already recorded against the invoice {}",
+                        request.connector_transaction_id,
+                        request.merchant_reference_id.get_string_repr()
                     ),
-                },
-            };
-            error.change_context(api_error)
-        })?;
+                }
+            }
+            _ => errors::ApiErrorResponse::GenericNotFoundError {
+                message: format!(
+                    "Failed to load recovery attempt for merchant reference id : {:?}",
+                    request.merchant_reference_id.to_owned()
+                ),
+            },
+        };
+        error.change_context(api_error)
+    })?;
 
     let intent_retry_count = updated_recovery_intent
         .feature_metadata
