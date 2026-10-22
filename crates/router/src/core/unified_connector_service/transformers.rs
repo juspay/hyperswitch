@@ -73,14 +73,10 @@ const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
 
-impl transformers::ForeignTryFrom<&api_models::payments::ConnectorMetadata>
+impl ForeignFrom<&api_models::payments::ConnectorMetadata>
     for payments_grpc::AdditionalConnectorDetails
 {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        metadata: &api_models::payments::ConnectorMetadata,
-    ) -> Result<Self, Self::Error> {
+    fn foreign_from(metadata: &api_models::payments::ConnectorMetadata) -> Self {
         let api_models::payments::ConnectorMetadata {
             checkout,
             apple_pay: _,
@@ -92,26 +88,13 @@ impl transformers::ForeignTryFrom<&api_models::payments::ConnectorMetadata>
             santander: _,
             worldpayxml,
             stripe,
-            jpmorgan,
         } = metadata;
-        if jpmorgan.as_ref().is_some_and(|details| {
-            details.authentication_use_case.is_some()
-                || details.merchant_fraud_risk_score.is_some()
-                || details.requested_challenge_preference.is_some()
-                || details.original_three_ds.is_some()
-                || details.trans_status_reason.is_some()
-        }) {
-            return Err(UnifiedConnectorServiceError::NotImplemented(
-                "JPMorgan connector metadata is not supported by the UCS contract".to_string(),
-            )
-            .into());
-        }
         fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
             serde_json::to_value(value)
                 .ok()
                 .and_then(|value| value.as_str().map(ToString::to_string))
         }
-        Ok(Self {
+        Self {
             checkout: checkout
                 .as_ref()
                 .map(|data| payments_grpc::CheckoutAdditionalInformation {
@@ -130,7 +113,7 @@ impl transformers::ForeignTryFrom<&api_models::payments::ConnectorMetadata>
                 .map(|data| payments_grpc::StripeAdditionalInformation {
                     error_on_requires_action: data.error_on_requires_action,
                 }),
-        })
+        }
     }
 }
 
@@ -895,8 +878,7 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_try_from)
-                .transpose()?,
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
         })
@@ -1157,8 +1139,7 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_try_from)
-                .transpose()?,
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
         })
@@ -2436,8 +2417,7 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_try_from)
-                .transpose()?,
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
         })
@@ -2654,8 +2634,7 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_try_from)
-                .transpose()?,
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
         })
@@ -3086,8 +3065,7 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_try_from)
-                .transpose()?,
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
         })
     }
 }
@@ -3630,8 +3608,7 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_try_from)
-                .transpose()?,
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
         })
     }
 }
@@ -4859,6 +4836,8 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data
     }
 }
 
+/// The MIT counterpart of the `NetworkTokenData` conversion: no cryptogram, since an MIT has no
+/// cardholder present and authorizes on the network transaction ID.
 #[cfg(feature = "v1")]
 impl
     transformers::ForeignTryFrom<
@@ -5116,10 +5095,8 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                     ),
                 )?;
                 Ok(Self::DecryptedData(payments_grpc::ApplePayDecryptedData {
-                    merchant_token_identifier: decrypted_data
-                        .merchant_token_identifier
-                        .as_deref()
-                        .map(str::to_owned),
+                    // New in the bumped client; not populated by the router yet.
+                    merchant_token_identifier: None,
                     application_primary_account_number: Some(application_primary_account_number),
                     application_expiration_month: Some(
                         decrypted_data
@@ -5334,23 +5311,6 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
                 }),
             ),
             common_types::payments::GpayTokenizationData::Decrypted(decrypted_data) => {
-                let valid_cryptogram = decrypted_data
-                    .cryptogram
-                    .as_ref()
-                    .is_some_and(|cryptogram| !cryptogram.peek().trim().is_empty());
-                let valid_authentication = match decrypted_data.auth_method {
-                    Some(common_enums::GooglePayAuthMethod::PanOnly) => {
-                        decrypted_data.cryptogram.is_none()
-                    }
-                    Some(common_enums::GooglePayAuthMethod::Cryptogram) => valid_cryptogram,
-                    None => decrypted_data.cryptogram.is_none() || valid_cryptogram,
-                };
-                if !valid_authentication {
-                    return Err(UnifiedConnectorServiceError::InvalidDataFormat {
-                        field_name: "google_pay.tokenization_data.auth_method".into(),
-                    }
-                    .into());
-                }
                 let application_primary_account_number = CardNumber::from_str(
                     &decrypted_data
                         .application_primary_account_number
