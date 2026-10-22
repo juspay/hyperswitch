@@ -630,6 +630,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
     },
     ConfirmUpdate {
+        setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         amount: MinorUnit,
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
@@ -1090,6 +1091,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub network_error_message: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub amount_captured: Option<MinorUnit>,
+    pub error_details: Option<ErrorDetails>,
 }
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -1286,6 +1288,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -1338,6 +1341,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -1386,6 +1390,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -1432,6 +1437,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::ConnectorResponse {
@@ -1474,6 +1480,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::ManualUpdate {
@@ -1522,6 +1529,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
         }
@@ -2687,6 +2695,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 active_frm_id: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
+                setup_future_usage_applied,
                 amount,
                 currency,
                 authentication_type,
@@ -2796,7 +2805,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage_applied: None,
+                setup_future_usage_applied,
                 routing_approach,
                 connector_request_reference_id,
                 network_transaction_id,

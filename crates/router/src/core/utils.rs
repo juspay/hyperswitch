@@ -37,11 +37,11 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "frm")]
 use hyperswitch_interfaces::configs::Connectors;
+#[cfg(feature = "payouts")]
+use hyperswitch_masking::ExposeInterface;
 #[cfg(feature = "v2")]
 use hyperswitch_masking::ExposeOptionInterface;
-use hyperswitch_masking::Secret;
-#[cfg(feature = "payouts")]
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{PeekInterface, Secret};
 use maud::{html, PreEscaped};
 use redis_interface::errors::RedisError;
 use regex::Regex;
@@ -73,6 +73,34 @@ use crate::{
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
+
+pub async fn get_merchant_fingerprint_secret(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+) -> RouterResult<String> {
+    match merchant_account.fingerprint_secret.as_ref() {
+        Some(secret) => Ok(secret.peek().clone()),
+        None => {
+            router_env::logger::warn!(
+                merchant_id = ?merchant_account.get_id(),
+                "fingerprint_secret missing from merchant account; falling back to Superposition"
+            );
+            super::metrics::FINGERPRINT_SECRET_SUPERPOSITION_FETCH_COUNT.add(1, &[]);
+            let dimensions = dimension_state::Dimensions::new()
+                .with_processor_merchant_id(merchant_account.get_id().clone().into());
+            let secret = dimensions
+                .get_fingerprint_secret(&*state.store, state.superposition_service.as_ref(), None)
+                .await;
+
+            match secret.is_empty() {
+                false => Ok(secret),
+                true => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "fingerprint_secret not found in merchant account or Superposition",
+                ),
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct FeatureConfig {
@@ -188,6 +216,40 @@ pub async fn construct_payout_router_data<'a, F>(
     platform: &domain::Platform,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
+    use crate::core::payouts::proxy::ExternalVaultPayout;
+
+    match payout_data.payout_attempt.execution_kind {
+        common_enums::PayoutExecutionKind::ExternalVaultProxy => {
+            Box::pin(
+                ExternalVaultPayout { state, platform }
+                    .construct_proxy_payout_router_data(connector_data, payout_data),
+            )
+            .await
+        }
+        common_enums::PayoutExecutionKind::Normal => match payout_data.external_vault_pmd.is_some()
+            || !matches!(
+                payout_data.execution_context,
+                crate::core::payouts::proxy::PayoutExecutionContext::Normal
+            ) {
+            true => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Normal payouts cannot carry external vault execution data".to_owned(),
+            })),
+            false => {
+                construct_payout_router_data_common(state, connector_data, platform, payout_data)
+                    .await
+            }
+        },
+    }
+}
+
+/// Execution-specific checks run before this shared request builder.
+#[cfg(all(feature = "payouts", feature = "v1"))]
+pub(super) async fn construct_payout_router_data_common<F>(
+    state: &SessionState,
+    connector_data: &api::ConnectorData,
+    platform: &domain::Platform,
+    payout_data: &mut PayoutData,
+) -> RouterResult<types::PayoutsRouterData<F>> {
     let merchant_connector_account = payout_data
         .merchant_connector_account
         .clone()
@@ -229,16 +291,27 @@ pub async fn construct_payout_router_data<'a, F>(
         match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
             |err| report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err),
         )? {
-            api_models::enums::PayoutConnectors::Stripe => {
-                payout_data.payouts.metadata.to_owned().and_then(|meta| {
-                    let val = meta
-                        .peek()
-                        .to_owned()
-                        .parse_value("PayoutVendorAccountDetails")
-                        .ok();
-                    val
+            api_models::enums::PayoutConnectors::Stripe => payout_data
+                .payouts
+                .metadata
+                .as_ref()
+                // Parse only metadata that carries vendor details; unrelated
+                // merchant metadata keeps the previous behavior and is treated
+                // as absent.
+                .filter(|metadata| {
+                    let value = metadata.peek();
+                    value.get("vendor_details").is_some()
+                        || value.get("individual_details").is_some()
                 })
-            }
+                .map(|metadata| {
+                    serde_json::from_value::<PayoutVendorAccountDetails>(metadata.peek().to_owned())
+                        .map_err(|error| {
+                            report!(errors::ApiErrorResponse::InvalidRequestData {
+                                message: format!("Invalid payout metadata: {error}"),
+                            })
+                        })
+                })
+                .transpose()?,
             _ => None,
         };
 
@@ -251,8 +324,9 @@ pub async fn construct_payout_router_data<'a, F>(
             .get_string_repr(),
     );
 
-    let connector_transfer_method_id =
-        payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?;
+    let connector_transfer_method_id = payout_data.connector_transfer_method_id.clone().or(
+        payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?,
+    );
 
     let browser_info = payout_data.browser_info.to_owned();
 
@@ -328,6 +402,7 @@ pub async fn construct_payout_router_data<'a, F>(
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
             source_bank_data: payout_data.source_bank_data.clone(),
             billing_descriptor: payouts.billing_descriptor.clone(),
+            external_vault_pmd: payout_data.external_vault_pmd.clone(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -900,25 +975,44 @@ pub fn get_split_refunds(
                 (_, _) => (None, None),
             };
 
-            if let Some(charge_id) = charge_id_option {
-                let options = refunds_validator::validate_stripe_charge_refund(
-                    charge_type_option,
-                    &split_refund_input.refund_request,
-                )?;
-
-                Ok(Some(
-                    router_request_types::SplitRefundsRequest::StripeSplitRefund(
-                        router_request_types::StripeSplitRefund {
-                            charge_id,
-                            charge_type: stripe_payment.charge_type.clone(),
-                            transfer_account_id: stripe_payment.transfer_account_id.clone(),
-                            options,
-                        },
-                    ),
-                ))
-            } else {
-                Ok(None)
+            // Destination charges are created on the platform account, so a refund issued
+            // against the payment intent already reaches the right account with no split refund
+            // data; only direct charges need it, because only they carry the `Stripe-Account`
+            // header. Keeping the old `None` for destination also keeps the merchant-facing
+            // validation below off a path that used to work without `split_refunds`.
+            if charge_id_option.is_none()
+                && !matches!(
+                    stripe_payment.charge_type,
+                    api_models::enums::PaymentChargeType::Stripe(
+                        api_models::enums::StripeChargeType::Direct
+                    )
+                )
+            {
+                return Ok(None);
             }
+
+            let options = refunds_validator::validate_stripe_charge_refund(
+                charge_type_option,
+                &split_refund_input.refund_request,
+            )?;
+
+            // The charge id is only known once charge data has been persisted on the attempt,
+            // which does not happen for payments that reach a terminal state without a PSync.
+            // The Connect routing information lives on the payment intent and is always
+            // present, so the refund must still be built as a split refund - issued against
+            // the payment intent rather than the charge when the charge id is unknown.
+            // Returning `None` here instead would silently downgrade the refund to the
+            // non-Connect shape and send it to the platform account.
+            Ok(Some(
+                router_request_types::SplitRefundsRequest::StripeSplitRefund(
+                    router_request_types::StripeSplitRefund {
+                        charge_id: charge_id_option,
+                        charge_type: stripe_payment.charge_type.clone(),
+                        transfer_account_id: stripe_payment.transfer_account_id.clone(),
+                        options,
+                    },
+                ),
+            ))
         }
         Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_)) => {
             match &split_refund_input.payment_charges {
