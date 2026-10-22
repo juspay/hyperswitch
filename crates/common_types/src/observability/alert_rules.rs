@@ -1,10 +1,10 @@
 //! The typed columns of `alert_rules`: the rule's `status` and its versioned
 //! `alerts_configuration`, with the checks a configuration passes before it is stored.
 //!
-//! The configuration, its query and its thresholds each carry their own `version` label, so one
-//! part can change format without the others. Writers always write the newest version; readers
-//! accept every version still listed here. A new optional field (with a default) needs no new
-//! version; a new datasource is a new [`AlertQueryV1`] variant, not a new version.
+//! The configuration, its thresholds and each datasource's query carry their own `version` label,
+//! so one part can change format without the others. Writers always write the newest version;
+//! readers accept every version still listed here. A new optional field (with a default) needs no
+//! new version; a new datasource is a new [`AlertQuery`] variant with its own versions.
 //!
 //! Nothing here depends on the existing CloudWatch alarm catalogue or evaluator, so that code can
 //! be removed without touching alert rules.
@@ -93,32 +93,33 @@ pub struct AlertConfigurationV1 {
     /// How often the rule is checked, in seconds. Not the size of a data point; that is the
     /// query's `period`.
     pub interval_seconds: u32,
-    /// The versioned query, so the query can change format without a new configuration version.
+    /// The query, versioned per datasource, so it can change format without a new configuration
+    /// version.
     pub query: AlertQuery,
     /// The versioned thresholds, so they can change format without a new configuration version.
     pub thresholds: AlertThresholds,
 }
 
-/// What to fetch.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-#[serde(tag = "version", rename_all = "snake_case")]
-pub enum AlertQuery {
-    /// The first version.
-    V1(AlertQueryV1),
-}
-
-/// The query's type, chosen by `datasource`.
+/// What to fetch, chosen by `datasource`. Each datasource versions its own query.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "datasource", rename_all = "snake_case")]
-pub enum AlertQueryV1 {
+pub enum AlertQuery {
     /// A CloudWatch metric.
     Cloudwatch(CloudWatchQuery),
 }
 
-/// A CloudWatch metric, with the fields and meaning of a CloudWatch alarm's metric.
+/// A CloudWatch metric query.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum CloudWatchQuery {
+    /// The first version.
+    V1(CloudWatchQueryV1),
+}
+
+/// Version 1 of the CloudWatch query, with the fields and meaning of a CloudWatch alarm's metric.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudWatchQuery {
+pub struct CloudWatchQueryV1 {
     /// AWS region the metric lives in, e.g. `us-east-1`.
     pub region: String,
     /// Metric namespace, e.g. `AWS/RDS`.
@@ -271,12 +272,12 @@ impl AlertConfigurationV1 {
 impl AlertQuery {
     fn validate(&self, path: &str) -> Result<(), String> {
         match self {
-            Self::V1(AlertQueryV1::Cloudwatch(query)) => query.validate(path),
+            Self::Cloudwatch(CloudWatchQuery::V1(query)) => query.validate(path),
         }
     }
 }
 
-impl CloudWatchQuery {
+impl CloudWatchQueryV1 {
     fn validate(&self, path: &str) -> Result<(), String> {
         if blank(&self.region) {
             return Err(format!("{path}.region must not be empty"));
@@ -454,7 +455,7 @@ mod tests {
         assert_eq!(parsed.validate(), Ok(()));
 
         let AlertConfiguration::V1(v1) = parsed;
-        let AlertQuery::V1(AlertQueryV1::Cloudwatch(query)) = v1.query;
+        let AlertQuery::Cloudwatch(CloudWatchQuery::V1(query)) = v1.query;
         assert_eq!(query.statistic, Statistic::Average);
         let AlertThresholds::V1(thresholds) = v1.thresholds;
         assert_eq!(
