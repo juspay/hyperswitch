@@ -31448,6 +31448,68 @@
           }
         }
       },
+      "RecoveryOutgoingWebhook": {
+        "type": "object",
+        "description": "Outgoing webhook sent for revenue recovery flows. Only carries the payment response.",
+        "required": [
+          "merchant_id",
+          "event_id",
+          "event_type",
+          "content"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The provider merchant id (platform/business owner)"
+          },
+          "event_id": {
+            "type": "string",
+            "description": "The unique event id for each webhook"
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "content": {
+            "$ref": "#/components/schemas/RecoveryOutgoingWebhookContent"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time at which webhook was sent"
+          },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The merchant id of the merchant account whose connector credentials are used for payment processing",
+            "nullable": true
+          }
+        }
+      },
+      "RecoveryOutgoingWebhookContent": {
+        "oneOf": [
+          {
+            "type": "object",
+            "title": "PaymentsResponse",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/PaymentsResponse"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "RecoveryPaymentsCreate": {
         "type": "object",
         "required": [

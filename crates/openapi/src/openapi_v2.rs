@@ -866,6 +866,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::FrmMessage,
         api_models::webhooks::OutgoingWebhook,
         api_models::webhooks::OutgoingWebhookContent,
+        api_models::webhooks::RecoveryOutgoingWebhook,
+        api_models::webhooks::RecoveryOutgoingWebhookContent,
         api_models::enums::EventClass,
         api_models::enums::EventType,
         api_models::enums::DecoupledAuthenticationType,

@@ -515,7 +515,13 @@
                 "group": "Revenue Recovery",
                 "pages": [
                   "v2/revenue-recovery/revenue-recovery--create",
-                  "v2/revenue-recovery/revenue-recovery--cancel"
+                  "v2/revenue-recovery/revenue-recovery--cancel",
+                  {
+                    "group": "Schemas",
+                    "pages": [
+                      "v2/revenue-recovery/outgoing--webhook"
+                    ]
+                  }
                 ]
               }
             ]
