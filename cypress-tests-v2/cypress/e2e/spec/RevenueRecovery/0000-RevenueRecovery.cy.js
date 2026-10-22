@@ -83,19 +83,24 @@ describe("Revenue Recovery workflow tests", () => {
   after("cleanup revenue recovery merchant", () => {
     cy.revenueRecoveryMcaDeleteCallTest(globalState);
 
-    if (sharedStateSnapshot) {
-      Object.entries(sharedStateSnapshot).forEach(([key, value]) => {
-        if (typeof value !== "undefined") {
-          globalState.set(key, value);
-        }
-      });
-    }
-
     if (globalState.get("merchantId")) {
       cy.merchantDeleteCall(globalState);
     }
 
-    cy.task("setGlobalState", globalState.data);
+    // Restore shared keys only after the throwaway merchant is deleted so
+    // merchantDeleteCall targets the revenue-recovery merchant, not the
+    // original merchant later Payment specs rely on.
+    cy.then(() => {
+      if (sharedStateSnapshot) {
+        Object.entries(sharedStateSnapshot).forEach(([key, value]) => {
+          if (typeof value !== "undefined") {
+            globalState.set(key, value);
+          }
+        });
+      }
+
+      cy.task("setGlobalState", globalState.data);
+    });
   });
 
   context("Revenue Recovery happy paths", () => {
@@ -226,7 +231,7 @@ describe("Revenue Recovery workflow tests", () => {
       });
     });
 
-    it("Cancel while retry in progress returns RetryInProgress", () => {
+    it("Cancel while retry in progress returns RetryInProgress", function () {
       const data = revenueRecoveryDetails("CancelRetryInProgress");
 
       if (data.Configs && data.Configs.TRIGGER_SKIP) {
@@ -240,7 +245,7 @@ describe("Revenue Recovery workflow tests", () => {
       cy.revenueRecoveryCancelCallTest(data, globalState);
     });
 
-    it("Cancel after terminal recovery returns AlreadyTerminal", () => {
+    it("Cancel after terminal recovery returns AlreadyTerminal", function () {
       const data = revenueRecoveryDetails("CancelAlreadyTerminal");
 
       if (data.Configs && data.Configs.TRIGGER_SKIP) {
@@ -333,7 +338,7 @@ describe("Revenue Recovery workflow tests", () => {
       });
     });
 
-    it("Max retry count exhaustion skips further retries", () => {
+    it("Max retry count exhaustion skips further retries", function () {
       const data = revenueRecoveryDetails("MaxRetryExhausted");
 
       if (data.Configs && data.Configs.TRIGGER_SKIP) {

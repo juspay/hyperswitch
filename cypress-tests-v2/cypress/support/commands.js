@@ -1575,3 +1575,620 @@ Cypress.Commands.add(
     });
   }
 );
+
+// ---------------------------------------------------------------------------
+// Shared test-harness helpers (ported from cypress-tests v1) used by
+// spec/RevenueRecovery/0000-RevenueRecovery.cy.js.
+// ---------------------------------------------------------------------------
+
+Cypress.Commands.add("step", (stepName, fn) => {
+  cy.task("cli_log", `\nSTEP: ${stepName}`);
+
+  const log = Cypress.log({
+    name: "step",
+    displayName: "⬡ STEP",
+    message: `**${stepName}**`,
+    groupStart: true,
+    consoleProps: () => ({ Step: stepName }),
+  });
+
+  let failed = false;
+
+  try {
+    fn();
+  } catch (err) {
+    failed = true;
+    Cypress.log({ groupEnd: true, emitOnly: true });
+    throw err;
+  }
+
+  cy.then(() => {
+    if (failed) {
+      log.set({ displayName: "✗ STEP", message: stepName });
+    } else {
+      log.set({ displayName: "✓ STEP", message: stepName, collapsed: true });
+    }
+    Cypress.log({ groupEnd: true, emitOnly: true });
+  });
+});
+
+Cypress.Commands.add("signupUserWithMerchant", (namePrefix, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  // crypto.randomInt is Node-only; use rejection sampling over getRandomValues
+  // (available in the browser) to avoid modulo bias.
+  const randomBuf = new Uint32Array(1);
+  const maxUnbiased = Math.floor(0xffffffff / 10000) * 10000;
+  let randomWord;
+  do {
+    crypto.getRandomValues(randomBuf);
+    randomWord = randomBuf[0];
+  } while (randomWord >= maxUnbiased);
+  const randomPart = randomWord % 10000;
+  const uniqueSuffix = `${Date.now()}${randomPart}`;
+  const email = `cypress_${namePrefix.toLowerCase()}_${uniqueSuffix}@cypresstest.in`;
+  const password = `Cypress@${uniqueSuffix}`;
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/user/signup_with_merchant_id`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    body: {
+      email,
+      password,
+      company_name: `${namePrefix}${uniqueSuffix}`,
+      name: namePrefix,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status !== 200) {
+        throw new Error(
+          `signup_with_merchant_id failed with status: "${response.status}" and message: "${JSON.stringify(response.body)}"`
+        );
+      }
+      globalState.set("email", email);
+      globalState.set("password", password);
+    });
+  });
+});
+
+Cypress.Commands.add("merchantDeleteCall", (globalState) => {
+  const merchant_id = globalState.get("merchantId");
+  cy.request({
+    method: "DELETE",
+    url: `${globalState.get("baseUrl")}/accounts/${merchant_id}`,
+    headers: {
+      Accept: "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.body.merchant_id).to.equal(merchant_id);
+      expect(response.body.deleted).to.equal(true);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Revenue Recovery (v2) commands
+// Used by spec/RevenueRecovery/0000-RevenueRecovery.cy.js.
+// These hit v2-only routes (`/v2/recovery`, `/v2/connector-accounts`,
+// `/v2/profiles`, `/v2/api-keys`, `/v2/process-trackers/...`) because
+// `feature_metadata.revenue_recovery`, `revenue_recovery_retry_algorithm_type`
+// and the revenue recovery workflow endpoints only exist on v2 builds.
+// ---------------------------------------------------------------------------
+
+Cypress.Commands.add(
+  "revenueRecoveryPaymentConnectorCreateCallTest",
+  (globalState) => {
+    const api_key = globalState.get("adminApiKey");
+    const base_url = globalState.get("baseUrl");
+    const merchant_id = globalState.get("merchantId");
+    const profile_id = globalState.get("profileId");
+    const url = `${base_url}/v2/connector-accounts`;
+    const connectorName = "stripe";
+
+    cy.readFile(globalState.get("connectorAuthFilePath")).then(
+      (jsonContent) => {
+        const authDetails = getValueByKey(
+          JSON.stringify(jsonContent),
+          connectorName
+        );
+        if (!authDetails || !authDetails.connector_account_details) {
+          throw new Error(
+            `No connector_account_details found in auth file for "${connectorName}"`
+          );
+        }
+
+        const body = {
+          connector_type: "payment_processor",
+          connector_name: connectorName,
+          connector_label: `rr_payment_${connectorName}_${Date.now()}`,
+          profile_id: profile_id,
+          connector_account_details: authDetails.connector_account_details,
+          payment_methods_enabled: [],
+          disabled: false,
+        };
+
+        if (authDetails.metadata) {
+          body.metadata = { ...authDetails.metadata };
+        }
+
+        cy.request({
+          method: "POST",
+          url: url,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `admin-api-key=${api_key}`,
+            "x-merchant-id": merchant_id,
+            "x-profile-id": profile_id,
+          },
+          body: body,
+          failOnStatusCode: false,
+        }).then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+          cy.wrap(response).then(() => {
+            expect(response.status).to.eq(200);
+            expect(response.body.id).to.include("mca_").and.to.not.be.empty;
+            expect(response.body.connector_name).to.eq(connectorName);
+            expect(response.body.status).to.eq("active");
+
+            globalState.set("revenueRecoveryPaymentMcaId", response.body.id);
+            cy.task("setGlobalState", globalState.data);
+          });
+        });
+      }
+    );
+  }
+);
+
+Cypress.Commands.add(
+  "revenueRecoveryBillingConnectorCreateCallTest",
+  (globalState) => {
+    const api_key = globalState.get("adminApiKey");
+    const base_url = globalState.get("baseUrl");
+    const merchant_id = globalState.get("merchantId");
+    const profile_id = globalState.get("profileId");
+    const paymentMcaId = globalState.get("revenueRecoveryPaymentMcaId");
+    const url = `${base_url}/v2/connector-accounts`;
+    const connectorName = "custombilling";
+
+    if (!paymentMcaId) {
+      throw new Error(
+        "revenueRecoveryPaymentMcaId must be set before creating the billing connector"
+      );
+    }
+
+    cy.readFile(globalState.get("connectorAuthFilePath")).then(
+      (jsonContent) => {
+        const authDetails = getValueByKey(
+          JSON.stringify(jsonContent),
+          connectorName
+        );
+        if (!authDetails || !authDetails.connector_account_details) {
+          throw new Error(
+            `No connector_account_details found in auth file for "${connectorName}"`
+          );
+        }
+
+        const body = {
+          connector_type: "billing_processor",
+          connector_name: connectorName,
+          connector_label: `rr_billing_${connectorName}_${Date.now()}`,
+          profile_id: profile_id,
+          connector_account_details: authDetails.connector_account_details,
+          payment_methods_enabled: [],
+          disabled: false,
+          feature_metadata: {
+            revenue_recovery: {
+              max_retry_count: 5,
+              billing_connector_retry_threshold: 0,
+              max_hybrid_cascading_retry_count: 3,
+              grace_period_days: 1,
+              enable_partial_authorization: false,
+              billing_account_reference: {
+                [paymentMcaId]: "custombilling_test_billing_ref",
+              },
+            },
+          },
+        };
+
+        if (authDetails.metadata) {
+          body.metadata = { ...authDetails.metadata };
+        }
+
+        cy.request({
+          method: "POST",
+          url: url,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `admin-api-key=${api_key}`,
+            "x-merchant-id": merchant_id,
+            "x-profile-id": profile_id,
+          },
+          body: body,
+          failOnStatusCode: false,
+        }).then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+          cy.wrap(response).then(() => {
+            expect(response.status).to.eq(200);
+            expect(response.body.id).to.include("mca_").and.to.not.be.empty;
+            expect(response.body.connector_name).to.eq(connectorName);
+            expect(response.body.status).to.eq("active");
+
+            globalState.set("revenueRecoveryBillingMcaId", response.body.id);
+            cy.task("setGlobalState", globalState.data);
+          });
+        });
+      }
+    );
+  }
+);
+
+Cypress.Commands.add("revenueRecoveryProfileUpdateCallTest", (globalState) => {
+  const api_key = globalState.get("adminApiKey");
+  const base_url = globalState.get("baseUrl");
+  const merchant_id = globalState.get("merchantId");
+  const profile_id = globalState.get("profileId");
+  const url = `${base_url}/v2/profiles/${profile_id}`;
+
+  cy.request({
+    method: "PUT",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `admin-api-key=${api_key}`,
+      "x-merchant-id": merchant_id,
+    },
+    body: {
+      revenue_recovery_retry_algorithm_type: "cascading",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    cy.wrap(response).then(() => {
+      expect(response.status).to.eq(200);
+      expect(response.body.revenue_recovery_retry_algorithm_type).to.eq(
+        "cascading"
+      );
+    });
+  });
+});
+
+Cypress.Commands.add("revenueRecoveryApiKeyCreateCallTest", (globalState) => {
+  const api_key = globalState.get("adminApiKey");
+  const base_url = globalState.get("baseUrl");
+  const merchant_id = globalState.get("merchantId");
+  const url = `${base_url}/v2/api-keys`;
+  const expiry = isoTimeTomorrow();
+
+  cy.request({
+    method: "POST",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `admin-api-key=${api_key}`,
+      "x-merchant-id": merchant_id,
+    },
+    body: {
+      name: `rr_api_key_${Date.now()}`,
+      description: "Revenue Recovery test API key",
+      expiration: expiry,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    cy.wrap(response).then(() => {
+      expect(response.status).to.eq(200);
+      expect(response.body).to.have.property("key_id").and.to.not.be.empty;
+      expect(response.body).to.have.property("api_key").and.to.not.be.empty;
+
+      globalState.set("revenueRecoveryApiKeyId", response.body.key_id);
+      globalState.set("revenueRecoveryApiKey", response.body.api_key);
+      cy.task("setGlobalState", globalState.data);
+    });
+  });
+});
+
+Cypress.Commands.add(
+  "revenueRecoveryCreateCallTest",
+  (requestBody, data, globalState, options = {}) => {
+    const requestData = data.Request || {};
+    const responseData = data.Response || { status: 200, body: {} };
+    const base_url = globalState.get("baseUrl");
+    const profile_id = globalState.get("profileId");
+    const url = `${base_url}/v2/recovery`;
+
+    const body = { ...requestData, ...requestBody };
+
+    if (!body.billing_merchant_connector_id) {
+      body.billing_merchant_connector_id = globalState.get(
+        "revenueRecoveryBillingMcaId"
+      );
+    }
+    if (!body.payment_merchant_connector_id) {
+      body.payment_merchant_connector_id = globalState.get(
+        "revenueRecoveryPaymentMcaId"
+      );
+    }
+    if (!body.transaction_created_at) {
+      body.transaction_created_at = new Date().toISOString();
+    }
+    if (!body.billing_started_at) {
+      body.billing_started_at = new Date(
+        Date.now() - 24 * 60 * 60 * 1000
+      ).toISOString();
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `api-key=${globalState.get("revenueRecoveryApiKey")}`,
+      "X-Profile-Id": profile_id,
+    };
+    if (options.omitApiKey) {
+      delete headers.Authorization;
+    }
+    if (options.omitProfileHeader) {
+      delete headers["X-Profile-Id"];
+    }
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: headers,
+      body: body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        const expectedStatus = responseData.status || 200;
+        expect(response.status).to.eq(expectedStatus);
+
+        if (response.status === 200) {
+          expect(response.body.id).to.include("pay_").and.to.not.be.empty;
+          globalState.set("revenueRecoveryId", response.body.id);
+          if (body.merchant_reference_id) {
+            globalState.set(
+              "revenueRecoveryMerchantReferenceId",
+              body.merchant_reference_id
+            );
+          }
+
+          if (responseData.body) {
+            if (responseData.body.intent_status) {
+              expect(response.body.intent_status).to.eq(
+                responseData.body.intent_status
+              );
+            }
+            if (
+              typeof responseData.body.merchant_reference_id !== "undefined"
+            ) {
+              expect(response.body.merchant_reference_id).to.eq(
+                responseData.body.merchant_reference_id
+              );
+            }
+          }
+        } else if (responseData.body && responseData.body.error) {
+          expect(response.body.error.code).to.eq(responseData.body.error.code);
+          if (responseData.body.error.type) {
+            expect(response.body.error.type).to.eq(
+              responseData.body.error.type
+            );
+          }
+        }
+
+        cy.task("setGlobalState", globalState.data);
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "revenueRecoveryWorkflowRetrieveCallTest",
+  (data, globalState, options = {}) => {
+    const responseData = data.Response || { status: 200, body: {} };
+    const base_url = globalState.get("baseUrl");
+    const revenueRecoveryId =
+      options.revenueRecoveryId || globalState.get("revenueRecoveryId");
+    const url = `${base_url}/v2/process-trackers/revenue-recovery-workflow/${revenueRecoveryId}`;
+
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${globalState.get("userInfoToken")}`,
+      "X-Profile-Id": globalState.get("profileId"),
+    };
+    if (options.omitAuth) {
+      delete headers.Authorization;
+    }
+
+    cy.request({
+      method: "GET",
+      url: url,
+      headers: headers,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        const expectedStatus = responseData.status || 200;
+        expect(response.status).to.eq(expectedStatus);
+
+        if (response.status === 200) {
+          expect(response.body).to.have.property("id").and.to.not.be.empty;
+          expect(response.body).to.have.property("status");
+          expect(response.body).to.have.property("business_status");
+
+          if (responseData.body) {
+            if (responseData.body.status) {
+              expect(response.body.status).to.eq(responseData.body.status);
+            }
+            if (responseData.body.business_status) {
+              expect(response.body.business_status).to.eq(
+                responseData.body.business_status
+              );
+            }
+          }
+        } else if (responseData.body && responseData.body.error) {
+          expect(response.body.error.code).to.eq(responseData.body.error.code);
+          if (responseData.body.error.type) {
+            expect(response.body.error.type).to.eq(
+              responseData.body.error.type
+            );
+          }
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "revenueRecoveryResumeCallTest",
+  (requestBody, data, globalState) => {
+    const requestData = data.Request || {};
+    const responseData = data.Response || { status: 200, body: {} };
+    const base_url = globalState.get("baseUrl");
+    const adminApiKey = globalState.get("adminApiKey");
+    const revenueRecoveryId = globalState.get("revenueRecoveryId");
+    const url = `${base_url}/v2/process-trackers/revenue-recovery-workflow/${revenueRecoveryId}/resume`;
+
+    const body = { ...requestData, ...requestBody };
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `admin-api-key=${adminApiKey}`,
+      },
+      body: body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        const expectedStatus = responseData.status || 200;
+        expect(response.status).to.eq(expectedStatus);
+
+        if (response.status === 200) {
+          expect(response.body).to.have.property("id").and.to.not.be.empty;
+          expect(response.body).to.have.property("status");
+          expect(response.body).to.have.property("business_status");
+
+          if (responseData.body) {
+            if (responseData.body.status) {
+              expect(response.body.status).to.eq(responseData.body.status);
+            }
+            if (responseData.body.business_status) {
+              expect(response.body.business_status).to.eq(
+                responseData.body.business_status
+              );
+            }
+          }
+        } else if (responseData.body && responseData.body.error) {
+          expect(response.body.error.code).to.eq(responseData.body.error.code);
+          if (responseData.body.error.type) {
+            expect(response.body.error.type).to.eq(
+              responseData.body.error.type
+            );
+          }
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "revenueRecoveryCancelCallTest",
+  (data, globalState, options = {}) => {
+    const responseData = data.Response || { status: 200, body: {} };
+    const base_url = globalState.get("baseUrl");
+    const merchantReferenceId =
+      options.merchantReferenceId ||
+      globalState.get("revenueRecoveryMerchantReferenceId");
+    const url = `${base_url}/v2/recovery/${merchantReferenceId}/cancel`;
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `api-key=${globalState.get("revenueRecoveryApiKey")}`,
+        "X-Profile-Id": globalState.get("profileId"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        const expectedStatus = responseData.status || 200;
+        expect(response.status).to.eq(expectedStatus);
+
+        if (response.status === 200) {
+          if (responseData.body && responseData.body.intent_status) {
+            expect(response.body.intent_status).to.eq(
+              responseData.body.intent_status
+            );
+          }
+        } else if (responseData.body && responseData.body.error) {
+          expect(response.body.error.code).to.eq(responseData.body.error.code);
+          if (responseData.body.error.type) {
+            expect(response.body.error.type).to.eq(
+              responseData.body.error.type
+            );
+          }
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("revenueRecoveryMcaDeleteCallTest", (globalState) => {
+  const base_url = globalState.get("baseUrl");
+  const api_key = globalState.get("adminApiKey");
+  const merchant_id = globalState.get("merchantId");
+  const profile_id = globalState.get("profileId");
+
+  const deleteOne = (mcaId, label) => {
+    if (!mcaId) {
+      cy.task("cli_log", `No ${label} found, skipping delete`);
+      return;
+    }
+    cy.request({
+      method: "DELETE",
+      url: `${base_url}/v2/connector-accounts/${mcaId}`,
+      headers: {
+        Accept: "application/json",
+        Authorization: `admin-api-key=${api_key}`,
+        "x-merchant-id": merchant_id,
+        "x-profile-id": profile_id,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      cy.task(
+        "cli_log",
+        `Revenue Recovery ${label} delete status: ${response.status}`
+      );
+    });
+  };
+
+  deleteOne(globalState.get("revenueRecoveryBillingMcaId"), "billing MCA");
+  deleteOne(globalState.get("revenueRecoveryPaymentMcaId"), "payment MCA");
+});

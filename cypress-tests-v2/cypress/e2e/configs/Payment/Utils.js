@@ -1,9 +1,30 @@
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
+import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 
 const connectorDetails = {
   commons: CommonConnectorDetails,
   noon: noonConnectorDetails,
+  stripe: stripeConnectorDetails,
+};
+
+// Inclusion lists — connectors that have been verified for a given feature.
+// Connectors not listed skip the corresponding spec via shouldIncludeConnector.
+export const CONNECTOR_LISTS = {
+  INCLUDE: {
+    REVENUE_RECOVERY: ["stripe"],
+    // Add more inclusion lists
+  },
+};
+
+// Helper functions
+export const shouldExcludeConnector = (connectorId, list) => {
+  return Array.isArray(list) && list.includes(connectorId);
+};
+
+export const shouldIncludeConnector = (connectorId, list) => {
+  if (!Array.isArray(list)) return true;
+  return !list.includes(connectorId);
 };
 
 export default function getConnectorDetails(connectorId) {
