@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+pub use common_types::refunds::RefundFeatureMetadata;
 pub use common_utils::types::MinorUnit;
 use common_utils::{pii, types::TimeRange};
 use serde::{Deserialize, Serialize};
@@ -11,7 +12,6 @@ use super::payments::AmountFilter;
 #[cfg(feature = "v1")]
 use crate::admin;
 use crate::{admin::MerchantConnectorInfo, enums};
-pub use common_types::refunds::RefundFeatureMetadata;
 
 #[cfg(feature = "v1")]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize, SmithyModel)]
