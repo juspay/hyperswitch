@@ -335,6 +335,7 @@ pub enum SaddReply {
 
 /// Reply from `XGROUP DESTROY`.
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum ConsumerGroupDestroyReply {
     Destroyed,
     NotFound,

@@ -13,8 +13,10 @@ use ::payment_methods::{
 use api_models::admin::PaymentMethodsEnabled;
 #[cfg(feature = "v1")]
 use api_models::payment_methods::{
-    PaymentMethodListIntentDataInput, PaymentMethodSubtypeSpecificDataForClient,
-    ResponsePaymentMethodsEnabledForClient,
+    PaymentMethodDataWalletInfo, PaymentMethodListIntentDataInput,
+    PaymentMethodSubtypeSpecificDataForClient, PaypalWalletInfo,
+    ResponsePaymentMethodsEnabledForClient, WalletPaymentMethodDataForClient,
+    WalletProviderDetails,
 };
 use api_models::{
     enums as api_enums,
@@ -1136,7 +1138,7 @@ impl PaymentMethodsController for PmCards<'_> {
     ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
         metrics::DELETE_FROM_LOCKER.add(1, &[]);
 
-        common_utils::metrics::utils::record_operation_time(
+        Box::pin(common_utils::metrics::utils::record_operation_time(
             async move {
                 delete_card_from_vault(self.state, customer_id, merchant_id, card_reference)
                     .await
@@ -1152,7 +1154,7 @@ impl PaymentMethodsController for PmCards<'_> {
             },
             &metrics::CARD_DELETE_TIME,
             &[],
-        )
+        ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while deleting card from locker")
@@ -1221,7 +1223,7 @@ impl PaymentMethodsController for PmCards<'_> {
             logger::debug!(
                 "Getting card details from locker as it is not found in payment methods table"
             );
-            Some(get_card_details_from_locker(self.state, pm).await?)
+            Some(Box::pin(get_card_details_from_locker(self.state, pm)).await?)
         })
     }
 
@@ -1247,7 +1249,7 @@ impl PaymentMethodsController for PmCards<'_> {
             logger::debug!(
                 "Getting card details from locker as it is not found in payment methods table"
             );
-            get_card_details_from_locker(self.state, pm).await?
+            Box::pin(get_card_details_from_locker(self.state, pm)).await?
         })
     }
 
@@ -1485,7 +1487,7 @@ impl PaymentMethodsController for PmCards<'_> {
         &self,
         pm: &domain::PaymentMethod,
     ) -> errors::RouterResult<api::CardDetailFromLocker> {
-        get_card_details_from_locker(self.state, pm).await
+        Box::pin(get_card_details_from_locker(self.state, pm)).await
     }
 
     #[cfg(feature = "v1")]
@@ -1634,12 +1636,12 @@ impl PaymentMethodsController for PmCards<'_> {
         let (card, locker_metadata) =
             if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
                 let (card_detail, locker_metadata) = if self.state.conf.locker.locker_enabled {
-                    let locker_card_response = get_card_from_locker(
+                    let locker_card_response = Box::pin(get_card_from_locker(
                         self.state,
                         &pm.customer_id.clone().get_required_value("customer_id")?,
                         &pm.merchant_id,
                         pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
-                    )
+                    ))
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Error getting card from card vault")?;
@@ -2818,12 +2820,12 @@ pub async fn update_customer_payment_method(
 
         let response = if is_card_updation_required {
             // Fetch the existing card data from locker for getting card number
-            let locker_card_response = get_card_from_locker(
+            let locker_card_response = Box::pin(get_card_from_locker(
                 &state,
                 &customer_id,
                 &pm.merchant_id,
                 pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
-            )
+            ))
             .await
             .attach_printable("Error getting card from locker")?;
 
@@ -3091,18 +3093,111 @@ pub async fn update_customer_payment_method(
 }
 
 #[cfg(feature = "v1")]
+pub(crate) fn get_paypal_wallet_info(
+    connector_response: Option<&hyperswitch_domain_models::router_data::ConnectorResponseData>,
+) -> Option<PaymentMethodDataWalletInfo> {
+    match connector_response?.additional_payment_method_data.as_ref()? {
+        hyperswitch_domain_models::router_data::AdditionalPaymentMethodConnectorResponse::Paypal {
+            email,
+            payer_id,
+        } if email.is_some() || payer_id.is_some() => Some(PaymentMethodDataWalletInfo {
+            last4: None,
+            card_network: None,
+            card_type: None,
+            card_exp_month: None,
+            card_exp_year: None,
+            auth_code: None,
+            email: email.clone(),
+            provider_details: Some(WalletProviderDetails::PayPal(PaypalWalletInfo {
+                payer_id: payer_id.clone(),
+            })),
+        }),
+        _ => None,
+    }
+}
+
+/// Prepares merged PayPal wallet data without fetching or updating the PM.
+#[cfg(feature = "v1")]
+pub async fn prepare_saved_wallet_data_from_connector_response(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    pm: &domain::PaymentMethod,
+    connector_disclosed_details: &domain::PaypalRedirection,
+) -> errors::RouterResult<Option<Encryption>> {
+    match pm.get_payment_method_subtype() {
+        Some(enums::PaymentMethodType::Paypal) => {
+            match (
+                connector_disclosed_details.email.as_ref(),
+                connector_disclosed_details.payer_id.as_ref(),
+            ) {
+                (None, None) => Ok(None),
+                (email, payer_id) => {
+                    let mut wallet_info = PaymentMethodDataWalletInfo {
+                        last4: None,
+                        card_network: None,
+                        card_type: None,
+                        card_exp_month: None,
+                        card_exp_year: None,
+                        auth_code: None,
+                        email: email.cloned(),
+                        provider_details: Some(WalletProviderDetails::PayPal(PaypalWalletInfo {
+                            payer_id: payer_id.cloned(),
+                        })),
+                    };
+                    let saved_data = pm
+                        .payment_method_data
+                        .as_ref()
+                        .map(|data| {
+                            data.get_inner()
+                                .peek()
+                                .clone()
+                                .parse_value::<domain::PaymentMethodsData>("PaymentMethodsData")
+                        })
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to parse saved PayPal wallet data")?;
+
+                    if let Some(domain::PaymentMethodsData::WalletDetails(mut saved_wallet)) =
+                        saved_data
+                    {
+                        saved_wallet.email = wallet_info.email.or(saved_wallet.email);
+                        saved_wallet.provider_details = WalletProviderDetails::merge(
+                            wallet_info.provider_details,
+                            saved_wallet.provider_details,
+                        );
+                        wallet_info = saved_wallet;
+                    }
+
+                    let encrypted_data = core_utils::create_encrypted_data(
+                        &state.into(),
+                        platform.get_provider().get_key_store(),
+                        domain::PaymentMethodsData::WalletDetails(wallet_info),
+                        type_name!(payment_method::PaymentMethod),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt PayPal wallet data")?;
+
+                    Ok(Some(encrypted_data.into()))
+                }
+            }
+        }
+        Some(..) | None => Ok(None),
+    }
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn prepare_payment_method_update_from_connector_details(
     state: &routes::SessionState,
     platform: &domain::Platform,
     pm: &domain::PaymentMethod,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    connector_disclosed_details: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+    connector_disclosed_details: &domain::PaymentMethodData,
     business_profile: &Profile,
-) -> errors::CustomResult<storage::PaymentMethodUpdate, errors::ApiErrorResponse> {
+) -> errors::RouterResult<storage::PaymentMethodUpdate> {
     match connector_disclosed_details {
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
-            bank_redirect_update,
-        ) => {
+        domain::PaymentMethodData::BankRedirect(bank_redirect_update) => {
             prepare_bank_redirect_payment_method_update(
                 state,
                 platform,
@@ -3112,6 +3207,33 @@ pub async fn prepare_payment_method_update_from_connector_details(
                 business_profile,
             )
             .await
+        }
+        domain::PaymentMethodData::Wallet(domain::WalletData::PaypalRedirect(details)) => {
+            let payment_method_data =
+                prepare_saved_wallet_data_from_connector_response(state, platform, pm, details)
+                    .await?;
+
+            Ok(storage::PaymentMethodUpdate::AdditionalDataUpdate {
+                payment_method_data,
+                last_used_at: Some(common_utils::date_time::now()),
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|initiator| initiator.to_string()),
+                status: None,
+                locker_id: None,
+                locker_fingerprint_id: None,
+                payment_method: None,
+                payment_method_type: None,
+                payment_method_issuer: None,
+                network_token_requestor_reference_id: None,
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
+                metadata: None,
+                connector_mandate_details: None,
+                network_tokenization_data: None,
+                connector_payment_method_details: Box::new(None),
+            })
         }
         _ => Err(report!(errors::ApiErrorResponse::NotImplemented {
             message: errors::NotImplementedMessage::Reason(
@@ -3418,31 +3540,35 @@ pub async fn get_card_from_locker(
 ) -> errors::RouterResult<LockerCardResponse> {
     metrics::GET_FROM_LOCKER.add(1, &[]);
 
-    let get_card_from_rs_locker_resp = common_utils::metrics::utils::record_operation_time(
-        async {
-            get_card_from_vault(state, customer_id, merchant_id, card_reference)
-                .await
-                .map_err(|err| match err.current_context() {
-                    errors::VaultError::FetchCardFailed => {
-                        err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                            message: "Card not found in vault".to_string(),
-                        })
-                    }
-                    _ => err
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error getting card from card vault"),
-                })
-                .inspect_err(|_| {
-                    metrics::CARD_LOCKER_FAILURES.add(
-                        1,
-                        router_env::metric_attributes!(("locker", "rust"), ("operation", "get")),
-                    );
-                })
-        },
-        &metrics::CARD_GET_TIME,
-        router_env::metric_attributes!(("locker", "rust")),
-    )
-    .await?;
+    let get_card_from_rs_locker_resp =
+        Box::pin(common_utils::metrics::utils::record_operation_time(
+            async {
+                get_card_from_vault(state, customer_id, merchant_id, card_reference)
+                    .await
+                    .map_err(|err| match err.current_context() {
+                        errors::VaultError::FetchCardFailed => {
+                            err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                                message: "Card not found in vault".to_string(),
+                            })
+                        }
+                        _ => err
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Error getting card from card vault"),
+                    })
+                    .inspect_err(|_| {
+                        metrics::CARD_LOCKER_FAILURES.add(
+                            1,
+                            router_env::metric_attributes!(
+                                ("locker", "rust"),
+                                ("operation", "get")
+                            ),
+                        );
+                    })
+            },
+            &metrics::CARD_GET_TIME,
+            router_env::metric_attributes!(("locker", "rust")),
+        ))
+        .await?;
 
     logger::debug!("card retrieved from rust locker");
     Ok(get_card_from_rs_locker_resp)
@@ -5716,7 +5842,7 @@ pub async fn call_surcharge_decision_management(
     #[cfg(feature = "v2")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
-    let (surcharge_results, merchant_sucharge_configs) =
+    let (surcharge_results, merchant_sucharge_configs) = Box::pin(
         perform_surcharge_decision_management_for_payment_method_list(
             &state,
             algorithm_ref,
@@ -5724,10 +5850,11 @@ pub async fn call_surcharge_decision_management(
             &payment_intent,
             billing_address.as_ref().map(Into::into),
             response_payment_method_types,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error performing surcharge decision operation")?;
+        ),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("error performing surcharge decision operation")?;
     if !surcharge_results.is_empty_result() {
         surcharge_results
             .persist_individual_surcharge_details_in_redis(&state, business_profile)
@@ -5778,13 +5905,13 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
     // TODO: Move to business profile surcharge column
-    let surcharge_results = perform_surcharge_decision_management_for_saved_cards(
+    let surcharge_results = Box::pin(perform_surcharge_decision_management_for_saved_cards(
         state,
         algorithm_ref,
         payment_attempt,
         &payment_intent,
         &mut customer_payment_method_response.customer_payment_methods,
-    )
+    ))
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("error performing surcharge decision operation")?;
@@ -6247,6 +6374,43 @@ fn filter_latest_wallet_methods(
     result
 }
 
+/// Returns saved wallet display details for PayPal, the currently supported wallet subtype.
+/// Other wallet subtypes and non-wallet payment method data return no display details.
+#[cfg(feature = "v1")]
+fn get_saved_wallet_details_for_client(
+    pm: &domain::PaymentMethod,
+) -> errors::RouterResult<Option<WalletPaymentMethodDataForClient>> {
+    let payment_method_data = pm
+        .payment_method_data
+        .as_ref()
+        .map(|data| {
+            data.get_inner()
+                .peek()
+                .clone()
+                .parse_value::<domain::PaymentMethodsData>("PaymentMethodsData")
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse saved wallet data")?;
+
+    Ok(match payment_method_data {
+        Some(domain::PaymentMethodsData::WalletDetails(info))
+            if pm.get_payment_method_subtype() == Some(enums::PaymentMethodType::Paypal) =>
+        {
+            Some(WalletPaymentMethodDataForClient::PayPal(Box::new(
+                info.into(),
+            )))
+        }
+        Some(domain::PaymentMethodsData::WalletDetails(..))
+        | Some(domain::PaymentMethodsData::Card(..))
+        | Some(domain::PaymentMethodsData::BankDetails(..))
+        | Some(domain::PaymentMethodsData::NetworkToken(..))
+        | Some(domain::PaymentMethodsData::BankDebit(..))
+        | Some(domain::PaymentMethodsData::BankRedirect(..))
+        | None => None,
+    })
+}
+
 #[cfg(feature = "v1")]
 pub async fn list_customer_payment_method(
     state: &routes::SessionState,
@@ -6428,6 +6592,7 @@ pub async fn list_customer_payment_method(
         };
         // Need validation for enabled payment method ,querying MCA
         let pma = api::CustomerPaymentMethod {
+            wallets: get_saved_wallet_details_for_client(&pm)?,
             payment_token: parent_payment_method_token.to_owned(),
             payment_method_id: pm.payment_method_id.clone(),
             customer_id: pm.customer_id.clone().get_required_value("customer_id")?,
@@ -6671,14 +6836,14 @@ async fn perform_surcharge_ops(
         .zip(business_profile)
         .map(|((pa, pi), bp)| (pa, pi, bp))
     {
-        call_surcharge_decision_management_for_saved_card(
+        Box::pin(call_surcharge_decision_management_for_saved_card(
             state,
             platform,
             &business_profile,
             payment_attempt,
             payment_intent.clone(),
             response,
-        )
+        ))
         .await?;
     }
 
@@ -6852,12 +7017,12 @@ pub async fn get_card_details_from_locker(
     state: &routes::SessionState,
     pm: &domain::PaymentMethod,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
-    let card = get_card_from_locker(
+    let card = Box::pin(get_card_from_locker(
         state,
         &pm.customer_id.clone().get_required_value("customer_id")?,
         &pm.merchant_id,
         pm.locker_id.as_ref().unwrap_or(pm.get_id()),
-    )
+    ))
     .await
     .attach_printable("Error getting card from card vault")?
     .get_card();
@@ -6874,7 +7039,7 @@ pub async fn get_lookup_key_from_locker(
     pm: &domain::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
-    let card_detail = get_card_details_from_locker(state, pm).await?;
+    let card_detail = Box::pin(get_card_details_from_locker(state, pm)).await?;
     let card = card_detail.clone();
 
     let resp = TempLockerCardSupport::create_payment_method_data_in_temp_locker(
@@ -7705,12 +7870,12 @@ pub async fn execute_payment_method_tokenization(
             })?;
 
     // Fetch card from locker
-    let card_details = get_card_from_locker(
+    let card_details = Box::pin(get_card_from_locker(
         executor.state,
         customer_id,
         executor.merchant_account.get_id(),
         &locker_id,
-    )
+    ))
     .await?
     .get_card();
 

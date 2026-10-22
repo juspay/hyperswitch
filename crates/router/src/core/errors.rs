@@ -92,7 +92,8 @@ macro_rules! unimplemented_payment_method {
 
 macro_rules! impl_error_type {
     ($name: ident, $arg: tt) => {
-        #[derive(Debug)]
+        // Serializable so `ResultCodec` can replay a recorded failure as itself.
+        #[derive(Debug, serde::Serialize, serde::Deserialize)]
         pub struct $name;
 
         impl_error_display!($name, $arg);
@@ -120,18 +121,6 @@ pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
 pub enum HealthCheckOutGoing {
     #[error("Outgoing call failed with error: {message}")]
     OutGoingFailed { message: String },
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum AwsKmsError {
-    #[error("Failed to base64 decode input data")]
-    Base64DecodingFailed,
-    #[error("Failed to AWS KMS decrypt input data")]
-    DecryptionFailed,
-    #[error("Missing plaintext AWS KMS decryption output")]
-    MissingPlaintextDecryptionOutput,
-    #[error("Failed to UTF-8 decode decryption output")]
-    Utf8DecodingFailed,
 }
 
 #[derive(Debug, thiserror::Error, serde::Serialize)]
@@ -274,7 +263,9 @@ pub enum GooglePayDecryptionError {
     InvalidGatewayMerchantId,
 }
 
+// Serializable under `deja` so a recorded error replays as the same variant.
 #[derive(Debug, Clone, thiserror::Error)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum RoutingError {
     #[error("Merchant routing algorithm not found in cache")]
     CacheMiss,
@@ -457,6 +448,8 @@ pub enum RevenueRecoveryError {
     TransactionWebhookProcessingFailed,
     #[error("Failed to create payment intent")]
     PaymentIntentCreateFailed,
+    #[error("Failed to update payment intent")]
+    PaymentIntentUpdateFailed,
     #[error("Source verification failed for billing connector")]
     WebhookAuthenticationFailed,
     #[error("Payment merchant connector account {id} not found using account reference id")]
@@ -520,7 +513,8 @@ impl common_utils::errors::ErrorSwitch<ApiErrorResponse> for RevenueRecoveryErro
             Self::PaymentAttemptIdNotFound | Self::RetryAlgorithmTypeNotFound => {
                 ApiErrorResponse::WebhookResourceNotFound
             }
-            Self::PaymentIntentFetchFailed
+            Self::PaymentIntentUpdateFailed
+            | Self::PaymentIntentFetchFailed
             | Self::PaymentAttemptFetchFailed
             | Self::PaymentIntentCreateFailed
             | Self::ScheduleTimeFetchFailed

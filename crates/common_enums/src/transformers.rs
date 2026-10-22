@@ -1922,6 +1922,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::OpenBankingPIS => Self::OpenBanking,
             PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
             PaymentMethodType::RevolutPay => Self::Wallet,
+            PaymentMethodType::Wero => Self::Wallet,
             PaymentMethodType::IndonesianBankTransfer => Self::BankTransfer,
             PaymentMethodType::OpenBanking => Self::BankRedirect,
             PaymentMethodType::NetworkToken => Self::NetworkToken,
