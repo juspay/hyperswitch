@@ -2976,7 +2976,6 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Paysafe,
     connectors::Payme,
     connectors::Payone,
-    connectors::Paypal,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,

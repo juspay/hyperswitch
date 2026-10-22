@@ -72,6 +72,28 @@ use crate::{
 const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
+const REDIRECT_COMPLETION_PAYMENT_METHOD_TOKEN_KEYS: [&str; 2] =
+    ["payment_method_token", "payment_handle_token"];
+
+fn build_redirect_completion_payment_method(
+    connector_metadata: Option<&serde_json::Value>,
+) -> Option<payments_grpc::PaymentMethod> {
+    connector_metadata
+        .and_then(|metadata| {
+            REDIRECT_COMPLETION_PAYMENT_METHOD_TOKEN_KEYS
+                .iter()
+                .find_map(|key| metadata.get(*key).and_then(serde_json::Value::as_str))
+        })
+        .filter(|token| !token.trim().is_empty())
+        .map(|token| payments_grpc::PaymentMethod {
+            payment_method: Some(payments_grpc::payment_method::PaymentMethod::Token(
+                payments_grpc::TokenPaymentMethodType {
+                    token: Some(Secret::new(token.to_string())),
+                    token_payment_method_type: None,
+                },
+            )),
+        })
+}
 
 impl ForeignFrom<&api_models::payments::ConnectorMetadata>
     for payments_grpc::AdditionalConnectorDetails
@@ -88,6 +110,7 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             santander: _,
             worldpayxml,
             stripe,
+            paypal: _,
         } = metadata;
         fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
             serde_json::to_value(value)
@@ -966,24 +989,12 @@ impl
                 )
             })
             .transpose()?
-            // Post-3DS settle: card data is not persisted through the redirect, so pay by the
-            // handle token the authenticate leg returned in connector metadata (stored on the
-            // request as connector_meta, same channel as authentication_data below).
+            // Card data is not persisted through a redirect. Connectors that return a
+            // single-use payment token in connector metadata can settle with that token.
             .or_else(|| {
-                router_data
-                    .request
-                    .connector_meta
-                    .as_ref()
-                    .and_then(|metadata| metadata.get("payment_handle_token"))
-                    .and_then(|token| token.as_str())
-                    .map(|handle_token| payments_grpc::PaymentMethod {
-                        payment_method: Some(payments_grpc::payment_method::PaymentMethod::Token(
-                            payments_grpc::TokenPaymentMethodType {
-                                token: Some(Secret::new(handle_token.to_string())),
-                                token_payment_method_type: None,
-                            },
-                        )),
-                    })
+                build_redirect_completion_payment_method(
+                    router_data.request.connector_meta.as_ref(),
+                )
             });
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
@@ -1664,6 +1675,12 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
+            setup_future_usage: None,
+            customer_acceptance: None,
+            enable_partial_authorization: None,
+            payment_channel: None,
+            billing_descriptor: None,
+            l2_l3_data: None,
         })
     }
 }
@@ -1788,6 +1805,12 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
+            setup_future_usage: None,
+            customer_acceptance: None,
+            enable_partial_authorization: None,
+            payment_channel: None,
+            billing_descriptor: None,
+            l2_l3_data: None,
         })
     }
 }
@@ -2114,6 +2137,7 @@ impl
             // below silently leaves the field None and the connector rejects the session.
             connector_order_id: router_data.request.order_id.clone(),
             test_mode: router_data.test_mode,
+            session_token: None,
         })
     }
 }
@@ -2223,6 +2247,7 @@ impl
             // hosted-payment-page 3DS opens its payment session against that Order resource.
             connector_order_id: router_data.request.order_id.clone(),
             test_mode: router_data.test_mode,
+            session_token: None,
         })
     }
 }
@@ -3357,6 +3382,7 @@ impl
             is_account_funding_transaction: None,
             recipient_details: None,
             additional_connector_details: None,
+            session_token: None,
         })
     }
 }
@@ -3678,6 +3704,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            session_token: None,
         })
     }
 }
@@ -3795,6 +3822,8 @@ impl
             }),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             merchant_authorization_id: Some(router_data.connector_request_reference_id.clone()),
+            additional_amount: None,
+            network_transaction_id: None,
             reason: router_data.request.reason.clone(),
             connector_feature_data: router_data
                 .request

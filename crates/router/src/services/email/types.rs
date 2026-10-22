@@ -92,6 +92,15 @@ pub enum EmailBody {
         background_color: String,
         foreground_color: String,
     },
+    AnalyticsReport {
+        report_name: String,
+        noun: String,
+        covers: String,
+        start: String,
+        end: String,
+        download_url: String,
+        expiry: String,
+    },
 }
 
 pub mod html {
@@ -275,6 +284,24 @@ Email         : {user_email}
                     foreground_color = foreground_color
                 )
             }
+            EmailBody::AnalyticsReport {
+                report_name,
+                noun,
+                covers,
+                start,
+                end,
+                download_url,
+                expiry,
+            } => format!(
+                include_str!("assets/analytics_report.html"),
+                report_name = report_name,
+                noun = noun,
+                covers = covers,
+                start = start,
+                end = end,
+                download_url = download_url,
+                expiry = expiry,
+            ),
         }
     }
 }
@@ -782,6 +809,46 @@ impl EmailData for RoleDeleted {
             subject: format!("Access Removed - {} Role Revoked", self.role_name),
             body: external_services::email::IntermediateString::new(body),
             recipients: self.recipient_email.clone().into_inner().into(),
+        })
+    }
+}
+
+/// A finished analytics report's download link, sent once to all its recipients.
+pub struct AnalyticsReportEmail {
+    pub recipients: external_services::email::EmailRecipients,
+    /// Names the report, with the environment, e.g. "Sandbox Payments".
+    pub report_name: String,
+    /// The report, as the body names it: "the refund report".
+    pub noun: String,
+    /// The rows, as the body describes them, e.g. "refunds made by your customers".
+    pub covers: String,
+    pub start: String,
+    pub end: String,
+    pub download_url: String,
+    /// How long the link lasts, e.g. "7 days".
+    pub expiry: String,
+}
+
+#[async_trait::async_trait]
+impl EmailData for AnalyticsReportEmail {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
+        let body = html::get_html_body(EmailBody::AnalyticsReport {
+            report_name: self.report_name.clone(),
+            noun: self.noun.clone(),
+            covers: self.covers.clone(),
+            start: self.start.clone(),
+            end: self.end.clone(),
+            download_url: self.download_url.clone(),
+            expiry: self.expiry.clone(),
+        });
+
+        Ok(EmailContents {
+            subject: format!(
+                "Your {} Report: {} - {}",
+                self.report_name, self.start, self.end
+            ),
+            body: external_services::email::IntermediateString::new(body),
+            recipients: self.recipients.clone(),
         })
     }
 }
