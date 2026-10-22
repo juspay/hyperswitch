@@ -13,8 +13,8 @@ use ::payment_methods::{
 use api_models::admin::PaymentMethodsEnabled;
 #[cfg(feature = "v1")]
 use api_models::payment_methods::{
-    PaymentMethodListIntentDataInput, PaymentMethodSubtypeSpecificDataForClient,
-    ResponsePaymentMethodsEnabledForClient,
+    PaymentMethodDataWalletInfo, PaymentMethodListIntentDataInput,
+    PaymentMethodSubtypeSpecificDataForClient, ResponsePaymentMethodsEnabledForClient,
 };
 use api_models::{
     enums as api_enums,
@@ -3099,7 +3099,7 @@ fn deserialize_saved_payment_method_data(
 fn customer_payment_method_update_response(
     pm: &domain::PaymentMethod,
     card: Option<api::CardDetailFromLocker>,
-    wallet: Option<api_models::payment_methods::PaymentMethodDataWalletInfo>,
+    wallet: Option<PaymentMethodDataWalletInfo>,
 ) -> api::CustomerPaymentMethodUpdateResponse {
     api::CustomerPaymentMethodUpdateResponse {
         merchant_id: pm.merchant_id.clone(),
