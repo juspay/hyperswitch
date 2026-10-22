@@ -13782,55 +13782,57 @@ Cypress.Commands.add(
     const url = `${base_url}/v2/connector-accounts`;
     const connectorName = "stripe";
 
-    cy.readFile(globalState.get("connectorAuthFilePath")).then((jsonContent) => {
-      const { authDetails } = getValueByKey(
-        JSON.stringify(jsonContent),
-        connectorName
-      );
-      if (!authDetails || !authDetails.connector_account_details) {
-        throw new Error(
-          `No connector_account_details found in auth file for "${connectorName}"`
+    cy.readFile(globalState.get("connectorAuthFilePath")).then(
+      (jsonContent) => {
+        const { authDetails } = getValueByKey(
+          JSON.stringify(jsonContent),
+          connectorName
         );
-      }
+        if (!authDetails || !authDetails.connector_account_details) {
+          throw new Error(
+            `No connector_account_details found in auth file for "${connectorName}"`
+          );
+        }
 
-      const body = {
-        connector_type: "payment_processor",
-        connector_name: connectorName,
-        connector_label: `rr_payment_${connectorName}_${Date.now()}`,
-        profile_id: profile_id,
-        connector_account_details: authDetails.connector_account_details,
-        payment_methods_enabled: [],
-        disabled: false,
-      };
+        const body = {
+          connector_type: "payment_processor",
+          connector_name: connectorName,
+          connector_label: `rr_payment_${connectorName}_${Date.now()}`,
+          profile_id: profile_id,
+          connector_account_details: authDetails.connector_account_details,
+          payment_methods_enabled: [],
+          disabled: false,
+        };
 
-      if (authDetails.metadata) {
-        body.metadata = { ...authDetails.metadata };
-      }
+        if (authDetails.metadata) {
+          body.metadata = { ...authDetails.metadata };
+        }
 
-      cy.request({
-        method: "POST",
-        url: url,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `admin-api-key=${api_key}`,
-          "x-merchant-id": merchant_id,
-          "x-profile-id": profile_id,
-        },
-        body: body,
-        failOnStatusCode: false,
-      }).then((response) => {
-        logRequestId(response.headers["x-request-id"]);
-        cy.wrap(response).then(() => {
-          expect(response.status).to.eq(200);
-          expect(response.body.id).to.include("mca_").and.to.not.be.empty;
-          expect(response.body.connector_name).to.eq(connectorName);
-          expect(response.body.status).to.eq("active");
+        cy.request({
+          method: "POST",
+          url: url,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `admin-api-key=${api_key}`,
+            "x-merchant-id": merchant_id,
+            "x-profile-id": profile_id,
+          },
+          body: body,
+          failOnStatusCode: false,
+        }).then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+          cy.wrap(response).then(() => {
+            expect(response.status).to.eq(200);
+            expect(response.body.id).to.include("mca_").and.to.not.be.empty;
+            expect(response.body.connector_name).to.eq(connectorName);
+            expect(response.body.status).to.eq("active");
 
-          globalState.set("revenueRecoveryPaymentMcaId", response.body.id);
-          cy.task("setGlobalState", globalState.data);
+            globalState.set("revenueRecoveryPaymentMcaId", response.body.id);
+            cy.task("setGlobalState", globalState.data);
+          });
         });
-      });
-    });
+      }
+    );
   }
 );
 
@@ -13851,67 +13853,69 @@ Cypress.Commands.add(
       );
     }
 
-    cy.readFile(globalState.get("connectorAuthFilePath")).then((jsonContent) => {
-      const { authDetails } = getValueByKey(
-        JSON.stringify(jsonContent),
-        connectorName
-      );
-      if (!authDetails || !authDetails.connector_account_details) {
-        throw new Error(
-          `No connector_account_details found in auth file for "${connectorName}"`
+    cy.readFile(globalState.get("connectorAuthFilePath")).then(
+      (jsonContent) => {
+        const { authDetails } = getValueByKey(
+          JSON.stringify(jsonContent),
+          connectorName
         );
-      }
+        if (!authDetails || !authDetails.connector_account_details) {
+          throw new Error(
+            `No connector_account_details found in auth file for "${connectorName}"`
+          );
+        }
 
-      const body = {
-        connector_type: "billing_processor",
-        connector_name: connectorName,
-        connector_label: `rr_billing_${connectorName}_${Date.now()}`,
-        profile_id: profile_id,
-        connector_account_details: authDetails.connector_account_details,
-        payment_methods_enabled: [],
-        disabled: false,
-        feature_metadata: {
-          revenue_recovery: {
-            max_retry_count: 5,
-            billing_connector_retry_threshold: 0,
-            max_hybrid_cascading_retry_count: 3,
-            grace_period_days: 1,
-            enable_partial_authorization: false,
-            billing_account_reference: {
-              [paymentMcaId]: "stripe_test_billing_ref",
+        const body = {
+          connector_type: "billing_processor",
+          connector_name: connectorName,
+          connector_label: `rr_billing_${connectorName}_${Date.now()}`,
+          profile_id: profile_id,
+          connector_account_details: authDetails.connector_account_details,
+          payment_methods_enabled: [],
+          disabled: false,
+          feature_metadata: {
+            revenue_recovery: {
+              max_retry_count: 5,
+              billing_connector_retry_threshold: 0,
+              max_hybrid_cascading_retry_count: 3,
+              grace_period_days: 1,
+              enable_partial_authorization: false,
+              billing_account_reference: {
+                [paymentMcaId]: "stripe_test_billing_ref",
+              },
             },
           },
-        },
-      };
+        };
 
-      if (authDetails.metadata) {
-        body.metadata = { ...authDetails.metadata };
-      }
+        if (authDetails.metadata) {
+          body.metadata = { ...authDetails.metadata };
+        }
 
-      cy.request({
-        method: "POST",
-        url: url,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `admin-api-key=${api_key}`,
-          "x-merchant-id": merchant_id,
-          "x-profile-id": profile_id,
-        },
-        body: body,
-        failOnStatusCode: false,
-      }).then((response) => {
-        logRequestId(response.headers["x-request-id"]);
-        cy.wrap(response).then(() => {
-          expect(response.status).to.eq(200);
-          expect(response.body.id).to.include("mca_").and.to.not.be.empty;
-          expect(response.body.connector_name).to.eq(connectorName);
-          expect(response.body.status).to.eq("active");
+        cy.request({
+          method: "POST",
+          url: url,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `admin-api-key=${api_key}`,
+            "x-merchant-id": merchant_id,
+            "x-profile-id": profile_id,
+          },
+          body: body,
+          failOnStatusCode: false,
+        }).then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+          cy.wrap(response).then(() => {
+            expect(response.status).to.eq(200);
+            expect(response.body.id).to.include("mca_").and.to.not.be.empty;
+            expect(response.body.connector_name).to.eq(connectorName);
+            expect(response.body.status).to.eq("active");
 
-          globalState.set("revenueRecoveryBillingMcaId", response.body.id);
-          cy.task("setGlobalState", globalState.data);
+            globalState.set("revenueRecoveryBillingMcaId", response.body.id);
+            cy.task("setGlobalState", globalState.data);
+          });
         });
-      });
-    });
+      }
+    );
   }
 );
 
@@ -14053,7 +14057,9 @@ Cypress.Commands.add(
                 responseData.body.intent_status
               );
             }
-            if (typeof responseData.body.merchant_reference_id !== "undefined") {
+            if (
+              typeof responseData.body.merchant_reference_id !== "undefined"
+            ) {
               expect(response.body.merchant_reference_id).to.eq(
                 responseData.body.merchant_reference_id
               );
@@ -14062,7 +14068,9 @@ Cypress.Commands.add(
         } else if (responseData.body && responseData.body.error) {
           expect(response.body.error.code).to.eq(responseData.body.error.code);
           if (responseData.body.error.type) {
-            expect(response.body.error.type).to.eq(responseData.body.error.type);
+            expect(response.body.error.type).to.eq(
+              responseData.body.error.type
+            );
           }
         }
 
@@ -14122,7 +14130,9 @@ Cypress.Commands.add(
         } else if (responseData.body && responseData.body.error) {
           expect(response.body.error.code).to.eq(responseData.body.error.code);
           if (responseData.body.error.type) {
-            expect(response.body.error.type).to.eq(responseData.body.error.type);
+            expect(response.body.error.type).to.eq(
+              responseData.body.error.type
+            );
           }
         }
       });
@@ -14178,7 +14188,9 @@ Cypress.Commands.add(
         } else if (responseData.body && responseData.body.error) {
           expect(response.body.error.code).to.eq(responseData.body.error.code);
           if (responseData.body.error.type) {
-            expect(response.body.error.type).to.eq(responseData.body.error.type);
+            expect(response.body.error.type).to.eq(
+              responseData.body.error.type
+            );
           }
         }
       });
@@ -14223,7 +14235,9 @@ Cypress.Commands.add(
         } else if (responseData.body && responseData.body.error) {
           expect(response.body.error.code).to.eq(responseData.body.error.code);
           if (responseData.body.error.type) {
-            expect(response.body.error.type).to.eq(responseData.body.error.type);
+            expect(response.body.error.type).to.eq(
+              responseData.body.error.type
+            );
           }
         }
       });
@@ -14231,39 +14245,36 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "revenueRecoveryMcaDeleteCallTest",
-  (globalState) => {
-    const base_url = globalState.get("baseUrl");
-    const api_key = globalState.get("adminApiKey");
-    const merchant_id = globalState.get("merchantId");
-    const profile_id = globalState.get("profileId");
+Cypress.Commands.add("revenueRecoveryMcaDeleteCallTest", (globalState) => {
+  const base_url = globalState.get("baseUrl");
+  const api_key = globalState.get("adminApiKey");
+  const merchant_id = globalState.get("merchantId");
+  const profile_id = globalState.get("profileId");
 
-    const deleteOne = (mcaId, label) => {
-      if (!mcaId) {
-        cy.task("cli_log", `No ${label} found, skipping delete`);
-        return;
-      }
-      cy.request({
-        method: "DELETE",
-        url: `${base_url}/v2/connector-accounts/${mcaId}`,
-        headers: {
-          Accept: "application/json",
-          Authorization: `admin-api-key=${api_key}`,
-          "x-merchant-id": merchant_id,
-          "x-profile-id": profile_id,
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        logRequestId(response.headers["x-request-id"]);
-        cy.task(
-          "cli_log",
-          `Revenue Recovery ${label} delete status: ${response.status}`
-        );
-      });
-    };
+  const deleteOne = (mcaId, label) => {
+    if (!mcaId) {
+      cy.task("cli_log", `No ${label} found, skipping delete`);
+      return;
+    }
+    cy.request({
+      method: "DELETE",
+      url: `${base_url}/v2/connector-accounts/${mcaId}`,
+      headers: {
+        Accept: "application/json",
+        Authorization: `admin-api-key=${api_key}`,
+        "x-merchant-id": merchant_id,
+        "x-profile-id": profile_id,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      cy.task(
+        "cli_log",
+        `Revenue Recovery ${label} delete status: ${response.status}`
+      );
+    });
+  };
 
-    deleteOne(globalState.get("revenueRecoveryBillingMcaId"), "billing MCA");
-    deleteOne(globalState.get("revenueRecoveryPaymentMcaId"), "payment MCA");
-  }
-);
+  deleteOne(globalState.get("revenueRecoveryBillingMcaId"), "billing MCA");
+  deleteOne(globalState.get("revenueRecoveryPaymentMcaId"), "payment MCA");
+});

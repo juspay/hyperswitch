@@ -141,7 +141,10 @@ describe("Revenue Recovery workflow tests", () => {
 
       cy.step("Retrieve recovery workflow status", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve recovery workflow status");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve recovery workflow status"
+          );
           return;
         }
 
