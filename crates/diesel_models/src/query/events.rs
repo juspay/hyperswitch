@@ -6,7 +6,6 @@ use diesel::{
     NullableExpressionMethods, QueryDsl,
 };
 use error_stack::ResultExt;
-use router_env::logger;
 
 use super::{
     generics,
@@ -107,12 +106,11 @@ impl Event {
 
         query = Self::apply_event_recipient(query, event_recipient);
 
-        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async(conn.raw_connection()),
         )
         .await
@@ -175,12 +173,11 @@ impl Event {
             event_recipient,
         );
 
-        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async(conn.raw_connection()),
         )
         .await
@@ -206,12 +203,11 @@ impl Event {
 
         query = Self::apply_event_recipient(query, event_recipient);
 
-        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async(conn.raw_connection()),
         )
         .await
@@ -254,12 +250,11 @@ impl Event {
             query = query.filter(dsl::business_profile_id.eq(profile_id));
         }
 
-        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async(conn.raw_connection()),
         )
         .await
@@ -313,12 +308,11 @@ impl Event {
             event_recipient,
         );
 
-        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async(conn.raw_connection()),
         )
         .await
@@ -353,12 +347,11 @@ impl Event {
 
         query = Self::apply_event_recipient(query, event_recipient);
 
-        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async(conn.raw_connection()),
         )
         .await
@@ -386,12 +379,11 @@ impl Event {
 
         query = Self::apply_event_recipient(query, event_recipient);
 
-        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async(conn.raw_connection()),
         )
         .await
@@ -454,12 +446,11 @@ impl Event {
             event_recipient,
         );
 
-        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async(conn.raw_connection()),
         )
         .await
@@ -666,12 +657,11 @@ impl Event {
             event_recipient,
         );
 
-        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Count,
+            &logged_statement,
             query.get_result_async::<i64>(conn.raw_connection()),
         )
         .await
@@ -708,12 +698,11 @@ impl Event {
             event_recipient,
         );
 
-        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Count,
+            &logged_statement,
             query.get_result_async::<i64>(conn.raw_connection()),
         )
         .await
@@ -762,12 +751,11 @@ impl Event {
             event_recipient,
         );
 
-        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Count,
+            &logged_statement,
             query.get_result_async::<i64>(conn.raw_connection()),
         )
         .await

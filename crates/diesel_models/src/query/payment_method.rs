@@ -159,12 +159,11 @@ impl PaymentMethod {
             ),
         );
 
-        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&filter).to_string();
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             generics::db_metrics::DatabaseOperation::Count,
+            &logged_statement,
             filter.get_result_async::<i64>(conn.raw_connection()),
         )
         .await
@@ -183,12 +182,11 @@ impl PaymentMethod {
                 .and(dsl::status.eq(status.to_owned())),
         );
 
-        router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             generics::db_metrics::DatabaseOperation::Count,
+            &logged_statement,
             query.get_result_async::<i64>(conn.raw_connection()),
         )
         .await
@@ -401,12 +399,11 @@ impl PaymentMethod {
                 .and(dsl::status.eq(status.to_owned())),
         );
 
-        router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             generics::db_metrics::DatabaseOperation::Count,
+            &logged_statement,
             query.get_result_async::<i64>(conn.raw_connection()),
         )
         .await

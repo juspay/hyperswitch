@@ -973,11 +973,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         let keymanager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            &conn,
             db_metrics::DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async::<DieselPaymentIntent>(conn.raw_connection()),
         )
         .await
@@ -1143,12 +1143,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             }
         };
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            &conn,
             db_metrics::DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async::<(
                 DieselPaymentIntent,
                 diesel_models::payment_attempt::PaymentAttempt,
@@ -1262,12 +1261,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             }
         };
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            &conn,
             db_metrics::DatabaseOperation::Count,
+            &logged_statement,
             query.get_result_async::<i64>(conn.raw_connection()),
         )
         .await
@@ -1327,10 +1325,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            &conn,
             db_metrics::DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async::<(common_enums::IntentStatus, i64)>(conn.raw_connection()),
         )
         .await
@@ -1849,10 +1848,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             }
         };
 
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             db_metrics::DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async::<Option<String>>(conn.raw_connection()),
         )
         .await
@@ -1935,10 +1935,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             }
         };
 
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            &conn,
             db_metrics::DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async::<String>(conn.raw_connection()),
         )
         .await

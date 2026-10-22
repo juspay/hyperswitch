@@ -476,10 +476,11 @@ impl PaymentAttempt {
         // TODO: Remove these logs after debugging the issue for delay in count query
         let start_time = std::time::Instant::now();
         router_env::logger::debug!("Executing count query start_time: {:?}", start_time);
+        let logged_statement = debug_query::<Pg, _>(&filter).to_string();
         let result = db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             db_metrics::DatabaseOperation::Filter,
+            &logged_statement,
             filter.get_result_async::<i64>(conn.raw_connection()),
         )
         .await
@@ -541,10 +542,11 @@ impl PaymentAttempt {
         // TODO: Remove these logs after debugging the issue for delay in count query
         let start_time = std::time::Instant::now();
         router_env::logger::debug!("Executing count query start_time: {:?}", start_time);
+        let logged_statement = debug_query::<Pg, _>(&filter).to_string();
         let result = db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             db_metrics::DatabaseOperation::Filter,
+            &logged_statement,
             filter.get_result_async::<i64>(conn.raw_connection()),
         )
         .await

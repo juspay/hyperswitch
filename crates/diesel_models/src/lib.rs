@@ -101,6 +101,7 @@ pub struct DatabaseConnectionWithContext<'pool> {
     connection: bb8::PooledConnection<'pool, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     request_id: Option<String>,
     event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+    read_ledger: Option<Arc<common_utils::read_ledger::ReadLedger>>,
 }
 
 impl<'pool> DatabaseConnectionWithContext<'pool> {
@@ -111,11 +112,13 @@ impl<'pool> DatabaseConnectionWithContext<'pool> {
         >,
         request_id: Option<String>,
         event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+        read_ledger: Option<Arc<common_utils::read_ledger::ReadLedger>>,
     ) -> Self {
         Self {
             connection,
             request_id,
             event_emitter,
+            read_ledger,
         }
     }
 
@@ -129,6 +132,12 @@ impl<'pool> DatabaseConnectionWithContext<'pool> {
 
     pub fn event_emitter(&self) -> &dyn ExternalServiceEventEmitter {
         self.event_emitter.as_ref()
+    }
+
+    /// The read ledger of the session behind this call, absent for background
+    /// work that is not a session.
+    pub fn read_ledger(&self) -> Option<&common_utils::read_ledger::ReadLedger> {
+        self.read_ledger.as_deref()
     }
 }
 
@@ -323,6 +332,7 @@ pub(crate) mod metrics {
     global_meter!(GLOBAL_METER, "ROUTER_API");
 
     counter_metric!(DATABASE_CALLS_COUNT, GLOBAL_METER);
+    counter_metric!(DUPLICATE_DB_READ_COUNT, GLOBAL_METER);
     histogram_metric_f64!(DATABASE_CALL_TIME, GLOBAL_METER);
 }
 

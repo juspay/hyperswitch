@@ -9,7 +9,6 @@ use diesel::{
     BoolExpressionMethods, ExpressionMethods, NullableExpressionMethods, QueryDsl,
 };
 use error_stack::{report, ResultExt};
-use router_env::logger;
 
 use crate::{
     errors::DatabaseError,
@@ -145,12 +144,11 @@ impl Theme {
                     query
                 });
 
-        logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         let data: Vec<Self> = match track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async(conn.raw_connection()),
         )
         .await
@@ -227,12 +225,11 @@ impl Theme {
 
         let query = crate::list::into_boxed_list(<Self as HasTable>::table().filter(filter));
 
-        logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
-
+        let logged_statement = debug_query::<Pg, _>(&query).to_string();
         match track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async(conn.raw_connection()),
         )
         .await

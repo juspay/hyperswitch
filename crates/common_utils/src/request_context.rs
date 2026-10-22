@@ -7,4 +7,11 @@
 pub trait RequestContext: Send + Sync {
     /// Return the request ID associated with the current execution, if any.
     fn request_id(&self) -> Option<&str>;
+
+    /// The ledger of records this API session has already read, if it has one.
+    /// `None` by default: background callers (drainer, scheduler, consumer) are
+    /// not sessions, so there is nothing for a read to repeat *within*.
+    fn read_ledger(&self) -> Option<&std::sync::Arc<crate::read_ledger::ReadLedger>> {
+        None
+    }
 }

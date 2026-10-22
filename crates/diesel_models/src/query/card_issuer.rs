@@ -24,10 +24,11 @@ impl CardIssuer {
                 .select((dsl::id, dsl::issuer_name))
                 .limit(limit);
 
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
         track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Filter,
+            &logged_statement,
             query.get_results_async::<CardIssuerListItem>(conn.raw_connection()),
         )
         .await

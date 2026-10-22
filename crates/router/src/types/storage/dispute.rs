@@ -6,7 +6,7 @@ use diesel_models::{errors, query::generics::db_metrics, schema::dispute::dsl};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::disputes;
 
-use crate::{connection::DatabaseConnectionWithContext, logger};
+use crate::connection::DatabaseConnectionWithContext;
 
 #[async_trait::async_trait]
 pub trait DisputeDbExt: Sized {
@@ -116,12 +116,11 @@ impl DisputeDbExt for Dispute {
             dispute_list_constraints.offset,
         );
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
-
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string();
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             db_metrics::DatabaseOperation::Filter,
+            &logged_statement,
             filter.get_results_async(conn.raw_connection()),
         )
         .await
@@ -184,12 +183,11 @@ impl DisputeDbExt for Dispute {
             dispute_list_constraints.offset,
         );
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
-
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string();
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             db_metrics::DatabaseOperation::Filter,
+            &logged_statement,
             filter.get_results_async(conn.raw_connection()),
         )
         .await
@@ -247,12 +245,11 @@ impl DisputeDbExt for Dispute {
             filter = filter.filter(dsl::merchant_connector_id.eq(merchant_connector_id.clone()));
         }
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
-
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string();
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             db_metrics::DatabaseOperation::Count,
+            &logged_statement,
             filter.get_result_async::<i64>(conn.raw_connection()),
         )
         .await
@@ -290,12 +287,11 @@ impl DisputeDbExt for Dispute {
             None => query,
         };
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             db_metrics::DatabaseOperation::Count,
+            &logged_statement,
             query.get_results_async::<(common_enums::DisputeStatus, i64)>(conn.raw_connection()),
         )
         .await

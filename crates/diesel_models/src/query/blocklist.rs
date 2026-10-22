@@ -60,10 +60,11 @@ impl BlocklistNew {
             // Legacy and NULL-profile rows use different unique indexes from processor/profile rows.
             .on_conflict_do_nothing();
 
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
         generics::db_metrics::track_database_call::<<Blocklist as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             generics::db_metrics::DatabaseOperation::Insert,
+            &logged_statement,
             query.execute_async(conn.raw_connection()),
         )
         .await
@@ -722,10 +723,11 @@ impl Blocklist {
                 )
                 .group_by(fingerprint_length())
                 .select((fingerprint_length(), count_star()));
+            let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
             generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-                conn.request_id(),
-                conn.event_emitter(),
+                conn,
                 generics::db_metrics::DatabaseOperation::Count,
+                &logged_statement,
                 query.get_results_async(conn.raw_connection()),
             )
             .await
@@ -761,10 +763,11 @@ impl Blocklist {
                 )
                 .group_by(fingerprint_length())
                 .select((fingerprint_length(), count_star()));
+            let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
             generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-                conn.request_id(),
-                conn.event_emitter(),
+                conn,
                 generics::db_metrics::DatabaseOperation::Count,
+                &logged_statement,
                 query.get_results_async(conn.raw_connection()),
             )
             .await
@@ -797,10 +800,11 @@ impl Blocklist {
             )
             .group_by(fingerprint_length())
             .select((fingerprint_length(), count_star()));
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             generics::db_metrics::DatabaseOperation::Count,
+            &logged_statement,
             query.get_results_async(conn.raw_connection()),
         )
         .await

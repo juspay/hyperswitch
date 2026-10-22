@@ -10,7 +10,6 @@ use error_stack::ResultExt;
 use crate::{
     connection::DatabaseConnectionWithContext,
     core::errors::{self, CustomResult},
-    logger,
 };
 
 #[async_trait::async_trait]
@@ -72,12 +71,11 @@ impl PaymentLinkDbExt for PaymentLink {
             payment_link_list_constraints.offset,
         );
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
-
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string();
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             db_metrics::DatabaseOperation::Filter,
+            &logged_statement,
             filter.get_results_async(conn.raw_connection()),
         )
         .await
@@ -117,10 +115,11 @@ impl PaymentLinkDbExt for PaymentLink {
             None => filter,
         };
 
+        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string();
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             db_metrics::DatabaseOperation::Count,
+            &logged_statement,
             filter.get_result_async(conn.raw_connection()),
         )
         .await

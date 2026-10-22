@@ -33,6 +33,7 @@ use crate::{
 pub mod db_metrics {
     use common_utils::external_service::{ExternalServiceCall, ExternalServiceEventEmitter};
     use diesel::result::Error as DieselError;
+    use router_env::{current_span_path, logger};
 
     #[derive(Debug)]
     pub enum DatabaseOperation {
@@ -45,6 +46,15 @@ pub mod db_metrics {
         UpdateWithResults,
         UpdateOne,
         Count,
+    }
+
+    impl DatabaseOperation {
+        /// Whether this operation only reads. Writes are not tracked at all,
+        /// the row-returning ones least of all: handing their row back is why a
+        /// write needs no re-read.
+        fn is_read(&self) -> bool {
+            matches!(self, Self::FindOne | Self::Filter | Self::Count)
+        }
     }
 
     pub trait DatabaseCallStatus {
@@ -93,53 +103,94 @@ pub mod db_metrics {
         }
     }
 
-    /// Times a single database call, records its latency metric, and emits one
-    /// `ExternalServiceCall` event reflecting that call.
+    /// Logs the statement, times the call, records its latency metric, emits one
+    /// `ExternalServiceCall` event, and records the read in the session's
+    /// ledger. Writes are not recorded there -- only a read repeats a read.
     ///
-    /// When `request_id` is absent (background work, drainer, scheduler) no event is emitted: the
-    /// correlator joins on `request_id` and cannot place request-less rows.
+    /// Every query in the workspace passes here, so the statement is logged
+    /// once rather than at each builder, with `span_path` beside it: the call
+    /// path that turns "read twice" into "these two call sites read it". Both
+    /// sit in the macro's field list, so nothing is walked or formatted unless
+    /// DEBUG is on for this target.
+    ///
+    /// Not an `async fn`: the ledger must see reads in the order they are
+    /// *issued*, not the order their futures are polled, and logging on call
+    /// keeps the pre-execution ordering that debugging a hung query needs. The
+    /// returned future then borrows neither `statement` nor the ledger, so a
+    /// caller can still move its statement afterwards.
+    ///
+    /// `Send` is left undeclared on purpose: `impl Trait` leaks auto traits, so
+    /// a `Send` future stays `Send`, while callers passing one that holds a
+    /// `&dyn QueryFragment` (not `Sync`) keep compiling.
+    ///
+    /// Without a `request_id` (drainer, scheduler) no event is emitted: the
+    /// correlator joins on it and cannot place request-less rows.
     #[inline]
-    pub async fn track_database_call<T, Fut, U>(
-        request_id: Option<&str>,
-        event_emitter: &dyn ExternalServiceEventEmitter,
+    pub fn track_database_call<'a, T, Fut, U>(
+        conn: &'a crate::DatabaseConnectionWithContext<'_>,
         operation: DatabaseOperation,
+        statement: &str,
         future: Fut,
-    ) -> U
+    ) -> impl std::future::Future<Output = U> + 'a
     where
-        Fut: std::future::Future<Output = U>,
+        T: 'a,
+        Fut: std::future::Future<Output = U> + 'a,
         U: DatabaseCallStatus,
     {
-        let start = std::time::Instant::now();
-        let output = future.await;
-        let time_elapsed = start.elapsed();
+        let table = std::any::type_name::<T>()
+            .rsplit("::")
+            .nth(1)
+            .unwrap_or("undefined");
+        // Walked once and shared: the ledger needs it on the *first* read, the
+        // call site a later repeat points back at.
+        let origin = current_span_path();
 
-        let table_name = std::any::type_name::<T>().rsplit("::").nth(1);
-
-        let outcome = if output.is_success() {
-            "success"
-        } else {
-            "error"
-        };
-
-        let attributes = router_env::metric_attributes!(
-            ("table", table_name.unwrap_or("undefined")),
-            ("operation", format!("{:?}", operation)),
-            ("outcome", outcome)
+        logger::debug!(
+            query = %statement,
+            span_path = %origin.as_deref().unwrap_or_default(),
         );
 
-        crate::metrics::DATABASE_CALLS_COUNT.add(1, attributes);
-        crate::metrics::DATABASE_CALL_TIME.record(time_elapsed.as_secs_f64(), attributes);
+        if let (Some(ledger), true) = (conn.read_ledger(), operation.is_read()) {
+            // The ledger keeps the detail; the session logs it once at the end
+            // (`SessionStateInfo::flush_read_ledger`). The counter is immediate,
+            // being an aggregate either way.
+            if ledger.record_read(table, statement, origin.as_deref()) {
+                crate::metrics::DUPLICATE_DB_READ_COUNT
+                    .add(1, router_env::metric_attributes!(("table", table)));
+            }
+        }
 
-        emit_database_call_event(
-            request_id,
-            event_emitter,
-            table_name.unwrap_or("undefined"),
-            &operation,
-            time_elapsed,
-            &output,
-        );
+        async move {
+            let start = std::time::Instant::now();
+            let output = future.await;
+            let time_elapsed = start.elapsed();
 
-        output
+            let outcome = if output.is_success() {
+                "success"
+            } else {
+                "error"
+            };
+
+            let attributes = router_env::metric_attributes!(
+                ("table", table),
+                ("operation", format!("{:?}", operation)),
+                ("outcome", outcome)
+            );
+
+            crate::metrics::DATABASE_CALLS_COUNT.add(1, attributes);
+            crate::metrics::DATABASE_CALL_TIME.record(time_elapsed.as_secs_f64(), attributes);
+
+            emit_database_call_event(
+                conn.request_id(),
+                conn.event_emitter(),
+                table,
+                &operation,
+                time_elapsed,
+                &output,
+            );
+
+            output
+        }
     }
 }
 
@@ -692,7 +743,6 @@ where
 
     let query = diesel::insert_into(<T as HasTable>::table()).values(values);
     let debug_sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %debug_sql);
     let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
         "binds": binds,
@@ -700,16 +750,16 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::Insert,
+        &debug_sql,
         deja::db::get_result_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::Insert,
+        &debug_sql,
         query.get_result_async(conn.raw_connection()),
     );
 
@@ -745,7 +795,6 @@ where
 
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
     let debug_sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %debug_sql);
     let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
         "binds": binds,
@@ -754,9 +803,9 @@ where
 
     execute_generic_update(
         track_database_call::<T, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Update,
+            &debug_sql,
             query.execute_async(conn.raw_connection()),
         ),
         table_name::<T>(),
@@ -794,7 +843,6 @@ where
 
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
     let debug_sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %debug_sql);
     let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
         "binds": binds,
@@ -803,16 +851,16 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::UpdateWithResults,
+        &debug_sql,
         deja::db::get_results_captured(conn.raw_connection(), query.to_owned()),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::UpdateWithResults,
+        &debug_sql,
         query.to_owned().get_results_async(conn.raw_connection()),
     );
 
@@ -895,7 +943,6 @@ where
 
     let query = diesel::update(<T as HasTable>::table().find(id.to_owned())).set(values);
     let debug_sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %debug_sql);
     let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
         "binds": binds,
@@ -903,16 +950,16 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::UpdateOne,
+        &debug_sql,
         deja::db::get_result_captured(conn.raw_connection(), query.to_owned()),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::UpdateOne,
+        &debug_sql,
         query.to_owned().get_result_async(conn.raw_connection()),
     );
 
@@ -943,7 +990,6 @@ where
 {
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
     let debug_sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %debug_sql);
     let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
         "binds": binds,
@@ -952,9 +998,9 @@ where
 
     execute_generic_delete(
         track_database_call::<T, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Delete,
+            &debug_sql,
             query.execute_async(conn.raw_connection()),
         ),
         table_name::<T>(),
@@ -980,7 +1026,6 @@ where
 {
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
     let debug_sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %debug_sql);
     let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
         "binds": binds,
@@ -989,16 +1034,16 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::DeleteWithResult,
+        &debug_sql,
         deja::db::get_results_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::DeleteWithResult,
+        &debug_sql,
         query.get_results_async(conn.raw_connection()),
     );
 
@@ -1028,7 +1073,6 @@ where
 {
     let query = <T as HasTable>::table().find(id.to_owned());
     let debug_sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %debug_sql);
     let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
         "binds": binds,
@@ -1036,16 +1080,16 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::FindOne,
+        &debug_sql,
         deja::db::first_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::FindOne,
+        &debug_sql,
         query.first_async(conn.raw_connection()),
     );
 
@@ -1102,7 +1146,6 @@ where
 {
     let query = <T as HasTable>::table().filter(predicate);
     let debug_sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %debug_sql);
     let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
         "binds": binds,
@@ -1111,16 +1154,16 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::FindOne,
+        &debug_sql,
         deja::db::get_result_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::FindOne,
+        &debug_sql,
         query.get_result_async(conn.raw_connection()),
     );
 
@@ -1198,7 +1241,6 @@ where
     }
 
     let debug_sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %debug_sql);
     let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
         "binds": binds,
@@ -1210,16 +1252,16 @@ where
 
     #[cfg(feature = "deja")]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::Filter,
+        &debug_sql,
         deja::db::get_results_captured(conn.raw_connection(), query),
     );
     #[cfg(not(feature = "deja"))]
     let fut = track_database_call::<T, _, _>(
-        conn.request_id(),
-        conn.event_emitter(),
+        conn,
         DatabaseOperation::Filter,
+        &debug_sql,
         query.get_results_async(conn.raw_connection()),
     );
 
@@ -1251,7 +1293,6 @@ where
         .select(count_star());
 
     let debug_sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %debug_sql);
     let (sql, binds) = capture(&query);
     let inputs = serde_json::json!({
         "binds": binds,
@@ -1260,9 +1301,9 @@ where
 
     execute_generic_count(
         track_database_call::<T, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+            conn,
             DatabaseOperation::Count,
+            &debug_sql,
             query.get_result_async(conn.raw_connection()),
         ),
         table_name::<T>(),
