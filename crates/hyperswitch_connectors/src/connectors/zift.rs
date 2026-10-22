@@ -5,6 +5,7 @@ use std::sync::LazyLock;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
+    ext_traits::ValueExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
@@ -209,14 +210,23 @@ impl ConnectorCommon for Zift {
                 "Zift connector returned an empty response body for error response"
             );
         } else if response.response_code.is_none()
-            || response.response_message.is_none()
-            || response.failure_code.is_none()
-            || response.failure_message.is_none()
+            && response.response_message.is_none()
+            && response.failure_code.is_none()
+            && response.failure_message.is_none()
         {
-            router_env::logger::info!(
-                "Zift connector returned an unexpected error response: {:?}",
-                String::from_utf8_lossy(&res.response)
-            );
+            match serde_json::from_slice::<serde_json::Value>(&res.response)
+                .ok()
+                .or_else(|| serde_urlencoded::from_bytes::<serde_json::Value>(&res.response).ok())
+            {
+                Some(value) => router_env::logger::info!(
+                    "Zift connector returned an unexpected error response with structure: {}",
+                    value.to_type_schema()
+                ),
+                None => router_env::logger::info!(
+                    "Zift connector returned an unexpected error response: {:?}",
+                    String::from_utf8_lossy(&res.response)
+                ),
+            }
         }
 
         event_builder.map(|i| i.set_response_body(&response));
