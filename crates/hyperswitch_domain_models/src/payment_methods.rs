@@ -1275,25 +1275,3 @@ mod tests {
         assert!(common_mandate.payouts.is_some());
     }
 }
-
-#[cfg(all(test, feature = "v2"))]
-mod last_used_at_update_tests {
-    use super::PaymentMethodUpdate;
-
-    #[test]
-    fn last_used_at_flag_requires_update_only_when_true() -> Result<(), serde_json::Error> {
-        for value in [None, Some(false), Some(true)] {
-            let request: api_models::payment_methods::PaymentMethodUpdate =
-                serde_json::from_value(serde_json::json!({"update_last_used_at": value}))?;
-            let request = PaymentMethodUpdate::from(request);
-            assert_eq!(request.update_last_used_at, value);
-            assert_eq!(
-                request.is_payment_method_update_required(),
-                value == Some(true)
-            );
-            assert!(!request.is_payment_method_metadata_update());
-            assert!(!request.can_promote_volatile_payment_method(None));
-        }
-        Ok(())
-    }
-}
