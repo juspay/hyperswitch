@@ -1219,6 +1219,7 @@ pub async fn payouts_list_core(
                             merchant_id,
                             platform.get_processor().get_key_store(),
                             platform.get_processor().get_account().storage_scheme,
+                            false,
                         )
                         .await
                         .map_err(|err| {
@@ -3937,6 +3938,7 @@ pub async fn make_payout_data(
                 merchant_id,
                 platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().storage_scheme,
+                false,
             )
             .await
             .map_err(|err| err.change_context(errors::ApiErrorResponse::InternalServerError))
