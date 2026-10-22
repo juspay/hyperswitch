@@ -332,7 +332,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 if req.request.minor_amount == MinorUnit::zero() {
                     return Err(errors::ConnectorError::NotSupported {
                         message: "automatic capture for zero-amount transactions".to_string(),
-                        connector: CONNECTOR,
+                        connector: CONNECTOR.into(),
                     }
                     .into());
                 }

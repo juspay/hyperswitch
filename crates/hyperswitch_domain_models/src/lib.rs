@@ -953,6 +953,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
                 .first_payment_attempt_network_decline_code,
             first_payment_attempt_pg_error_code: from.first_payment_attempt_pg_error_code,
             invoice_billing_started_at_time: from.invoice_billing_started_at_time,
+            revenue_recovery_ab_routing: from.revenue_recovery_ab_routing,
         }
     }
 
@@ -978,6 +979,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
                 .first_payment_attempt_network_decline_code,
             first_payment_attempt_pg_error_code: self.first_payment_attempt_pg_error_code,
             invoice_billing_started_at_time: self.invoice_billing_started_at_time,
+            revenue_recovery_ab_routing: self.revenue_recovery_ab_routing,
         }
     }
 }
@@ -1397,6 +1399,7 @@ impl From<&api_models::payments::RecordAttemptErrorDetails>
             network_advice_code: error.network_advice_code.clone(),
             network_decline_code: error.network_decline_code.clone(),
             network_error_message: error.network_error_message.clone(),
+            standardised_code: None,
         }
     }
 }

@@ -530,6 +530,7 @@ async fn create_applepay_session_token(
             header_payload.x_client_platform.clone(),
         ) {
             (Some(common_enums::BrowserName::Safari), Some(common_enums::ClientPlatform::Web))
+            | (Some(common_enums::BrowserName::Chrome), Some(common_enums::ClientPlatform::Web))
             | (None, None) => {
                 let apple_pay_session_request = apple_pay_session_request_optional
                     .attach_printable("Failed to obtain apple pay session request")?;
@@ -982,6 +983,10 @@ fn create_apple_pay_session_response(
             ) {
                 (
                     Some(common_enums::BrowserName::Safari),
+                    Some(common_enums::ClientPlatform::Web),
+                )
+                | (
+                    Some(common_enums::BrowserName::Chrome),
                     Some(common_enums::ClientPlatform::Web),
                 )
                 | (None, None) => Ok(types::PaymentsSessionRouterData {

@@ -55,6 +55,11 @@ where
     let mut shutdown_interval =
         tokio::time::interval(Duration::from_millis(settings.graceful_shutdown_interval));
 
+    // Generated once per process rather than per poll iteration, so that the Redis consumer
+    // group registers a single, stable consumer for the lifetime of this process instead of
+    // accumulating a new entry on every poll (entries are never expired by Redis).
+    let consumer_name = format!("consumer_{}", common_utils::generate_uuid_v4());
+
     let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
     let signal = get_allowed_signals()
         .map_err(|error| {
@@ -87,6 +92,7 @@ where
                             logger::error!(?error, "Failed to perform consumer operation");
                         },
                         workflow_selector,
+                        &consumer_name,
                     )
                     .await;
                 }
@@ -109,6 +115,40 @@ where
                     match active_tasks {
                         0 => {
                             logger::info!("Terminating consumer");
+                            for tenant in state.get_tenants() {
+                                let session_state = match app_state_to_session_state(state, &tenant)
+                                {
+                                    Ok(session_state) => session_state,
+                                    Err(error) => {
+                                        logger::error!(
+                                            ?error,
+                                            ?tenant,
+                                            "Failed to build session state, skipping consumer removal for tenant"
+                                        );
+                                        continue;
+                                    }
+                                };
+                                let stream_name = match session_state.get_application_source() {
+                                    enums::ApplicationSource::Main => settings.stream.clone(),
+                                    enums::ApplicationSource::Cug => settings.cug_stream.clone(),
+                                };
+                                let group_name = settings.consumer.consumer_group.clone();
+                                if let Err(error) = session_state
+                                    .get_db()
+                                    .consumer_group_remove_consumer(
+                                        &stream_name,
+                                        &group_name,
+                                        &consumer_name,
+                                    )
+                                    .await
+                                {
+                                    logger::error!(
+                                        ?error,
+                                        ?tenant,
+                                        "Failed to remove consumer from consumer group during graceful shutdown"
+                                    );
+                                }
+                            }
                             break 'consumer;
                         }
                         _ => continue,
@@ -130,13 +170,14 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
     state: &T,
     settings: &SchedulerSettings,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
+    consumer_name: &str,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
+    let start_time = std::time::Instant::now();
     let stream_name = match state.get_application_source() {
         enums::ApplicationSource::Main => settings.stream.clone(),
         enums::ApplicationSource::Cug => settings.cug_stream.clone(),
     };
     let group_name = settings.consumer.consumer_group.clone();
-    let consumer_name = format!("consumer_{}", common_utils::generate_uuid_v4());
 
     let _group_created = &mut state
         .get_db()
@@ -146,7 +187,7 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
     let mut tasks = state
         .get_db()
         .as_scheduler()
-        .fetch_consumer_tasks(&stream_name, &group_name, &consumer_name)
+        .fetch_consumer_tasks(&stream_name, &group_name, consumer_name)
         .await?;
 
     if !tasks.is_empty() {
@@ -169,6 +210,21 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
         )))
     }
     future::join_all(handler).await;
+
+    let duration = start_time.elapsed().as_secs_f64();
+    metrics::CONSUMER_OPERATION_DURATION.record(
+        duration,
+        router_env::metric_attributes!(
+            (
+                "application_source",
+                state.get_application_source().to_string()
+            ),
+            (
+                "tenant_id",
+                state.get_tenant_id().get_string_repr().to_owned()
+            )
+        ),
+    );
 
     Ok(())
 }
@@ -247,12 +303,31 @@ where
         }
     }
 
+    let workflow_start = std::time::Instant::now();
     let res = workflow_selector
         .trigger_workflow(&state, process.clone())
         .await
         .inspect_err(|error| {
             logger::error!(?error, "Failed to trigger workflow");
         });
+    let workflow_duration = workflow_start.elapsed().as_secs_f64();
+
+    let runner = process.runner.unwrap_or_else(|| "unknown".to_string());
+    metrics::WORKFLOW_EXECUTION_DURATION.record(
+        workflow_duration,
+        router_env::metric_attributes!(
+            ("runner", runner),
+            (
+                "application_source",
+                state.get_application_source().to_string()
+            ),
+            (
+                "tenant_id",
+                state.get_tenant_id().get_string_repr().to_owned()
+            )
+        ),
+    );
+
     metrics::TASK_PROCESSED.add(1, &[]);
     res
 }

@@ -323,6 +323,7 @@ pub struct ConnectorConfig {
     pub dwolla: Option<ConnectorTomlConfig>,
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub elavon: Option<ConnectorTomlConfig>,
+    pub elavon_pg: Option<ConnectorTomlConfig>,
     pub envoy: Option<ConnectorTomlConfig>,
     pub etisalat: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -342,6 +343,7 @@ pub struct ConnectorConfig {
     pub gigadat_payout: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
     pub globalpayments_heartland: Option<ConnectorTomlConfig>,
+    pub globalpayments_realex: Option<ConnectorTomlConfig>,
     pub globepay: Option<ConnectorTomlConfig>,
     pub gocardless: Option<ConnectorTomlConfig>,
     pub gotyme_sanlam: Option<ConnectorTomlConfig>,
@@ -362,6 +364,8 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub loonio_payout: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub mifinity_payout: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
     pub moneris: Option<ConnectorTomlConfig>,
     pub mpgs: Option<ConnectorTomlConfig>,
@@ -417,6 +421,7 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub stripe_payout: Option<ConnectorTomlConfig>,
     pub stripebilling: Option<ConnectorTomlConfig>,
+    pub nsure: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
     pub tersouro: Option<ConnectorTomlConfig>,
     pub tokenex: Option<ConnectorTomlConfig>,
@@ -506,6 +511,7 @@ impl ConnectorConfig {
             PayoutConnectors::Itaubank => Ok(connector_data.itaubank_payout),
             PayoutConnectors::Santander => Ok(connector_data.santander_payout),
             PayoutConnectors::GotymeSanlam => Ok(connector_data.gotyme_sanlam_payout),
+            PayoutConnectors::Mifinity => Ok(connector_data.mifinity_payout),
         }
     }
 
@@ -622,6 +628,7 @@ impl ConnectorConfig {
             Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Elavon => Ok(connector_data.elavon),
             Connector::Etisalat => Ok(connector_data.etisalat),
+            Connector::ElavonPg => Ok(connector_data.elavon_pg),
             Connector::Facilitapay => Ok(connector_data.facilitapay),
             Connector::Finix => Ok(connector_data.finix),
             Connector::Fiserv => Ok(connector_data.fiserv),
@@ -634,6 +641,7 @@ impl ConnectorConfig {
             Connector::Gigadat => Ok(connector_data.gigadat),
             Connector::Globalpay => Ok(connector_data.globalpay),
             Connector::GlobalpaymentsHeartland => Ok(connector_data.globalpayments_heartland),
+            Connector::GlobalpaymentsRealex => Ok(connector_data.globalpayments_realex),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
             Connector::GotymeSanlam => Ok(connector_data.gotyme_sanlam),
@@ -686,6 +694,7 @@ impl ConnectorConfig {
             Connector::SanlamPayshield => Ok(connector_data.sanlam_payshield),
             Connector::Santander => Ok(connector_data.santander),
             Connector::Shift4 => Ok(connector_data.shift4),
+            Connector::Nsure => Ok(connector_data.nsure),
             Connector::Signifyd => Ok(connector_data.signifyd),
             Connector::Silverflow => Ok(connector_data.silverflow),
             Connector::Square => Ok(connector_data.square),

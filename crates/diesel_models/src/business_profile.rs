@@ -100,6 +100,7 @@ pub struct Profile {
     pub order_fulfillment_time: Option<i64>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 #[cfg(feature = "v1")]
@@ -168,6 +169,7 @@ pub struct ProfileNew {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub order_fulfillment_time: Option<i64>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 #[cfg(feature = "v1")]
@@ -240,6 +242,7 @@ pub struct ProfileUpdateInternal {
     pub order_fulfillment_time: Option<i64>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 /// Note: The order of fields in the struct is important.
@@ -324,6 +327,7 @@ pub struct Profile {
     pub order_fulfillment_time: Option<i64>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,

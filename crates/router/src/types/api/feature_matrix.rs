@@ -169,6 +169,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Elavon => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
                 }
+                enums::Connector::ElavonPg => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::ElavonPg::new())))
+                }
                 enums::Connector::Envoy => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Envoy::new())))
                 }
@@ -215,6 +218,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
+                enums::Connector::GlobalpaymentsRealex => Ok(ConnectorEnum::Old(Box::new(
+                    connector::GlobalpaymentsRealex::new(),
+                ))),
                 enums::Connector::Globepay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globepay::new())))
                 }
@@ -494,7 +500,7 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Interpayments => Ok(ConnectorEnum::Old(Box::new(
                     connector::Interpayments::new(),
                 ))),
-                enums::Connector::Cardinal | enums::Connector::Juspay => {
+                enums::Connector::Cardinal | enums::Connector::Juspay | enums::Connector::Nsure => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -21,7 +21,7 @@ env:
 jobs:
   migration_verify:
     name: Verify consistency of migrations with `schema.rs` file
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
 
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/hyperswitch_db
@@ -32,7 +32,7 @@ jobs:
 
     services:
       postgres:
-        image: "postgres:alpine"
+        image: "public.ecr.aws/docker/library/postgres:alpine"
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -53,11 +53,9 @@ jobs:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
-      - uses: baptiste0928/cargo-install@v3.4.0
+      - uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - uses: taiki-e/install-action@v2
         with:

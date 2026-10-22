@@ -202,6 +202,30 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
     }
   });
 
+  context("[Payout] [Bank transfer - Open Banking] UCS config setup", () => {
+    it("create-ucs-configs-call-test", function () {
+      if (globalState.get("connectorId") !== "trustly") {
+        this.skip();
+      }
+
+      if (!globalState.get("ucsEnabled")) {
+        cy.task(
+          "cli_log",
+          "create-ucs-configs-call-test: UCS_ENABLED env not set - auto-enabling UCS for trustly (UCS-only connector)"
+        );
+        globalState.set("ucsEnabled", true);
+      }
+
+      cy.setupConfigs(globalState, "ucs_enabled", "true");
+
+      cy.createRolloutConfig(globalState, "Webhooks", {
+        rollout_percent: 1.0,
+        execution_mode: "primary",
+        webhook_flows: ["Payout"],
+      });
+    });
+  });
+
   context("[Payout] [Bank transfer - Open Banking] Auto Fulfill", () => {
     let shouldContinue = true;
 
@@ -227,7 +251,14 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
     });
 
     it("retrieve-payout-call-test", () => {
-      cy.retrievePayoutCallTest(globalState);
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["open_banking"]["RetrieveAfterFulfill"];
+
+      if (data) {
+        cy.pollPayoutStatusCallTest(globalState);
+      }
+      cy.retrievePayoutCallTest(globalState, data);
     });
   });
 
@@ -259,8 +290,31 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
+    if (
+      utils.CONNECTOR_LISTS.INCLUDE.BANK_TRANSFER_OPEN_BANKING_MANUAL_FULFILL.includes(
+        Cypress.env("CONNECTOR")
+      )
+    ) {
+      it("fulfill-payout-call-test", () => {
+        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["open_banking"]["Fulfill"];
+
+        cy.fulfillPayoutCallTest({}, data, globalState);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+    }
+
     it("retrieve-payout-call-test", () => {
-      cy.retrievePayoutCallTest(globalState);
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["open_banking"]["RetrieveAfterFulfill"];
+
+      if (data) {
+        cy.pollPayoutStatusCallTest(globalState);
+      }
+      cy.retrievePayoutCallTest(globalState, data);
     });
   });
 
@@ -296,6 +350,87 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
       });
     }
   );
+
+  if (
+    utils.CONNECTOR_LISTS.INCLUDE.BANK_TRANSFER_OPEN_BANKING_INVALID_ACCOUNT_NUMBER.includes(
+      Cypress.env("CONNECTOR")
+    )
+  ) {
+    context(
+      "[Payout] [Bank transfer - Open Banking] Invalid Account Number",
+      () => {
+        const shouldContinue = true;
+
+        beforeEach(function () {
+          if (!shouldContinue) {
+            this.skip();
+          }
+        });
+
+        it("create-payout-with-invalid-account-number-test", () => {
+          const data = utils.getConnectorDetails(
+            globalState.get("connectorId")
+          )["bank_transfer_pm"]["open_banking"]["InvalidAccountNumber"];
+
+          cy.createConfirmPayoutTest(
+            Cypress._.cloneDeep(fixtures.createPayoutBody),
+            data,
+            true,
+            true,
+            globalState
+          );
+        });
+      }
+    );
+  }
+
+  if (
+    utils.CONNECTOR_LISTS.INCLUDE.BANK_TRANSFER_OPEN_BANKING_NO_BILLING.includes(
+      Cypress.env("CONNECTOR")
+    )
+  ) {
+    context(
+      "[Payout] [Bank transfer - Open Banking] Without Billing Address",
+      () => {
+        let shouldContinue = true;
+
+        beforeEach(function () {
+          if (!shouldContinue) {
+            this.skip();
+          }
+        });
+
+        it("create customer", () => {
+          cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+        });
+
+        it("confirm-payout-call-without-billing-test", () => {
+          const data = utils.getConnectorDetails(
+            globalState.get("connectorId")
+          )["bank_transfer_pm"]["open_banking"]["ConfirmWithoutBilling"];
+
+          cy.createConfirmPayoutTest(
+            Cypress._.cloneDeep(fixtures.createPayoutBody),
+            data,
+            true,
+            true,
+            globalState
+          );
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        });
+
+        it("retrieve-payout-call-test", () => {
+          const data = utils.getConnectorDetails(
+            globalState.get("connectorId")
+          )["bank_transfer_pm"]["open_banking"]["RetrieveAfterFulfill"];
+
+          cy.pollPayoutStatusCallTest(globalState);
+          cy.retrievePayoutCallTest(globalState, data);
+        });
+      }
+    );
+  }
 
   if (
     utils.CONNECTOR_LISTS.INCLUDE.BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL.includes(

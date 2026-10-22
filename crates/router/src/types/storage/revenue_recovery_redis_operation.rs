@@ -949,14 +949,15 @@ impl RedisTokenManager {
     }
 
     // Get token based on retry type
-    // Adaptive smart decides against the invoice's own token, so it resolves by id rather than
-    // the `scheduled_at` marker, which only the decider writes and is shared across invoices.
+    // The A/B and adaptive smart paths decide against the invoice's own token, so they resolve it
+    // by id rather than the `scheduled_at` marker, which only the decider writes and is shared
+    // across invoices.
     pub async fn get_token_based_on_retry_type(
         state: &SessionState,
         connector_customer_id: &str,
         retry_algorithm_type: RevenueRecoveryAlgorithmType,
         last_token_used: Option<&str>,
-        adaptive_retry_enabled: bool,
+        smart_retry_uses_invoice_token: bool,
     ) -> CustomResult<Option<PaymentProcessorTokenStatus>, errors::StorageError> {
         let mut token = None;
         match retry_algorithm_type {
@@ -969,7 +970,7 @@ impl RedisTokenManager {
                     Self::get_invoice_token(state, connector_customer_id, last_token_used).await?;
             }
 
-            RevenueRecoveryAlgorithmType::Smart if adaptive_retry_enabled => {
+            RevenueRecoveryAlgorithmType::Smart if smart_retry_uses_invoice_token => {
                 token =
                     Self::get_invoice_token(state, connector_customer_id, last_token_used).await?;
             }

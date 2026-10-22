@@ -8,7 +8,9 @@ crate::impl_id_type_methods!(PayoutId, "payout_id");
 crate::impl_debug_id_type!(PayoutId);
 crate::impl_try_from_cow_str_id_type!(PayoutId, "payout_id");
 crate::impl_generate_id_id_type!(PayoutId, "payout");
+#[cfg(feature = "diesel")]
 crate::impl_queryable_id_type!(PayoutId);
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_id_type!(PayoutId);
 
 crate::id_type!(PayoutResourceId, "A type for payout_resource_id");
@@ -19,7 +21,9 @@ crate::impl_debug_id_type!(PayoutResourceId);
 crate::impl_try_from_cow_str_id_type!(PayoutResourceId, "payout_resource_id");
 
 // Database related implementations so that this field can be used directly in the database tables
+#[cfg(feature = "diesel")]
 crate::impl_queryable_id_type!(PayoutResourceId);
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_id_type!(PayoutResourceId);
 
 crate::id_type!(PayoutReferenceId, "A type for payout_reference_id");
@@ -30,7 +34,9 @@ crate::impl_debug_id_type!(PayoutReferenceId);
 crate::impl_try_from_cow_str_id_type!(PayoutReferenceId, "payout_reference_id");
 
 // Database related implementations so that this field can be used directly in the database tables
+#[cfg(feature = "diesel")]
 crate::impl_queryable_id_type!(PayoutReferenceId);
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_id_type!(PayoutReferenceId);
 
 impl std::str::FromStr for PayoutReferenceId {

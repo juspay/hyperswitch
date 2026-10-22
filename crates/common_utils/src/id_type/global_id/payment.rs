@@ -13,7 +13,9 @@ Example: `0a_pay_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p`"
 );
 
 // Database related implementations so that this field can be used directly in the database tables
+#[cfg(feature = "diesel")]
 crate::impl_queryable_id_type!(GlobalPaymentId);
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_global_id_type!(GlobalPaymentId);
 
 impl GlobalPaymentId {
@@ -43,6 +45,12 @@ impl GlobalPaymentId {
     }
 }
 
+impl crate::id_type::TargetingKey for GlobalPaymentId {
+    fn targeting_key_value(&self) -> &str {
+        self.get_string_repr()
+    }
+}
+
 // TODO: refactor the macro to include this id use case as well
 impl TryFrom<std::borrow::Cow<'static, str>> for GlobalPaymentId {
     type Error = error_stack::Report<errors::ValidationError>;
@@ -62,7 +70,9 @@ crate::global_id_type!(
 );
 
 // Database related implementations so that this field can be used directly in the database tables
+#[cfg(feature = "diesel")]
 crate::impl_queryable_id_type!(GlobalAttemptId);
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_global_id_type!(GlobalAttemptId);
 
 impl GlobalAttemptId {
@@ -105,7 +115,9 @@ crate::global_id_type!(
 );
 
 // Database related implementations so that this field can be used directly in the database tables
+#[cfg(feature = "diesel")]
 crate::impl_queryable_id_type!(GlobalAttemptGroupId);
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_global_id_type!(GlobalAttemptGroupId);
 
 impl GlobalAttemptGroupId {

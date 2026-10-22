@@ -51,9 +51,6 @@ pub struct CreateConnectorCustomer;
 pub struct SetupMandate;
 
 #[derive(Debug, Clone)]
-pub struct PreProcessing;
-
-#[derive(Debug, Clone)]
 pub struct PushNotification;
 
 #[derive(Debug, Clone)]

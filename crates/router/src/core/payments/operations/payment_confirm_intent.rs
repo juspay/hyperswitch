@@ -453,24 +453,27 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         provider: &domain::Provider,
         customer: Option<domain::Customer>,
         updated_customer: Option<storage::CustomerUpdate>,
-    ) -> RouterResult<()> {
-        if let Some((customer, updated_customer)) = customer.zip(updated_customer) {
-            let customer_id = customer.get_id().clone();
+    ) -> RouterResult<Option<domain::Customer>> {
+        match (customer, updated_customer) {
+            (Some(customer), Some(updated_customer)) => {
+                let customer_id = customer.get_id().clone();
 
-            let _updated_customer = state
-                .store
-                .update_customer_by_global_id(
-                    &customer_id,
-                    customer,
-                    updated_customer,
-                    provider.get_key_store(),
-                    provider.get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update customer during `update_customer`")?;
+                state
+                    .store
+                    .update_customer_by_global_id(
+                        &customer_id,
+                        customer,
+                        updated_customer,
+                        provider.get_key_store(),
+                        provider.get_account().storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to update customer during `update_customer`")
+                    .map(Some)
+            }
+            (customer, _) => Ok(customer),
         }
-        Ok(())
     }
 
     async fn run_decision_manager<'a>(

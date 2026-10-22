@@ -197,6 +197,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             enable_partial_authorization,
             is_account_funded_transaction,
             recipient_details,
+            enable_avs_check,
         } = request.clone();
 
         let batch_encrypted_data = domain_types::crypto_operation(
@@ -247,12 +248,11 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             None => payment_intent.amount_details,
         };
 
-        let active_attempt_id = set_active_attempt_id
-            .map(|active_attempt_req| match active_attempt_req {
-                UpdateActiveAttempt::Set(global_attempt_id) => Some(global_attempt_id),
-                UpdateActiveAttempt::Unset => None,
-            })
-            .unwrap_or(payment_intent.active_attempt_id);
+        let active_attempt_id = match set_active_attempt_id {
+            Some(UpdateActiveAttempt::Set(global_attempt_id)) => Some(global_attempt_id),
+            Some(UpdateActiveAttempt::Unset) => None,
+            Some(UpdateActiveAttempt::NoAction) | None => payment_intent.active_attempt_id,
+        };
 
         let payment_intent = hyperswitch_domain_models::payments::PaymentIntent {
             amount_details: updated_amount_details,
@@ -313,6 +313,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                 .recipient_details
                 .clone()
                 .or(payment_intent.recipient_details.clone()),
+            enable_avs_check: enable_avs_check.or(payment_intent.enable_avs_check),
             ..payment_intent
         };
 
@@ -409,6 +410,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 profile_acquirer_id: intent.profile_acquirer_id,
                 external_surcharge_strategy: intent.external_surcharge_strategy,
                 external_surcharge_applicable: intent.external_surcharge_applicable,
+                enable_avs_check: intent.enable_avs_check,
             }));
 
         let new_payment_intent = db

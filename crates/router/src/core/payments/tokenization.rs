@@ -1242,11 +1242,13 @@ pub async fn pre_payment_tokenization(
     {
         let optional_card_cvc = Some(card.card_cvc.clone());
         let card_detail = payment_method_data::CardDetail::from(card);
-        match network_tokenization::make_card_network_tokenization_request(
-            state,
-            &card_detail,
-            optional_card_cvc,
-            &customer_id,
+        match Box::pin(
+            network_tokenization::make_card_network_tokenization_request(
+                state,
+                &card_detail,
+                optional_card_cvc,
+                &customer_id,
+            ),
         )
         .await
         {
@@ -1695,11 +1697,13 @@ pub async fn save_network_token_in_locker(
                 // empty one.
                 let optional_card_cvc =
                     (!card_data.card_cvc.peek().is_empty()).then(|| card_data.card_cvc.clone());
-                match network_tokenization::make_card_network_tokenization_request(
-                    state,
-                    &domain::CardDetail::from(card_data),
-                    optional_card_cvc,
-                    &customer_id,
+                match Box::pin(
+                    network_tokenization::make_card_network_tokenization_request(
+                        state,
+                        &domain::CardDetail::from(card_data),
+                        optional_card_cvc,
+                        &customer_id,
+                    ),
                 )
                 .await
                 {
@@ -1910,6 +1914,7 @@ pub fn update_router_data_with_payment_method_token_result<F: Clone, T>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
 pub fn add_connector_mandate_details_in_payment_method(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
@@ -1918,6 +1923,7 @@ pub fn add_connector_mandate_details_in_payment_method(
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
     mandate_metadata: Option<Secret<serde_json::Value>>,
+    connector_mandate_status: ConnectorMandateStatus,
     connector_mandate_request_reference_id: Option<String>,
 ) -> Option<CommonMandateReference> {
     let mut mandate_details = HashMap::new();
@@ -1933,7 +1939,7 @@ pub fn add_connector_mandate_details_in_payment_method(
                 original_payment_authorized_amount: authorized_amount,
                 original_payment_authorized_currency: authorized_currency,
                 mandate_metadata,
-                connector_mandate_status: Some(ConnectorMandateStatus::Active),
+                connector_mandate_status: Some(connector_mandate_status),
                 connector_mandate_request_reference_id,
                 connector_customer_id: None,
             },
@@ -1957,6 +1963,7 @@ pub fn update_connector_mandate_details(
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
     mandate_metadata: Option<Secret<serde_json::Value>>,
+    connector_mandate_status: ConnectorMandateStatus,
     connector_mandate_request_reference_id: Option<String>,
 ) -> RouterResult<Option<CommonMandateReference>> {
     let mandate_reference = match mandate_details
@@ -1967,28 +1974,33 @@ pub fn update_connector_mandate_details(
             if let Some((mca_id, connector_mandate_id)) =
                 merchant_connector_id.clone().zip(connector_mandate_id)
             {
-                let updated_record = PaymentsMandateReferenceRecord {
-                    connector_mandate_id: connector_mandate_id.clone(),
-                    payment_method_type,
-                    original_payment_authorized_amount: authorized_amount,
-                    original_payment_authorized_currency: authorized_currency,
-                    mandate_metadata: mandate_metadata.clone(),
-                    connector_mandate_status: Some(ConnectorMandateStatus::Active),
-                    connector_mandate_request_reference_id: connector_mandate_request_reference_id
-                        .clone(),
-                    connector_customer_id: None,
-                };
-
                 payment_mandate_reference
                     .entry(mca_id)
-                    .and_modify(|pm| *pm = updated_record)
+                    .and_modify(|pm| {
+                        pm.connector_mandate_id = connector_mandate_id.clone();
+                        pm.payment_method_type = payment_method_type;
+                        if authorized_amount.is_some() {
+                            pm.original_payment_authorized_amount = authorized_amount;
+                        }
+                        if authorized_currency.is_some() {
+                            pm.original_payment_authorized_currency = authorized_currency;
+                        }
+                        if mandate_metadata.is_some() {
+                            pm.mandate_metadata = mandate_metadata.clone();
+                        }
+                        pm.connector_mandate_status = Some(connector_mandate_status);
+                        if connector_mandate_request_reference_id.is_some() {
+                            pm.connector_mandate_request_reference_id =
+                                connector_mandate_request_reference_id.clone();
+                        }
+                    })
                     .or_insert(PaymentsMandateReferenceRecord {
                         connector_mandate_id,
                         payment_method_type,
                         original_payment_authorized_amount: authorized_amount,
                         original_payment_authorized_currency: authorized_currency,
                         mandate_metadata: mandate_metadata.clone(),
-                        connector_mandate_status: Some(ConnectorMandateStatus::Active),
+                        connector_mandate_status: Some(connector_mandate_status),
                         connector_mandate_request_reference_id,
                         connector_customer_id: None,
                     });
@@ -2010,6 +2022,7 @@ pub fn update_connector_mandate_details(
             merchant_connector_id,
             connector_mandate_id,
             mandate_metadata,
+            connector_mandate_status,
             connector_mandate_request_reference_id,
         ),
     };
@@ -2471,12 +2484,12 @@ pub async fn generate_network_token_for_payment_method(
         .unwrap_or(&payment_method.payment_method_id);
 
     // Fetch the raw card from the locker
-    let card_from_locker = payment_methods::cards::get_card_from_locker(
+    let card_from_locker = Box::pin(payment_methods::cards::get_card_from_locker(
         state,
         customer_id,
         &tracking_data.merchant_id,
         locker_id,
-    )
+    ))
     .await
     .inspect_err(|err| {
         logger::error!(
@@ -2503,7 +2516,7 @@ pub async fn generate_network_token_for_payment_method(
 
     let payment_method_data = domain::PaymentMethodData::Card(card_data);
 
-    generate_network_token_and_update_payment_method(
+    Box::pin(generate_network_token_and_update_payment_method(
         state,
         platform,
         &payment_method_data,
@@ -2513,6 +2526,6 @@ pub async fn generate_network_token_for_payment_method(
         tracking_data.billing_name.clone(),
         None,
         Some(payment_method),
-    )
+    ))
     .await
 }

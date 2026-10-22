@@ -522,6 +522,11 @@ pub trait ConnectorSpecifications {
         None
     }
 
+    /// Whether incoming webhooks must be received over a verified mTLS connection.
+    fn is_webhook_mtls_required(&self) -> bool {
+        false
+    }
+
     /// About the connector
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         None
@@ -570,6 +575,13 @@ pub trait ConnectorSpecifications {
         _current_flow: Option<CurrentFlowInfo>,
     ) -> Option<bool> {
         Some(false)
+    }
+
+    /// Whether MIT payments may proceed when the selected connector mandate is inactive.
+    /// `None` keeps the existing permissive behaviour for connectors that have not opted in to
+    /// connector-mandate-status validation.
+    fn should_allow_mit_when_connector_mandate_status_is_inactive(&self) -> Option<bool> {
+        None
     }
 
     /// Whether SDK session token generation is enabled for this connector
@@ -948,7 +960,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         } else {
             Err(errors::ConnectorError::NotSupported {
                 message: capture_method.to_string(),
-                connector: self.id(),
+                connector: self.id().into(),
             }
             .into())
         }
@@ -1027,7 +1039,7 @@ fn get_connector_payment_method_type_info(
             .get(&payment_method)
             .ok_or_else(|| errors::ConnectorError::NotSupported {
                 message: payment_method.to_string(),
-                connector,
+                connector: connector.into(),
             })?;
 
     payment_method_type
@@ -1035,7 +1047,7 @@ fn get_connector_payment_method_type_info(
             payment_method_details.get(&pmt).cloned().ok_or_else(|| {
                 errors::ConnectorError::NotSupported {
                     message: format!("{payment_method} {pmt}"),
-                    connector,
+                    connector: connector.into(),
                 }
                 .into()
             })

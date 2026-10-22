@@ -7,11 +7,30 @@ describe("Surcharge DSL Configuration Test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+
+      // Create a fresh user + merchant so we get an active AuthToken.
+      // Env-based credentials don't reliably yield an AuthToken because the
+      // env user may not have an active role on the test merchant.
+      cy.signupUserWithMerchant("CypressSurchargeDSL", globalState);
+
+      // Login sequence used elsewhere in the suite: userLogin sets
+      // totpToken, terminate2Fa exchanges it for userInfoToken, and
+      // userInfo reads merchantId/organizationId/profileId off /user —
+      // retargeting the spec at the merchant we just created.
+      cy.userLogin(globalState);
+      cy.terminate2Fa(globalState);
+      cy.userInfo(globalState);
     });
   });
 
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
+  });
+
+  after("cleanup throwaway merchant", () => {
+    if (globalState.get("merchantId")) {
+      cy.merchantDeleteCall(globalState);
+    }
   });
 
   context("Surcharge DSL with rate-based default selection", () => {
@@ -24,13 +43,13 @@ describe("Surcharge DSL Configuration Test", () => {
         name: "surcharge_config_rate",
         merchant_surcharge_configs: {},
         algorithm: {
-          type: "rate",
-          rate: 2.5,
           defaultSelection: {
-            surcharge_type: "rate",
-            rate: 2.5,
+            surcharge_details: {
+              surcharge: { type: "rate", value: { percentage: 2.5 } },
+            },
           },
           rules: [],
+          metadata: {},
         },
       };
 
@@ -58,7 +77,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("verify-delete-by-retrieve-empty", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Retrieve"
+          "RetrieveAfterDelete"
         ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);
@@ -69,19 +88,19 @@ describe("Surcharge DSL Configuration Test", () => {
     it("create-surcharge-dsl-config-fixed", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Create"
+          "CreateFixed"
         ];
       const surchargeBody = {
         name: "surcharge_config_fixed",
         merchant_surcharge_configs: {},
         algorithm: {
-          type: "fixed",
-          amount: 100,
           defaultSelection: {
-            surcharge_type: "fixed",
-            amount: 100,
+            surcharge_details: {
+              surcharge: { type: "fixed", value: { amount: 100 } },
+            },
           },
           rules: [],
+          metadata: {},
         },
       };
 
@@ -91,7 +110,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("retrieve-surcharge-dsl-config-fixed", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Retrieve"
+          "RetrieveFixed"
         ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);
@@ -111,24 +130,24 @@ describe("Surcharge DSL Configuration Test", () => {
     it("create-surcharge-dsl-config-with-rules", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Create"
+          "CreateWithRules"
         ];
       const surchargeBody = {
         name: "surcharge_config_rules",
         merchant_surcharge_configs: {},
         algorithm: {
-          type: "rate",
-          rate: 2.5,
           defaultSelection: {
-            surcharge_type: "rate",
-            rate: 2.5,
+            surcharge_details: {
+              surcharge: { type: "rate", value: { percentage: 2.5 } },
+            },
           },
           rules: [
             {
               name: "card_surcharge_rule",
-              surcharge_value: {
-                surcharge_type: "rate",
-                rate: 3.0,
+              connectorSelection: {
+                surcharge_details: {
+                  surcharge: { type: "rate", value: { percentage: 3.0 } },
+                },
               },
               statements: [
                 {
@@ -147,6 +166,7 @@ describe("Surcharge DSL Configuration Test", () => {
               ],
             },
           ],
+          metadata: {},
         },
       };
 
@@ -156,7 +176,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("retrieve-surcharge-dsl-config-with-rules", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Retrieve"
+          "RetrieveWithRules"
         ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);
