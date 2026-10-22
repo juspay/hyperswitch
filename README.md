@@ -41,18 +41,16 @@
 <details>
 <summary><strong>📁 Table of Contents</strong></summary>
 
-- [What Can I Do with Hyperswitch?](#-what-can-i-do-with-hyperswitch)
-- [Quickstart (Local Setup)](#-quickstart-local-setup)
+- [What Can I Do with Hyperswitch?](#what-can-i-do-with-hyperswitch)
+- [Quickstart](#quickstart)
 - [Cloud Deployment](#cloud-deployment)
 - [Hosted Sandbox (No Setup Required)](#hosted-sandbox-no-setup-required)
-- [Why Hyperswitch?](#-why-hyperswitch)
+- [Why Hyperswitch?](#why-hyperswitch)
 - [Architectural Overview](#architectural-overview)
-- [Our Vision](#our-vision)
-- [Community & Contributions](#community--contributions)
+- [Contributing](#contributing)
 - [Feature Requests & Bugs](#feature-requests--bugs)
 - [Versioning](#versioning)
 - [License](#copyright-and-license)
-- [Team Behind Hyperswitch](#team-behind-hyperswitch)
 
 </details>
 
