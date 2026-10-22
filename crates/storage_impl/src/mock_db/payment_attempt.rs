@@ -121,18 +121,6 @@ impl PaymentAttemptInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_processor_merchant_id_connector_metadata_capture_id(
-        &self,
-        _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _capture_id: &str,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
-        _merchant_key_store: &MerchantKeyStore,
-    ) -> CustomResult<PaymentAttempt, StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(StorageError::MockDbError)?
-    }
-
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
