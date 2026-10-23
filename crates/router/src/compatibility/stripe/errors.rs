@@ -1,7 +1,6 @@
+use actix_web::http;
 use common_utils::{errors::ErrorSwitch, id_type};
 use hyperswitch_domain_models::errors::api_error_response as errors;
-
-use actix_web::http;
 
 use crate::core::errors::CustomersErrorResponse;
 
