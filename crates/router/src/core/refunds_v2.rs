@@ -55,7 +55,7 @@ pub async fn refund_create_core(
         .find_payment_intent_by_id(
             &req.payment_id,
             platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -94,7 +94,7 @@ pub async fn refund_create_core(
         .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
             platform.get_processor().get_key_store(),
             &req.payment_id,
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
@@ -726,7 +726,7 @@ pub async fn refund_retrieve_core(
         .find_payment_intent_by_id(
             payment_id,
             processor.get_key_store(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -741,7 +741,7 @@ pub async fn refund_retrieve_core(
         .find_payment_attempt_by_id(
             processor.get_key_store(),
             &active_attempt_id,
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;

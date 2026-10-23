@@ -12,10 +12,8 @@ use hyperswitch_domain_models::{
     router_flow_types, router_request_types, router_response_types,
 };
 use hyperswitch_interfaces::{
-    api as api_interface,
-    api::{gateway, ConnectorSpecifications},
-    consts as interface_consts, errors as interface_errors,
-    unified_connector_service::transformers as ucs_transformers,
+    api as api_interface, api::ConnectorSpecifications, consts as interface_consts,
+    errors as interface_errors, unified_connector_service::transformers as ucs_transformers,
 };
 use hyperswitch_masking::{self, ExposeInterface};
 use unified_connector_service_client::payments as payments_grpc;
@@ -25,8 +23,8 @@ use crate::{
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{
-            self, access_token, gateway as payments_gateway, gateway::context as gateway_context,
-            helpers, transformers, PaymentData,
+            self, access_token, gateway, gateway as payments_gateway,
+            gateway::context as gateway_context, helpers, transformers, PaymentData,
         },
         unified_connector_service as ucs_core,
     },

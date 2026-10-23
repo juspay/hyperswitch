@@ -288,7 +288,7 @@ pub async fn upsert_calculate_pcr_task(
                     let revenue_recovery_payment_data = pcr::RevenueRecoveryPaymentData {
                         merchant_account: platform.get_processor().get_account().clone(),
                         profile: business_profile.clone(),
-                        key_store: platform.get_processor().get_key_store().clone(),
+                        key_store: platform.get_processor().get_key_store().inner().clone(),
                         billing_mca: billing_connector_account.clone(),
                         retry_algorithm: revenue_recovery_retry,
                         psync_data: None,
@@ -1654,13 +1654,17 @@ pub async fn resume_revenue_recovery_process_tracker(
         IntentStatus::Succeeded => {
             // Sync the intent's *active* (charged) attempt, NOT tracking_data's attempt — the latter
             // is the original failed attempt; the successful retry lives on `active_attempt_id`.
+            let processor_account = domain::ProcessorMerchantAccount::from_untagged(
+                revenue_recovery_payment_data.merchant_account.clone(),
+            );
+            let processor_key_store = domain::ProcessorKeyStore::from_untagged(
+                revenue_recovery_payment_data.key_store.clone(),
+            );
             let payment_intent = db
                 .find_payment_intent_by_id(
                     &id,
-                    &revenue_recovery_payment_data.key_store,
-                    revenue_recovery_payment_data
-                        .merchant_account
-                        .storage_scheme,
+                    &processor_key_store,
+                    processor_account.get_storage_scheme(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -1958,8 +1962,8 @@ pub fn decide_invoice_cancellation(
 /// the decision returned and returns it. Otherwise returns the refusal without changing anything.
 pub async fn cancel_invoice_workflows(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: common_enums::MerchantStorageScheme,
+    key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
     payment_intent: PaymentIntent,
 ) -> CustomResult<Result<PaymentIntent, CancelInvoiceRefusal>, errors::RevenueRecoveryError> {
     let db = &*state.store;
@@ -1998,7 +2002,7 @@ pub async fn cancel_invoice_workflows(
 
     let intent_update = PaymentIntentUpdate::VoidUpdate {
         status: cancelled_status,
-        updated_by: storage_scheme.to_string(),
+        updated_by: storage_scheme.inner().to_string(),
     };
     let cancelled_intent = db
         .update_payment_intent(payment_intent, intent_update, key_store, storage_scheme)

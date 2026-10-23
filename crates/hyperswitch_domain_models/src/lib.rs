@@ -48,6 +48,7 @@ pub mod transformers;
 pub mod type_encryption;
 pub mod types;
 pub mod vault;
+pub mod webhooks;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}

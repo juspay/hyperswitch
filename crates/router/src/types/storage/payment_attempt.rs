@@ -136,7 +136,7 @@ mod tests {
         configs::settings::Settings,
         db::StorageImpl,
         routes, services,
-        types::{self, storage::enums},
+        types::{self, domain},
     };
 
     async fn create_single_connection_test_transaction_pool() -> routes::AppState {
@@ -271,11 +271,12 @@ mod tests {
             )
             .await
             .unwrap();
+        let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);
         let response = store
             .insert_payment_attempt(
                 payment_attempt,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();
@@ -399,11 +400,12 @@ mod tests {
             )
             .await
             .unwrap();
+        let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);
         store
             .insert_payment_attempt(
                 payment_attempt,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();
@@ -411,10 +413,10 @@ mod tests {
         let response = store
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_id,
-                &merchant_id,
+                &domain::ProcessorMerchantId::from(merchant_id),
                 &attempt_id,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();
@@ -542,11 +544,12 @@ mod tests {
             )
             .await
             .unwrap();
+        let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);
         store
             .insert_payment_attempt(
                 payment_attempt,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();
@@ -554,10 +557,10 @@ mod tests {
         let response = store
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_id,
-                &merchant_id,
+                &domain::ProcessorMerchantId::from(merchant_id),
                 &uuid,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();

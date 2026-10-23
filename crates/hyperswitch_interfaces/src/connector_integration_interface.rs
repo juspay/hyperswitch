@@ -580,6 +580,13 @@ impl ConnectorValidation for ConnectorEnum {
     }
 }
 impl ConnectorSpecifications for ConnectorEnum {
+    fn is_webhook_ip_verification_required(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_webhook_ip_verification_required(),
+            Self::New(connector) => connector.is_webhook_ip_verification_required(),
+        }
+    }
+
     fn is_webhook_mtls_required(&self) -> bool {
         match self {
             Self::Old(connector) => connector.is_webhook_mtls_required(),
