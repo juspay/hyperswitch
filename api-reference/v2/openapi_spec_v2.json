@@ -25533,6 +25533,11 @@
       "PaymentMethodUpdate": {
         "type": "object",
         "properties": {
+          "update_last_used_at": {
+            "type": "boolean",
+            "example": true,
+            "nullable": true
+          },
           "payment_method_data": {
             "allOf": [
               {

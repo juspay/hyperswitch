@@ -3374,6 +3374,7 @@ async fn execute_payment_method_create(
                 payment_method_subtype,
                 external_vault_source,
                 Some(enums::PaymentMethodStatus::New),
+                None,
                 platform.get_initiator(),
             )
             .await
@@ -4074,6 +4075,7 @@ pub async fn generate_network_token_for_payment_method(
             // network token columns. Its changeset skips `None` fields, so only the network token
             // columns (and last_modified) are written.
             let pm_update = storage::PaymentMethodUpdate::GenericUpdate {
+                last_used_at: None,
                 payment_method_data: None,
                 status: None,
                 locker_id: None,
@@ -5390,6 +5392,7 @@ pub async fn create_pm_additional_data_update(
     payment_method_subtype: Option<common_enums::PaymentMethodType>,
     external_vault_source: Option<id_type::MerchantConnectorAccountId>,
     status: Option<storage_enums::PaymentMethodStatus>,
+    last_used_at: Option<time::PrimitiveDateTime>,
     initiator: Option<&domain::Initiator>,
 ) -> RouterResult<storage::PaymentMethodUpdate> {
     let encrypted_payment_method_data = payment_methods_data
@@ -5425,6 +5428,7 @@ pub async fn create_pm_additional_data_update(
         .map(From::from);
 
     let pm_update = storage::PaymentMethodUpdate::GenericUpdate {
+        last_used_at,
         // A new payment method is created with inactive state
         // It will be marked active after payment succeeds
         status,
@@ -8871,6 +8875,9 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             false => (vault_request_data, vault_resp),
         };
 
+        let last_used_at =
+            (self.request.update_last_used_at == Some(true)).then(common_utils::date_time::now);
+
         let updated_payment_method = match self.insert_promoted_record {
             // The record has only ever lived in redis, and already carries the card, the
             // fingerprints and the acceptance. Writing the vault id and the connector
@@ -8878,6 +8885,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             // tokenization is scheduled separately and never arrives here.
             true => {
                 let payment_method = domain::PaymentMethod {
+                    last_used_at: last_used_at.unwrap_or(self.payment_method.last_used_at),
                     locker_id: vault_resp
                         .as_ref()
                         .map(|vault_resp| vault_resp.vault_id.clone()),
@@ -8975,6 +8983,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                     None,
                     None,
                     pm_status,
+                    last_used_at,
                     self.platform.get_initiator(),
                 )
                 .await

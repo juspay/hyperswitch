@@ -551,6 +551,9 @@ impl PaymentMethodCreate {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
+    #[schema(example = true)]
+    pub update_last_used_at: Option<bool>,
+
     /// Card Details
     #[schema(example = json!({
     "card_number": "4111111145551142",
@@ -570,6 +573,9 @@ pub struct PaymentMethodUpdate {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentMethodUpdate {
+    #[schema(example = true)]
+    pub update_last_used_at: Option<bool>,
+
     /// Payment method details to be updated for the payment_method
     pub payment_method_data: Option<PaymentMethodUpdateData>,
 
