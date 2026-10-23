@@ -476,7 +476,15 @@ fn evaluator_uses_complete_windows_and_rejects_invalid_time_ranges() {
             .unwrap();
             assert_eq!(result.window.from, from);
             assert_eq!(result.window.to, to);
-            assert_eq!(result.latest_value, Some(10.0));
+            assert_eq!(
+                result.latest_point.as_ref().map(|point| point.value),
+                Some(10.0)
+            );
+            assert_eq!(
+                result.latest_point.as_ref().map(|point| point.timestamp),
+                Some(to - time::Duration::seconds(i64::from(period)))
+            );
+            assert_eq!(result.datapoints.len(), 1);
             let request = loop {
                 if let MetricEvent::Started(_, request) = event(&mut events).await {
                     break request;
@@ -608,7 +616,7 @@ fn evaluator_overlaps_requests_and_preserves_rule_order_after_reverse_completion
 #[test]
 fn provider_failure_does_not_cancel_later_breach_and_both_notifications_are_attempted() {
     EVALUATOR_RUNTIME.block_on(async {
-        let (base_url, _, _) = metric_server(
+        let (base_url, mut events, _) = metric_server(
             2,
             HashMap::from([
                 ("fails".to_owned(), MetricReply::Failure),
@@ -657,6 +665,11 @@ fn provider_failure_does_not_cancel_later_breach_and_both_notifications_are_atte
         assert!(error_message.contains("Condition: Not evaluated\n"));
         assert!(error_message.contains("Evaluation: Failed\n"));
         assert!(error_message.contains("Latest value: Unavailable\n"));
+        assert!(error_message.contains("Query range: Unavailable\n"));
+        assert!(error_message.contains(
+            "Datapoints — timestamp | value | evaluation:\nUnavailable: rule evaluation failed\n"
+        ));
+        assert!(!error_message.contains("SELECTED / BREACHING"));
         assert!(error_message.contains("Metric: fails\n"));
         assert!(error_message.contains("data source request failed"));
         assert!(error_message.ends_with("Definition: failed-rule\n"));
@@ -672,6 +685,31 @@ fn provider_failure_does_not_cancel_later_breach_and_both_notifications_are_atte
         assert!(alarm_message.contains("Condition: Sum >= 1\n"));
         assert!(alarm_message.contains("Evaluation: 1 of 1 datapoints\n"));
         assert!(alarm_message.contains("Latest value: 10\n"));
+        let request = loop {
+            if let MetricEvent::Started(metric, request) = event(&mut events).await {
+                if metric == "breaches" {
+                    break request;
+                }
+            }
+        };
+        let from = common_utils::date_time::convert_to_pdt(
+            time::OffsetDateTime::from_unix_timestamp(
+                request["from"].as_str().unwrap().parse::<i64>().unwrap() / 1000,
+            )
+            .unwrap(),
+        );
+        let to = common_utils::date_time::convert_to_pdt(
+            time::OffsetDateTime::from_unix_timestamp(
+                request["to"].as_str().unwrap().parse::<i64>().unwrap() / 1000,
+            )
+            .unwrap(),
+        );
+        assert!(alarm_message.contains(&format!("Query range: {from} UTC to {to} UTC\n")));
+        assert!(alarm_message.contains(&format!(
+            "{} UTC | 10 | SELECTED / BREACHING\n",
+            to - time::Duration::seconds(60),
+        )));
+        assert_eq!(alarm_message.matches("SELECTED / BREACHING").count(), 1);
         assert!(alarm_message.contains("Error:\nNone\n"));
         assert!(alarm_message.ends_with("Definition: breach-rule\n"));
         assert_eq!(calls["critical-errors"].lock().unwrap().len(), 1);

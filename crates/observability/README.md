@@ -346,7 +346,7 @@ or a second severity mapping. Invalid configured rules or destinations fail star
 - `POST /alerts/grafana/cloudwatch/notify` evaluates and delivers;
   `GET /alerts/grafana/cloudwatch/evaluate` never sends.
   Both require the existing `X-Internal-Api-Key` authentication.
-- Alerts use simple text containing the rule, metric/value, threshold, severity, evaluation time and period.
+- Alerts use simple text containing the rule, metric/value, threshold, severity, evaluation time and period. ALARM messages also include the UTC query range and actual returned timestamp/value datapoints in chronological order. Exactly one point is marked `SELECTED / BREACHING`; all other returned points are `CONTEXT / NOT EVALUATED` and do not affect the result. RULE ERROR messages mark the range and datapoints unavailable rather than inventing values or missing slots.
   Banner colors, attachment blocks and decorative templates are deferred.
 - Each rule compares its configured statistic's newest complete sample within a five-minute window.
   A longer metric period uses one complete period. Critical takes priority over warning, then info.

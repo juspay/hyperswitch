@@ -70,17 +70,17 @@ async fn evaluate_alert_rules(
                     now,
                 )
                 .await?;
-                let notification = match (&evaluation.breach, evaluation.latest_value) {
-                    (Some(threshold), Some(value)) => {
+                let notification = match (&evaluation.breach, evaluation.latest_point.as_ref()) {
+                    (Some(threshold), Some(point)) => {
                         Some(chat::create_notification(
                             rule,
                             now,
-                            chat::ChatBody::Alarm { evaluation: &evaluation, threshold, value },
+                            chat::ChatBody::Alarm { evaluation: &evaluation, threshold, point },
                         ))
                     }
                     (Some(_), None) => {
                         return Err(Report::new(EvaluatorError::UnexpectedResponse)
-                            .attach_printable("a measured breach is missing its current value"))
+                            .attach_printable("a measured breach is missing its current datapoint"))
                     }
                     (None, _) => None,
                 };
