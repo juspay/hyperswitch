@@ -41,21 +41,89 @@
 //! Sizes are logged where they are useful — the chat client already emits `chars` per request — so
 //! nothing diagnostic is lost by redacting here.
 //!
-//! ## Nothing here renders
+//! ## Generic delivery does not render
 //!
-//! `text`, `subject` and `body` are delivered exactly as they arrive. The caller decides what its
+//! Evaluator response messages are constructed separately by `services::chat`.
+//! Generic `text`, `subject` and `body` are delivered exactly as they arrive. The caller decides what its
 //! message looks like, in whatever markup its destination reads. `body` is HTML, because both email
 //! backends in `external_services` hardcode an HTML body and there is no plain-text path to reach.
 
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
-use crate::domain::notifier::{
-    chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
-    email::EmailOutcome,
-    Outcome, Refusal,
+use crate::{
+    domain::notifier::{
+        chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
+        email::EmailOutcome,
+        Outcome, Refusal,
+    },
+    domain_models::evaluator::{AlertEvaluationLevel, Delivery, RuleDefinition, RuleRun},
 };
+
+#[derive(Debug, Serialize)]
+pub struct AlertEvaluationResponse {
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub evaluated_at: PrimitiveDateTime,
+    pub rules: Vec<AlertRuleEvaluationResponse>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AlertRuleEvaluationResponse {
+    pub id: String,
+    pub status: AlertRuleEvaluationStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub level: Option<AlertEvaluationLevel>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delivered: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delivery_error: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AlertRuleEvaluationStatus {
+    Evaluated,
+    Failed,
+}
+
+impl From<(&RuleDefinition, RuleRun, Option<Delivery>)> for AlertRuleEvaluationResponse {
+    fn from((rule, run, delivery): (&RuleDefinition, RuleRun, Option<Delivery>)) -> Self {
+        let delivered = delivery.as_ref().map(|delivery| delivery.delivered);
+        let delivery_error = delivery.and_then(|delivery| delivery.error);
+        match run {
+            RuleRun::Evaluated {
+                evaluation,
+                notification,
+            } => Self {
+                id: rule.id.clone(),
+                status: AlertRuleEvaluationStatus::Evaluated,
+                level: Some(evaluation.level),
+                error: None,
+                message: notification.map(|notification| notification.message),
+                delivered,
+                delivery_error,
+            },
+            RuleRun::Failed {
+                error,
+                notification,
+            } => Self {
+                id: rule.id.clone(),
+                status: AlertRuleEvaluationStatus::Failed,
+                level: None,
+                error: Some(error),
+                message: Some(notification.message),
+                delivered,
+                delivery_error,
+            },
+        }
+    }
+}
 
 /// The body of `POST /alerts/chat/notify/{destination}`.
 #[derive(Debug, Deserialize)]

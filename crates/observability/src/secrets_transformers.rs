@@ -5,17 +5,20 @@
 //! `Settings<RawSecret>`, so that everything downstream is statically known to hold resolved
 //! values. Mirrors `drainer::secrets_transformers`.
 
-use std::collections::HashMap;
-
 use common_utils::errors::CustomResult;
+use error_stack::ResultExt;
 use external_services::chat_service::{slack::SlackConfig, xyne::XyneConfig};
+use futures::{future::try_join_all, TryFutureExt};
 use hyperswitch_interfaces::secrets_interface::{
     secret_handler::SecretsHandler,
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };
+use hyperswitch_masking::PeekInterface;
 
-use crate::settings::{AuthSettings, ChatDestination, ChatSettings, Database, Settings};
+use crate::settings::{
+    evaluator::AlertSettings, AuthSettings, ChatDestination, ChatSettings, Database, Settings,
+};
 
 #[async_trait::async_trait]
 impl SecretsHandler for AuthSettings {
@@ -34,11 +37,7 @@ impl SecretsHandler for AuthSettings {
     }
 }
 
-/// Chat credentials are resolved one destination at a time.
-///
-/// Sequentially rather than concurrently: this runs once, at boot, against a handful of
-/// destinations, and a failure that names the destination it came from is worth more here than the
-/// milliseconds a join would save.
+/// Resolve independent destination credentials concurrently, retaining destination error context.
 #[async_trait::async_trait]
 impl SecretsHandler for ChatSettings {
     async fn convert_to_raw_secret(
@@ -46,33 +45,59 @@ impl SecretsHandler for ChatSettings {
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let secured = value.get_inner();
-        let mut destinations = HashMap::with_capacity(secured.destinations.len());
-
-        for (id, destination) in &secured.destinations {
-            let resolved = match destination {
-                ChatDestination::Xyne(config) => ChatDestination::Xyne(XyneConfig {
-                    app_jwt: secret_management_client
-                        .get_secret(config.app_jwt.clone())
-                        .await?,
-                    ..config.clone()
-                }),
-                ChatDestination::Slack(config) => ChatDestination::Slack(SlackConfig {
-                    bot_token: secret_management_client
-                        .get_secret(config.bot_token.clone())
-                        .await?,
-                    ..config.clone()
-                }),
-                // Holds no credential, so there is nothing to resolve.
-                ChatDestination::Log => ChatDestination::Log,
-            };
-
-            destinations.insert(id.clone(), resolved);
-        }
+        let destinations = try_join_all(secured.destinations.iter().map(
+            |(id, destination)| async move {
+                let resolved = match destination {
+                    ChatDestination::Xyne(config) => ChatDestination::Xyne(XyneConfig {
+                        app_jwt: secret_management_client
+                            .get_secret(config.app_jwt.clone())
+                            .await
+                            .attach_printable_lazy(|| {
+                                format!("Failed to decrypt chat destination `{id}`")
+                            })?,
+                        ..config.clone()
+                    }),
+                    ChatDestination::Slack(config) => ChatDestination::Slack(SlackConfig {
+                        bot_token: secret_management_client
+                            .get_secret(config.bot_token.clone())
+                            .await
+                            .attach_printable_lazy(|| {
+                                format!("Failed to decrypt chat destination `{id}`")
+                            })?,
+                        ..config.clone()
+                    }),
+                    ChatDestination::Log => ChatDestination::Log,
+                };
+                Ok::<_, error_stack::Report<SecretsManagementError>>((id.clone(), resolved))
+            },
+        ))
+        .await?
+        .into_iter()
+        .collect();
 
         let max_upload_bytes = secured.max_upload_bytes;
         Ok(value.transition_state(|_chat| Self {
             destinations,
             max_upload_bytes,
+        }))
+    }
+}
+
+#[async_trait::async_trait]
+impl SecretsHandler for AlertSettings {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        if value.get_inner().grafana.api_token.peek().is_empty() {
+            return Ok(value.transition_state(|alert| alert));
+        }
+        let api_token = secret_management_client
+            .get_secret(value.get_inner().grafana.api_token.clone())
+            .await?;
+        Ok(value.transition_state(|mut alert| {
+            alert.grafana.api_token = api_token;
+            alert
         }))
     }
 }
@@ -107,9 +132,18 @@ pub async fn fetch_raw_secrets(
     secret_management_client: &dyn SecretManagementInterface,
 ) -> Settings<RawSecret> {
     #[allow(clippy::expect_used)]
-    let auth = AuthSettings::convert_to_raw_secret(conf.auth, secret_management_client)
-        .await
-        .expect("Failed to decrypt auth internal api key");
+    let (auth, chat, alert, database) = futures::try_join!(
+        AuthSettings::convert_to_raw_secret(conf.auth, secret_management_client)
+            .map_err(|error| error.attach_printable("Failed to decrypt auth internal api key")),
+        ChatSettings::convert_to_raw_secret(conf.chat, secret_management_client).map_err(|error| {
+            error.attach_printable("Failed to decrypt a chat destination credential")
+        }),
+        AlertSettings::convert_to_raw_secret(conf.alert, secret_management_client)
+            .map_err(|error| error.attach_printable("Failed to decrypt the alert API token")),
+        Database::convert_to_raw_secret(conf.database, secret_management_client)
+            .map_err(|error| error.attach_printable("Failed to decrypt the database password")),
+    )
+    .expect("Failed to decrypt observability credentials");
 
     // Re-validate *after* decryption. The check in `main` ran against the `SecuredSecret` value,
     // which under a KMS backend is a handle, not the key — and a perfectly well-formed handle can
@@ -122,14 +156,10 @@ pub async fn fetch_raw_secrets(
         .expect("Decrypted auth internal api key is unusable");
 
     #[allow(clippy::expect_used)]
-    let chat = ChatSettings::convert_to_raw_secret(conf.chat, secret_management_client)
-        .await
-        .expect("Failed to decrypt a chat destination credential");
-
-    #[allow(clippy::expect_used)]
-    let database = Database::convert_to_raw_secret(conf.database, secret_management_client)
-        .await
-        .expect("Failed to decrypt the database password");
+    alert
+        .get_inner()
+        .validate(chat.get_inner())
+        .expect("Decrypted alert configuration is unusable");
 
     Settings {
         server: conf.server,
@@ -140,7 +170,76 @@ pub async fn fetch_raw_secrets(
         secrets_management: conf.secrets_management,
         proxy: conf.proxy,
         chat,
+        alert,
         email: conf.email,
         database,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use hyperswitch_masking::Secret;
+    use tokio::{
+        sync::Barrier,
+        time::{timeout, Duration},
+    };
+
+    use super::*;
+
+    struct ConcurrentSecrets {
+        barrier: Barrier,
+    }
+
+    #[async_trait::async_trait]
+    impl SecretManagementInterface for ConcurrentSecrets {
+        async fn get_secret(
+            &self,
+            input: Secret<String>,
+        ) -> CustomResult<Secret<String>, SecretsManagementError> {
+            self.barrier.wait().await;
+            Ok(input)
+        }
+    }
+
+    #[tokio::test]
+    async fn independent_boot_and_destination_credentials_are_resolved_concurrently() {
+        let conf: Settings<SecuredSecret> = serde_json::from_value(serde_json::json!({
+            "auth": { "internal_api_key": "test_internal_key" },
+            "chat": { "destinations": {
+                "xyne": { "type": "xyne", "app_jwt": "xyne-handle", "channel": "C123" },
+                "slack": { "type": "slack", "bot_token": "slack-handle", "channel": "C456" }
+            }},
+            "alert": { "grafana": {
+                "base_url": "http://127.0.0.1:1",
+                "api_token": "grafana-handle"
+            } },
+            "database": { "password": "database-handle" }
+        }))
+        .expect("valid secured configuration");
+        let client = ConcurrentSecrets {
+            barrier: Barrier::new(5),
+        };
+        let raw = timeout(Duration::from_secs(2), fetch_raw_secrets(conf, &client))
+            .await
+            .expect("all five independent lookups must overlap before any can complete");
+        assert_eq!(
+            raw.auth.get_inner().internal_api_key.peek(),
+            "test_internal_key"
+        );
+        assert_eq!(
+            raw.alert.get_inner().grafana.api_token.peek(),
+            "grafana-handle"
+        );
+        assert_eq!(raw.database.get_inner().password.peek(), "database-handle");
+        match raw.chat.get_inner().destinations.get("xyne") {
+            Some(ChatDestination::Xyne(config)) => assert_eq!(config.app_jwt.peek(), "xyne-handle"),
+            _ => panic!("resolved Xyne destination is missing"),
+        }
+        match raw.chat.get_inner().destinations.get("slack") {
+            Some(ChatDestination::Slack(config)) => {
+                assert_eq!(config.bot_token.peek(), "slack-handle")
+            }
+            _ => panic!("resolved Slack destination is missing"),
+        }
     }
 }
