@@ -10943,6 +10943,7 @@ mod ucs_embedded_error_tests {
                 code: Some("connector_error".to_string()),
                 message: Some("connector rejected the request".to_string()),
                 reason: Some("invalid request".to_string()),
+                ..Default::default()
             }),
             ..Default::default()
         }
