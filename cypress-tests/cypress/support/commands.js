@@ -3317,6 +3317,24 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState, data = null) => {
         }
       }
 
+      // Verify customer_acceptance_support for each listed payment method type
+      if (resData?.customer_acceptance_support) {
+        resData.customer_acceptance_support.forEach(
+          ({ paymentMethod, paymentMethodType, expected }) => {
+            const pmType = response.body.payment_methods
+              .find((pm) => pm.payment_method === paymentMethod)
+              ?.payment_method_types.find(
+                (type) => type.payment_method_type === paymentMethodType
+              );
+            expect(pmType, `${paymentMethod}.${paymentMethodType}`).to.exist;
+            expect(
+              pmType.customer_acceptance_support,
+              `${paymentMethod}.${paymentMethodType} customer_acceptance_support`
+            ).to.equal(expected);
+          }
+        );
+      }
+
       expect(response.body).to.have.property("redirect_url");
       expect(response.body).to.have.property("payment_methods");
       if (
