@@ -15,7 +15,7 @@ use hyperswitch_interfaces::webhooks::{IncomingWebhookRequestDetails, WebhookRes
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
-use super::{types, utils, MERCHANT_ID};
+use super::{source_verification::IncomingWebhookVerifier, types, utils, MERCHANT_ID};
 #[cfg(feature = "revenue_recovery")]
 use crate::core::webhooks::recovery_incoming;
 use crate::{
@@ -29,7 +29,8 @@ use crate::{
             transformers::{GenerateResponse, ToResponse},
         },
         webhooks::{
-            create_event_and_trigger_outgoing_webhook, utils::construct_webhook_router_data,
+            create_event_and_trigger_outgoing_webhook, unverified_rate_limit,
+            utils::construct_webhook_router_data,
         },
     },
     db::StorageInterface,
@@ -138,6 +139,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             connector_id,
             platform.get_processor().get_key_store(),
         )
+        .await?;
+
+    let network_verification = IncomingWebhookVerifier::new(&state.conf.incoming_webhooks)
+        .verify(&state, &connector, &connector_name, request_details.headers)
         .await?;
 
     let decoded_body = connector
@@ -281,6 +286,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .attach_printable("There was an issue in incoming webhook source verification")?
         };
 
+        let source_verified = network_verification.resolve_source_verified(source_verified);
         logger::info!(source_verified=?source_verified);
 
         if source_verified {
@@ -301,6 +307,17 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         ) {
             (true, false) => Err(errors::ApiErrorResponse::WebhookAuthenticationFailed)?,
             _ => {
+                // Unverified webhooks fall back to syncing with the connector, so cap how many of
+                // them each merchant, profile and merchant connector account can push through
+                if !source_verified {
+                    unverified_rate_limit::check_unverified_webhook_rate_limit(
+                        &state,
+                        &platform,
+                        &merchant_connector_account,
+                    )
+                    .await?;
+                }
+
                 event_object = connector
                     .get_webhook_resource_object(&request_details)
                     .switch()
@@ -424,7 +441,7 @@ async fn payments_incoming_webhook_flow(
                 profile.get_id(),
                 key_manager_state,
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await?;
 
@@ -575,8 +592,8 @@ async fn get_trackers_response_for_payment_get_operation<F>(
     payment_id: &api::PaymentIdType,
     profile_id: &common_utils::id_type::ProfileId,
     key_manager_state: &KeyManagerState,
-    merchant_key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
+    merchant_key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
 ) -> errors::RouterResult<payments::operations::GetTrackerResponse<PaymentStatusData<F>>>
 where
     F: Clone,
@@ -641,7 +658,6 @@ where
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             (payment_intent, payment_attempt)
         }
-        api_models::payments::PaymentIdType::PreprocessingId(ref _id) => todo!(),
     };
 
     // We need the address here to send it in the response

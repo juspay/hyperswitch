@@ -247,7 +247,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
             state,
             request,
             self,
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         ))
         .await
     }
@@ -282,7 +282,7 @@ async fn get_tracker_for_sync<
     state: &SessionState,
     request: &api::PaymentsRetrieveRequest,
     operation: Op,
-    storage_scheme: enums::MerchantStorageScheme,
+    storage_scheme: domain::ProcessorStorageScheme,
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>>
 {
     let (payment_intent, mut payment_attempt, currency, amount);
@@ -290,7 +290,7 @@ async fn get_tracker_for_sync<
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
         state,
         payment_id,
-        platform.get_processor().get_account().get_id(),
+        &platform.get_processor().get_processor_merchant_id(),
         platform.get_processor().get_key_store(),
         storage_scheme,
     )
@@ -337,7 +337,7 @@ async fn get_tracker_for_sync<
     let attempts = match request.expand_attempts {
         Some(true) => {
             Some(db
-                .find_attempts_by_processor_merchant_id_payment_id(platform.get_processor().get_account().get_id(), &payment_id, storage_scheme, platform.get_processor().get_key_store())
+                .find_attempts_by_processor_merchant_id_payment_id(&platform.get_processor().get_processor_merchant_id(), &payment_id, storage_scheme, platform.get_processor().get_key_store())
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
@@ -353,7 +353,7 @@ async fn get_tracker_for_sync<
                 &payment_attempt.merchant_id,
                 &payment_attempt.payment_id,
                 &payment_attempt.attempt_id,
-                storage_scheme,
+                storage_scheme.inner(),
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -372,7 +372,7 @@ async fn get_tracker_for_sync<
         .find_refund_by_payment_id_processor_merchant_id(
             &payment_id,
             platform.get_processor().get_account().get_id(),
-            storage_scheme,
+            storage_scheme.inner(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -465,7 +465,7 @@ async fn get_tracker_for_sync<
                 .find_payment_method(
                     platform.get_provider().get_key_store(),
                     payment_method_id,
-                    storage_scheme,
+                    storage_scheme.inner(),
                 )
                 .await
             {
@@ -487,34 +487,40 @@ async fn get_tracker_for_sync<
 
     let key_manager_state = &(state).into();
 
-    let authentication_store =
-        if let Some(ref authentication_id) = payment_attempt.authentication_id {
-            let authentication = db
-                .find_authentication_by_processor_merchant_id_authentication_id(
-                    platform.get_processor().get_account().get_id(),
-                    authentication_id,
-                    platform.get_processor().get_key_store(),
-                    key_manager_state,
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable_lazy(|| {
-                    format!(
-                        "Error while fetching authentication record with authentication_id {}",
-                        authentication_id.get_string_repr()
-                    )
-                })?;
+    // When the authentication micro-service is enabled, the authentication record lives in that
+    // service and is never stored locally, so there is nothing to fetch here.
+    let authentication_id = payment_attempt
+        .authentication_id
+        .as_ref()
+        .filter(|_| state.conf.micro_services.authentication_service.is_none());
 
-            Some(
+    let authentication_store = if let Some(authentication_id) = authentication_id {
+        let authentication = db
+            .find_authentication_by_processor_merchant_id_authentication_id(
+                platform.get_processor().get_account().get_id(),
+                authentication_id,
+                platform.get_processor().get_key_store(),
+                key_manager_state,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Error while fetching authentication record with authentication_id {}",
+                    authentication_id.get_string_repr()
+                )
+            })?;
+
+        Some(
             hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                 authentication,
                 cavv: None, // marking this as None since we don't need authentication value in payment status flow
             },
         )
-        } else {
-            None
-        };
+    } else {
+        None
+    };
 
     let payment_link_data = payment_intent
         .payment_link_id
@@ -655,9 +661,9 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRetrieveRequest, Pa
 pub async fn get_payment_intent_payment_attempt(
     state: &SessionState,
     payment_id: &api::PaymentIdType,
-    processor_merchant_id: &common_utils::id_type::MerchantId,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
+    processor_merchant_id: &domain::ProcessorMerchantId,
+    key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
 ) -> RouterResult<(storage::PaymentIntent, storage::PaymentAttempt)> {
     let db = &*state.store;
     let get_pi_pa = || async {
@@ -717,12 +723,6 @@ pub async fn get_payment_intent_payment_attempt(
                         storage_scheme,
                     )
                     .await?;
-            }
-            api_models::payments::PaymentIdType::PreprocessingId(_) => {
-                return Err(errors::StorageError::ValueNotFound(
-                    "no payment found for the given preprocessing_id".to_string(),
-                )
-                .into());
             }
         }
         error_stack::Result::<_, errors::StorageError>::Ok((pi, pa))

@@ -29,7 +29,7 @@ env:
 jobs:
   pr_title_conventional_commit_check:
     name: Verify PR title follows conventional commit standards
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
 
     steps:
       - name: Install Rust
@@ -58,7 +58,7 @@ jobs:
 
   pr_linked_issues_check:
     name: Verify PR contains one or more linked issues
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
 
     steps:
       - name: Skip check for merge queue
@@ -133,7 +133,7 @@ jobs:
   pr_labeler:
     name: Attach suitable labels to PR
     if: ${{ github.event_name == 'pull_request_target' }}
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
 
     steps:
       - name: Generate GitHub app token

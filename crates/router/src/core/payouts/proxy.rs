@@ -293,13 +293,7 @@ impl ExternalVaultPayout<'_> {
             None => Err(report!(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unified Connector Service is unavailable for proxy payouts")),
             Some(_) => Ok(()),
-        }?;
-        // Client availability does not enable the pending CardProxyPayout contract.
-        Err(report!(errors::ApiErrorResponse::NotImplemented {
-            message: errors::NotImplementedMessage::Reason(
-                "external vault proxy payouts require the UCS CardProxyPayout contract".to_owned(),
-            ),
-        }))
+        }
     }
 
     fn validate_proxy_runtime(&self, payout_data: &PayoutData) -> RouterResult<()> {
@@ -474,7 +468,7 @@ impl ExternalVaultPayout<'_> {
         "External vault connector account is disabled or incompatible with the provider profile",
     )?;
         match VaultConnectors::try_from(external_vault_mca.connector_name.clone()) {
-            Ok(VaultConnectors::HyperswitchVault | VaultConnectors::Vgs) => {
+            Ok(VaultConnectors::HyperswitchVault) => {
                 Ok(PayoutExecutionContext::ExternalVaultProxy {
                     external_vault_mca: helpers::MerchantConnectorAccountType::DbVal(Box::new(
                         external_vault_mca,
@@ -564,6 +558,13 @@ impl ExternalVaultPayout<'_> {
         let payout_id = self.validate_proxy_create_identity(&req).await?;
         let customer_id = req.get_customer_id().get_required_value("customer_id")?;
         let processor = platform.get_processor();
+        let use_merchant_reference_id =
+            helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                state,
+                platform.get_provider(),
+                Some(customer_id),
+            )
+            .await;
         let customer = state
             .store
             .find_customer_optional_by_customer_id_merchant_id(
@@ -571,6 +572,7 @@ impl ExternalVaultPayout<'_> {
                 processor.get_account().get_id(),
                 processor.get_key_store(),
                 processor.get_account().storage_scheme,
+                use_merchant_reference_id,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?

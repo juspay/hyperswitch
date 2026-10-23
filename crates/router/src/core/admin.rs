@@ -73,6 +73,14 @@ use crate::{
     deja::id(
         component = "router::admin",
         operation = "create_merchant_publishable_key",
+        on_miss = {
+            use common_utils::synth_shape::Synthesize as _;
+            format!(
+                "pk_{}_{}",
+                router_env::env::prefix_for_env(),
+                __deja_miss.uuid().simple()
+            )
+        },
         codec = SerdeCodec,
     )
 )]
@@ -2862,7 +2870,7 @@ pub async fn create_connector(
         .clone()
         .create_domain_model_from_request(
             &state,
-            processor.get_key_store().clone(),
+            processor.get_key_store().inner().clone(),
             &business_profile,
             key_manager_state,
         )
@@ -2910,7 +2918,7 @@ pub async fn create_connector(
         merchant_connector_id: &mca.get_id(),
         store,
         business_profile,
-        key_store: processor.get_key_store().to_owned(),
+        key_store: processor.get_key_store().inner().to_owned(),
         key_manager_state,
     };
 
@@ -3324,7 +3332,7 @@ pub async fn delete_connector(
         merchant_connector_id: &mca.get_id(),
         store: db,
         business_profile,
-        key_store: platform.get_processor().get_key_store().to_owned(),
+        key_store: platform.get_processor().get_key_store().inner().to_owned(),
         key_manager_state,
     };
 
