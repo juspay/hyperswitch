@@ -10963,10 +10963,12 @@ mod ucs_embedded_error_tests {
             ..Default::default()
         };
 
-        let result = <Result<PayoutsResponseData, ErrorResponse> as ForeignTryFrom<_>>::foreign_try_from(
-            (response, PayoutStatus::Pending),
-        )
-        .expect("the UCS payout response should be parseable");
+        let result =
+            <Result<PayoutsResponseData, ErrorResponse> as ForeignTryFrom<_>>::foreign_try_from((
+                response,
+                PayoutStatus::Pending,
+            ))
+            .expect("the UCS payout response should be parseable");
         let error = result.expect_err("connector HTTP errors must use RouterData's error path");
 
         assert_eq!(error.status_code, 422);
@@ -10988,10 +10990,12 @@ mod ucs_embedded_error_tests {
             ..Default::default()
         };
 
-        let result = <Result<PayoutsResponseData, ErrorResponse> as ForeignTryFrom<_>>::foreign_try_from(
-            (response, PayoutStatus::Pending),
-        )
-        .expect("the UCS payout response should be parseable");
+        let result =
+            <Result<PayoutsResponseData, ErrorResponse> as ForeignTryFrom<_>>::foreign_try_from((
+                response,
+                PayoutStatus::Pending,
+            ))
+            .expect("the UCS payout response should be parseable");
         let response = result.expect("HTTP-success business failures retain payout status");
 
         assert_eq!(response.status, Some(PayoutStatus::Failed));
@@ -11007,8 +11011,10 @@ mod ucs_embedded_error_tests {
             ..Default::default()
         };
 
-        let result = <Result<SurchargeCalculationResponseData, ErrorResponse> as ForeignTryFrom<_>>::foreign_try_from(response)
-            .expect("the UCS surcharge response should be parseable");
+        let result = <Result<SurchargeCalculationResponseData, ErrorResponse> as ForeignTryFrom<
+            _,
+        >>::foreign_try_from(response)
+        .expect("the UCS surcharge response should be parseable");
         let error = result.expect_err("connector errors must not become a zero surcharge");
 
         assert_eq!(error.status_code, 502);
