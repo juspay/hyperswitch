@@ -758,6 +758,7 @@ impl ConnectorSpecifications for ElavonPg {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
                 request_data,
+                connector_meta_data: _,
             } => {
                 // A merchant that already authenticated the shopper (external 3DS data on the
                 // request) settles through the direct sale with `threeDSecure`; the hosted page
@@ -794,6 +795,7 @@ impl ConnectorSpecifications for ElavonPg {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
                 request_data,
+                connector_meta_data: _,
             } => {
                 // A merchant that already authenticated the shopper (external 3DS data on the
                 // request) settles through the direct sale with `threeDSecure`; the hosted page

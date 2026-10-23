@@ -70,6 +70,8 @@ where
         None => Ok(None),
     }
 }
+#[cfg(feature = "v1")]
+use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
 #[cfg(any(feature = "v1", feature = "v2"))]
@@ -5464,6 +5466,22 @@ pub enum WalletData {
     WeChatPayRedirect(Box<WeChatPayRedirection>),
 }
 
+impl WalletData {
+    pub fn is_decrypted_flow(&self) -> bool {
+        match self {
+            Self::ApplePay(apple_pay) => match apple_pay.payment_data {
+                common_types::payments::ApplePayPaymentData::Decrypted(_) => true,
+                common_types::payments::ApplePayPaymentData::Encrypted(_) => false,
+            },
+            Self::GooglePay(google_pay) => match google_pay.tokenization_data {
+                common_types::payments::GpayTokenizationData::Decrypted(_) => true,
+                common_types::payments::GpayTokenizationData::Encrypted(_) => false,
+            },
+            _ => false,
+        }
+    }
+}
+
 impl GetAddressFromPaymentMethodData for WalletData {
     fn get_billing_address(&self) -> Option<Address> {
         match self {
@@ -5820,6 +5838,21 @@ pub struct PaypalRedirection {
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
+    /// PayPal payer identifier.
+    #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
+    #[smithy(value_type = "Option<String>")]
+    pub payer_id: Option<Secret<String>>,
+}
+
+impl From<payment_methods::PaymentMethodDataWalletInfo> for PaypalRedirection {
+    fn from(info: payment_methods::PaymentMethodDataWalletInfo) -> Self {
+        Self {
+            email: info.email,
+            payer_id: info.provider_details.and_then(|details| match details {
+                payment_methods::WalletProviderDetails::PayPal(info) => info.payer_id,
+            }),
+        }
+    }
 }
 
 #[derive(
@@ -10716,12 +10749,24 @@ pub struct ConnectorMetadata {
     pub peachpayments: Option<PeachpaymentsData>,
     #[smithy(value_type = "Option<SantanderData>")]
     pub santander: Option<SantanderConnectorMetadataData>,
+    #[smithy(value_type = "Option<PaypalConnectorMetadata>")]
+    pub paypal: Option<PaypalConnectorMetadata>,
     #[smithy(value_type = "Option<WorldpayxmlData>")]
     pub worldpayxml: Option<WorldpayxmlData>,
     #[smithy(value_type = "Option<CheckoutData>")]
     pub checkout: Option<CheckoutData>,
     #[smithy(value_type = "Option<StripeConnectorMetadata>")]
     pub stripe: Option<StripeConnectorMetadata>,
+}
+
+/// PayPal-specific metadata supplied with a payment request.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PaypalConnectorMetadata {
+    /// FraudNet session identifier sent in the PAYPAL-CLIENT-METADATA-ID request header.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub paypal_client_metadata_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -10820,6 +10865,16 @@ pub enum WorldpayxmlPaymentPurpose {
 #[serde(rename_all = "snake_case")]
 pub enum ConnectorMetadataResponse {
     Santander(SantanderData),
+    Revolv3(Revolv3Data),
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct Revolv3Data {
+    /// Name of the downstream processor Revolv3 routed the payment to.
+    #[schema(value_type = Option<String>, example = "Paysafe")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub processor: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -11359,8 +11414,7 @@ pub enum VaultDetailsResponse {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct HyperswitchVaultData {
     /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
-    #[schema(value_type = String)]
-    pub sdk_authorization: Secret<String>,
+    pub sdk_authorization: String,
 }
 
 #[cfg(feature = "v1")]
@@ -11384,14 +11438,14 @@ impl From<VaultDetails> for Option<VaultDetailsResponse> {
             })),
             Some(VaultSessionDetails::HyperswitchVault(hs)) => {
                 Some(VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
-                    sdk_authorization: hs.sdk_authorization,
+                    sdk_authorization: hs.sdk_authorization.expose(),
                 }))
             }
             // No external vault configured (the SaaS default): fall back to the internal
             // Hyperswitch vault SDK authorization.
             None => details.internal_vault.map(|internal| {
                 VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
-                    sdk_authorization: Secret::new(internal.sdk_authorization),
+                    sdk_authorization: internal.sdk_authorization,
                 })
             }),
         }
@@ -14352,6 +14406,7 @@ mod billing_from_payment_method_data {
         let paypal_wallet_payment_method_data =
             PaymentMethodData::Wallet(WalletData::PaypalRedirect(PaypalRedirection {
                 email: Some(test_email.clone()),
+                payer_id: None,
             }));
 
         let billing_address = paypal_wallet_payment_method_data
@@ -14774,11 +14829,28 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = RecoveryTransactionStatus, example = "failure")]
     pub transaction_status: common_payments_types::RecoveryTransactionStatus,
 
+    /// Amount captured by the transaction, in the lowest denomination of the currency. It is
+    /// required when `transaction_status` is `partial_charged`, where it must be greater than
+    /// zero and less than the order amount. For `charged` it may be omitted, and if sent it
+    /// must equal the order amount. It must not be sent for a `failure`.
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub amount_captured: Option<MinorUnit>,
+
+    /// Whether the customer was present, and so able to authenticate, when the transaction was
+    /// made. Defaults to `false`, which marks the transaction as merchant initiated.
+    #[serde(default)]
+    #[schema(default = false, example = false)]
+    pub customer_present: bool,
+
     /// The billing details of the transaction.
     pub billing: Option<Address>,
 
     /// Payer details stored with the payment intent; does not create or attach a customer.
     pub customer_details: Option<CustomerDetails>,
+
+    /// Payment method type used for the transaction.
+    #[schema(value_type = PaymentMethod, example = "wallet")]
+    pub payment_method_type: common_enums::PaymentMethod,
 
     /// The payment method subtype used for the transaction.
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
@@ -14788,10 +14860,6 @@ pub struct RecoveryPaymentsCreate {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub transaction_created_at: PrimitiveDateTime,
-
-    /// Payment method type used for the transaction.
-    #[schema(value_type = PaymentMethod, example = "wallet")]
-    pub payment_method_type: common_enums::PaymentMethod,
 
     /// Unique identifier of the customer at the payment connector, with which the payment
     /// method token used for the transaction is associated.
@@ -14810,10 +14878,6 @@ pub struct RecoveryPaymentsCreate {
 
     /// payment method token units at payment processor end.
     pub payment_method_data: CustomRecoveryPaymentMethodData,
-
-    /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
-    #[schema(value_type = RecoveryPaymentsAction, example = "schedule_failed_payment")]
-    pub action: common_payments_types::RecoveryPaymentsAction,
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
