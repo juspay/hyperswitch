@@ -26,8 +26,9 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payments::{
-            self, client_session::ClientSessionManager, helpers, operations, CustomerDetails,
-            PaymentAddress, PaymentData, PaymentDataUpdateRequestFields,
+            self, client_session::ClientSessionManager, helpers, multi_currency_processing,
+            operations, CustomerDetails, PaymentAddress, PaymentData,
+            PaymentDataUpdateRequestFields,
         },
         utils::{self as core_utils},
     },
@@ -126,9 +127,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )?;
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
-        helpers::validate_merchant_only_mcp_fields(auth_flow, request, "update")?;
+        multi_currency_processing::validate_merchant_only_mcp_fields(auth_flow, request, "update")?;
         // Resolve the stored flag before update-and-confirm amount calculations.
-        helpers::validate_and_update_settlement_conclusion(
+        multi_currency_processing::validate_and_update_settlement_conclusion(
             auth_flow,
             request,
             &mut payment_intent,

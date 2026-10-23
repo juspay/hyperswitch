@@ -12,10 +12,7 @@ use crate::{
         configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
-            self,
-            helpers::{self, MultiCurrencyProcessingData},
-            operations,
-            types::MultipleCaptureData,
+            self, helpers, multi_currency_processing, operations, types::MultipleCaptureData,
         },
     },
     events::audit_events::{AuditEvent, AuditEventType},
@@ -126,7 +123,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             .as_deref()
             .get_required_value("connector")?;
         let capture_settlement =
-            MultiCurrencyProcessingData::resolve_operation_multi_currency_processing(
+            multi_currency_processing::resolve_operation_multi_currency_processing(
                 capture_connector,
                 payment_feature_metadata.as_ref(),
                 request
@@ -164,16 +161,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
             // The route holds the payment lock while loading captures.
-            // Validate cumulative successful capture amounts before inserting this one.
-            MultiCurrencyProcessingData::validate_multi_currency_processing_capture_settlement(
+            // Validate cumulative successful and pending capture amounts before inserting this one.
+            multi_currency_processing::validate_multi_currency_processing_capture_settlement(
                 capture_connector,
                 payment_feature_metadata.as_ref(),
                 capture_settlement.as_ref(),
                 &previous_captures,
             )?;
-            let mut capture_new = payment_attempt
-                .make_new_capture(amount_to_capture, enums::CaptureStatus::Started)?;
-            capture_new.feature_metadata = capture_feature_metadata.clone();
+            let capture_new = payment_attempt.make_new_capture(
+                amount_to_capture,
+                enums::CaptureStatus::Started,
+                capture_feature_metadata.clone(),
+            )?;
             let capture = db
                 .insert_capture(capture_new, storage_scheme.inner())
                 .await

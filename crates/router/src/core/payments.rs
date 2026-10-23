@@ -9,6 +9,7 @@ pub mod gateway;
 pub mod helpers;
 #[cfg(feature = "olap")]
 pub mod list;
+pub mod multi_currency_processing;
 pub mod operations;
 pub mod session_token;
 

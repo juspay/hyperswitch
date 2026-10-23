@@ -10,7 +10,7 @@ use crate::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
-            helpers::{self, MultiCurrencyProcessingData},
+            helpers, multi_currency_processing,
             operations::{self, ValidateStatusForOperation},
         },
     },
@@ -210,7 +210,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentCaptureData<F>, PaymentsCaptureReques
             .as_deref()
             .get_required_value("connector")?;
         let capture_settlement =
-            MultiCurrencyProcessingData::resolve_operation_multi_currency_processing(
+            multi_currency_processing::resolve_operation_multi_currency_processing(
                 capture_connector,
                 payment_feature_metadata.as_ref(),
                 request

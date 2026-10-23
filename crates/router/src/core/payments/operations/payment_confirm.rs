@@ -43,8 +43,9 @@ use crate::{
         metrics, offer_engine,
         payment_methods::{transformers as pm_transformers, vault},
         payments::{
-            self, helpers, operations, populate_installment_details, CustomerDetails,
-            OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
+            self, helpers, multi_currency_processing, operations, populate_installment_details,
+            CustomerDetails, OperationSessionGetters, OperationSessionSetters, PaymentAddress,
+            PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
@@ -169,8 +170,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
-        helpers::validate_merchant_only_mcp_fields(auth_flow, request, "confirm")?;
-        helpers::validate_and_update_settlement_conclusion(
+        multi_currency_processing::validate_merchant_only_mcp_fields(
+            auth_flow, request, "confirm",
+        )?;
+        multi_currency_processing::validate_and_update_settlement_conclusion(
             auth_flow,
             request,
             &mut payment_intent,

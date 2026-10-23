@@ -63,8 +63,7 @@ use unified_connector_service_client::payments::{
 
 use crate::{
     core::{
-        mandate::MandateBehaviour, payments::helpers::MultiCurrencyProcessingData,
-        unified_connector_service,
+        mandate::MandateBehaviour, payments::multi_currency_processing, unified_connector_service,
     },
     types::{
         api,
@@ -105,7 +104,7 @@ fn convert_currency_conversion_data(
     Option<payments_grpc::CurrencyConversionData>,
     error_stack::Report<UnifiedConnectorServiceError>,
 > {
-    let supported = MultiCurrencyProcessingData::is_supported(connector).map_err(|error| {
+    let supported = multi_currency_processing::is_mcp_supported(connector).map_err(|error| {
         error_stack::report!(
             UnifiedConnectorServiceError::RequestEncodingFailedWithReason(error.to_string(),)
         )
@@ -176,7 +175,7 @@ pub(crate) fn convert_operation_currency_conversion_data(
     error_stack::Report<UnifiedConnectorServiceError>,
 > {
     let resolved_operation_mcp =
-        MultiCurrencyProcessingData::resolve_operation_multi_currency_processing(
+        multi_currency_processing::resolve_operation_multi_currency_processing(
             connector,
             payment_feature_metadata,
             requested_operation_mcp,
