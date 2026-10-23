@@ -1,5 +1,7 @@
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
+
+use crate::core::payouts::gateway as payout_gateway;
 pub mod access_token;
 pub mod gateway;
 #[cfg(feature = "v1")]
@@ -41,7 +43,6 @@ use external_services::grpc_client;
 #[cfg(feature = "olap")]
 use futures::future::join_all;
 use hyperswitch_domain_models::{self as domain_models, payment_methods::PaymentMethod};
-use hyperswitch_interfaces::api::gateway as payout_gateway;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
@@ -1349,7 +1350,7 @@ pub async fn payouts_filtered_list_core(
                     <domain::Customer as storage_impl::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         cust,
-                        &(platform.get_processor().get_key_store().clone()).key,
+                        &(platform.get_processor().get_key_store().inner().clone()).key,
                         platform
                             .get_processor()
                             .get_key_store()
@@ -1371,7 +1372,7 @@ pub async fn payouts_filtered_list_core(
                     <domain::Address as domain::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         addr,
-                        &(platform.get_processor().get_key_store().clone()).key,
+                        &(platform.get_processor().get_key_store().inner().clone()).key,
                         platform
                             .get_processor()
                             .get_key_store()

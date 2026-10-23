@@ -515,23 +515,26 @@ impl RevenueRecoveryAttempt {
         let recovery_attempt = Self(revenue_recovery::RevenueRecoveryAttemptData::foreign_from(
             &data,
         ));
-        recovery_attempt
+        // A transaction can be reported only once for an invoice, so one that is already
+        // recorded is rejected instead of being recorded again.
+        let existing_attempt = recovery_attempt
             .get_payment_attempt(state, req_state, platform, profile, &payment_intent)
-            .await
-            .transpose()
-            .async_unwrap_or_else(|| async {
-                recovery_attempt
-                    .record_payment_attempt(
-                        state,
-                        req_state,
-                        platform,
-                        profile,
-                        &payment_intent,
-                        &data.billing_merchant_connector_id,
-                        Some(payment_merchant_connector_account),
-                    )
-                    .await
-            })
+            .await?;
+        if existing_attempt.is_some() {
+            return Err(report!(
+                errors::RevenueRecoveryError::PaymentAttemptAlreadyRecorded
+            ));
+        }
+        recovery_attempt
+            .record_payment_attempt(
+                state,
+                req_state,
+                platform,
+                profile,
+                &payment_intent,
+                &data.billing_merchant_connector_id,
+                Some(payment_merchant_connector_account),
+            )
             .await
     }
 
@@ -1641,6 +1644,50 @@ impl RecoveryAction {
         }
     }
 
+    /// Maps the status of an attempt to the recovery event it is equivalent to, so that the
+    /// revenue recovery API decides the action the same way the billing connector webhooks do.
+    ///
+    /// A partial charge is treated as a failure: the invoice is still owed the remainder, so a
+    /// retry has to be scheduled for it.
+    pub fn get_event_for_attempt_status(
+        attempt_status: common_enums::AttemptStatus,
+    ) -> webhooks::IncomingWebhookEvent {
+        use common_enums::AttemptStatus;
+        match attempt_status {
+            AttemptStatus::Charged => webhooks::IncomingWebhookEvent::RecoveryPaymentSuccess,
+            AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::Failure
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::Expired => webhooks::IncomingWebhookEvent::RecoveryPaymentFailure,
+            AttemptStatus::Started
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::CaptureReview
+            | AttemptStatus::Unresolved
+            | AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending => {
+                webhooks::IncomingWebhookEvent::RecoveryPaymentPending
+            }
+            AttemptStatus::CodInitiated
+            | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::AutoRefunded => webhooks::IncomingWebhookEvent::EventNotSupported,
+        }
+    }
+
     pub fn is_invalid_action(&self) -> bool {
         matches!(
             self.action,
@@ -1666,7 +1713,7 @@ impl RecoveryAction {
             common_types::payments::RecoveryAction::CancelInvoice => {
                 let (_, recovery_intent) = recovery_tuple;
                 let key_store = platform.get_processor().get_key_store();
-                let storage_scheme = platform.get_processor().get_account().storage_scheme;
+                let storage_scheme = platform.get_processor().get_storage_scheme();
                 let payment_intent = state
                     .store
                     .find_payment_intent_by_id(

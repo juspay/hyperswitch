@@ -258,7 +258,7 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
         customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
-        let merchant_id = platform.get_processor().get_account().get_id().clone();
+        let merchant_id = platform.get_processor().get_processor_merchant_id();
         let id = customer.get_global_id().cloned().ok_or(
             errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "id".into(),
@@ -397,9 +397,9 @@ async fn load_payment_intent_context(
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             payment_id,
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -407,9 +407,9 @@ async fn load_payment_intent_context(
     let payment_attempt = db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &payment_intent.payment_id,
-            &payment_intent.processor_merchant_id,
+            &domain::ProcessorMerchantId::from(payment_intent.processor_merchant_id.clone()),
             &payment_intent.active_attempt.get_id(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
             platform.get_processor().get_key_store(),
         )
         .await

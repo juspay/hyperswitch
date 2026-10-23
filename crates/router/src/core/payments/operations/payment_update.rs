@@ -72,12 +72,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
-        let processor_merchant_id = platform.get_processor().get_account().get_id();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
+        let storage_scheme = platform.get_processor().get_storage_scheme();
 
         let db = &*state.store;
         helpers::allow_payment_update_enabled_for_client_auth(
-            processor_merchant_id,
+            &processor_merchant_id,
             state,
             auth_flow,
         )
@@ -85,7 +85,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_intent = db
             .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
             )
@@ -135,7 +135,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
                 platform.get_processor().get_key_store(),
@@ -228,7 +228,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             state,
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.as_deref(),
-            processor_merchant_id,
+            &processor_merchant_id,
             payment_intent
                 .customer_id
                 .as_ref()
@@ -242,7 +242,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             state,
             request.billing.as_ref(),
             payment_intent.billing_address_id.as_deref(),
-            processor_merchant_id,
+            &processor_merchant_id,
             payment_intent
                 .customer_id
                 .as_ref()
@@ -260,7 +260,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .as_ref()
                 .and_then(|pmd| pmd.billing.as_ref()),
             payment_attempt.payment_method_billing_address_id.as_deref(),
-            processor_merchant_id,
+            &processor_merchant_id,
             payment_intent
                 .customer_id
                 .as_ref()
@@ -332,7 +332,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .async_and_then(|mandate_id| async {
                 let mandate = db
                     .find_mandate_by_merchant_id_mandate_id(
-                        processor_merchant_id,
+                        &processor_merchant_id,
                         mandate_id,
                         platform.get_processor().get_account().storage_scheme,
                     )
@@ -898,7 +898,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .await?;
         }
 
-        let processor_merchant_id = processor.get_account().get_id().clone();
+        let processor_merchant_id = processor.get_processor_merchant_id();
         let payment_id = payment_data.payment_intent.payment_id.clone();
 
         // Check if client session validation is enabled
@@ -1093,7 +1093,7 @@ impl PaymentUpdate {
     where
         F: Clone + Send + Sync,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
         let profile_id = payment_data
             .payment_intent
@@ -1174,7 +1174,7 @@ impl PaymentUpdate {
             fingerprint_id: None,
             fingerprint_type: None,
             payment_method_billing_address_id,
-            updated_by: storage_scheme.to_string(),
+            updated_by: storage_scheme.inner().to_string(),
             network_transaction_id,
             network_transaction_link_id,
             net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
@@ -1355,7 +1355,7 @@ impl PaymentUpdate {
                 metadata,
                 connector_metadata,
                 payment_confirm_source: None,
-                updated_by: storage_scheme.to_string(),
+                updated_by: storage_scheme.inner().to_string(),
                 fingerprint_id: None,
                 session_expiry,
                 request_external_three_ds_authentication: payment_data
@@ -1410,7 +1410,7 @@ impl PaymentUpdate {
     where
         F: Clone + Send + Sync,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
 
         let update_request_fields = payment_data
