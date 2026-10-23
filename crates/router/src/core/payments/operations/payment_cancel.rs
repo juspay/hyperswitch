@@ -54,8 +54,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
     > {
         let db = &*state.store;
 
-        let processor_merchant_id = platform.get_processor().get_account().get_id();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
+        let storage_scheme = platform.get_processor().get_storage_scheme();
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -63,7 +63,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
         let payment_intent = db
             .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
             )
@@ -86,7 +86,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
                 platform.get_processor().get_key_store(),
@@ -99,7 +99,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             payment_intent.shipping_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -109,7 +109,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             payment_intent.billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -119,7 +119,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             payment_attempt.payment_method_billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -256,7 +256,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelReques
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
 
         let cancellation_reason = payment_data.payment_attempt.cancellation_reason.clone();
@@ -264,7 +264,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelReques
             if payment_data.payment_intent.status != enums::IntentStatus::RequiresCapture {
                 let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
                     status: enums::IntentStatus::Cancelled,
-                    updated_by: storage_scheme.to_string(),
+                    updated_by: storage_scheme.inner().to_string(),
                     incremental_authorization_allowed: None,
                     feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
                 };
@@ -293,7 +293,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelReques
                 storage::PaymentAttemptUpdate::VoidUpdate {
                     status: attempt_status_update,
                     cancellation_reason: cancellation_reason.clone(),
-                    updated_by: storage_scheme.to_string(),
+                    updated_by: storage_scheme.inner().to_string(),
                 },
                 storage_scheme,
                 key_store,

@@ -905,6 +905,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             .and_then(|subscription| subscription.current_term_start);
         Ok(Self {
             amount,
+            amount_captured: None,
             currency,
             merchant_reference_id,
             connector_transaction_id,
@@ -1096,6 +1097,7 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
             metadata: None,
             // TODO! This field should be handled for billing connnector integrations
             enable_partial_authorization: None,
+            customer_present: common_enums::PresenceOfCustomerDuringPayment::Absent,
         })
     }
 }

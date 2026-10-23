@@ -363,6 +363,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             self.merchant_account.get_id(),
             self.key_store,
             self.merchant_account.storage_scheme,
+            false,
         )
         .await
         .inspect_err(|err| logger::info!("Error fetching customer: {:?}", err))
