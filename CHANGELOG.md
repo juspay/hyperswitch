@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.14.0-hotfix1
+
+### Features
+
+- **ucs:** Disable shadow proxying after transport failures ([#14936](https://github.com/juspay/hyperswitch/pull/14936)) ([`65f1089`](https://github.com/juspay/hyperswitch/commit/65f1089de5660b19cd31a4808e1bf436873b5689))
+
+**Full Changelog:** [`2026.10.14.0...2026.10.14.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.10.14.0...2026.10.14.0-hotfix1)
+
+- - -
+
 ## 2026.10.14.0
 
 ### Bug Fixes
