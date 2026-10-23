@@ -23,7 +23,7 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "deja")]
 use hyperswitch_masking::PeekInterface;
 use hyperswitch_masking::Secret;
-use router_env::{current_span_path, logger};
+use router_env::logger;
 
 use crate::{
     errors, query::utils::GetPrimaryKey, DatabaseConnectionWithContext, DejaPgConnection,
@@ -176,10 +176,11 @@ impl DatabaseConnectionWithContext<'_> {
     /// ledger. Writes are not recorded there -- only a read repeats a read.
     ///
     /// Every query in the workspace passes here, so the statement is logged
-    /// once rather than at each builder, with `span_path` beside it: the call
-    /// path that turns "read twice" into "these two call sites read it". Both
-    /// sit in the macro's field list, so nothing is walked or formatted unless
-    /// DEBUG is on for this target.
+    /// once rather than at each builder. With `debug_assertions` enabled,
+    /// ledger reads also capture a backtrace, reduced to repository-relative
+    /// source locations for the duplicate report.
+    /// Runtime frames, generic query wrappers, and type signatures are omitted;
+    /// source locations require debug information in the running binary.
     ///
     /// Not an `async fn`: the ledger must see reads in the order they are
     /// *issued*, not the order their futures are polled, and logging on call
@@ -209,16 +210,16 @@ impl DatabaseConnectionWithContext<'_> {
             .rsplit("::")
             .nth(1)
             .unwrap_or("undefined");
-        // Walked once and shared: the ledger needs it on the *first* read, the
-        // call site a later repeat points back at.
-        let origin = current_span_path();
 
-        logger::debug!(
-            query = %statement,
-            span_path = %origin.as_deref().unwrap_or_default(),
-        );
+        logger::debug!(query = %statement);
 
         if let (Some(ledger), true) = (self.read_ledger(), operation.is_read()) {
+            // Captured once and shared: the ledger needs it on the *first* read,
+            // the call stack a later repeat points back at.
+            #[cfg(debug_assertions)]
+            let origin = super::read_origin::capture();
+            #[cfg(not(debug_assertions))]
+            let origin: Option<String> = None;
             // The ledger keeps the detail; the session logs it once at the end
             // (`SessionStateInfo::flush_read_ledger`). The counter is immediate,
             // being an aggregate either way.

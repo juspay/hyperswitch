@@ -26,7 +26,7 @@ pub struct DuplicateRead {
     pub table: &'static str,
     /// How many reads of it were repeats of the first.
     pub repeats: usize,
-    /// Where it was first read, when the span tree could place it.
+    /// Where it was first read, as a compact chain of source locations.
     pub first_read_from: Option<String>,
     /// Where each repeat was issued, up to [`ORIGINS_PER_RECORD`].
     pub re_read_from: Vec<Option<String>>,

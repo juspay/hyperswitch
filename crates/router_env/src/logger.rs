@@ -17,8 +17,5 @@ pub use setup::{setup, TelemetryGuard};
 pub mod formatter;
 pub use formatter::FormattingLayer;
 
-pub mod span_path;
-pub use span_path::current_span_path;
-
 pub mod storage;
 pub use storage::{Storage, StorageSubscription};
