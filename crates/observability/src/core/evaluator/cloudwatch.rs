@@ -64,17 +64,20 @@ fn evaluate_series(
         );
     }
     let points = series
-        .first()
-        .map(|series| series.points.as_slice())
+        .into_iter()
+        .next()
+        .map(|series| series.points)
         .unwrap_or_default();
     let latest = points
         .iter()
         .filter(|point| (window.from..=last).contains(&point.timestamp))
-        .max_by_key(|point| point.timestamp);
+        .max_by_key(|point| point.timestamp)
+        .cloned();
     let Some(latest) = latest else {
         return Ok(Evaluation {
             level: AlertEvaluationLevel::NoData,
-            latest_value: None,
+            latest_point: None,
+            datapoints: points,
             breach: None,
             window,
         });
@@ -93,7 +96,8 @@ fn evaluate_series(
         {
             return Ok(Evaluation {
                 level: severity.into(),
-                latest_value: Some(latest.value),
+                latest_point: Some(latest),
+                datapoints: points,
                 breach: Some(threshold.clone()),
                 window,
             });
@@ -101,7 +105,8 @@ fn evaluate_series(
     }
     Ok(Evaluation {
         level: AlertEvaluationLevel::Normal,
-        latest_value: Some(latest.value),
+        latest_point: Some(latest),
+        datapoints: points,
         breach: None,
         window,
     })
@@ -176,7 +181,17 @@ mod tests {
         )
         .unwrap();
         assert_eq!(result.level, AlertEvaluationLevel::Critical);
-        assert_eq!(result.latest_value, Some(90.0));
+        assert_eq!(
+            result.latest_point,
+            Some(MetricPoint {
+                timestamp: datetime!(2026-03-18 10:05:00),
+                value: 90.0,
+            })
+        );
+        // Preserve older and too-new returned points as context, not evaluation inputs.
+        assert_eq!(result.datapoints.len(), 3);
+        assert_eq!(result.datapoints[1].value, 100.0);
+        assert_eq!(result.datapoints[2].timestamp, window.to);
     }
 
     #[test]
@@ -212,6 +227,66 @@ mod tests {
             .level,
             AlertEvaluationLevel::Normal
         );
+    }
+
+    #[test]
+    fn context_points_do_not_turn_no_data_or_normal_into_an_alarm() {
+        let window = MetricRange {
+            from: datetime!(2026-03-18 10:00:00),
+            to: datetime!(2026-03-18 10:06:00),
+        };
+        let configured = thresholds(&[(
+            Severity::Critical,
+            10.0,
+            ComparisonOperator::GreaterThanThreshold,
+        )]);
+        let points = vec![
+            MetricPoint {
+                timestamp: datetime!(2026-03-18 09:59:00),
+                value: 100.0,
+            },
+            MetricPoint {
+                timestamp: datetime!(2026-03-18 10:06:00),
+                value: 200.0,
+            },
+        ];
+        let no_data = evaluate_series(
+            vec![MetricSeries {
+                points: points.clone(),
+            }],
+            &configured,
+            window,
+            datetime!(2026-03-18 10:05:00),
+        )
+        .unwrap();
+        assert_eq!(no_data.level, AlertEvaluationLevel::NoData);
+        assert_eq!(no_data.latest_point, None);
+        assert_eq!(no_data.datapoints, points);
+        assert_eq!(no_data.breach, None);
+
+        let selected = MetricPoint {
+            timestamp: datetime!(2026-03-18 10:05:00),
+            value: 1.0,
+        };
+        let mut points = points;
+        points.push(MetricPoint {
+            timestamp: datetime!(2026-03-18 10:04:00),
+            value: 100.0,
+        });
+        points.push(selected.clone());
+        let normal = evaluate_series(
+            vec![MetricSeries {
+                points: points.clone(),
+            }],
+            &configured,
+            window,
+            datetime!(2026-03-18 10:05:00),
+        )
+        .unwrap();
+        assert_eq!(normal.level, AlertEvaluationLevel::Normal);
+        assert_eq!(normal.latest_point, Some(selected));
+        assert_eq!(normal.datapoints, points);
+        assert_eq!(normal.breach, None);
     }
 
     #[test]

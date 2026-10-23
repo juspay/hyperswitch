@@ -4,7 +4,7 @@ use common_types::alert_rules::{
 use common_utils::errors::CustomResult;
 use external_services::metrics_provider::{
     grafana::cloudwatch::{CloudwatchMetricsQuery, CloudwatchStatistic as ProviderStatistic},
-    MetricRange,
+    MetricPoint, MetricRange,
 };
 use serde::Deserialize;
 
@@ -82,7 +82,8 @@ pub struct Delivery {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Evaluation {
     pub level: AlertEvaluationLevel,
-    pub latest_value: Option<f64>,
+    pub latest_point: Option<MetricPoint>,
+    pub datapoints: Vec<MetricPoint>,
     pub breach: Option<SeverityThreshold>,
     pub window: MetricRange,
 }
