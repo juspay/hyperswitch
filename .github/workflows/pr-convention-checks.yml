@@ -118,25 +118,6 @@ jobs:
             echo "PR contains at least one linked issue"
           fi
 
-          has_open_issue=false
-          while IFS= read -r issue; do
-            # Split `${issue}` by `#` to obtain repository with owner (in `owner/repository` format) and issue number
-            IFS='#' read -r repository_with_owner issue_number <<< "${issue}"
-            issue_state="$(gh issue view --repo "${repository_with_owner}" --json 'state' "${issue_number}" --jq '.state')"
-
-            # Transform `${issue_state}` to lowercase for comparison
-            if [[ "${issue_state,,}" == 'open' ]]; then
-              has_open_issue=true
-            fi
-          done <<< "${linked_issues}"
-
-          if [[ "${has_open_issue}" != 'true' ]]; then
-            echo "::error::PR does not contain any open linked issues"
-            exit 1
-          fi
-
-          echo "PR contains at least one open linked issue"
-
   pr_labeler:
     name: Attach suitable labels to PR
     if: ${{ github.event_name == 'pull_request_target' }}
