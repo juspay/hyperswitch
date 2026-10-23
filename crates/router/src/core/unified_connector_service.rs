@@ -1102,6 +1102,20 @@ where
         }
     }
 
+    // Apply the global shadow kill switch before any proxy override.
+    if matches!(execution_path, ExecutionPath::ShadowUnifiedConnectorService)
+        && kill_switch::shadow::is_kill_switched(state).await
+    {
+        gateway_system = GatewaySystem::Direct;
+        execution_path = ExecutionPath::Direct;
+        router_env::logger::warn!(
+            payment_id = %router_data.payment_id,
+            merchant_id = %merchant_id,
+            key = consts::UCS_SHADOW_KILL_SWITCH_REDIS_KEY,
+            "Shadow kill switch active; routing to Direct without proxy override"
+        );
+    }
+
     // Handle proxy configuration for Shadow UCS flows
     let session_state = match execution_path {
         ExecutionPath::ShadowUnifiedConnectorService => {
@@ -4068,7 +4082,7 @@ where
             if let UnifiedConnectorServiceError::ConnectorError(inner) = error.current_context() {
                 // Fire kill switch for connector errors
                 if let Ok(flow_name) = get_flow_name::<T>() {
-                    kill_switch::record_failure(
+                    kill_switch::check_record_failure(
                         state,
                         kill_switch::UcsFailureContext {
                             merchant_id: merchant_id.get_string_repr(),
@@ -4109,7 +4123,7 @@ where
                 // Fire kill switch for non-connector UCS errors
                 match get_flow_name::<T>() {
                     Ok(flow_name) => {
-                        kill_switch::record_failure(
+                        kill_switch::check_record_failure(
                             state,
                             kill_switch::UcsFailureContext {
                                 merchant_id: merchant_id.get_string_repr(),
@@ -4309,7 +4323,7 @@ where
             if let UnifiedConnectorServiceError::ConnectorError(inner) = error.current_context() {
                 // Fire kill switch for connector errors
                 if let Ok(flow_name) = get_flow_name::<T>() {
-                    kill_switch::record_failure(
+                    kill_switch::check_record_failure(
                         state,
                         kill_switch::UcsFailureContext {
                             merchant_id: merchant_id.get_string_repr(),
@@ -4351,7 +4365,7 @@ where
                 // typed, so this is the one place the kill switch has to observe.
                 match get_flow_name::<T>() {
                     Ok(flow_name) => {
-                        kill_switch::record_failure(
+                        kill_switch::check_record_failure(
                             state,
                             kill_switch::UcsFailureContext {
                                 merchant_id: merchant_id.get_string_repr(),
