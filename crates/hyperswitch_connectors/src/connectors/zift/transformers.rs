@@ -407,10 +407,10 @@ impl ResponseCodeExt for String {
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ZiftErrorResponse {
-    pub response_code: String,
-    pub response_message: String,
-    pub failure_code: String,
-    pub failure_message: String,
+    pub response_code: Option<String>,
+    pub response_message: Option<String>,
+    pub failure_code: Option<String>,
+    pub failure_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

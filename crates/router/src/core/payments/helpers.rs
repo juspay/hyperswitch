@@ -849,9 +849,9 @@ pub async fn get_token_for_recurring_mandate(
         .async_map(|payment_id| async {
             db.find_payment_intent_by_payment_id_processor_merchant_id(
                 payment_id,
-                &mandate.merchant_id,
+                &platform.get_processor().get_processor_merchant_id(),
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -866,9 +866,9 @@ pub async fn get_token_for_recurring_mandate(
         .async_map(|payment_intent| async {
             db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                &mandate.merchant_id,
+                &platform.get_processor().get_processor_merchant_id(),
                 payment_intent.active_attempt.get_id().as_str(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
                 platform.get_processor().get_key_store(),
             )
             .await
@@ -4400,9 +4400,9 @@ where
 pub(super) async fn filter_by_constraints(
     state: &SessionState,
     constraints: &PaymentIntentFetchConstraints,
-    merchant_id: &id_type::MerchantId,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: storage_enums::MerchantStorageScheme,
+    merchant_id: &domain::ProcessorMerchantId,
+    key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
 ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
     let db = &*state.store;
     let result = db
@@ -5109,9 +5109,9 @@ pub async fn verify_payment_intent_time_and_client_secret(
             let payment_intent = db
                 .find_payment_intent_by_payment_id_processor_merchant_id(
                     &payment_id,
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -5476,7 +5476,7 @@ pub async fn insert_merchant_connector_creds_to_config(
     processor: &domain::Processor,
     merchant_connector_details: admin::MerchantConnectorDetailsWrap,
 ) -> RouterResult<()> {
-    let merchant_id = processor.get_account().get_id();
+    let merchant_id = processor.get_processor_merchant_id();
     if let Some(encoded_data) = merchant_connector_details.encoded_data {
         let redis = &db
             .get_redis_conn()
@@ -6078,8 +6078,8 @@ impl AttemptType {
         fetched_payment_intent: PaymentIntent,
         fetched_payment_attempt: PaymentAttempt,
         state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: storage::enums::MerchantStorageScheme,
+        key_store: &domain::ProcessorKeyStore,
+        storage_scheme: domain::ProcessorStorageScheme,
     ) -> RouterResult<(PaymentIntent, PaymentAttempt)> {
         match self {
             Self::SameOld => Ok((fetched_payment_intent, fetched_payment_attempt)),
@@ -6090,7 +6090,7 @@ impl AttemptType {
                     request,
                     fetched_payment_attempt,
                     new_attempt_count,
-                    storage_scheme,
+                    storage_scheme.inner(),
                 );
 
                 #[cfg(feature = "v1")]
@@ -6130,7 +6130,7 @@ impl AttemptType {
                             ),
                             active_attempt_id: new_payment_attempt.get_id().to_owned(),
                             attempt_count: new_attempt_count,
-                            updated_by: storage_scheme.to_string(),
+                            updated_by: storage_scheme.inner().to_string(),
                         },
                         key_store,
                         storage_scheme,
