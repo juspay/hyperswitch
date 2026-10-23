@@ -10935,7 +10935,8 @@ mod ucs_embedded_error_tests {
     use common_enums::PayoutStatus;
     use hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData;
 
-    use super::{payments_grpc, ErrorResponse, ForeignTryFrom, PayoutsResponseData};
+    use super::{payments_grpc, ErrorResponse, PayoutsResponseData};
+    use crate::types::transformers::ForeignTryFrom;
 
     fn connector_error() -> payments_grpc::ErrorInfo {
         payments_grpc::ErrorInfo {
