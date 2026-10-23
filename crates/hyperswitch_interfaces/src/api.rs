@@ -471,6 +471,21 @@ pub trait ConnectorSpecifications {
     fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
+
+    /// Whether the Authorize flow should continue to the authorization call after a
+    /// PreAuthenticate leg has run.
+    ///
+    /// `has_redirection_data` is true when the leg returned something the shopper must complete,
+    /// and `has_three_ds_invoke` when it returned a device-fingerprint instruction. A connector
+    /// whose PreAuthenticate leg only authenticates overrides this to continue once neither is
+    /// outstanding. The default is `false`: the payment stops after the leg.
+    fn should_continue_after_preauthenticate(
+        &self,
+        _has_redirection_data: bool,
+        _has_three_ds_invoke: bool,
+    ) -> bool {
+        false
+    }
     /// Check if pre-authenticate cancel flow is supported
     fn is_pre_authorize_cancel_supported(
         &self,

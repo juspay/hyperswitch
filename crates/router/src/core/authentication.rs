@@ -1349,6 +1349,9 @@ async fn call_ucs_authenticate_proxy(
         webhook_url: None,
         force_3ds_challenge: None,
         router_return_url: None,
+        // The standalone authentication service is not a payment-connector ladder, so there is
+        // no previous leg state to resume.
+        connector_meta: None,
     };
 
     let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(

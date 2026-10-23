@@ -2339,9 +2339,8 @@ async fn mandates_incoming_webhook_flow(
     merchant_connector_account: domain::MerchantConnectorAccount,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     match event_type {
-        webhooks::IncomingWebhookEvent::MandateActionRequired => {
-            Ok(WebhookResponseTracker::NoEffect)
-        }
+        webhooks::IncomingWebhookEvent::MandateActionRequired
+        | webhooks::IncomingWebhookEvent::MandateFailed => Ok(WebhookResponseTracker::NoEffect),
         _ if source_verified => {
             let db = &*state.store;
 

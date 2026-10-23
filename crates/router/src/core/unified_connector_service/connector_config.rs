@@ -61,6 +61,9 @@ pub struct BraintreeMetadata {
 #[derive(Debug, serde::Deserialize)]
 pub struct AdyenMetadata {
     endpoint_prefix: Option<Secret<String>>,
+    /// Opt in to Adyen's native 3D Secure 2 (device fingerprint + embedded challenge) instead of
+    /// the redirect flow. Absent or false keeps the redirect flow, which is the default.
+    native_three_ds: Option<bool>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -259,6 +262,7 @@ pub enum ConnectorSpecificConfig {
         merchant_account: Secret<String>,
         review_key: Option<Secret<String>>,
         endpoint_prefix: Option<Secret<String>>,
+        native_three_ds: Option<bool>,
     },
     /// Braintree connector configuration
     Braintree {
@@ -919,6 +923,7 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                         endpoint_prefix: adyen_meta
                             .as_ref()
                             .and_then(|m| m.endpoint_prefix.clone()),
+                        native_three_ds: adyen_meta.as_ref().and_then(|m| m.native_three_ds),
                     })
                 }
                 ConnectorAuthType::BodyKey { api_key, key1 } => {
@@ -936,6 +941,7 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                         endpoint_prefix: adyen_meta
                             .as_ref()
                             .and_then(|m| m.endpoint_prefix.clone()),
+                        native_three_ds: adyen_meta.as_ref().and_then(|m| m.native_three_ds),
                     })
                 }
                 _ => Err(err("Adyen requires SignatureKey or BodyKey auth type")),

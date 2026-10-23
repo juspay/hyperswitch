@@ -622,7 +622,31 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     }) => redirection_data.is_none(),
                     _ => false,
                 },
-                _ => false,
+                // Anything else asks the connector, so a connector-specific decision does
+                // not have to live in core.
+                _ => match &authorize_router_data.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        connector_metadata,
+                        redirection_data,
+                        ..
+                    }) => {
+                        let has_three_ds_invoke = connector_metadata
+                            .clone()
+                            .and_then(|metadata| {
+                                metadata
+                                    .parse_value::<api_models::payments::PaymentsConnectorThreeDsInvokeData>(
+                                        "PaymentsConnectorThreeDsInvokeData",
+                                    )
+                                    .ok()
+                            })
+                            .is_some();
+                        connector.connector.should_continue_after_preauthenticate(
+                            redirection_data.is_some(),
+                            has_three_ds_invoke,
+                        )
+                    }
+                    _ => false,
+                },
             };
             Ok((authorize_router_data, should_continue_after_preauthenticate))
         } else {
@@ -1478,6 +1502,23 @@ fn transform_redirection_response_for_pre_authenticate_flow(
         _ => Ok(response_data),
     }
 }
+/// Serialises the 3DS invoke data over whatever connector state the gateway returned, so both
+/// survive in `connector_metadata`: the invoke fields drive the `invoke_hidden_iframe` next
+/// action, and the state lets the next leg resume the authentication ladder.
+fn merge_three_ds_invoke_data(
+    connector_state: Option<serde_json::Value>,
+    invoke_data: &api_models::payments::PaymentsConnectorThreeDsInvokeData,
+) -> Option<serde_json::Value> {
+    let invoke_value = serde_json::to_value(invoke_data).ok()?;
+    match (connector_state, invoke_value) {
+        (Some(serde_json::Value::Object(mut state)), serde_json::Value::Object(invoke)) => {
+            state.extend(invoke);
+            Some(serde_json::Value::Object(state))
+        }
+        (_, invoke_value) => Some(invoke_value),
+    }
+}
+
 fn transform_response_for_pre_authenticate_flow(
     connector: enums::connector_enums::Connector,
     response_data: router_response_types::PaymentsResponseData,
@@ -1546,12 +1587,12 @@ fn transform_response_for_pre_authenticate_flow(
         // Hyperswitch, potentially through dedicated fields in the gRPC response or a unified
         // authentication data structure that covers all 3DS scenarios.
         (
-            enums::connector_enums::Connector::Redsys,
+            enums::connector_enums::Connector::Adyen | enums::connector_enums::Connector::Redsys,
             router_response_types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
                 mandate_reference,
-                connector_metadata: _,
+                connector_metadata: connector_state,
                 network_txn_id,
                 network_txn_link_id,
                 connector_response_reference_id,
@@ -1595,19 +1636,32 @@ fn transform_response_for_pre_authenticate_flow(
                                         .map(|v| v == "true")
                                         .unwrap_or(true),
                                 };
-                            // Set connector_metadata with invoke data, clear redirection_data
-                            (serde_json::to_value(&invoke_data).ok(), Box::new(None))
+                            // Set connector_metadata with invoke data, clear redirection_data.
+                            // Keep any connector state UCS returned alongside it: a ladder that
+                            // resumes on a later API call (Adyen native 3DS2 parks its
+                            // `three_ds_data` here) is stranded if this leg drops it, and the
+                            // invoke parse ignores the extra keys.
+                            (
+                                merge_three_ds_invoke_data(connector_state, &invoke_data),
+                                Box::new(None),
+                            )
                         } else {
-                            // 3DS exempt or challenge - keep redirection_data, no special connector_metadata
-                            (None, redirection_data)
+                            // 3DS exempt or challenge - keep redirection_data, and keep the
+                            // connector state with it. A gateway that answers leg 1 with a
+                            // challenge rather than a fingerprint (Adyen native 3DS2 does for
+                            // an already-fingerprinted device) parks the rest of its ladder
+                            // here; dropping it abandons the authentication after the shopper
+                            // has completed it, and the money leg then starts a second,
+                            // unrelated 3DS flow - the shopper is challenged twice.
+                            (connector_state, redirection_data)
                         }
                     } else {
                         // Not a Form type redirect
-                        (None, redirection_data)
+                        (connector_state, redirection_data)
                     }
                 } else {
                     // No redirection data
-                    (None, redirection_data)
+                    (connector_state, redirection_data)
                 };
 
             Ok(
