@@ -6,8 +6,8 @@
 //! readers accept every version still listed here. A new optional field (with a default) needs no
 //! new version; a new datasource is a new [`AlertQuery`] variant with its own versions.
 //!
-//! Nothing here depends on the existing CloudWatch alarm catalogue or evaluator, so that code can
-//! be removed without touching alert rules.
+//! The evaluator works on [`AlertRuleConfig`], the current shape without versions. A stored
+//! configuration converts into it, so a new version changes that conversion, not the evaluator.
 
 use std::{collections::BTreeMap, str::FromStr};
 
@@ -17,16 +17,21 @@ use diesel::{
 };
 use serde::{Deserialize, Serialize};
 
+use super::{AlertRuleConfig, CloudwatchStatistic, ComparisonOperator, Severity};
+
 /// The evaluator runs on a one-minute tick, so a rule is checked every whole number of minutes, at
 /// least once a day.
 const MIN_INTERVAL_SECONDS: u32 = 60;
 const MAX_INTERVAL_SECONDS: u32 = 86_400;
 /// CloudWatch's own limit on dimensions per metric.
 const MAX_DIMENSIONS: usize = 30;
+/// The evaluator's limit on how far back the newest data point may be cut off.
+const MAX_END_OFFSET_SECONDS: u32 = 3_600;
 
 /// `alert_rules.status`: whether the evaluator checks a rule. Stored as text.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, AsExpression, FromSqlRow)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, AsExpression, FromSqlRow)]
 #[diesel(sql_type = Text)]
+#[serde(rename_all = "snake_case")]
 pub enum AlertRuleStatus {
     /// Checked by the evaluator.
     Active,
@@ -105,21 +110,21 @@ pub struct AlertConfigurationV1 {
 #[serde(tag = "datasource", rename_all = "snake_case")]
 pub enum AlertQuery {
     /// A CloudWatch metric.
-    Cloudwatch(CloudWatchQuery),
+    Cloudwatch(CloudwatchQuery),
 }
 
 /// A CloudWatch metric query.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "version", rename_all = "snake_case")]
-pub enum CloudWatchQuery {
+pub enum CloudwatchQuery {
     /// The first version.
-    V1(CloudWatchQueryV1),
+    V1(CloudwatchQueryV1),
 }
 
 /// Version 1 of the CloudWatch query, with the fields and meaning of a CloudWatch alarm's metric.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudWatchQueryV1 {
+pub struct CloudwatchQueryV1 {
     /// AWS region the metric lives in, e.g. `us-east-1`.
     pub region: String,
     /// Metric namespace, e.g. `AWS/RDS`.
@@ -130,22 +135,17 @@ pub struct CloudWatchQueryV1 {
     #[serde(default)]
     pub dimensions: BTreeMap<String, String>,
     /// How the data points in each period are combined.
-    pub statistic: Statistic,
+    pub statistic: CloudwatchStatistic,
     /// Size of each data point, in seconds. Not how often the rule is checked.
     pub period: u32,
+    /// How many seconds before the check the newest data point is cut off, so data CloudWatch is
+    /// still collecting is not evaluated. Left out, 180.
+    #[serde(default = "end_offset_default")]
+    pub end_offset_seconds: u32,
 }
 
-/// How CloudWatch combines the data points in a period.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
-pub enum Statistic {
-    /// The mean.
-    Average,
-    /// The highest value.
-    Maximum,
-    /// The lowest value.
-    Minimum,
-    /// The total.
-    Sum,
+fn end_offset_default() -> u32 {
+    180
 }
 
 /// When the query's result counts as breaching.
@@ -164,78 +164,18 @@ pub struct AlertThresholdsV1 {
     pub severities: BTreeMap<Severity, ThresholdV1>,
 }
 
-/// How serious a breach is.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Severity {
-    /// Needs action now.
-    Critical,
-    /// Needs a look soon.
-    Warning,
-    /// For awareness only.
-    Info,
-}
-
-impl Severity {
-    /// The name used in the stored JSON.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Critical => "critical",
-            Self::Warning => "warning",
-            Self::Info => "info",
-        }
-    }
-}
-
-/// One tier, with the fields and meaning of a CloudWatch alarm's condition.
+/// One tier: when it breaches, and where its alerts go.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ThresholdV1 {
-    /// The value each data point is compared with.
+    /// The value the newest data point is compared with.
     pub threshold: f64,
-    /// How each data point is compared with `threshold`.
+    /// How the newest data point is compared with `threshold`.
     pub comparison_operator: ComparisonOperator,
-    /// How many of the latest periods are looked at (CloudWatch's N).
-    pub evaluation_periods: u32,
-    /// How many of those must breach (CloudWatch's M). Absent means all of them.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub datapoints_to_alarm: Option<u32>,
-    /// Left out by most prod alarms, in which case CloudWatch treats missing data as `missing`.
-    #[serde(default = "missing_data_default")]
-    pub treat_missing_data: MissingDataPolicy,
     /// The message for this tier when it fires.
     pub description: String,
-}
-
-/// How a data point is compared with the threshold, named as in CloudWatch.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
-pub enum ComparisonOperator {
-    /// `>`
-    GreaterThanThreshold,
-    /// `>=`
-    GreaterThanOrEqualToThreshold,
-    /// `<`
-    LessThanThreshold,
-    /// `<=`
-    LessThanOrEqualToThreshold,
-}
-
-/// How periods without data are treated, named as in CloudWatch.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum MissingDataPolicy {
-    /// Counted as breaching.
-    Breaching,
-    /// Counted as not breaching.
-    NotBreaching,
-    /// Ignored; the current state is kept.
-    Ignore,
-    /// Treated as missing.
-    Missing,
-}
-
-fn missing_data_default() -> MissingDataPolicy {
-    MissingDataPolicy::Missing
+    /// The chat destination this tier's alerts go to: an id configured under `chat.destinations`.
+    pub destination: String,
 }
 
 /// Empty, or only whitespace.
@@ -245,7 +185,7 @@ fn blank(value: &str) -> bool {
 
 impl AlertConfiguration {
     /// Check the configuration. The error names the failing field, e.g.
-    /// `alerts_configuration.thresholds.severities.critical.evaluation_periods`.
+    /// `alerts_configuration.thresholds.severities.critical.destination`.
     pub fn validate(&self) -> Result<(), String> {
         match self {
             Self::V1(configuration) => configuration.validate("alerts_configuration"),
@@ -272,12 +212,12 @@ impl AlertConfigurationV1 {
 impl AlertQuery {
     fn validate(&self, path: &str) -> Result<(), String> {
         match self {
-            Self::Cloudwatch(CloudWatchQuery::V1(query)) => query.validate(path),
+            Self::Cloudwatch(CloudwatchQuery::V1(query)) => query.validate(path),
         }
     }
 }
 
-impl CloudWatchQueryV1 {
+impl CloudwatchQueryV1 {
     fn validate(&self, path: &str) -> Result<(), String> {
         if blank(&self.region) {
             return Err(format!("{path}.region must not be empty"));
@@ -316,6 +256,13 @@ impl CloudWatchQueryV1 {
             ));
         }
 
+        if self.end_offset_seconds > MAX_END_OFFSET_SECONDS {
+            return Err(format!(
+                "{path}.end_offset_seconds must be at most {MAX_END_OFFSET_SECONDS}, not {}",
+                self.end_offset_seconds
+            ));
+        }
+
         Ok(())
     }
 }
@@ -337,7 +284,7 @@ impl AlertThresholdsV1 {
         self.severities
             .iter()
             .try_for_each(|(severity, threshold)| {
-                threshold.validate(&format!("{path}.severities.{}", severity.as_str()))
+                threshold.validate(&format!("{path}.severities.{severity}"))
             })
     }
 }
@@ -347,22 +294,60 @@ impl ThresholdV1 {
         if !self.threshold.is_finite() {
             return Err(format!("{path}.threshold must be a finite number"));
         }
-        if self.evaluation_periods == 0 {
-            return Err(format!("{path}.evaluation_periods must be at least 1"));
-        }
-        if let Some(datapoints) = self.datapoints_to_alarm {
-            if datapoints == 0 || datapoints > self.evaluation_periods {
-                return Err(format!(
-                    "{path}.datapoints_to_alarm must be from 1 to evaluation_periods ({}), not \
-                     {datapoints}",
-                    self.evaluation_periods
-                ));
-            }
-        }
         if blank(&self.description) {
             return Err(format!("{path}.description must not be empty"));
         }
+        if blank(&self.destination) {
+            return Err(format!("{path}.destination must not be empty"));
+        }
         Ok(())
+    }
+}
+
+/// The evaluator's shape. Every stored field is carried over, so a configuration that passed
+/// [`AlertConfiguration::validate`] also passes the evaluator's own checks.
+impl From<AlertConfiguration> for AlertRuleConfig {
+    fn from(configuration: AlertConfiguration) -> Self {
+        let configuration = match configuration {
+            AlertConfiguration::V1(configuration) => configuration,
+        };
+
+        let query = match configuration.query {
+            AlertQuery::Cloudwatch(CloudwatchQuery::V1(query)) => {
+                super::AlertQuery::GrafanaCloudwatch(super::GrafanaCloudwatchQuery {
+                    region: query.region,
+                    namespace: query.namespace,
+                    metric_name: query.metric_name,
+                    dimensions: query.dimensions,
+                    statistic: query.statistic,
+                    period: query.period,
+                    end_offset_seconds: query.end_offset_seconds,
+                })
+            }
+        };
+
+        let severities = match configuration.thresholds {
+            AlertThresholds::V1(thresholds) => thresholds.severities,
+        }
+        .into_iter()
+        .map(|(severity, threshold)| {
+            (
+                severity,
+                super::SeverityThreshold {
+                    threshold: threshold.threshold,
+                    comparison_operator: threshold.comparison_operator,
+                    description: threshold.description,
+                    destination: threshold.destination,
+                },
+            )
+        })
+        .collect();
+
+        Self {
+            interval_seconds: configuration.interval_seconds,
+            query,
+            thresholds: super::AlertThresholds { severities },
+        }
     }
 }
 
@@ -384,14 +369,15 @@ mod tests {
             "version": "v1",
             "interval_seconds": 60,
             "query": {
-                "version": "v1",
                 "datasource": "cloudwatch",
+                "version": "v1",
                 "region": "us-east-1",
                 "namespace": "AWS/RDS",
                 "metric_name": "CPUUtilization",
                 "dimensions": { "DBClusterIdentifier": "hyperswitchdb-cluster", "Role": "WRITER" },
                 "statistic": "Average",
-                "period": 60
+                "period": 60,
+                "end_offset_seconds": 180
             },
             "thresholds": {
                 "version": "v1",
@@ -399,24 +385,20 @@ mod tests {
                     "critical": {
                         "threshold": 80.0,
                         "comparison_operator": "GreaterThanOrEqualToThreshold",
-                        "evaluation_periods": 1,
-                        "treat_missing_data": "breaching",
-                        "description": "RDS writer CPU above 80%."
+                        "description": "RDS writer CPU above 80%.",
+                        "destination": "infra_oncall"
                     },
                     "warning": {
                         "threshold": 70.0,
                         "comparison_operator": "GreaterThanOrEqualToThreshold",
-                        "evaluation_periods": 3,
-                        "datapoints_to_alarm": 2,
-                        "treat_missing_data": "missing",
-                        "description": "RDS writer CPU above 70%."
+                        "description": "RDS writer CPU above 70%.",
+                        "destination": "infra_alerts"
                     },
                     "info": {
                         "threshold": 60.0,
                         "comparison_operator": "GreaterThanOrEqualToThreshold",
-                        "evaluation_periods": 1,
-                        "treat_missing_data": "missing",
-                        "description": "RDS writer CPU above 60%."
+                        "description": "RDS writer CPU above 60%.",
+                        "destination": "infra_alerts"
                     }
                 }
             }
@@ -455,8 +437,8 @@ mod tests {
         assert_eq!(parsed.validate(), Ok(()));
 
         let AlertConfiguration::V1(v1) = parsed;
-        let AlertQuery::Cloudwatch(CloudWatchQuery::V1(query)) = v1.query;
-        assert_eq!(query.statistic, Statistic::Average);
+        let AlertQuery::Cloudwatch(CloudwatchQuery::V1(query)) = v1.query;
+        assert_eq!(query.statistic, CloudwatchStatistic::Average);
         let AlertThresholds::V1(thresholds) = v1.thresholds;
         assert_eq!(
             thresholds.severities.keys().copied().collect::<Vec<_>>(),
@@ -467,24 +449,14 @@ mod tests {
     #[test]
     fn left_out_fields_take_their_defaults_and_are_written_explicitly() {
         let minimal = remove(
-            remove(
-                remove(stored(), "/query", "dimensions"),
-                "/thresholds/severities/warning",
-                "datapoints_to_alarm",
-            ),
-            "/thresholds/severities/warning",
-            "treat_missing_data",
+            remove(stored(), "/query", "dimensions"),
+            "/query",
+            "end_offset_seconds",
         );
         let written = serde_json::to_value(configuration(minimal)).unwrap();
 
         assert_eq!(written["query"]["dimensions"], json!({}));
-        assert_eq!(
-            written["thresholds"]["severities"]["warning"]["treat_missing_data"],
-            "missing"
-        );
-        assert!(written["thresholds"]["severities"]["warning"]
-            .get("datapoints_to_alarm")
-            .is_none());
+        assert_eq!(written["query"]["end_offset_seconds"], 180);
     }
 
     #[test]
@@ -534,10 +506,6 @@ mod tests {
             (
                 "/thresholds/severities/critical/comparison_operator",
                 json!("GreaterThanUpperThreshold"),
-            ),
-            (
-                "/thresholds/severities/critical/treat_missing_data",
-                json!("ignored"),
             ),
         ] {
             assert!(
@@ -612,36 +580,20 @@ mod tests {
                 set(stored(), "/query/period", json!(86_460)),
             ),
             (
+                "alerts_configuration.query.end_offset_seconds",
+                set(stored(), "/query/end_offset_seconds", json!(3_601)),
+            ),
+            (
                 "alerts_configuration.thresholds.severities",
                 set(stored(), "/thresholds/severities", json!({})),
             ),
             (
-                "alerts_configuration.thresholds.severities.critical.evaluation_periods",
-                set(
-                    stored(),
-                    &format!("{critical}/evaluation_periods"),
-                    json!(0),
-                ),
-            ),
-            (
-                "alerts_configuration.thresholds.severities.warning.datapoints_to_alarm",
-                set(
-                    stored(),
-                    "/thresholds/severities/warning/datapoints_to_alarm",
-                    json!(4),
-                ),
-            ),
-            (
-                "alerts_configuration.thresholds.severities.warning.datapoints_to_alarm",
-                set(
-                    stored(),
-                    "/thresholds/severities/warning/datapoints_to_alarm",
-                    json!(0),
-                ),
-            ),
-            (
                 "alerts_configuration.thresholds.severities.critical.description",
                 set(stored(), &format!("{critical}/description"), json!(" ")),
+            ),
+            (
+                "alerts_configuration.thresholds.severities.critical.destination",
+                set(stored(), &format!("{critical}/destination"), json!("")),
             ),
         ];
 
@@ -664,9 +616,58 @@ mod tests {
     }
 
     #[test]
-    fn statuses_read_back_from_their_stored_text() {
+    fn converts_to_the_evaluator_shape_with_every_field() {
+        let converted = AlertRuleConfig::from(configuration(stored()));
+
+        assert_eq!(
+            serde_json::to_value(converted).unwrap(),
+            json!({
+                "interval_seconds": 60,
+                "query": {
+                    "datasource": "grafana_cloudwatch",
+                    "region": "us-east-1",
+                    "namespace": "AWS/RDS",
+                    "metric_name": "CPUUtilization",
+                    "dimensions": { "DBClusterIdentifier": "hyperswitchdb-cluster", "Role": "WRITER" },
+                    "statistic": "Average",
+                    "period": 60,
+                    "end_offset_seconds": 180
+                },
+                "thresholds": {
+                    "severities": {
+                        "critical": {
+                            "threshold": 80.0,
+                            "comparison_operator": "GreaterThanOrEqualToThreshold",
+                            "description": "RDS writer CPU above 80%.",
+                            "destination": "infra_oncall"
+                        },
+                        "warning": {
+                            "threshold": 70.0,
+                            "comparison_operator": "GreaterThanOrEqualToThreshold",
+                            "description": "RDS writer CPU above 70%.",
+                            "destination": "infra_alerts"
+                        },
+                        "info": {
+                            "threshold": 60.0,
+                            "comparison_operator": "GreaterThanOrEqualToThreshold",
+                            "description": "RDS writer CPU above 60%.",
+                            "destination": "infra_alerts"
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn statuses_read_back_from_their_stored_text_and_json() {
         for status in [AlertRuleStatus::Active, AlertRuleStatus::Inactive] {
             assert_eq!(status.as_str().parse::<AlertRuleStatus>(), Ok(status));
+            assert_eq!(serde_json::to_value(status).unwrap(), status.as_str());
+            assert_eq!(
+                serde_json::from_value::<AlertRuleStatus>(json!(status.as_str())).unwrap(),
+                status
+            );
         }
         assert!("paused".parse::<AlertRuleStatus>().is_err());
     }

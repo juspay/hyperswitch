@@ -1,9 +1,9 @@
 //! PostgreSQL rows for alert rules: what to check, how, and when it is next due.
 //!
 //! `status` and `alerts_configuration` are read and written as their types from
-//! `common_types::observability::alert_rules`.
+//! `common_types::alert_rules::stored`.
 
-use common_types::observability::alert_rules::{AlertConfiguration, AlertRuleStatus};
+use common_types::alert_rules::stored::{AlertConfiguration, AlertRuleStatus};
 use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
