@@ -249,7 +249,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
             state,
             request,
             self,
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
             dimensions,
         ))
         .await
@@ -286,7 +286,7 @@ async fn get_tracker_for_sync<
     state: &SessionState,
     request: &api::PaymentsRetrieveRequest,
     operation: Op,
-    storage_scheme: enums::MerchantStorageScheme,
+    storage_scheme: domain::ProcessorStorageScheme,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>>
 {
@@ -295,7 +295,7 @@ async fn get_tracker_for_sync<
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
         state,
         payment_id,
-        platform.get_processor().get_account().get_id(),
+        &platform.get_processor().get_processor_merchant_id(),
         platform.get_processor().get_key_store(),
         storage_scheme,
     )
@@ -342,7 +342,7 @@ async fn get_tracker_for_sync<
     let attempts = match request.expand_attempts {
         Some(true) => {
             Some(db
-                .find_attempts_by_processor_merchant_id_payment_id(platform.get_processor().get_account().get_id(), &payment_id, storage_scheme, platform.get_processor().get_key_store())
+                .find_attempts_by_processor_merchant_id_payment_id(&platform.get_processor().get_processor_merchant_id(), &payment_id, storage_scheme, platform.get_processor().get_key_store())
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
@@ -358,7 +358,7 @@ async fn get_tracker_for_sync<
                 &payment_attempt.merchant_id,
                 &payment_attempt.payment_id,
                 &payment_attempt.attempt_id,
-                storage_scheme,
+                storage_scheme.inner(),
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -377,7 +377,7 @@ async fn get_tracker_for_sync<
         .find_refund_by_payment_id_processor_merchant_id(
             &payment_id,
             platform.get_processor().get_account().get_id(),
-            storage_scheme,
+            storage_scheme.inner(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -471,7 +471,7 @@ async fn get_tracker_for_sync<
                 .find_payment_method(
                     platform.get_provider().get_key_store(),
                     payment_method_id,
-                    storage_scheme,
+                    storage_scheme.inner(),
                 )
                 .await
             {
@@ -698,9 +698,9 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRetrieveRequest, Pa
 pub async fn get_payment_intent_payment_attempt(
     state: &SessionState,
     payment_id: &api::PaymentIdType,
-    processor_merchant_id: &common_utils::id_type::MerchantId,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
+    processor_merchant_id: &domain::ProcessorMerchantId,
+    key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
 ) -> RouterResult<(storage::PaymentIntent, storage::PaymentAttempt)> {
     let db = &*state.store;
     let get_pi_pa = || async {

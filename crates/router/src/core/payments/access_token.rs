@@ -4,7 +4,7 @@ use common_enums;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::{
-    api::{gateway, ConnectorSpecifications, ConnectorValidation},
+    api::{ConnectorSpecifications, ConnectorValidation},
     consts as interfaces_consts,
 };
 use unified_connector_service_client::payments as payments_grpc;
@@ -13,7 +13,7 @@ use crate::{
     consts,
     core::{
         errors::{self, RouterResult},
-        payments::{self, gateway::context as gateway_context},
+        payments::{self, gateway, gateway::context as gateway_context},
         unified_connector_service,
     },
     routes::{metrics, SessionState},

@@ -44,9 +44,9 @@ async fn get_payment_context(
         .async_map(|pi| async {
             db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &pi.payment_id,
-                &pi.processor_merchant_id,
+                &domain::ProcessorMerchantId::from(pi.processor_merchant_id.clone()),
                 &pi.active_attempt.get_id(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
                 platform.get_processor().get_key_store(),
             )
             .await
@@ -95,11 +95,19 @@ async fn get_payment_context(
             pi.customer_id
                 .as_ref()
                 .async_and_then(|cust| async {
+                    let use_merchant_reference_id =
+                        helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                            state,
+                            platform.get_provider(),
+                            Some(cust),
+                        )
+                        .await;
                     db.find_customer_by_customer_id_merchant_id(
                         cust,
                         &pi.merchant_id,
                         platform.get_provider().get_key_store(),
                         platform.get_provider().get_account().storage_scheme,
+                        use_merchant_reference_id,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -351,9 +359,9 @@ pub async fn get_superposition_sdk_config(
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
-            merchant_account.get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             platform.get_processor().get_key_store(),
-            merchant_account.storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
