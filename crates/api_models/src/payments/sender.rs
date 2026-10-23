@@ -131,6 +131,14 @@ impl SenderDetails {
             Self::Corporate(corporate) => corporate.address.as_ref(),
         }
     }
+
+    /// The sender's email address, if provided.
+    pub fn get_email(&self) -> Option<&Email> {
+        match self {
+            Self::Individual(individual) => individual.email.as_ref(),
+            Self::Corporate(corporate) => corporate.email.as_ref(),
+        }
+    }
 }
 
 /// A partially masked view of `PhoneDetails`, safe to return in API responses.
