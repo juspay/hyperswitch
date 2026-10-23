@@ -68,6 +68,9 @@ deja = { git = "https://github.com/juspay/deja", rev = "ade8fd16c1d8a4d23ca8fa33
 error-stack = "0.4.1"
 hex = "0.4.3"
 hyper = "1.6.0"
+# SES's AWS Smithy connector still requires Hyper 0.14 on this release.
+hyper-014 = { package = "hyper", version = "0.14.32", features = ["client", "tcp"] }
+hyper-proxy = "0.9.1"
 lettre = "0.11.16"
 once_cell = "1.21.3"
 serde = { version = "1.0.219", features = ["derive"] }
