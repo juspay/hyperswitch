@@ -266,15 +266,12 @@ export const connectorDetails = {
         },
       },
     },
-    // Ground truth, not a guess: connector-service's
-    // macro_connector_flow_status_impls! for GlobalpaymentsRealex
-    // (crates/integrations/connector-integration/src/connectors/
     // globalpayments_realex.rs) explicitly lists MandateRevoke, SetupMandate,
     // RepeatPayment, and PaymentMethodToken under `not_implemented`. Mandate
     // setup (CIT) is SetupMandate; MIT/subsequent-payment reuse is
     // RepeatPayment; mandate listing/revocation is MandateRevoke. Only the
     // six core flows are wired: Authorize, PSync, Capture, Void, Refund,
-    // RSync (see that file's own comment above the macro call).
+    // RSync
     MandateSingleUseNo3DSAutoCapture: {
       Configs: { TRIGGER_SKIP: true },
       Request: {},
