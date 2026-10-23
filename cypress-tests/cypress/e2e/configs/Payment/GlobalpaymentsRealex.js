@@ -99,15 +99,6 @@ export const connectorDetails = {
         },
       },
     },
-    // Hyperswitch correctly calls UCS's PreAuthenticate for this attempt
-    // instead of a plain XML auth (confirmed live via Loki — exactly one
-    // UCS call, flow: "PreAuthenticate"). But the sandbox account available
-    // for testing isn't 3DS-provisioned at all, so the attempt fails at
-    // RealEx's own account check before any challenge/redirect exists to
-    // assert on. This is the real, live-verified outcome, not a guess — see
-    // pr-13980-test-results.md. Once a 3DS-enabled RealEx account is
-    // available, this should be rewritten to assert the actual challenge
-    // flow (requires_customer_action -> handleRedirection -> succeeded).
     "3DSAutoCapture": {
       Request: {
         payment_method: "card",
