@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.23.0
+
+### Bug Fixes
+
+- **FRM:** FRM flow fixes [AccessToken Check] [Merchant Connector Ref Id fix] ([#14494](https://github.com/juspay/hyperswitch/pull/14494)) ([`5428b5f`](https://github.com/juspay/hyperswitch/commit/5428b5f898721b138d632a21ce68f1d2d3421bcf))
+- **auth:** Reject mismatched v2 client secret resource IDs ([#14864](https://github.com/juspay/hyperswitch/pull/14864)) ([`7a33487`](https://github.com/juspay/hyperswitch/commit/7a334875acd443b35becf812d0cd3c66094654e3))
+- **connector:** [Nuvei] Use the cardholder name whenever available, with the billing full name as a fallback ([#14925](https://github.com/juspay/hyperswitch/pull/14925)) ([`7c4f4c8`](https://github.com/juspay/hyperswitch/commit/7c4f4c83828570c4b4c20dfc6a06dab91ba7b08a))
+
+### Refactors
+
+- **api_models:** Use String for vault SDK authorization ([#14932](https://github.com/juspay/hyperswitch/pull/14932)) ([`9dd7c1d`](https://github.com/juspay/hyperswitch/commit/9dd7c1dca7ceebb4322cf324ca152ba0281677ff))
+- **platform:** Add compile-time context safety to payments ([#14793](https://github.com/juspay/hyperswitch/pull/14793)) ([`7ffb0a5`](https://github.com/juspay/hyperswitch/commit/7ffb0a50641411e514d3d52189a3f162cfb6bc5b))
+- **revenue_recovery:** Decide the recovery api action from the synced transaction status ([#14886](https://github.com/juspay/hyperswitch/pull/14886)) ([`814aeed`](https://github.com/juspay/hyperswitch/commit/814aeedde01189af44d1138ade0d1575d3c704f7))
+
+**Full Changelog:** [`2026.10.22.1...2026.10.23.0`](https://github.com/juspay/hyperswitch/compare/2026.10.22.1...2026.10.23.0)
+
+- - -
+
 ## 2026.10.22.1
 
 ### Features
