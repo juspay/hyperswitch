@@ -37,7 +37,7 @@ tls = ["actix-web/rustls-0_23"]
 email = ["external_services/email", "scheduler/email", "olap"]
 # keymanager_create, keymanager_mtls, encryption_service should not be removed or added to default feature. Once this features were enabled it can't be disabled as these are breaking changes.
 keymanager_create = []
-keymanager_mtls = ["reqwest/rustls-tls", "common_utils/keymanager_mtls"]
+keymanager_mtls = ["reqwest/rustls", "common_utils/keymanager_mtls"]
 encryption_service = [
     "keymanager_create",
     "hyperswitch_domain_models/encryption_service",
@@ -238,9 +238,10 @@ rand = "0.8.5"
 rand_chacha = "0.3.1"
 rdkafka = "0.36.2"
 regex = "1.11.1"
-reqwest = { version = "0.12.7", features = [
+reqwest = { version = "0.13.5", features = [
     "json",
-    "rustls-tls",
+    "form",
+    "rustls",
     "gzip",
     "multipart",
 ] }

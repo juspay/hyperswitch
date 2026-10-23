@@ -1,10 +1,12 @@
-use common_utils::{errors::ErrorSwitch, transformers::ForeignTryFrom};
+use common_utils::{errors::CustomResult, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
 use external_services::http_client::client;
+use futures::TryFutureExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use oidc::TokenResponse;
 use openidconnect::{self as oidc, core as oidc_core};
 use redis_interface::RedisConnectionWithContext;
+use router_env::logger;
 use storage_impl::errors::ApiClientError;
 
 use crate::{
@@ -74,15 +76,22 @@ pub async fn get_user_email_from_oidc_provider(
     // Send request to OpenId provider with authorization code
     let token_response = client
         .exchange_code(oidc::AuthorizationCode::new(authorization_code.expose()))
-        .request_async(|req| get_oidc_reqwest_client(state, req))
+        .request_async(|req| {
+            get_oidc_reqwest_client(state, req)
+                .inspect_err(|error| logger::error!(?error, "OpenID Connect HTTP request failed"))
+                .map_err(error_stack::Report::into_error)
+        })
         .await
-        .map_err(|e| match e {
-            oidc::RequestTokenError::ServerResponse(resp)
-                if resp.error() == &oidc_core::CoreErrorResponseType::InvalidGrant =>
-            {
-                UserErrors::SSOFailed
-            }
-            _ => UserErrors::InternalServerError,
+        .map_err(|error| {
+            let context = match &error {
+                oidc::RequestTokenError::ServerResponse(resp)
+                    if resp.error() == &oidc_core::CoreErrorResponseType::InvalidGrant =>
+                {
+                    UserErrors::SSOFailed
+                }
+                _ => UserErrors::InternalServerError,
+            };
+            error_stack::Report::new(error).change_context(context)
         })
         .attach_printable("Failed to exchange code and fetch oidc token")?;
 
@@ -119,6 +128,8 @@ async fn get_discovery_document(
         oidc::IssuerUrl::new(base_url.expose()).change_context(UserErrors::InternalServerError)?;
     oidc_core::CoreProviderMetadata::discover_async(issuer_url, |req| {
         get_oidc_reqwest_client(state, req)
+            .inspect_err(|error| logger::error!(?error, "OpenID Connect HTTP request failed"))
+            .map_err(error_stack::Report::into_error)
     })
     .await
     .change_context(UserErrors::InternalServerError)
@@ -162,12 +173,12 @@ async fn get_nonce_from_redis(
 async fn get_oidc_reqwest_client(
     state: &SessionState,
     request: oidc::HttpRequest,
-) -> Result<oidc::HttpResponse, ApiClientError> {
+) -> CustomResult<oidc::HttpResponse, ApiClientError> {
     let client = client::create_client(&state.conf.proxy, None, None, None)
-        .map_err(|error| error.current_context().switch())?;
+        .change_context(ApiClientError::ClientConstructionFailed)?;
 
     let method = reqwest::Method::from_bytes(request.method.as_str().as_bytes())
-        .map_err(|_| ApiClientError::ClientConstructionFailed)?;
+        .change_context(ApiClientError::ClientConstructionFailed)?;
     let mut request_builder = client.request(method, request.url).body(request.body);
     for (name, value) in &request.headers {
         request_builder = request_builder.header(name.as_str(), value.as_bytes());
@@ -175,21 +186,20 @@ async fn get_oidc_reqwest_client(
 
     let request = request_builder
         .build()
-        .map_err(|_| ApiClientError::ClientConstructionFailed)?;
+        .change_context(ApiClientError::ClientConstructionFailed)?;
     let response = client
         .execute(request)
         .await
-        .map_err(|_| ApiClientError::RequestNotSent("OpenIDConnect".to_string()))?;
+        .change_context(ApiClientError::RequestNotSent("OpenIDConnect".to_string()))?;
 
     Ok(oidc::HttpResponse {
         status_code: http::StatusCode::from_u16(response.status().as_u16())
-            .map_err(|_| ApiClientError::ResponseDecodingFailed)?,
-        headers: http::HeaderMap::foreign_try_from(response.headers())
-            .map_err(|error| error.current_context().clone())?,
+            .change_context(ApiClientError::ResponseDecodingFailed)?,
+        headers: http::HeaderMap::foreign_try_from(response.headers())?,
         body: response
             .bytes()
             .await
-            .map_err(|_| ApiClientError::ResponseDecodingFailed)?
+            .change_context(ApiClientError::ResponseDecodingFailed)?
             .to_vec(),
     })
 }
