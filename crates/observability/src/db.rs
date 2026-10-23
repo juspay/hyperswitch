@@ -14,6 +14,7 @@
 //! applies here: there is one database, no tenants, no replica, no Redis-backed storage scheme and
 //! no encrypted columns.
 
+pub mod alert_rules;
 pub mod alerts_info;
 pub mod blacklist;
 pub mod dictionary;
@@ -40,6 +41,7 @@ use crate::{errors::ConfigurationError, settings::Database};
 pub trait StorageInterface:
     Send
     + Sync
+    + alert_rules::AlertRulesInterface
     + alerts_info::AlertsInfoInterface
     + blacklist::BlacklistInterface
     + dictionary::DictionaryInterface

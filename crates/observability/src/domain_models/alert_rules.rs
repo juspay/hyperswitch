@@ -35,15 +35,17 @@ pub struct AlertRuleNew {
     name: String,
     status: AlertRuleStatus,
     alerts_configuration: AlertConfiguration,
+    next_run_at: PrimitiveDateTime,
 }
 
 impl AlertRuleNew {
-    /// Check a rule and prepare it for storage. The error names the failing field.
+    /// Check a rule and prepare it for storage, due at `now`. The error names the failing field.
     pub fn new(
         id: String,
         name: String,
         status: AlertRuleStatus,
         alerts_configuration: AlertConfiguration,
+        now: PrimitiveDateTime,
     ) -> Result<Self, String> {
         validate_id(&id)?;
 
@@ -59,6 +61,7 @@ impl AlertRuleNew {
             name,
             status,
             alerts_configuration,
+            next_run_at: now,
         })
     }
 
@@ -90,6 +93,7 @@ impl From<AlertRuleNew> for storage::AlertRuleNew {
             name: rule.name,
             status: rule.status,
             alerts_configuration: rule.alerts_configuration,
+            next_run_at: rule.next_run_at,
         }
     }
 }
@@ -151,6 +155,7 @@ mod tests {
             name.to_owned(),
             AlertRuleStatus::Active,
             configuration(),
+            datetime!(2026-10-21 09:00:30),
         )
     }
 
@@ -199,6 +204,7 @@ mod tests {
             "n".to_owned(),
             AlertRuleStatus::Active,
             invalid,
+            datetime!(2026-10-21 09:00:30),
         )
         .unwrap_err();
         assert!(
@@ -215,6 +221,7 @@ mod tests {
         assert_eq!(stored.id, "rds-writer-cpu");
         assert_eq!(stored.status, AlertRuleStatus::Active);
         assert_eq!(stored.alerts_configuration, new.alerts_configuration);
+        assert_eq!(stored.next_run_at, datetime!(2026-10-21 09:00:30));
 
         let read = AlertRule::from(storage::AlertRule {
             id: stored.id,

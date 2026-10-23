@@ -9,8 +9,7 @@ use time::PrimitiveDateTime;
 
 use crate::observability::schema::alert_rules;
 
-/// A rule to create. `next_run_at` and the timestamps start from their database defaults, so a new
-/// rule is due on the evaluator's next tick.
+/// A rule to create or replace. The timestamps start from their database defaults.
 #[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = alert_rules)]
 pub struct AlertRuleNew {
@@ -18,6 +17,9 @@ pub struct AlertRuleNew {
     pub name: String,
     pub status: AlertRuleStatus,
     pub alerts_configuration: AlertConfiguration,
+    /// Set from the service's UTC clock, not the database default: the column has no time zone,
+    /// and the evaluator compares it with its own clock.
+    pub next_run_at: PrimitiveDateTime,
 }
 
 /// A stored rule.

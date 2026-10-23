@@ -45,6 +45,62 @@ struct MemoryStore {
 
 struct FailingStore;
 
+macro_rules! impl_unused_alert_rules {
+    ($store:ty) => {
+        #[async_trait::async_trait]
+        impl observability::db::alert_rules::AlertRulesInterface for $store {
+            async fn list_alert_rules(
+                &self,
+            ) -> StorageResult<Vec<observability::domain_models::alert_rules::AlertRule>> {
+                Err(report!(DatabaseError::Others))
+            }
+
+            async fn find_alert_rule(
+                &self,
+                _id: &str,
+            ) -> StorageResult<Option<observability::domain_models::alert_rules::AlertRule>> {
+                Err(report!(DatabaseError::Others))
+            }
+
+            async fn upsert_alert_rule(
+                &self,
+                _new: observability::domain_models::alert_rules::AlertRuleNew,
+            ) -> StorageResult<observability::domain_models::alert_rules::AlertRule> {
+                Err(report!(DatabaseError::Others))
+            }
+
+            async fn delete_alert_rule(&self, _id: &str) -> StorageResult<bool> {
+                Err(report!(DatabaseError::Others))
+            }
+
+            async fn list_active_alert_rules(
+                &self,
+            ) -> StorageResult<Vec<observability::domain_models::alert_rules::AlertRule>> {
+                Err(report!(DatabaseError::Others))
+            }
+
+            async fn list_due_alert_rules(
+                &self,
+                _now: time::PrimitiveDateTime,
+            ) -> StorageResult<Vec<observability::domain_models::alert_rules::AlertRule>> {
+                Err(report!(DatabaseError::Others))
+            }
+
+            async fn claim_alert_rule(
+                &self,
+                _id: &str,
+                _seen: time::PrimitiveDateTime,
+                _next: time::PrimitiveDateTime,
+            ) -> StorageResult<bool> {
+                Err(report!(DatabaseError::Others))
+            }
+        }
+    };
+}
+
+impl_unused_alert_rules!(MemoryStore);
+impl_unused_alert_rules!(FailingStore);
+
 impl StorageInterface for MemoryStore {}
 impl StorageInterface for FailingStore {}
 
