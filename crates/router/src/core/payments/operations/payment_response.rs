@@ -4001,10 +4001,7 @@ async fn create_or_update_payment_method_from_payment_response<F: Clone>(
     }
     // If the payment_method is deleted then ignore the error related to retrieving payment method
     // This should be handled when the payment method is soft deleted
-    if let (true, Some(id)) = (
-        payment_data.get_payment_method_info().is_some(),
-        &payment_data.payment_attempt.payment_method_id,
-    ) {
+    if let Some(id) = &payment_data.payment_attempt.payment_method_id {
         let payment_method = match state
             .store
             .find_payment_method(key_store, id, storage_scheme)

@@ -467,7 +467,7 @@ async fn get_tracker_for_sync<
     let payment_method_info =
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
             let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
-            let stored_payment_method = match db
+            let payment_method_info = match db
                 .find_payment_method(
                     platform.get_provider().get_key_store(),
                     payment_method_id,
@@ -481,7 +481,7 @@ async fn get_tracker_for_sync<
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Error retrieving payment method from db")?,
             };
-            let use_modular = stored_payment_method.as_ref().map_or(
+            let use_modular = payment_method_info.as_ref().map_or(
                 feature_config.is_payment_method_modular_allowed,
                 |pm| {
                     feature_config.should_use_modular_pm_path(
@@ -507,7 +507,6 @@ async fn get_tracker_for_sync<
                     Ok(pm) => Some(pm.payment_method),
                     Err(error) => {
                         // Historical payments remain readable after PM deletion or an outage.
-                        // No PM context also suppresses PM writes in the sync response hooks.
                         logger::warn!(
                             ?error,
                             "Modular PM metadata unavailable during payment sync"
@@ -516,7 +515,7 @@ async fn get_tracker_for_sync<
                     }
                 }
             } else {
-                stored_payment_method
+                payment_method_info
             }
         } else {
             None

@@ -462,7 +462,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .await?;
 
         let payment_method_info = if let Some(pm_id) = payment_attempt.payment_method_id.as_ref() {
-            let legacy_payment_method = match state
+            let payment_method_info = match state
                 .store
                 .find_payment_method(
                     platform.get_provider().get_key_store(),
@@ -483,7 +483,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             }?;
 
             // An existing V1 record must pass the freshness check even after rollout.
-            if legacy_payment_method.as_ref().map_or(
+            if payment_method_info.as_ref().map_or(
                 feature_config.is_payment_method_modular_allowed,
                 |pm| {
                     feature_config.should_use_modular_pm_path(
@@ -505,7 +505,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .payment_method,
                 )
             } else {
-                legacy_payment_method
+                payment_method_info
             }
         } else {
             None
