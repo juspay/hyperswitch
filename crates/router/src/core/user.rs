@@ -474,7 +474,8 @@ pub async fn signout(
     state: SessionState,
     user_from_token: auth::UserIdFromAuth,
 ) -> UserResponse<()> {
-    end_user_sessions(&state, &user_from_token.user_id).await
+    end_user_sessions(&state, &user_from_token.user_id).await?;
+    auth::cookies::remove_cookie_response()
 }
 
 pub async fn change_password(
