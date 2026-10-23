@@ -24,9 +24,11 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
 #[cfg(feature = "v2")]
 /// Revenue Recovery - Create
 ///
-/// Record a transaction made outside of Hyperswitch against a billing connector invoice,
-/// and take the requested recovery action on it, such as scheduling a retry for a failed payment
-/// or recording an externally successful payment.
+/// Record a transaction made outside of Hyperswitch against a billing connector invoice.
+/// The transaction is synced with the payment connector and is then handled based on the
+/// status it reports, for example by scheduling a retry for a failed payment or recording an
+/// externally successful payment. The reported `transaction_status` is used when the
+/// connector cannot be synced.
 #[utoipa::path(
     post,
     path = "/v2/recovery",
@@ -57,6 +59,18 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                         "connector_transaction_id": "993672945374576J",
                         "transaction_created_at": "2022-09-10T10:11:12Z",
                         "billing_started_at": "2022-09-10T10:11:12Z",
+                        "billing": {
+                            "address": {
+                                "line1": "1467 Harrison Street",
+                                "city": "San Francisco",
+                                "state": "California",
+                                "zip": "94122",
+                                "country": "US",
+                                "first_name": "John",
+                                "last_name": "Doe"
+                            },
+                            "email": "john@example.com"
+                        },
                         "error": {
                             "code": "card_declined",
                             "message": "The card was declined.",
@@ -77,7 +91,6 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                                 "card_exp_year": "2026"
                             }
                         },
-                        "action": "schedule_failed_payment"
                     })
                 )
             ),

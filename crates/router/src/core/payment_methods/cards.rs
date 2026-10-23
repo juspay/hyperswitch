@@ -4992,7 +4992,7 @@ pub async fn build_merchant_enabled_pms_context(
             straight_through_algorithm: Some(encoded),
             amount_capturable: None,
             updated_by: platform
-                .get_provider()
+                .get_processor()
                 .get_account()
                 .storage_scheme
                 .to_string(),
@@ -5008,8 +5008,8 @@ pub async fn build_merchant_enabled_pms_context(
             .update_payment_attempt_with_attempt_id(
                 (*payment_attempt).clone(),
                 attempt_update,
-                platform.get_provider().get_account().storage_scheme,
-                platform.get_provider().get_key_store(),
+                platform.get_processor().get_storage_scheme(),
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -5427,9 +5427,9 @@ pub async fn list_payment_methods(
         .async_map(|pi| async {
             db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &pi.payment_id,
-                &pi.processor_merchant_id,
+                &domain::ProcessorMerchantId::from(pi.processor_merchant_id.clone()),
                 &pi.active_attempt.get_id(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
                 platform.get_processor().get_key_store(),
             )
             .await
@@ -5920,13 +5920,13 @@ pub async fn call_surcharge_decision_management(
                 storage::PaymentIntentUpdate::SurchargeApplicableUpdate {
                     surcharge_applicable: true,
                     updated_by: platform
-                        .get_provider()
+                        .get_processor()
                         .get_account()
                         .storage_scheme
                         .to_string(),
                 },
-                platform.get_provider().get_key_store(),
-                platform.get_provider().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -5980,13 +5980,13 @@ pub async fn call_surcharge_decision_management_for_saved_card(
                 storage::PaymentIntentUpdate::SurchargeApplicableUpdate {
                     surcharge_applicable: true,
                     updated_by: platform
-                        .get_provider()
+                        .get_processor()
                         .get_account()
                         .storage_scheme
                         .to_string(),
                 },
-                platform.get_provider().get_key_store(),
-                platform.get_provider().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -6347,9 +6347,11 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                     .store
                     .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                         &payment_intent.payment_id,
-                        &payment_intent.processor_merchant_id,
+                        &domain::ProcessorMerchantId::from(
+                            payment_intent.processor_merchant_id.clone(),
+                        ),
                         &payment_intent.active_attempt.get_id(),
-                        platform.get_processor().get_account().storage_scheme,
+                        platform.get_processor().get_storage_scheme(),
                         platform.get_processor().get_key_store(),
                     )
                     .await

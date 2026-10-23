@@ -237,7 +237,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         .await?;
 
         let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
-        let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
+        let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
 
         for event_data in events_to_trigger {
             let event_type = event_data.event_type;
@@ -247,7 +247,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
                 event_data,
                 &webhook_recipient,
                 provider_merchant_id.clone(),
-                processor_merchant_id.clone(),
+                processor_merchant_id.inner().clone(),
                 primary_object_id.clone(),
                 primary_object_type,
                 primary_object_created_at,
@@ -766,25 +766,33 @@ async fn trigger_webhook_to_connector(
     }
 }
 
+/// Outgoing webhooks run at provider or processor level depending on who triggered them, so
+/// the merchant id and key store both come from that merchant and are tagged here.
 async fn update_payment_attempt_from_webhook_response(
     state: &SessionState,
     event: &domain::Event,
-    processor_merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &common_utils::id_type::MerchantId,
     merchant_key_store: &domain::MerchantKeyStore,
 ) {
     if event.event_type == enums::EventType::SurchargePaymentSucceeded {
         let merchant_account = state
             .store
-            .find_merchant_account_by_merchant_id(processor_merchant_id, merchant_key_store)
+            .find_merchant_account_by_merchant_id(merchant_id, merchant_key_store)
             .await;
 
         let storage_scheme = match &merchant_account {
-            Ok(ma) => ma.storage_scheme,
+            Ok(merchant_account) => {
+                domain::ProcessorMerchantAccount::from_untagged(merchant_account.clone())
+                    .get_storage_scheme()
+            }
             Err(err) => {
                 logger::warn!(?err, "Using default PostgresOnly storage scheme");
-                enums::MerchantStorageScheme::PostgresOnly
+                domain::ProcessorStorageScheme::postgres_only()
             }
         };
+        let processor_merchant_id = domain::ProcessorMerchantId::from(merchant_id.clone());
+        let merchant_key_store =
+            domain::ProcessorKeyStore::from_untagged(merchant_key_store.clone());
 
         let attempt_id = match &event.metadata {
             Some(diesel_models::EventMetadata::Surcharge {
@@ -804,9 +812,9 @@ async fn update_payment_attempt_from_webhook_response(
             .store
             .find_payment_attempt_by_attempt_id_processor_merchant_id(
                 attempt_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 storage_scheme,
-                merchant_key_store,
+                &merchant_key_store,
             )
             .await;
         let payment_attempt = match payment_attempt_result {
@@ -838,7 +846,7 @@ async fn update_payment_attempt_from_webhook_response(
         };
         let update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ExternalSurchargeUpdate {
         external_surcharge_details: updated_details,
-        updated_by: storage_scheme.to_string(),
+        updated_by: storage_scheme.inner().to_string(),
     };
         let _ = state
             .store
@@ -846,7 +854,7 @@ async fn update_payment_attempt_from_webhook_response(
                 payment_attempt,
                 update,
                 storage_scheme,
-                merchant_key_store,
+                &merchant_key_store,
             )
             .await
             .inspect_err(|err| {
@@ -1034,10 +1042,10 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     application_source: common_enums::ApplicationSource,
     webhook_recipient_data: types::WebhookRecipientData,
 ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
-    let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
+    let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
     let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
     let dimensions = crate::core::configs::dimension_state::Dimensions::new()
-        .with_processor_merchant_id(processor_merchant_id.clone().into());
+        .with_processor_merchant_id(processor_merchant_id.clone());
     let schedule_time = outgoing_webhook_retry::get_webhook_delivery_retry_schedule_time(
         db,
         superposition_client,
@@ -1053,7 +1061,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     let tracking_data = types::OutgoingWebhookTrackingData {
         merchant_id: provider_merchant_id,
         business_profile_id: webhook_recipient.profile.get_id().to_owned(),
-        processor_merchant_id: Some(processor_merchant_id),
+        processor_merchant_id: Some(processor_merchant_id.inner().clone()),
         initiator_merchant_id: Some(webhook_recipient.key_store.merchant_id.clone()),
         event_type: event.event_type,
         event_class: event.event_class,

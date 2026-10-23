@@ -26,7 +26,6 @@ use hyperswitch_domain_models::{
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
-use storage_impl::platform_wrapper;
 use time::PrimitiveDateTime;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -347,15 +346,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
-        let payment_intent = platform_wrapper::payment_intent::insert_payment_intent(
-            state.store.as_ref(),
-            platform.get_processor(),
-            payment_intent_new,
-        )
-        .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-            payment_id: payment_id.clone(),
-        })?;
+        let payment_intent = state
+            .store
+            .insert_payment_intent(
+                payment_intent_new,
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_storage_scheme(),
+            )
+            .await
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                payment_id: payment_id.clone(),
+            })?;
 
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
@@ -366,26 +367,30 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         }
 
         #[cfg(feature = "v1")]
-        let mut payment_attempt = platform_wrapper::payment_attempt::insert_payment_attempt(
-            state.store.as_ref(),
-            platform.get_processor(),
-            payment_attempt_new,
-        )
-        .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-            payment_id: payment_id.clone(),
-        })?;
+        let mut payment_attempt = state
+            .store
+            .insert_payment_attempt(
+                payment_attempt_new,
+                platform.get_processor().get_storage_scheme(),
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                payment_id: payment_id.clone(),
+            })?;
 
         #[cfg(feature = "v2")]
-        let payment_attempt = platform_wrapper::payment_attempt::insert_payment_attempt(
-            state.store.as_ref(),
-            platform.get_processor(),
-            payment_attempt_new,
-        )
-        .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-            payment_id: payment_id.clone(),
-        })?;
+        let payment_attempt = state
+            .store
+            .insert_payment_attempt(
+                platform.get_processor().get_key_store(),
+                payment_attempt_new,
+                platform.get_processor().get_storage_scheme(),
+            )
+            .await
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                payment_id: payment_id.clone(),
+            })?;
 
         let mandate_details_present = payment_attempt.mandate_details.is_some();
 
@@ -1084,7 +1089,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
         let status = match payment_data.payment_intent.status {
             IntentStatus::RequiresPaymentMethod => match payment_data.payment_method_data {
@@ -1141,7 +1146,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     },
                     surcharge_amount,
                     tax_amount,
-                    updated_by: storage_scheme.to_string(),
+                    updated_by: storage_scheme.inner().to_string(),
                     merchant_connector_id,
                     routing_approach,
                     is_stored_credential,
@@ -1167,7 +1172,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     shipping_address_id: None,
                     billing_address_id: None,
                     customer_details,
-                    updated_by: storage_scheme.to_string(),
+                    updated_by: storage_scheme.inner().to_string(),
                 },
                 key_store,
                 storage_scheme,
@@ -2054,7 +2059,7 @@ async fn create_payment_link(
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
     let locale_str = locale.unwrap_or("en".to_owned());
-    let processor_merchant_id = platform.get_processor().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
     let open_payment_link = format!(
         "{}/payment_link/{}/{}?locale={}",
         domain_name,
@@ -2094,7 +2099,7 @@ async fn create_payment_link(
         payment_link_config: Some(payment_link_config_encoded_value),
         profile_id: Some(profile_id),
         secure_link,
-        processor_merchant_id: Some(processor_merchant_id.clone()),
+        processor_merchant_id: Some(processor_merchant_id.inner().clone()),
         created_by: platform
             .get_initiator()
             .and_then(|initiator| initiator.to_created_by())

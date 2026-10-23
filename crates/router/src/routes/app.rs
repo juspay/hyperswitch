@@ -63,6 +63,8 @@ use super::recovery_webhooks::*;
 use super::refunds;
 #[cfg(feature = "olap")]
 use super::routing;
+#[cfg(all(feature = "oltp", feature = "v1"))]
+use super::telephone_order;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::tokenization as tokenization_routes;
 #[cfg(feature = "olap")]
@@ -2864,6 +2866,20 @@ impl ThreeDsDecisionRule {
             .service(
                 web::resource("/execute")
                     .route(web::post().to(three_ds_decision_rule::execute_decision_rule)),
+            )
+    }
+}
+
+pub struct TelephoneOrder;
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+impl TelephoneOrder {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/telephone_order")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{merchant_id}/{provider}")
+                    .route(web::post().to(telephone_order::telephone_order_charge)),
             )
     }
 }
