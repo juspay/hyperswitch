@@ -165,7 +165,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
 
             // The route holds the payment lock while loading captures.
             // Validate cumulative successful capture amounts before inserting this one.
-            MultiCurrencyProcessingData::validate_capture_settlement(
+            MultiCurrencyProcessingData::validate_multi_currency_processing_capture_settlement(
                 capture_connector,
                 payment_feature_metadata.as_ref(),
                 capture_settlement.as_ref(),

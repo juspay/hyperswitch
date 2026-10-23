@@ -10692,7 +10692,7 @@ impl MultiCurrencyProcessingData {
     }
 
     /// Validate capture MCP currency and cumulative amounts before inserting the current capture.
-    pub(crate) fn validate_capture_settlement(
+    pub(crate) fn validate_multi_currency_processing_capture_settlement(
         connector: &str,
         payment_feature_metadata: Option<&api_models::payments::FeatureMetadata>,
         current_capture_mcp: Option<&api_models::payments::MultiCurrencyProcessingAmountData>,
