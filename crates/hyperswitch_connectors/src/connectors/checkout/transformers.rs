@@ -1652,6 +1652,18 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
         ));
 
         if status == AttemptStatus::Failure {
+            let network_advice_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
+                .cloned();
+            let network_decline_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_response_code.as_ref())
+                .cloned();
             let error_response = ErrorResponse {
                 status_code: item.http_code,
                 code: item
@@ -1667,8 +1679,8 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
                 connector_response_reference_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
+                network_advice_code,
+                network_decline_code,
                 network_error_message: None,
                 connector_metadata: None,
             };
@@ -1796,12 +1808,13 @@ impl
             .response
             .processing
             .as_ref()
-            .and_then(|processing| {
-                processing
-                    .partner_merchant_advice_code
-                    .as_ref()
-                    .or(processing.partner_response_code.as_ref())
-            })
+            .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
+            .cloned();
+        let network_decline_code = item
+            .response
+            .processing
+            .as_ref()
+            .and_then(|processing| processing.partner_response_code.as_ref())
             .cloned();
         let error_response = if status == AttemptStatus::Failure {
             Some(ErrorResponse {
@@ -1820,7 +1833,7 @@ impl
                 connector_transaction_id: Some(item.response.id.clone()),
                 connector_response_reference_id: None,
                 network_advice_code,
-                network_decline_code: None,
+                network_decline_code,
                 network_error_message: None,
                 connector_metadata: None,
             })
@@ -1900,6 +1913,18 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             prev_status,
         ));
         let error_response = if status == AttemptStatus::Failure {
+            let network_advice_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
+                .cloned();
+            let network_decline_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_response_code.as_ref())
+                .cloned();
             Some(ErrorResponse {
                 status_code: item.http_code,
                 code: item
@@ -1915,8 +1940,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
                 connector_response_reference_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
+                network_advice_code,
+                network_decline_code,
                 network_error_message: None,
                 connector_metadata: None,
             })
