@@ -23,15 +23,16 @@ impl ForeignTryFrom<&reqwest::header::HeaderMap> for http::HeaderMap {
     type Error = error_stack::Report<ApiClientError>;
 
     fn foreign_try_from(headers: &reqwest::header::HeaderMap) -> Result<Self, Self::Error> {
-        let mut converted = Self::with_capacity(headers.len());
-        for (name, value) in headers {
-            let name = http::header::HeaderName::from_bytes(name.as_str().as_bytes())
-                .change_context(ApiClientError::HeaderMapConstructionFailed)?;
-            let mut header_value = http::HeaderValue::from_bytes(value.as_bytes())
-                .change_context(ApiClientError::HeaderMapConstructionFailed)?;
-            header_value.set_sensitive(value.is_sensitive());
-            converted.append(name, header_value);
-        }
-        Ok(converted)
+        headers
+            .iter()
+            .map(|(name, value)| {
+                let name = http::header::HeaderName::try_from(name.as_str())
+                    .change_context(ApiClientError::HeaderMapConstructionFailed)?;
+                let mut header_value = http::HeaderValue::try_from(value.as_bytes())
+                    .change_context(ApiClientError::HeaderMapConstructionFailed)?;
+                header_value.set_sensitive(value.is_sensitive());
+                Ok((name, header_value))
+            })
+            .collect()
     }
 }

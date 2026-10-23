@@ -181,7 +181,7 @@ async fn get_oidc_reqwest_client(
 ) -> CustomResult<oidc::HttpResponse, ApiClientError> {
     let client = client::create_client(&state.conf.proxy, None, None, None).switch()?;
 
-    let method = reqwest::Method::from_bytes(request.method.as_str().as_bytes())
+    let method = reqwest::Method::try_from(request.method.as_str())
         .change_context(ApiClientError::ClientConstructionFailed)?;
     let mut request_builder = client.request(method, request.url).body(request.body);
     for (name, value) in &request.headers {
