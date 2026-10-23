@@ -799,7 +799,7 @@ static ENVOY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
-static ENVOY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static ENVOY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payouts];
 
 impl ConnectorSpecifications for Envoy {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
