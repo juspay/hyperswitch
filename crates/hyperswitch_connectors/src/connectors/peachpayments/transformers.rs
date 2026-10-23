@@ -466,14 +466,6 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() && item.router_data.request.authentication_data.is_none()
-        {
-            return Err(errors::ConnectorError::NotSupported {
-                message: "3DS flow".to_string(),
-                connector: CONNECTOR.into(),
-            }
-            .into());
-        }
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => Self::try_from((item, req_card)),
             PaymentMethodData::NetworkToken(token_data) => Self::try_from((item, token_data)),
