@@ -197,6 +197,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             enable_partial_authorization,
             is_account_funded_transaction,
             recipient_details,
+            sender_details,
             enable_avs_check,
         } = request.clone();
 
@@ -210,6 +211,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                         billing_address: billing.map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode billing address")?.map(hyperswitch_masking::Secret::new),
                         customer_details: None,
                         recipient_details: recipient_details.map(|recipient| recipient.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode recipient details")?.map(hyperswitch_masking::Secret::new),
+                        sender_details: sender_details.map(|sender| sender.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode sender details")?.map(hyperswitch_masking::Secret::new),
                     },
                 ),
             ),
@@ -313,6 +315,10 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                 .recipient_details
                 .clone()
                 .or(payment_intent.recipient_details.clone()),
+            sender_details: decrypted_payment_intent
+                .sender_details
+                .clone()
+                .or(payment_intent.sender_details.clone()),
             enable_avs_check: enable_avs_check.or(payment_intent.enable_avs_check),
             ..payment_intent
         };
@@ -437,9 +443,11 @@ impl<F: Send + Clone>
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        _request: &PaymentsUpdateIntentRequest,
+        request: &PaymentsUpdateIntentRequest,
         platform: &'a domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
+        helpers::validate_sender_details(request.sender_details.as_ref())?;
+
         Ok(operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),
             storage_scheme: platform.get_processor().get_account().storage_scheme,

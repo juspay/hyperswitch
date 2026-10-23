@@ -1203,6 +1203,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         processor: &'a domain::Processor,
     ) -> RouterResult<(PaymentCreateOperation<'b, F>, operations::ValidateResult)> {
         helpers::validate_customer_information(request)?;
+        helpers::validate_sender_details(request.sender_details.as_ref())?;
 
         if let Some(amount) = request.amount {
             helpers::validate_max_amount(amount)?;
@@ -1892,6 +1893,14 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encode recipient details to serde_json::Value")?;
 
+        let sender_details_encoded = request
+            .sender_details
+            .clone()
+            .map(|sender| Encode::encode_to_value(&sender).map(Secret::new))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encode sender details to serde_json::Value")?;
+
         let encrypted_data = domain::types::crypto_operation(
             &key_manager_state,
             type_name!(storage::PaymentIntent),
@@ -1902,6 +1911,7 @@ impl PaymentCreate {
                         billing_details: billing_details_encoded,
                         customer_details: customer_details_encoded,
                         recipient_details: recipient_details_encoded,
+                        sender_details: sender_details_encoded,
                     },
                 ),
             ),
@@ -2019,6 +2029,7 @@ impl PaymentCreate {
             billing_descriptor: request.billing_descriptor.clone(),
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: encrypted_data.recipient_details,
+            sender_details: encrypted_data.sender_details,
             tokenization: request.tokenization,
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details

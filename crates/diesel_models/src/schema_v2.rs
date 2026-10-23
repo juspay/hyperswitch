@@ -1283,6 +1283,7 @@ diesel::table! {
         is_account_funded_transaction -> Nullable<Bool>,
         recipient_details -> Nullable<Bytea>,
         enable_avs_check -> Nullable<Bool>,
+        sender_details -> Nullable<Bytea>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,

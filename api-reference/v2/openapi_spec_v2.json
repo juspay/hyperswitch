@@ -13257,6 +13257,43 @@
           "month"
         ]
       },
+      "CorporateSenderDetails": {
+        "type": "object",
+        "description": "A company providing the funds in an account funded transaction.",
+        "required": [
+          "company_name"
+        ],
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "description": "The sender's legal company name.",
+            "example": "Acme Ltd",
+            "maxLength": 255
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderAddress"
+              }
+            ],
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's email address.",
+            "example": "treasury@acme.com",
+            "nullable": true
+          }
+        }
+      },
       "CountryAlpha2": {
         "type": "string",
         "enum": [
@@ -18265,6 +18302,55 @@
           }
         }
       },
+      "IndividualSenderDetails": {
+        "type": "object",
+        "description": "An individual providing the funds in an account funded transaction.",
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The sender's first name. When neither the first nor the last name is provided, the name\nfrom the billing address of the payment method is used instead.",
+            "example": "John",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The sender's last name. When neither the first nor the last name is provided, the name\nfrom the billing address of the payment method is used instead.",
+            "example": "Doe",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "description": "The sender's date of birth, in the format yyyy-mm-dd.",
+            "example": "1990-01-31",
+            "nullable": true
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderAddress"
+              }
+            ],
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's email address.",
+            "example": "john.doe@example.com",
+            "nullable": true
+          }
+        }
+      },
       "IndomaretVoucherData": {
         "type": "object",
         "properties": {
@@ -18912,6 +18998,82 @@
           }
         }
       },
+      "MaskedCorporateSenderDetails": {
+        "type": "object",
+        "description": "A partially masked view of `CorporateSenderDetails`, safe to return in API responses.",
+        "required": [
+          "company_name"
+        ],
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "description": "The sender's legal company name.",
+            "example": "Acme Ltd"
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderAddress"
+              }
+            ],
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedSenderPhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's masked email address.",
+            "example": "tr******@acme.com",
+            "nullable": true
+          }
+        }
+      },
+      "MaskedIndividualSenderDetails": {
+        "type": "object",
+        "description": "A partially masked view of `IndividualSenderDetails`, safe to return in API responses.",
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The sender's first name.",
+            "example": "John",
+            "nullable": true
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The sender's last name.",
+            "example": "Doe",
+            "nullable": true
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderAddress"
+              }
+            ],
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedSenderPhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's masked email address.",
+            "example": "jo******@example.com",
+            "nullable": true
+          }
+        }
+      },
       "MaskedRecipientAccount": {
         "oneOf": [
           {
@@ -19207,6 +19369,74 @@
                 "$ref": "#/components/schemas/AddressDetails"
               }
             ],
+            "nullable": true
+          }
+        }
+      },
+      "MaskedSenderDetails": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedIndividualSenderDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "individual"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedCorporateSenderDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "corporate"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "A partially masked view of `SenderDetails`, safe to return in API responses. The sender's date\nof birth is never returned.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "MaskedSenderPhoneDetails": {
+        "type": "object",
+        "description": "A partially masked view of `PhoneDetails`, safe to return in API responses.",
+        "properties": {
+          "number": {
+            "type": "string",
+            "description": "The sender's partially masked phone number.",
+            "example": "********89",
+            "nullable": true
+          },
+          "country_code": {
+            "type": "string",
+            "description": "The country code of the sender's phone number.",
+            "example": "+44",
             "nullable": true
           }
         }
@@ -26223,6 +26453,14 @@
             ],
             "nullable": true
           },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
+              }
+            ],
+            "nullable": true
+          },
           "enable_avs_check": {
             "type": "boolean",
             "description": "Request address verification using the billing address for supported card payments.",
@@ -26609,6 +26847,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MaskedRecipientDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedSenderDetails"
               }
             ],
             "nullable": true
@@ -27117,6 +27363,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RecipientDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
               }
             ],
             "nullable": true
@@ -27638,6 +27892,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RecipientDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
               }
             ],
             "nullable": true
@@ -33842,6 +34104,104 @@
           "payment": {
             "type": "string"
           }
+        }
+      },
+      "SenderAddress": {
+        "type": "object",
+        "description": "The address of the party providing the funds in an account funded transaction.",
+        "properties": {
+          "line1": {
+            "type": "string",
+            "description": "The first line of the sender's address.",
+            "example": "123, King Street",
+            "nullable": true,
+            "maxLength": 200
+          },
+          "line2": {
+            "type": "string",
+            "description": "The second line of the sender's address.",
+            "example": "Powelson Avenue",
+            "nullable": true,
+            "maxLength": 200
+          },
+          "city": {
+            "type": "string",
+            "description": "The sender's city.",
+            "example": "London",
+            "nullable": true,
+            "maxLength": 50
+          },
+          "state": {
+            "type": "string",
+            "description": "The sender's state or province.",
+            "example": "CA",
+            "nullable": true
+          },
+          "zip": {
+            "type": "string",
+            "description": "The sender's zip or postal code.",
+            "example": "EC1A 1BB",
+            "nullable": true,
+            "maxLength": 50
+          },
+          "country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SenderDetails": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IndividualSenderDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "individual"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CorporateSenderDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "corporate"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "Details of the party providing the funds in an account funded transaction.",
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "SepaAndBacsBillingDetails": {
