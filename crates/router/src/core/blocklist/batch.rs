@@ -16,7 +16,7 @@ use crate::{
     },
     logger,
     routes::SessionState,
-    types::{domain, storage},
+    types::{domain, storage, transformers::ForeignTryFrom},
 };
 
 const CHUNK_SIZE: usize = 2_000;
@@ -39,10 +39,11 @@ pub(crate) struct BlocklistRow {
     pub data_kind: common_enums::BlocklistDataKind,
     pub data: String,
     pub metadata: Option<serde_json::Value>,
+    pub transaction_type: common_enums::BlocklistTransactionType,
 }
 
 /// Column order of the blocklist CSV, shared by import and export.
-pub(crate) const CSV_HEADER: [&str; 3] = ["type", "data", "metadata"];
+pub(crate) const CSV_HEADER: [&str; 4] = ["type", "data", "metadata", "transaction_type"];
 
 /// One row of the blocklist CSV, in both directions.
 #[derive(Debug, Serialize, Deserialize)]
@@ -52,6 +53,8 @@ pub(crate) struct BlocklistCsvRecord {
     data: String,
     #[serde(default)]
     metadata: Option<String>,
+    #[serde(default)]
+    transaction_type: Option<common_enums::BlocklistTransactionType>,
 }
 
 impl BlocklistCsvRecord {
@@ -61,6 +64,7 @@ impl BlocklistCsvRecord {
             data: row.data.clone(),
             metadata: Some(metadata_to_csv_field(row.metadata.as_ref()))
                 .filter(|metadata| !metadata.is_empty()),
+            transaction_type: Some(row.transaction_type),
         }
     }
 
@@ -70,6 +74,7 @@ impl BlocklistCsvRecord {
             data: entry.fingerprint_id.clone(),
             metadata: Some(metadata_to_csv_field(entry.metadata.as_ref()))
                 .filter(|metadata| !metadata.is_empty()),
+            transaction_type: Some(entry.transaction_type.unwrap_or_default()),
         }
     }
 }
@@ -137,14 +142,18 @@ impl BlocklistRow {
             )
         })?;
 
+        let transaction_type = record.transaction_type.unwrap_or_default();
+
         if data.is_empty() {
-            return Err(Self::build_row_error(
+            Err(Self::build_row_error(
                 row_index,
                 parsed_kind,
                 String::new(),
                 "data field must not be empty",
-            ));
-        }
+            ))
+        } else {
+            Ok(())
+        }?;
 
         let is_invalid = super::utils::validate_bin(&data, parsed_kind).is_err();
         let format_error = match parsed_kind {
@@ -161,34 +170,34 @@ impl BlocklistRow {
         };
 
         if let Some(reason) = format_error {
-            return Err(Self::build_row_error(
+            Err(Self::build_row_error(
                 row_index,
                 parsed_kind,
                 data.clone(),
                 reason,
-            ));
-        }
+            ))
+        } else {
+            Ok(())
+        }?;
 
         let metadata_raw = record.metadata.as_deref().filter(|s| !s.is_empty());
         let metadata = match metadata_raw {
             None => None,
-            Some(s) => match parse_metadata(s) {
-                Some(m) => Some(m),
-                None => {
-                    return Err(Self::build_row_error(
-                        row_index,
-                        parsed_kind,
-                        data.clone(),
-                        "metadata must be in key=value format, separated by semicolons (e.g. reason=fraud;source=manual)",
-                    ));
-                }
-            },
+            Some(s) => Some(parse_metadata(s).ok_or_else(|| {
+                Self::build_row_error(
+                    row_index,
+                    parsed_kind,
+                    data.clone(),
+                    "metadata must be in key=value format, separated by semicolons (e.g. reason=fraud;source=manual)",
+                )
+            })?),
         };
 
         Ok(Self {
             data_kind: parsed_kind,
             data,
             metadata,
+            transaction_type,
         })
     }
 }
@@ -342,17 +351,19 @@ pub async fn initiate_batch_blocklist_upload(
     profile_id: Option<id_type::ProfileId>,
     csv_bytes: bytes::Bytes,
     file_name: Option<String>,
+    transaction_type: Option<common_enums::BlocklistTransactionType>,
 ) -> RouterResult<api_blocklist::BatchBlocklistUploadResponse> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
         platform.get_processor(),
         profile_id.as_ref(),
         &*state.store,
-        true,
     )
-    .await?;
+    .await?
+    .get_id()
+    .to_owned();
     let created_by = platform
         .get_initiator()
         .and_then(|initiator| initiator.to_created_by())
@@ -392,9 +403,13 @@ pub async fn initiate_batch_blocklist_upload(
             let fs = state.file_storage_client.clone();
             async move {
                 let key = key?;
-                let chunk_bytes = records_to_csv_bytes(
-                    chunk_rows.iter().map(BlocklistCsvRecord::from_parsed_row),
-                )?;
+                let chunk_bytes = records_to_csv_bytes(chunk_rows.iter().map(|row| {
+                    let mut record = BlocklistCsvRecord::from_parsed_row(row);
+                    if let Some(transaction_type) = transaction_type {
+                        record.transaction_type = Some(transaction_type);
+                    }
+                    record
+                }))?;
                 fs.upload_file(&key, chunk_bytes)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -431,6 +446,7 @@ pub async fn initiate_batch_blocklist_upload(
         profile_id: profile_id.clone(),
         job_type: common_enums::BatchBlocklistJobType::Upload,
         file_name,
+        metadata: None,
     };
 
     state
@@ -510,6 +526,7 @@ pub(crate) async fn process_chunk(
             merchant_id: merchant_id.to_owned(),
             fingerprint_id: row.data.clone(),
             data_kind: row.data_kind,
+            transaction_type: row.transaction_type,
             metadata: row.metadata.clone(),
             created_at: now,
             processor_merchant_id: processor_merchant_id.map(|id| id.to_owned()),
@@ -581,6 +598,7 @@ fn to_job_status_response(
     Ok(api_blocklist::BatchBlocklistJobStatusResponse {
         job_id: job.id,
         merchant_id: job.merchant_id.get_string_repr().to_owned(),
+        profile_id: job.profile_id,
         job_type: job
             .job_type
             .unwrap_or(common_enums::BatchBlocklistJobType::Upload),
@@ -597,9 +615,41 @@ fn to_job_status_response(
         expires_at: job.expires_at,
         downloadable,
         error_message: job.error_message,
+        metadata: job
+            .metadata
+            .map(storage::BlocklistProfileCloneJobMetadata::from)
+            .map(api_blocklist::ProfileCloneJobMetadata::foreign_try_from)
+            .transpose()?,
         download_url: None,
         download_url_expires_at: None,
     })
+}
+
+impl ForeignTryFrom<storage::BlocklistProfileCloneJobMetadata>
+    for api_blocklist::ProfileCloneJobMetadata
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        metadata: storage::BlocklistProfileCloneJobMetadata,
+    ) -> Result<Self, Self::Error> {
+        let targets = metadata
+            .targets
+            .into_iter()
+            .map(|target| {
+                u32::try_from(target.processed_rows)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .map(|processed_rows| api_blocklist::ProfileCloneTargetMetadata {
+                        profile_id: target.profile_id,
+                        status: target.status,
+                        processed_rows,
+                        error_message: target.error_message,
+                    })
+            })
+            .collect::<RouterResult<Vec<_>>>()?;
+
+        Ok(Self { targets })
+    }
 }
 
 /// Returns a paginated list of batch blocklist jobs for a merchant along with the total count.
@@ -644,4 +694,60 @@ pub async fn list_batch_blocklist_jobs(
         total_count,
         data,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use common_enums::BlocklistTransactionType;
+
+    use super::{parse_chunk_csv, parse_csv, records_to_csv_bytes, BlocklistCsvRecord};
+
+    #[test]
+    fn legacy_csv_and_in_flight_chunks_remain_payment_uploads() {
+        let uploaded =
+            parse_csv(b"type,data,metadata\ngeneric_card_bin,424242,reason=fraud\n").unwrap();
+        let chunked = parse_chunk_csv(b"generic_card_bin,424242,reason=fraud\n").unwrap();
+        for rows in [uploaded, chunked] {
+            let row = rows.first().unwrap();
+            assert_eq!(row.transaction_type, BlocklistTransactionType::Payment);
+            assert_eq!(row.data, "424242");
+            assert_eq!(row.metadata, Some(serde_json::json!({"reason": "fraud"})));
+        }
+    }
+
+    #[test]
+    fn mixed_upload_retains_each_flow_through_stored_chunks() {
+        let rows = parse_csv(
+            b"type,data,metadata,transaction_type\ngeneric_card_bin,424242,,payment\ngeneric_card_bin,424242,,payout\nfingerprint,fp_exact,,payout\n",
+        )
+        .unwrap();
+        let chunks =
+            records_to_csv_bytes(rows.iter().map(BlocklistCsvRecord::from_parsed_row)).unwrap();
+        let restored = parse_chunk_csv(&chunks).unwrap();
+        let identities = restored
+            .iter()
+            .map(|row| (row.data.as_str(), row.transaction_type))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            identities,
+            vec![
+                ("424242", BlocklistTransactionType::Payment),
+                ("424242", BlocklistTransactionType::Payout),
+                ("fp_exact", BlocklistTransactionType::Payout),
+            ]
+        );
+    }
+
+    #[test]
+    fn explicit_invalid_flow_is_rejected_without_defaulting_to_payment() {
+        for flow in ["three_ds_authentication", "unknown"] {
+            let csv =
+                format!("type,data,metadata,transaction_type\ngeneric_card_bin,424242,,{flow}\n");
+            let error = parse_csv(csv.as_bytes()).unwrap_err();
+            assert_eq!(error.row_index, 0);
+            assert!(error.reason.contains(flow) || error.reason.contains("payment or payout"));
+            let chunk = format!("generic_card_bin,424242,,{flow}\n");
+            assert!(parse_chunk_csv(chunk.as_bytes()).is_err());
+        }
+    }
 }

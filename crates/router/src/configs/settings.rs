@@ -48,7 +48,7 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
 use serde::Deserialize;
-use storage_impl::config::QueueStrategy;
+use storage_impl::{config::QueueStrategy, redis::cache::CacheConfig};
 
 #[cfg(feature = "olap")]
 use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
@@ -90,6 +90,9 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
     pub redis: RedisSettings,
+    /// Per-cache tuning for the in-memory caches. Anything left unset keeps the compiled-in
+    /// default for that cache.
+    pub cache: CacheConfig,
     pub log: Log,
     #[cfg(feature = "deja")]
     #[serde(default)]
@@ -107,6 +110,7 @@ pub struct Settings<S: SecretState> {
     pub drainer: DrainerSettings,
     pub jwekey: SecretStateContainer<Jwekey, S>,
     pub webhooks: WebhooksSettings,
+    pub incoming_webhooks: IncomingWebhooksSettings,
     pub pm_filters: ConnectorFilters,
     pub customer_acceptance_support: CustomerAcceptanceSupportConfig,
     pub bank_config: BankRedirectConfig,
@@ -137,6 +141,7 @@ pub struct Settings<S: SecretState> {
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
     pub billing_connectors_invoice_sync: BillingConnectorInvoiceSyncCall,
+    pub billing_connectors_invoice_record_back: BillingConnectorInvoiceRecordBackCall,
     pub billing_connectors_dispute_record_back: BillingConnectorDisputeRecordBackCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
@@ -425,13 +430,6 @@ pub struct DebitRoutingConfig {
 pub struct OpenRouter {
     pub dynamic_routing_enabled: bool,
     pub static_routing_enabled: bool,
-    /// Shadow-evaluate static routing on the Decision Engine for profiles that are NOT cut
-    /// over, logging DE-vs-HS diffs and feeding the diff kill switch while the Hyperswitch
-    /// result keeps serving traffic. Requires `static_routing_enabled`.
-    #[serde(default)]
-    pub shadow_routing_enabled: bool,
-    #[serde(default)]
-    pub diff_kill_switch: DecisionEngineDiffKillSwitch,
     pub url: String,
     /// Browser-facing Decision Engine dashboard base URL, used for the merchant SSO redirect.
     #[serde(default)]
@@ -442,24 +440,6 @@ pub struct OpenRouter {
     /// enabled; empty disables the header.
     #[serde(default)]
     pub admin_secret: Secret<String>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
-pub struct DecisionEngineDiffKillSwitch {
-    pub enabled: bool,
-    /// Lifetime non-volume diff count per profile that trips the cutover back to Hyperswitch
-    /// routing. The counter does not expire; clear it via the diff-counter reset API.
-    pub diff_count_threshold: u64,
-}
-
-impl Default for DecisionEngineDiffKillSwitch {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            diff_count_threshold: 100,
-        }
-    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -530,6 +510,7 @@ impl TenantConfig {
         storage_impl: &app::StorageImpl,
         conf: &configs::Settings,
         cache_store: Arc<storage_impl::redis::RedisStore>,
+        caches: Arc<storage_impl::redis::cache::Caches>,
         testable: bool,
     ) -> (StorageInterfaceMap, AccountsStorageInterfaceMap) {
         #[allow(clippy::expect_used)]
@@ -548,6 +529,7 @@ impl TenantConfig {
                     conf.master_database.clone().into_inner(),
                     conf.accounts_database_config(),
                     cache_store.clone(),
+                    caches.clone(),
                     testable,
                 ))
                 .await;
@@ -1153,6 +1135,8 @@ pub struct Locker {
     pub create_entity_on_merchant_create: bool,
     #[cfg(feature = "v2")]
     pub plain_fingerprint_response: bool,
+    #[cfg(feature = "v2")]
+    pub use_batched_fingerprint: bool,
 }
 
 impl Locker {
@@ -1224,6 +1208,10 @@ pub struct Database {
     pub min_idle_pool_size: u32,
     pub max_lifetime: u64,
     pub idle_timeout: u64,
+    pub keepalives_idle: u64,
+    pub keepalives_interval: u64,
+    pub keepalives_count: u32,
+    pub tcp_user_timeout_ms: u64,
 }
 
 impl From<Database> for storage_impl::config::Database {
@@ -1240,6 +1228,10 @@ impl From<Database> for storage_impl::config::Database {
             min_idle_pool_size: val.min_idle_pool_size,
             max_lifetime: val.max_lifetime,
             idle_timeout: val.idle_timeout,
+            keepalives_idle: val.keepalives_idle,
+            keepalives_interval: val.keepalives_interval,
+            keepalives_count: val.keepalives_count,
+            tcp_user_timeout_ms: val.tcp_user_timeout_ms,
         }
     }
 }
@@ -1335,6 +1327,13 @@ pub struct WebhooksSettings {
     pub redis_lock_expiry_seconds: u32,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct IncomingWebhooksSettings {
+    pub mtls_verified_header: Option<String>,
+    pub source_ip_header: Option<String>,
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(default)]
 pub struct WebhookIgnoreErrorSettings {
@@ -1385,6 +1384,19 @@ pub struct BillingConnectorPaymentsSyncCall {
 pub struct BillingConnectorInvoiceSyncCall {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub billing_connectors_which_requires_invoice_sync_call: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct BillingConnectorInvoiceRecordBackCall {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub billing_connectors_which_require_invoice_record_back_call: HashSet<enums::Connector>,
+}
+
+impl BillingConnectorInvoiceRecordBackCall {
+    pub fn is_connector_eligible(&self, connector: enums::Connector) -> bool {
+        self.billing_connectors_which_require_invoice_record_back_call
+            .contains(&connector)
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1501,7 +1513,12 @@ impl MerchantAdviceCodeLookupConfig {
             | common_enums::CardNetwork::Nyce
             | common_enums::CardNetwork::Prop
             | common_enums::CardNetwork::PrivateLabel
-            | common_enums::CardNetwork::Dinacard => None,
+            | common_enums::CardNetwork::Dinacard
+            | common_enums::CardNetwork::AirPlus
+            | common_enums::CardNetwork::Aurore
+            | common_enums::CardNetwork::EftposAustralia
+            | common_enums::CardNetwork::GeCapital
+            | common_enums::CardNetwork::Uatp => None,
         }
     }
 }
@@ -1547,11 +1564,23 @@ impl Settings<SecuredSecret> {
             .with_list_parse_key("redis.cluster_urls")
             .with_list_parse_key("events.kafka.brokers")
             .with_list_parse_key("connectors.supported.wallets")
+            .with_list_parse_key("report_download_config.process_tracker.email_bcc")
+            .with_list_parse_key("report_download_config.process_tracker_reports")
             .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id");
 
         #[cfg(feature = "deja")]
         let environment_source =
             environment_source.with_list_parse_key("deja.recording.kafka.brokers");
+
+        #[cfg(feature = "olap")]
+        let environment_source = {
+            use strum::IntoEnumIterator;
+            analytics::reports::ReportKind::iter().fold(environment_source, |source, report| {
+                source.with_list_parse_key(&format!(
+                    "report_download_config.process_tracker.report_email_bcc.{report}"
+                ))
+            })
+        };
 
         let config = config
             .add_source(environment_source)

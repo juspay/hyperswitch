@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::{enums::FrmSuggestion, payments::PaymentsCancelRequest};
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -50,8 +50,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
     {
         let db = &*state.store;
 
-        let processor_merchant_id = platform.get_processor().get_account().get_id();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
+        let storage_scheme = platform.get_processor().get_storage_scheme();
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -59,7 +59,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
         let payment_intent = db
             .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
             )
@@ -82,7 +82,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
         let payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 attempt_id.clone().as_str(),
                 storage_scheme,
                 platform.get_processor().get_key_store(),
@@ -95,7 +95,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
             payment_intent.shipping_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -105,7 +105,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
             payment_intent.billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -115,7 +115,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
             payment_attempt.payment_method_billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -123,17 +123,23 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.get_total_amount().into();
 
-        let frm_response = if cfg!(feature = "frm") {
-            db.find_fraud_check_by_payment_id(payment_intent.payment_id.clone(), platform.get_processor().get_account().get_id().clone())
+        #[cfg(feature = "frm")]
+        let frm_response = match payment_attempt.active_frm_id.clone() {
+            Some(frm_id) => db
+                .find_fraud_check_by_frm_id(frm_id)
                 .await
-                .change_context(errors::ApiErrorResponse::PaymentNotFound)
+                .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)
                 .attach_printable_lazy(|| {
-                    format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {attempt_id}", platform.get_processor().get_account().get_id())
+                    format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id:?}", platform.get_processor().get_account().get_id())
                 })
-                .ok()
-        } else {
-            None
+                .inspect_err(|error| {
+                    logger::error!(?error, "Failed to fetch fraud check record")
+                })
+                .ok(),
+            None => None,
         };
+        #[cfg(not(feature = "frm"))]
+        let frm_response = None;
 
         let profile_id = payment_intent
             .profile_id
@@ -155,6 +161,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
 
         let payment_data = PaymentData {
             flow: PhantomData,
+            previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             payment_attempt,
             currency,
@@ -240,13 +247,13 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> fo
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
 
         let intent_status_update = storage::PaymentIntentUpdate::RejectUpdate {
             status: enums::IntentStatus::Failed,
             merchant_decision: Some(enums::MerchantDecision::Rejected.to_string()),
-            updated_by: storage_scheme.to_string(),
+            updated_by: storage_scheme.inner().to_string(),
         };
         let (error_code, error_message) =
             payment_data
@@ -270,7 +277,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> fo
             status: enums::AttemptStatus::Failure,
             error_code,
             error_message,
-            updated_by: storage_scheme.to_string(),
+            updated_by: storage_scheme.inner().to_string(),
         };
 
         payment_data.payment_intent = state

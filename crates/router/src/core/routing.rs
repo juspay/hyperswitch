@@ -696,13 +696,6 @@ async fn merge_de_routing_records(
             .filter(|record| record.kind == routing_types::RoutingAlgorithmKind::Dynamic)
             .cloned(),
     );
-    compare_and_log_result(
-        de_result.clone(),
-        hs_result.clone(),
-        "list_routing".to_string(),
-        false,
-    );
-
     let mut merged = build_list_routing_result(
         state,
         platform.clone(),
@@ -1152,12 +1145,12 @@ pub async fn link_routing_config(
         Ok(routing_algorithm) => routing_algorithm,
         Err(error) => {
             // DE-only rule ids (e.g. created on the DE dashboard) activate directly on the DE.
-            if let Some((business_profile, record)) = find_de_record_for_algorithm(
+            if let Some((business_profile, record)) = Box::pin(find_de_record_for_algorithm(
                 &state,
                 &platform,
                 authentication_profile_id.clone(),
                 &algorithm_id,
-            )
+            ))
             .await?
             {
                 utils::when(record.algorithm_for != transaction_type, || {
@@ -1672,12 +1665,12 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
         Ok(routing_algorithm) => routing_algorithm,
         Err(error) => {
             // DE-only rules have no HS row; serve them from the DE.
-            if let Some((_business_profile, record)) = find_de_record_for_algorithm(
+            if let Some((_business_profile, record)) = Box::pin(find_de_record_for_algorithm(
                 &state,
                 &platform,
                 authentication_profile_id.clone(),
                 &algorithm_id,
-            )
+            ))
             .await?
             {
                 let response = de_record_to_merchant_routing_algorithm(record)?;
@@ -2291,12 +2284,6 @@ pub async fn retrieve_linked_routing_config(
                 &transaction_type,
                 hs_records.clone(),
             );
-            compare_and_log_result(
-                de_records.clone(),
-                hs_records.clone(),
-                "list_active_routing".to_string(),
-                false,
-            );
             let dimensions = dimension_state::Dimensions::new()
                 .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
                 .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
@@ -2606,7 +2593,7 @@ pub async fn create_specific_dynamic_routing(
             // disable specific dynamic routing for the requested profile
             helpers::disable_dynamic_routing_algorithm(
                 &state,
-                processor.get_key_store().clone(),
+                processor.get_key_store().inner().clone(),
                 business_profile,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
@@ -2772,7 +2759,7 @@ pub async fn success_based_routing_update_configs(
         cache_key.into(),
     )];
     let _ = cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
+        &*state.store,
         cache_entries_to_redact,
     )
     .await
@@ -2878,7 +2865,7 @@ pub async fn elimination_routing_update_configs(
     )];
 
     cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
+        &*state.store,
         cache_entries_to_redact,
     )
     .await
@@ -2974,7 +2961,7 @@ pub async fn contract_based_dynamic_routing_setup(
             .attach_printable("Failed to get dynamic_routing_algo_ref")?;
         return helpers::disable_dynamic_routing_algorithm(
             &state,
-            processor.get_key_store().clone(),
+            processor.get_key_store().inner().clone(),
             business_profile,
             algorithm,
             routing_types::DynamicRoutingType::ContractBasedRouting,
@@ -3150,7 +3137,7 @@ pub async fn contract_based_routing_update_configs(
         cache_key.into(),
     )];
     let _ = cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
+        &*state.store,
         cache_entries_to_redact,
     )
     .await
@@ -3327,6 +3314,7 @@ impl RoutableConnectors {
             &TransactionData::Payment(payments_dsl_input),
             None,
             business_profile,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3348,22 +3336,6 @@ impl RoutableConnectors {
 
         Ok(connector_data)
     }
-}
-
-/// Clears the Decision Engine routing diff kill-switch counter for a profile, so the switch can
-/// trip again after the profile is re-enabled for the Decision Engine.
-pub async fn reset_decision_engine_diff_counter(
-    state: SessionState,
-    profile_id: common_utils::id_type::ProfileId,
-) -> RouterResult<service_api::ApplicationResponse<()>> {
-    reset_de_diff_counter(&state, &profile_id).await?;
-
-    router_env::logger::info!(
-        profile_id=?profile_id.get_string_repr(),
-        "decision_engine_euclid: routing diff counter reset via api"
-    );
-
-    Ok(service_api::ApplicationResponse::StatusOk)
 }
 
 /// A merchant account and its key store, by id. Migration works from
@@ -3882,9 +3854,7 @@ pub async fn routing_migration_status(
             only_in_de.sort();
         }
 
-        // The *configured* cut-over. `get_routing_result_source` would overlay Hyperswitch
-        // routing when the diff counter is over threshold — right for a payment, wrong here: a
-        // tripped kill switch would turn a runtime condition into a migration verdict.
+        // The configured cut-over source for this profile.
         let dimensions = dimension_state::Dimensions::new()
             .with_processor_merchant_id(merchant_id.clone().into())
             .with_provider_merchant_id(
@@ -4014,10 +3984,34 @@ pub fn transaction_type_from_payments_dsl(input: &PaymentsDslInput<'_>) -> enums
     enums::TransactionType::from(&txn_data)
 }
 
+pub fn format_connector_for_logging(
+    connector: impl std::fmt::Display,
+    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
+) -> String {
+    format!(
+        "{connector}:{}",
+        merchant_connector_id
+            .map(|id| id.get_string_repr())
+            .unwrap_or("<unresolved>")
+    )
+}
+
+pub fn format_connectors_for_logging(
+    connectors: &[routing::RoutableConnectorChoice],
+) -> Vec<String> {
+    connectors
+        .iter()
+        .map(|choice| {
+            format_connector_for_logging(choice.connector, choice.merchant_connector_id.as_ref())
+        })
+        .collect()
+}
+
 pub fn log_connectors(stage: &str, connectors: &[routing::RoutableConnectorChoice]) {
-    let names: Vec<String> = connectors.iter().map(|c| c.connector.to_string()).collect();
+    let names = format_connectors_for_logging(connectors);
 
     router_env::logger::debug!(
+        connectors = ?names,
         "euclid: connectors after {} = {{{}}}",
         stage,
         names.join(", ")

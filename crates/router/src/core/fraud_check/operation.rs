@@ -1,5 +1,7 @@
 pub mod fraud_check_post;
 pub mod fraud_check_pre;
+#[cfg(all(feature = "payouts", feature = "v1"))]
+pub mod fraud_check_pre_payout;
 use async_trait::async_trait;
 use common_enums::FrmSuggestion;
 use error_stack::{report, ResultExt};
@@ -92,7 +94,7 @@ pub trait UpdateTracker<Fd, F: Clone, D>: Send {
     async fn update_tracker<'b>(
         &'b self,
         state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
+        processor: &domain::Processor,
         frm_data: Fd,
         payment_data: &mut D,
         _frm_suggestion: Option<FrmSuggestion>,

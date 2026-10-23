@@ -227,6 +227,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
             | WalletData::Paze(_)
             | WalletData::TwintRedirect { .. }
             | WalletData::VippsRedirect { .. }
+            | WalletData::WeroRedirect { .. }
             | WalletData::TouchNGoRedirect(_)
             | WalletData::WeChatPayRedirect(_)
             | WalletData::WeChatPayQr(_)
@@ -555,7 +556,7 @@ fn get_aci_payment_brand(
         Some(common_enums::CardNetwork::Maestro) => Ok(PaymentBrand::Maestro),
         Some(unsupported_network) => Err(errors::ConnectorError::NotSupported {
             message: format!("Card network {unsupported_network} is not supported by ACI"),
-            connector: "ACI",
+            connector: "ACI".into(),
         })?,
         None => {
             if is_network_token_flow {
@@ -1246,7 +1247,7 @@ impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponse
                     Some(_) => {
                         return Err(errors::ConnectorError::NotSupported {
                             message: "Payment method not supported for mandate setup".to_string(),
-                            connector: "ACI",
+                            connector: "ACI".into(),
                         }
                         .into());
                     }
@@ -1271,7 +1272,7 @@ impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponse
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
                     message: "Payment method not supported for mandate setup".to_string(),
-                    connector: "ACI",
+                    connector: "ACI".into(),
                 }
                 .into());
             }

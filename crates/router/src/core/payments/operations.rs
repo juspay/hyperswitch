@@ -333,10 +333,10 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         &'a self,
         _db: &'a SessionState,
         _provider: &domain::Provider,
-        _customer: Option<domain::Customer>,
+        customer: Option<domain::Customer>,
         _updated_customer: Option<storage::CustomerUpdate>,
-    ) -> RouterResult<()> {
-        Ok(())
+    ) -> RouterResult<Option<domain::Customer>> {
+        Ok(customer)
     }
 
     #[cfg(feature = "v2")]
@@ -494,6 +494,15 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(false)
     }
 
+    #[instrument(skip_all)]
+    async fn populate_payment_fingerprint<'a>(
+        &'a self,
+        _state: &SessionState,
+        _processor: &domain::Processor,
+        _payment_data: &mut D,
+    ) {
+    }
+
     async fn store_extended_card_info_temporarily<'a>(
         &'a self,
         _state: &SessionState,
@@ -618,6 +627,8 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
         locale: &Option<String>,
@@ -715,7 +726,7 @@ where
         _request: Option<CustomerDetails>,
         provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (
@@ -732,11 +743,22 @@ where
             .customer_id
             .as_ref()
             .async_map(|customer_id| async {
+                let use_merchant_reference_id =
+                    helpers::should_use_merchant_reference_id_as_customer_id(
+                        state,
+                        &dimensions
+                            .without_profile_id()
+                            .without_processor_merchant_id()
+                            .with_organization_id(provider.get_account().organization_id.clone()),
+                        Some(customer_id),
+                    )
+                    .await;
                 db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
                     customer_id,
                     &merchant_key_store.merchant_id,
                     merchant_key_store,
                     storage_scheme,
+                    use_merchant_reference_id,
                 )
                 .await
             })
@@ -863,6 +885,17 @@ where
         _payment_intent: &storage::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
+    }
+
+    #[instrument(skip_all)]
+    async fn add_task_to_process_tracker<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_attempt: &storage::PaymentAttempt,
+        requeue: bool,
+        schedule_time: Option<time::PrimitiveDateTime>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue, schedule_time).await
     }
 
     #[instrument(skip_all)]

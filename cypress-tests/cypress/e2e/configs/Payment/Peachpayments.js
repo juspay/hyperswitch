@@ -312,6 +312,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Request: {
+        amount: 0,
+      },
       Response: {
         status: 501,
         body: {
@@ -338,6 +341,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -360,6 +364,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPaymentManual: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -383,6 +388,7 @@ export const connectorDetails = {
       // registered peach test card (same as the CIT card) succeeds and the
       // network_transaction_id is injected at runtime by mitUsingNTID.
       Request: {
+        amount: 6000,
         recurring_details: {
           type: "network_transaction_id_and_card_details",
           data: {
@@ -500,6 +506,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -519,6 +526,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -538,6 +546,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -557,6 +566,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -576,6 +586,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -595,7 +606,7 @@ export const connectorDetails = {
       config: {
         TRIGGER_SKIP: true,
       },
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 400,
         body: {
@@ -613,6 +624,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         customer_acceptance: {
           acceptance_type: "offline",
           accepted_at: "1963-05-03T04:07:52.723Z",
@@ -648,6 +660,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -679,6 +692,47 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
+        },
+      },
+    },
+    ConnectorIntentMetadata: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        connector_metadata: {
+          peachpayments: {
+            rrn: "123456789012",
+            card_on_file_transaction_type: "merchant_initiated_transaction",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          connector_metadata: {
+            apple_pay: null,
+            airwallex: null,
+            noon: null,
+            braintree: null,
+            adyen: null,
+            peachpayments: {
+              rrn: "123456789012",
+              card_on_file_transaction_type: "merchant_initiated_transaction",
+            },
+            santander: null,
+            paypal: null,
+            worldpayxml: null,
+            checkout: null,
+            stripe: null,
+          },
         },
       },
     },

@@ -45,6 +45,10 @@ class State {
       "SUPERPOSITION_API_KEY",
       "superpositionApiKey"
     );
+    this.data["superpositionAuthToken"] = this.getEnvOrState(
+      "SUPERPOSITION_AUTH_TOKEN",
+      "superpositionAuthToken"
+    );
     this.data["superpositionOrgId"] = this.getEnvOrState(
       "SUPERPOSITION_ORG_ID",
       "superpositionOrgId"

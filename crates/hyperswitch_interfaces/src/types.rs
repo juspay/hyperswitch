@@ -16,8 +16,8 @@ use hyperswitch_domain_models::{
             CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
             CreateOrder, ExtendAuthorization, GenerateQr, IncrementalAuthorization, InitPayment,
             PSync, PaymentMethodToken, PostCaptureVoid, PostCaptureVoidSync, PostProcessing,
-            PostSessionTokens, PreAuthorizeVoid, PreProcessing, PushNotification, SdkSessionUpdate,
-            Session, SettlementSplitCreate, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
+            PostSessionTokens, PreAuthorizeVoid, PushNotification, SdkSessionUpdate, Session,
+            SettlementSplitCreate, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, DisputeRecordBack, InvoiceRecordBack},
@@ -64,12 +64,12 @@ use hyperswitch_domain_models::{
         PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSurchargeCalculationData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, PaymentsUpdatePostConfirmData, PushNotificationRequestData,
-        RefundsData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
-        SettlementSplitRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPreAuthorizeCancelData, PaymentsSessionData, PaymentsSurchargeCalculationData,
+        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
+        PaymentsUpdatePostConfirmData, PushNotificationRequestData, RefundsData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::{
@@ -180,10 +180,6 @@ pub type MandateRevokeType =
 /// Type alias for `ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData>`
 pub type CreateOrderType =
     dyn ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData>;
-/// Type alias for `ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>`
-pub type PaymentsPreProcessingType =
-    dyn ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
-
 /// Type alias for `ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>`
 pub type PaymentsPreAuthenticateType =
     dyn ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>;
@@ -601,4 +597,15 @@ pub struct ComparisonServiceConfig {
     pub enabled: bool,
     /// Timeout in seconds for comparison service requests
     pub timeout_secs: Option<u64>,
+    /// Override HTTP proxy URL used for UCS rollout proxy switching
+    pub http_url: String,
+    /// Override HTTPS proxy URL used for UCS rollout proxy switching
+    pub https_url: String,
+    /// Shared shadow request-failure threshold; override with ROUTER__COMPARISON_SERVICE__SHADOW_KILL_SWITCH_THRESHOLD.
+    #[serde(default = "default_shadow_kill_switch_threshold")]
+    pub shadow_kill_switch_threshold: u64,
+}
+
+fn default_shadow_kill_switch_threshold() -> u64 {
+    1
 }

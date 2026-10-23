@@ -88,6 +88,10 @@ impl PaymentAttemptExt for PaymentAttempt {
                 |surcharge_amount| api_models::payments::RequestSurchargeDetails {
                     surcharge_amount,
                     tax_amount: self.net_amount.get_tax_on_surcharge(),
+                    surcharge_percentage: self
+                        .external_surcharge_details
+                        .as_ref()
+                        .and_then(|details| details.surcharge_percentage_as_f64()),
                 },
             )
     }
@@ -131,7 +135,7 @@ mod tests {
         configs::settings::Settings,
         db::StorageImpl,
         routes, services,
-        types::{self, storage::enums},
+        types::{self, domain},
     };
 
     async fn create_single_connection_test_transaction_pool() -> routes::AppState {
@@ -176,6 +180,7 @@ mod tests {
             error_message: Default::default(),
             offer_amount: Default::default(),
             applied_offer_details: Default::default(),
+            applied_overrides: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -251,6 +256,7 @@ mod tests {
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
             payment_account_reference: Default::default(),
+            active_frm_id: Default::default(),
         };
 
         let store = state
@@ -264,11 +270,12 @@ mod tests {
             )
             .await
             .unwrap();
+        let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);
         let response = store
             .insert_payment_attempt(
                 payment_attempt,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();
@@ -303,6 +310,7 @@ mod tests {
             error_message: Default::default(),
             offer_amount: Default::default(),
             applied_offer_details: Default::default(),
+            applied_overrides: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -378,6 +386,7 @@ mod tests {
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
             payment_account_reference: Default::default(),
+            active_frm_id: Default::default(),
         };
         let store = state
             .stores
@@ -390,11 +399,12 @@ mod tests {
             )
             .await
             .unwrap();
+        let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);
         store
             .insert_payment_attempt(
                 payment_attempt,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();
@@ -402,10 +412,10 @@ mod tests {
         let response = store
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_id,
-                &merchant_id,
+                &domain::ProcessorMerchantId::from(merchant_id),
                 &attempt_id,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();
@@ -445,6 +455,7 @@ mod tests {
             error_message: Default::default(),
             offer_amount: Default::default(),
             applied_offer_details: Default::default(),
+            applied_overrides: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -519,6 +530,7 @@ mod tests {
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
             payment_account_reference: Default::default(),
+            active_frm_id: Default::default(),
         };
         let store = state
             .stores
@@ -531,11 +543,12 @@ mod tests {
             )
             .await
             .unwrap();
+        let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);
         store
             .insert_payment_attempt(
                 payment_attempt,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();
@@ -543,10 +556,10 @@ mod tests {
         let response = store
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_id,
-                &merchant_id,
+                &domain::ProcessorMerchantId::from(merchant_id),
                 &uuid,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();

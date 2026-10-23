@@ -421,6 +421,19 @@ impl IncomingWebhook for ConnectorEnum {
         }
     }
 
+    fn get_webhook_mandate_details_update(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<crate::webhooks::IncomingWebhookMandateDetailsUpdate>,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_webhook_mandate_details_update(request),
+            Self::New(connector) => connector.get_webhook_mandate_details_update(request),
+        }
+    }
+
     fn get_additional_payment_method_data(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
@@ -567,6 +580,20 @@ impl ConnectorValidation for ConnectorEnum {
     }
 }
 impl ConnectorSpecifications for ConnectorEnum {
+    fn is_webhook_ip_verification_required(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_webhook_ip_verification_required(),
+            Self::New(connector) => connector.is_webhook_ip_verification_required(),
+        }
+    }
+
+    fn is_webhook_mtls_required(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_webhook_mtls_required(),
+            Self::New(connector) => connector.is_webhook_mtls_required(),
+        }
+    }
+
     fn is_balance_check_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_balance_check_flow_required(current_flow),
@@ -699,6 +726,17 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.is_sdk_client_token_generation_enabled(),
             Self::New(connector) => connector.is_sdk_client_token_generation_enabled(),
+        }
+    }
+
+    fn should_allow_mit_when_connector_mandate_status_is_inactive(&self) -> Option<bool> {
+        match self {
+            Self::Old(connector) => {
+                connector.should_allow_mit_when_connector_mandate_status_is_inactive()
+            }
+            Self::New(connector) => {
+                connector.should_allow_mit_when_connector_mandate_status_is_inactive()
+            }
         }
     }
 
@@ -841,13 +879,24 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 
     #[cfg(feature = "frm")]
-    fn get_frm_metadata(
+    fn get_payment_frm_metadata(
         &self,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_frm_metadata(payment_attempt),
-            Self::New(connector) => connector.get_frm_metadata(payment_attempt),
+            Self::Old(connector) => connector.get_payment_frm_metadata(payment_attempt),
+            Self::New(connector) => connector.get_payment_frm_metadata(payment_attempt),
+        }
+    }
+
+    #[cfg(feature = "frm")]
+    fn get_payout_frm_metadata(
+        &self,
+        payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => connector.get_payout_frm_metadata(payout_attempt),
+            Self::New(connector) => connector.get_payout_frm_metadata(payout_attempt),
         }
     }
 

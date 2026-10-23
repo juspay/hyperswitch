@@ -54,7 +54,6 @@ describe("Wallet Mandate tests", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         "new_mandate",
@@ -124,7 +123,6 @@ describe("Wallet Mandate tests", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         "new_mandate",
@@ -194,7 +192,6 @@ describe("Wallet Mandate tests", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         "new_mandate",
@@ -264,7 +261,6 @@ describe("Wallet Mandate tests", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         "new_mandate",
@@ -334,7 +330,6 @@ describe("Wallet Mandate tests", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         "new_mandate",
@@ -404,7 +399,6 @@ describe("Wallet Mandate tests", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         "new_mandate",

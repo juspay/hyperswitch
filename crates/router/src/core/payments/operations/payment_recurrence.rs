@@ -61,8 +61,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_method_with_raw_data,
             ..
         } = payment_method_fetch_data;
-        let processor_merchant_id = platform.get_processor().get_account().get_id();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
+        let storage_scheme = platform.get_processor().get_storage_scheme();
         let (currency, amount);
 
         let payment_id = payment_id
@@ -167,6 +167,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .attach_printable("'profile_id' not set in payment intent")?;
         let mandate_dimensions = dimensions.with_profile_id(profile_id.clone());
 
+        // Own span per fork, not the caller's: these are joined together, so a
+        // shared span leaves them separable only by scheduler order and a
+        // record/replay comparison reads a transposition as a behaviour change.
         let additional_pm_data_fut = tokio::spawn(
             async move {
                 Ok(n_request_payment_method_data
@@ -183,7 +186,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     })
                     .await)
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("additional_pm_data")),
         );
 
         let session_state = state.clone();
@@ -191,7 +194,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_key_store = platform.get_processor().get_key_store().clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
         let m_merchant_id = processor_merchant_id.clone();
-        let m_storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let m_storage_scheme = platform.get_processor().get_storage_scheme();
 
         let payment_method_billing_future = tokio::spawn(
             async move {
@@ -201,11 +204,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     &m_key_store,
                     &m_payment_intent_payment_id,
                     &m_merchant_id,
-                    m_storage_scheme,
+                    m_storage_scheme.inner(),
                 )
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_method_billing")),
         );
 
         let mandate_type = m_helpers::get_mandate_type(
@@ -245,7 +248,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 ))
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("mandate_details")),
         );
 
         let (mandate_details, additional_pm_info, payment_method_billing) = tokio::try_join!(
@@ -288,20 +291,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let shipping_address = helpers::get_address_by_id(
             state,
             payment_intent.shipping_address_id.clone(),
-            &platform.get_processor().get_key_store().clone(),
+            platform.get_processor().get_key_store(),
             &payment_intent.payment_id.clone(),
             &processor_merchant_id.clone(),
-            m_storage_scheme,
+            m_storage_scheme.inner(),
         )
         .await?;
 
         let billing_address = helpers::get_address_by_id(
             state,
             payment_intent.billing_address_id.clone(),
-            &platform.get_processor().get_key_store().clone(),
+            platform.get_processor().get_key_store(),
             &payment_intent.payment_id.clone(),
             &processor_merchant_id.clone(),
-            m_storage_scheme,
+            m_storage_scheme.inner(),
         )
         .await?;
 
@@ -344,6 +347,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let payment_data = PaymentData {
             flow: PhantomData,
+            previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             payment_attempt,
             currency,
@@ -533,7 +537,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
         let frm_message = payment_data.frm_message.clone();
 
@@ -607,6 +611,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_error_code = error_code.clone();
         let m_error_message = error_message.clone();
         let m_error_reason = error_message.clone();
+        let m_active_frm_id = payment_data
+            .frm_message
+            .as_ref()
+            .map(|fraud_check| fraud_check.frm_id.clone());
         let m_db = state.clone().store;
         let cloned_key_store = key_store.clone();
         let payment_attempt_fut = tokio::spawn(
@@ -618,11 +626,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         error_code: m_error_code.flatten(),
                         error_message: m_error_message.flatten(),
                         error_reason: m_error_reason.flatten(),
-                        updated_by: storage_scheme.to_string(),
+                        updated_by: storage_scheme.inner().to_string(),
                         connector_mandate_detail: payment_data
                             .payment_attempt
                             .connector_mandate_detail
                             .clone(),
+                        active_frm_id: m_active_frm_id,
                     },
                     storage_scheme,
                     &cloned_key_store,
@@ -630,12 +639,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_attempt")),
         );
 
         let m_payment_data_payment_intent = payment_data.payment_intent.clone();
         let m_db = state.clone().store;
-        let m_storage_scheme = storage_scheme.to_string();
+        let m_storage_scheme = storage_scheme.inner().to_string();
         let m_key_store = key_store.clone();
         let payment_intent_fut = tokio::spawn(
             async move {
@@ -651,7 +660,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_intent")),
         );
 
         let (payment_intent, payment_attempt) = tokio::try_join!(

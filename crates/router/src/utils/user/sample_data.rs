@@ -15,7 +15,10 @@ use time::OffsetDateTime;
 
 use crate::{
     consts,
-    core::errors::sample_data::{SampleDataError, SampleDataResult},
+    core::{
+        errors::sample_data::{SampleDataError, SampleDataResult},
+        utils as core_utils,
+    },
     types::domain,
     SessionState,
 };
@@ -73,15 +76,15 @@ pub async fn generate_sample_data(
 
         let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
 
-        let profile_id = crate::core::utils::get_profile_id_from_business_details(
+        let profile_id = core_utils::get_profile_from_business_details(
             business_country_default,
             business_label_default.as_ref(),
             platform.get_processor(),
             req.profile_id.as_ref(),
             &*state.store,
-            false,
         )
-        .await;
+        .await
+        .map(|business_profile| business_profile.get_id().to_owned());
         (profile_id, business_country_default, business_label_default)
     };
 
@@ -213,8 +216,10 @@ pub async fn generate_sample_data(
             created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
         // After some set of payments sample data will have a failed attempt
-        let is_failed_payment =
-            (random_array.get(num - 1).unwrap_or(&0) % failure_after_attempts) == 0;
+        let is_failed_payment = random_array
+            .get(num - 1)
+            .unwrap_or(&0)
+            .is_multiple_of(failure_after_attempts);
 
         let payment_intent = PaymentIntent {
             payment_id: payment_id.clone(),
@@ -305,6 +310,7 @@ pub async fn generate_sample_data(
             profile_acquirer_id: None,
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
+            enable_avs_check: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -500,6 +506,7 @@ pub async fn generate_sample_data(
                     created_by: None,
                     created_at: common_utils::date_time::now(),
                     modified_at: common_utils::date_time::now(),
+                    additional_details: None,
                 })
             } else {
                 None

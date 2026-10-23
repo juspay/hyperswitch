@@ -88,10 +88,13 @@ pub struct IntegrityCheckError {
     pub field_names: String,
     /// Connector transaction reference id
     pub connector_transaction_id: Option<String>,
+    /// Amount actually received/reported by the connector, as seen at integrity check time
+    pub amount: Option<MinorUnit>,
 }
 
 /// Cryptographic algorithm errors
-#[derive(Debug, thiserror::Error)]
+// Serializable so a `ResultCodec` can replay a recorded crypto failure.
+#[derive(Debug, thiserror::Error, serde::Serialize, serde::Deserialize)]
 pub enum CryptoError {
     /// The cryptographic algorithm was unable to encode the message
     #[error("Failed to encode given message")]

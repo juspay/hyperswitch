@@ -3,7 +3,7 @@
 //! This module provides types and functions for handling tokenized payment data,
 //! including response structures and token generation utilities.
 
-use crate::consts::TOKEN_LENGTH;
+use crate::{consts::TOKEN_LENGTH, generate_nanoid_with_default_alphabet};
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 /// Generates a new token string
@@ -11,5 +11,5 @@ use crate::consts::TOKEN_LENGTH;
 /// # Returns
 /// A randomly generated token string of length `TOKEN_LENGTH`
 pub fn generate_token() -> String {
-    crate::generate_nanoid_with_default_alphabet(TOKEN_LENGTH)
+    generate_nanoid_with_default_alphabet(TOKEN_LENGTH)
 }

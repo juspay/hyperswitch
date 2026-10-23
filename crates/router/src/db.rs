@@ -1,4 +1,5 @@
 pub mod address;
+pub mod analytics_report;
 pub mod api_keys;
 pub mod authentication;
 pub mod authorization;
@@ -69,7 +70,9 @@ use router_env::logger;
 #[cfg(feature = "v2")]
 use storage_impl::revenue_recovery_retry_stats;
 use storage_impl::{
-    errors::StorageError, redis::kv_store::RedisConnInterface, tokenization, MockDb,
+    errors::StorageError,
+    redis::{cache::CacheInterface, kv_store::RedisConnInterface},
+    tokenization, MockDb,
 };
 
 pub use self::kafka_store::KafkaStore;
@@ -121,6 +124,7 @@ pub trait StorageInterface:
     + PaymentAttemptInterface<Error = StorageError>
     + PaymentIntentInterface<Error = StorageError>
     + PaymentMethodInterface<Error = StorageError>
+    + analytics_report::AnalyticsReportInterface
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
     + batch_blocklist_job::BatchBlocklistJobInterface
@@ -137,6 +141,7 @@ pub trait StorageInterface:
     + MasterKeyInterface
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
+    + CacheInterface
     + RequestIdStore
     + business_profile::ProfileInterface<Error = StorageError>
     + routing_algorithm::RoutingAlgorithmInterface
@@ -182,6 +187,7 @@ pub trait GlobalStorageInterface:
     + user_key_store::UserKeyStoreInterface
     + role::RoleInterface
     + RedisConnInterface
+    + CacheInterface
     + RequestIdStore
     + 'static
 {
@@ -199,6 +205,7 @@ pub trait GlobalStorageInterface:
     + user_key_store::UserKeyStoreInterface
     + role::RoleInterface
     + RedisConnInterface
+    + CacheInterface
     + RequestIdStore
     + 'static
 {
@@ -430,14 +437,14 @@ impl FraudCheckInterface for KafkaStore {
         }
         Ok(frm)
     }
-    async fn update_fraud_check_response_with_attempt_id(
+    async fn update_fraud_check_response_with_frm_id(
         &self,
         this: FraudCheck,
         fraud_check: FraudCheckUpdate,
     ) -> CustomResult<FraudCheck, StorageError> {
         let frm = self
             .diesel_store
-            .update_fraud_check_response_with_attempt_id(this, fraud_check)
+            .update_fraud_check_response_with_frm_id(this, fraud_check)
             .await?;
         if let Err(er) = self
             .kafka_producer
@@ -448,42 +455,17 @@ impl FraudCheckInterface for KafkaStore {
         }
         Ok(frm)
     }
-    async fn find_fraud_check_by_payment_id(
+    async fn find_fraud_check_by_frm_id(
         &self,
-        payment_id: id_type::PaymentId,
-        merchant_id: id_type::MerchantId,
+        frm_id: String,
     ) -> CustomResult<FraudCheck, StorageError> {
-        let frm = self
-            .diesel_store
-            .find_fraud_check_by_payment_id(payment_id, merchant_id)
-            .await?;
+        let frm = self.diesel_store.find_fraud_check_by_frm_id(frm_id).await?;
         if let Err(er) = self
             .kafka_producer
             .log_fraud_check(&frm, None, self.tenant_id.clone())
             .await
         {
             logger::error!(message="Failed to log analytics event for fraud check {frm:?}", error_message=?er)
-        }
-        Ok(frm)
-    }
-    async fn find_fraud_check_by_payment_id_if_present(
-        &self,
-        payment_id: id_type::PaymentId,
-        merchant_id: id_type::MerchantId,
-    ) -> CustomResult<Option<FraudCheck>, StorageError> {
-        let frm = self
-            .diesel_store
-            .find_fraud_check_by_payment_id_if_present(payment_id, merchant_id)
-            .await?;
-
-        if let Some(fraud_check) = frm.clone() {
-            if let Err(er) = self
-                .kafka_producer
-                .log_fraud_check(&fraud_check, None, self.tenant_id.clone())
-                .await
-            {
-                logger::error!(message="Failed to log analytics event for frm {frm:?}", error_message=?er);
-            }
         }
         Ok(frm)
     }

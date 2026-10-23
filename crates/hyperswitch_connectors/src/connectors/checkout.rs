@@ -1420,6 +1420,7 @@ impl webhooks::IncomingWebhook for Checkout {
             connector_status: dispute_details.transaction_type.to_string(),
             created_at: dispute_details.created_on,
             updated_at: dispute_details.data.date,
+            additional_details: None,
         })
     }
 }

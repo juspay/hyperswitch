@@ -37,7 +37,7 @@ env:
 jobs:
   formatting:
     name: Check formatting
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -54,16 +54,15 @@ jobs:
 
   check-msrv:
     name: Check compilation on MSRV toolchain
-    runs-on: ${{ matrix.runner }}
+    runs-on: hyperswitch-runners-merge
 
     env:
+      # sccache restored as one archive instead of S3 — avoids per-object round trips.
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      SCCACHE_CACHE_SIZE: "2G"
+      SCCACHE_IDLE_TIMEOUT: "0"
       RUSTFLAGS: "-D warnings"
-
-    strategy:
-      fail-fast: true
-      matrix:
-        runner:
-          - ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -91,11 +90,6 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.9.1
-        with:
-          save-if: ${{ github.event_name == 'push' }}
-
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2
         with:
@@ -112,15 +106,38 @@ jobs:
         shell: bash
         run: .github/scripts/install-jq.sh
 
-      - name: Cargo hack
-        if: ${{ github.event_name == 'push' }}
+      - name: Mask S3 cache location in job logs
         shell: bash
-        run: just ci_hack
+        run: .github/scripts/sccache-mask-s3-env.sh
 
-      - name: Cargo build release
-        if: ${{ github.event_name == 'merge_group' }}
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+          checksum: true
+
+      - name: Restore sccache cache from S3
+        continue-on-error: true
         shell: bash
+        run: .github/scripts/sccache-restore-s3.sh check-msrv
+
+      - name: Run cargo check
+        shell: bash
+        env:
+          CARGO_BUILD_JOBS: 10
         run: cargo check --features "release"
+
+      - name: Show sccache stats
+        if: always()
+        shell: bash
+        run: sccache --show-stats
+
+      # !cancelled(), not always() — cache-on-failure, but skip on cancel.
+      - name: Save sccache cache to S3
+        if: ${{ !cancelled() && github.event_name == 'push' }}
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-save-s3.sh check-msrv
 
   # cargo-deny:
   #   name: Run cargo-deny
@@ -148,10 +165,14 @@ jobs:
     runs-on: hyperswitch-runners-merge
 
     env:
-      # Use `sccache` for caching compilation artifacts
+      # sccache on local disk, restored/saved as one archive instead of its
+      # native S3 backend — see CI-pr.yml's `test` for why. This job
+      # populates the shared cache: PRs restore-only, this saves on `push`.
       RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      SCCACHE_CACHE_SIZE: "1536M"
+      SCCACHE_IDLE_TIMEOUT: "0"
       RUSTFLAGS: "-D warnings"
-      CARGO_BUILD_JOBS: 2
 
     steps:
       - name: Checkout repository
@@ -174,18 +195,6 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Install sccache
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: sccache
-      #     checksum: true
-
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.83.2
-        with:
-          tool: cargo-hack
-          checksum: true
-
       - name: Install just
         uses: taiki-e/install-action@v2
         with:
@@ -196,11 +205,9 @@ jobs:
         shell: bash
         run: .github/scripts/install-jq.sh
 
-      # - name: Install cargo-nextest
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: cargo-nextest
-      #     checksum: true
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
         uses: taiki-e/install-action@v2
@@ -208,27 +215,39 @@ jobs:
           tool: sccache
           checksum: true
 
+      - name: Restore sccache cache from S3
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-restore-s3.sh test
+
       - name: Run clippy (redis-rs backend)
         shell: bash
+        # Capped: uncapped + cold cache OOM'd a runner pod (git log).
+        env:
+          CARGO_BUILD_JOBS: 5
         run: just clippy
 
       - name: Run clippy (fred backend)
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 5
         run: just clippy fred
 
-      - name: Cargo hack
-        if: ${{ github.event_name == 'push' }}
+      - name: Show sccache stats
+        if: always()
         shell: bash
-        run: just ci_hack
+        run: sccache --show-stats
 
-      - name: Cargo build release
-        if: ${{ github.event_name == 'merge_group' }}
+      # !cancelled(), not always() — cache-on-failure, but skip on cancel.
+      - name: Save sccache cache to S3
+        if: ${{ !cancelled() && github.event_name == 'push' }}
+        continue-on-error: true
         shell: bash
-        run: cargo check --features "release"
+        run: .github/scripts/sccache-save-s3.sh test
 
   typos:
     name: Spell check
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -238,7 +257,7 @@ jobs:
 
   typos-required:
     name: Spell check specific critical directories
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -263,8 +282,12 @@ jobs:
     runs-on: hyperswitch-runners-merge
 
     env:
-      # Use `sccache` for caching compilation artifacts
+      # sccache on local disk, restored/saved as a single uncompressed archive
+      # — see `test` for why.
       RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      SCCACHE_CACHE_SIZE: "1536M"
+      SCCACHE_IDLE_TIMEOUT: "0"
 
     steps:
       - name: Checkout repository
@@ -280,11 +303,26 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
+          components: clippy
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install just
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install jq
+        shell: bash
+        run: .github/scripts/install-jq.sh
+
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
         uses: taiki-e/install-action@v2
@@ -292,10 +330,31 @@ jobs:
           tool: sccache
           checksum: true
 
-      - name: Run cargo check enabling only the release and v2 features (redis-rs backend)
+      - name: Restore sccache cache from S3
+        continue-on-error: true
         shell: bash
-        run: cargo check --no-default-features --features "release,v2,redis-rs"
+        run: .github/scripts/sccache-restore-s3.sh check-v2
 
-      - name: Run cargo check enabling only the release and v2 features (fred backend)
+      - name: Run cargo clippy with v2 features enabled (redis-rs backend)
         shell: bash
-        run: cargo check --no-default-features --features "release,v2,fred"
+        env:
+          CARGO_BUILD_JOBS: 5
+        run: just clippy_v2
+
+      - name: Run cargo clippy with v2 features enabled (fred backend)
+        shell: bash
+        env:
+          CARGO_BUILD_JOBS: 5
+        run: just clippy_v2 fred
+
+      - name: Show sccache stats
+        if: always()
+        shell: bash
+        run: sccache --show-stats
+
+      # !cancelled(), not always() — cache-on-failure, but skip on cancel.
+      - name: Save sccache cache to S3
+        if: ${{ !cancelled() && github.event_name == 'push' }}
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-save-s3.sh check-v2

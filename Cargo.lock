@@ -359,13 +359,16 @@ dependencies = [
  "common_enums",
  "common_utils",
  "currency_conversion",
+ "deja",
  "diesel_models",
  "error-stack 0.4.1",
  "futures 0.3.31",
+ "http 1.3.1",
  "hyperswitch_interfaces",
  "hyperswitch_masking",
  "opensearch",
  "reqwest 0.11.27",
+ "reqwest 0.12.7",
  "router_env",
  "rust_decimal",
  "serde",
@@ -632,15 +635,15 @@ dependencies = [
 
 [[package]]
 name = "async-bb8-diesel"
-version = "0.2.1"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebc03a2806f66f36513d65e0a7f34200382230250cadcf8a8397cfbe3f26b795"
+checksum = "433a78c27b116e74d1c773b4b2e76a83cde6dc1e7ca2b65345dcf597d34f16b4"
 dependencies = [
  "async-trait",
  "bb8",
  "diesel",
  "futures 0.3.31",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
  "tokio 1.48.0",
 ]
 
@@ -692,13 +695,13 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.88"
+version = "0.1.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e539d3fca749fcee5236ab05e93a52867dd549cc157c8cb7f99595f3cedffdb5"
+checksum = "82f6aeea286b8eb4dd3431a1be1b59d290ace00f5bfd8e2a159bc2a05e2c1667"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.101",
+ "syn 3.0.4",
 ]
 
 [[package]]
@@ -1506,13 +1509,13 @@ dependencies = [
 
 [[package]]
 name = "bb8"
-version = "0.8.6"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d89aabfae550a5c44b43ab941844ffcd2e993cb6900b342debf59e9ea74acdb8"
+checksum = "457d7ed3f888dfd2c7af56d4975cade43c622f74bdcddfed6d4352f57acc6310"
 dependencies = [
- "async-trait",
  "futures-util",
  "parking_lot 0.12.3",
+ "portable-atomic",
  "tokio 1.48.0",
 ]
 
@@ -2117,6 +2120,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
+name = "cloud_services"
+version = "0.1.0"
+dependencies = [
+ "aws-config",
+ "aws-sdk-kms",
+ "aws-sdk-s3",
+ "aws-sdk-sesv2",
+ "aws-sdk-sts",
+ "aws-smithy-runtime",
+ "aws-smithy-runtime-api",
+ "base64 0.22.1",
+ "google-cloud-gax",
+ "google-cloud-kms",
+ "hyper 0.14.32",
+ "hyper-proxy",
+ "lettre",
+ "oci_kms",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio 1.48.0",
+ "tokio-socks",
+ "tracing",
+ "url 2.5.4",
+]
+
+[[package]]
 name = "cloudabi"
 version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2211,6 +2241,7 @@ dependencies = [
  "hex",
  "http 0.2.12",
  "hyperswitch_masking",
+ "ip_network",
  "md5",
  "nanoid",
  "nutype",
@@ -2288,7 +2319,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.09.08.0#04befffdc53dfc81f9ac533671c8f35b9c652093"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.21.1#1a5f0de424e9505ee97a0a8c3a0f1f31ce7ba816"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2773,6 +2804,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling"
+version = "0.21.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cdf337090841a411e2a7f3deb9187445851f91b309c0c0a29e05f74a00a48c0"
+dependencies = [
+ "darling_core 0.21.3",
+ "darling_macro 0.21.3",
+]
+
+[[package]]
 name = "darling_core"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2801,6 +2842,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling_core"
+version = "0.21.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1247195ecd7e3c85f83c8d2a366e4210d588e802133e1e355180a9870b517ea4"
+dependencies = [
+ "fnv",
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim 0.11.1",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "darling_macro"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2818,6 +2873,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
 dependencies = [
  "darling_core 0.20.11",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.21.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d38308df82d1080de0afee5d069fa14b0326a88c14f15c5ccda35b4a6c414c81"
+dependencies = [
+ "darling_core 0.21.3",
  "quote",
  "syn 2.0.101",
 ]
@@ -2871,7 +2937,7 @@ checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 [[package]]
 name = "deja"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=de0a42a42248fc22722bc5a385d9fa6a39449e91#de0a42a42248fc22722bc5a385d9fa6a39449e91"
+source = "git+https://github.com/juspay/deja?rev=6ace82f8d37c7c5703f9636a608dd8d85a8f6953#6ace82f8d37c7c5703f9636a608dd8d85a8f6953"
 dependencies = [
  "deja-context",
  "deja-core",
@@ -2888,7 +2954,7 @@ dependencies = [
 [[package]]
 name = "deja-context"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=de0a42a42248fc22722bc5a385d9fa6a39449e91#de0a42a42248fc22722bc5a385d9fa6a39449e91"
+source = "git+https://github.com/juspay/deja?rev=6ace82f8d37c7c5703f9636a608dd8d85a8f6953#6ace82f8d37c7c5703f9636a608dd8d85a8f6953"
 dependencies = [
  "pin-project-lite",
 ]
@@ -2896,7 +2962,7 @@ dependencies = [
 [[package]]
 name = "deja-core"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=de0a42a42248fc22722bc5a385d9fa6a39449e91#de0a42a42248fc22722bc5a385d9fa6a39449e91"
+source = "git+https://github.com/juspay/deja?rev=6ace82f8d37c7c5703f9636a608dd8d85a8f6953#6ace82f8d37c7c5703f9636a608dd8d85a8f6953"
 dependencies = [
  "serde",
  "serde_json",
@@ -2906,7 +2972,7 @@ dependencies = [
 [[package]]
 name = "deja-derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=de0a42a42248fc22722bc5a385d9fa6a39449e91#de0a42a42248fc22722bc5a385d9fa6a39449e91"
+source = "git+https://github.com/juspay/deja?rev=6ace82f8d37c7c5703f9636a608dd8d85a8f6953#6ace82f8d37c7c5703f9636a608dd8d85a8f6953"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2916,17 +2982,18 @@ dependencies = [
 [[package]]
 name = "deja-diesel"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=de0a42a42248fc22722bc5a385d9fa6a39449e91#de0a42a42248fc22722bc5a385d9fa6a39449e91"
+source = "git+https://github.com/juspay/deja?rev=6ace82f8d37c7c5703f9636a608dd8d85a8f6953#6ace82f8d37c7c5703f9636a608dd8d85a8f6953"
 dependencies = [
  "async-bb8-diesel",
  "deja-runtime",
  "diesel",
+ "serde_json",
 ]
 
 [[package]]
 name = "deja-runtime"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=de0a42a42248fc22722bc5a385d9fa6a39449e91#de0a42a42248fc22722bc5a385d9fa6a39449e91"
+source = "git+https://github.com/juspay/deja?rev=6ace82f8d37c7c5703f9636a608dd8d85a8f6953#6ace82f8d37c7c5703f9636a608dd8d85a8f6953"
 dependencies = [
  "async-trait",
  "deja-context",
@@ -2934,6 +3001,7 @@ dependencies = [
  "deja-derive",
  "serde",
  "serde_json",
+ "siphasher 1.0.1",
  "tokio 1.48.0",
  "tracing",
  "tracing-subscriber",
@@ -3077,13 +3145,14 @@ checksum = "dc55fe0d1f6c107595572ec8b107c0999bb1a2e0b75e37429a4fb0d6474a0e7d"
 
 [[package]]
 name = "diesel"
-version = "2.2.10"
+version = "2.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff3e1edb1f37b4953dd5176916347289ed43d7119cc2e6c7c3f7849ff44ea506"
+checksum = "715377c6e464cb44bb89bd8487584240516c8d5052bc645d6babc50bb8be46c3"
 dependencies = [
  "bitflags 2.9.0",
  "byteorder",
  "diesel_derives",
+ "downcast-rs",
  "itoa",
  "pq-sys",
  "r2d2",
@@ -3093,9 +3162,9 @@ dependencies = [
 
 [[package]]
 name = "diesel_derives"
-version = "2.2.3"
+version = "2.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7f2c3de51e2ba6bf2a648285696137aaf0f5f487bcbea93972fe8a364e131a4"
+checksum = "d1817b7f4279b947fc4cafddec12b0e5f8727141706561ce3ac94a60bddd1cf5"
 dependencies = [
  "diesel_table_macro_syntax",
  "dsl_auto_type",
@@ -3106,9 +3175,9 @@ dependencies = [
 
 [[package]]
 name = "diesel_migrations"
-version = "2.2.0"
+version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a73ce704bad4231f001bff3314d91dce4aba0770cee8b233991859abc15c1f6"
+checksum = "28d0f4a98124ba6d4ca75da535f65984badec16a003b6e2f94a01e31a79490b8"
 dependencies = [
  "diesel",
  "migrations_internals",
@@ -3140,9 +3209,9 @@ dependencies = [
 
 [[package]]
 name = "diesel_table_macro_syntax"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "209c735641a413bc68c4923a9d6ad4bcb3ca306b794edaa7eb0b3228a99ffb25"
+checksum = "fe2444076b48641147115697648dc743c2c00b61adade0f01ce67133c7babe8c"
 dependencies = [
  "syn 2.0.101",
 ]
@@ -3207,6 +3276,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1435fa1053d8b2fbbe9be7e97eca7f33d37b28409959813daefc1446a14247f1"
 
 [[package]]
+name = "downcast-rs"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "117240f60069e65410b3ae1bb213295bd828f707b5bec6596a1afc8793ce0cbc"
+
+[[package]]
 name = "drainer"
 version = "0.1.0"
 dependencies = [
@@ -3227,6 +3302,7 @@ dependencies = [
  "redis_interface",
  "reqwest 0.11.27",
  "router_env",
+ "rustls 0.23.27",
  "serde",
  "serde_json",
  "serde_path_to_error",
@@ -3237,11 +3313,11 @@ dependencies = [
 
 [[package]]
 name = "dsl_auto_type"
-version = "0.1.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5d9abe6314103864cc2d8901b7ae224e0ab1a103a0a416661b4097b0779b607"
+checksum = "dd122633e4bef06db27737f21d3738fb89c8f6d5360d6d9d7635dda142a7757e"
 dependencies = [
- "darling 0.20.11",
+ "darling 0.21.3",
  "either",
  "heck 0.5.0",
  "proc-macro2",
@@ -3474,7 +3550,6 @@ dependencies = [
  "common_enums",
  "common_utils",
  "criterion",
- "diesel",
  "euclid_macros",
  "hyperswitch_constraint_graph",
  "nom 7.1.3",
@@ -3559,32 +3634,24 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "async-trait",
- "aws-config",
- "aws-sdk-kms",
- "aws-sdk-s3",
- "aws-sdk-sesv2",
- "aws-sdk-sts",
- "aws-smithy-runtime",
- "aws-smithy-runtime-api",
  "aws-smithy-types",
  "base64 0.22.1",
  "bytes 1.10.1",
+ "cloud_services",
  "common_enums",
  "common_utils",
  "deja",
  "dyn-clone",
  "error-stack 0.4.1",
- "google-cloud-kms",
+ "futures 0.3.31",
  "hex",
  "http 0.2.12",
  "http-body 1.0.1",
  "http-body-util",
  "hyper 0.14.32",
- "hyper-proxy",
  "hyper-util",
  "hyperswitch_interfaces",
  "hyperswitch_masking",
- "lettre",
  "once_cell",
  "open-feature",
  "prost 0.14.3",
@@ -3808,9 +3875,13 @@ dependencies = [
  "parking_lot 0.12.3",
  "rand 0.8.5",
  "redis-protocol",
+ "rustls 0.22.4",
+ "rustls-native-certs 0.7.3",
+ "rustls-webpki 0.102.8",
  "semver 1.0.26",
  "socket2 0.5.10",
  "tokio 1.48.0",
+ "tokio-rustls 0.25.0",
  "tokio-stream",
  "tokio-util",
  "tracing",
@@ -4262,7 +4333,7 @@ checksum = "32619942b8be646939eaf3db0602b39f5229b74575b67efc897811ded1db4e57"
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.09.08.0#04befffdc53dfc81f9ac533671c8f35b9c652093"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.21.1#1a5f0de424e9505ee97a0a8c3a0f1f31ce7ba816"
 dependencies = [
  "axum 0.8.4",
  "bytes 1.10.1",
@@ -4271,10 +4342,14 @@ dependencies = [
  "heck 0.5.0",
  "http 1.3.1",
  "hyperswitch_masking",
+ "prettyplease",
+ "proc-macro2",
  "prost 0.14.3",
  "prost-build",
  "prost-types 0.14.3",
+ "quote",
  "serde",
+ "syn 2.0.101",
  "tonic 0.14.5",
  "tonic-build",
  "tonic-prost",
@@ -4872,6 +4947,7 @@ dependencies = [
  "futures 0.3.31",
  "http 0.2.12",
  "hyperswitch_masking",
+ "ip_network",
  "mime 0.3.17",
  "payment_link",
  "router_derive",
@@ -4880,9 +4956,11 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "strum 0.26.3",
  "time 0.3.41",
  "url 2.5.4",
  "utoipa",
+ "uuid",
 ]
 
 [[package]]
@@ -5267,6 +5345,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ip_network"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa2f047c0a98b2f299aa5d6d7088443570faae494e9ae1305e48be000c9e0eb1"
+
+[[package]]
 name = "ipnet"
 version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5573,11 +5657,13 @@ version = "0.11.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "87ffd14fa289730e3ad68edefdc31f603d56fe716ec38f2076bb7410e09147c2"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "chumsky",
  "email-encoding",
  "email_address",
  "fastrand",
+ "futures-io",
  "futures-util",
  "hostname",
  "httpdate",
@@ -5589,6 +5675,7 @@ dependencies = [
  "quoted_printable",
  "socket2 0.5.10",
  "tokio 1.48.0",
+ "tokio-native-tls",
  "url 2.5.4",
 ]
 
@@ -5917,19 +6004,19 @@ dependencies = [
 
 [[package]]
 name = "migrations_internals"
-version = "2.2.0"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd01039851e82f8799046eabbb354056283fb265c8ec0996af940f4e85a380ff"
+checksum = "36c791ecdf977c99f45f23280405d7723727470f6689a5e6dbf513ac547ae10d"
 dependencies = [
  "serde",
- "toml 0.8.22",
+ "toml 0.9.6",
 ]
 
 [[package]]
 name = "migrations_macros"
-version = "2.2.0"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ffb161cc72176cb37aa47f1fc520d3ef02263d67d661f44f05d05a079e1237fd"
+checksum = "36fc5ac76be324cfd2d3f2cf0fdf5d5d3c4f14ed8aaebadb09e304ba42282703"
 dependencies = [
  "migrations_internals",
  "proc-macro2",
@@ -6474,6 +6561,25 @@ dependencies = [
  "sha2",
  "thiserror 1.0.69",
  "url 2.5.4",
+]
+
+[[package]]
+name = "oci_kms"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "rand 0.8.5",
+ "reqwest 0.12.7",
+ "rsa",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+ "time 0.3.41",
+ "tokio 1.48.0",
+ "tracing",
+ "url 2.5.4",
+ "zeroize",
 ]
 
 [[package]]
@@ -7216,7 +7322,7 @@ dependencies = [
  "regex-cache",
  "serde",
  "serde_derive",
- "strum 0.25.0",
+ "strum 0.26.3",
  "thiserror 1.0.69",
 ]
 
@@ -7363,6 +7469,12 @@ dependencies = [
  "flate2",
  "miniz_oxide 0.7.4",
 ]
+
+[[package]]
+name = "portable-atomic"
+version = "1.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05c8b63e8d9609db387f0324918f81d68fe27748f084ef092fb35954d0539a85"
 
 [[package]]
 name = "powerfmt"
@@ -8055,10 +8167,13 @@ dependencies = [
  "percent-encoding 2.3.1",
  "pin-project-lite",
  "rand 0.9.2",
+ "rustls 0.23.27",
+ "rustls-native-certs 0.8.1",
  "ryu",
  "sha1_smol",
  "socket2 0.6.1",
  "tokio 1.48.0",
+ "tokio-rustls 0.26.2",
  "tokio-util",
  "url 2.5.4",
  "xxhash-rust",
@@ -8090,6 +8205,7 @@ dependencies = [
  "hyperswitch_masking",
  "redis",
  "router_env",
+ "rustls 0.23.27",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -8226,6 +8342,7 @@ dependencies = [
  "url 2.5.4",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-streams",
  "web-sys",
  "webpki-roots 0.25.4",
  "winreg",
@@ -8255,6 +8372,7 @@ dependencies = [
  "js-sys",
  "log 0.4.27",
  "mime 0.3.17",
+ "mime_guess 2.0.5",
  "native-tls",
  "once_cell",
  "percent-encoding 2.3.1",
@@ -8426,6 +8544,7 @@ dependencies = [
  "events",
  "external_services",
  "futures 0.3.31",
+ "heck 0.5.0",
  "hex",
  "hkdf",
  "http 0.2.12",
@@ -8508,7 +8627,6 @@ name = "router_derive"
 version = "0.1.0"
 dependencies = [
  "common_utils",
- "diesel",
  "error-stack 0.4.1",
  "indexmap 2.9.0",
  "proc-macro2",
@@ -8585,7 +8703,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.09.08.0#04befffdc53dfc81f9ac533671c8f35b9c652093"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.21.1#1a5f0de424e9505ee97a0a8c3a0f1f31ce7ba816"
 dependencies = [
  "grpc-api-types",
 ]
@@ -8779,6 +8897,20 @@ dependencies = [
 
 [[package]]
 name = "rustls"
+version = "0.22.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf4ef73721ac7bcd79b2b315da7779d8fc09718c6b3d2d1b2d94850eb8c18432"
+dependencies = [
+ "log 0.4.27",
+ "ring 0.17.14",
+ "rustls-pki-types",
+ "rustls-webpki 0.102.8",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "rustls"
 version = "0.23.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "730944ca083c1c233a75c09f199e973ca499344a2b7ba9e755c457e86fb4a321"
@@ -8801,6 +8933,19 @@ checksum = "a9aace74cb666635c918e9c12bc0d348266037aa8eb599b5cba565709a8dff00"
 dependencies = [
  "openssl-probe",
  "rustls-pemfile 1.0.4",
+ "schannel",
+ "security-framework 2.11.1",
+]
+
+[[package]]
+name = "rustls-native-certs"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5bfb394eeed242e909609f56089eecfe5fda225042e8b171791b9c95f5931e5"
+dependencies = [
+ "openssl-probe",
+ "rustls-pemfile 2.1.3",
+ "rustls-pki-types",
  "schannel",
  "security-framework 2.11.1",
 ]
@@ -8852,6 +8997,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b6275d1ee7a1cd780b64aca7726599a1dbc893b1e64144529e55c3c2f745765"
 dependencies = [
  "ring 0.17.14",
+ "untrusted 0.9.0",
+]
+
+[[package]]
+name = "rustls-webpki"
+version = "0.102.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64ca1bc8749bd4cf37b5ce386cc146580777b4e8572c7b97baf22c83f444bee9"
+dependencies = [
+ "ring 0.17.14",
+ "rustls-pki-types",
  "untrusted 0.9.0",
 ]
 
@@ -9244,6 +9400,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "87607cb1398ed59d48732e575a4c28a7a8ebf2454b964fe3f224f2afc07909e1"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "serde_spanned"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6662b5879511e06e8999a8a235d848113e942c9124f211511b16466ee2995f26"
+dependencies = [
+ "serde_core",
 ]
 
 [[package]]
@@ -10193,6 +10358,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "syn"
+version = "3.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6275cddf4610d1775e6d1fe9469b2e77d0f39fd98fb7450901b821e0c53649f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
 name = "syn_derive"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10778,11 +10954,34 @@ dependencies = [
 
 [[package]]
 name = "tokio-rustls"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "775e0c0f0adb3a2f22a00c4745d728b479985fc15ee7ca6a2608388c5569860f"
+dependencies = [
+ "rustls 0.22.4",
+ "rustls-pki-types",
+ "tokio 1.48.0",
+]
+
+[[package]]
+name = "tokio-rustls"
 version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e727b36a1a0e8b74c376ac2211e40c2c8af09fb4013c60d910495810f008e9b"
 dependencies = [
  "rustls 0.23.27",
+ "tokio 1.48.0",
+]
+
+[[package]]
+name = "tokio-socks"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7e2948f60dbe26b35f2c7fb74ac2854c1fddded0fe9d7548fcc674a246f7615"
+dependencies = [
+ "either",
+ "futures-util",
+ "thiserror 1.0.69",
  "tokio 1.48.0",
 ]
 
@@ -10913,8 +11112,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd79e69d3b627db300ff956027cc6c3798cef26d22526befdfcd12feeb6d2257"
 dependencies = [
  "serde",
- "serde_spanned",
- "toml_datetime",
+ "serde_spanned 0.6.8",
+ "toml_datetime 0.6.9",
  "toml_edit 0.19.15",
 ]
 
@@ -10926,9 +11125,22 @@ checksum = "05ae329d1f08c4d17a59bed7ff5b5a769d062e64a62d34a3261b219e62cd5aae"
 dependencies = [
  "indexmap 2.9.0",
  "serde",
- "serde_spanned",
- "toml_datetime",
+ "serde_spanned 0.6.8",
+ "toml_datetime 0.6.9",
  "toml_edit 0.22.26",
+]
+
+[[package]]
+name = "toml"
+version = "0.9.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae2a4cf385da23d1d53bc15cdfa5c2109e93d8d362393c801e87da2f72f0e201"
+dependencies = [
+ "serde_core",
+ "serde_spanned 1.1.1",
+ "toml_datetime 0.7.5+spec-1.1.0",
+ "toml_parser",
+ "winnow 0.7.10",
 ]
 
 [[package]]
@@ -10941,6 +11153,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "toml_datetime"
+version = "0.7.5+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92e1cfed4a3038bc5a127e35a2d360f145e1f4b971b551a2ba5fd7aedf7e1347"
+dependencies = [
+ "serde_core",
+]
+
+[[package]]
 name = "toml_edit"
 version = "0.19.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10948,8 +11169,8 @@ checksum = "1b5bb770da30e5cbfde35a2d7b9b8a2c4b8ef89548a7a6aeab5c9a576e3e7421"
 dependencies = [
  "indexmap 2.9.0",
  "serde",
- "serde_spanned",
- "toml_datetime",
+ "serde_spanned 0.6.8",
+ "toml_datetime 0.6.9",
  "winnow 0.5.40",
 ]
 
@@ -10961,10 +11182,19 @@ checksum = "310068873db2c5b3e7659d2cc35d21855dbafa50d1ce336397c666e3cb08137e"
 dependencies = [
  "indexmap 2.9.0",
  "serde",
- "serde_spanned",
- "toml_datetime",
+ "serde_spanned 0.6.8",
+ "toml_datetime 0.6.9",
  "toml_write",
  "winnow 0.7.10",
+]
+
+[[package]]
+name = "toml_parser"
+version = "1.1.3+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d38ac1cf9b95face32296c0a3ede1fdc270627c9d9c02a7274dd6d960dc4d56"
+dependencies = [
+ "winnow 1.0.4",
 ]
 
 [[package]]
@@ -11426,7 +11656,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.09.08.0#04befffdc53dfc81f9ac533671c8f35b9c652093"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.21.1#1a5f0de424e9505ee97a0a8c3a0f1f31ce7ba816"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
@@ -11442,7 +11672,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.09.08.0#04befffdc53dfc81f9ac533671c8f35b9c652093"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.21.1#1a5f0de424e9505ee97a0a8c3a0f1f31ce7ba816"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -11453,7 +11683,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.09.08.0#04befffdc53dfc81f9ac533671c8f35b9c652093"
+source = "git+https://github.com/juspay/connector-service?tag=2026.10.21.1#1a5f0de424e9505ee97a0a8c3a0f1f31ce7ba816"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -11474,7 +11704,7 @@ dependencies = [
  "quick-xml",
  "rand 0.8.5",
  "regex",
- "reqwest 0.11.27",
+ "reqwest 0.12.7",
  "ring 0.17.14",
  "rust_decimal",
  "semver 1.0.26",
@@ -12620,6 +12850,12 @@ checksum = "c06928c8748d81b05c9be96aad92e1b6ff01833332f281e8cfca3be4b35fc9ec"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "winnow"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23b97319f7b8343df12cc98938e5c3eb436064524c8d2b4e30a1d3a36eecdf81"
 
 [[package]]
 name = "winreg"

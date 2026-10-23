@@ -159,6 +159,7 @@ pub struct PaymentIntent {
     pub is_account_funded_transaction: Option<bool>,
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
+    pub enable_avs_check: Option<bool>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -499,6 +500,23 @@ impl PaymentIntent {
         } else {
             Ok(())
         }
+    }
+
+    /// Read the payer snapshot stored on this intent without looking up a customer record.
+    #[cfg(feature = "v2")]
+    pub fn get_customer_details(
+        &self,
+    ) -> Result<Option<CustomerData>, common_utils::errors::ParsingError> {
+        self.customer_details
+            .as_ref()
+            .map(|details| {
+                ValueExt::parse_value::<CustomerData>(
+                    details.clone().into_inner().expose(),
+                    "CustomerData",
+                )
+            })
+            .transpose()
+            .map_err(|report| (*report.current_context()).clone())
     }
 
     pub fn get_customer_document_details(
@@ -1043,6 +1061,7 @@ pub struct PaymentIntent {
     /// The details of the party receiving the funds in an account funded transaction.
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -1201,7 +1220,7 @@ impl PaymentIntent {
                 .unwrap_or_default(),
             split_txns_enabled: profile.split_txns_enabled,
             frm_metadata: request.frm_metadata,
-            customer_details: None,
+            customer_details: decrypted_payment_intent.customer_details.clone(),
             merchant_reference_id: request.merchant_reference_id,
             billing_address: decrypted_payment_intent
                 .billing_address
@@ -1255,6 +1274,7 @@ impl PaymentIntent {
             external_surcharge_applicable: None,
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: decrypted_payment_intent.recipient_details,
+            enable_avs_check: request.enable_avs_check,
         })
     }
 
@@ -1320,6 +1340,7 @@ impl PaymentIntent {
         let amount = self.amount_details.get_order_amount_for_recovery_data()?;
         Ok(revenue_recovery::RevenueRecoveryAttemptData {
             amount,
+            amount_captured: None,
             currency: self.amount_details.currency,
             merchant_reference_id,
             connector_transaction_id: None, // No connector id
@@ -1725,6 +1746,9 @@ where
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,
                 first_payment_attempt_pg_error_code: first_pg_error_code,
+                revenue_recovery_ab_routing: revenue_recovery
+                    .as_ref()
+                    .and_then(|data| data.revenue_recovery_ab_routing),
             }),
             None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector not found in payment attempt")?,

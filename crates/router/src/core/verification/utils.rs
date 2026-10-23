@@ -3,6 +3,7 @@ use common_utils::{
     id_type::{PaymentId, PayoutId},
 };
 use error_stack::{Report, ResultExt};
+use storage_impl::behaviour::ForeignInto;
 
 use crate::{
     core::{
@@ -102,7 +103,7 @@ pub async fn check_existence_and_add_domain_to_db(
         .store
         .update_merchant_connector_account(
             merchant_connector_account,
-            updated_mca.into(),
+            updated_mca.foreign_into(),
             &key_store,
         )
         .await
@@ -193,9 +194,9 @@ pub async fn check_if_profile_id_is_present_in_payment_intent(
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
-            processor.get_account().get_id(),
+            &processor.get_processor_merchant_id(),
             processor.get_key_store(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
         )
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)?;

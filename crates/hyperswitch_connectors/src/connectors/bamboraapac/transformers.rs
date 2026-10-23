@@ -108,7 +108,7 @@ fn get_card_data(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Err
             if req.is_three_ds() {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Cards 3DS".to_string(),
-                    connector: "Bamboraapac",
+                    connector: "Bamboraapac".into(),
                 })?
             }
             let card_holder_name = req.get_billing_full_name()?;

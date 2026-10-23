@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use common_enums::enums;
 use common_utils::events::ApiEventMetric;
@@ -31,11 +31,24 @@ pub struct Card {
 pub type AddToBlocklistRequest = BlocklistRequest;
 pub type DeleteFromBlocklistRequest = BlocklistRequest;
 
+/// A tagged single-entry request with an optional transaction namespace.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BlocklistEntryRequest {
+    #[serde(flatten)]
+    pub entry: BlocklistRequest,
+    /// Only `payment` and `payout` are supported. Defaults to `payment`.
+    #[serde(default)]
+    #[schema(value_type = BlocklistTransactionType)]
+    pub transaction_type: common_enums::BlocklistTransactionType,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BlocklistResponse {
     pub fingerprint_id: String,
     #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
+    #[schema(value_type = BlocklistTransactionType)]
+    pub transaction_type: common_enums::BlocklistTransactionType,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
     #[schema(value_type = Option<String>, example = "pro_abcdefghijklmnop")]
@@ -69,6 +82,10 @@ pub struct ListBlocklistResponse {
 pub struct ListBlocklistQuery {
     #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
+    /// Only `payment` and `payout` are supported. Defaults to `payment`.
+    #[serde(default)]
+    #[schema(value_type = BlocklistTransactionType)]
+    pub transaction_type: common_enums::BlocklistTransactionType,
     #[serde(default = "default_list_limit")]
     pub limit: u16,
     #[serde(default)]
@@ -90,6 +107,10 @@ pub struct ToggleBlocklistQuery {
 pub struct BlocklistCountQuery {
     #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
+    /// Counts only `payment` or `payout` when selected. When omitted, counts both,
+    /// including legacy NULL entries, which belong to `payment` when filtered.
+    #[schema(value_type = Option<BlocklistTransactionType>)]
+    pub transaction_type: Option<common_enums::BlocklistTransactionType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -112,13 +133,19 @@ pub struct BlocklistLookupQuery {
     /// the longest value a `fingerprint_id` can hold.
     #[schema(value_type = String, max_length = 20)]
     pub data: common_utils::types::BlocklistLookupData,
+    /// Looks up only `payment` or `payout` when selected. Omission looks up both.
+    #[schema(value_type = Option<BlocklistTransactionType>)]
+    pub transaction_type: Option<common_enums::BlocklistTransactionType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BlocklistLookupResponse {
     pub data: String,
-    /// Whether an entry matching `data` exists in the blocklist, under any data_kind
+    /// Whether any entry matches within the resolved profile and selected transaction namespaces.
     pub blocked: bool,
+    /// Distinct transaction types that block `data`, empty when `blocked` is false.
+    #[schema(value_type = Vec<BlocklistTransactionType>)]
+    pub transaction_types: Vec<common_enums::BlocklistTransactionType>,
 }
 
 impl ApiEventMetric for BlocklistCountQuery {}
@@ -127,6 +154,7 @@ impl ApiEventMetric for BlocklistLookupQuery {}
 impl ApiEventMetric for BlocklistLookupResponse {}
 
 impl ApiEventMetric for BlocklistRequest {}
+impl ApiEventMetric for BlocklistEntryRequest {}
 impl ApiEventMetric for BlocklistResponse {}
 impl ApiEventMetric for ListBlocklistResponse {}
 impl ApiEventMetric for ToggleBlocklistResponse {}
@@ -149,6 +177,13 @@ pub struct BlocklistRowError {
     pub reason: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BatchBlocklistUploadQuery {
+    /// Overrides every CSV row when selected; omission preserves row selections.
+    #[schema(value_type = Option<BlocklistTransactionType>)]
+    pub transaction_type: Option<common_enums::BlocklistTransactionType>,
+}
+
 /// Response returned on a successful `POST /blocklist/batch`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BatchBlocklistUploadResponse {
@@ -163,16 +198,23 @@ pub struct BatchBlocklistUploadResponse {
 pub struct BatchBlocklistJobStatusResponse {
     pub job_id: String,
     pub merchant_id: String,
-    /// Whether this job imported entries or exported them.
+    /// The profile that owns this job; for a clone job, the profile whose entries are copied.
+    #[schema(value_type = Option<String>, example = "pro_abcdefghijklmnop")]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+    /// Whether this job imported, exported, or cloned entries.
     #[schema(value_type = BatchBlocklistJobType)]
     pub job_type: enums::BatchBlocklistJobType,
-    /// The file the merchant uploaded, or the name the export downloads as.
+    /// The file the merchant uploaded, or the name the export downloads as. Clone jobs return
+    /// `null`.
     pub file_name: Option<String>,
     #[schema(value_type = BatchBlocklistJobStatus)]
     pub status: enums::BatchBlocklistJobStatus,
     pub total_rows: u32,
     pub succeeded_rows: u32,
     pub failed_rows: u32,
+    /// Per-target status and row progress of a profile-clone job. Upload and export jobs return
+    /// `null`.
+    pub metadata: Option<ProfileCloneJobMetadata>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -200,7 +242,7 @@ pub struct ListBatchBlocklistJobsQuery {
     /// The starting point within a list of objects
     #[serde(default)]
     pub offset: common_utils::types::list::PageOffset,
-    /// Restricts the listing to one kind of job. Both uploads and exports are returned when omitted.
+    /// Restricts the listing to one kind of job. All kinds are returned when omitted.
     #[schema(value_type = Option<BatchBlocklistJobType>)]
     pub job_type: Option<enums::BatchBlocklistJobType>,
 }
@@ -215,6 +257,14 @@ pub struct ListBatchBlocklistJobsResponse {
 
 // ---- Blocklist CSV export types ----
 
+/// Query parameters for `POST /blocklist/export`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BlocklistExportQuery {
+    /// Exports only `payment` or `payout` entries when selected. Omission exports both.
+    #[schema(value_type = Option<BlocklistTransactionType>)]
+    pub transaction_type: Option<common_enums::BlocklistTransactionType>,
+}
+
 /// Response for `POST /blocklist/export`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BlocklistExportResponse {
@@ -226,8 +276,223 @@ pub struct BlocklistExportResponse {
     pub file_name: String,
 }
 
+impl ApiEventMetric for BatchBlocklistUploadQuery {}
 impl ApiEventMetric for BatchBlocklistUploadResponse {}
 impl ApiEventMetric for BatchBlocklistJobStatusResponse {}
 impl ApiEventMetric for ListBatchBlocklistJobsQuery {}
 impl ApiEventMetric for ListBatchBlocklistJobsResponse {}
 impl ApiEventMetric for BlocklistExportResponse {}
+impl ApiEventMetric for BlocklistExportQuery {}
+
+/// Progress of a profile-clone job across its target profiles.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ProfileCloneJobMetadata {
+    pub targets: Vec<ProfileCloneTargetMetadata>,
+}
+
+/// Progress of one target profile within a profile-clone job.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ProfileCloneTargetMetadata {
+    #[schema(value_type = String, example = "pro_abcdefghijklmnop")]
+    pub profile_id: common_utils::id_type::ProfileId,
+    #[schema(value_type = BatchBlocklistJobStatus)]
+    pub status: enums::BatchBlocklistJobStatus,
+    /// Source entries handled so far for this target.
+    pub processed_rows: u32,
+    /// Present when this target's clone failed.
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CloneBlocklistEntriesRequest {
+    #[schema(value_type = Vec<String>)]
+    pub target_profile_ids: HashSet<common_utils::id_type::ProfileId>,
+    /// Clones only the selected namespace. Omission clones both payment and payout.
+    #[schema(value_type = Option<BlocklistTransactionType>)]
+    pub transaction_type: Option<common_enums::BlocklistTransactionType>,
+}
+
+impl CloneBlocklistEntriesRequest {
+    /// The checks that need nothing but the request and its source; whether each profile belongs
+    /// to the merchant is settled later, against the merchant's profiles.
+    pub fn validate(
+        &self,
+        source_profile_id: &common_utils::id_type::ProfileId,
+    ) -> Result<(), String> {
+        (!self.target_profile_ids.is_empty())
+            .then_some(())
+            .ok_or_else(|| "target_profile_ids must contain at least one profile".to_string())?;
+
+        (!self.target_profile_ids.contains(source_profile_id))
+            .then_some(())
+            .ok_or_else(|| "target_profile_ids must not contain the source profile".to_string())
+    }
+}
+
+/// Response for `POST /blocklist/clone`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CloneBlocklistEntriesResponse {
+    #[schema(value_type = String, example = "pro_abcdefghijklmnop")]
+    pub source_profile_id: common_utils::id_type::ProfileId,
+    pub job_id: String,
+    #[schema(value_type = BatchBlocklistJobStatus)]
+    pub status: enums::BatchBlocklistJobStatus,
+    #[schema(value_type = Vec<String>)]
+    pub target_profile_ids: Vec<common_utils::id_type::ProfileId>,
+}
+
+impl ApiEventMetric for CloneBlocklistEntriesRequest {}
+impl ApiEventMetric for CloneBlocklistEntriesResponse {}
+
+#[cfg(test)]
+mod tests {
+    use common_enums::BlocklistTransactionType;
+    use serde_json::json;
+
+    use super::{
+        BlocklistCountQuery, BlocklistEntryRequest, BlocklistLookupQuery,
+        CloneBlocklistEntriesRequest, ListBlocklistQuery,
+    };
+
+    #[test]
+    fn omitted_selection_preserves_management_scopes() {
+        let single: BlocklistEntryRequest =
+            serde_json::from_value(json!({"type": "generic_card_bin", "data": "424242"})).unwrap();
+        let list: ListBlocklistQuery =
+            serde_json::from_value(json!({"data_kind": "generic_card_bin"})).unwrap();
+        let count: BlocklistCountQuery =
+            serde_json::from_value(json!({"data_kind": "generic_card_bin"})).unwrap();
+        let lookup: BlocklistLookupQuery =
+            serde_json::from_value(json!({"data": "424242"})).unwrap();
+
+        assert_eq!(single.transaction_type, BlocklistTransactionType::Payment);
+        assert_eq!(list.transaction_type, BlocklistTransactionType::Payment);
+        assert_eq!(count.transaction_type, None);
+        assert_eq!(lookup.transaction_type, None);
+    }
+
+    #[test]
+    fn payout_selection_is_retained_by_management_requests_and_queries() {
+        let single: BlocklistEntryRequest = serde_json::from_value(
+            json!({"type": "generic_card_bin", "data": "424242", "transaction_type": "payout"}),
+        )
+        .unwrap();
+        let list: ListBlocklistQuery = serde_json::from_value(
+            json!({"data_kind": "generic_card_bin", "transaction_type": "payout"}),
+        )
+        .unwrap();
+        let count: BlocklistCountQuery = serde_json::from_value(
+            json!({"data_kind": "generic_card_bin", "transaction_type": "payout"}),
+        )
+        .unwrap();
+        let lookup: BlocklistLookupQuery =
+            serde_json::from_value(json!({"data": "424242", "transaction_type": "payout"}))
+                .unwrap();
+
+        assert_eq!(single.transaction_type, BlocklistTransactionType::Payout);
+        assert_eq!(list.transaction_type, BlocklistTransactionType::Payout);
+        assert_eq!(
+            count.transaction_type,
+            Some(BlocklistTransactionType::Payout)
+        );
+        assert_eq!(
+            lookup.transaction_type,
+            Some(BlocklistTransactionType::Payout)
+        );
+    }
+
+    #[test]
+    fn payment_selection_is_retained_by_count_query() {
+        let count: BlocklistCountQuery = serde_json::from_value(
+            json!({"data_kind": "generic_card_bin", "transaction_type": "payment"}),
+        )
+        .unwrap();
+
+        assert_eq!(
+            count.transaction_type,
+            Some(BlocklistTransactionType::Payment)
+        );
+    }
+
+    #[test]
+    fn unsupported_selection_is_rejected_instead_of_defaulting() {
+        for selection in ["three_ds_authentication", "unknown", ""] {
+            assert!(serde_json::from_value::<BlocklistEntryRequest>(
+                json!({"type": "generic_card_bin", "data": "424242", "transaction_type": selection}),
+            )
+            .is_err());
+            assert!(serde_json::from_value::<ListBlocklistQuery>(
+                json!({"data_kind": "generic_card_bin", "transaction_type": selection}),
+            )
+            .is_err());
+            assert!(serde_json::from_value::<BlocklistCountQuery>(
+                json!({"data_kind": "generic_card_bin", "transaction_type": selection}),
+            )
+            .is_err());
+            assert!(serde_json::from_value::<BlocklistLookupQuery>(
+                json!({"data": "424242", "transaction_type": selection}),
+            )
+            .is_err());
+            assert!(serde_json::from_value::<CloneBlocklistEntriesRequest>(
+                json!({"target_profile_ids": ["pro_target"], "transaction_type": selection}),
+            )
+            .is_err());
+        }
+    }
+
+    #[test]
+    fn legacy_single_entry_bodies_preserve_all_tagged_kinds_and_data() {
+        for (kind, data) in [
+            ("card_bin", "424242"),
+            ("extended_card_bin", "42424242"),
+            ("generic_card_bin", "4242424242"),
+            ("fingerprint", "fingerprint_123"),
+        ] {
+            let legacy_body = json!({"type": kind, "data": data});
+            let request: BlocklistEntryRequest =
+                serde_json::from_value(legacy_body.clone()).unwrap();
+
+            assert_eq!(request.transaction_type, BlocklistTransactionType::Payment);
+            assert_eq!(serde_json::to_value(&request.entry).unwrap(), legacy_body);
+
+            let payout_body = json!({
+                "type": kind,
+                "data": data,
+                "transaction_type": "payout",
+            });
+            let request: BlocklistEntryRequest =
+                serde_json::from_value(payout_body.clone()).unwrap();
+
+            assert_eq!(request.transaction_type, BlocklistTransactionType::Payout);
+            assert_eq!(serde_json::to_value(&request.entry).unwrap(), legacy_body);
+            assert_eq!(serde_json::to_value(&request).unwrap(), payout_body);
+        }
+    }
+
+    #[test]
+    fn malformed_single_entry_bodies_are_rejected() {
+        for body in [
+            json!({}),
+            json!({"data": "424242"}),
+            json!({"type": "unknown", "data": "424242"}),
+            json!({"entry": {"type": "generic_card_bin", "data": "424242"}}),
+        ] {
+            assert!(serde_json::from_value::<BlocklistEntryRequest>(body).is_err());
+        }
+
+        for kind in [
+            "card_bin",
+            "extended_card_bin",
+            "generic_card_bin",
+            "fingerprint",
+        ] {
+            let missing_data = json!({"type": kind});
+            assert!(serde_json::from_value::<BlocklistEntryRequest>(missing_data).is_err());
+
+            for data in [json!(null), json!(424242), json!([]), json!({})] {
+                let body = json!({"type": kind, "data": data});
+                assert!(serde_json::from_value::<BlocklistEntryRequest>(body).is_err());
+            }
+        }
+    }
+}

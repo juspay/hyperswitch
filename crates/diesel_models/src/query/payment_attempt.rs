@@ -292,21 +292,6 @@ impl PaymentAttempt {
     }
 
     #[cfg(feature = "v1")]
-    pub async fn find_by_processor_merchant_id_preprocessing_id(
-        conn: &DatabaseConnectionWithContext<'_>,
-        processor_merchant_id: &common_utils::id_type::MerchantId,
-        preprocessing_id: &str,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::processor_merchant_id
-                .eq(processor_merchant_id.to_owned())
-                .and(dsl::preprocessing_step_id.eq(preprocessing_id.to_owned())),
-        )
-        .await
-    }
-
-    #[cfg(feature = "v1")]
     pub async fn find_by_payment_id_processor_merchant_id_attempt_id(
         conn: &DatabaseConnectionWithContext<'_>,
         payment_id: &common_utils::id_type::PaymentId,

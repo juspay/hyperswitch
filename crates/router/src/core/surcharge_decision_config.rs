@@ -50,7 +50,7 @@ pub async fn upsert_surcharge_decision_config(
         .get_account()
         .get_id()
         .get_payment_method_surcharge_routing_id();
-    let read_config_key = db.find_config_by_key(&key).await;
+    let read_config_key = db.find_config_by_key_optional(&key).await;
 
     euclid::frontend::ast::lowering::lower_program(program.clone())
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -59,7 +59,7 @@ pub async fn upsert_surcharge_decision_config(
         .attach_printable("The Request has an Invalid Comparison")?;
     let surcharge_cache_key = processor.get_account().get_id().get_surcharge_dsk_key();
     match read_config_key {
-        Ok(config) => {
+        Ok(Some(config)) => {
             let previous_record: SurchargeDecisionManagerRecord = config
                 .config
                 .parse_struct("SurchargeDecisionManagerRecord")
@@ -102,7 +102,7 @@ pub async fn upsert_surcharge_decision_config(
 
             Ok(service_api::ApplicationResponse::Json(new_algo))
         }
-        Err(e) if e.current_context().is_db_not_found() => {
+        Ok(None) => {
             let new_rec = SurchargeDecisionManagerRecord {
                 name: name
                     .get_required_value("name")
@@ -216,9 +216,11 @@ pub async fn retrieve_surcharge_decision_config(
         .get_id()
         .get_payment_method_surcharge_routing_id();
     let algo_config = db
-        .find_config_by_key(&algorithm_id)
+        .find_config_by_key_optional(&algorithm_id)
         .await
         .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
+        .attach_printable("Error fetching the surcharge conditional config from the DB")?
+        .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)
         .attach_printable("The surcharge conditional config was not found in the DB")?;
     let record: SurchargeDecisionManagerRecord = algo_config
         .config

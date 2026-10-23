@@ -152,6 +152,8 @@ export const connectorDetails = {
           status: "succeeded",
           payment_method: "card",
           attempt_count: 1,
+          // Placeholder value: asserts the field is a non-empty string in the response (actual TLID is dynamic per transaction)
+          network_transaction_link_id: "dynamic_tlid",
         },
       },
     },
@@ -181,6 +183,8 @@ export const connectorDetails = {
           payment_method: "card",
           attempt_count: 1,
           // payment_method_data removed - Nuvei returns dynamic card metadata (issuer, country) that varies per transaction
+          // Placeholder value: asserts the field is a non-empty string in the response (actual TLID is dynamic per transaction)
+          network_transaction_link_id: "dynamic_tlid",
         },
       },
     },
@@ -250,6 +254,8 @@ export const connectorDetails = {
           amount: 11500,
           amount_capturable: 0,
           amount_received: 11500,
+          // Placeholder value: asserts the field is a non-empty string in the response (actual TLID is dynamic per transaction)
+          network_transaction_link_id: "dynamic_tlid",
         },
       },
     },
@@ -374,6 +380,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -404,6 +411,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -424,7 +432,7 @@ export const connectorDetails = {
       Configs: {
         TRIGGER_SKIP: true,
       },
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -437,6 +445,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -456,6 +465,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -475,6 +485,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -494,6 +505,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -512,6 +524,7 @@ export const connectorDetails = {
     },
     MITAutoCapture: {
       Request: {
+        amount: 6000,
         amount_to_capture: 6000,
       },
       Response: {
@@ -523,6 +536,7 @@ export const connectorDetails = {
     },
     MITAutoCaptureWithCustomerAcceptance: {
       Request: {
+        amount: 6000,
         amount_to_capture: 6000,
         customer_acceptance: {
           acceptance_type: "offline",
@@ -673,6 +687,7 @@ export const connectorDetails = {
     // Payment method ID mandate scenarios
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -693,6 +708,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -713,6 +729,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetails,
@@ -733,6 +750,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetails,

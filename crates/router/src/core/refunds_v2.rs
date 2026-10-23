@@ -12,6 +12,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{Connector as ConnectorTrait, ConnectorIntegration},
     connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
+    errors::not_supported_message,
     integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject},
 };
 use router_env::{instrument, tracing};
@@ -50,7 +51,7 @@ pub async fn refund_create_core(
         .find_payment_intent_by_id(
             &req.payment_id,
             platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -89,7 +90,7 @@ pub async fn refund_create_core(
         .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
             platform.get_processor().get_key_store(),
             &req.payment_id,
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
@@ -603,9 +604,7 @@ impl ForeignFrom<(&errors::ConnectorError, enums::MerchantStorageScheme)>
             errors::ConnectorError::NotSupported { message, connector } => {
                 Some(diesel_refund::RefundUpdate::ErrorUpdate {
                     refund_status: Some(enums::RefundStatus::Failure),
-                    refund_error_message: Some(format!(
-                        "{message} is not supported by {connector}"
-                    )),
+                    refund_error_message: Some(not_supported_message(message, connector)),
                     refund_error_code: Some("NOT_SUPPORTED".to_string()),
                     updated_by: storage_scheme.to_string(),
                     connector_refund_id: None,
@@ -632,7 +631,11 @@ where
         .map(|resp_data| resp_data.connector_refund_id.clone())
         .ok();
 
-    request.check_integrity(request, connector_refund_id.to_owned())
+    request.check_integrity(
+        request,
+        connector_refund_id.to_owned(),
+        common_types::primitive_wrappers::AcceptAmountMismatchBool::default(),
+    )
 }
 
 // ********************************************** REFUND UPDATE **********************************************
@@ -719,7 +722,7 @@ pub async fn refund_retrieve_core(
         .find_payment_intent_by_id(
             payment_id,
             processor.get_key_store(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -734,7 +737,7 @@ pub async fn refund_retrieve_core(
         .find_payment_attempt_by_id(
             processor.get_key_store(),
             &active_attempt_id,
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;

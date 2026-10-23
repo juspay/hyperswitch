@@ -487,6 +487,7 @@ pub trait ConnectorActions: Connector {
                 additional_payout_method_data: None,
                 source_bank_data: None,
                 billing_descriptor: None,
+                external_vault_pmd: None,
             },
             payment_info,
         )
@@ -562,6 +563,7 @@ pub trait ConnectorActions: Connector {
             payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
+            accept_amount_mismatch: None,
             additional_merchant_data: None,
             header_payload: None,
             connector_mandate_request_reference_id: None,
@@ -1046,6 +1048,7 @@ impl Default for PaymentAuthorizeType {
             installment_details: None,
             connector_intent_metadata: None,
             business_country: None,
+            enable_avs_check: None,
         };
         Self(data)
     }

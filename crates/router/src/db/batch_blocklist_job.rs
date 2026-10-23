@@ -26,6 +26,60 @@ fn matches_job_scope(
         })
 }
 
+fn apply_profile_clone_target_update(
+    job: &mut storage::BatchBlocklistJob,
+    profile_id: &common_utils::id_type::ProfileId,
+    update: storage::BlocklistProfileCloneTargetUpdate,
+) -> Result<(), errors::StorageError> {
+    let mut metadata = job.metadata.clone().ok_or_else(|| {
+        errors::StorageError::InvalidDataFormat("profile clone job is missing metadata".to_string())
+    })?;
+
+    let target = metadata
+        .targets
+        .iter_mut()
+        .find(|target| target.profile_id == *profile_id)
+        .ok_or_else(|| {
+            errors::StorageError::ValueNotFound(format!(
+                "Profile clone target {profile_id:?} not found in job {}",
+                job.id
+            ))
+        })?;
+
+    target.status = update.status;
+    target.processed_rows = update.processed_rows;
+    target.error_message = update.error_message;
+
+    let all_terminal = metadata.targets.iter().all(|target| {
+        matches!(
+            target.status,
+            common_enums::BatchBlocklistJobStatus::Completed
+                | common_enums::BatchBlocklistJobStatus::Failed
+        )
+    });
+    let any_failed = metadata
+        .targets
+        .iter()
+        .any(|target| target.status == common_enums::BatchBlocklistJobStatus::Failed);
+    let any_started = metadata
+        .targets
+        .iter()
+        .any(|target| target.status != common_enums::BatchBlocklistJobStatus::Initiated);
+
+    job.status = match (all_terminal, any_failed, any_started) {
+        (true, true, _) => common_enums::BatchBlocklistJobStatus::Failed,
+        (true, false, _) => common_enums::BatchBlocklistJobStatus::Completed,
+        (false, _, true) => common_enums::BatchBlocklistJobStatus::Processing,
+        (false, _, false) => common_enums::BatchBlocklistJobStatus::Initiated,
+    };
+    job.error_message = (all_terminal && any_failed)
+        .then(|| "One or more profile clone processes failed".to_string());
+    job.metadata = Some(metadata);
+    job.updated_at = common_utils::date_time::now();
+
+    Ok(())
+}
+
 #[async_trait::async_trait]
 pub trait BatchBlocklistJobInterface {
     async fn insert_batch_blocklist_job(
@@ -54,6 +108,14 @@ pub trait BatchBlocklistJobInterface {
         id: &str,
         merchant_id: &str,
         update: storage::BatchBlocklistJobUpdate,
+    ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError>;
+
+    async fn update_profile_clone_job_target(
+        &self,
+        id: &str,
+        merchant_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
+        update: storage::BlocklistProfileCloneTargetUpdate,
     ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError>;
 
     async fn count_batch_blocklist_jobs_by_merchant_id(
@@ -153,6 +215,42 @@ impl BatchBlocklistJobInterface for Store {
     }
 
     #[instrument(skip_all)]
+    async fn update_profile_clone_job_target(
+        &self,
+        id: &str,
+        merchant_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
+        update: storage::BlocklistProfileCloneTargetUpdate,
+    ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        let mut job = storage::BatchBlocklistJob::find_by_id_merchant_id(&conn, id, merchant_id)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+        apply_profile_clone_target_update(&mut job, profile_id, update)
+            .map_err(|error| report!(error))?;
+
+        storage::BatchBlocklistJob::update_by_id_merchant_id(
+            &conn,
+            id,
+            merchant_id,
+            storage::BatchBlocklistJobUpdate {
+                status: Some(job.status),
+                succeeded_rows: None,
+                failed_rows: None,
+                total_rows: None,
+                file_key: None,
+                error_message: job.error_message,
+                expires_at: None,
+                metadata: job.metadata,
+                updated_at: job.updated_at,
+            },
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
     async fn count_batch_blocklist_jobs_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -220,6 +318,7 @@ impl BatchBlocklistJobInterface for MockDb {
             file_key: None,
             error_message: None,
             expires_at: None,
+            metadata: new.metadata,
         };
         jobs.push(job.clone());
         Ok(job)
@@ -303,7 +402,30 @@ impl BatchBlocklistJobInterface for MockDb {
         if let Some(expires_at) = update.expires_at {
             job.expires_at = Some(expires_at);
         }
+        if let Some(metadata) = update.metadata {
+            job.metadata = Some(metadata);
+        }
         job.updated_at = update.updated_at;
+        Ok(job.clone())
+    }
+
+    async fn update_profile_clone_job_target(
+        &self,
+        id: &str,
+        merchant_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
+        update: storage::BlocklistProfileCloneTargetUpdate,
+    ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
+        let mut jobs = self.batch_blocklist_jobs.lock().await;
+        let job = jobs
+            .iter_mut()
+            .find(|job| job.id == id && job.merchant_id.get_string_repr() == merchant_id)
+            .ok_or_else(|| {
+                errors::StorageError::ValueNotFound(format!(
+                    "BatchBlocklistJob not found for id = {id} and merchant_id = {merchant_id}"
+                ))
+            })?;
+        apply_profile_clone_target_update(job, profile_id, update)?;
         Ok(job.clone())
     }
 
@@ -374,6 +496,18 @@ impl BatchBlocklistJobInterface for KafkaStore {
     ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
         self.diesel_store
             .update_batch_blocklist_job_by_id_merchant_id(id, merchant_id, update)
+            .await
+    }
+
+    async fn update_profile_clone_job_target(
+        &self,
+        id: &str,
+        merchant_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
+        update: storage::BlocklistProfileCloneTargetUpdate,
+    ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
+        self.diesel_store
+            .update_profile_clone_job_target(id, merchant_id, profile_id, update)
             .await
     }
 

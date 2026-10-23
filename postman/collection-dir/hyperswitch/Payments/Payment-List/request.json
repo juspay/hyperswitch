@@ -3,13 +3,18 @@
   "header": [
     {
       "key": "api-key",
-      "value": "snd_0b8e1deb82f241eca47617afb1398858"
+      "value": ""
     }
   ],
   "url": {
     "raw": "{{baseUrl}}/payments/list",
-    "host": ["{{baseUrl}}"],
-    "path": ["payments", "list"],
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      "list"
+    ],
     "query": [
       {
         "key": "customer_id",

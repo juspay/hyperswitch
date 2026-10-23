@@ -26,6 +26,9 @@ pub enum IncomingWebhookEvent {
     PaymentIntentCaptureFailure,
     PaymentIntentExpired,
     PaymentActionRequired,
+    /// Associated data about a payment shared by the connector out of band, typically after
+    /// the payment has reached a terminal state
+    PaymentAssociatedDataUpdate,
     EventNotSupported,
     SourceChargeable,
     SourceTransactionCreated,
@@ -43,6 +46,8 @@ pub enum IncomingWebhookEvent {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+    // Mandate created at the connector, waiting for the customer to approve it
+    MandateActionRequired,
     EndpointVerification,
     ExternalAuthenticationARes,
     FrmApproved,
@@ -129,6 +134,8 @@ impl IncomingWebhookEvent {
             35 => Self::PayoutExpired,
             #[cfg(feature = "payouts")]
             36 => Self::PayoutReversed,
+            // Associated data events
+            43 => Self::PaymentAssociatedDataUpdate,
             _ => Self::EventNotSupported,
         }
     }
@@ -145,6 +152,7 @@ pub enum WebhookFlow {
     ReturnResponse,
     BankTransfer,
     Mandate,
+    AssociatedDataUpdate,
     ExternalAuthentication,
     FraudCheck,
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -202,6 +210,9 @@ pub enum WebhookResponseTracker {
     PaymentMethod {
         payment_method_id: String,
         status: common_enums::PaymentMethodStatus,
+        /// Original setup payment associated with a connector-managed mandate.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        payment_id: Option<common_utils::id_type::PaymentId>,
     },
     NoEffect,
     Relay {
@@ -217,7 +228,8 @@ impl WebhookResponseTracker {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
             | Self::Dispute { payment_id, .. } => Some(payment_id.to_owned()),
-            Self::NoEffect | Self::Mandate { .. } | Self::PaymentMethod { .. } => None,
+            Self::PaymentMethod { payment_id, .. } => payment_id.clone(),
+            Self::NoEffect | Self::Mandate { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
             Self::Relay { .. } => None,
@@ -295,6 +307,8 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::MandateActive | IncomingWebhookEvent::MandateRevoked => {
                 Self::Mandate
             }
+            IncomingWebhookEvent::MandateActionRequired => Self::ReturnResponse,
+            IncomingWebhookEvent::PaymentAssociatedDataUpdate => Self::AssociatedDataUpdate,
             IncomingWebhookEvent::DisputeOpened
             | IncomingWebhookEvent::DisputeAccepted
             | IncomingWebhookEvent::DisputeExpired

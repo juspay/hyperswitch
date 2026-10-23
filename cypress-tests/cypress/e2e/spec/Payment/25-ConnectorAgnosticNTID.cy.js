@@ -214,7 +214,6 @@ describe("Connector Agnostic Tests", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           newData,
-          7000,
           true,
           "automatic",
           globalState
@@ -403,7 +402,6 @@ describe("Connector Agnostic Tests", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           newData,
-          7000,
           true,
           "automatic",
           globalState
@@ -580,7 +578,6 @@ describe("Connector Agnostic Tests", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          7000,
           true /* confirm */,
           "automatic",
           globalState,
@@ -754,7 +751,6 @@ describe("Connector Agnostic Tests", () => {
       cy.mitUsingPMId(
         fixtures.pmIdConfirmBody,
         data,
-        7000,
         true,
         "automatic",
         globalState,

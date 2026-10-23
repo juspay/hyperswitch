@@ -538,6 +538,110 @@ pub struct RefundListResponse {
     pub data: Vec<RefundResponse>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PlatformRefundListRequest {
+    /// The identifier for the connected (processor) merchant whose credentials processed the
+    /// refund. When omitted, refunds across all connected merchants under the platform are returned.
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    /// The identifier for the payment
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
+    /// The identifier for the refund
+    pub refund_id: Option<String>,
+    /// The identifier for business profile
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+    /// Limit on the number of objects to return
+    #[serde(default)]
+    pub limit: Option<common_utils::types::list::PageSize>,
+    /// The starting point within a list of objects
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc)
+    #[serde(flatten)]
+    pub time_range: Option<TimeRange>,
+    /// The start amount (inclusive) to filter refunds list by.
+    pub start_amount: Option<i64>,
+    /// The end amount (inclusive) to filter refunds list by.
+    pub end_amount: Option<i64>,
+    /// The comma separated list of connectors to filter refunds list
+    #[serde(deserialize_with = "crate::payments::parse_comma_separated", default)]
+    pub connector: Option<Vec<String>>,
+    /// The comma separated list of merchant connector ids to filter the refunds list for selected label
+    #[serde(deserialize_with = "crate::payments::parse_comma_separated", default)]
+    pub merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+    /// The comma separated list of currencies to filter refunds list
+    #[serde(deserialize_with = "crate::payments::parse_comma_separated", default)]
+    pub currency: Option<Vec<enums::Currency>>,
+    /// The comma separated list of refund statuses to filter refunds list
+    #[serde(deserialize_with = "crate::payments::parse_comma_separated", default)]
+    pub refund_status: Option<Vec<enums::RefundStatus>>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Serialize)]
+pub struct PlatformRefundListItem {
+    /// Unique identifier for the refund
+    pub refund_id: String,
+    /// The payment id against which the refund was initiated
+    pub payment_id: common_utils::id_type::PaymentId,
+    /// Identifier of the platform merchant. Equals the caller's merchant id.
+    pub merchant_id: common_utils::id_type::MerchantId,
+    /// Identifier of the connected merchant that owns this refund.
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    /// Identifier of the business profile under which this refund was created.
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+    /// The connector used for the refund
+    pub connector: String,
+    /// The merchant_connector_id of the processor through which this refund went through
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    /// A unique identifier for a refund provided by the connector
+    pub connector_refund_id: Option<String>,
+    /// Payment attempt id against which the refund is initiated
+    pub attempt_id: String,
+    /// The refund amount in lowest denomination of the currency
+    pub refund_amount: MinorUnit,
+    /// Total payment amount on which the refund was initiated
+    pub total_amount: MinorUnit,
+    /// The three-letter ISO currency code
+    pub currency: enums::Currency,
+    /// The status of the refund
+    pub refund_status: enums::RefundStatus,
+    /// Reason for the refund
+    pub refund_reason: Option<String>,
+    /// Description of the refund
+    pub description: Option<String>,
+    /// The timestamp at which refund was created
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    /// The timestamp at which refund was last modified
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Serialize)]
+pub struct PlatformRefundListResponse {
+    /// The number of refunds included in the current response
+    pub count: usize,
+    /// The total number of refunds matching the given constraints (ignores limit/offset)
+    pub total_count: i64,
+    /// The list of refund summaries across the platform's connected merchants
+    pub data: Vec<PlatformRefundListItem>,
+}
+
+/// Available filter values for a platform refunds list, aggregated across all of the
+/// platform's connected merchants.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Serialize)]
+pub struct PlatformRefundListFilters {
+    /// The map of available connector filters, where the key is the connector name and the value is a list of MerchantConnectorInfo instances
+    pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
+    /// The list of available currency filters
+    pub currency: Vec<enums::Currency>,
+    /// The list of available refund status filters
+    pub refund_status: Vec<enums::RefundStatus>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, ToSchema)]
 pub struct RefundListMetaData {
     /// The list of available connector filters

@@ -6,6 +6,13 @@
     params(
         ("dispute_id" = String, Path, description = "The identifier for dispute"),
         ("force_sync" = Option<bool>, Query, description = "Decider to enable or disable the connector call for dispute retrieve request"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "The dispute was retrieved successfully", body = DisputeResponse),
@@ -33,6 +40,13 @@ pub async fn retrieve_dispute() {}
         ("received_time.gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the dispute received time"),
         ("received_time.lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the dispute received time"),
         ("received_time.gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the dispute received time"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "The dispute list was retrieved successfully", body = Vec<DisputeResponse>),
@@ -50,7 +64,14 @@ pub async fn retrieve_disputes_list() {}
     post,
     path = "/disputes/accept/{dispute_id}",
     params(
-        ("dispute_id" = String, Path, description = "The identifier for dispute")
+        ("dispute_id" = String, Path, description = "The identifier for dispute"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "The dispute was accepted successfully", body = DisputeResponse),
@@ -76,6 +97,15 @@ pub async fn accept_dispute() {}
         (status = 200, description = "Evidence attached to dispute", body = CreateFileResponse),
         (status = 400, description = "Bad Request", body = GenericErrorResponseOpenApi),
     ),
+    params(
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
+    ),
     tag = "Disputes",
     operation_id = "Attach Evidence to Dispute",
     security(("api_key" = []), ("jwt_key" = []))
@@ -92,6 +122,15 @@ pub async fn attach_dispute_evidence() {}
         (status = 200, description = "The dispute evidence submitted successfully", body = DisputeResponse),
         (status = 404, description = "Dispute does not exist in our records", body = GenericErrorResponseOpenApi)
     ),
+    params(
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
+    ),
     tag = "Disputes",
     operation_id = "Submit Dispute Evidence",
     security(("api_key" = []), ("jwt_key" = []))
@@ -104,7 +143,14 @@ pub async fn submit_dispute_evidence() {}
     get,
     path = "/disputes/evidence/{dispute_id}",
     params(
-        ("dispute_id" = String, Path, description = "The identifier for dispute")
+        ("dispute_id" = String, Path, description = "The identifier for dispute"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "The dispute evidence was retrieved successfully", body = Vec<DisputeEvidenceBlock>),
@@ -126,6 +172,15 @@ pub async fn retrieve_dispute_evidence() {}
         (status = 200, description = "Evidence deleted from a dispute"),
         (status = 400, description = "Bad Request")
     ),
+    params(
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
+    ),
     tag = "Disputes",
     operation_id = "Delete Evidence attached to a Dispute",
     security(("api_key" = []), ("jwt_key" = []))
@@ -138,7 +193,14 @@ pub async fn delete_dispute_evidence() {}
     get,
     path = "/disputes/aggregate",
     params(
-        ("start_time" = String, Query, description = "The start time for the aggregate query")
+        ("start_time" = String, Query, description = "The start time for the aggregate query"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Disputes aggregate retrieved successfully", body = DisputesAggregateResponse),
@@ -155,7 +217,14 @@ pub async fn get_disputes_aggregate() {}
     get,
     path = "/disputes/profile/aggregate",
     params(
-        ("start_time" = String, Query, description = "The start time for the aggregate query")
+        ("start_time" = String, Query, description = "The start time for the aggregate query"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Disputes aggregate retrieved successfully", body = DisputesAggregateResponse),
@@ -182,6 +251,13 @@ pub async fn get_disputes_aggregate_profile() {}
         ("received_time.gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the dispute received time"),
         ("received_time.lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the dispute received time"),
         ("received_time.gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the dispute received time"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "The dispute list was retrieved successfully", body = Vec<DisputeResponse>),
@@ -201,6 +277,15 @@ pub async fn retrieve_disputes_list_profile() {}
     responses(
         (status = 200, description = "List of filters", body = DisputeListFilters),
     ),
+    params(
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
+    ),
     tag = "Disputes",
     operation_id = "List all filters for disputes",
     security(("api_key" = []), ("jwt_key" = []))
@@ -214,6 +299,15 @@ pub async fn get_disputes_filters() {}
     path = "/disputes/profile/filter",
     responses(
         (status = 200, description = "List of filters", body = DisputeListFilters),
+    ),
+    params(
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     tag = "Disputes",
     operation_id = "List all filters for disputes for the given Profiles",

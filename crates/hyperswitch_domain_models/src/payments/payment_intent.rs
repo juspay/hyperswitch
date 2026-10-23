@@ -35,7 +35,9 @@ use crate::address::Address;
 use crate::routing;
 use crate::{
     behaviour,
-    merchant_key_store::MerchantKeyStore,
+    platform::{
+        ProcessorKeyStore, ProcessorMerchantId, ProcessorStorageScheme, ProviderMerchantId,
+    },
     type_encryption::{crypto_operation, CryptoOperation},
 };
 #[cfg(feature = "v1")]
@@ -48,64 +50,84 @@ pub trait PaymentIntentInterface {
         &self,
         this: PaymentIntent,
         payment_intent: PaymentIntentUpdate,
-        merchant_key_store: &MerchantKeyStore,
-        storage_scheme: common_enums::MerchantStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     async fn insert_payment_intent(
         &self,
         new: PaymentIntent,
-        merchant_key_store: &MerchantKeyStore,
-        storage_scheme: common_enums::MerchantStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_intent_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
-        processor_merchant_id: &id_type::MerchantId,
-        merchant_key_store: &MerchantKeyStore,
-        storage_scheme: common_enums::MerchantStorageScheme,
+        processor_merchant_id: &ProcessorMerchantId,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<PaymentIntent, Self::Error>;
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_merchant_reference_id_profile_id(
         &self,
         merchant_reference_id: &id_type::PaymentReferenceId,
         profile_id: &id_type::ProfileId,
-        merchant_key_store: &MerchantKeyStore,
-        storage_scheme: &common_enums::MerchantStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: &ProcessorStorageScheme,
     ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
         &self,
         id: &id_type::GlobalPaymentId,
-        merchant_key_store: &MerchantKeyStore,
-        storage_scheme: common_enums::MerchantStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         filters: &PaymentIntentFetchConstraints,
-        merchant_key_store: &MerchantKeyStore,
-        storage_scheme: common_enums::MerchantStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, Self::Error>;
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn get_filtered_payment_intents_attempt_for_platform(
+        &self,
+        provider_merchant_id: &ProviderMerchantId,
+        filters: &PaymentIntentFetchConstraints,
+    ) -> error_stack::Result<
+        Vec<(
+            DieselPaymentIntent,
+            diesel_models::payment_attempt::PaymentAttempt,
+        )>,
+        Self::Error,
+    >;
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn get_payment_intents_attempt_count_for_platform(
+        &self,
+        provider_merchant_id: &ProviderMerchantId,
+        filters: &PaymentIntentFetchConstraints,
+    ) -> error_stack::Result<i64, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         time_range: &common_utils::types::TimeRange,
-        merchant_key_store: &MerchantKeyStore,
-        storage_scheme: common_enums::MerchantStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, Self::Error>;
 
     #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         constraints: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, Self::Error>;
@@ -113,19 +135,19 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         constraints: &PaymentIntentFetchConstraints,
-        merchant_key_store: &MerchantKeyStore,
-        storage_scheme: common_enums::MerchantStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, Self::Error>;
 
     #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        merchant_id: &id_type::MerchantId,
+        merchant_id: &ProcessorMerchantId,
         constraints: &PaymentIntentFetchConstraints,
-        merchant_key_store: &MerchantKeyStore,
-        storage_scheme: common_enums::MerchantStorageScheme,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<
         Vec<(
             PaymentIntent,
@@ -137,17 +159,17 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        merchant_id: &id_type::MerchantId,
+        merchant_id: &ProcessorMerchantId,
         constraints: &PaymentIntentFetchConstraints,
-        storage_scheme: common_enums::MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<Vec<Option<String>>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        processor_merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &ProcessorMerchantId,
         constraints: &PaymentIntentFetchConstraints,
-        storage_scheme: common_enums::MerchantStorageScheme,
+        storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<Vec<String>, Self::Error>;
 }
 
@@ -160,6 +182,21 @@ pub struct CustomerData {
     pub tax_registration_id: Option<Secret<String>>,
     pub customer_document_details: Option<CustomerDocumentDetails>,
     pub date_of_birth: Option<Secret<time::Date>>,
+}
+
+#[cfg(feature = "v2")]
+impl From<api_models::payments::CustomerDetails> for CustomerData {
+    fn from(customer: api_models::payments::CustomerDetails) -> Self {
+        Self {
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            phone_country_code: customer.phone_country_code,
+            tax_registration_id: customer.tax_registration_id,
+            customer_document_details: customer.document_details,
+            date_of_birth: customer.date_of_birth,
+        }
+    }
 }
 
 impl CustomerData {
@@ -226,6 +263,7 @@ pub struct PaymentIntentUpdateFields {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -279,6 +317,7 @@ pub struct PaymentIntentUpdateFields {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -514,6 +553,7 @@ pub struct PaymentIntentUpdateInternal {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub enable_avs_check: Option<bool>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -571,6 +611,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -623,6 +664,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -673,6 +715,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -723,6 +766,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -776,6 +820,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -819,6 +864,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     profile_acquirer_id,
                     external_surcharge_strategy,
                     external_surcharge_applicable,
+                    enable_avs_check,
                 } = *boxed_intent;
                 Ok(Self {
                     status: None,
@@ -871,6 +917,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     profile_acquirer_id,
                     external_surcharge_strategy,
                     external_surcharge_applicable,
+                    enable_avs_check,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
@@ -924,6 +971,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
             PaymentIntentUpdate::VoidUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -971,6 +1019,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
             PaymentIntentUpdate::AttemptGroupUpdate {
                 updated_by,
@@ -1021,6 +1070,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
             PaymentIntentUpdate::SplitPaymentStatusUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -1067,6 +1117,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                enable_avs_check: None,
             }),
         }
     }
@@ -1351,6 +1402,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -1410,6 +1462,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
             },
         }
     }
@@ -1521,6 +1574,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     external_surcharge_applicable: None,
                     is_account_funded_transaction: value.is_account_funded_transaction,
                     recipient_details: value.recipient_details.map(Encryption::from),
+                    enable_avs_check: value.enable_avs_check,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1716,6 +1770,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details,
+            enable_avs_check,
         } = value;
         Self {
             amount,
@@ -1777,6 +1832,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details: recipient_details.map(Encryption::from),
+            enable_avs_check,
         }
     }
 }
@@ -1836,6 +1892,7 @@ pub struct PaymentIntentListParams {
     pub card_discovery: Option<Vec<common_enums::CardDiscovery>>,
     pub merchant_order_reference_id: Option<String>,
     pub customer_email: Option<Email>,
+    pub processor_merchant_id: Option<Vec<id_type::MerchantId>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1898,6 +1955,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             card_discovery: None,
             merchant_order_reference_id: None,
             customer_email: None,
+            processor_merchant_id: None,
         }))
     }
 }
@@ -1990,6 +2048,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             card_discovery: None,
             merchant_order_reference_id: None,
             customer_email: None,
+            processor_merchant_id: None,
         }))
     }
 }
@@ -2053,6 +2112,69 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 card_discovery,
                 merchant_order_reference_id,
                 customer_email,
+                processor_merchant_id: None,
+            }))
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<api_models::payments::PlatformPaymentListConstraints> for PaymentIntentFetchConstraints {
+    fn from(value: api_models::payments::PlatformPaymentListConstraints) -> Self {
+        let api_models::payments::PlatformPaymentListConstraints {
+            payment_id,
+            profile_id,
+            processor_merchant_id,
+            customer_id,
+            limit,
+            offset,
+            time_range,
+            start_amount,
+            end_amount,
+            connector,
+            currency,
+            status,
+            payment_method,
+            payment_method_type,
+            authentication_type,
+            merchant_connector_id,
+            card_network,
+            card_discovery,
+            merchant_order_reference_id,
+            order,
+        } = value;
+        if let Some(payment_intent_id) = payment_id {
+            Self::Single { payment_intent_id }
+        } else {
+            Self::List(Box::new(PaymentIntentListParams {
+                offset,
+                starting_at: time_range.map(|time_range| time_range.start_time),
+                ending_at: time_range.and_then(|time_range| time_range.end_time),
+                amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some(
+                    api_models::payments::AmountFilter {
+                        start_amount,
+                        end_amount,
+                    },
+                ),
+                connector,
+                currency,
+                status,
+                payment_method,
+                payment_method_type,
+                authentication_type,
+                merchant_connector_id,
+                profile_id: profile_id.map(|profile_id| vec![profile_id]),
+                customer_id,
+                starting_after_id: None,
+                ending_before_id: None,
+                limit,
+                order: order.unwrap_or_default(),
+                card_network,
+                card_discovery,
+                merchant_order_reference_id,
+                customer_email: None,
+                processor_merchant_id: processor_merchant_id
+                    .map(|processor_merchant_id| vec![processor_merchant_id]),
             }))
         }
     }
@@ -2176,6 +2298,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details,
+            enable_avs_check,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -2292,6 +2415,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details: recipient_details.map(Encryption::from),
+            enable_avs_check,
         })
     }
     async fn convert_back(
@@ -2451,6 +2575,7 @@ impl behaviour::Conversion for PaymentIntent {
                 external_surcharge_applicable: storage_model.external_surcharge_applicable,
                 is_account_funded_transaction: storage_model.is_account_funded_transaction,
                 recipient_details: data.recipient_details,
+                enable_avs_check: storage_model.enable_avs_check,
             })
         }
         .await
@@ -2567,6 +2692,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable: self.external_surcharge_applicable,
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
+            enable_avs_check: self.enable_avs_check,
         })
     }
 }
@@ -2663,6 +2789,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable: self.external_surcharge_applicable,
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
+            enable_avs_check: self.enable_avs_check,
         })
     }
 
@@ -2785,6 +2912,7 @@ impl behaviour::Conversion for PaymentIntent {
                 external_surcharge_applicable: storage_model.external_surcharge_applicable,
                 is_account_funded_transaction: storage_model.is_account_funded_transaction,
                 recipient_details: data.recipient_details,
+                enable_avs_check: storage_model.enable_avs_check,
             })
         }
         .await
@@ -2879,6 +3007,7 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable: self.external_surcharge_applicable,
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
+            enable_avs_check: self.enable_avs_check,
         })
     }
 }

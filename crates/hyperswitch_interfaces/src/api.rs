@@ -522,6 +522,16 @@ pub trait ConnectorSpecifications {
         None
     }
 
+    /// Whether incoming webhooks must be received over a verified mTLS connection.
+    fn is_webhook_mtls_required(&self) -> bool {
+        false
+    }
+
+    /// Whether incoming webhook source IPs must be checked against allowed IP ranges.
+    fn is_webhook_ip_verification_required(&self) -> bool {
+        false
+    }
+
     /// About the connector
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         None
@@ -543,12 +553,22 @@ pub trait ConnectorSpecifications {
         ConnectorCustomerAction::NoAction
     }
 
-    /// Gateway specific metadata required for FRM requests.
+    /// Gateway specific metadata required for payment FRM requests.
     /// Connectors should override this method if they need to send connector specific metadata as part of the FRM request.
     #[cfg(feature = "frm")]
-    fn get_frm_metadata(
+    fn get_payment_frm_metadata(
         &self,
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
+        Ok(None)
+    }
+
+    /// Gateway specific metadata required for payout FRM requests.
+    /// Connectors should override this method if they need to send connector specific metadata as part of the FRM request.
+    #[cfg(feature = "frm")]
+    fn get_payout_frm_metadata(
+        &self,
+        _payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
     ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
         Ok(None)
     }
@@ -560,6 +580,13 @@ pub trait ConnectorSpecifications {
         _current_flow: Option<CurrentFlowInfo>,
     ) -> Option<bool> {
         Some(false)
+    }
+
+    /// Whether MIT payments may proceed when the selected connector mandate is inactive.
+    /// `None` keeps the existing permissive behaviour for connectors that have not opted in to
+    /// connector-mandate-status validation.
+    fn should_allow_mit_when_connector_mandate_status_is_inactive(&self) -> Option<bool> {
+        None
     }
 
     /// Whether SDK session token generation is enabled for this connector
@@ -938,7 +965,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         } else {
             Err(errors::ConnectorError::NotSupported {
                 message: capture_method.to_string(),
-                connector: self.id(),
+                connector: self.id().into(),
             }
             .into())
         }
@@ -1017,7 +1044,7 @@ fn get_connector_payment_method_type_info(
             .get(&payment_method)
             .ok_or_else(|| errors::ConnectorError::NotSupported {
                 message: payment_method.to_string(),
-                connector,
+                connector: connector.into(),
             })?;
 
     payment_method_type
@@ -1025,7 +1052,7 @@ fn get_connector_payment_method_type_info(
             payment_method_details.get(&pmt).cloned().ok_or_else(|| {
                 errors::ConnectorError::NotSupported {
                     message: format!("{payment_method} {pmt}"),
-                    connector,
+                    connector: connector.into(),
                 }
                 .into()
             })

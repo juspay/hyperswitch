@@ -13,7 +13,7 @@ use utoipa::ToSchema;
     ToSchema,
     Hash,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum MerchantProductType {
@@ -39,7 +39,7 @@ pub enum MerchantProductType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantAccountType {
@@ -47,6 +47,32 @@ pub enum MerchantAccountType {
     Standard,
     Platform,
     Connected,
+}
+
+/// Which `X-Integration-Type` header values a merchant may send, from Superposition
+/// (`system.payment_integration_type`). Defaults to `client`: the server shape is opt-in.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum MerchantIntegrationType {
+    /// The default: the header must be `client` or absent.
+    #[default]
+    Client,
+    /// The header must be `server`.
+    Server,
+    /// Any header value is accepted.
+    ClientAndServer,
 }
 
 #[derive(
@@ -62,7 +88,7 @@ pub enum MerchantAccountType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum OrganizationType {
@@ -84,7 +110,7 @@ pub enum OrganizationType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantAccountRequestType {

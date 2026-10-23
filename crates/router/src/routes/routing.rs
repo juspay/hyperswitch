@@ -878,6 +878,7 @@ pub async fn upsert_decision_manager_config(
                     .get_processor()
                     .clone()
                     .get_key_store()
+                    .inner()
                     .clone(),
                 update_decision,
                 auth.profile,
@@ -969,6 +970,7 @@ pub async fn retrieve_decision_manager_config(
                     .get_processor()
                     .clone()
                     .get_key_store()
+                    .inner()
                     .clone(),
                 auth.profile,
             )
@@ -1767,26 +1769,6 @@ pub async fn migrate_routing_rules(
             let res = Box::pin(routing::migrate_rules_for_profiles(state, payload)).await?;
             Ok(services::ApplicationResponse::Json(res))
         },
-        &auth::AdminApiAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[instrument(skip_all, fields(flow = ?Flow::DecisionEngineDiffCounterReset))]
-pub async fn reset_decision_engine_diff_counter(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    path: web::Path<common_utils::id_type::ProfileId>,
-) -> impl Responder {
-    let flow = Flow::DecisionEngineDiffCounterReset;
-    let profile_id = path.into_inner();
-    Box::pin(oss_api::server_wrap(
-        flow,
-        state,
-        &req,
-        profile_id.clone(),
-        |state, _, profile_id, _| routing::reset_decision_engine_diff_counter(state, profile_id),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
