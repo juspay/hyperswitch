@@ -10933,13 +10933,9 @@ impl ForeignFrom<AdditionalCardInfo> for payments_grpc::AdditionalCardInfo {
 mod ucs_embedded_error_tests {
     #[cfg(feature = "payouts")]
     use common_enums::PayoutStatus;
-    use hyperswitch_domain_models::{
-        router_response_types::SurchargeCalculationResponseData,
-        router_types::{ErrorResponse, PayoutsResponseData},
-    };
-    use hyperswitch_interfaces::transforms::ForeignTryFrom;
+    use hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData;
 
-    use super::payments_grpc;
+    use super::{payments_grpc, ErrorResponse, ForeignTryFrom, PayoutsResponseData};
 
     fn connector_error() -> payments_grpc::ErrorInfo {
         payments_grpc::ErrorInfo {
