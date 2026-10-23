@@ -10585,12 +10585,14 @@ impl MultiCurrencyProcessingData {
         })
     }
 
-    /// Validate cumulative capture MCP amounts before inserting the current capture.
+    /// Validate the capture MCP currency against the payment's settlement currency.
+    /// Multiple captures are not yet supported for MCP, so cumulative MCP amount
+    /// validation is deferred until that support is added.
     pub(crate) fn validate_capture_settlement(
         connector: &str,
         payment_feature_metadata: Option<&api_models::payments::FeatureMetadata>,
         current_capture_mcp: Option<&api_models::payments::MultiCurrencyProcessingAmountData>,
-        previous_captures: &[diesel_models::capture::Capture],
+        _previous_captures: &[diesel_models::capture::Capture],
     ) -> RouterResult<()> {
         let payment_mcp = payment_feature_metadata
             .and_then(|metadata| metadata.multi_currency_processing.as_ref());
@@ -10607,34 +10609,10 @@ impl MultiCurrencyProcessingData {
                     .attach_printable("Missing resolved multi-currency processing for capture"))
             }
             (true, Some(payment_mcp), Some(current_capture_mcp)) => {
-                // Started captures reserve settlement money until their outcome is known.
-                // For the first capture, empty history leaves the full payment MCP amount available.
-                let remaining_mcp_amount = previous_captures
-                    .iter()
-                    .filter(|capture| capture.status != enums::CaptureStatus::Failed)
-                    .try_fold(
-                        payment_mcp.amount.get_amount_as_i64(),
-                        |remaining_mcp_amount, capture| {
-                            let previous_capture_mcp =
-                                Self::get_previous_capture(capture, payment_mcp.currency)?;
-
-                            remaining_mcp_amount
-                                .checked_sub(previous_capture_mcp.amount.get_amount_as_i64())
-                                .ok_or_else(|| {
-                                    logger::error!(
-                                        remaining_mcp_amount,
-                                        previous_capture_mcp_amount = previous_capture_mcp.amount.get_amount_as_i64(),
-                                        "Integer overflow while subtracting a previous capture MCP amount"
-                                    );
-                                    report!(errors::ApiErrorResponse::InternalServerError)
-                                        .attach_printable("Integer overflow while calculating remaining capture MCP amount")
-                                })
-                        },
-                    )?;
-
-                if current_capture_mcp.amount.get_amount_as_i64() > remaining_mcp_amount {
+                if current_capture_mcp.currency != payment_mcp.currency {
                     Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "Cumulative multi-currency processing settlement captures must not exceed the authorized settlement amount".to_string(),
+                        message: "multi-currency processing settlement currency must match the payment's settlement currency"
+                            .to_string(),
                     }))
                 } else {
                     Ok(())
