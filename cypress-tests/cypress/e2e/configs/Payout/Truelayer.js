@@ -17,13 +17,6 @@ const passthrough_data = {
   token_type: "open_banking_uk",
 };
 
-// Passthrough token with token_type `open_banking` (bank payout rail), as
-// opposed to `open_banking_uk` (bank_redirect rail) above. Mapped to the UCS
-// OPEN_BANKING payout method by PR #14535. The UUID pair below is only a
-// placeholder shaping the payout body: the closed-loop passthrough tests in
-// 00010-ClosedLoopPayout.cy.js overwrite them at runtime with the
-// sender_payment_instrument_id / connector_customer_id of a live truelayer
-// payment (stashed in globalState).
 const passthrough_open_banking_data = {
   psp_token: "0f03fd53-c3c9-5a84-a406-1082bfd65c7a",
   psp_customer_id: "a29d2d16-15e2-4b66-8646-bc29e206210a",
@@ -168,9 +161,6 @@ export const connectorDetails = {
           },
         },
       },
-      // Closed-loop passthrough payout on the `open_banking` (bank) rail with
-      // billing_descriptor forwarded to UCS (PR #14535). confirm +
-      // auto_fulfill in a single create call.
       PassthroughBankPayout: {
         Request: {
           amount: 10,
@@ -196,10 +186,6 @@ export const connectorDetails = {
           },
         },
       },
-      // TrueLayer mandates billing_descriptor.reference for payouts; without
-      // it the fulfill leg fails with IR_04 (PR #14535 forwards the field to
-      // UCS, so its absence is what now surfaces this error instead of the
-      // earlier encode failures).
       PassthroughBankPayoutWithoutBillingDescriptor: {
         Request: {
           amount: 10,

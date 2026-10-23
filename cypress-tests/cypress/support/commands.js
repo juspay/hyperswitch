@@ -1944,9 +1944,6 @@ Cypress.Commands.add(
     const merchantId = globalState.get("merchantId");
     const connector_id = globalState.get("connectorId");
     const connectorAuthFilePath = globalState.get("connectorAuthFilePath");
-    // MCA create is authenticated with the merchant's own API key (same as
-    // createConnectorCallTest / createPayoutConnectorCallTest) - the admin
-    // key is rejected with IR_01 on /account/{id}/connectors routes.
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
     const profile_id = globalState.get(`${profilePrefix}Id`);
@@ -5541,8 +5538,6 @@ Cypress.Commands.add(
       "api-key": globalState.get("apiKey"),
     };
 
-    // Statuses that can still transition to `succeeded` on a subsequent
-    // force-sync; anything else is terminal for this poll loop.
     const IN_FLIGHT_STATUSES = ["processing", "requires_customer_action"];
 
     const pollUntilSucceeded = (attemptsLeft) => {

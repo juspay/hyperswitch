@@ -1819,19 +1819,6 @@ function bankRedirectRedirection(
         });
     };
 
-    // The TrueLayer sandbox consent page has two variants: the provider
-    // selection page (clicking a visible "Go to bank" CTA reveals the
-    // mock-provider link) and the QR-code page (the mock-provider link is
-    // directly visible, with no "Go to bank" button). The page can render
-    // hidden duplicate CTAs (skeletons / responsive variants), and
-    // cy.contains() would match the hidden one and never pass the visible
-    // assertion - so every CTA lookup below filters for rendered boxes
-    // (getClientRects, not jQuery's :visible which disagrees with the
-    // rendered state of these React Aria buttons) and runs inside a
-    // retrying .should(). The dash in the mock-provider link copy
-    // is matched permissively: truelayer renders it with a typographic
-    // dash (and non-breaking spaces) on some variants, which a plain "-"
-    // pattern never matches.
     const findNavCta = ($body, pattern) =>
       $body
         .find(actionSelector)
@@ -1846,8 +1833,6 @@ function bankRedirectRedirection(
     const mockUkRedirectPattern =
       /open mock uk payments.{0,5}redirect flow on this device/i;
 
-    // Step 1: wait until either the "Go to bank" CTA or the mock-provider
-    // link is visible, then click "Go to bank" if the page offers it.
     cy.get("body", { timeout: CONSTANTS.TIMEOUT })
       .should(($body) => {
         const goToBank = findNavCta($body, /go to bank/i);
@@ -1865,8 +1850,6 @@ function bankRedirectRedirection(
         }
       });
 
-    // Step 2: after the optional "Go to bank" step, the mock-provider link
-    // must become visible on both variants.
     cy.get("body", { timeout: CONSTANTS.TIMEOUT })
       .should(($body) => {
         const mockUk = findNavCta($body, mockUkRedirectPattern);
@@ -3711,11 +3694,6 @@ function threeDsRedirection(
             });
           break;
         case "adyen":
-          // Suppress uncaught exceptions from Adyen's own page: their test
-          // 3DS2 page telemetry (palauthentication .../client/v1/logs)
-          // currently returns 401 and surfaces as unhandled FetchError
-          // rejections. Global handlers don't apply inside secondary
-          // origins, so this must be registered here.
           Cypress.on("uncaught:exception", (err) => {
             if (
               err.message.includes("Fetch to") ||
@@ -3727,10 +3705,6 @@ function threeDsRedirection(
             return true;
           });
 
-          // Adyen's 3DS2 page may render multiple iframes (e.g. hidden
-          // telemetry frames); retry until some iframe contains the
-          // password challenge input, then drive that iframe instead of
-          // assuming the first one.
           cy.get("iframe", { timeout: constants.TIMEOUT })
             .should(($iframes) => {
               const hasChallengeIframe = $iframes
