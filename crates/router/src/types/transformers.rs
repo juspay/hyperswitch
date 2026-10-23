@@ -313,6 +313,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
         match payment_method_type {
             api_enums::PaymentMethodType::AmazonPay
             | api_enums::PaymentMethodType::Paysera
+            | api_enums::PaymentMethodType::Esewa
             | api_enums::PaymentMethodType::Skrill
             | api_enums::PaymentMethodType::ApplePay
             | api_enums::PaymentMethodType::GooglePay

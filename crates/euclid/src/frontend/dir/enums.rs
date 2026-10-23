@@ -83,6 +83,7 @@ pub enum WalletType {
     Skrill,
     Neteller,
     Paysera,
+    Esewa,
     ApplePay,
     Paypal,
     AliPay,

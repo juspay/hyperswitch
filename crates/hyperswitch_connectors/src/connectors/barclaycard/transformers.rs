@@ -2020,6 +2020,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::Paysera(_)
+                | WalletData::Esewa(_)
                 | WalletData::Skrill(_)
                 | WalletData::Neteller(_)
                 | WalletData::BluecodeRedirect {}

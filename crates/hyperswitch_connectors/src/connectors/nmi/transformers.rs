@@ -806,6 +806,7 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
+                | WalletData::Esewa(_)
                 | WalletData::Skrill(_)
                 | WalletData::Neteller(_)
                 | WalletData::BluecodeRedirect {}

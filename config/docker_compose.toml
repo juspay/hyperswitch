@@ -291,6 +291,7 @@ elavon.base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
 # `elavon` entry above, which is Elavon Converge (an XML API).
 elavon_pg.base_url = "https://api.sandbox.elavonpayments.com"
 envoy.base_url = "https://www.envoytx.com/MerchantAPI.asmx"
+esewa.base_url = "https://rc-epay.esewa.com.np/"
 etisalat.base_url = "https://demo-ipg.ctdev.comtrust.ae:2443"
 facilitapay.base_url = "https://sandbox-api.facilitapay.com/api/v1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
@@ -1169,6 +1170,9 @@ oxxo = { currency = "MXN" }
 
 [pm_filters.coingate]
 crypto_currency = { country = "AL, AD, AT, BE, BA, BG, HR, CZ, DK, EE, FI, FR, DE, GR, HU, IS, IE, IT, LV, LT, LU, MT, MD, NL, NO, PL, PT, RO, RS, SK, SI, ES, SE, CH, UA, GB, AR, BR, CL, CO, CR, DO, SV, GD, MX, PE, LC, AU, NZ, CY, HK, IN, IL, JP, KR, QA, SA, SG, EG", currency = "EUR, USD, GBP" }
+
+[pm_filters.esewa]
+esewa = { country = "NP", currency = "NPR" }
 
 [pm_filters.paystack]
 eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }

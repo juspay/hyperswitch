@@ -393,6 +393,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 | WalletDataPaymentMethod::SwishQr(_)
                 | WalletDataPaymentMethod::RevolutPay(_)
                 | WalletDataPaymentMethod::Paysera(_)
+                | WalletDataPaymentMethod::Esewa(_)
                 | WalletDataPaymentMethod::Skrill(_)
                 | WalletDataPaymentMethod::Neteller(_)
                 | WalletDataPaymentMethod::Mifinity(_) => {

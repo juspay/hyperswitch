@@ -948,6 +948,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             enums::PaymentMethodType::GooglePay => Ok(Self::Card),
             enums::PaymentMethodType::Boleto
             | enums::PaymentMethodType::Paysera
+            | enums::PaymentMethodType::Esewa
             | enums::PaymentMethodType::Skrill
             | enums::PaymentMethodType::Neteller
             | enums::PaymentMethodType::CardRedirect
@@ -1361,6 +1362,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::AliPayQr(_)
         | WalletData::BluecodeRedirect {}
         | WalletData::Paysera(_)
+        | WalletData::Esewa(_)
         | WalletData::Skrill(_)
         | WalletData::Neteller(_)
         | WalletData::AmazonPay(_)
@@ -1905,6 +1907,7 @@ impl
             ),
             WalletData::AliPayQr(_)
             | WalletData::Paysera(_)
+            | WalletData::Esewa(_)
             | WalletData::BluecodeRedirect {}
             | WalletData::Skrill(_)
             | WalletData::Neteller(_)

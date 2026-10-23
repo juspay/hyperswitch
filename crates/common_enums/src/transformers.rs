@@ -1807,6 +1807,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Alma => Self::PayLater,
             PaymentMethodType::AmazonPay => Self::Wallet,
             PaymentMethodType::Paysera => Self::Wallet,
+            PaymentMethodType::Esewa => Self::Wallet,
             PaymentMethodType::Skrill => Self::Wallet,
             PaymentMethodType::Neteller => Self::Wallet,
             PaymentMethodType::ApplePay => Self::Wallet,
