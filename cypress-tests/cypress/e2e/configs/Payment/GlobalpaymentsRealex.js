@@ -254,29 +254,9 @@ export const connectorDetails = {
         },
       },
     },
-    // RealEx's own standard "always declined" test PAN — confirmed live
-    // (error_code "101", "[ test system ] Declined").
-    DeclineCardPayment: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: declinedCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code: "101",
-          error_message: "[ test system ] Declined",
-        },
-      },
-    },
-    // 23-Variations.cy.js's own fail-payment scenario — same decline PAN
-    // and verified result as DeclineCardPayment above, just under the key
-    // that spec reads.
+    // 23-Variations.cy.js's own fail-payment scenario — RealEx's own
+    // standard "always declined" test PAN, confirmed live (error_code "101",
+    // "[ test system ] Declined").
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
