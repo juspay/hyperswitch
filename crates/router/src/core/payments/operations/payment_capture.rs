@@ -163,8 +163,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            // The route holds the payment lock while loading and reserving captures.
-            // Started captures reserve settlement money; validate before inserting this one.
+            // The route holds the payment lock while loading captures.
+            // Validate cumulative successful capture amounts before inserting this one.
             MultiCurrencyProcessingData::validate_capture_settlement(
                 capture_connector,
                 payment_feature_metadata.as_ref(),

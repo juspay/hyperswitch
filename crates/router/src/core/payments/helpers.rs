@@ -10583,7 +10583,7 @@ mod connector_response_card_merge_tests {
 pub(crate) struct MultiCurrencyProcessingData;
 
 impl MultiCurrencyProcessingData {
-    pub(crate) fn is_supported(connector: &str) -> RouterResult<bool> {
+    pub(crate) fn is_mcp_supported(connector: &str) -> RouterResult<bool> {
         Ok(api::ConnectorData::convert_connector(connector)?
             .is_multi_currency_processing_supported())
     }
@@ -10598,7 +10598,7 @@ impl MultiCurrencyProcessingData {
             .and_then(|metadata| metadata.multi_currency_processing.as_ref());
 
         match (
-            Self::is_supported(connector)?,
+            Self::is_mcp_supported(connector)?,
             payment_mcp,
             requested_operation_mcp,
         ) {
@@ -10637,7 +10637,7 @@ impl MultiCurrencyProcessingData {
     }
 
     /// Read and validate MCP data from a previous capture's stored feature metadata.
-    /// The caller filters out failed captures before calling this helper.
+    /// The caller includes only successful captures before calling this helper.
     fn get_previous_capture(
         capture: &diesel_models::capture::Capture,
         payment_mcp_currency: enums::Currency,
@@ -10670,7 +10670,7 @@ impl MultiCurrencyProcessingData {
     }
 
     /// Read and resolve MCP data from a previous refund's stored feature metadata.
-    /// The caller filters out failed refunds before calling this helper.
+    /// The caller includes only successful refunds before calling this helper.
     fn get_previous_mcp(
         connector: &str,
         payment_feature_metadata: Option<&api_models::payments::FeatureMetadata>,
@@ -10691,20 +10691,18 @@ impl MultiCurrencyProcessingData {
         })
     }
 
-    /// Validate the capture MCP currency against the payment's settlement currency.
-    /// Multiple captures are not yet supported for MCP, so cumulative MCP amount
-    /// validation is deferred until that support is added.
+    /// Validate capture MCP currency and cumulative amounts before inserting the current capture.
     pub(crate) fn validate_capture_settlement(
         connector: &str,
         payment_feature_metadata: Option<&api_models::payments::FeatureMetadata>,
         current_capture_mcp: Option<&api_models::payments::MultiCurrencyProcessingAmountData>,
-        _previous_captures: &[diesel_models::capture::Capture],
+        previous_captures: &[diesel_models::capture::Capture],
     ) -> RouterResult<()> {
         let payment_mcp = payment_feature_metadata
             .and_then(|metadata| metadata.multi_currency_processing.as_ref());
 
         match (
-            Self::is_supported(connector)?,
+            Self::is_mcp_supported(connector)?,
             payment_mcp,
             current_capture_mcp,
         ) {
@@ -10715,10 +10713,31 @@ impl MultiCurrencyProcessingData {
                     .attach_printable("Missing resolved multi-currency processing for capture"))
             }
             (true, Some(payment_mcp), Some(current_capture_mcp)) => {
+                // For the first capture, empty history leaves the full payment MCP amount available.
+                let remaining_mcp_amount = previous_captures
+                    .iter()
+                    .filter(|capture| capture.status.is_success())
+                    .try_fold(
+                        payment_mcp.amount.get_amount_as_i64(),
+                        |remaining_mcp_amount, capture| {
+                            let previous_capture_mcp =
+                                Self::get_previous_capture(capture, payment_mcp.currency)?;
+
+                            Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
+                                remaining_mcp_amount
+                                    - previous_capture_mcp.amount.get_amount_as_i64(),
+                            )
+                        },
+                    )?;
+
                 if current_capture_mcp.currency != payment_mcp.currency {
                     Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                         message: "multi-currency processing settlement currency must match the payment's settlement currency"
                             .to_string(),
+                    }))
+                } else if current_capture_mcp.amount.get_amount_as_i64() > remaining_mcp_amount {
+                    Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Cumulative multi-currency processing settlement captures must not exceed the authorized MCP amount".to_string(),
                     }))
                 } else {
                     Ok(())
@@ -10748,10 +10767,7 @@ impl MultiCurrencyProcessingData {
                 // For the first refund, empty history leaves the full payment MCP amount available.
                 let remaining_mcp_amount = all_refunds
                     .iter()
-                    .filter(|refund| {
-                        refund.refund_status != enums::RefundStatus::Failure
-                            && refund.refund_status != enums::RefundStatus::TransactionFailure
-                    })
+                    .filter(|refund| refund.refund_status.is_success())
                     .try_fold(
                         payment_mcp.amount.get_amount_as_i64(),
                         |remaining_mcp_amount, refund| {
@@ -10761,24 +10777,17 @@ impl MultiCurrencyProcessingData {
                                 refund,
                             )?;
 
-                            remaining_mcp_amount
-                                .checked_sub(previous_refund_mcp.amount.get_amount_as_i64())
-                                .ok_or_else(|| {
-                                    logger::error!(
-                                        remaining_mcp_amount,
-                                        previous_refund_mcp_amount = previous_refund_mcp.amount.get_amount_as_i64(),
-                                        "Integer overflow while subtracting a previous refund MCP amount"
-                                    );
-                                    report!(errors::ApiErrorResponse::InternalServerError)
-                                        .attach_printable("Integer overflow while calculating remaining refund MCP amount")
-                                })
+                            Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
+                                remaining_mcp_amount
+                                    - previous_refund_mcp.amount.get_amount_as_i64(),
+                            )
                         },
                     )?;
 
                 if current_refund_mcp.amount.get_amount_as_i64() > remaining_mcp_amount {
                     Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                         message:
-                            "Cumulative multi-currency processing settlement refunds must not exceed the authorized settlement amount"
+                            "Cumulative multi-currency processing settlement refunds must not exceed the authorized MCP amount"
                                 .to_string(),
                     }))
                 } else {
