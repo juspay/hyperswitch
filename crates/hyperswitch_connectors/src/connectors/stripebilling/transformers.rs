@@ -422,12 +422,14 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
                 .object
                 .customer_address
                 .map(api_models::payments::Address::from),
+            customer_details: None,
             retry_count: Some(item.data.object.attempt_count),
             next_billing_at,
             billing_started_at,
             metadata: None,
             // TODO! This field should be handled for billing connnector integrations
             enable_partial_authorization: None,
+            customer_present: common_enums::PresenceOfCustomerDuringPayment::Absent,
         })
     }
 }

@@ -31,6 +31,7 @@ import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
 import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
+import { connectorDetails as elavonPgConnectorDetails } from "./ElavonPg.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
 import { connectorDetails as finixConnectorDetails } from "./Finix.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
@@ -127,6 +128,7 @@ const connectorDetails = {
   datatrans: datatransConnectorDetails,
   deutschebank: deutschebankConnectorDetails,
   elavon: elavonConnectorDetails,
+  elavon_pg: elavonPgConnectorDetails,
   facilitapay: facilitapayConnectorDetails,
   fiserv: fiservConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
@@ -611,6 +613,8 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
+    CARD_HOLDER_NAME_BILLING_FALLBACK: ["worldpayxml"],
+    VOID_PAYMENT_SYNC: ["zift"],
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
     UCS_CONNECTORS: [
@@ -835,6 +839,14 @@ export const CONNECTOR_LISTS = {
     BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
     ERROR_ON_REQUIRES_ACTION: ["stripe"],
     SURCHARGE_PERCENTAGE: ["stripe"],
+    AUTO_FALLBACK_CAPTURE_METHOD: [
+      "trustpay",
+      "cryptopay",
+      "facilitapay",
+      "payjustnow",
+      "placetopay",
+      "iatapay",
+    ],
     AFT_PURPOSE_OF_PAYMENT: ["checkout"],
     AFT_FUNDING_TRANSACTION_TYPE: ["worldpayxml"],
     PEACHPAYMENTS_CONNECTOR_METADATA: ["peachpayments"],

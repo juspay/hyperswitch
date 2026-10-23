@@ -1,8 +1,9 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use api_models::webhooks::IncomingWebhookEvent;
-use common_enums;
+use common_enums::{self, connector_enums};
 use external_services::superposition;
+use hyperswitch_domain_models::webhooks::IncomingWebhookIpRange;
 use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{dimension_state, fetch_db_config_for_dimensions, ConfigContext, DatabaseBackedConfig};
@@ -150,6 +151,20 @@ macro_rules! config {
     };
 }
 
+/// Superposition-only override, scoped by processor merchant and payment method.
+pub struct ShouldOverrideSetupFutureUsageToOffSession;
+
+impl superposition::Config for ShouldOverrideSetupFutureUsageToOffSession {
+    type Output = bool;
+    type TargetingKey = id_type::MerchantId;
+    const SUPERPOSITION_KEY: &'static str =
+        superposition_consts::SHOULD_OVERRIDE_SETUP_FUTURE_USAGE_TO_OFF_SESSION;
+
+    fn default_value() -> Self::Output {
+        false
+    }
+}
+
 config! {
     superposition_key = REQUIRES_CVV,
     output = bool,
@@ -194,6 +209,24 @@ config! {
 
 impl DatabaseBackedConfig for BlockImplicitCustomerCreation {
     const KEY: &'static str = "block_implicit_customer_creation";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_organization_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = USE_MERCHANT_REFERENCE_ID_AS_CUSTOMER_ID,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for UseMerchantReferenceIdAsCustomerId {
+    const KEY: &'static str = "use_merchant_reference_id_as_customer_id";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
@@ -534,6 +567,18 @@ impl DatabaseBackedConfig for ShouldTriggerFingerprintMigration {
             .get_provider_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
+}
+
+config! {
+    superposition_key = SHOULD_GENERATE_MERCHANT_SCOPED_PAYMENT_METHOD_FINGERPRINT,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldGenerateMerchantScopedPaymentMethodFingerprint {
+    const KEY: &'static str = "should_generate_merchant_scoped_payment_method_fingerprint";
 }
 
 config! {
@@ -966,6 +1011,53 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
     }
 }
 
+/// Incoming webhook allowed IP ranges, keyed by connector.
+pub type IncomingWebhookIpRangesConfig =
+    HashMap<connector_enums::Connector, Vec<IncomingWebhookIpRange>>;
+
+// An absent config defaults to an empty object; enabled, required checks reject missing ranges.
+config! {
+    superposition_key = INCOMING_WEBHOOK_ALLOWED_IP_RANGES,
+    output = IncomingWebhookIpRangesConfig,
+    default = serde_json::json!({}),
+    object = true,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for IncomingWebhookAllowedIpRanges {
+    const KEY: &'static str = "incoming_webhooks_allowed_ip_ranges";
+}
+
+config! {
+    superposition_key = INCOMING_WEBHOOK_IP_VERIFICATION_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for IncomingWebhookIpVerificationEnabled {
+    const KEY: &'static str = "incoming_webhook_ip_verification_enabled";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Keep the global kill switch in Superposition without a database fallback.
+        None
+    }
+}
+
+config! {
+    superposition_key = INCOMING_WEBHOOK_MTLS_VERIFICATION_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithConnector,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for IncomingWebhookMtlsVerificationEnabled {
+    const KEY: &'static str = "incoming_webhook_mtls_verification_enabled";
+}
+
 config! {
     superposition_key = UNVERIFIED_WEBHOOK_RATE_LIMIT_ENABLED,
     output = bool,
@@ -1187,6 +1279,18 @@ impl DatabaseBackedConfig for PayoutFrmCall {
             .get_profile_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
+}
+
+config! {
+    superposition_key = RERUN_PAYOUT_FRM_BEFORE_AUTO_RETRY,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for RerunPayoutFrmBeforeAutoRetry {
+    const KEY: &'static str = "rerun_payout_frm_before_auto_retry";
 }
 
 config! {

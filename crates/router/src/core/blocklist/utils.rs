@@ -8,14 +8,13 @@ use diesel_models::{
     configs,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{PeekInterface, StrongSecret};
+use hyperswitch_masking::StrongSecret;
 
 use super::{errors, transformers::generate_fingerprint_and_get_id, SessionState};
 use crate::{
     core::{
         configs::dimension_state,
         errors::{RouterResult, StorageErrorExt},
-        metrics,
         payments::PaymentData,
         utils as core_utils,
     },
@@ -27,9 +26,10 @@ pub async fn delete_entry_from_blocklist(
     state: &SessionState,
     processor: &domain::Processor,
     profile_id: Option<common_utils::id_type::ProfileId>,
+    transaction_type: common_enums::BlocklistTransactionType,
     request: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResult<api_blocklist::DeleteFromBlocklistResponse> {
-    let processor_merchant_id = processor.get_account().get_id();
+    let processor_merchant_id = processor.get_processor_merchant_id();
     let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
@@ -46,13 +46,21 @@ pub async fn delete_entry_from_blocklist(
         api_blocklist::DeleteFromBlocklistRequest::CardBin(bin)
         | api_blocklist::DeleteFromBlocklistRequest::ExtendedCardBin(bin)
         | api_blocklist::DeleteFromBlocklistRequest::GenericCardBin(bin) => {
-            delete_card_bin_blocklist_entry(state, &bin, processor_merchant_id, &profile_id).await?
+            delete_card_bin_blocklist_entry(
+                state,
+                &bin,
+                &processor_merchant_id,
+                transaction_type,
+                &profile_id,
+            )
+            .await?
         }
 
         api_blocklist::DeleteFromBlocklistRequest::Fingerprint(fingerprint_id) => state
             .store
             .delete_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
-                processor_merchant_id,
+                &processor_merchant_id,
+                transaction_type,
                 &profile_id,
                 &fingerprint_id,
             )
@@ -119,6 +127,7 @@ pub async fn list_blocklist_entries_for_merchant(
         .store
         .list_blocklist_entries_by_processor_merchant_id_profile_id_data_kind(
             processor_merchant_id,
+            query.transaction_type,
             profile_id,
             query.data_kind,
             query.limit.into(),
@@ -133,6 +142,7 @@ pub async fn list_blocklist_entries_for_merchant(
         .store
         .get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
             processor_merchant_id,
+            Some(query.transaction_type),
             profile_id,
             query.data_kind,
         )
@@ -185,7 +195,7 @@ pub async fn get_blocklist_count(
     profile_id: Option<common_utils::id_type::ProfileId>,
     query: api_blocklist::BlocklistCountQuery,
 ) -> RouterResult<api_blocklist::BlocklistCountResponse> {
-    let processor_merchant_id = processor.get_account().get_id();
+    let processor_merchant_id = processor.get_processor_merchant_id();
     let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
@@ -203,7 +213,8 @@ pub async fn get_blocklist_count(
             let total_count = state
                 .store
                 .get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
-                    processor_merchant_id,
+                    &processor_merchant_id,
+                    query.transaction_type,
                     Some(&profile_id),
                     query.data_kind,
                 )
@@ -220,7 +231,8 @@ pub async fn get_blocklist_count(
             let length_counts = state
                 .store
                 .count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
-                    processor_merchant_id,
+                    &processor_merchant_id,
+                    query.transaction_type,
                     &profile_id,
                     query.data_kind,
                 )
@@ -262,7 +274,7 @@ pub async fn lookup_blocklist_entry(
     profile_id: Option<common_utils::id_type::ProfileId>,
     query: api_blocklist::BlocklistLookupQuery,
 ) -> RouterResult<api_blocklist::BlocklistLookupResponse> {
-    let processor_merchant_id = processor.get_account().get_id();
+    let processor_merchant_id = processor.get_processor_merchant_id();
     let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
@@ -274,28 +286,30 @@ pub async fn lookup_blocklist_entry(
     .get_id()
     .to_owned();
 
-    let result = state
+    let entries = state
         .store
-        .find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
-            processor_merchant_id,
+        .list_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_id(
+            &processor_merchant_id,
+            query.transaction_type,
             &profile_id,
             query.data.get_string_repr(),
         )
-        .await;
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to look up blocklist entries")?;
 
-    let blocked = match result {
-        Ok(_) => true,
-        Err(error) if error.current_context().is_db_not_found() => false,
-        Err(error) => {
-            return Err(error
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to look up blocklist entry"));
+    let mut transaction_types = Vec::with_capacity(entries.len().min(2));
+    for entry in entries {
+        let transaction_type = entry.transaction_type.unwrap_or_default();
+        if !transaction_types.contains(&transaction_type) {
+            transaction_types.push(transaction_type);
         }
-    };
+    }
 
     Ok(api_blocklist::BlocklistLookupResponse {
         data: query.data.get_string_repr().to_string(),
-        blocked,
+        blocked: !transaction_types.is_empty(),
+        transaction_types,
     })
 }
 
@@ -303,9 +317,10 @@ pub async fn insert_entry_into_blocklist(
     state: &SessionState,
     platform: &domain::Platform,
     profile_id: Option<common_utils::id_type::ProfileId>,
+    transaction_type: common_enums::BlocklistTransactionType,
     to_block: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResult<api_blocklist::AddToBlocklistResponse> {
-    let processor_merchant_id = platform.get_processor().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
     let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
@@ -327,6 +342,7 @@ pub async fn insert_entry_into_blocklist(
                 platform,
                 &profile_id,
                 common_enums::BlocklistDataKind::CardBin,
+                transaction_type,
             )
             .await?
         }
@@ -340,6 +356,7 @@ pub async fn insert_entry_into_blocklist(
                 platform,
                 &profile_id,
                 common_enums::BlocklistDataKind::ExtendedCardBin,
+                transaction_type,
             )
             .await?
         }
@@ -352,6 +369,7 @@ pub async fn insert_entry_into_blocklist(
                 platform,
                 &profile_id,
                 common_enums::BlocklistDataKind::GenericCardBin,
+                transaction_type,
             )
             .await?
         }
@@ -360,7 +378,8 @@ pub async fn insert_entry_into_blocklist(
             let blocklist_entry_result = state
                 .store
                 .find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
-                    processor_merchant_id,
+                    &processor_merchant_id,
+                    transaction_type,
                     &profile_id,
                     fingerprint_id,
                 )
@@ -390,9 +409,10 @@ pub async fn insert_entry_into_blocklist(
                     merchant_id: platform.get_provider().get_account().get_id().clone(),
                     fingerprint_id: fingerprint_id.clone(),
                     data_kind: api_models::enums::enums::BlocklistDataKind::PaymentMethod,
+                    transaction_type,
                     metadata: None,
                     created_at: common_utils::date_time::now(),
-                    processor_merchant_id: Some(processor_merchant_id.to_owned()),
+                    processor_merchant_id: Some(processor_merchant_id.inner().to_owned()),
                     created_by: platform
                         .get_initiator()
                         .and_then(|initiator| initiator.to_created_by())
@@ -410,34 +430,6 @@ pub async fn insert_entry_into_blocklist(
         }
     };
     Ok(blocklist_entry.foreign_into())
-}
-
-pub async fn get_merchant_fingerprint_secret(
-    state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-) -> RouterResult<String> {
-    match merchant_account.fingerprint_secret.as_ref() {
-        Some(secret) => Ok(secret.peek().clone()),
-        None => {
-            logger::warn!(
-                merchant_id = ?merchant_account.get_id(),
-                "fingerprint_secret missing from merchant account; falling back to Superposition"
-            );
-            metrics::FINGERPRINT_SECRET_SUPERPOSITION_FETCH_COUNT.add(1, &[]);
-            let dimensions = dimension_state::Dimensions::new()
-                .with_processor_merchant_id(merchant_account.get_id().clone().into());
-            let secret = dimensions
-                .get_fingerprint_secret(&*state.store, state.superposition_service.as_ref(), None)
-                .await;
-
-            match secret.is_empty() {
-                false => Ok(secret),
-                true => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                    "fingerprint_secret not found in merchant account or Superposition",
-                ),
-            }
-        }
-    }
 }
 
 // The duplicate check is not atomic with the insert, so a collision still means "already blocked".
@@ -459,13 +451,15 @@ async fn duplicate_check_insert_bin(
     platform: &domain::Platform,
     profile_id: &common_utils::id_type::ProfileId,
     data_kind: common_enums::BlocklistDataKind,
+    transaction_type: common_enums::BlocklistTransactionType,
 ) -> RouterResult<storage::Blocklist> {
-    let processor_merchant_id = platform.get_processor().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
 
     let blocklist_entry_result = state
         .store
         .find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
-            processor_merchant_id,
+            &processor_merchant_id,
+            transaction_type,
             profile_id,
             bin,
         )
@@ -494,9 +488,10 @@ async fn duplicate_check_insert_bin(
             merchant_id: platform.get_provider().get_account().get_id().clone(),
             fingerprint_id: bin.to_string(),
             data_kind,
+            transaction_type,
             metadata: None,
             created_at: common_utils::date_time::now(),
-            processor_merchant_id: Some(processor_merchant_id.to_owned()),
+            processor_merchant_id: Some(processor_merchant_id.inner().to_owned()),
             created_by: platform
                 .get_initiator()
                 .and_then(|initiator| initiator.to_created_by())
@@ -512,12 +507,14 @@ async fn delete_card_bin_blocklist_entry(
     state: &SessionState,
     bin: &str,
     processor_merchant_id: &common_utils::id_type::MerchantId,
+    transaction_type: common_enums::BlocklistTransactionType,
     profile_id: &common_utils::id_type::ProfileId,
 ) -> RouterResult<storage::Blocklist> {
     state
         .store
         .delete_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
             processor_merchant_id,
+            transaction_type,
             profile_id,
             bin,
         )
@@ -530,13 +527,14 @@ async fn delete_card_bin_blocklist_entry(
 pub async fn check_blocklist(
     state: &SessionState,
     processor: &domain::Processor,
+    transaction_type: common_enums::BlocklistTransactionType,
     payment_method_data: &Option<domain::EligibilityPaymentMethodData>,
     business_profile: &domain::Profile,
 ) -> CustomResult<Option<BlockReason>, errors::ApiErrorResponse> {
     let db = &state.store;
-    let processor_merchant_id = processor.get_account().get_id();
+    let processor_merchant_id = processor.get_processor_merchant_id();
     let merchant_fingerprint_secret =
-        get_merchant_fingerprint_secret(state, processor.get_account()).await?;
+        core_utils::get_merchant_fingerprint_secret(state, processor.get_account()).await?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
     let card_number_fingerprint =
@@ -591,7 +589,8 @@ pub async fn check_blocklist(
     if !fingerprint_ids.is_empty() {
         match db
             .find_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_ids(
-                processor_merchant_id,
+                &processor_merchant_id,
+                transaction_type,
                 profile_id,
                 fingerprint_ids,
             )
@@ -626,6 +625,7 @@ pub async fn check_blocklist(
 pub async fn get_blocked_bins(
     state: &SessionState,
     processor: &domain::Processor,
+    transaction_type: common_enums::BlocklistTransactionType,
     profile_id: &common_utils::id_type::ProfileId,
     bins: HashSet<String>,
 ) -> HashSet<String> {
@@ -633,6 +633,7 @@ pub async fn get_blocked_bins(
         .store
         .list_blocklist_entries_by_processor_merchant_id_profile_id_card_bins(
             processor.get_account().get_id(),
+            transaction_type,
             profile_id,
             bins.into_iter().collect(),
         )
@@ -664,6 +665,7 @@ where
     let block_reason = check_blocklist(
         state,
         processor,
+        common_enums::BlocklistTransactionType::Payment,
         &payment_data
             .payment_method_data
             .clone()
@@ -683,7 +685,7 @@ where
                 updated_by: processor.get_account().storage_scheme.to_string(),
             },
             processor.get_key_store(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -701,7 +703,7 @@ where
         db.update_payment_attempt_with_attempt_id(
             payment_data.payment_attempt.clone(),
             attempt_update,
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
             processor.get_key_store(),
         )
         .await
@@ -939,7 +941,7 @@ pub async fn generate_payment_fingerprint(
     match fingerprint_source {
         Some((pan, fingerprint_type)) => {
             let merchant_fingerprint_secret =
-                get_merchant_fingerprint_secret(state, merchant_account).await?;
+                core_utils::get_merchant_fingerprint_secret(state, merchant_account).await?;
 
             let fingerprint_id = generate_fingerprint_and_get_id(
                 state,
