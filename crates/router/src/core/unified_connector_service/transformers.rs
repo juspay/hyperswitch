@@ -1058,6 +1058,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
+            risk_assessment_data: None,
         })
     }
 }
@@ -1330,6 +1331,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
+            risk_assessment_data: None,
         })
     }
 }
@@ -2460,6 +2462,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 }
             }),
             currency_conversion_data,
+            payment_method: None,
         })
     }
 }
@@ -2643,6 +2646,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
+            risk_assessment_data: None,
         })
     }
 }
@@ -2864,6 +2868,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
+            risk_assessment_data: None,
         })
     }
 }
@@ -3050,6 +3055,7 @@ impl
             currency_conversion_data: None,
             additional_connector_details: None,
             enable_avs_check: None,
+            risk_assessment_data: None,
         })
     }
 }
@@ -3973,6 +3979,7 @@ impl
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
             state,
+            payment_method: None,
         })
     }
 }
@@ -9018,6 +9025,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .split_payments
                 .as_ref()
                 .map(payments_grpc::SplitPaymentsDetails::foreign_from),
+            payment_method: None,
         })
     }
 }
@@ -9062,6 +9070,7 @@ impl
             metadata: None,
             state,
             test_mode: router_data.test_mode,
+            payment_method: None,
         })
     }
 }
