@@ -1361,14 +1361,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        // An unresolved existing PM must not be recreated through the legacy save path.
-        if (payment_data.payment_attempt.payment_method_id.is_some()
-            && payment_data.get_payment_method_info().is_none())
-            || resp.response.is_err()
-        {
-            return Ok(());
-        }
-
         let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
             .response
             .clone()
@@ -1434,10 +1426,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        if payment_data.get_payment_method_info().is_none() || router_data.response.is_err() {
-            return Ok(());
-        }
-
         if !feature_config.should_use_modular_pm_path(
             payment_data.get_payment_method_info().map(|pm| pm.version),
             payment_data
@@ -1479,10 +1467,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        if payment_data.get_payment_method_info().is_none() || resp.response.is_err() {
-            return Ok(());
-        }
-
         update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4017,7 +4001,10 @@ async fn create_or_update_payment_method_from_payment_response<F: Clone>(
     }
     // If the payment_method is deleted then ignore the error related to retrieving payment method
     // This should be handled when the payment method is soft deleted
-    if let Some(id) = &payment_data.payment_attempt.payment_method_id {
+    if let (true, Some(id)) = (
+        payment_data.get_payment_method_info().is_some(),
+        &payment_data.payment_attempt.payment_method_id,
+    ) {
         let payment_method = match state
             .store
             .find_payment_method(key_store, id, storage_scheme)

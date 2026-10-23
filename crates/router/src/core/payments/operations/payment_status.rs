@@ -467,28 +467,30 @@ async fn get_tracker_for_sync<
     let payment_method_info =
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
             let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
-            let stored_payment_method = db
+            let stored_payment_method = match db
                 .find_payment_method(
                     platform.get_provider().get_key_store(),
                     payment_method_id,
                     storage_scheme,
                 )
-                .await;
-            let use_modular = match stored_payment_method.as_ref() {
-                Ok(pm) => feature_config.should_use_modular_pm_path(
-                    Some(pm.version),
-                    pm.compatibility_updated_at,
-                    Some(pm.last_modified),
-                ),
-                // Modular-only records need not have a legacy ID mirror.
-                Err(error) if error.current_context().is_db_not_found() => {
-                    feature_config.is_payment_method_modular_allowed
-                }
-                Err(error) => {
-                    logger::warn!(?error, "PM metadata unavailable during payment sync");
-                    false
-                }
+                .await
+            {
+                Ok(pm) => Some(pm),
+                Err(error) if error.current_context().is_db_not_found() => None,
+                Err(error) => Err(error)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error retrieving payment method from db")?,
             };
+            let use_modular = stored_payment_method.as_ref().map_or(
+                feature_config.is_payment_method_modular_allowed,
+                |pm| {
+                    feature_config.should_use_modular_pm_path(
+                        Some(pm.version),
+                        pm.compatibility_updated_at,
+                        Some(pm.last_modified),
+                    )
+                },
+            );
 
             if use_modular {
                 match Box::pin(pm_transformers::fetch_payment_method_from_modular_service(
@@ -514,7 +516,7 @@ async fn get_tracker_for_sync<
                     }
                 }
             } else {
-                stored_payment_method.ok()
+                stored_payment_method
             }
         } else {
             None
