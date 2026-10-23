@@ -503,22 +503,26 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
                         data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
                     }),
                 }),
-                WalletData::ApplePay(applepay_token) => {
-                    let apple_pay_encrypted_data = applepay_token
-                        .payment_data
-                        .get_encrypted_apple_pay_payment_data_mandatory()
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "Apple pay encrypted data".into(),
-                        })?;
-
-                    Ok(PaymentProfile {
+                WalletData::ApplePay(applepay_token) => match &applepay_token.payment_data {
+                    common_types::payments::ApplePayPaymentData::Encrypted(
+                        apple_pay_encrypted_data,
+                    ) => Ok(PaymentProfile {
                         bill_to,
                         payment: PaymentDetails::OpaqueData(WalletDetails {
                             data_descriptor: WalletMethod::Applepay,
                             data_value: Secret::new(apple_pay_encrypted_data.clone()),
                         }),
-                    })
-                }
+                    }),
+                    // A saved profile is charged later, but the cryptogram of a decrypted token is
+                    // single-use, so only the encrypted token is stored
+                    common_types::payments::ApplePayPaymentData::Decrypted(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Decrypted Apple Pay token for saving a payment profile"
+                                .to_string(),
+                            connector: "Authorizedotnet".into(),
+                        })?
+                    }
+                },
 
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
