@@ -370,8 +370,14 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
     }),
+    // On-session save-card: confirmed live (curl against integ.hyperswitch.io
+    // with the connector's UCS rollout config set to execution_mode:
+    // "primary"). The earlier skip here was wrong — it wasn't a connector
+    // limitation, it was a test-routing gap: this connector's classic
+    // (non-UCS) Authorize integration has `get_url` hardcoded to
+    // `NotImplemented` (globalpayments_realex.rs:217), so a request that
+    // isn't routed through UCS always fails regardless of the payment shape.
     SaveCardUseNo3DSAutoCapture: {
-      Configs: { TRIGGER_SKIP: true },
       Request: {
         payment_method: "card",
         payment_method_data: { card: successfulNo3DSCardDetails },
