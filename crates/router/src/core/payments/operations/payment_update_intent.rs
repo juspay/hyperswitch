@@ -157,8 +157,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             .await?;
         }
         let key_manager_state = &state.into();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let storage_scheme = platform.get_processor().get_storage_scheme();
+        let storage_scheme = platform.get_processor().get_storage_scheme();
         let payment_intent = db
             .find_payment_intent_by_id(
                 payment_id,
@@ -197,6 +197,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             enable_partial_authorization,
             is_account_funded_transaction,
             recipient_details,
+            enable_avs_check,
         } = request.clone();
 
         let batch_encrypted_data = domain_types::crypto_operation(
@@ -265,7 +266,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             feature_metadata: (feature_metadata
                 .map(FeatureMetadata::convert_from)
                 .or(payment_intent.feature_metadata)),
-            updated_by: storage_scheme.to_string(),
+            updated_by: storage_scheme.inner().to_string(),
             request_incremental_authorization: request_incremental_authorization
                 .unwrap_or(payment_intent.request_incremental_authorization),
             session_expiry: session_expiry.unwrap_or(payment_intent.session_expiry),
@@ -312,6 +313,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                 .recipient_details
                 .clone()
                 .or(payment_intent.recipient_details.clone()),
+            enable_avs_check: enable_avs_check.or(payment_intent.enable_avs_check),
             ..payment_intent
         };
 
@@ -352,7 +354,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
         F: 'b + Send,
     {
         let db = &*state.store;
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
 
         let intent = payment_data.payment_intent.clone();
@@ -408,6 +410,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 profile_acquirer_id: intent.profile_acquirer_id,
                 external_surcharge_strategy: intent.external_surcharge_strategy,
                 external_surcharge_applicable: intent.external_surcharge_applicable,
+                enable_avs_check: intent.enable_avs_check,
             }));
 
         let new_payment_intent = db

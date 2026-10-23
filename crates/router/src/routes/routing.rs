@@ -878,6 +878,7 @@ pub async fn upsert_decision_manager_config(
                     .get_processor()
                     .clone()
                     .get_key_store()
+                    .inner()
                     .clone(),
                 update_decision,
                 auth.profile,
@@ -969,6 +970,7 @@ pub async fn retrieve_decision_manager_config(
                     .get_processor()
                     .clone()
                     .get_key_store()
+                    .inner()
                     .clone(),
                 auth.profile,
             )

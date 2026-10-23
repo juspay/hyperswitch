@@ -63,6 +63,8 @@ use super::recovery_webhooks::*;
 use super::refunds;
 #[cfg(feature = "olap")]
 use super::routing;
+#[cfg(all(feature = "oltp", feature = "v1"))]
+use super::telephone_order;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::tokenization as tokenization_routes;
 #[cfg(feature = "olap")]
@@ -162,6 +164,9 @@ impl scheduler::SchedulerSessionState for SessionState {
     }
     fn get_application_source(&self) -> common_enums::ApplicationSource {
         self.conf.application_source
+    }
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        &self.tenant.tenant_id
     }
     fn get_request_id(&self) -> Option<RequestId> {
         self.request_id.clone()
@@ -372,6 +377,9 @@ pub struct AppState {
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
         self.conf.multitenancy.get_tenant_ids()
+    }
+    fn get_application_source(&self) -> common_enums::ApplicationSource {
+        self.conf.application_source
     }
 }
 pub trait AppStateInfo {
@@ -2862,6 +2870,20 @@ impl ThreeDsDecisionRule {
     }
 }
 
+pub struct TelephoneOrder;
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+impl TelephoneOrder {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/telephone_order")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{merchant_id}/{provider}")
+                    .route(web::post().to(telephone_order::telephone_order_charge)),
+            )
+    }
+}
+
 #[cfg(feature = "olap")]
 pub struct Verify;
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -3540,10 +3562,16 @@ pub struct RevenueRecovery;
 #[cfg(feature = "v2")]
 impl RevenueRecovery {
     pub fn server(state: AppState) -> Scope {
-        use super::{payments, revenue_recovery_data_backfill, revenue_recovery_redis};
+        use super::{
+            payments, revenue_recovery, revenue_recovery_data_backfill, revenue_recovery_redis,
+        };
         web::scope("/v2/recovery")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(payments::recovery_payments_create)))
+            .service(
+                web::resource("/{merchant_reference_id}/cancel")
+                    .route(web::post().to(revenue_recovery::revenue_recovery_cancel)),
+            )
             .service(
                 web::scope("/data-backfill")
                     .service(

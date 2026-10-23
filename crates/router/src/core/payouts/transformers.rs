@@ -60,7 +60,10 @@ impl
             error_code: payout_attempt.error_code.clone(),
             error_message: payout_attempt.error_message.clone(),
             payment_method: payout.payout_type,
-            payout_method_type: None,
+            payout_method_type: payout_attempt
+                .additional_payout_method_data
+                .as_ref()
+                .map(From::from),
             connector_transaction_id: payout_attempt.connector_payout_id,
             cancellation_reason: None,
             unified_code: None,

@@ -20,6 +20,8 @@ pub struct BlocklistExportTrackingData {
     pub merchant_id: id_type::MerchantId,
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub profile_id: id_type::ProfileId,
+    /// `None` exports both transaction namespaces, including trackers created before this field.
+    pub transaction_type: Option<common_enums::BlocklistTransactionType>,
     /// Bounds the scan, so a run spanning minutes still describes one moment.
     pub snapshot_at: time::PrimitiveDateTime,
     /// Written once the multipart upload starts, so a retry can discard the abandoned parts.
@@ -38,10 +40,12 @@ pub struct BlocklistProfileCloneTrackingData {
     pub current_target: usize,
     /// Bounds the scan, so a run spanning minutes still copies one moment of the source.
     pub snapshot_at: time::PrimitiveDateTime,
-    /// The source is drained in two passes, the same split the export uses: rows carrying a
-    /// `processor_merchant_id` first, then the legacy rows without one.
+    /// Each flow drains processor-scoped rows, then legacy rows, before advancing to the next flow.
     pub draining_legacy_rows: bool,
-    /// Keyset cursor within the current pass. `""` starts the pass from the beginning.
+    /// Requested namespace; `None` clones both, including jobs created before this field.
+    #[serde(default)]
+    pub selected_transaction_type: Option<common_enums::BlocklistTransactionType>,
+    /// Keyset cursor within the current flow and merchant pass. `""` starts at the beginning.
     pub last_fingerprint_id: String,
     /// Source rows fully handled by this target tracker. This advances with the cursor.
     pub processed_rows: i32,
@@ -116,5 +120,42 @@ impl From<BlocklistProfileCloneTargetMetadata>
             processed_rows: target.processed_rows,
             error_message: target.error_message,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common_enums::BlocklistTransactionType;
+    use serde_json::json;
+
+    use super::BlocklistExportTrackingData;
+
+    fn old_export_job() -> serde_json::Value {
+        json!({
+            "job_id": "export_job",
+            "merchant_id": "merchant_test",
+            "processor_merchant_id": null,
+            "profile_id": "pro_source",
+            "snapshot_at": common_utils::date_time::now(),
+            "upload_id": "previous_upload"
+        })
+    }
+
+    #[test]
+    fn export_retry_payload_preserves_payout_selection() {
+        let mut tracking: BlocklistExportTrackingData =
+            serde_json::from_value(old_export_job()).unwrap();
+        tracking.transaction_type = Some(BlocklistTransactionType::Payout);
+        let retry = BlocklistExportTrackingData {
+            upload_id: Some("retry_upload".to_owned()),
+            ..tracking
+        };
+        let restored: BlocklistExportTrackingData =
+            serde_json::from_value(serde_json::to_value(retry).unwrap()).unwrap();
+        assert_eq!(
+            restored.transaction_type,
+            Some(BlocklistTransactionType::Payout)
+        );
+        assert_eq!(restored.upload_id.as_deref(), Some("retry_upload"));
     }
 }

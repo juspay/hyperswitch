@@ -401,6 +401,9 @@ impl PaymentMethodUpdate {
                     } => bank_account_holder_name.is_some(),
                 }
             }
+            Some(payment_methods::PaymentMethodUpdateData::Wallet(wallet_update)) => {
+                wallet_update.is_metadata_update()
+            }
             None => false,
         }
     }
@@ -656,6 +659,16 @@ pub trait PaymentMethodInterface {
         key_store: &MerchantKeyStore,
         fingerprint_id: &str,
     ) -> CustomResult<PaymentMethod, Self::Error>;
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_methods_by_auxiliary_fingerprint_id_and_status(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        auxiliary_fingerprint_id: &str,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
