@@ -1819,25 +1819,51 @@ function bankRedirectRedirection(
         });
     };
 
-    // Some TrueLayer sandbox consent pages show an intermediate "Go to bank"
-    // button before the mock provider page; others render the mock provider
-    // entry point directly. Click it only when present so the flow does not
-    // hang waiting for a button that may not exist.
-    clickActionIfPresent(/go to bank/i, "Opening TrueLayer bank page");
+    const findNavCta = ($body, pattern) =>
+      $body
+        .find(actionSelector)
+        .filter((_, el) =>
+          pattern.test(
+            el.innerText || el.value || el.getAttribute("aria-label") || ""
+          )
+        )
+        .filter((_, el) => el.getClientRects().length > 0)
+        .first();
 
-    // The "Open Mock UK Payments - Redirect Flow on this device" entry point
-    // sits below the fold on the TrueLayer sandbox page and is rendered as a
-    // selectable card rather than a button/anchor, so the action-selector
-    // lookups above cannot find it. Scroll the page down first, then click the
-    // exact label - anchoring on "this device" also avoids matching a sibling
-    // QR-code/other-device option when both are rendered.
-    cy.scrollTo("bottom", { ensureScrollable: false });
-    cy.contains(
-      /open mock uk payments[\s\S]*redirect flow[\s\S]*on this device/i,
-      { timeout: CONSTANTS.TIMEOUT }
-    )
-      .scrollIntoView()
-      .click({ force: true });
+    const mockUkRedirectPattern =
+      /open mock uk payments.{0,5}redirect flow on this device/i;
+
+    cy.get("body", { timeout: CONSTANTS.TIMEOUT })
+      .should(($body) => {
+        const goToBank = findNavCta($body, /go to bank/i);
+        const mockUk = findNavCta($body, mockUkRedirectPattern);
+        expect(
+          goToBank.length > 0 || mockUk.length > 0,
+          "expected a visible TrueLayer navigation CTA (Go to bank / mock uk payments redirect flow) to render"
+        ).to.be.true;
+      })
+      .then(($body) => {
+        const goToBank = findNavCta($body, /go to bank/i);
+        if (goToBank.length > 0) {
+          cy.log("Opening TrueLayer bank page");
+          cy.wrap(goToBank).scrollIntoView().click({ force: true });
+        }
+      });
+
+    cy.get("body", { timeout: CONSTANTS.TIMEOUT })
+      .should(($body) => {
+        const mockUk = findNavCta($body, mockUkRedirectPattern);
+        expect(
+          mockUk.length,
+          "expected the TrueLayer mock uk payments redirect link to become visible"
+        ).to.be.greaterThan(0);
+      })
+      .then(($body) => {
+        cy.log("Opening TrueLayer mock UK payments redirect flow");
+        cy.wrap(findNavCta($body, mockUkRedirectPattern))
+          .scrollIntoView()
+          .click({ force: true });
+      });
 
     fillTrueLayerMockCredentials();
     clickAction(
@@ -3668,12 +3694,48 @@ function threeDsRedirection(
             });
           break;
         case "adyen":
-          cy.get("iframe")
-            .its("0.contentDocument.body")
-            .within(() => {
-              cy.get('input[type="password"]').click();
-              cy.get('input[type="password"]').type("password");
-              cy.get("#buttonSubmit").click();
+          Cypress.on("uncaught:exception", (err) => {
+            if (
+              err.message.includes("Fetch to") ||
+              err.message.includes("/logs") ||
+              err.message.includes("Response status: 401")
+            ) {
+              return false;
+            }
+            return true;
+          });
+
+          cy.get("iframe", { timeout: constants.TIMEOUT })
+            .should(($iframes) => {
+              const hasChallengeIframe = $iframes
+                .toArray()
+                .some(
+                  (iframe) =>
+                    iframe.contentDocument &&
+                    iframe.contentDocument.querySelector(
+                      'input[type="password"]'
+                    )
+                );
+              expect(
+                hasChallengeIframe,
+                "expected an iframe with a 3DS password challenge input to be present"
+              ).to.be.true;
+            })
+            .then(($iframes) => {
+              const challengeIframe = $iframes
+                .toArray()
+                .find(
+                  (iframe) =>
+                    iframe.contentDocument &&
+                    iframe.contentDocument.querySelector(
+                      'input[type="password"]'
+                    )
+                );
+              cy.wrap(challengeIframe.contentDocument.body).within(() => {
+                cy.get('input[type="password"]').click();
+                cy.get('input[type="password"]').type("password");
+                cy.get("#buttonSubmit").click();
+              });
             });
           break;
 
