@@ -6390,14 +6390,22 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
 /// Filters customer payment methods to keep only the latest Apple Pay and Google Pay method
 /// when multiple DPANs exist. All other payment methods are returned unchanged.
 #[cfg(feature = "v1")]
-fn filter_latest_wallet_methods(
-    payment_methods: Vec<api::CustomerPaymentMethod>,
-) -> Vec<api::CustomerPaymentMethod> {
+pub(super) fn filter_latest_wallet_methods<T: Clone>(
+    payment_methods: Vec<T>,
+    wallet_details: impl Fn(
+        &T,
+    ) -> (
+        api_enums::PaymentMethod,
+        Option<api_enums::PaymentMethodType>,
+        Option<time::PrimitiveDateTime>,
+    ),
+) -> Vec<T> {
     let (wallet_methods, other_methods): (Vec<_>, Vec<_>) =
         payment_methods.into_iter().partition(|pm| {
-            pm.payment_method == api_enums::PaymentMethod::Wallet
-                && (pm.payment_method_type == Some(api_enums::PaymentMethodType::ApplePay)
-                    || pm.payment_method_type == Some(api_enums::PaymentMethodType::GooglePay))
+            let (payment_method, payment_method_type, _) = wallet_details(pm);
+            payment_method == api_enums::PaymentMethod::Wallet
+                && (payment_method_type == Some(api_enums::PaymentMethodType::ApplePay)
+                    || payment_method_type == Some(api_enums::PaymentMethodType::GooglePay))
         });
 
     if wallet_methods.is_empty() {
@@ -6412,13 +6420,13 @@ fn filter_latest_wallet_methods(
     ] {
         let type_methods: Vec<_> = wallet_methods
             .iter()
-            .filter(|pm| pm.payment_method_type == Some(wallet_type))
+            .filter(|pm| wallet_details(pm).1 == Some(wallet_type))
             .cloned()
             .collect();
 
         if type_methods.len() > 1 {
             let mut sorted = type_methods;
-            sorted.sort_by_key(|b| std::cmp::Reverse(b.last_used_at));
+            sorted.sort_by_key(|pm| std::cmp::Reverse(wallet_details(pm).2));
             if let Some(latest) = sorted.into_iter().next() {
                 result.push(latest);
             }
@@ -6733,7 +6741,9 @@ pub async fn list_customer_payment_method(
     }
 
     // // Filter to keep only the latest Apple Pay method if duplicates exist
-    let filtered_customer_pms = filter_latest_wallet_methods(customer_pms);
+    let filtered_customer_pms = filter_latest_wallet_methods(customer_pms, |pm| {
+        (pm.payment_method, pm.payment_method_type, pm.last_used_at)
+    });
 
     let mut response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods: filtered_customer_pms,
