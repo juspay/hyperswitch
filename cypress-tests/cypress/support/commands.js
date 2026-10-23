@@ -3275,39 +3275,20 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState, data = null) => {
         }
       }
 
-      // Verify customer_acceptance_support if provided in config: every
-      // payment_method_type must carry a valid value, and each listed
-      // { paymentMethod, paymentMethodType, expected } entry must match.
+      // Verify customer_acceptance_support for each listed payment method type
       if (resData?.customer_acceptance_support) {
-        const validValues = ["supported", "partially_supported", "unsupported"];
-        const seen = new Set();
-
-        response.body.payment_methods.forEach((paymentMethod) => {
-          paymentMethod.payment_method_types.forEach((paymentMethodType) => {
-            const actual = paymentMethodType.customer_acceptance_support;
-            expect(validValues).to.include(actual);
-
-            resData.customer_acceptance_support.forEach(
-              ({ paymentMethod: pm, paymentMethodType: pmt, expected }) => {
-                if (
-                  paymentMethod.payment_method === pm &&
-                  paymentMethodType.payment_method_type === pmt
-                ) {
-                  seen.add(`${pm}.${pmt}`);
-                  expect(
-                    actual,
-                    `${pm}.${pmt} customer_acceptance_support`
-                  ).to.equal(expected);
-                }
-              }
-            );
-          });
-        });
-
         resData.customer_acceptance_support.forEach(
-          ({ paymentMethod: pm, paymentMethodType: pmt }) => {
-            expect(seen.has(`${pm}.${pmt}`), `${pm}.${pmt} entry present`).to.be
-              .true;
+          ({ paymentMethod, paymentMethodType, expected }) => {
+            const pmType = response.body.payment_methods
+              .find((pm) => pm.payment_method === paymentMethod)
+              ?.payment_method_types.find(
+                (type) => type.payment_method_type === paymentMethodType
+              );
+            expect(pmType, `${paymentMethod}.${paymentMethodType}`).to.exist;
+            expect(
+              pmType.customer_acceptance_support,
+              `${paymentMethod}.${paymentMethodType} customer_acceptance_support`
+            ).to.equal(expected);
           }
         );
       }

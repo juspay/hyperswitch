@@ -9,14 +9,6 @@ import {
 import getConnectorDetails from "../../configs/PaymentMethodList/Utils";
 
 let globalState;
-// Both contexts below create their own throwaway merchant (merchantCreateCallTest
-// overwrites "merchantId", apiKeyCreateTest overwrites "apiKey"/"apiKeyId" and
-// persists immediately via its own cy.task("setGlobalState", ...), and
-// createCustomerCallTest overwrites "customerId"). Without restoring these, every
-// later-running spec in the same suite — e.g. 54-RefundType.cy.js, which sorts
-// after this file alphabetically — inherits this throwaway merchant's credentials
-// instead of the suite's shared one, and fails outright since that merchant has
-// none of the setup (connectors, config) the rest of the suite assumes exists.
 let pristineGlobalStateData;
 
 describe("Payment Method List - customer_acceptance_support field", () => {
@@ -90,17 +82,11 @@ describe("Payment Method List - customer_acceptance_support field", () => {
       });
 
       it("payment-method-list-call-test: card.credit is supported", () => {
-        cy.paymentMethodsCallTest(globalState, {
-          Response: {
-            customer_acceptance_support: [
-              {
-                paymentMethod: "card",
-                paymentMethodType: "credit",
-                expected: "supported",
-              },
-            ],
-          },
-        });
+        const data =
+          getConnectorDetails("connector")["pm_list"]["PmListResponse"][
+            "PmListCustomerAcceptanceSupportCardCredit"
+          ];
+        cy.paymentMethodsCallTest(globalState, data);
       });
     }
   );
@@ -169,17 +155,11 @@ describe("Payment Method List - customer_acceptance_support field", () => {
       });
 
       it("payment-method-list-call-test: bank_redirect.open_banking is partially_supported", () => {
-        cy.paymentMethodsCallTest(globalState, {
-          Response: {
-            customer_acceptance_support: [
-              {
-                paymentMethod: "bank_redirect",
-                paymentMethodType: "open_banking",
-                expected: "partially_supported",
-              },
-            ],
-          },
-        });
+        const data =
+          getConnectorDetails("connector")["pm_list"]["PmListResponse"][
+            "PmListCustomerAcceptanceSupportOpenBanking"
+          ];
+        cy.paymentMethodsCallTest(globalState, data);
       });
     }
   );
