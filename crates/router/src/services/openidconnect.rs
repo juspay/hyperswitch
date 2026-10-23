@@ -1,4 +1,7 @@
-use common_utils::{errors::CustomResult, transformers::ForeignTryFrom};
+use common_utils::{
+    errors::{CustomResult, ReportSwitchExt},
+    transformers::ForeignTryFrom,
+};
 use error_stack::ResultExt;
 use external_services::http_client::client;
 use futures::TryFutureExt;
@@ -79,6 +82,7 @@ pub async fn get_user_email_from_oidc_provider(
         .request_async(|req| {
             get_oidc_reqwest_client(state, req)
                 .inspect_err(|error| logger::error!(?error, "OpenID Connect HTTP request failed"))
+                // Wrap the report to satisfy OIDC's std::error::Error bound.
                 .map_err(error_stack::Report::into_error)
         })
         .await
@@ -129,6 +133,7 @@ async fn get_discovery_document(
     oidc_core::CoreProviderMetadata::discover_async(issuer_url, |req| {
         get_oidc_reqwest_client(state, req)
             .inspect_err(|error| logger::error!(?error, "OpenID Connect HTTP request failed"))
+            // Wrap the report to satisfy OIDC's std::error::Error bound.
             .map_err(error_stack::Report::into_error)
     })
     .await
@@ -174,8 +179,7 @@ async fn get_oidc_reqwest_client(
     state: &SessionState,
     request: oidc::HttpRequest,
 ) -> CustomResult<oidc::HttpResponse, ApiClientError> {
-    let client = client::create_client(&state.conf.proxy, None, None, None)
-        .change_context(ApiClientError::ClientConstructionFailed)?;
+    let client = client::create_client(&state.conf.proxy, None, None, None).switch()?;
 
     let method = reqwest::Method::from_bytes(request.method.as_str().as_bytes())
         .change_context(ApiClientError::ClientConstructionFailed)?;

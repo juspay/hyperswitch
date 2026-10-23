@@ -86,7 +86,6 @@ pub fn get_client_builder(
     proxy_config: &Proxy,
 ) -> CustomResult<reqwest::ClientBuilder, HttpClientError> {
     let mut client_builder = reqwest::Client::builder()
-        .retry(reqwest::retry::never())
         .redirect(reqwest::redirect::Policy::none())
         .pool_idle_timeout(Duration::from_secs(
             proxy_config

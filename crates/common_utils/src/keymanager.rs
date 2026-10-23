@@ -62,7 +62,6 @@ fn get_api_encryption_client(
 ) -> errors::CustomResult<reqwest::Client, errors::KeyManagerClientError> {
     let get_client = || {
         let mut client = reqwest::Client::builder()
-            .retry(reqwest::retry::never())
             .redirect(reqwest::redirect::Policy::none())
             .pool_idle_timeout(std::time::Duration::from_secs(
                 state.client_idle_timeout.unwrap_or_default(),
