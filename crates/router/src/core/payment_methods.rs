@@ -2307,6 +2307,10 @@ pub trait LockerOperations: Send + Sync {
 #[cfg(feature = "v2")]
 pub struct GenericLocker;
 
+#[cfg(feature = "v2")]
+#[derive(Debug)]
+struct FingerprintUnavailable;
+
 /// Legacy locker implementation using the V1 locker system
 #[cfg(feature = "v2")]
 pub struct LegacyLocker;
@@ -2410,61 +2414,62 @@ impl LockerOperations for GenericLocker {
         let merchant_fingerprint_secret =
             resolve_merchant_fingerprint_secret(state, platform, &payment_method_data).await;
 
-        let (fingerprints, auxiliary_fingerprint_task, merchant_fingerprint_task) =
-            match state.conf.locker.use_batched_fingerprint {
-                true => (
-                    vault::get_fingerprints_for_payment_method(
+        let (fingerprints, auxiliary_fingerprint_task, merchant_fingerprint_task) = match state
+            .conf
+            .locker
+            .use_batched_fingerprint
+        {
+            true => (
+                vault::get_fingerprints_for_payment_method(
+                    state,
+                    &payment_method_data,
+                    customer_id.get_string_repr().to_owned(),
+                    merchant_fingerprint_secret,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get fingerprints from vault using generic strategy")
+                .attach(FingerprintUnavailable)?,
+                None,
+                None,
+            ),
+            false => {
+                let auxiliary_fingerprint_task = vault::spawn_fingerprint_task(
+                    state,
+                    &payment_method_data,
+                    Secret::new(customer_id.get_string_repr().to_owned()),
+                    consts::AUXILIARY_FINGERPRINT_LABEL,
+                );
+                let merchant_fingerprint_task = merchant_fingerprint_secret.map(|key| {
+                    vault::spawn_fingerprint_task(
                         state,
                         &payment_method_data,
-                        customer_id.get_string_repr().to_owned(),
-                        merchant_fingerprint_secret,
+                        key,
+                        consts::MERCHANT_FINGERPRINT_LABEL,
                     )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to get fingerprints from vault using generic strategy",
-                    )?,
-                    None,
-                    None,
-                ),
-                false => {
-                    let auxiliary_fingerprint_task = vault::spawn_fingerprint_task(
-                        state,
-                        &payment_method_data,
-                        Secret::new(customer_id.get_string_repr().to_owned()),
-                        consts::AUXILIARY_FINGERPRINT_LABEL,
-                    );
-                    let merchant_fingerprint_task = merchant_fingerprint_secret.map(|key| {
-                        vault::spawn_fingerprint_task(
-                            state,
-                            &payment_method_data,
-                            key,
-                            consts::MERCHANT_FINGERPRINT_LABEL,
-                        )
-                    });
+                });
 
-                    let vault_fingerprint_id = vault::get_fingerprint_id_for_payment_method(
-                        state,
-                        &payment_method_data,
-                        customer_id.get_string_repr().to_owned(),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to get fingerprint_id from vault using generic strategy",
-                    )?;
+                let vault_fingerprint_id = vault::get_fingerprint_id_for_payment_method(
+                    state,
+                    &payment_method_data,
+                    customer_id.get_string_repr().to_owned(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get fingerprint_id from vault using generic strategy")
+                .attach(FingerprintUnavailable)?;
 
-                    (
-                        vault::PaymentMethodFingerprints {
-                            vault_fingerprint_id,
-                            auxiliary_fingerprint_id: None,
-                            merchant_fingerprint_id: None,
-                        },
-                        Some(auxiliary_fingerprint_task),
-                        merchant_fingerprint_task,
-                    )
-                }
-            };
+                (
+                    vault::PaymentMethodFingerprints {
+                        vault_fingerprint_id,
+                        auxiliary_fingerprint_id: None,
+                        merchant_fingerprint_id: None,
+                    },
+                    Some(auxiliary_fingerprint_task),
+                    merchant_fingerprint_task,
+                )
+            }
+        };
 
         let vault::PaymentMethodFingerprints {
             vault_fingerprint_id: fingerprint_id,
@@ -2518,7 +2523,8 @@ impl LockerOperations for GenericLocker {
                         merchant_fingerprint_task,
                         merchant_fingerprint_id,
                     )
-                    .await?,
+                    .await
+                    .attach(FingerprintUnavailable)?,
                 })
             }
             Err(err) => {
@@ -2550,12 +2556,14 @@ impl LockerOperations for GenericLocker {
                     resolution: PaymentMethodResolution::Create {
                         fingerprint_details: Some(FingerprintDetails {
                             fingerprint_id: Some(fingerprint_id),
-                            auxiliary_fingerprint_id: auxiliary_fingerprint_id?,
+                            auxiliary_fingerprint_id: auxiliary_fingerprint_id
+                                .attach(FingerprintUnavailable)?,
                         }),
                         payment_method_data,
                         locker_resolver,
                     },
-                    merchant_fingerprint_id: merchant_fingerprint_id?,
+                    merchant_fingerprint_id: merchant_fingerprint_id
+                        .attach(FingerprintUnavailable)?,
                 })
             }
         }
@@ -3492,19 +3500,16 @@ pub async fn create_generic_volatile_payment_method(
         .or(req.payment_method_subtype);
     let payment_method_data = bin_enriched_payment_method_data.data;
 
-    // Resolve existing cards for PayThenVault before returning the payment method id. Consent
-    // is collected during payment confirmation and does not gate fingerprint resolution.
+    // Resolve existing cards for PayThenVault before returning the payment method id.
     let should_resolve_fingerprint = customer_acceptance.is_some()
         || (customer_id.is_some()
             && resolve_payment_method_integration_type(state, platform).await
                 == pm_types::PaymentMethodIntegrationType::PayThenVault);
+    let mut should_not_promote = false;
     let (payment_method_id, fingerprint_details, merchant_fingerprint_id) =
         match customer_id.as_ref().filter(|_| should_resolve_fingerprint) {
             Some(customer_id) => {
-                let PaymentMethodResolver {
-                    resolution,
-                    merchant_fingerprint_id,
-                } = payment_method_resolver(
+                let resolution = payment_method_resolver(
                     state,
                     platform,
                     customer_id,
@@ -3512,10 +3517,24 @@ pub async fn create_generic_volatile_payment_method(
                     payment_method_data.clone(),
                 )
                 .await
-                .attach_printable("Failed to resolve volatile payment method")?;
+                .attach_printable("Failed to resolve volatile payment method");
 
-                match resolution {
-                    PaymentMethodResolution::Get(existing_payment_method) => (
+                match resolution
+                    .map(|resolver| (resolver.resolution, resolver.merchant_fingerprint_id))
+                {
+                    Err(error) if error.contains::<FingerprintUnavailable>() => {
+                        logger::warn!(
+                            ?error,
+                            "PtV fingerprint unavailable; retaining a temporary payment method"
+                        );
+                        should_not_promote = true;
+                        (payment_method_id, None, None)
+                    }
+                    Err(error) => Err(error)?,
+                    Ok((
+                        PaymentMethodResolution::Get(existing_payment_method),
+                        merchant_fingerprint_id,
+                    )) => (
                         existing_payment_method.id.clone(),
                         Some(FingerprintDetails {
                             fingerprint_id: existing_payment_method.locker_fingerprint_id.clone(),
@@ -3525,12 +3544,15 @@ pub async fn create_generic_volatile_payment_method(
                         }),
                         merchant_fingerprint_id,
                     ),
-                    PaymentMethodResolution::Update {
-                        fingerprint_id,
-                        payment_method_id: existing_payment_method_id,
-                        payment_method: existing_payment_method,
-                        ..
-                    } => (
+                    Ok((
+                        PaymentMethodResolution::Update {
+                            fingerprint_id,
+                            payment_method_id: existing_payment_method_id,
+                            payment_method: existing_payment_method,
+                            ..
+                        },
+                        merchant_fingerprint_id,
+                    )) => (
                         existing_payment_method_id,
                         Some(FingerprintDetails {
                             fingerprint_id,
@@ -3540,10 +3562,13 @@ pub async fn create_generic_volatile_payment_method(
                         }),
                         merchant_fingerprint_id,
                     ),
-                    PaymentMethodResolution::Create {
-                        fingerprint_details,
-                        ..
-                    } => (
+                    Ok((
+                        PaymentMethodResolution::Create {
+                            fingerprint_details,
+                            ..
+                        },
+                        merchant_fingerprint_id,
+                    )) => (
                         payment_method_id,
                         fingerprint_details,
                         merchant_fingerprint_id,
@@ -3623,7 +3648,10 @@ pub async fn create_generic_volatile_payment_method(
             redis_connection
                 .serialize_and_set_key_with_expiry(
                     &payment_method.get_id().get_string_repr().to_string().into(),
-                    payment_method.clone(),
+                    VolatilePaymentMethodRecord {
+                        payment_method: payment_method.clone(),
+                        should_not_promote,
+                    },
                     consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,
                 )
                 .await
@@ -6595,7 +6623,7 @@ pub async fn fetch_payment_method_by_storage(
             )
             .await
             .attach_printable("Failed to get volatile payment method record")?;
-            Ok((storage_type, volatile_payment_method))
+            Ok((storage_type, volatile_payment_method.payment_method))
         }
         common_enums::StorageType::Persistent => {
             logger::debug!("Fetching persistent payment method with fallback");
@@ -6634,6 +6662,7 @@ pub async fn fetch_payment_method_with_fallback(
         pm_id.get_string_repr(),
     )
     .await
+    .map(|record| record.payment_method)
     .attach_printable("Failed to get volatile payment method record");
 
     match volatile_payment_method {
@@ -6661,11 +6690,20 @@ pub async fn fetch_payment_method_with_fallback(
 }
 
 #[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct VolatilePaymentMethodRecord<T> {
+    #[serde(flatten)]
+    payment_method: T,
+    #[serde(default)]
+    should_not_promote: bool,
+}
+
+#[cfg(feature = "v2")]
 async fn fetch_volatile_payment_method_record(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     pm_id: &str,
-) -> RouterResult<domain::PaymentMethod> {
+) -> RouterResult<VolatilePaymentMethodRecord<domain::PaymentMethod>> {
     let redis_conn = state
         .store
         .get_redis_conn()
@@ -6673,7 +6711,10 @@ async fn fetch_volatile_payment_method_record(
         .attach_printable("Failed to get redis connection")?;
 
     let payment_method = redis_conn
-        .get_and_deserialize_key::<diesel_models::PaymentMethod>(&pm_id.into(), "PaymentMethod")
+        .get_and_deserialize_key::<VolatilePaymentMethodRecord<diesel_models::PaymentMethod>>(
+            &pm_id.into(),
+            "PaymentMethod",
+        )
         .await
         .map_err(|e| error_stack::report!(storage_impl::StorageError::from(e)))
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
@@ -6684,7 +6725,7 @@ async fn fetch_volatile_payment_method_record(
 
     let domain_payment_method = domain::PaymentMethod::convert_back(
         keymanager_state,
-        payment_method,
+        payment_method.payment_method,
         key_store.key.get_inner(),
         key_store.merchant_id.clone().into(),
     )
@@ -6692,7 +6733,10 @@ async fn fetch_volatile_payment_method_record(
     .change_context(errors::StorageError::EncryptionError)
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    Ok(domain_payment_method)
+    Ok(VolatilePaymentMethodRecord {
+        payment_method: domain_payment_method,
+        should_not_promote: payment_method.should_not_promote,
+    })
 }
 
 #[cfg(feature = "v2")]
@@ -7171,16 +7215,29 @@ pub async fn update_payment_method_core(
         && resolve_payment_method_integration_type(state, platform).await
             == pm_types::PaymentMethodIntegrationType::PayThenVault
     {
-        fetch_volatile_payment_method_record(
+        match fetch_volatile_payment_method_record(
             state,
             platform.get_provider().get_key_store(),
             payment_method_id.get_string_repr(),
         )
         .await
-        .inspect_err(|error| {
-            logger::info!(?error, "No volatile payment method found to promote");
-        })
-        .ok()
+        {
+            Ok(payment_method) => {
+                when(payment_method.should_not_promote, || {
+                    Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Payment method cannot be promoted after fingerprinting failed"
+                            .to_string(),
+                    }))
+                })?;
+                Some(payment_method.payment_method)
+            }
+            Err(error) => {
+                // A volatile-cache failure must not block an already persisted PM.
+                // The promotion guard above still rejects records marked unsafe to save.
+                logger::warn!(?error, "Volatile PM lookup failed; trying persisted PM");
+                None
+            }
+        }
     } else {
         None
     };
@@ -7546,8 +7603,7 @@ impl EncryptableData for payment_methods::PaymentMethodsSessionUpdateRequest {
 }
 
 /// Resolves the merchant's payment-method integration type, defaulting to `VaultThenPay`.
-#[cfg(feature = "v2")]
-async fn resolve_payment_method_integration_type(
+pub(crate) async fn resolve_payment_method_integration_type(
     state: &SessionState,
     platform: &domain::Platform,
 ) -> pm_types::PaymentMethodIntegrationType {
