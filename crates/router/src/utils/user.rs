@@ -20,10 +20,10 @@ use router_env::{env, instrument, logger, tracing, tracing::Instrument};
 
 use crate::{
     consts::user::{REDIS_SSO_PREFIX, REDIS_SSO_TTL},
-    core::errors::{StorageError, UserErrors, UserResponse, UserResult},
+    core::errors::{StorageError, UserErrors, UserResult},
     routes::SessionState,
     services::{
-        authentication::{blacklist, cookies, AuthToken, UserFromToken},
+        authentication::{blacklist, AuthToken, UserFromToken},
         authorization::roles::RoleInfo,
     },
     types::{
@@ -150,16 +150,15 @@ pub fn get_redis_connection_for_global_tenant(
         .attach_printable("Failed to get redis connection")
 }
 
-/// Clears the user's recent 2FA verification state, blacklists every token issued
-/// to them so far, and returns the reply that clears the login cookie. Used by
-/// signout and when a Dashboard session expires from inactivity.
-pub async fn end_user_sessions(state: &SessionState, user_id: &str) -> UserResponse<()> {
+/// Clears the user's recent 2FA verification state and blacklists every token
+/// issued to them so far. Used by signout and when a Dashboard session expires
+/// from inactivity.
+pub async fn end_user_sessions(state: &SessionState, user_id: &str) -> UserResult<()> {
     two_factor_auth::delete_totp_from_redis(state, user_id).await?;
     two_factor_auth::delete_recovery_code_from_redis(state, user_id).await?;
     two_factor_auth::delete_totp_secret_from_redis(state, user_id).await?;
 
-    blacklist::insert_user_in_blacklist(state, user_id).await?;
-    cookies::remove_cookie_response()
+    blacklist::insert_user_in_blacklist(state, user_id).await
 }
 
 impl ForeignFrom<&user_api::AuthConfig> for UserAuthType {
