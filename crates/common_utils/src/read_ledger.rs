@@ -12,9 +12,7 @@
 //! Only reads are tracked: the row-returning update builders hand back the
 //! updated row, so a read after a write is still one the flow did not need.
 
-use std::sync::Mutex;
-
-use rustc_hash::FxHashMap;
+use std::{collections::HashMap, sync::Mutex};
 
 /// Call sites named per repeated record; repeats past this are still counted.
 /// A limit on noise, not memory: a record read in a loop repeats from the same
@@ -47,11 +45,13 @@ struct Record {
 pub struct ReadLedger {
     /// Statement to what is known about reads of it.
     ///
-    /// Keyed by the statement, not a hash of it: a shared key would report two
-    /// different records as repeats of each other, and 64-bit `FxHash` put 248
-    /// colliding pairs among 5000 short statements. `FxHashMap` keeps that hash
-    /// for bucketing but compares keys on a hit.
-    reads: Mutex<FxHashMap<String, Record>>,
+    /// Keyed by the statement, not a digest of it: two records under one key
+    /// would be reported as repeats of each other, and a 64-bit `FxHash` of
+    /// 5000 short statements put 248 colliding pairs among them. Keys carry
+    /// bind values, so the map is a plain `HashMap`: a per-map random seed
+    /// rather than a fixed one, and at this size -- one entry per round trip
+    /// the request already paid for -- the cost of that is nothing.
+    reads: Mutex<HashMap<String, Record>>,
 }
 
 impl ReadLedger {
@@ -73,23 +73,23 @@ impl ReadLedger {
             if record.repeat_origins.len() < ORIGINS_PER_RECORD {
                 record.repeat_origins.push(origin.map(str::to_owned));
             }
-            return true;
+            true
+        } else {
+            // Uncapped: one entry per distinct statement, and a distinct statement
+            // is a round trip the request already paid for. A cap would only stop
+            // detecting on the worst sessions, and every entry is a different
+            // record, so nothing it dropped would be redundant.
+            reads.insert(
+                statement.to_owned(),
+                Record {
+                    table,
+                    first_origin: origin.map(str::to_owned),
+                    repeats: 0,
+                    repeat_origins: Vec::new(),
+                },
+            );
+            false
         }
-
-        // Uncapped: one entry per distinct statement, and a distinct statement
-        // is a round trip the request already paid for. A cap would only stop
-        // detecting on the worst sessions, and every entry is a different
-        // record, so nothing it dropped would be redundant.
-        reads.insert(
-            statement.to_owned(),
-            Record {
-                table,
-                first_origin: origin.map(str::to_owned),
-                repeats: 0,
-                repeat_origins: Vec::new(),
-            },
-        );
-        false
     }
 
     /// Take the session's duplicate reads, worst first, and forget them.
@@ -114,7 +114,7 @@ impl ReadLedger {
 
     /// A diagnostic is not worth failing a payment over, so a poisoned lock is
     /// recovered rather than propagated.
-    fn reads(&self) -> std::sync::MutexGuard<'_, FxHashMap<String, Record>> {
+    fn reads(&self) -> std::sync::MutexGuard<'_, HashMap<String, Record>> {
         self.reads
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -141,16 +141,14 @@ mod tests {
         assert!(!ledger.record_read("payment_intent", PI, Some("get_trackers")));
         assert!(ledger.record_read("payment_intent", PI, Some("call_connector")));
         assert!(ledger.record_read("payment_intent", PI, Some("generate_response")));
-        let duplicates = ledger.take_duplicates();
+        let mut duplicates = ledger.take_duplicates();
         assert_eq!(duplicates.len(), 1);
-        assert_eq!(duplicates[0].table, "payment_intent");
-        assert_eq!(duplicates[0].repeats, 2);
+        let duplicate = duplicates.remove(0);
+        assert_eq!(duplicate.table, "payment_intent");
+        assert_eq!(duplicate.repeats, 2);
+        assert_eq!(duplicate.first_read_from.as_deref(), Some("get_trackers"));
         assert_eq!(
-            duplicates[0].first_read_from.as_deref(),
-            Some("get_trackers")
-        );
-        assert_eq!(
-            duplicates[0].re_read_from,
+            duplicate.re_read_from,
             vec![
                 Some("call_connector".to_string()),
                 Some("generate_response".to_string()),

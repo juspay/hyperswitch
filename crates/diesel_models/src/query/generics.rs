@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use async_bb8_diesel::AsyncRunQueryDsl;
+use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use diesel::{
     associations::HasTable,
     debug_query,
@@ -23,17 +23,16 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "deja")]
 use hyperswitch_masking::PeekInterface;
 use hyperswitch_masking::Secret;
-use router_env::logger;
+use router_env::{current_span_path, logger};
 
 use crate::{
     errors, query::utils::GetPrimaryKey, DatabaseConnectionWithContext, DejaPgConnection,
-    StorageResult,
+    RawPgConnection, StorageResult,
 };
 
 pub mod db_metrics {
     use common_utils::external_service::{ExternalServiceCall, ExternalServiceEventEmitter};
     use diesel::result::Error as DieselError;
-    use router_env::{current_span_path, logger};
 
     #[derive(Debug)]
     pub enum DatabaseOperation {
@@ -52,7 +51,7 @@ pub mod db_metrics {
         /// Whether this operation only reads. Writes are not tracked at all,
         /// the row-returning ones least of all: handing their row back is why a
         /// write needs no re-read.
-        fn is_read(&self) -> bool {
+        pub(super) fn is_read(&self) -> bool {
             matches!(self, Self::FindOne | Self::Filter | Self::Count)
         }
     }
@@ -76,7 +75,7 @@ pub mod db_metrics {
         }
     }
 
-    fn emit_database_call_event<U>(
+    pub(super) fn emit_database_call_event<U>(
         request_id: Option<&str>,
         event_emitter: &dyn ExternalServiceEventEmitter,
         table_name: &str,
@@ -102,9 +101,78 @@ pub mod db_metrics {
             });
         }
     }
+}
 
-    /// Logs the statement, times the call, records its latency metric, emits one
-    /// `ExternalServiceCall` event, and records the read in the session's
+use db_metrics::*;
+
+/// The gateway for every query against this connection.
+///
+/// `track_database_call` is private: no code outside this `impl` block can
+/// run a query with the connection's raw handle, log a statement by hand, or
+/// skip the ledger check -- the typed methods below are the only way in.
+///
+/// Which diesel method a call needs depends on its return shape, not on the
+/// `DatabaseOperation` alone (an `Insert` with `RETURNING` and a plain
+/// `UPDATE` both write, but one needs `get_result_async`, the other
+/// `execute_async`), so there is one method per shape rather than one
+/// generic entry point. None of them captures for `deja`: that capturing
+/// exists only on the ten `generic_*` builders below, each already wrapped by
+/// its own `#[deja::boundary]` executor; these five cover every call site
+/// that was never part of that boundary.
+impl DatabaseConnectionWithContext<'_> {
+    /// The connection, coerced to the type its async methods need.
+    ///
+    /// `self.connection` is a `bb8::PooledConnection`, which only derefs into
+    /// `RawPgConnection` -- deref coercion fires on a `return` whose
+    /// annotated type forces it (as it did for the removed `raw_connection`
+    /// accessor), not when the same expression is passed as a generic
+    /// argument, so every caller needs this explicit coercion rather than
+    /// `&self.connection` directly.
+    ///
+    /// Private: the raw connection never leaves this `impl` block. Every other
+    /// method on this type is the full set of ways to use it; `kv.rs`'s two
+    /// non-query needs (collecting a query's binds, running an
+    /// already-collected one) each get their own narrow method below instead
+    /// of this one handed out crate-wide.
+    fn connection(&self) -> &RawPgConnection {
+        &self.connection
+    }
+
+    /// Collect `query`'s bind values as raw bytes, without running it --
+    /// `kv.rs` uses this to serialize a write for the KV write-behind queue.
+    /// Not a database round trip, so not logged or ledger-checked.
+    pub(crate) async fn collect_query_binds<Q>(
+        &self,
+        query: Q,
+    ) -> diesel::QueryResult<diesel::query_builder::bind_collector::RawBytesBindCollector<Pg>>
+    where
+        Q: QueryFragment<Pg> + Send + 'static,
+    {
+        self.connection()
+            .run(move |c| {
+                let mut bind_collector =
+                    diesel::query_builder::bind_collector::RawBytesBindCollector::<Pg>::new();
+                query.collect_binds(&mut bind_collector, c, &Pg)?;
+                Ok::<_, DieselError>(bind_collector)
+            })
+            .await
+    }
+
+    /// Run a query already collected into SQL text and raw bind bytes --
+    /// `kv.rs` uses this to replay a queued KV write against Postgres. Not
+    /// logged or ledger-checked here: the write was already described, with
+    /// its own statement log, when it was first collected and queued.
+    pub(crate) async fn execute_collected<Q>(&self, query: Q) -> diesel::QueryResult<usize>
+    where
+        Q: diesel::query_dsl::methods::ExecuteDsl<DejaPgConnection> + Send + 'static,
+    {
+        self.connection()
+            .run(move |c| diesel::query_dsl::methods::ExecuteDsl::execute(query, c))
+            .await
+    }
+
+    /// Logs the statement, times the call, records its latency metric, emits
+    /// one `ExternalServiceCall` event, and records the read in the session's
     /// ledger. Writes are not recorded there -- only a read repeats a read.
     ///
     /// Every query in the workspace passes here, so the statement is logged
@@ -126,8 +194,8 @@ pub mod db_metrics {
     /// Without a `request_id` (drainer, scheduler) no event is emitted: the
     /// correlator joins on it and cannot place request-less rows.
     #[inline]
-    pub fn track_database_call<'a, T, Fut, U>(
-        conn: &'a crate::DatabaseConnectionWithContext<'_>,
+    fn track_database_call<'a, T, Fut, U>(
+        &'a self,
         operation: DatabaseOperation,
         statement: &str,
         future: Fut,
@@ -150,7 +218,7 @@ pub mod db_metrics {
             span_path = %origin.as_deref().unwrap_or_default(),
         );
 
-        if let (Some(ledger), true) = (conn.read_ledger(), operation.is_read()) {
+        if let (Some(ledger), true) = (self.read_ledger(), operation.is_read()) {
             // The ledger keeps the detail; the session logs it once at the end
             // (`SessionStateInfo::flush_read_ledger`). The counter is immediate,
             // being an aggregate either way.
@@ -181,8 +249,8 @@ pub mod db_metrics {
             crate::metrics::DATABASE_CALL_TIME.record(time_elapsed.as_secs_f64(), attributes);
 
             emit_database_call_event(
-                conn.request_id(),
-                conn.event_emitter(),
+                self.request_id(),
+                self.event_emitter(),
                 table,
                 &operation,
                 time_elapsed,
@@ -192,9 +260,147 @@ pub mod db_metrics {
             output
         }
     }
-}
 
-use db_metrics::*;
+    /// Run `query` and return a single row, logging and ledger-checking it as
+    /// `operation`. Derives the statement from `query` itself, so it cannot
+    /// drift from what actually ran.
+    pub fn track_get_result<'a, T, Q, R>(
+        &'a self,
+        operation: DatabaseOperation,
+        query: Q,
+    ) -> impl std::future::Future<Output = Result<R, DieselError>> + 'a
+    where
+        T: 'a,
+        Q: RunQueryDsl<DejaPgConnection>
+            + LoadQuery<'static, DejaPgConnection, R>
+            + QueryFragment<Pg>
+            + Send
+            + 'static,
+        R: Send + 'static,
+    {
+        let statement = debug_query::<Pg, _>(&query).to_string();
+        self.track_database_call::<T, _, _>(
+            operation,
+            &statement,
+            query.get_result_async(self.connection()),
+        )
+    }
+
+    /// As [`Self::track_get_result`], via `first` rather than `get_result`:
+    /// the query must already be limited to (at most) one row, and the error
+    /// on zero rows is diesel's `NotFound` either way.
+    pub fn track_first<'a, T, Q, R>(
+        &'a self,
+        operation: DatabaseOperation,
+        query: Q,
+    ) -> impl std::future::Future<Output = Result<R, DieselError>> + 'a
+    where
+        T: 'a,
+        Q: RunQueryDsl<DejaPgConnection> + LimitDsl + QueryFragment<Pg> + Send + 'static,
+        Limit<Q>: LoadQuery<'static, DejaPgConnection, R>,
+        R: Send + 'static,
+    {
+        let statement = debug_query::<Pg, _>(&query).to_string();
+        self.track_database_call::<T, _, _>(
+            operation,
+            &statement,
+            query.first_async(self.connection()),
+        )
+    }
+
+    /// As [`Self::track_get_result`], for a query returning multiple rows.
+    pub fn track_get_results<'a, T, Q, R>(
+        &'a self,
+        operation: DatabaseOperation,
+        query: Q,
+    ) -> impl std::future::Future<Output = Result<Vec<R>, DieselError>> + 'a
+    where
+        T: 'a,
+        Q: RunQueryDsl<DejaPgConnection>
+            + LoadQuery<'static, DejaPgConnection, R>
+            + QueryFragment<Pg>
+            + Send
+            + 'static,
+        R: Send + 'static,
+    {
+        let statement = debug_query::<Pg, _>(&query).to_string();
+        self.track_database_call::<T, _, _>(
+            operation,
+            &statement,
+            query.get_results_async(self.connection()),
+        )
+    }
+
+    /// As [`Self::track_get_results`], via diesel's `load` rather than
+    /// `get_results`. Same bounds, same call, same result -- `get_results` is
+    /// diesel's own name for `load`; this is the other spelling, for callers
+    /// that want it.
+    pub fn track_load_async<'a, T, Q, R>(
+        &'a self,
+        operation: DatabaseOperation,
+        query: Q,
+    ) -> impl std::future::Future<Output = Result<Vec<R>, DieselError>> + 'a
+    where
+        T: 'a,
+        Q: RunQueryDsl<DejaPgConnection>
+            + LoadQuery<'static, DejaPgConnection, R>
+            + QueryFragment<Pg>
+            + Send
+            + 'static,
+        R: Send + 'static,
+    {
+        let statement = debug_query::<Pg, _>(&query).to_string();
+        self.track_database_call::<T, _, _>(
+            operation,
+            &statement,
+            query.load_async(self.connection()),
+        )
+    }
+
+    /// Run a write with no `RETURNING`, logging and ledger-checking it as
+    /// `operation`. Returns the affected row count.
+    pub fn track_execute<'a, T, Q>(
+        &'a self,
+        operation: DatabaseOperation,
+        query: Q,
+    ) -> impl std::future::Future<Output = Result<usize, DieselError>> + 'a
+    where
+        T: 'a,
+        Q: RunQueryDsl<DejaPgConnection>
+            + diesel::query_dsl::methods::ExecuteDsl<DejaPgConnection>
+            + QueryFragment<Pg>
+            + Send
+            + 'static,
+    {
+        let statement = debug_query::<Pg, _>(&query).to_string();
+        self.track_database_call::<T, _, _>(
+            operation,
+            &statement,
+            query.execute_async(self.connection()),
+        )
+    }
+
+    /// Run `f` inside a database transaction against this same connection.
+    ///
+    /// `f` takes no connection: every existing caller already discarded the
+    /// one `async_bb8_diesel::transaction_async` hands its closure (`move |_|
+    /// ...`) in favour of the outer `&DatabaseConnectionWithContext` they
+    /// already hold, since that is what the methods above need -- so the
+    /// raw type is never given out here either. Not logged or ledger-checked
+    /// itself: queries issued through the outer connection inside `f` go
+    /// through the methods above as usual, each tracked individually.
+    pub async fn transaction_async<R, E, Func, Fut>(&self, f: Func) -> Result<R, E>
+    where
+        R: Send + 'static,
+        E: From<DieselError> + Send + 'static,
+        Fut: std::future::Future<Output = Result<R, E>> + Send,
+        Func: FnOnce() -> Fut + Send,
+    {
+        self.connection()
+            .transaction_async(move |_discarded| f())
+            .await
+    }
+}
 
 fn table_name<T>() -> &'static str {
     std::any::type_name::<T>()
@@ -749,18 +955,16 @@ where
     });
 
     #[cfg(feature = "deja")]
-    let fut = track_database_call::<T, _, _>(
-        conn,
+    let fut = conn.track_database_call::<T, _, _>(
         DatabaseOperation::Insert,
         &debug_sql,
-        deja::db::get_result_captured(conn.raw_connection(), query),
+        deja::db::get_result_captured(conn.connection(), query),
     );
     #[cfg(not(feature = "deja"))]
-    let fut = track_database_call::<T, _, _>(
-        conn,
+    let fut = conn.track_database_call::<T, _, _>(
         DatabaseOperation::Insert,
         &debug_sql,
-        query.get_result_async(conn.raw_connection()),
+        query.get_result_async(conn.connection()),
     );
 
     let output = execute_generic_insert(
@@ -802,11 +1006,10 @@ where
     });
 
     execute_generic_update(
-        track_database_call::<T, _, _>(
-            conn,
+        conn.track_database_call::<T, _, _>(
             DatabaseOperation::Update,
             &debug_sql,
-            query.execute_async(conn.raw_connection()),
+            query.execute_async(conn.connection()),
         ),
         table_name::<T>(),
         Secret::new(sql),
@@ -850,18 +1053,16 @@ where
     });
 
     #[cfg(feature = "deja")]
-    let fut = track_database_call::<T, _, _>(
-        conn,
+    let fut = conn.track_database_call::<T, _, _>(
         DatabaseOperation::UpdateWithResults,
         &debug_sql,
-        deja::db::get_results_captured(conn.raw_connection(), query.to_owned()),
+        deja::db::get_results_captured(conn.connection(), query.to_owned()),
     );
     #[cfg(not(feature = "deja"))]
-    let fut = track_database_call::<T, _, _>(
-        conn,
+    let fut = conn.track_database_call::<T, _, _>(
         DatabaseOperation::UpdateWithResults,
         &debug_sql,
-        query.to_owned().get_results_async(conn.raw_connection()),
+        query.to_owned().get_results_async(conn.connection()),
     );
 
     let output = execute_generic_update_with_results(
@@ -949,18 +1150,16 @@ where
     });
 
     #[cfg(feature = "deja")]
-    let fut = track_database_call::<T, _, _>(
-        conn,
+    let fut = conn.track_database_call::<T, _, _>(
         DatabaseOperation::UpdateOne,
         &debug_sql,
-        deja::db::get_result_captured(conn.raw_connection(), query.to_owned()),
+        deja::db::get_result_captured(conn.connection(), query.to_owned()),
     );
     #[cfg(not(feature = "deja"))]
-    let fut = track_database_call::<T, _, _>(
-        conn,
+    let fut = conn.track_database_call::<T, _, _>(
         DatabaseOperation::UpdateOne,
         &debug_sql,
-        query.to_owned().get_result_async(conn.raw_connection()),
+        query.to_owned().get_result_async(conn.connection()),
     );
 
     let output = execute_generic_update_by_id(
@@ -997,11 +1196,10 @@ where
     });
 
     execute_generic_delete(
-        track_database_call::<T, _, _>(
-            conn,
+        conn.track_database_call::<T, _, _>(
             DatabaseOperation::Delete,
             &debug_sql,
-            query.execute_async(conn.raw_connection()),
+            query.execute_async(conn.connection()),
         ),
         table_name::<T>(),
         Secret::new(sql),
@@ -1033,18 +1231,16 @@ where
     });
 
     #[cfg(feature = "deja")]
-    let fut = track_database_call::<T, _, _>(
-        conn,
+    let fut = conn.track_database_call::<T, _, _>(
         DatabaseOperation::DeleteWithResult,
         &debug_sql,
-        deja::db::get_results_captured(conn.raw_connection(), query),
+        deja::db::get_results_captured(conn.connection(), query),
     );
     #[cfg(not(feature = "deja"))]
-    let fut = track_database_call::<T, _, _>(
-        conn,
+    let fut = conn.track_database_call::<T, _, _>(
         DatabaseOperation::DeleteWithResult,
         &debug_sql,
-        query.get_results_async(conn.raw_connection()),
+        query.get_results_async(conn.connection()),
     );
 
     let output = execute_generic_delete_one_with_result(
@@ -1079,18 +1275,16 @@ where
     });
 
     #[cfg(feature = "deja")]
-    let fut = track_database_call::<T, _, _>(
-        conn,
+    let fut = conn.track_database_call::<T, _, _>(
         DatabaseOperation::FindOne,
         &debug_sql,
-        deja::db::first_captured(conn.raw_connection(), query),
+        deja::db::first_captured(conn.connection(), query),
     );
     #[cfg(not(feature = "deja"))]
-    let fut = track_database_call::<T, _, _>(
-        conn,
+    let fut = conn.track_database_call::<T, _, _>(
         DatabaseOperation::FindOne,
         &debug_sql,
-        query.first_async(conn.raw_connection()),
+        query.first_async(conn.connection()),
     );
 
     let output = execute_generic_find_by_id(
@@ -1153,18 +1347,16 @@ where
     });
 
     #[cfg(feature = "deja")]
-    let fut = track_database_call::<T, _, _>(
-        conn,
+    let fut = conn.track_database_call::<T, _, _>(
         DatabaseOperation::FindOne,
         &debug_sql,
-        deja::db::get_result_captured(conn.raw_connection(), query),
+        deja::db::get_result_captured(conn.connection(), query),
     );
     #[cfg(not(feature = "deja"))]
-    let fut = track_database_call::<T, _, _>(
-        conn,
+    let fut = conn.track_database_call::<T, _, _>(
         DatabaseOperation::FindOne,
         &debug_sql,
-        query.get_result_async(conn.raw_connection()),
+        query.get_result_async(conn.connection()),
     );
 
     let output = execute_generic_find_one(
@@ -1251,18 +1443,16 @@ where
     });
 
     #[cfg(feature = "deja")]
-    let fut = track_database_call::<T, _, _>(
-        conn,
+    let fut = conn.track_database_call::<T, _, _>(
         DatabaseOperation::Filter,
         &debug_sql,
-        deja::db::get_results_captured(conn.raw_connection(), query),
+        deja::db::get_results_captured(conn.connection(), query),
     );
     #[cfg(not(feature = "deja"))]
-    let fut = track_database_call::<T, _, _>(
-        conn,
+    let fut = conn.track_database_call::<T, _, _>(
         DatabaseOperation::Filter,
         &debug_sql,
-        query.get_results_async(conn.raw_connection()),
+        query.get_results_async(conn.connection()),
     );
 
     let output = execute_generic_filter(
@@ -1300,11 +1490,10 @@ where
     });
 
     execute_generic_count(
-        track_database_call::<T, _, _>(
-            conn,
+        conn.track_database_call::<T, _, _>(
             DatabaseOperation::Count,
             &debug_sql,
-            query.get_result_async(conn.raw_connection()),
+            query.get_result_async(conn.connection()),
         ),
         table_name::<T>(),
         Secret::new(sql),

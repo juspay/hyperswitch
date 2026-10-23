@@ -1,9 +1,7 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
 use common_enums::EntityType;
 use common_utils::id_type;
 use diesel::{
     associations::HasTable,
-    debug_query,
     pg::Pg,
     result::Error as DieselError,
     sql_types::{Bool, Nullable},
@@ -297,14 +295,9 @@ impl UserRole {
             query = query.limit(limit.into());
         }
 
-        let logged_statement = debug_query::<Pg, _>(&query).to_string();
-        match generics::db_metrics::track_database_call::<Self, _, _>(
-            conn,
-            generics::db_metrics::DatabaseOperation::Filter,
-            &logged_statement,
-            query.get_results_async(conn.raw_connection()),
-        )
-        .await
+        match conn
+            .track_get_results::<Self, _, _>(generics::db_metrics::DatabaseOperation::Filter, query)
+            .await
         {
             Ok(value) => Ok(value),
             Err(err) => match err {
@@ -357,14 +350,9 @@ impl UserRole {
             query = query.limit(limit.into());
         }
 
-        let logged_statement = debug_query::<Pg, _>(&query).to_string();
-        match generics::db_metrics::track_database_call::<Self, _, _>(
-            conn,
-            generics::db_metrics::DatabaseOperation::Filter,
-            &logged_statement,
-            query.get_results_async(conn.raw_connection()),
-        )
-        .await
+        match conn
+            .track_get_results::<Self, _, _>(generics::db_metrics::DatabaseOperation::Filter, query)
+            .await
         {
             Ok(value) => Ok(value),
             Err(err) => match err {
@@ -388,14 +376,9 @@ impl UserRole {
             query = query.limit(limit.into());
         }
 
-        let logged_statement = debug_query::<Pg, _>(&query).to_string();
-        match generics::db_metrics::track_database_call::<Self, _, _>(
-            conn,
-            generics::db_metrics::DatabaseOperation::Filter,
-            &logged_statement,
-            query.get_results_async(conn.raw_connection()),
-        )
-        .await
+        match conn
+            .track_get_results::<Self, _, _>(generics::db_metrics::DatabaseOperation::Filter, query)
+            .await
         {
             Ok(value) => Ok(value),
             Err(err) => match err {

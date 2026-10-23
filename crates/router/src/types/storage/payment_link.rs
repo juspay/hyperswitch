@@ -1,4 +1,3 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 pub use diesel_models::{
     payment_link::{PaymentLink, PaymentLinkNew},
@@ -71,12 +70,9 @@ impl PaymentLinkDbExt for PaymentLink {
             payment_link_list_constraints.offset,
         );
 
-        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string();
-        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn,
+        conn.track_get_results::<<Self as HasTable>::Table, _, _>(
             db_metrics::DatabaseOperation::Filter,
-            &logged_statement,
-            filter.get_results_async(conn.raw_connection()),
+            filter,
         )
         .await
         .change_context(errors::DatabaseError::Others)
@@ -115,12 +111,9 @@ impl PaymentLinkDbExt for PaymentLink {
             None => filter,
         };
 
-        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string();
-        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn,
+        conn.track_get_result::<<Self as HasTable>::Table, _, _>(
             db_metrics::DatabaseOperation::Count,
-            &logged_statement,
-            filter.get_result_async(conn.raw_connection()),
+            filter,
         )
         .await
         .change_context(errors::DatabaseError::Others)

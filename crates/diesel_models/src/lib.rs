@@ -122,10 +122,6 @@ impl<'pool> DatabaseConnectionWithContext<'pool> {
         }
     }
 
-    pub fn raw_connection(&self) -> &RawPgConnection {
-        &self.connection
-    }
-
     pub fn request_id(&self) -> Option<&str> {
         self.request_id.as_deref()
     }

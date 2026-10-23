@@ -1,7 +1,6 @@
 #[cfg(feature = "olap")]
 use api_models::enums::PayoutConnectors;
 #[cfg(feature = "olap")]
-use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
@@ -33,7 +32,6 @@ use hyperswitch_domain_models::payouts::{
 };
 use redis_interface::HsetnxReply;
 #[cfg(feature = "olap")]
-use router_env::logger;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "olap")]
@@ -556,12 +554,9 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             }
         }
 
-        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
-        db_metrics::track_database_call::<<DieselPayouts as HasTable>::Table, _, _>(
-            &conn,
+        conn.track_get_results::<<DieselPayouts as HasTable>::Table, _, DieselPayouts>(
             db_metrics::DatabaseOperation::Filter,
-            &logged_statement,
-            query.get_results_async::<DieselPayouts>(conn.raw_connection()),
+            query,
         )
         .await
         .map(|payouts| {
@@ -593,7 +588,6 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         StorageError,
     > {
         let conn = connection::pg_connection_read(self).await?;
-        let conn = conn.raw_connection();
         let mut query = diesel_models::list::into_boxed_list(
             DieselPayouts::table()
                 .inner_join(
@@ -701,39 +695,38 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             }
         };
 
-        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-        query
-            .select((
+        conn.track_get_results::<<DieselPayouts as HasTable>::Table, _, (
+            DieselPayouts,
+            DieselPayoutAttempt,
+            Option<DieselCustomer>,
+            Option<DieselAddress>,
+        )>(
+            db_metrics::DatabaseOperation::Filter,
+            query.select((
                 po_all_columns,
                 poa_all_columns,
                 cust_all_columns.nullable(),
                 addr_all_columns.nullable(),
-            ))
-            .get_results_async::<(
-                DieselPayouts,
-                DieselPayoutAttempt,
-                Option<DieselCustomer>,
-                Option<DieselAddress>,
-            )>(conn)
-            .await
-            .map(|results| {
-                results
-                    .into_iter()
-                    .map(|(pi, pa, c, add)| {
-                        (
-                            Payouts::from_storage_model(pi),
-                            PayoutAttempt::from_storage_model(pa),
-                            c,
-                            add,
-                        )
-                    })
-                    .collect()
-            })
-            .map_err(|er| {
-                error_stack::report!(StorageError::from(er))
-                    .attach_printable("Error filtering payout records")
-            })
+            )),
+        )
+        .await
+        .map(|results| {
+            results
+                .into_iter()
+                .map(|(pi, pa, c, add)| {
+                    (
+                        Payouts::from_storage_model(pi),
+                        PayoutAttempt::from_storage_model(pa),
+                        c,
+                        add,
+                    )
+                })
+                .collect()
+        })
+        .map_err(|er| {
+            error_stack::report!(StorageError::from(er))
+                .attach_printable("Error filtering payout records")
+        })
     }
 
     #[cfg(all(feature = "olap", feature = "v2"))]
@@ -866,14 +859,9 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             }
         };
 
-        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
-        db_metrics::track_database_call::<<DieselPayouts as HasTable>::Table, _, _>(
-            &conn,
+        conn.track_get_results::<<DieselPayouts as HasTable>::Table, _, String>(
             db_metrics::DatabaseOperation::Filter,
-            &logged_statement,
-            query.get_results_async::<String>(conn.raw_connection()),
+            query,
         )
         .await
         .map_err(|er| {
@@ -927,14 +915,9 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             None => query,
         };
 
-        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
-        db_metrics::track_database_call::<<DieselPayouts as HasTable>::Table, _, _>(
-            &conn,
+        conn.track_get_results::<<DieselPayouts as HasTable>::Table, _, (common_enums::PayoutStatus, i64)>(
             db_metrics::DatabaseOperation::Filter,
-            &logged_statement,
-            query.get_results_async::<(common_enums::PayoutStatus, i64)>(conn.raw_connection()),
+            query,
         )
         .await
         .map_err(|er| {

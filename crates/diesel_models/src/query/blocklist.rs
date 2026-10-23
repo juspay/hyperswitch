@@ -1,4 +1,3 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
     associations::HasTable,
     dsl::{count_star, sql},
@@ -60,12 +59,9 @@ impl BlocklistNew {
             // Legacy and NULL-profile rows use different unique indexes from processor/profile rows.
             .on_conflict_do_nothing();
 
-        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
-        generics::db_metrics::track_database_call::<<Blocklist as HasTable>::Table, _, _>(
-            conn,
+        conn.track_execute::<<Blocklist as HasTable>::Table, _>(
             generics::db_metrics::DatabaseOperation::Insert,
-            &logged_statement,
-            query.execute_async(conn.raw_connection()),
+            query,
         )
         .await
         .map_err(|e| error_stack::report!(e))
@@ -723,12 +719,9 @@ impl Blocklist {
                 )
                 .group_by(fingerprint_length())
                 .select((fingerprint_length(), count_star()));
-            let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
-            generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-                conn,
+            conn.track_get_results::<<Self as HasTable>::Table, _, _>(
                 generics::db_metrics::DatabaseOperation::Count,
-                &logged_statement,
-                query.get_results_async(conn.raw_connection()),
+                query,
             )
             .await
         };
@@ -763,12 +756,9 @@ impl Blocklist {
                 )
                 .group_by(fingerprint_length())
                 .select((fingerprint_length(), count_star()));
-            let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
-            generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-                conn,
+            conn.track_get_results::<<Self as HasTable>::Table, _, _>(
                 generics::db_metrics::DatabaseOperation::Count,
-                &logged_statement,
-                query.get_results_async(conn.raw_connection()),
+                query,
             )
             .await
         };
@@ -800,12 +790,9 @@ impl Blocklist {
             )
             .group_by(fingerprint_length())
             .select((fingerprint_length(), count_star()));
-        let logged_statement = diesel::debug_query::<diesel::pg::Pg, _>(&query).to_string();
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn,
+        conn.track_get_results::<<Self as HasTable>::Table, _, _>(
             generics::db_metrics::DatabaseOperation::Count,
-            &logged_statement,
-            query.get_results_async(conn.raw_connection()),
+            query,
         )
         .await
         .map_err(|e| error_stack::report!(e))

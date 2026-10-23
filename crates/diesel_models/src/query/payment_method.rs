@@ -1,11 +1,8 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
 #[cfg(feature = "v2")]
 use diesel::PgExpressionMethods;
 #[cfg(feature = "v1")]
 use diesel::Table;
-use diesel::{
-    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
-};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 use error_stack::ResultExt;
 
 use super::generics;
@@ -159,12 +156,9 @@ impl PaymentMethod {
             ),
         );
 
-        let logged_statement = debug_query::<Pg, _>(&filter).to_string();
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn,
+        conn.track_get_result::<<Self as HasTable>::Table, _, i64>(
             generics::db_metrics::DatabaseOperation::Count,
-            &logged_statement,
-            filter.get_result_async::<i64>(conn.raw_connection()),
+            filter,
         )
         .await
         .change_context(errors::DatabaseError::Others)
@@ -182,12 +176,9 @@ impl PaymentMethod {
                 .and(dsl::status.eq(status.to_owned())),
         );
 
-        let logged_statement = debug_query::<Pg, _>(&query).to_string();
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn,
+        conn.track_get_result::<<Self as HasTable>::Table, _, i64>(
             generics::db_metrics::DatabaseOperation::Count,
-            &logged_statement,
-            query.get_result_async::<i64>(conn.raw_connection()),
+            query,
         )
         .await
         .change_context(errors::DatabaseError::Others)
@@ -399,12 +390,9 @@ impl PaymentMethod {
                 .and(dsl::status.eq(status.to_owned())),
         );
 
-        let logged_statement = debug_query::<Pg, _>(&query).to_string();
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn,
+        conn.track_get_result::<<Self as HasTable>::Table, _, i64>(
             generics::db_metrics::DatabaseOperation::Count,
-            &logged_statement,
-            query.get_result_async::<i64>(conn.raw_connection()),
+            query,
         )
         .await
         .change_context(errors::DatabaseError::Others)
