@@ -2,13 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use common_types::alert_rules::MetricSource;
 use common_utils::fp_utils::when;
-use error_stack::ResultExt;
 use external_services::metrics_provider::{
     grafana::{cloudwatch::GrafanaCloudwatch, GrafanaConfig},
     MetricsError, MetricsProvider,
 };
 use hyperswitch_masking::PeekInterface;
-use serde::{de::Error as _, Deserialize, Deserializer};
+use serde::Deserialize;
 
 use crate::{
     domain_models::evaluator::RuleDefinition, errors::ConfigurationError, settings::ChatSettings,
@@ -19,7 +18,7 @@ use crate::{
 pub struct AlertSettings {
     pub grafana: GrafanaConfig,
     pub datasources: HashMap<MetricSource, DatasourceSettings>,
-    #[serde(deserialize_with = "deserialize_rules")]
+    #[serde(deserialize_with = "common_utils::custom_serde::json_string::deserialize")]
     pub(crate) rules: Vec<RuleDefinition>,
 }
 
@@ -125,18 +124,6 @@ impl AlertSettings {
     }
 }
 
-fn deserialize_rules<'de, D>(deserializer: D) -> Result<Vec<RuleDefinition>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let raw = String::deserialize(deserializer)?;
-    serde_json::from_str::<Vec<RuleDefinition>>(&raw)
-        .change_context(ConfigurationError::ConfigParsingError(
-            "invalid alert rules JSON".to_owned(),
-        ))
-        .map_err(|error| D::Error::custom(error.current_context()))
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -150,6 +137,19 @@ mod tests {
         assert!(settings.rules.is_empty());
         assert!(settings.datasources.is_empty());
         assert!(settings.grafana.base_url.is_empty());
+    }
+
+    #[test]
+    fn rules_decode_from_json_strings_and_preserve_parse_errors() {
+        let settings: AlertSettings =
+            serde_json::from_value(serde_json::json!({ "rules": "[]" })).unwrap();
+        assert!(settings.rules.is_empty());
+
+        let error = serde_json::from_value::<AlertSettings>(serde_json::json!({ "rules": "[" }))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("EOF while parsing a list"));
+        assert!(error.contains("line 1 column 1"));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use common_types::alert_rules::{AlertThresholds, GrafanaCloudwatchQuery, Severity};
+use common_types::alert_rules::{AlertThresholds, GrafanaCloudwatchQuery};
 use common_utils::date_time::convert_to_pdt;
 use error_stack::{Report, ResultExt};
 use external_services::metrics_provider::{
@@ -23,7 +23,23 @@ pub async fn evaluate<P>(
 where
     P: MetricsProvider<MetricsQuery = CloudwatchMetricsQuery, MetricsError = MetricsError>,
 {
-    let (window, last) = evaluation_window(query.period, query.end_offset_seconds, now)?;
+    let period = i64::from(query.period);
+    let seconds = now.assume_utc().unix_timestamp()
+        - i64::from(query.end_offset_seconds.saturating_sub(query.period));
+    let end_seconds = seconds
+        .checked_div_euclid(period)
+        .map(|bucket| bucket * period)
+        .ok_or(EvaluatorError::InvalidTimeRange)
+        .attach_printable("evaluation period must be greater than zero")?;
+    let to = OffsetDateTime::from_unix_timestamp(end_seconds)
+        .map(convert_to_pdt)
+        .change_context(EvaluatorError::InvalidTimeRange)?;
+    let (from, last) = to
+        .checked_sub(Duration::seconds(i64::from(LOOKBACK_SECONDS).max(period)))
+        .zip(to.checked_sub(Duration::seconds(period)))
+        .ok_or(EvaluatorError::InvalidTimeRange)
+        .attach_printable("query evaluation time range is outside supported bounds")?;
+    let window = MetricRange { from, to };
     let request = P::build_request(metrics_query, window)
         .change_context(EvaluatorError::DatasourceRequestFailed)?;
     let series = provider
@@ -70,19 +86,17 @@ fn evaluate_series(
         return Err(Report::new(EvaluatorError::UnexpectedResponse)
             .attach_printable("query returned conflicting values for the current timestamp"));
     }
-    for severity in [Severity::Critical, Severity::Warning, Severity::Info] {
-        if let Some(threshold) = thresholds.severities.get(&severity) {
-            if threshold
-                .comparison_operator
-                .breaches(latest.value, threshold.threshold)
-            {
-                return Ok(Evaluation {
-                    level: severity.into(),
-                    latest_value: Some(latest.value),
-                    breach: Some(threshold.clone()),
-                    window,
-                });
-            }
+    for (&severity, threshold) in &thresholds.severities {
+        if threshold
+            .comparison_operator
+            .breaches(latest.value, threshold.threshold)
+        {
+            return Ok(Evaluation {
+                level: severity.into(),
+                latest_value: Some(latest.value),
+                breach: Some(threshold.clone()),
+                window,
+            });
         }
     }
     Ok(Evaluation {
@@ -93,56 +107,11 @@ fn evaluate_series(
     })
 }
 
-fn evaluation_window(
-    period_seconds: u32,
-    end_offset_seconds: u32,
-    at: PrimitiveDateTime,
-) -> EvaluatorResult<(MetricRange, PrimitiveDateTime)> {
-    let period_seconds = i64::from(period_seconds);
-    let at_seconds = at.assume_utc().unix_timestamp();
-    let shifted_seconds = at_seconds
-        .checked_sub(i64::from(end_offset_seconds))
-        .ok_or(EvaluatorError::InvalidTimeRange)
-        .attach_printable("query evaluation time range is outside supported bounds")?;
-    let candidate = shifted_seconds
-        .checked_div_euclid(period_seconds)
-        .and_then(|value| value.checked_mul(period_seconds))
-        .ok_or(EvaluatorError::InvalidTimeRange)
-        .attach_printable("query evaluation time range is outside supported bounds")?;
-    let last_seconds = if candidate
-        .checked_add(period_seconds)
-        .ok_or(EvaluatorError::InvalidTimeRange)
-        .attach_printable("query evaluation time range is outside supported bounds")?
-        > at_seconds
-    {
-        candidate
-            .checked_sub(period_seconds)
-            .ok_or(EvaluatorError::InvalidTimeRange)
-            .attach_printable("query evaluation time range is outside supported bounds")?
-    } else {
-        candidate
-    };
-    let last = OffsetDateTime::from_unix_timestamp(last_seconds)
-        .map(convert_to_pdt)
-        .change_context(EvaluatorError::InvalidTimeRange)?;
-    let to = last
-        .checked_add(Duration::seconds(period_seconds))
-        .ok_or(EvaluatorError::InvalidTimeRange)
-        .attach_printable("query evaluation time range is outside supported bounds")?;
-    let from = to
-        .checked_sub(Duration::seconds(
-            i64::from(LOOKBACK_SECONDS).max(period_seconds),
-        ))
-        .ok_or(EvaluatorError::InvalidTimeRange)
-        .attach_printable("query evaluation time range is outside supported bounds")?;
-    Ok((MetricRange { from, to }, last))
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
 
-    use common_types::alert_rules::{ComparisonOperator, SeverityThreshold};
+    use common_types::alert_rules::{ComparisonOperator, Severity, SeverityThreshold};
     use external_services::metrics_provider::MetricPoint;
     use time::macros::datetime;
 
@@ -165,20 +134,6 @@ mod tests {
                 })
                 .collect(),
         }
-    }
-
-    #[test]
-    fn period_and_offset_define_the_expected_complete_windows() {
-        let now = datetime!(2026-03-18 10:08:00);
-        let (minute, last) = evaluation_window(60, 180, now).unwrap();
-        assert_eq!(last, datetime!(2026-03-18 10:05:00));
-        assert_eq!(minute.from, datetime!(2026-03-18 10:01:00));
-        assert_eq!(minute.to, datetime!(2026-03-18 10:06:00));
-
-        let (five_minutes, last) = evaluation_window(300, 180, now).unwrap();
-        assert_eq!(last, datetime!(2026-03-18 10:00:00));
-        assert_eq!(five_minutes.from, datetime!(2026-03-18 10:00:00));
-        assert_eq!(five_minutes.to, datetime!(2026-03-18 10:05:00));
     }
 
     #[test]

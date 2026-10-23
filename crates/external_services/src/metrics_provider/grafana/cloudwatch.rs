@@ -509,6 +509,10 @@ mod tests {
                 "missing values",
                 json!({"results": {"A": {"frames": [{"data": {}}]}}}),
             ),
+            (
+                "malformed response echoing a credential",
+                json!({"results": {"A": {"error": format!("credential {TOKEN}"), "frames": "invalid"}}}),
+            ),
         ];
         for (case, body) in malformed_bodies {
             let server = MockServer::start().await;
@@ -520,6 +524,7 @@ mod tests {
                 "malformed case `{case}` returned context `{}`; full report: {error:?}",
                 error.current_context()
             );
+            assert!(!format!("{error:?}").contains(TOKEN));
         }
     }
 
