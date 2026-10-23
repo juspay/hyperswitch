@@ -5,9 +5,9 @@ use std::str::FromStr;
 
 use base64::Engine;
 use error_stack::ResultExt;
+use http::Method;
 use hyperswitch_masking::{PeekInterface, StrongSecret};
 use once_cell::sync::OnceCell;
-pub use reqwest::Method;
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
     StatusCode,
@@ -62,6 +62,7 @@ fn get_api_encryption_client(
 ) -> errors::CustomResult<reqwest::Client, errors::KeyManagerClientError> {
     let get_client = || {
         let mut client = reqwest::Client::builder()
+            .retry(reqwest::retry::never())
             .redirect(reqwest::redirect::Policy::none())
             .pool_idle_timeout(std::time::Duration::from_secs(
                 state.client_idle_timeout.unwrap_or_default(),
@@ -110,6 +111,8 @@ where
         .change_context(errors::KeyManagerClientError::UrlEncodingFailed)?;
 
     let method_str = method.to_string();
+    let method = reqwest::Method::from_bytes(method_str.as_bytes())
+        .change_context(errors::KeyManagerClientError::ClientConstructionFailed)?;
     let start_time = std::time::Instant::now();
 
     let response_result = client

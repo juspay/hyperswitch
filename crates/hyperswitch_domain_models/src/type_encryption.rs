@@ -20,7 +20,7 @@ mod encrypt {
         encryption::Encryption,
         errors::{self, CustomResult},
         ext_traits::ByteSliceExt,
-        keymanager::{call_encryption_service, Method},
+        keymanager::call_encryption_service,
         transformers::{ForeignFrom, ForeignTryFrom},
         types::keymanager::{
             BatchDecryptDataResponse, BatchEncryptDataRequest, BatchEncryptDataResponse,
@@ -29,6 +29,7 @@ mod encrypt {
         },
     };
     use error_stack::ResultExt;
+    use http::Method;
     use hyperswitch_masking::{PeekInterface, Secret};
     use router_env::{instrument, logger, tracing};
     use rustc_hash::FxHashMap;
