@@ -1017,6 +1017,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SenderDetails::foreign_try_from)
                 .transpose()?,
+            risk_assessment_data: None,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -1291,6 +1292,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SenderDetails::foreign_try_from)
                 .transpose()?,
+            risk_assessment_data: None,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -2595,6 +2597,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SenderDetails::foreign_try_from)
                 .transpose()?,
+            risk_assessment_data: None,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -2818,6 +2821,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SenderDetails::foreign_try_from)
                 .transpose()?,
+            risk_assessment_data: None,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -2898,6 +2902,7 @@ impl
         Ok(Self {
             is_account_funding_transaction: None,
             sender_details: None,
+            risk_assessment_data: None,
             recipient_details: None,
             business_country: None,
             split_settlement: None,
