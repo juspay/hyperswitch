@@ -304,6 +304,13 @@ impl Caches {
             contract_based_dynamic_algorithm,
         ]
     }
+
+    /// Drops every entry from every cache, for when invalidation messages may have been missed.
+    pub fn invalidate_all(&self) {
+        for cache in self.all() {
+            cache.invalidate_all();
+        }
+    }
 }
 
 impl Default for Caches {
@@ -794,6 +801,11 @@ impl Cache {
         self.inner
             .invalidate::<String>(&in_memory_cache_key(key))
             .await;
+    }
+
+    /// Drops every entry from this cache.
+    pub fn invalidate_all(&self) {
+        self.inner.invalidate_all();
     }
 
     /// Performs any pending maintenance operations needed by the cache.
