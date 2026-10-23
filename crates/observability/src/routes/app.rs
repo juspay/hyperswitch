@@ -17,8 +17,8 @@ use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
     routes::{
-        alerts_info, blacklist, dictionary, evaluator, health_check, lifecycle_events, metadata,
-        notify, rule_toggles, thresholds,
+        alert_rules, alerts_info, blacklist, dictionary, evaluator, health_check, lifecycle_events,
+        metadata, notify, rule_toggles, thresholds,
     },
     state::AppState,
 };
@@ -84,6 +84,13 @@ impl Alerts {
             .service(web::resource("/rule_toggles").route(web::get().to(rule_toggles::list)))
             .service(
                 web::resource("/rule_toggles/{rule_id}").route(web::put().to(rule_toggles::set)),
+            )
+            .service(web::resource("/rules").route(web::get().to(alert_rules::list)))
+            .service(
+                web::resource("/rules/{id}")
+                    .route(web::get().to(alert_rules::get))
+                    .route(web::put().to(alert_rules::upsert))
+                    .route(web::delete().to(alert_rules::delete)),
             )
             .service(
                 web::resource("/thresholds")

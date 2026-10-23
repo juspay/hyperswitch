@@ -91,6 +91,21 @@ pub enum ObservabilityError {
     #[error("The request body is invalid")]
     InvalidRequest,
 
+    /// An alert rule failed a check. Unlike other bad bodies, the reason is returned: it names the
+    /// failing field, and a rule holds no merchant data.
+    #[error("The alert rule is invalid: {reason}")]
+    InvalidAlertRule {
+        /// What failed, e.g. `alerts_configuration.interval_seconds must be ...`.
+        reason: String,
+    },
+
+    /// The path named an alert rule that does not exist.
+    #[error("No alert rule has the id `{id}`")]
+    AlertRuleNotFound {
+        /// The id the request asked for.
+        id: String,
+    },
+
     /// Creating or resurrecting a threshold would exceed the active-rule cap.
     #[error("The active threshold rule limit has been reached")]
     ActiveRuleLimitReached,
@@ -150,6 +165,12 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 4,
                 "The request body could not be parsed",
             )),
+            Self::InvalidAlertRule { reason } => {
+                ApiErrorResponse::BadRequest(ApiError::new("IR", 4, reason))
+            }
+            Self::AlertRuleNotFound { .. } => {
+                ApiErrorResponse::NotFound(ApiError::new("IR", 9, "Alert rule not found"))
+            }
             Self::ActiveRuleLimitReached => ApiErrorResponse::TooManyRequests(ApiError::new(
                 "IR",
                 5,
@@ -211,6 +232,18 @@ mod tests {
         );
         assert_eq!(status_of(&ObservabilityError::Unauthorized), 401);
         assert_eq!(status_of(&ObservabilityError::InvalidRequest), 400);
+        assert_eq!(
+            status_of(&ObservabilityError::InvalidAlertRule {
+                reason: "name must be 1 to 255 characters".to_owned(),
+            }),
+            400
+        );
+        assert_eq!(
+            status_of(&ObservabilityError::AlertRuleNotFound {
+                id: "rule".to_owned(),
+            }),
+            404
+        );
         assert_eq!(status_of(&ObservabilityError::ActiveRuleLimitReached), 429);
         assert_eq!(
             status_of(&ObservabilityError::BlacklistActiveRuleLimitReached),

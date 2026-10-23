@@ -5,9 +5,13 @@
 //! [`common_types::alert_rules::stored`], so the database models can store them as their
 //! types.
 
+use api_models::observability::alert_manager::alert_rules as api;
 use common_types::alert_rules::stored::{AlertConfiguration, AlertRuleStatus};
 use diesel_models::observability::alert_manager::alert_rules as storage;
+use error_stack::{report, Report};
 use time::PrimitiveDateTime;
+
+use crate::errors::{ObservabilityApiResult, ObservabilityError};
 
 const MAX_ID_LENGTH: usize = 64;
 const MAX_NAME_LENGTH: usize = 255;
@@ -27,8 +31,8 @@ pub struct AlertRule {
 
 /// A rule ready to store (create or replace).
 ///
-/// Built only through [`AlertRuleNew::new`], which runs every check, so an invalid rule cannot
-/// reach the table.
+/// Built only through [`AlertRuleNew::try_from_request`], which runs every check, so an invalid
+/// rule cannot reach the table.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AlertRuleNew {
     id: String,
@@ -39,28 +43,29 @@ pub struct AlertRuleNew {
 }
 
 impl AlertRuleNew {
-    /// Check a rule and prepare it for storage, due at `now`. The error names the failing field.
-    pub fn new(
+    /// Check a requested rule and prepare it for storage, due at `now`. The error names the
+    /// failing field.
+    pub fn try_from_request(
         id: String,
-        name: String,
-        status: AlertRuleStatus,
-        alerts_configuration: AlertConfiguration,
+        request: api::AlertRuleUpsertRequest,
         now: PrimitiveDateTime,
-    ) -> Result<Self, String> {
-        validate_id(&id)?;
+    ) -> ObservabilityApiResult<Self> {
+        validate_id(&id).map_err(invalid)?;
 
-        let name = name.trim().to_owned();
+        let name = request.name.trim().to_owned();
         if name.is_empty() || name.chars().count() > MAX_NAME_LENGTH {
-            return Err(format!("name must be 1 to {MAX_NAME_LENGTH} characters"));
+            return Err(invalid(format!(
+                "name must be 1 to {MAX_NAME_LENGTH} characters"
+            )));
         }
 
-        alerts_configuration.validate()?;
+        request.alerts_configuration.validate().map_err(invalid)?;
 
         Ok(Self {
             id,
             name,
-            status,
-            alerts_configuration,
+            status: request.status,
+            alerts_configuration: request.alerts_configuration,
             next_run_at: now,
         })
     }
@@ -68,6 +73,15 @@ impl AlertRuleNew {
     pub fn id(&self) -> &str {
         &self.id
     }
+
+    pub fn alerts_configuration(&self) -> &AlertConfiguration {
+        &self.alerts_configuration
+    }
+}
+
+/// A rule failed a check. The reason is returned to the caller.
+pub fn invalid(reason: String) -> Report<ObservabilityError> {
+    report!(ObservabilityError::InvalidAlertRule { reason })
 }
 
 fn validate_id(id: &str) -> Result<(), String> {
@@ -112,8 +126,22 @@ impl From<storage::AlertRule> for AlertRule {
     }
 }
 
+impl From<AlertRule> for api::AlertRuleResponse {
+    fn from(rule: AlertRule) -> Self {
+        Self {
+            id: rule.id,
+            name: rule.name,
+            status: rule.status,
+            alerts_configuration: rule.alerts_configuration,
+            next_run_at: rule.next_run_at,
+            created_at: rule.created_at,
+            last_updated_at: rule.last_updated_at,
+        }
+    }
+}
+
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use serde_json::json;
     use time::macros::datetime;
@@ -149,14 +177,30 @@ mod tests {
         .unwrap()
     }
 
-    fn rule(id: &str, name: &str) -> Result<AlertRuleNew, String> {
-        AlertRuleNew::new(
+    fn request(
+        name: &str,
+        alerts_configuration: AlertConfiguration,
+    ) -> api::AlertRuleUpsertRequest {
+        api::AlertRuleUpsertRequest {
+            name: name.to_owned(),
+            status: AlertRuleStatus::Active,
+            alerts_configuration,
+        }
+    }
+
+    fn rule(id: &str, name: &str) -> ObservabilityApiResult<AlertRuleNew> {
+        AlertRuleNew::try_from_request(
             id.to_owned(),
-            name.to_owned(),
-            AlertRuleStatus::Active,
-            configuration(),
+            request(name, configuration()),
             datetime!(2026-10-21 09:00:30),
         )
+    }
+
+    fn reason(error: Report<ObservabilityError>) -> String {
+        match error.current_context() {
+            ObservabilityError::InvalidAlertRule { reason } => reason.clone(),
+            other => panic!("expected an invalid rule, got {other}"),
+        }
     }
 
     #[test]
@@ -165,6 +209,7 @@ mod tests {
 
         assert_eq!(rule.id(), "rds-writer-cpu");
         assert_eq!(rule.name, "RDS writer CPU");
+        assert_eq!(rule.next_run_at, datetime!(2026-10-21 09:00:30));
     }
 
     #[test]
@@ -183,12 +228,12 @@ mod tests {
             "rds.cpu",
             too_long.as_str(),
         ] {
-            let reason = rule(id, "n").unwrap_err();
+            let reason = reason(rule(id, "n").unwrap_err());
             assert!(reason.starts_with("id "), "`{id}`: {reason}");
         }
 
         for name in ["   ".to_owned(), "n".repeat(MAX_NAME_LENGTH + 1)] {
-            let reason = rule("rule", &name).unwrap_err();
+            let reason = reason(rule("rule", &name).unwrap_err());
             assert!(reason.starts_with("name "), "{reason}");
         }
     }
@@ -199,14 +244,14 @@ mod tests {
         let AlertConfiguration::V1(v1) = &mut invalid;
         v1.interval_seconds = 90;
 
-        let reason = AlertRuleNew::new(
-            "rule".to_owned(),
-            "n".to_owned(),
-            AlertRuleStatus::Active,
-            invalid,
-            datetime!(2026-10-21 09:00:30),
-        )
-        .unwrap_err();
+        let reason = reason(
+            AlertRuleNew::try_from_request(
+                "rule".to_owned(),
+                request("n", invalid),
+                datetime!(2026-10-21 09:00:30),
+            )
+            .unwrap_err(),
+        );
         assert!(
             reason.starts_with("alerts_configuration.interval_seconds"),
             "{reason}"
