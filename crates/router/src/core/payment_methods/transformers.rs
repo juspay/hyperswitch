@@ -724,7 +724,7 @@ pub fn generate_payment_method_response(
                     }
                     Some(common_enums::PaymentMethodType::Paypal) => Some(
                         api::PaymentMethodResponseData::Wallet(WalletPaymentMethodData::PayPal(
-                            Box::new(api_models::payments::PaypalRedirection { email: info.email }),
+                            Box::new(api_models::payments::PaypalRedirection::from(info)),
                         )),
                     ),
                     _ => None,
@@ -791,6 +791,7 @@ pub fn generate_payment_method_response(
         raw_payment_method_data,
         billing,
         acknowledgement_status,
+        fingerprint_id: None,
     };
 
     Ok(resp)
@@ -1046,7 +1047,7 @@ impl
                         api_enums::PaymentMethodType::Paypal => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::PayPal(Box::new(
-                                    api_models::payments::PaypalRedirection { email: info.email },
+                                    api_models::payments::PaypalRedirection::from(info),
                                 )),
                             ))
                         }
@@ -1100,14 +1101,16 @@ impl
     transformers::ForeignTryFrom<(
         domain::PaymentMethod,
         Option<id_type::GlobalPaymentMethodId>,
+        Option<id_type::CustomerId>,
     )> for PaymentMethodResponseItem
 {
     type Error = error_stack::Report<errors::ValidationError>;
 
     fn foreign_try_from(
-        (item, default_payment_method_id): (
+        (item, default_payment_method_id, merchant_customer_reference_id): (
             domain::PaymentMethod,
             Option<id_type::GlobalPaymentMethodId>,
+            Option<id_type::CustomerId>,
         ),
     ) -> Result<Self, Self::Error> {
         // For payment methods that are active we should always have the payment method subtype
@@ -1155,7 +1158,7 @@ impl
                         api_enums::PaymentMethodType::Paypal => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::PayPal(Box::new(
-                                    api_models::payments::PaypalRedirection { email: info.email },
+                                    api_models::payments::PaypalRedirection::from(info),
                                 )),
                             ))
                         }
@@ -1226,6 +1229,7 @@ impl
                 .change_context(errors::ValidationError::MissingRequiredField {
                     field_name: "customer_id".into(),
                 })?,
+            merchant_customer_reference_id,
             payment_method_type,
             payment_method_subtype,
             created: item.created_at,

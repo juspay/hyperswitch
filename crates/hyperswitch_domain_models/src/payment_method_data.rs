@@ -849,6 +849,7 @@ pub struct DecryptedWalletTokenDetailsForNetworkTransactionId {
     pub eci: Option<String>,
     pub token_source: Option<common_types::payments::TokenSource>,
     pub card_network: Option<common_enums::CardNetwork>,
+    pub device_manufacturer_identifier: Option<Secret<String>>,
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -1025,8 +1026,10 @@ impl NetworkTokenDetailsForNetworkTransactionId {
     pub fn get_nti_and_network_token_details_for_mit_flow(
         network_transaction_id_and_network_token_details: NetworkTransactionIdAndNetworkTokenDetails,
     ) -> (mandates::MandateReferenceId, PaymentMethodData) {
+        // A network token replay carries its own mandate reference variant: connectors match on
+        // it to pick the token payment source, and `NetworkMandateId` is the raw-card one.
         let mandate_reference_id =
-            mandates::MandateReferenceId::NetworkMandateId(mandates::NetworkMandateIdRef {
+            mandates::MandateReferenceId::NetworkTokenWithNTI(mandates::NetworkTokenWithNTIRef {
                 network_transaction_id: network_transaction_id_and_network_token_details
                     .network_transaction_id
                     .peek()
@@ -1034,6 +1037,16 @@ impl NetworkTokenDetailsForNetworkTransactionId {
                 transaction_link_id: network_transaction_id_and_network_token_details
                     .transaction_link_id
                     .clone(),
+                token_exp_month: Some(
+                    network_transaction_id_and_network_token_details
+                        .token_exp_month
+                        .clone(),
+                ),
+                token_exp_year: Some(
+                    network_transaction_id_and_network_token_details
+                        .token_exp_year
+                        .clone(),
+                ),
             });
 
         (
@@ -1188,6 +1201,8 @@ impl From<common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDet
             token_source: decrypted_token_details_for_nti.token_source,
             eci: decrypted_token_details_for_nti.eci,
             card_network: decrypted_token_details_for_nti.card_network,
+            device_manufacturer_identifier: decrypted_token_details_for_nti
+                .device_manufacturer_identifier,
         }
     }
 }
@@ -1381,6 +1396,8 @@ pub struct CashappQr {}
 pub struct PaypalRedirection {
     /// paypal's email address
     pub email: Option<Email>,
+    /// PayPal payer identifier disclosed by the connector response.
+    pub payer_id: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -2942,6 +2959,7 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::PaypalRedirect(paypal_redirect_data) => {
                 Self::PaypalRedirect(PaypalRedirection {
                     email: paypal_redirect_data.email,
+                    payer_id: paypal_redirect_data.payer_id,
                 })
             }
             api_models::payments::WalletData::PaypalSdk(paypal_sdk_data) => {
@@ -4180,6 +4198,7 @@ pub fn get_applepay_wallet_info(
         card_exp_year,
         // To be populated after connector response
         auth_code: None,
+        provider_details: None,
         email: None,
     }
 }
@@ -4204,6 +4223,7 @@ pub fn get_googlepay_wallet_info(
         card_exp_year,
         // to be populated after connector response
         auth_code: None,
+        provider_details: None,
         email: None,
     }
 }
@@ -4519,7 +4539,7 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             expiry_year: Some(item.card_exp_year),
             card_holder_name: item.card_holder_name,
             nick_name: item.nick_name,
-            card_isin: None,
+            card_isin: Some(item.card_number.get_card_isin()),
             card_issuer: item.card_issuer,
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
@@ -4599,7 +4619,7 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             expiry_year: Some(item.card_exp_year),
             card_holder_name: item.card_holder_name,
             nick_name: item.nick_name,
-            card_isin: None,
+            card_isin: Some(item.card_number.get_card_isin()),
             card_issuer: item.card_issuer,
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
@@ -4986,6 +5006,16 @@ impl From<api_mandates::RecurringDetails> for RecurringDetails {
             ) => Self::NetworkTransactionIdAndVaultCardDetails(Box::new(
                 (*network_transaction_id_and_vault_card_details).into(),
             )),
+            // The fallback variant is an orchestration-level input: the core flow decomposes it
+            // into its two arms (`to_network_token_arm` / `to_vault_card_arm`) before calling a
+            // payment core, so only those arm variants ever reach the domain model. Should one
+            // leak through, it resolves to the arm that runs first rather than to nothing, so a
+            // first attempt still carries its mandate reference.
+            api_mandates::RecurringDetails::NetworkTokenWithVaultCardFallback(fallback) => {
+                Self::NetworkTransactionIdAndNetworkTokenDetails(Box::new(
+                    fallback.network_token_arm_details().into(),
+                ))
+            }
             api_mandates::RecurringDetails::CardWithLimitedData(card_with_limited_data) => {
                 Self::CardWithLimitedData(Box::new((*card_with_limited_data).into()))
             }

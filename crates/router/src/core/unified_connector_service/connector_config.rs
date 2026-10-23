@@ -115,8 +115,8 @@ pub struct JpmorganOrbitalMetadata {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct MifinityMetadata {
-    brand_id: Secret<String>,
-    destination_account_number: Secret<String>,
+    brand_id: Option<Secret<String>>,
+    destination_account_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -513,6 +513,18 @@ pub enum ConnectorSpecificConfig {
         location_id: Secret<String>,
         api_secret_key: Secret<String>,
     },
+    /// Global Payments RealEx (legacy Global Payments XML API) configuration.
+    /// Field names mirror `GlobalpaymentsRealexConfig` in the connector-service proto.
+    /// `shared_secret`   = shared secret used to build the sha1 digest (never sent verbatim)
+    /// `merchant_id`     = Merchant Id / Client Id (`<merchantid>`)
+    /// `account`         = RealEx sub-account, e.g. "internet" (`<account>`)
+    /// `refund_password` = rebate/refund password, hashed into `<refundhash>`
+    GlobalpaymentsRealex {
+        shared_secret: Secret<String>,
+        merchant_id: Secret<String>,
+        account: Secret<String>,
+        refund_password: Secret<String>,
+    },
     /// Paytm connector configuration
     Paytm {
         merchant_id: Secret<String>,
@@ -682,7 +694,9 @@ pub enum ConnectorSpecificConfig {
     /// Jpmorgan connector configuration
     Jpmorgan {
         client_id: Secret<String>,
-        client_secret: Secret<String>,
+        thumbprint: Secret<String>,
+        private_key: Secret<String>,
+        resource_id: Secret<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         company_name: Option<Secret<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -1181,25 +1195,38 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Hipay requires BodyKey auth type")),
             },
-            Connector::Jpmorgan => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => {
-                    let jpm_meta = metadata
-                        .map(|m| {
-                            m.clone()
-                                .parse_value::<JpmorganMetadata>("JpmorganMetadata")
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Invalid Jpmorgan metadata format")
-                        })
-                        .transpose()?;
-                    Ok(Self::Jpmorgan {
-                        client_id: api_key.clone(),
-                        client_secret: key1.clone(),
-                        company_name: jpm_meta.as_ref().map(|m| m.company_name.clone()),
-                        product_name: jpm_meta.as_ref().map(|m| m.product_name.clone()),
+            Connector::Jpmorgan => {
+                let (client_id, thumbprint, private_key, resource_id) = match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => (
+                        api_key.clone(),
+                        key1.clone(),
+                        api_secret.clone(),
+                        key2.clone(),
+                    ),
+                    _ => return Err(err("Jpmorgan requires MultiAuthKey auth type")),
+                };
+                let jpm_meta = metadata
+                    .map(|m| {
+                        m.clone()
+                            .parse_value::<JpmorganMetadata>("JpmorganMetadata")
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Invalid Jpmorgan metadata format")
                     })
-                }
-                _ => Err(err("Jpmorgan requires BodyKey auth type")),
-            },
+                    .transpose()?;
+                Ok(Self::Jpmorgan {
+                    client_id,
+                    thumbprint,
+                    private_key,
+                    resource_id,
+                    company_name: jpm_meta.as_ref().map(|m| m.company_name.clone()),
+                    product_name: jpm_meta.as_ref().map(|m| m.product_name.clone()),
+                })
+            }
             Connector::Loonio => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {
                     merchant_id: api_key.clone(),
@@ -1829,6 +1856,24 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Forte requires MultiAuthKey auth type")),
             },
+            Connector::GlobalpaymentsRealex => match auth {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::GlobalpaymentsRealex {
+                    shared_secret: api_key.clone(),
+                    merchant_id: key1.clone(),
+                    account: key2.clone(),
+                    refund_password: api_secret.clone(),
+                }),
+                _ => Err(err(
+                    "GlobalpaymentsRealex requires MultiAuthKey auth type \
+                     (api_key = shared secret, key1 = merchant id, key2 = account, \
+                     api_secret = refund password)",
+                )),
+            },
             Connector::Paybox => match auth {
                 ConnectorAuthType::MultiAuthKey {
                     api_key,
@@ -2129,10 +2174,10 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
 
                     Ok(Self::Mifinity {
                         key: api_key.clone(),
-                        brand_id: mifinity_meta.as_ref().map(|m| m.brand_id.clone()),
+                        brand_id: mifinity_meta.as_ref().and_then(|m| m.brand_id.clone()),
                         destination_account_number: mifinity_meta
                             .as_ref()
-                            .map(|m| m.destination_account_number.clone()),
+                            .and_then(|m| m.destination_account_number.clone()),
                     })
                 }
                 _ => Err(err("Mifinity requires HeaderKey auth type")),

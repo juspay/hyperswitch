@@ -14,7 +14,7 @@ concurrency:
 jobs:
   validate_json:
     name: Validate generated OpenAPI spec file
-    runs-on: ubuntu-latest
+    runs-on: hyperswitch-runners
     steps:
       - name: Generate a token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
@@ -52,11 +52,20 @@ jobs:
 
       - name: Generate the OpenAPI spec file for V1
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 5
         run: cargo run -p openapi --features v1
 
       - name: Generate the OpenAPI spec file for V2
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 5
         run: cargo run -p openapi --features v2
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
 
       - name: Install `swagger-cli`
         shell: bash

@@ -130,3 +130,19 @@ pub fn should_call_external_vault_proxy_for_payments_core(
         })
         .unwrap_or(false)
 }
+
+/// The fallback payload, when the request carries one. Returns the payload rather than a bool so
+/// the caller need not match twice.
+#[cfg(feature = "v1")]
+pub fn network_token_with_vault_card_fallback_details(
+    payment_request: &api::PaymentsRequest,
+) -> Option<Box<api_models::mandates::NetworkTokenWithVaultCardFallback>> {
+    payment_request.recurring_details.clone().and_then(
+        |recurring_details| match recurring_details {
+            api_models::mandates::RecurringDetails::NetworkTokenWithVaultCardFallback(fallback) => {
+                Some(fallback)
+            }
+            _ => None,
+        },
+    )
+}
