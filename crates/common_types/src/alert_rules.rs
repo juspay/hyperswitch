@@ -62,6 +62,7 @@ pub enum CloudwatchStatistic {
     Sum,
 }
 
+/// Ordered highest priority first for threshold and error-destination selection.
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, strum::Display,
 )]
@@ -99,6 +100,16 @@ impl ComparisonOperator {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn severity_order_is_highest_priority_first() {
+        let mut severities = [Severity::Info, Severity::Critical, Severity::Warning];
+        severities.sort_unstable();
+        assert_eq!(
+            severities,
+            [Severity::Critical, Severity::Warning, Severity::Info]
+        );
+    }
 
     #[test]
     fn comparison_display_preserves_wire_names_and_threshold_boundaries() {

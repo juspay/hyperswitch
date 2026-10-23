@@ -1,6 +1,6 @@
 pub mod cloudwatch;
 
-use common_types::alert_rules::{AlertQuery, MetricSource, Severity};
+use common_types::alert_rules::{AlertQuery, MetricSource};
 use common_utils::date_time;
 use error_stack::{AttachmentKind, FrameKind, Report, ResultExt};
 use external_services::metrics_provider::grafana::cloudwatch::GrafanaCloudwatch;
@@ -37,15 +37,12 @@ async fn evaluate_alert_rules(
         .rules
         .iter()
         .map(|rule| {
-            let destination = [Severity::Critical, Severity::Warning, Severity::Info]
-                .iter()
-                .find_map(|severity| {
-                    rule.config
-                        .thresholds
-                        .severities
-                        .get(severity)
-                        .map(|threshold| threshold.destination.as_str())
-                })
+            let destination = rule
+                .config
+                .thresholds
+                .severities
+                .first_key_value()
+                .map(|(_, threshold)| threshold.destination.as_str())
                 .ok_or_else(|| {
                     Report::new(ObservabilityError::InternalServerError)
                         .attach_printable("rule must configure at least one threshold")

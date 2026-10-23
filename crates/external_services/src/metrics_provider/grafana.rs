@@ -1,6 +1,9 @@
 pub mod cloudwatch;
 
-use common_utils::request::{Method, RequestBuilder, RequestContent};
+use common_utils::{
+    ext_traits::BytesExt,
+    request::{Method, RequestBuilder, RequestContent},
+};
 use error_stack::Report;
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
 use hyperswitch_masking::{Mask as _, PeekInterface, Secret};
@@ -65,34 +68,28 @@ impl GrafanaClient {
             Err(error) => return Err(error.change_context(MetricsError::Transport)),
         };
         let status = response.status();
-        let body = match response.text().await {
+        let body = match response.bytes().await {
             Ok(body) => body,
             Err(error) if error.is_timeout() => {
                 return Err(Report::from(error).change_context(MetricsError::Timeout));
             }
             Err(error) => return Err(Report::from(error).change_context(MetricsError::Transport)),
         };
-        let response = match serde_json::from_str::<MetricsResponse>(&body) {
-            Ok(response) => response,
-            Err(error)
-                if matches!(
-                    status,
-                    reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::FORBIDDEN
-                ) =>
-            {
-                return Err(Report::from(error).change_context(MetricsError::Unauthorized));
-            }
-            Err(error) if !status.is_success() => {
-                return Err(
-                    Report::from(error).change_context(MetricsError::HttpStatus {
+        let response = body
+            .parse_struct::<MetricsResponse>("Grafana metrics response")
+            .map_err(|_| {
+                let context = match status {
+                    reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::FORBIDDEN => {
+                        MetricsError::Unauthorized
+                    }
+                    status if !status.is_success() => MetricsError::HttpStatus {
                         status: status.as_u16(),
-                    }),
-                );
-            }
-            Err(error) => {
-                return Err(Report::from(error).change_context(MetricsError::MalformedResponse));
-            }
-        };
+                    },
+                    _ => MetricsError::MalformedResponse,
+                };
+                // Parsing attachments can contain response content, including echoed credentials.
+                Report::new(context)
+            })?;
         Ok((status, response))
     }
 }

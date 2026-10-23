@@ -19,9 +19,13 @@ use actix_web::{
     test::{self, TestRequest},
     App,
 };
+use common_types::alert_rules::AlertQuery;
 use error_stack::report;
-use external_services::email::no_email::NoEmailClient;
-use hyperswitch_masking::PeekInterface;
+use external_services::{
+    email::no_email::NoEmailClient,
+    metrics_provider::grafana::{cloudwatch::GrafanaCloudwatch, GrafanaConfig},
+};
+use hyperswitch_masking::{PeekInterface, Secret};
 use observability::{
     auth::X_INTERNAL_API_KEY,
     db::Store,
@@ -33,12 +37,14 @@ use observability::{
         email::{EmailNotifier, EmailServiceNotifier},
         Registry,
     },
+    domain_models::evaluator::{EvaluatorError, RuleDefinition},
     errors::ObservabilityError,
     routes::Alerts,
     settings::Database,
     state::AppState,
 };
 use serde_json::{json, Value};
+use time::macros::datetime;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
@@ -103,7 +109,7 @@ enum MetricReply {
 
 #[derive(Debug)]
 enum MetricEvent {
-    Started(String),
+    Started(String, Value),
     Completed(String),
 }
 
@@ -163,7 +169,9 @@ async fn metric_server(
                     .as_str()
                     .unwrap()
                     .to_owned();
-                let _ = events.send(MetricEvent::Started(metric.clone())).await;
+                let _ = events
+                    .send(MetricEvent::Started(metric.clone(), body.clone()))
+                    .await;
                 if gated {
                     gates[&metric].acquire().await.unwrap().forget();
                 }
@@ -399,6 +407,118 @@ static EVALUATOR_RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
 });
 
 #[test]
+fn evaluator_uses_complete_windows_and_rejects_invalid_time_ranges() {
+    EVALUATOR_RUNTIME.block_on(async {
+        let cases = [
+            (
+                60,
+                180,
+                datetime!(2026-03-18 10:08:00),
+                datetime!(2026-03-18 10:01:00),
+                datetime!(2026-03-18 10:06:00),
+            ),
+            (
+                300,
+                180,
+                datetime!(2026-03-18 10:08:00),
+                datetime!(2026-03-18 10:00:00),
+                datetime!(2026-03-18 10:05:00),
+            ),
+            (
+                60,
+                0,
+                datetime!(2026-03-18 10:08:00),
+                datetime!(2026-03-18 10:03:00),
+                datetime!(2026-03-18 10:08:00),
+            ),
+            (
+                300,
+                0,
+                datetime!(2026-03-18 10:08:00),
+                datetime!(2026-03-18 10:00:00),
+                datetime!(2026-03-18 10:05:00),
+            ),
+            (
+                60,
+                0,
+                datetime!(1969-12-31 23:59:59),
+                datetime!(1969-12-31 23:54:00),
+                datetime!(1969-12-31 23:59:00),
+            ),
+        ];
+        let (base_url, mut events, _) = metric_server(
+            cases.len(),
+            HashMap::from([("window".to_owned(), MetricReply::Value(10.0))]),
+            false,
+        )
+        .await;
+        let provider = GrafanaCloudwatch::new(
+            GrafanaConfig {
+                base_url,
+                api_token: Secret::new("test-token".to_owned()),
+            },
+            Default::default(),
+        );
+        for (period, offset, now, from, to) in cases {
+            let mut config = alert_rule("window-rule", "window", "oncall", 1.0);
+            config["config"]["query"]["period"] = json!(period);
+            config["config"]["query"]["end_offset_seconds"] = json!(offset);
+            let rule: RuleDefinition = serde_json::from_value(config).unwrap();
+            let AlertQuery::GrafanaCloudwatch(query) = &rule.config.query;
+            let result = observability::core::evaluator::cloudwatch::evaluate(
+                &provider,
+                rule.metrics_query("cloudwatch"),
+                query,
+                &rule.config.thresholds,
+                now,
+            )
+            .await
+            .unwrap();
+            assert_eq!(result.window.from, from);
+            assert_eq!(result.window.to, to);
+            assert_eq!(result.latest_value, Some(10.0));
+            let request = loop {
+                if let MetricEvent::Started(_, request) = event(&mut events).await {
+                    break request;
+                }
+            };
+            assert_eq!(
+                request["from"],
+                (from.assume_utc().unix_timestamp() * 1000).to_string()
+            );
+            assert_eq!(
+                request["to"],
+                (to.assume_utc().unix_timestamp() * 1000).to_string()
+            );
+        }
+        for (period, offset, now) in [
+            (0, 0, datetime!(2026-03-18 10:08:00)),
+            (60, 0, time::PrimitiveDateTime::MIN),
+            (60, u32::MAX, time::PrimitiveDateTime::MIN),
+        ] {
+            let mut config = alert_rule("invalid-window", "window", "oncall", 1.0);
+            config["config"]["query"]["period"] = json!(period);
+            config["config"]["query"]["end_offset_seconds"] = json!(offset);
+            let rule: RuleDefinition = serde_json::from_value(config).unwrap();
+            let AlertQuery::GrafanaCloudwatch(query) = &rule.config.query;
+            let error = observability::core::evaluator::cloudwatch::evaluate(
+                &provider,
+                rule.metrics_query("cloudwatch"),
+                query,
+                &rule.config.thresholds,
+                now,
+            )
+            .await
+            .unwrap_err();
+            assert!(matches!(
+                error.current_context(),
+                EvaluatorError::InvalidTimeRange
+            ));
+        }
+    });
+}
+
+#[test]
 fn repeated_current_breach_sends_alarm_on_every_notify() {
     EVALUATOR_RUNTIME.block_on(async {
         let (base_url, _, _) = metric_server(
@@ -460,7 +580,7 @@ fn evaluator_overlaps_requests_and_preserves_rule_order_after_reverse_completion
         let mut started = vec![event(&mut events).await, event(&mut events).await]
             .into_iter()
             .map(|event| match event {
-                MetricEvent::Started(metric) => metric,
+                MetricEvent::Started(metric, _) => metric,
                 MetricEvent::Completed(metric) => panic!("{metric} completed before release"),
             })
             .collect::<Vec<_>>();

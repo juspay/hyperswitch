@@ -78,6 +78,7 @@ impl AppState {
         let email = build_email_registry(&raw_conf.email, &raw_conf.proxy)
             .await
             .expect("Failed to build the email destinations");
+
         if chat.is_empty() && email.is_empty() {
             logger::warn!(
                 "No chat or email destinations are configured; every notify request will be \
