@@ -6001,7 +6001,7 @@ fn get_pm_list_context(
     let payment_method_retrieval_context = match payment_method_data {
         Some(domain::payment_method_data::PaymentMethodsData::Card(card)) => {
             Some(PaymentMethodListContext::Card {
-                card_details: card.to_card_details_from_locker(),
+                card_details: card.to_card_details_from_locker(None),
                 token_data: is_payment_associated.then_some(
                     storage::PaymentTokenData::permanent_card(
                         payment_method.get_id().clone(),
