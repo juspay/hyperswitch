@@ -25,6 +25,11 @@
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 // commands.js or your custom support file
+import {
+  connectorDetails as commonConnectorDetails,
+  integrationTypeMismatchMessage,
+  OFFER_QUOTE_ID_PLACEHOLDER,
+} from "../e2e/configs/Payment/Commons";
 import getConnectorDetails, {
   CONNECTOR_LISTS,
   defaultErrorHandler,
@@ -36,11 +41,6 @@ import getConnectorDetails, {
   shouldIncludeConnector,
   stringifyWithBigInt,
 } from "../e2e/configs/Payment/Utils";
-import {
-  connectorDetails as commonConnectorDetails,
-  integrationTypeMismatchMessage,
-} from "../e2e/configs/Payment/Commons";
-import { OFFER_QUOTE_ID_PLACEHOLDER } from "../e2e/configs/Payment/Commons";
 import { injectGotymePayoutBankTransfer } from "../e2e/configs/Payout/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
@@ -276,7 +276,9 @@ function createIndividualRolloutConfig(
     };
 
     return makeRequest("POST", url, requestBody, "created").then((response) => {
-      if (response.status === 200) {
+      // makeRequest resolves { success: true } on HTTP 200; a raw response
+      // object (with .status/.body) is only returned for non-200 outcomes.
+      if (response.success) {
         return cy.wrap({ success: true, flow: methodFlow });
       }
 
@@ -294,7 +296,9 @@ function createIndividualRolloutConfig(
   const updateConfig = () => {
     return makeRequest("POST", `${url}${key}`, { value }, "updated").then(
       (updateResponse) => {
-        if (updateResponse.status === 200) {
+        // makeRequest resolves { success: true } on HTTP 200; a raw response
+        // object (with .status/.body) is only returned for non-200 outcomes.
+        if (updateResponse.success) {
           return cy.wrap({ success: true, flow: methodFlow });
         }
 
@@ -395,14 +399,24 @@ function createUcsConfigs(globalState, flow, type, configValueOverride = null) {
   const connector = getConnectorIdForRedirect(globalState);
   const methodFlowInput = flow || globalState.get("methodFlow");
 
-  if ((!httpUrl || !httpsUrl) && !configValueOverride) {
-    throw new Error(
-      `Missing proxyHttp or proxyHttps in globalState. globalState.proxyHttp=${httpUrl}, globalState.proxyHttps=${httpsUrl}, Cypress.env("PROXY_HTTP")=${Cypress.env("PROXY_HTTP")}, Cypress.env("PROXY_HTTPS")=${Cypress.env("PROXY_HTTPS")}`
+  // Proxy URLs are optional: since #14222 the router sources UCS/comparison
+  // endpoints from its own deployment config and ignores http_url/https_url
+  // in the rollout config value. Warn and continue when they are absent -
+  // hard failing here breaks otherwise valid runs (e.g. distributed UCS and
+  // sharded CI would never run a season without PROXY_HTTP/PROXY_HTTPS set).
+  if (!httpUrl || !httpsUrl) {
+    cy.task(
+      "cli_log",
+      "INFO: proxyHttp/proxyHttps not set - creating rollout config without http_url/https_url; the router will use its deployment-configured UCS endpoints"
     );
   }
 
   if (!connector || !methodFlowInput) {
-    throw new Error("Missing connectorId or methodFlow in globalState");
+    cy.task(
+      "cli_log",
+      `UCS ${type} config creation skipped - connectorId or methodFlow not set in globalState`
+    );
+    return;
   }
 
   if (!globalState) {
@@ -1266,6 +1280,34 @@ Cypress.Commands.add(
             expect(response.body.merchant_category_code).to.equal(
               updateBusinessProfileBody.merchant_category_code
             );
+          }
+          if (
+            updateBusinessProfileBody.auto_fallback_capture_method !== undefined
+          ) {
+            expect(response.body.auto_fallback_capture_method).to.equal(
+              updateBusinessProfileBody.auto_fallback_capture_method
+            );
+          }
+          // Auto-retry specs rely on these flags being persisted on the
+          // profile; assert them so a stale/rejected update fails at the
+          // setup step instead of surfacing as a retry that never happened.
+          if (
+            typeof updateBusinessProfileBody.is_auto_retries_enabled !==
+            "undefined"
+          ) {
+            expect(
+              response.body.is_auto_retries_enabled,
+              "is_auto_retries_enabled"
+            ).to.equal(updateBusinessProfileBody.is_auto_retries_enabled);
+          }
+          if (
+            typeof updateBusinessProfileBody.max_auto_retries_enabled !==
+            "undefined"
+          ) {
+            expect(
+              response.body.max_auto_retries_enabled,
+              "max_auto_retries_enabled"
+            ).to.equal(updateBusinessProfileBody.max_auto_retries_enabled);
           }
         } else {
           throw new Error(
@@ -2382,6 +2424,35 @@ Cypress.Commands.add("setFrmRoutingAlgorithm", (body, globalState) => {
   });
 });
 
+Cypress.Commands.add(
+  "setProfileFrmRoutingAlgorithm",
+  (frmRoutingAlgorithm, globalState) => {
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get("profileId");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      body: { frm_routing_algorithm: frmRoutingAlgorithm },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status, "business profile update status").to.equal(200);
+        expect(
+          response.body.frm_routing_algorithm,
+          "profile frm_routing_algorithm"
+        ).to.deep.equal(frmRoutingAlgorithm);
+      });
+    });
+  }
+);
 // Overwrites the FRM connector's account details with an invalid api_key, to
 // force the FRM connector itself to fail (4xx) - used to test
 // fail_open/fail_closed behavior when pre-FRM is unreachable.
@@ -5034,6 +5105,7 @@ Cypress.Commands.add(
     expectedIntentStatus,
     connectedMerchantId,
     unconfirmedPayment = false,
+    allKeysRequired = false,
   }) => {
     const { Configs: configs = {}, Response: resData = {} } = data || {};
 
@@ -5049,9 +5121,14 @@ Cypress.Commands.add(
       headers["x-connected-merchant-id"] = connectedMerchantId;
     }
 
+    // force_sync alone is served from the DB once the attempt is already in a
+    // terminal state, so it won't re-query the connector. all_keys_required=true
+    // forces a genuine connector round-trip regardless of terminal status.
     const queryParams = unconfirmedPayment
       ? "expand_attempts=true"
-      : "force_sync=true&expand_attempts=true";
+      : `force_sync=true&expand_attempts=true${
+          allKeysRequired ? "&all_keys_required=true" : ""
+        }`;
 
     cy.request({
       method: "GET",
@@ -5099,6 +5176,19 @@ Cypress.Commands.add(
 
           if (
             resData.body &&
+            Object.prototype.hasOwnProperty.call(resData.body, "frm_message")
+          ) {
+            if (resData.body.frm_message === null) {
+              expect(response.body.frm_message, "frm_message").to.not.exist;
+            } else {
+              expect(response.body.frm_message?.frm_name, "frm_name").to.equal(
+                resData.body.frm_message.frm_name
+              );
+            }
+          }
+
+          if (
+            resData.body &&
             Object.prototype.hasOwnProperty.call(
               resData.body,
               "network_transaction_link_id"
@@ -5137,6 +5227,15 @@ Cypress.Commands.add(
               response.body.status,
               "payment status should match stored intent_status"
             ).to.equal(expectedIntentStatus);
+          }
+
+          if (allKeysRequired) {
+            // Proves a real connector round-trip happened (not a cached DB
+            // read) — the field is only populated from a fresh connector call.
+            expect(
+              response.body.whole_connector_response,
+              "whole_connector_response"
+            ).to.be.a("string").and.to.not.be.empty;
           }
 
           if (resData?.body && "applied_offer" in resData.body) {
@@ -8079,7 +8178,7 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
   }
   cy.request({
     method: "GET",
-    url: `${globalState.get("baseUrl")}/payouts/${payout_id}`,
+    url: `${globalState.get("baseUrl")}/payouts/${payout_id}?force_sync=true`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
@@ -10095,42 +10194,70 @@ Cypress.Commands.add("paymentMethodCreateCall", (globalState, pmData) => {
   });
 });
 
-Cypress.Commands.add("getRawPaymentMethodDetailsCall", (globalState) => {
-  const apiKey = globalState.get("apiKey");
-  const profileId = globalState.get("profileId");
-  const paymentMethodId = globalState.get("paymentMethodId");
+Cypress.Commands.add(
+  "getRawPaymentMethodDetailsCall",
+  (globalState, pmData) => {
+    const apiKey = globalState.get("apiKey");
+    const profileId = globalState.get("profileId");
+    const paymentMethodId = globalState.get("paymentMethodId");
 
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("pmServiceUrl")}/v1/payment-methods/${paymentMethodId}?fetch_raw_detail=true`,
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "X-Profile-Id": profileId,
-      Authorization: `api-key=${apiKey}`,
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    if (response.status === 200) {
-      expect(response.body).to.have.property("id");
-      expect(response.body.id).to.equal(paymentMethodId);
-      expect(response.body).to.have.property("payment_method_type");
-      expect(response.body).to.have.property("payment_method_subtype");
-      expect(response.body).to.have.property("payment_method_data");
-      const card = response.body.payment_method_data.card;
-      expect(card).to.have.property("last4_digits");
-      expect(card).to.have.property("expiry_month");
-      expect(card).to.have.property("expiry_year");
-      expect(card).to.have.property("card_holder_name");
-      expect(card).to.have.property("saved_to_locker");
-      expect(card.saved_to_locker).to.be.true;
-    } else {
-      throw new Error(
-        `Get raw payment method details failed with status ${response.status}: ${JSON.stringify(response.body)}`
-      );
-    }
-  });
-});
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("pmServiceUrl")}/v1/payment-methods/${paymentMethodId}?fetch_raw_detail=true`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Profile-Id": profileId,
+        Authorization: `api-key=${apiKey}`,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      if (response.status === 200) {
+        expect(response.body).to.have.property("id");
+        expect(response.body.id).to.equal(paymentMethodId);
+        expect(response.body).to.have.property("payment_method_type");
+        expect(response.body).to.have.property("payment_method_subtype");
+        expect(response.body).to.have.property("payment_method_data");
+        const card = response.body.payment_method_data.card;
+        expect(card).to.have.property("last4_digits");
+        expect(card).to.have.property("expiry_month");
+        expect(card).to.have.property("expiry_year");
+        expect(card).to.have.property("card_holder_name");
+        expect(card).to.have.property("saved_to_locker");
+        expect(card.saved_to_locker).to.be.true;
+
+        // `fetch_raw_detail=true` only includes raw_payment_method_data when
+        // the merchant-scoped
+        // `payments.should_return_raw_payment_method_details` superposition
+        // config allows it for external api keys — a denied fetch silently
+        // omits the field, so asserting it here verifies that config too
+        const expectedCard = pmData?.payment_method_data?.card;
+        if (expectedCard) {
+          const rawCard = response.body.raw_payment_method_data?.card;
+          expect(rawCard, "raw_payment_method_data.card").to.not.be.undefined;
+          expect(rawCard.card_number, "raw card_number").to.equal(
+            expectedCard.card_number
+          );
+          expect(rawCard.card_exp_month, "raw card_exp_month").to.equal(
+            expectedCard.card_exp_month
+          );
+          expect(rawCard.card_exp_year, "raw card_exp_year").to.equal(
+            expectedCard.card_exp_year
+          );
+          if (expectedCard.card_holder_name) {
+            expect(rawCard.card_holder_name, "raw card_holder_name").to.equal(
+              expectedCard.card_holder_name
+            );
+          }
+        }
+      } else {
+        throw new Error(
+          `Get raw payment method details failed with status ${response.status}: ${JSON.stringify(response.body)}`
+        );
+      }
+    });
+  }
+);
 
 Cypress.Commands.add("updateSavedPMCall", (globalState, updateData) => {
   const apiKey = globalState.get("apiKey");
@@ -10434,6 +10561,67 @@ Cypress.Commands.add(
       } else {
         throw new Error(
           `Payment with saved PM failed with status ${response.status}: ${JSON.stringify(response.body)}`
+        );
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "confirmWithSavedPMCall",
+  (globalState, confirmData, useToken = false) => {
+    const baseUrl = globalState.get("baseUrl");
+    const apiKey = globalState.get("apiKey");
+    const customerId = globalState.get("customerId");
+    const profileId = globalState.get("profileId");
+    const paymentIntentId = globalState.get("paymentID");
+
+    // Same token resolution as paymentWithSavedPMCall — the payment being
+    // confirmed was created against this token.
+    const paymentToken = useToken
+      ? globalState.get("paymentMethodToken") || globalState.get("paymentToken")
+      : globalState.get("paymentMethodId");
+
+    if (!paymentIntentId) {
+      throw new Error(
+        "confirmWithSavedPMCall: no `paymentID` found; create the payment with paymentWithSavedPMCall first"
+      );
+    }
+
+    if (!paymentToken) {
+      throw new Error(
+        "confirmWithSavedPMCall: no payment token found. Set `paymentMethodId` via a payment method create, or `paymentMethodToken` via the payment method session flow, before calling this command"
+      );
+    }
+
+    const requestBody = {
+      ...confirmData,
+      confirm: true,
+      customer_id: customerId,
+      profile_id: profileId,
+      payment_token: paymentToken,
+    };
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/payments/${paymentIntentId}/confirm`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: requestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      if (response.status === 200) {
+        globalState.set("paymentId", response.body.payment_id);
+        globalState.set("paymentID", response.body.payment_id);
+        expect(response.body).to.have.property("payment_id");
+        expect(response.body).to.have.property("status");
+        expect(response.body.amount).to.equal(confirmData.amount);
+        expect(response.body.currency).to.equal(confirmData.currency);
+      } else {
+        throw new Error(
+          `Confirm with saved PM failed with status ${response.status}: ${JSON.stringify(response.body)}`
         );
       }
     });

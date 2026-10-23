@@ -728,6 +728,7 @@ export const connectorDetails = {
               card_on_file_transaction_type: "merchant_initiated_transaction",
             },
             santander: null,
+            paypal: null,
             worldpayxml: null,
             checkout: null,
             stripe: null,
