@@ -380,8 +380,7 @@ export const connectorDetails = {
     },
     // Off-session / stored-credential (MIT-style) saved-card confirms.
     // Confirmed live (14-SaveCardFlow.cy.js) AND at the source: UCS's own
-    // RepeatPayment flow for this connector is `not_implemented` (see the
-    // ground-truth note above MandateSingleUseNo3DSAutoCapture). Response
+    // RepeatPayment flow for this connector is `not_implemented`. Response
     // is left to getCustomExchange's default (501, "Selected payment method
     // through <connector> is not implemented") rather than hardcoded here,
     // matching how every other not-implemented case in this codebase gets
