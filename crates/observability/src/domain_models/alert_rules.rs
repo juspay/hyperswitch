@@ -2,10 +2,10 @@
 //! before it is stored.
 //!
 //! The typed columns (the status, and the versioned configuration with its own checks) live in
-//! [`common_types::observability::alert_rules`], so the database models can store them as their
+//! [`common_types::alert_rules::stored`], so the database models can store them as their
 //! types.
 
-use common_types::observability::alert_rules::{AlertConfiguration, AlertRuleStatus};
+use common_types::alert_rules::stored::{AlertConfiguration, AlertRuleStatus};
 use diesel_models::observability::alert_manager::alert_rules as storage;
 use time::PrimitiveDateTime;
 
@@ -121,8 +121,8 @@ mod tests {
             "version": "v1",
             "interval_seconds": 60,
             "query": {
-                "version": "v1",
                 "datasource": "cloudwatch",
+                "version": "v1",
                 "region": "us-east-1",
                 "namespace": "AWS/RDS",
                 "metric_name": "CPUUtilization",
@@ -136,8 +136,8 @@ mod tests {
                     "critical": {
                         "threshold": 80.0,
                         "comparison_operator": "GreaterThanOrEqualToThreshold",
-                        "evaluation_periods": 1,
-                        "description": "RDS writer CPU above 80%."
+                        "description": "RDS writer CPU above 80%.",
+                        "destination": "infra_oncall"
                     }
                 }
             }
