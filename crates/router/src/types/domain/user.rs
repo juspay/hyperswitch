@@ -1181,7 +1181,7 @@ impl UserFromStorage {
 
     pub fn compare_password(&self, candidate: &Secret<String>) -> UserResult<()> {
         if let Some(password) = self.0.password.as_ref() {
-            match password::is_correct_password(candidate, password) {
+            match password::is_equal_password(candidate, password) {
                 Ok(true) => Ok(()),
                 Ok(false) => Err(UserErrors::InvalidCredentials.into()),
                 Err(e) => Err(e),
@@ -1319,10 +1319,22 @@ impl UserFromStorage {
         self.0.password_history.clone()
     }
 
-    /// The stored hash of the user's current password, which becomes the most recent entry in
-    /// `password_history` when the password is replaced.
-    pub fn get_password_hash(&self) -> Option<Secret<String>> {
-        self.0.password.clone()
+    pub fn is_password_reused(&self, candidate: &Secret<String>) -> UserResult<bool> {
+        for old_password in self.0.password_history.iter().flatten() {
+            if password::is_equal_password(candidate, old_password)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    pub fn get_updated_password_history(&self) -> Vec<Secret<String>> {
+        let mut password_history = self.0.password_history.clone().unwrap_or_default();
+        if let Some(outgoing_password) = self.0.password.clone() {
+            password_history.insert(0, outgoing_password);
+        }
+        password_history.truncate(consts::user::PREVIOUS_PASSWORDS_RETAINED);
+        password_history
     }
 
     pub fn is_active(&self) -> bool {

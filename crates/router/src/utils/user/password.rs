@@ -34,7 +34,7 @@ pub fn generate_password_hash(
         operation = "generate_password_hash",
         // Typed codec so a recorded `UserErrors` replays as the same error.
         codec = deja::codec::ResultCodec::<String, UserErrors>,
-        // `is_correct_password` must parse a PHC string, so real Argon2 hashes
+        // `is_equal_password` must parse a PHC string, so real Argon2 hashes
         // derived material; a later check then answers `Ok(false)`, not an error.
         on_miss = {
             use common_utils::synth_shape::Synthesize as _;
@@ -63,7 +63,7 @@ fn generate_password_hash_inner(password: Secret<String>) -> CustomResult<String
     Ok(password_hash.to_string())
 }
 
-pub fn is_correct_password(
+pub fn is_equal_password(
     candidate: &Secret<String>,
     password: &Secret<String>,
 ) -> CustomResult<bool, UserErrors> {
@@ -84,25 +84,12 @@ pub fn get_index_for_correct_recovery_code(
     recovery_codes: &[Secret<String>],
 ) -> CustomResult<Option<usize>, UserErrors> {
     for (index, recovery_code) in recovery_codes.iter().enumerate() {
-        let is_match = is_correct_password(candidate, recovery_code)?;
+        let is_match = is_equal_password(candidate, recovery_code)?;
         if is_match {
             return Ok(Some(index));
         }
     }
     Ok(None)
-}
-
-pub fn is_password_reused(
-    candidate: &Secret<String>,
-    password_history: &[Secret<String>],
-) -> CustomResult<bool, UserErrors> {
-    for old_password in password_history {
-        let is_match = is_correct_password(candidate, old_password)?;
-        if is_match {
-            return Ok(true);
-        }
-    }
-    Ok(false)
 }
 
 pub fn get_temp_password() -> Secret<String> {
