@@ -791,8 +791,11 @@ impl Cache {
         )
     )]
     pub async fn remove(&self, key: CacheKey) {
+        let moka_key = in_memory_cache_key(key);
+
         self.inner
-            .invalidate::<String>(&in_memory_cache_key(key))
+            .entry(moka_key)
+            .and_compute_with(|_| async { Op::Remove })
             .await;
     }
 
@@ -1528,5 +1531,53 @@ mod cache_tests {
                 .await,
             None
         );
+    }
+
+    #[tokio::test]
+    async fn invalidation_waits_for_in_flight_population() {
+        use tokio::sync::oneshot;
+
+        let cache = Arc::new(Cache::new("test", 1000, 1000, None, TEST_POPULATE_TIMEOUT));
+
+        let (started_tx, started_rx) = oneshot::channel();
+        let (resume_tx, resume_rx) = oneshot::channel();
+
+        let reader = {
+            let cache = Arc::clone(&cache);
+
+            tokio::spawn(async move {
+                cache
+                    .get_or_populate_in_memory(test_key("race"), async {
+                        started_tx.send(()).unwrap();
+                        resume_rx.await.unwrap();
+                        Ok::<String, String>("old-value".to_string())
+                    })
+                    .await
+            })
+        };
+
+        started_rx.await.unwrap();
+
+        let mut invalidator = {
+            let cache = Arc::clone(&cache);
+
+            tokio::spawn(async move {
+                cache.remove(test_key("race")).await;
+            })
+        };
+
+        assert!(
+            tokio::time::timeout(Duration::from_millis(20), &mut invalidator)
+                .await
+                .is_err()
+        );
+
+        resume_tx.send(()).unwrap();
+
+        assert_eq!(reader.await.unwrap(), Ok("old-value".to_string()));
+
+        invalidator.await.unwrap();
+
+        assert_eq!(cache.get_val::<String>(test_key("race")).await, None);
     }
 }
