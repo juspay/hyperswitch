@@ -21,7 +21,7 @@ const passthrough_data = {
 // opposed to `open_banking_uk` (bank_redirect rail) above. Mapped to the UCS
 // OPEN_BANKING payout method by PR #14535. The UUID pair below is only a
 // placeholder shaping the payout body: the closed-loop passthrough tests in
-// 00004-BankTransfer.cy.js overwrite them at runtime with the
+// 00010-ClosedLoopPayout.cy.js overwrite them at runtime with the
 // sender_payment_instrument_id / connector_customer_id of a live truelayer
 // payment (stashed in globalState).
 const passthrough_open_banking_data = {
