@@ -9,8 +9,9 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    api::WebhookResponse,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -673,27 +674,118 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Envoy {
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Envoy {
-    fn get_webhook_object_reference_id(
+    async fn verify_webhook_source(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: common_utils::crypto::Encryptable<
+            hyperswitch_masking::Secret<serde_json::Value>,
+        >,
+        _connector_label: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        Ok(true)
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let body: envoy::EnvoyNotification = utils::deserialize_xml_to_struct(request.body)?;
+
+        let connector_payout_id = match body {
+            envoy::EnvoyNotification::PaymentOut(payload) => {
+                payload
+                    .payment_details
+                    .original_payment_info
+                    .merchant_reference
+            }
+            envoy::EnvoyNotification::PaymentOutReversal(payload) => {
+                payload
+                    .reversal_info
+                    .original_payment_info
+                    .merchant_reference
+            }
+        };
+
+        Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+            api_models::webhooks::PayoutIdType::ConnectorPayoutId(connector_payout_id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let body: envoy::EnvoyNotification = utils::deserialize_xml_to_struct(request.body)?;
+
+        match body {
+            envoy::EnvoyNotification::PaymentOut(_) => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PayoutSuccess)
+            }
+            envoy::EnvoyNotification::PaymentOutReversal(_) => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PayoutFailure)
+            }
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
     {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let body: envoy::EnvoyNotification = utils::deserialize_xml_to_struct(request.body)?;
+
+        Ok(Box::new(body))
+    }
+
+    fn get_webhook_api_response(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        error_kind: Option<webhooks::IncomingWebhookFlowError>,
+        _connector_authentication_type: Option<
+            common_utils::crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
+        >,
+    ) -> CustomResult<WebhookResponse<serde_json::Value>, errors::ConnectorError> {
+        let body: envoy::EnvoyNotification = utils::deserialize_xml_to_struct(request.body)?;
+
+        let result = match error_kind {
+            Some(_) => envoy::EnvoyNotificationResult::Error,
+            None => envoy::EnvoyNotificationResult::Success,
+        };
+
+        let response = match body {
+            envoy::EnvoyNotification::PaymentOut(_) => {
+                let notification_response = envoy::EnvoyNotificationResponse::new(
+                    envoy::PaymentOutNotificationResponse::new(result),
+                );
+                utils::XmlSerializer::serialize_to_xml_bytes(
+                    &notification_response,
+                    "1.0",
+                    Some("UTF-8"),
+                    None,
+                    None,
+                )?
+            }
+            envoy::EnvoyNotification::PaymentOutReversal(_) => {
+                let notification_response = envoy::EnvoyNotificationResponse::new(
+                    envoy::PaymentOutReversalNotificationResponse::new(result),
+                );
+                utils::XmlSerializer::serialize_to_xml_bytes(
+                    &notification_response,
+                    "1.0",
+                    Some("UTF-8"),
+                    None,
+                    None,
+                )?
+            }
+        };
+
+        Ok(WebhookResponse::Xml(
+            String::from_utf8(response)
+                .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?,
+        ))
     }
 }
 

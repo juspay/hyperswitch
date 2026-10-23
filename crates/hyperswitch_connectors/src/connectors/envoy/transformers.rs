@@ -296,8 +296,7 @@ pub struct PaymentDetails {
     pub target_currency: Currency,
     pub target_amount: FloatMajorUnit,
     pub source_or_target: SourceOrTarget,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub merchant_reference: Option<String>,
+    pub merchant_reference: PayoutId,
     pub payment_reference: PayoutId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<Email>,
@@ -515,7 +514,7 @@ impl<F> TryFrom<&EnvoyRouterData<&PayoutsRouterData<F>>> for PayToBankAccountV3 
                         target_currency: payout_data.destination_currency,
                         target_amount: item.amount.to_owned(),
                         source_or_target: SourceOrTarget::Target,
-                        merchant_reference: None,
+                        merchant_reference: payout_data.payout_id.clone(),
                         payment_reference: payout_data.payout_id.clone(),
                         email: customer_details.as_ref().and_then(|c| c.email.clone()),
                         mobile: customer_details.as_ref().and_then(|c| c.phone.clone()),
@@ -615,9 +614,9 @@ impl From<i32> for ResponseStatus {
 impl From<ResponseStatus> for enums::PayoutStatus {
     fn from(status: ResponseStatus) -> Self {
         match status {
-            ResponseStatus::Success => Self::Success,
-            ResponseStatus::SuccessNoResults => Self::Pending,
-            ResponseStatus::Processing => Self::Pending,
+            ResponseStatus::Success
+            | ResponseStatus::SuccessNoResults
+            | ResponseStatus::Processing => Self::Pending,
             ResponseStatus::Failed(_) => Self::Failed,
         }
     }
@@ -685,6 +684,165 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, EnvoyPayoutSoapResponse>>
                 }),
                 ..item.data
             })
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum EnvoyNotification {
+    PaymentOut(PaymentOutNotification),
+    PaymentOutReversal(PaymentOutReversalNotification),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentOutNotification {
+    pub payment_details: EnvoyPaymentDetails,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnvoyPaymentDetails {
+    pub original_payment_info: OriginalPaymentInfo,
+    payment_result: PaymentResult,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OriginalPaymentInfo {
+    country_code: CountryAlpha2,
+    payee: Option<Secret<String>>,
+    pub merchant_reference: String,
+    merchant_payment_reference: Option<String>,
+    source_currency: Currency,
+    source_amount: FloatMajorUnit,
+    target_currency: Currency,
+    target_amount: FloatMajorUnit,
+    source_or_target: SourceOrTarget,
+    fast_payment: YesNo,
+    additional_info1: Option<String>,
+    additional_info2: Option<String>,
+    additional_info3: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentResult {
+    envoy_merchant_account_number: Secret<String>,
+    item_number: Option<Secret<i64>>,
+    statement_id: Secret<String>,
+    epacs_reference: String,
+    execution_date: String,
+    applied_currency: Currency,
+    applied_amount: FloatMajorUnit,
+    estimated_settlement_date: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentOutReversalNotification {
+    pub reversal_info: ReversalInfo,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReversalInfo {
+    pub original_payment_info: OriginalPaymentInfo,
+    credit: Option<Credit>,
+    debit: Option<Debit>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Credit {
+    envoy_merchant_account_number: Secret<String>,
+    item_number: Option<Secret<i64>>,
+    statement_id: Secret<String>,
+    epacs_reference: String,
+    posting_date: String,
+    credit_currency: Option<Currency>,
+    credit_amount: FloatMajorUnit,
+    reversal_reason: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Debit {
+    envoy_merchant_account_number: Secret<String>,
+    item_number: Option<Secret<i64>>,
+    statement_id: Secret<String>,
+    epacs_reference: String,
+    posting_date: String,
+    debit_currency: Currency,
+    debit_amount: FloatMajorUnit,
+}
+
+//--------------------- WEBHOOK RESPONSES ---------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum EnvoyNotificationResult {
+    #[serde(rename = "SUCCESS")]
+    Success,
+    #[serde(rename = "ERROR")]
+    Error,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename = "soap:Envelope")]
+pub struct EnvoyNotificationResponse<T> {
+    #[serde(rename = "@xmlns:soap")]
+    pub soap: String,
+    #[serde(rename = "@xmlns:xsd")]
+    pub xsd: String,
+    #[serde(rename = "@xmlns:xsi")]
+    pub xsi: String,
+    #[serde(rename = "soap:Body")]
+    pub body: T,
+}
+
+impl<T> EnvoyNotificationResponse<T> {
+    pub fn new(body: T) -> Self {
+        Self {
+            soap: "http://schemas.xmlsoap.org/soap/envelope/".to_string(),
+            xsd: "http://www.w3.org/2001/XMLSchema".to_string(),
+            xsi: "http://www.w3.org/2001/XMLSchema-instance".to_string(),
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename = "PaymentOutNotificationResponse")]
+pub struct PaymentOutNotificationResponse {
+    #[serde(rename = "@xmlns")]
+    pub xmlns: String,
+    #[serde(rename = "PaymentOutNotificationResult")]
+    pub result: EnvoyNotificationResult,
+}
+
+impl PaymentOutNotificationResponse {
+    pub fn new(result: EnvoyNotificationResult) -> Self {
+        Self {
+            xmlns: "http://apilistener.envoyservices.com".to_string(),
+            result,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename = "PaymentOutReversalNotificationResponse")]
+pub struct PaymentOutReversalNotificationResponse {
+    #[serde(rename = "@xmlns")]
+    pub xmlns: String,
+    #[serde(rename = "PaymentOutReversalNotificationResult")]
+    pub result: EnvoyNotificationResult,
+}
+
+impl PaymentOutReversalNotificationResponse {
+    pub fn new(result: EnvoyNotificationResult) -> Self {
+        Self {
+            xmlns: "http://apilistener.envoyservices.com".to_string(),
+            result,
         }
     }
 }
