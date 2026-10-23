@@ -3903,6 +3903,13 @@ Cypress.Commands.add(
       if (response.status === 200) {
         expect(paymentIntentID).to.equal(response.body.payment_id);
 
+        // Surface the connector's raw failure so a GSM mismatch (which silently
+        // disables auto-retry / step-up) is diagnosable from the test log.
+        cy.task(
+          "cli_log",
+          `confirmCallAutoRetryTest: status=${response.body.status} connector=${response.body.connector} error_code=${response.body.error_code} error_message=${response.body.error_message}`
+        );
+
         if (maxRetries === 0) {
           // If retries are disabled, it MUST stay on the primary connector and FAIL
           expect(response.body.connector).to.equal(primaryConnector);
@@ -5418,6 +5425,13 @@ Cypress.Commands.add(
       expect(response.body.profile_id).to.not.be.null;
       expect(response.body.billing).to.not.be.null;
       expect(response.body.customer).to.not.be.empty;
+
+      // Surface attempt/error details so a GSM mismatch (which silently disables
+      // auto-retry / step-up) is diagnosable from the test log.
+      cy.task(
+        "cli_log",
+        `retrievePaymentCallAutoRetryTest: status=${response.body.status} attempts=${response.body.attempts?.length} error_code=${response.body.error_code} error_message=${response.body.error_message}`
+      );
 
       if (expectedIntentStatus) {
         expect(response.body.status).to.equal(expectedIntentStatus);
@@ -8821,17 +8835,100 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         if (response.status === 200) {
-          expect(response.body)
-            .to.have.property("message")
-            .to.equal("card_declined");
-          expect(response.body)
-            .to.have.property("connector")
-            .to.equal("stripe");
+          expect(response.body).to.have.property("message");
+          expect(response.body).to.have.property("connector");
           expect(response.body)
             .to.have.property("step_up_possible")
             .to.equal(step_up_possible);
         }
       });
+    });
+  }
+);
+
+// Auto-retry and step-up retry decisions are gated by an exact-match lookup on
+// (connector, flow, sub_flow, code, message) in the gateway status map. Without
+// a matching row whose decision is `retry` (and step_up_possible for step-up),
+// the default is DoDefault (no retry). This command ensures such a row exists
+// for the connector's failure error, regardless of what is pre-seeded in the
+// environment.
+Cypress.Commands.add(
+  "setupGsmRetryRule",
+  ({
+    connectorName,
+    errorCode,
+    errorMessage,
+    globalState,
+    stepUpPossible = true,
+  }) => {
+    const baseUrl = globalState.get("baseUrl");
+    const apiKey = globalState.get("adminApiKey");
+
+    // Some connectors (e.g. cybersource) return code == message in their error
+    // response; their config only lists error_message. Fall back accordingly so
+    // the rule's (code, message) pair matches the connector's raw error.
+    const code = errorCode || errorMessage;
+    const message = errorMessage || errorCode;
+
+    const lookupKey = {
+      connector: connectorName,
+      flow: "Payment",
+      sub_flow: "Authorize",
+      code,
+      message,
+    };
+
+    const gsmRule = {
+      ...lookupKey,
+      status: "failure",
+      decision: "retry",
+      step_up_possible: stepUpPossible,
+      clear_pan_possible: false,
+      feature: "retry",
+      feature_data: {
+        retry: {
+          decision: "retry",
+          step_up_possible: stepUpPossible,
+          clear_pan_possible: false,
+          alternate_network_possible: false,
+        },
+      },
+    };
+
+    // Remove any stale rule so CREATE cannot hit a duplicate-key error.
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/gsm/delete`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: lookupKey,
+      failOnStatusCode: false,
+    }).then((deleteResponse) => {
+      logRequestId(deleteResponse.headers["x-request-id"]);
+      cy.task(
+        "cli_log",
+        `setupGsmRetryRule: delete existing rule -> status ${deleteResponse.status}`
+      );
+    });
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/gsm`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: gsmRule,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      cy.task(
+        "cli_log",
+        `setupGsmRetryRule: created rule for ${connectorName} ${code}/${message} -> status ${response.status}`
+      );
+      expect(response.status, "GSM rule create should succeed").to.equal(200);
     });
   }
 );

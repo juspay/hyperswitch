@@ -47,7 +47,9 @@ describe("Step-Up Retry Tests", () => {
           const key = `step_up_enabled_${merchantId}`;
           const value = JSON.stringify([connectorId]);
 
-          cy.setConfigs(globalState, key, value, "CREATE");
+          // DELETE + CREATE so a stale config from a previous run cannot leave
+          // step-up disabled (plain CREATE returns 400 when the key exists).
+          cy.setupConfigs(globalState, key, value);
 
           // Set flag indicating Step-Up retry is enabled for assertion validation
           globalState.set("isStepUpRetryEnabled", true);
@@ -79,6 +81,26 @@ describe("Step-Up Retry Tests", () => {
           );
 
           globalState.set("max_auto_retries_enabled", 1);
+        });
+
+        cy.step("Setup GSM retry rule for connector failure", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Setup GSM retry rule");
+            return;
+          }
+
+          // Step-up retry only fires when the connector's raw error code/message
+          // matches a gateway-status-map row with step_up_possible=true.
+          const failData =
+            getConnectorDetails(connectorId)["card_pm"]["No3DSFailPayment"];
+
+          cy.setupGsmRetryRule({
+            connectorName: connectorId,
+            errorCode: failData.Response.body.error_code,
+            errorMessage: failData.Response.body.error_message,
+            globalState,
+            stepUpPossible: true,
+          });
         });
 
         cy.step("Create Payment Intent", () => {
