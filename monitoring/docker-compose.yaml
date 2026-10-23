@@ -59,16 +59,14 @@ services:
 
   tempo:
     image: grafana/tempo:latest
-    command: -config.file=/etc/tempo.yaml
-    volumes:
-      - ../config/tempo.yaml:/etc/tempo.yaml
-      - ./tempo.tmp:/tmp/tempo
+    command: [ "-config.file=/etc/tempo.yaml" ]
     networks:
       - loki
+    volumes:
+      - ../config/tempo.yaml:/etc/tempo.yaml
     ports:
-      - "3200" # tempo
-      - "4317" # otlp grpc
-      - "4318" # otlp http
+      - "3200:3200"
+      - "4318:4318"
     restart: unless-stopped
 
   grafana:
@@ -78,6 +76,8 @@ services:
     networks:
       - loki
     restart: unless-stopped
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource,redis-datasource
     volumes:
       - ../config:/etc/grafana
 
