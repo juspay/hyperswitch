@@ -11898,6 +11898,7 @@ pub enum ProcessTrackerRunner {
     OfferEngineNotifyWorkflow,
     BlocklistExportWorkflow,
     BlocklistProfileCloneWorkflow,
+    AnalyticsReportWorkflow,
 }
 
 #[derive(

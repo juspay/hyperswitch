@@ -2593,7 +2593,7 @@ pub async fn create_specific_dynamic_routing(
             // disable specific dynamic routing for the requested profile
             helpers::disable_dynamic_routing_algorithm(
                 &state,
-                processor.get_key_store().clone(),
+                processor.get_key_store().inner().clone(),
                 business_profile,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
@@ -2961,7 +2961,7 @@ pub async fn contract_based_dynamic_routing_setup(
             .attach_printable("Failed to get dynamic_routing_algo_ref")?;
         return helpers::disable_dynamic_routing_algorithm(
             &state,
-            processor.get_key_store().clone(),
+            processor.get_key_store().inner().clone(),
             business_profile,
             algorithm,
             routing_types::DynamicRoutingType::ContractBasedRouting,
@@ -3984,10 +3984,34 @@ pub fn transaction_type_from_payments_dsl(input: &PaymentsDslInput<'_>) -> enums
     enums::TransactionType::from(&txn_data)
 }
 
+pub fn format_connector_for_logging(
+    connector: impl std::fmt::Display,
+    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
+) -> String {
+    format!(
+        "{connector}:{}",
+        merchant_connector_id
+            .map(|id| id.get_string_repr())
+            .unwrap_or("<unresolved>")
+    )
+}
+
+pub fn format_connectors_for_logging(
+    connectors: &[routing::RoutableConnectorChoice],
+) -> Vec<String> {
+    connectors
+        .iter()
+        .map(|choice| {
+            format_connector_for_logging(choice.connector, choice.merchant_connector_id.as_ref())
+        })
+        .collect()
+}
+
 pub fn log_connectors(stage: &str, connectors: &[routing::RoutableConnectorChoice]) {
-    let names: Vec<String> = connectors.iter().map(|c| c.connector.to_string()).collect();
+    let names = format_connectors_for_logging(connectors);
 
     router_env::logger::debug!(
+        connectors = ?names,
         "euclid: connectors after {} = {{{}}}",
         stage,
         names.join(", ")
