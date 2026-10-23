@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.14.0-hotfix2
+
+### Bug Fixes
+
+- **payouts:** Prevent concurrent fulfillment ([#14956](https://github.com/juspay/hyperswitch/pull/14956)) ([`7c6b96a`](https://github.com/juspay/hyperswitch/commit/7c6b96aeb6b40241ccd911b1666ca32e170ab002))
+
+**Full Changelog:** [`2026.10.14.0-hotfix1...2026.10.14.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.10.14.0-hotfix1...2026.10.14.0-hotfix2)
+
+- - -
+
 ## 2026.10.14.0-hotfix1
 
 ### Features
