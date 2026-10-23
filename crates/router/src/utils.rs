@@ -189,27 +189,27 @@ pub async fn find_payment_intent_from_payment_id_type(
         payments::PaymentIdType::PaymentIntentId(payment_id) => db
             .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                platform.get_processor().get_account().get_id(),
+                &platform.get_processor().get_processor_merchant_id(),
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
         payments::PaymentIdType::ConnectorTransactionId(connector_transaction_id) => {
             let attempt = db
                 .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     &connector_transaction_id,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                     platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             db.find_payment_intent_by_payment_id_processor_merchant_id(
                 &attempt.payment_id,
-                platform.get_processor().get_account().get_id(),
+                &platform.get_processor().get_processor_merchant_id(),
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -218,17 +218,17 @@ pub async fn find_payment_intent_from_payment_id_type(
             let attempt = db
                 .find_payment_attempt_by_attempt_id_processor_merchant_id(
                     &attempt_id,
-                    platform.get_processor().get_account().get_id(),
-                    platform.get_processor().get_account().storage_scheme,
+                    &platform.get_processor().get_processor_merchant_id(),
+                    platform.get_processor().get_storage_scheme(),
                     platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             db.find_payment_intent_by_payment_id_processor_merchant_id(
                 &attempt.payment_id,
-                platform.get_processor().get_account().get_id(),
+                &platform.get_processor().get_processor_merchant_id(),
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -266,18 +266,18 @@ pub async fn find_payment_intent_from_refund_id_type(
     let attempt = db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &refund.payment_id,
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             &refund.attempt_id,
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
             platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     db.find_payment_intent_by_payment_id_processor_merchant_id(
         &attempt.payment_id,
-        platform.get_processor().get_account().get_id(),
+        &platform.get_processor().get_processor_merchant_id(),
         platform.get_processor().get_key_store(),
-        platform.get_processor().get_account().storage_scheme,
+        platform.get_processor().get_storage_scheme(),
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -313,9 +313,9 @@ pub async fn find_payment_intent_from_mandate_id_type(
             .original_payment_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("original_payment_id not present in mandate record")?,
-        platform.get_processor().get_account().get_id(),
+        &platform.get_processor().get_processor_merchant_id(),
         platform.get_processor().get_key_store(),
-        platform.get_processor().get_account().storage_scheme,
+        platform.get_processor().get_storage_scheme(),
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -392,9 +392,9 @@ pub async fn get_mca_from_payment_intent(
     let payment_attempt = db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &payment_intent.payment_id,
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             &payment_intent.active_attempt.get_id(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
             platform.get_processor().get_key_store(),
         )
         .await

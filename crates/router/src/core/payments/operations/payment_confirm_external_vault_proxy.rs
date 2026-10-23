@@ -191,8 +191,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsRequest, PaymentData<F>>> {
         let db = &*state.store;
         let payment_method_wrapper = payment_method_fetch_data.payment_method_with_raw_data;
-        let processor_merchant_id = platform.get_processor().get_account().get_id();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
+        let storage_scheme = platform.get_processor().get_storage_scheme();
 
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -201,7 +201,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
         let payment_intent = db
             .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
             )
@@ -243,7 +243,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
         let active_payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
                 platform.get_processor().get_key_store(),
@@ -305,8 +305,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             payment_intent.shipping_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
-            storage_scheme,
+            &processor_merchant_id,
+            storage_scheme.inner(),
         )
         .await?;
 
@@ -315,8 +315,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             payment_intent.billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
-            storage_scheme,
+            &processor_merchant_id,
+            storage_scheme.inner(),
         )
         .await?;
 
@@ -325,8 +325,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             payment_attempt.payment_method_billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
-            storage_scheme,
+            &processor_merchant_id,
+            storage_scheme.inner(),
         )
         .await?;
 
@@ -548,7 +548,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
 
         let connector = payment_data.payment_attempt.connector.clone();
@@ -651,7 +651,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                         .clone(),
                     error_code,
                     error_message,
-                    updated_by: storage_scheme.to_string(),
+                    updated_by: storage_scheme.inner().to_string(),
                     merchant_connector_id,
                     external_three_ds_authentication_attempted,
                     external_threeds_authentication_type,
@@ -730,7 +730,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                     payment_data.payment_intent.clone(),
                     storage::PaymentIntentUpdate::PGStatusUpdate {
                         status: intent_status,
-                        updated_by: storage_scheme.to_string(),
+                        updated_by: storage_scheme.inner().to_string(),
                         incremental_authorization_allowed: payment_data
                             .payment_intent
                             .incremental_authorization_allowed,
