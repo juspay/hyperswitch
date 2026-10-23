@@ -300,10 +300,10 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         account_accessory: card.get_expiry_date_as_mmyy()?,
                         transaction_industry_type: TransactionIndustryType::Ecommerce,
                         transaction_category_code: TransactionCategoryCode::Ecommerce,
-                        holder_name: item
-                            .router_data
-                            .get_optional_billing_full_name()
-                            .or_else(|| card.card_holder_name.clone())
+                        holder_name: card
+                            .card_holder_name
+                            .clone()
+                            .or_else(|| item.router_data.get_optional_billing_full_name())
                             .ok_or(errors::ConnectorError::MissingRequiredField {
                                 field_name: "payment_method_data.billing.address.first_name".into(),
                             })?,
@@ -328,10 +328,10 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         account_accessory: card.get_expiry_date_as_mmyy()?,
                         transaction_industry_type: TransactionIndustryType::Ecommerce,
                         transaction_category_code: TransactionCategoryCode::Ecommerce,
-                        holder_name: item
-                            .router_data
-                            .get_optional_billing_full_name()
-                            .or_else(|| card.card_holder_name.clone())
+                        holder_name: card
+                            .card_holder_name
+                            .clone()
+                            .or_else(|| item.router_data.get_optional_billing_full_name())
                             .ok_or(errors::ConnectorError::MissingRequiredField {
                                 field_name: "payment_method_data.billing.address.first_name".into(),
                             })?,
@@ -1016,9 +1016,9 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
             auth,
             transaction_industry_type,
             transaction_category_code,
-            holder_name: item
-                .get_optional_billing_full_name()
-                .or(card_holder_name)
+            holder_name: card_holder_name
+                .clone()
+                .or_else(|| item.get_optional_billing_full_name())
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "payment_method_data.billing.address.first_name".into(),
                 })?,
