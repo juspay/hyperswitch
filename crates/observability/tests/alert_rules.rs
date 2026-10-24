@@ -620,7 +620,7 @@ async fn postgres_repository_stores_replaces_claims_and_deletes_rules() {
         .is_empty());
     assert_eq!(
         store.list_due_alert_rules(later).await.unwrap(),
-        [rule.clone()]
+        std::slice::from_ref(&rule)
     );
     assert!(store
         .claim_alert_rule(&rule.id, rule.next_run_at, later)

@@ -308,9 +308,7 @@ impl ThresholdV1 {
 /// [`AlertConfiguration::validate`] also passes the evaluator's own checks.
 impl From<AlertConfiguration> for AlertRuleConfig {
     fn from(configuration: AlertConfiguration) -> Self {
-        let configuration = match configuration {
-            AlertConfiguration::V1(configuration) => configuration,
-        };
+        let AlertConfiguration::V1(configuration) = configuration;
 
         let query = match configuration.query {
             AlertQuery::Cloudwatch(CloudwatchQuery::V1(query)) => {
@@ -326,22 +324,22 @@ impl From<AlertConfiguration> for AlertRuleConfig {
             }
         };
 
-        let severities = match configuration.thresholds {
-            AlertThresholds::V1(thresholds) => thresholds.severities,
-        }
-        .into_iter()
-        .map(|(severity, threshold)| {
-            (
-                severity,
-                super::SeverityThreshold {
-                    threshold: threshold.threshold,
-                    comparison_operator: threshold.comparison_operator,
-                    description: threshold.description,
-                    destination: threshold.destination,
-                },
-            )
-        })
-        .collect();
+        let AlertThresholds::V1(thresholds) = configuration.thresholds;
+        let severities = thresholds
+            .severities
+            .into_iter()
+            .map(|(severity, threshold)| {
+                (
+                    severity,
+                    super::SeverityThreshold {
+                        threshold: threshold.threshold,
+                        comparison_operator: threshold.comparison_operator,
+                        description: threshold.description,
+                        destination: threshold.destination,
+                    },
+                )
+            })
+            .collect();
 
         Self {
             interval_seconds: configuration.interval_seconds,
