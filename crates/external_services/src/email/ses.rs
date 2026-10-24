@@ -10,7 +10,7 @@ use aws_sdk_sts::config::Credentials;
 use aws_smithy_runtime::client::http::hyper_014::HyperClientBuilder;
 use common_utils::{errors::CustomResult, pii};
 use error_stack::{report, ResultExt};
-use hyper::Uri;
+use hyper_014::{self as hyper, Uri};
 use hyperswitch_masking::PeekInterface;
 use router_env::logger;
 
