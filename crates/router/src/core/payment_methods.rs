@@ -8157,14 +8157,21 @@ async fn fetch_payment_method(
     let merchant_account = provider.get_account();
     let key_store = provider.get_key_store();
 
-    db.find_payment_method(
-        key_store,
-        payment_method_id,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-    .attach_printable("Payment method not found for network token status check")
+    let payment_method = db
+        .find_payment_method(
+            key_store,
+            payment_method_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+        .attach_printable("Payment method not found for network token status check")?;
+
+    if payment_method.merchant_id != *merchant_account.get_id() {
+        Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+    }
+
+    Ok(payment_method)
 }
 
 #[cfg(feature = "v2")]
@@ -8175,9 +8182,6 @@ pub async fn check_network_token_status(
 ) -> RouterResponse<payment_methods::NetworkTokenStatusCheckResponse> {
     // Retrieve the payment method from the database
     let payment_method = fetch_payment_method(&state, &provider, &payment_method_id).await?;
-    if payment_method.merchant_id != *provider.get_account().get_id() {
-        Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
-    }
 
     // Call the network token status check function
     let network_token_status_check_response = if payment_method.status
@@ -8278,17 +8282,8 @@ pub async fn payment_method_get_token_details_core(
             .await?;
         }
         common_enums::StorageType::Persistent => {
-            let (_, payment_method) = fetch_payment_method_with_fallback(
-                &state,
-                &provider,
-                &payment_method_id,
-                storage_type,
-            )
-            .await?;
-
-            if payment_method.merchant_id != *provider.get_account().get_id() {
-                Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
-            }
+            fetch_payment_method_with_fallback(&state, &provider, &payment_method_id, storage_type)
+                .await?;
         }
     }
 
