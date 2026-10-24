@@ -186,10 +186,12 @@ mod tests {
         let duplicates = std::thread::spawn(move || ledger.take_duplicates())
             .join()
             .unwrap();
-        assert_eq!(duplicates[0].table, "payment_intent");
-        assert_eq!(duplicates[0].repeats, 1);
-        assert_eq!(duplicates[0].first_read_from, expected_first);
-        assert_eq!(duplicates[0].re_read_from, vec![expected_repeat]);
+        assert_eq!(duplicates.len(), 1);
+        let duplicate = duplicates.first().expect("one duplicate read");
+        assert_eq!(duplicate.table, "payment_intent");
+        assert_eq!(duplicate.repeats, 1);
+        assert_eq!(duplicate.first_read_from, expected_first);
+        assert_eq!(duplicate.re_read_from, vec![expected_repeat]);
     }
 
     #[test]
