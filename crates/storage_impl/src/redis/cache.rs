@@ -459,6 +459,11 @@ pub struct Cache {
     populate_timeout: Duration,
 }
 
+struct CachePopulation<T> {
+    value: T,
+    cacheable: bool,
+}
+
 impl Debug for Cache {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Cache")
@@ -614,6 +619,25 @@ impl Cache {
         Fut: futures::Future<Output = Result<T, E>> + Send,
         E: From<StorageError> + Send + Sync + 'static,
     {
+        self.get_or_populate_cacheable(key, async {
+            populate.await.map(|value| CachePopulation {
+                value,
+                cacheable: true,
+            })
+        })
+        .await
+    }
+
+    async fn get_or_populate_cacheable<T, Fut, E>(
+        &self,
+        key: CacheKey,
+        populate: Fut,
+    ) -> Result<T, E>
+    where
+        T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Clone,
+        Fut: futures::Future<Output = Result<CachePopulation<T>, E>> + Send,
+        E: From<StorageError> + Send + Sync + 'static,
+    {
         // Fast path: a hit never touches moka's entry API or its per-key lock at all.
         if let Some(val) = self.get_val::<T>(key.clone()).await {
             return Ok(val);
@@ -621,6 +645,8 @@ impl Cache {
 
         let moka_key = in_memory_cache_key(key.clone());
         let populate_timeout = self.populate_timeout;
+        let mut uncached = None;
+        let uncached_value = &mut uncached;
 
         // moka's `Op::Put` does the real insert; `record_populate_insert` below just mirrors
         // `push`'s deja boundary so the write is still recorded.
@@ -633,15 +659,25 @@ impl Cache {
                 }
 
                 match tokio::time::timeout(populate_timeout, populate).await {
-                    Ok(Ok(val)) => {
-                        let val: Arc<dyn Cacheable> = Arc::new(val);
-                        Ok(Op::Put(val))
+                    Ok(Ok(CachePopulation { value, cacheable })) => {
+                        if cacheable {
+                            let val: Arc<dyn Cacheable> = Arc::new(value);
+                            Ok(Op::Put(val))
+                        } else {
+                            *uncached_value = Some(value);
+                            Ok(Op::Nop)
+                        }
                     }
                     Ok(Err(e)) => Err(Some(e)),
                     Err(_elapsed) => Err(None),
                 }
             })
             .await;
+
+        // Op::Nop released the per-key lock without inserting this rejected result.
+        if let Some(value) = uncached {
+            return Ok(value);
+        }
 
         match outcome {
             // A same-typed entry is expected here; a downcast failure means some other
@@ -880,42 +916,93 @@ impl Cache {
 }
 
 #[instrument(skip_all)]
-pub async fn get_or_populate_redis<T, Fut>(
+async fn get_or_populate_redis<T, Fut>(
     redis: &RedisConnectionWithContext,
-    key: impl AsRef<str>,
+    key: &str,
     ttl: Option<i64>,
     populate: Fut,
-) -> CustomResult<T, StorageError>
+) -> CustomResult<CachePopulation<T>, StorageError>
 where
     T: serde::Serialize + serde::de::DeserializeOwned + Debug,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
     let type_name = std::any::type_name::<T>();
-    let key = key.as_ref();
     let redis_val = redis
         .get_and_deserialize_key::<T>(&key.into(), type_name)
         .await;
     match redis_val {
         Err(err) => match err.current_context() {
             RedisError::NotFound | RedisError::JsonDeserializationFailed => {
-                let data = populate.await?;
+                // Reserve before polling the DB future. DEL, expiry, or a newer load
+                // revokes this token, preventing an old load from restoring stale data.
+                let token = format!("\0cache-fill:{}", common_utils::generate_uuid_v4());
                 match ttl {
                     Some(ttl) => {
                         redis
-                            .serialize_and_set_key_with_expiry(&key.into(), &data, ttl)
+                            .set_key_with_expiry(&key.into(), token.as_bytes(), ttl)
                             .await
                     }
-                    None => redis.serialize_and_set_key(&key.into(), &data).await,
+                    None => redis.set_key(&key.into(), token.as_bytes()).await,
                 }
                 .change_context(StorageError::KVError)?;
-                Ok(data)
+                let data = populate.await?;
+                let value = serde_json::to_string(&data)
+                    .change_context(RedisError::JsonSerializationFailed)
+                    .change_context(StorageError::KVError)?;
+                let cacheable = set_cache_if_current(redis, key, &token, value)
+                    .await
+                    .change_context(StorageError::KVError)?;
+                Ok(CachePopulation {
+                    value: data,
+                    cacheable,
+                })
             }
             _ => Err(err
                 .change_context(StorageError::KVError)
                 .attach_printable(format!("Error while fetching cache for {type_name}"))),
         },
-        Ok(val) => Ok(val),
+        Ok(value) => Ok(CachePopulation {
+            value,
+            cacheable: true,
+        }),
     }
+}
+
+// Fred's script helper already records its boundary. The redis-rs helper needs
+// this boundary here; wrapping both would nest Fred's replay substitution.
+#[cfg_attr(
+    all(feature = "deja", feature = "redis-rs"),
+    deja::redis(
+        operation = "cache_population",
+        codec = deja::codec::ResultCodec::<bool, RedisError>,
+        args = serde_json::json!({
+            "key": key,
+            "tenant": redis.redis_conn.key_prefix,
+            "token": token,
+        }),
+    )
+)]
+async fn set_cache_if_current(
+    redis: &RedisConnectionWithContext,
+    key: &str,
+    token: &str,
+    value: String,
+) -> CustomResult<bool, RedisError> {
+    // Keep the reservation's explicit or configured default expiry. Committing a
+    // result must not turn an expiring cache entry into a persistent key.
+    const SCRIPT: &str = r#"
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+redis.call('SET', KEYS[1], ARGV[2], 'KEEPTTL')
+return 1
+"#;
+    redis
+        .evaluate_redis_script(
+            SCRIPT,
+            vec![redis.add_prefix(key)],
+            vec![token.to_owned(), value],
+        )
+        .await
+        .change_context(RedisError::ScriptExecutionFailed)
 }
 
 /// Recorded args for the [`Cache`] boundaries: cache name + un-namespaced
@@ -947,16 +1034,17 @@ where
 
     // The redis connection is acquired only when this caller is the one populating, so an
     // in-memory hit answers during a redis outage rather than erroring, and concurrent
-    // misses for one key cost a single redis round trip between them.
+    // misses for one key share one Redis lookup and, if needed, one DB population.
     cache
-        .get_or_populate_in_memory(cache_key, async {
+        .get_or_populate_cacheable(cache_key, async {
             let redis = store
                 .get_redis_conn()
                 .change_context(StorageError::RedisError(
                     RedisError::RedisConnectionError.into(),
                 ))
                 .attach_printable("Failed to get redis connection")?;
-            get_or_populate_redis(&redis, key, redis_ttl, fun).await
+            // Keep the larger Redis future off the in-memory hit path.
+            Box::pin(get_or_populate_redis(&redis, key, redis_ttl, fun)).await
         })
         .await
 }
@@ -1579,5 +1667,134 @@ mod cache_tests {
         invalidator.await.unwrap();
 
         assert_eq!(cache.get_val::<String>(test_key("race")).await, None);
+    }
+
+    async fn test_redis_connection() -> RedisConnectionWithContext {
+        let settings = redis_interface::RedisSettings {
+            port: std::env::var("HYPERSWITCH_REDIS_REPRO_PORT")
+                .expect("set HYPERSWITCH_REDIS_REPRO_PORT to a disposable Redis port")
+                .parse()
+                .unwrap(),
+            pool_size: 1,
+            ..redis_interface::RedisSettings::default()
+        };
+        RedisConnectionWithContext::new_without_context(Arc::new(
+            redis_interface::RedisConnectionPool::new_without_event_emitter(&settings)
+                .await
+                .unwrap(),
+        ))
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Redis; set HYPERSWITCH_REDIS_REPRO_PORT"]
+    async fn redis_invalidation_during_population_does_not_refill_either_cache() {
+        tokio::time::timeout(Duration::from_secs(10), async {
+            let redis = test_redis_connection().await;
+            for ttl in [None, Some(60)] {
+                let key = format!("cache-test:{}", common_utils::generate_uuid_v4());
+                let cache_key = CacheKey {
+                    key: key.clone(),
+                    prefix: String::new(),
+                };
+                let cache = Arc::new(Cache::new("test", 60, 60, None, TEST_POPULATE_TIMEOUT));
+                let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+                let (resume_tx, resume_rx) = tokio::sync::oneshot::channel();
+                let reader = {
+                    let redis = redis.clone();
+                    let cache = Arc::clone(&cache);
+                    let key = key.clone();
+                    let cache_key = cache_key.clone();
+                    tokio::spawn(async move {
+                        cache
+                            .get_or_populate_cacheable(cache_key, async {
+                                get_or_populate_redis(&redis, &key, ttl, async {
+                                    let old_value = 1_usize;
+                                    started_tx.send(()).unwrap();
+                                    resume_rx.await.unwrap();
+                                    Ok(old_value)
+                                })
+                                .await
+                            })
+                            .await
+                    })
+                };
+                started_rx.await.unwrap();
+                // Revoke the Redis reservation while the old DB snapshot is in flight.
+                // This must protect Moka even before a pub/sub handler runs.
+                redis.delete_key(&key.as_str().into()).await.unwrap();
+                resume_tx.send(()).unwrap();
+                assert_eq!(reader.await.unwrap().unwrap(), 1);
+                assert!(cache.get_val::<usize>(cache_key.clone()).await.is_none());
+                assert!(matches!(
+                    redis
+                        .get_and_deserialize_key::<usize>(&key.as_str().into(), "usize")
+                        .await
+                        .unwrap_err()
+                        .current_context(),
+                    RedisError::NotFound
+                ));
+                assert_eq!(
+                    cache
+                        .get_or_populate_cacheable(cache_key, async {
+                            get_or_populate_redis(&redis, &key, ttl, async { Ok(2_usize) }).await
+                        })
+                        .await
+                        .unwrap(),
+                    2
+                );
+                assert!(redis.get_ttl(&key.as_str().into()).await.unwrap() > 0);
+                redis.delete_key(&key.as_str().into()).await.unwrap();
+            }
+        })
+        .await
+        .expect("Redis invalidation test timed out");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Redis; set HYPERSWITCH_REDIS_REPRO_PORT"]
+    async fn redis_replaced_or_expired_population_cannot_overwrite_a_newer_value() {
+        tokio::time::timeout(Duration::from_secs(10), async {
+            let redis = test_redis_connection().await;
+            for expire in [false, true] {
+                let key = format!("cache-test:{}", common_utils::generate_uuid_v4());
+                let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+                let (resume_tx, resume_rx) = tokio::sync::oneshot::channel();
+                let reader = {
+                    let redis = redis.clone();
+                    let key = key.clone();
+                    tokio::spawn(async move {
+                        get_or_populate_redis(&redis, &key, Some(60), async {
+                            started_tx.send(()).unwrap();
+                            resume_rx.await.unwrap();
+                            Ok(1_usize)
+                        })
+                        .await
+                    })
+                };
+                started_rx.await.unwrap();
+                if expire {
+                    redis.set_expiry(&key.as_str().into(), 0).await.unwrap();
+                }
+                let newer = get_or_populate_redis(&redis, &key, Some(60), async { Ok(2_usize) })
+                    .await
+                    .unwrap();
+                assert_eq!(newer.value, 2);
+                assert!(newer.cacheable);
+                resume_tx.send(()).unwrap();
+                let older = reader.await.unwrap().unwrap();
+                assert_eq!(older.value, 1);
+                assert!(!older.cacheable);
+                assert_eq!(
+                    redis
+                        .get_and_deserialize_key::<usize>(&key.as_str().into(), "usize")
+                        .await
+                        .unwrap(),
+                    2
+                );
+                redis.delete_key(&key.as_str().into()).await.unwrap();
+            }
+        })
+        .await
+        .expect("Redis replacement test timed out");
     }
 }
