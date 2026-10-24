@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.21.1-hotfix2
+
+### Bug Fixes
+
+- **webhooks:** Remove default verification secret fallbacks ([#14972](https://github.com/juspay/hyperswitch/pull/14972)) ([`114d1fa`](https://github.com/juspay/hyperswitch/commit/114d1fa426509b3f47d8c1e9f3310a8e5977eb8e))
+
+**Full Changelog:** [`2026.10.21.1-hotfix1...2026.10.21.1-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.10.21.1-hotfix1...2026.10.21.1-hotfix2)
+
+- - -
+
 ## 2026.10.21.1-hotfix1
 
 ### Bug Fixes
