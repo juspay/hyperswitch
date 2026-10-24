@@ -1,4 +1,5 @@
 pub mod address;
+pub mod analytics_report;
 pub mod api_keys;
 pub mod authentication;
 pub mod authorization;
@@ -123,6 +124,7 @@ pub trait StorageInterface:
     + PaymentAttemptInterface<Error = StorageError>
     + PaymentIntentInterface<Error = StorageError>
     + PaymentMethodInterface<Error = StorageError>
+    + analytics_report::AnalyticsReportInterface
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
     + batch_blocklist_job::BatchBlocklistJobInterface

@@ -4,6 +4,7 @@ pub mod gateway;
 pub mod incoming;
 #[cfg(feature = "v2")]
 mod incoming_v2;
+mod ip_verification;
 #[cfg(feature = "v1")]
 mod network_tokenization_incoming;
 #[cfg(feature = "v1")]

@@ -37,7 +37,7 @@ pub async fn list_payment_methods(
         .find_payment_intent_by_id(
             &payment_id,
             platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

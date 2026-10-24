@@ -527,6 +527,11 @@ pub trait ConnectorSpecifications {
         false
     }
 
+    /// Whether incoming webhook source IPs must be checked against allowed IP ranges.
+    fn is_webhook_ip_verification_required(&self) -> bool {
+        false
+    }
+
     /// About the connector
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         None
