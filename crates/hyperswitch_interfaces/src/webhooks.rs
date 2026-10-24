@@ -225,7 +225,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     ) -> CustomResult<api_models::webhooks::ConnectorWebhookSecrets, errors::ConnectorError> {
         let debug_suffix =
             format!("For merchant_id: {merchant_id:?}, and connector_name: {connector_name}");
-        let merchant_secret = match connector_webhook_details {
+        //need to fetch merchant secret from config table with caching in future for enhanced performance
+        match connector_webhook_details {
             Some(merchant_connector_webhook_details) => {
                 let connector_webhook_details = merchant_connector_webhook_details
                     .parse_value::<api_models::admin::MerchantConnectorWebhookDetails>(
@@ -237,26 +238,20 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                             "Deserializing MerchantConnectorWebhookDetails failed {debug_suffix}",
                         )
                     })?;
-                api_models::webhooks::ConnectorWebhookSecrets {
+                Ok(api_models::webhooks::ConnectorWebhookSecrets {
                     secret: connector_webhook_details
                         .merchant_secret
                         .expose()
                         .into_bytes(),
                     additional_secret: connector_webhook_details.additional_secret,
-                }
+                })
             }
 
-            None => {
-                return Err(errors::ConnectorError::WebhookVerificationSecretNotFound)
-                    .attach_printable_lazy(|| {
-                        format!("Merchant connector webhook details not configured {debug_suffix}")
-                    });
-            }
-        };
-
-        //need to fetch merchant secret from config table with caching in future for enhanced performance
-
-        Ok(merchant_secret)
+            None => Err(errors::ConnectorError::WebhookVerificationSecretNotFound)
+                .attach_printable_lazy(|| {
+                    format!("Merchant connector webhook details not configured {debug_suffix}")
+                }),
+        }
     }
 
     /// fn get_webhook_source_verification_signature
