@@ -1,8 +1,3 @@
 ---
 openapi: delete /disputes/evidence
 ---
-
-Dashboard JWT requests can delete evidence only from disputes belonging to the
-authenticated profile. Requests targeting a different profile, or a dispute with
-no profile, are rejected before evidence is changed. Merchant API-key requests
-retain merchant-level access.
