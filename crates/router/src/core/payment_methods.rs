@@ -4655,6 +4655,10 @@ pub async fn get_token_data_for_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+    if payment_method.merchant_id != *provider.get_account().get_id() {
+        Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+    }
+
     let token_data_response = Box::pin(generate_token_data_response(
         &state,
         request,
@@ -6264,6 +6268,10 @@ pub async fn retrieve_payment_method(
     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
     .attach_printable("Failed to fetch payment method by storage")?;
 
+    if payment_method.merchant_id != *platform.get_provider().get_account().get_id() {
+        Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+    }
+
     when(
         matches!(
             payment_method.status,
@@ -6632,6 +6640,10 @@ async fn fetch_volatile_payment_method_record(
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "Payment method token either expired or does not exist".to_string(),
         })?;
+
+    if payment_method.merchant_id != key_store.merchant_id {
+        Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+    }
 
     let keymanager_state = &state.into();
 
@@ -8379,6 +8391,9 @@ pub async fn check_network_token_status(
 ) -> RouterResponse<payment_methods::NetworkTokenStatusCheckResponse> {
     // Retrieve the payment method from the database
     let payment_method = fetch_payment_method(&state, &provider, &payment_method_id).await?;
+    if payment_method.merchant_id != *provider.get_account().get_id() {
+        Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+    }
 
     // Call the network token status check function
     let network_token_status_check_response = if payment_method.status
@@ -8457,28 +8472,48 @@ pub async fn payment_method_get_token_details_core(
 ) -> RouterResponse<payment_methods::PaymentMethodGetTokenDetailsResponse> {
     let token_data = pm_routes::ParentPaymentMethodToken::create_key_for_token(&temporary_token)
         .get_data_for_token(&state)
-        .await;
+        .await?;
 
-    match token_data {
-        Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => {
-            Ok(services::ApplicationResponse::Json(
-                payment_methods::PaymentMethodGetTokenDetailsResponse {
-                    id: card_token_data.payment_method_id,
-                    payment_method_token: temporary_token,
-                },
-            ))
+    let (payment_method_id, storage_type) = match token_data {
+        storage::PaymentTokenData::PermanentCard(card) => {
+            (card.payment_method_id, card.storage_type)
         }
-        Ok(storage::PaymentTokenData::BankDebit(bank_debit_token_data)) => {
-            Ok(services::ApplicationResponse::Json(
-                payment_methods::PaymentMethodGetTokenDetailsResponse {
-                    id: bank_debit_token_data.payment_method_id,
-                    payment_method_token: temporary_token,
-                },
-            ))
+        storage::PaymentTokenData::BankDebit(bank_debit) => {
+            (bank_debit.payment_method_id, bank_debit.storage_type)
         }
-        Ok(_) => Err(errors::ApiErrorResponse::PaymentMethodNotFound.into()),
-        Err(e) => Err(e),
+        _ => Err(errors::ApiErrorResponse::PaymentMethodNotFound)?,
+    };
+
+    match storage_type {
+        common_enums::StorageType::Volatile => {
+            fetch_volatile_payment_method_record(
+                &state,
+                provider.get_key_store(),
+                payment_method_id.get_string_repr(),
+            )
+            .await?;
+        }
+        common_enums::StorageType::Persistent => {
+            let (_, payment_method) = fetch_payment_method_with_fallback(
+                &state,
+                &provider,
+                &payment_method_id,
+                storage_type,
+            )
+            .await?;
+
+            if payment_method.merchant_id != *provider.get_account().get_id() {
+                Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+            }
+        }
     }
+
+    Ok(services::ApplicationResponse::Json(
+        payment_methods::PaymentMethodGetTokenDetailsResponse {
+            id: payment_method_id,
+            payment_method_token: temporary_token,
+        },
+    ))
 }
 
 #[cfg(feature = "v2")]
@@ -8514,6 +8549,10 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                     false,
                 ),
             };
+
+        if payment_method.merchant_id != *platform.get_provider().get_account().get_id() {
+            Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+        }
 
         let handler = Self {
             platform,
