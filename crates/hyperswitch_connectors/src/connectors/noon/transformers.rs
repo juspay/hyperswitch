@@ -1026,8 +1026,9 @@ pub enum NoonWebhookEventTypes {
 #[serde(rename_all = "camelCase")]
 pub struct NoonWebhookBody {
     pub order_id: u64,
-    pub order_status: NoonPaymentStatus,
-    pub event_type: NoonWebhookEventTypes,
+    // Raw strings: the signature preimage must use the values exactly as Noon signs them
+    pub order_status: String,
+    pub event_type: String,
     pub event_id: String,
     pub time_stamp: String,
 }
