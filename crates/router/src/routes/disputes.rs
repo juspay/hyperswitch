@@ -662,7 +662,13 @@ pub async fn delete_dispute_evidence(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            disputes::delete_evidence(state, auth.platform.get_processor().clone(), req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            disputes::delete_evidence(
+                state,
+                auth.platform.get_processor().clone(),
+                profile_id,
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
