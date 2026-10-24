@@ -24,6 +24,10 @@ pub const ORG_LIST_LIMIT_FOR_TENANT: u32 = 20;
 
 pub const MAX_PASSWORD_LENGTH: usize = 70;
 pub const MIN_PASSWORD_LENGTH: usize = 12;
+/// Number of previous passwords retained for the reuse check. The current password is not
+/// stored alongside them - it lives in `users.password` - so the reuse window a user sees is
+/// this many plus the current one.
+pub const PREVIOUS_PASSWORDS_RETAINED: usize = 3;
 
 pub const REDIS_TOTP_PREFIX: &str = "TOTP_";
 pub const REDIS_RECOVERY_CODE_PREFIX: &str = "RC_";
