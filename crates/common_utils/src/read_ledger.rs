@@ -27,16 +27,21 @@ pub struct DuplicateRead {
     /// How many reads of it were repeats of the first.
     pub repeats: usize,
     /// Where it was first read, as a compact chain of source locations.
+    /// `None` in release builds, or when a debug build lacks source locations.
     pub first_read_from: Option<String>,
     /// Where each repeat was issued, up to [`ORIGINS_PER_RECORD`].
+    /// `None` entries preserve repeats whose origins were unavailable, including
+    /// in release builds where backtraces are not captured.
     pub re_read_from: Vec<Option<String>>,
 }
 
 #[derive(Debug)]
 struct Record {
     table: &'static str,
+    /// Absent in release builds or when debug source locations are unavailable.
     first_origin: Option<String>,
     repeats: usize,
+    /// Keep a `None` placeholder for each retained repeat without an origin.
     repeat_origins: Vec<Option<String>>,
 }
 
