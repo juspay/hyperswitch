@@ -142,6 +142,14 @@ pub struct AccountIDSupportedMethods {
     skrill: HashMap<String, AccountIdConfigForRedirect>,
 }
 
+/// Merchant ID inputs: a single ID or IDs keyed by settlement currency.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum MerchantIdConfig {
+    Single(InputData),
+    ByCurrency(HashMap<api_models::enums::Currency, InputData>),
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConfigMetadata {
@@ -164,7 +172,7 @@ pub struct ConfigMetadata {
     pub client_id: Option<InputData>,
     pub client_secret: Option<InputData>,
     pub workspace_id: Option<InputData>,
-    pub merchant_id: Option<InputData>,
+    pub merchant_id: Option<MerchantIdConfig>,
     pub endpoint_prefix: Option<InputData>,
     pub mcc: Option<InputData>,
     pub merchant_country_code: Option<InputData>,
