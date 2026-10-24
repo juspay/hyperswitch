@@ -3,8 +3,8 @@
 The observability plane for Hyperswitch.
 
 `observability` delivers caller-supplied alerts through the
-[`notifier`](src/domain/notifier.rs) and evaluates config-sourced CloudWatch metrics through
-Grafana. The evaluator compares an actual current sample with configured thresholds and uses
+[`notifier`](src/domain/notifier.rs) and evaluates CloudWatch metric rules, kept in config or in
+the database, through Grafana. The evaluator compares an actual current sample with configured thresholds and uses
 the existing notifier to send to the selected threshold's destination. It does not maintain an
 alert lifecycle or infer recovery.
 
@@ -80,7 +80,7 @@ channel and the destination, the body carries only content. Channel ids, recipie
 credentials live in configuration, so a caller cannot address a channel that was not set up for it
 and no credential travels on the wire.
 
-Delivery, metric evaluation and monitoring endpoints:
+Delivery, metric evaluation, alert rule and monitoring endpoints:
 
 | Method | Path | Auth |
 |---|---|---|
@@ -89,6 +89,8 @@ Delivery, metric evaluation and monitoring endpoints:
 | `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
 | `GET` | `/alerts/grafana/cloudwatch/evaluate` | `X-Internal-Api-Key`; never sends |
 | `POST` | `/alerts/grafana/cloudwatch/notify` | `X-Internal-Api-Key`; evaluates and delivers |
+| `GET` | `/alerts/rules` | `X-Internal-Api-Key` |
+| `GET`, `PUT`, `DELETE` | `/alerts/rules/{id}` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
 | `POST` | `/monitoring/grafana/auth` | Router-validated Control Center token in JSON body |
 | `POST` | `/monitoring/grafana/session/{id}` | Router-validated Bearer token in Authorization header |
@@ -134,7 +136,7 @@ only; sending it to the email route is a `400`, not a silently dropped field, be
 notice that quietly loses its link to the alert it clears is a bug nobody notices.
 
 **Generic delivery routes do not render.** `text`, `subject` and `body` are delivered exactly as
-they arrive, so the caller owns markup and escaping. The config-sourced evaluator separately
+they arrive, so the caller owns markup and escaping. The evaluator separately
 renders `ChatBody::Alarm` and `ChatBody::RuleError` through one renderer and one asset,
 `services/chat/assets/alert.txt`, using `format!(include_str!(...), named_variables...)`.
 Values are passed as supplied, without custom escaping or a separate template engine.
@@ -334,11 +336,12 @@ proxies. Verify the public Router host is allowed by the proxy before deployment
 No upstream error body is retained or logged. The client does not independently decode or validate
 the JWT.
 
-## Config-sourced metric alerts
+## Metric alerts
 
 `[alert]` defaults to empty settings: omitting it means no metric requests or notifications.
 When rules are configured, provide Grafana connection settings, a metric-source-to-UID registry
-and `rules` as a JSON string. See `config/observability.toml`; environment overrides use the
+and `rules` as a JSON string, or keep the rules in the database instead (see
+[Rules from the database](#rules-from-the-database)). See `config/observability.toml`; environment overrides use the
 `OBSERVABILITY__ALERT__` prefix. Each datasource value contains only `uid`; its map key identifies
 the metric source. Each threshold's `destination` is an existing chat notifier ID, not a channel ID
 or a second severity mapping. Invalid configured rules or destinations fail startup.
@@ -373,13 +376,89 @@ variables to `[alert]` and `OBSERVABILITY__ALERT__`; remove the redundant `provi
 fields from registry values. No legacy configuration aliases are provided.
 The Grafana plugin wire type remains `cloudwatch`. Update the infrastructure CronJob URL from
 `/alerts/cloudwatch/notify` to `/alerts/grafana/cloudwatch/notify` in coordination with service rollout;
-there is no old-route alias. Separate JSONB table consumers need their own storage conversion
-before integration. This evaluator adds no database migration or persisted evaluation state.
+there is no old-route alias. Rules kept in the database use their own versioned JSON, which converts
+to this shape (below). No evaluation state is persisted.
 
 An external scheduler must call the notify endpoint every minute; the server has no built-in
 polling loop. GET is dry-run only. HTTP 200 does not prove delivery: inspect each rule's status,
 level, delivery result and error fields. Rules run concurrently, responses retain configured order,
 and one rule's query or delivery failure does not cancel independent rules.
+
+### Rules from the database
+
+`rule_source` picks where the evaluator reads rules from. Exactly one source is used.
+
+- `config` (the default) reads `rules` above. Nothing changes for a deployment that does not set it.
+- `database` reads the `alert_rules` table, managed through the APIs below. `rules` must then be
+  empty, and `grafana` must be configured even before any rule exists; startup fails otherwise.
+
+| Method | Path | |
+|---|---|---|
+| `GET` | `/alerts/rules` | every rule, by id |
+| `GET` | `/alerts/rules/{id}` | one rule; `404` if there is none |
+| `PUT` | `/alerts/rules/{id}` | create or replace; a `400` names the failing field |
+| `DELETE` | `/alerts/rules/{id}` | delete; `404` if there is none. To pause a rule, `PUT` it with `"status": "inactive"` |
+
+`alerts_configuration` is stored as sent. It carries a `version` on the configuration, on its query
+and on its thresholds, so each can change format on its own (`common_types::alert_rules::stored`):
+
+```http
+PUT /alerts/rules/rds-writer-cpu
+X-Internal-Api-Key: <key>
+Content-Type: application/json
+
+{
+  "name": "RDS writer CPU",
+  "status": "active",
+  "alerts_configuration": {
+    "version": "v1",
+    "interval_seconds": 60,
+    "query": {
+      "datasource": "cloudwatch",
+      "version": "v1",
+      "region": "us-east-1",
+      "namespace": "AWS/RDS",
+      "metric_name": "CPUUtilization",
+      "dimensions": { "DBClusterIdentifier": "hyperswitchdb-cluster", "Role": "WRITER" },
+      "statistic": "Average",
+      "period": 60,
+      "end_offset_seconds": 180
+    },
+    "thresholds": {
+      "version": "v1",
+      "severities": {
+        "critical": {
+          "threshold": 80.0,
+          "comparison_operator": "GreaterThanOrEqualToThreshold",
+          "description": "RDS writer CPU above 80%.",
+          "destination": "infra_oncall"
+        }
+      }
+    }
+  }
+}
+```
+
+`dimensions` and `end_offset_seconds` may be left out (`{}` and `180`). `interval_seconds` is any
+whole number of minutes up to a day. Besides its own checks, a rule must name chat destinations and
+a datasource this deployment has configured. The APIs work whatever `rule_source` is, so rules can
+be loaded before switching.
+
+Scheduling applies to database rules only; config rules run on every tick.
+
+- A created, replaced or reactivated rule is due on the next tick.
+- `POST /alerts/grafana/cloudwatch/notify` runs the active rules whose `next_run_at` has passed. Each
+  is claimed first: its `next_run_at` moves to the start of the current minute plus
+  `interval_seconds`, only if nobody moved it since it was read, so two replicas or overlapping ticks
+  never run a rule twice. Counting from the start of the minute keeps a one-minute rule on every tick
+  when the scheduler fires a few seconds late.
+- A failed evaluation sends RULE ERROR and waits for the next interval. Missed ticks are not caught
+  up.
+- `GET /alerts/grafana/cloudwatch/evaluate` runs every active rule and moves nothing.
+
+To switch a deployment to the database without an alerting gap: deploy with `rule_source` unset, load
+the rules with `PUT /alerts/rules/{id}`, then set `OBSERVABILITY__ALERT__RULE_SOURCE=database`, clear
+`OBSERVABILITY__ALERT__RULES` and roll out.
 
 ## Layout
 

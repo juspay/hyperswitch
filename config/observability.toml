@@ -97,7 +97,10 @@ type = "log"
 # The newest complete sample in a five-minute window is evaluated. An empty window reports
 # NoData without a notification; query failures send RULE ERROR to the highest configured threshold.
 # A metric period longer than five minutes uses one complete period. No lifecycle state is stored.
+# rule_source = "database" reads rules from the alert_rules table (managed through /alerts/rules)
+# instead; `rules` must then be empty.
 [alert]
+# rule_source = "config"
 rules = '''[{"id":"example-cpu","name":"Example CPU","config":{"interval_seconds":60,"query":{"datasource":"grafana_cloudwatch","region":"us-east-1","namespace":"AWS/EC2","metric_name":"CPUUtilization","dimensions":{"InstanceId":"i-example"},"statistic":"Average","period":60,"end_offset_seconds":180},"thresholds":{"severities":{"critical":{"threshold":90,"comparison_operator":"GreaterThanOrEqualToThreshold","destination":"smoke","description":"CPU utilization is above 90%."}}}}}]'''
 
 [alert.grafana]
