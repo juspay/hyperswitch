@@ -1492,6 +1492,8 @@ async fn insert_execute_pcr_task_to_pt(
 
 pub async fn retrieve_revenue_recovery_process_tracker(
     state: SessionState,
+    platform: domain::Platform,
+    profile: domain::Profile,
     id: GlobalPaymentId,
 ) -> RouterResponse<revenue_recovery::RevenueRecoveryResponse> {
     let db = &*state.store;
@@ -1515,6 +1517,15 @@ pub async fn retrieve_revenue_recovery_process_tracker(
         .parse_value::<pcr::RevenueRecoveryWorkflowTrackingData>("PCRWorkflowTrackingData")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to deserialize  Pcr Workflow Tracking Data")?;
+
+    // The process tracker is looked up by payment id alone, so make sure it belongs to the caller
+    if &tracking_data.merchant_id != platform.get_processor().get_account().get_id()
+        || &tracking_data.profile_id != profile.get_id()
+    {
+        return Err(report!(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Entry For the following id doesn't exists".to_owned(),
+        }));
+    }
 
     let psync_task = PSYNC_WORKFLOW;
 
