@@ -3096,6 +3096,7 @@ pub async fn create_payment_method_bank_redirect_core(
         None,
         None,
         None,
+        None,
     )?;
 
     Ok((payment_method_response, payment_method))
@@ -3172,6 +3173,7 @@ impl PaymentMethodResolver {
                     req.customer_id.clone(),
                     None,
                     billing,
+                    None,
                     None,
                 )?;
 
@@ -3422,6 +3424,7 @@ async fn execute_payment_method_create(
                 None,
                 payment_method_billing_address.map(|add| add.get_inner().clone().into()),
                 None,
+                None,
             )?;
 
             Ok((resp, payment_method))
@@ -3670,6 +3673,7 @@ pub async fn create_generic_volatile_payment_method(
                 None,
                 None,
                 None,
+                None,
             )?;
 
             Ok((resp, domain_payment_method))
@@ -3795,6 +3799,7 @@ pub async fn create_payment_method_wallet_core(
         req.storage_type,
         None,
         req.customer_id,
+        None,
         None,
         None,
         None,
@@ -3926,6 +3931,7 @@ pub async fn create_payment_method_proxy_card_core(
         req.storage_type,
         None,
         req.customer_id,
+        None,
         None,
         None,
         None,
@@ -4523,6 +4529,7 @@ pub async fn payment_method_intent_create(
         common_enums::StorageType::Persistent,
         None,
         Some(customer_id),
+        None,
         None,
         None,
         None,
@@ -5998,7 +6005,7 @@ fn get_pm_list_context(
     let payment_method_retrieval_context = match payment_method_data {
         Some(domain::payment_method_data::PaymentMethodsData::Card(card)) => {
             Some(PaymentMethodListContext::Card {
-                card_details: card.to_card_details_from_locker(),
+                card_details: card.to_card_details_from_locker(None),
                 token_data: is_payment_associated.then_some(
                     storage::PaymentTokenData::permanent_card(
                         payment_method.get_id().clone(),
@@ -6285,6 +6292,40 @@ pub async fn get_total_payment_method_count_core(
     Ok(response)
 }
 
+/// A missing enrichment, not a failed retrieve: every failure degrades to `None`.
+#[cfg(feature = "v2")]
+async fn resolve_card_info_details(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    payment_method: &domain::PaymentMethod,
+) -> Option<payment_methods::CardInfoDetails> {
+    let card_isin = payment_method
+        .payment_method_data
+        .as_ref()
+        .map(|data| data.get_inner())
+        .and_then(|data| match data {
+            domain::payment_method_data::PaymentMethodsData::Card(card) => card.card_isin.clone(),
+            _ => None,
+        });
+
+    match card_isin {
+        Some(card_isin) => {
+            match utils::get_should_return_card_info_details(state, dimensions, None).await {
+                true => state
+                    .store
+                    .get_card_info(&card_isin)
+                    .await
+                    .inspect_err(|error| logger::warn!(?error, "Failed to look up card info"))
+                    .ok()
+                    .flatten()
+                    .map(payment_methods::CardInfoDetails::foreign_from),
+                false => None,
+            }
+        }
+        None => None,
+    }
+}
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
@@ -6299,6 +6340,16 @@ pub async fn retrieve_payment_method(
 
     let dimensions = dimension_state::Dimensions::new()
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
+    let card_info_dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(
+            platform
+                .get_provider()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
 
     // 1. Resolve parent token (if any) -> storage type & optional token data
     let (storage_type, pm_token_data_opt) =
@@ -6505,6 +6556,7 @@ pub async fn retrieve_payment_method(
         .map(|billing| billing.into_inner())
         .map(From::from);
 
+    let card_info = resolve_card_info_details(&state, &card_info_dimensions, &payment_method).await;
     let fingerprint_id = match is_merchant_fingerprint_enabled(&state, &platform).await {
         true => {
             core_utils::read_cached_value::<String>(
@@ -6528,6 +6580,7 @@ pub async fn retrieve_payment_method(
         raw_payment_method_data,
         billing,
         None,
+        card_info,
     )
     .map(|response| api::PaymentMethodResponse {
         fingerprint_id,
@@ -9025,6 +9078,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 .clone()
                 .map(|billing| billing.get_inner().clone().into()),
             self.request.acknowledgement_status,
+            None,
         )?;
 
         Ok(response)
