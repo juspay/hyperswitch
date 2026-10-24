@@ -40,8 +40,6 @@ pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
 pub mod process_tracker;
-#[cfg(debug_assertions)]
-mod read_origin;
 pub mod refund;
 pub mod relay;
 pub mod reverse_lookup;

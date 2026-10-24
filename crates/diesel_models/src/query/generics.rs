@@ -278,16 +278,16 @@ impl DatabaseConnectionWithContext<'_> {
         logger::debug!(query = %statement);
 
         if let (Some(ledger), true) = (self.read_ledger(), operation.is_read()) {
-            // Captured once and shared: the ledger needs it on the *first* read,
-            // the call stack a later repeat points back at.
+            // Capture the original stack now; defer source lookup until the
+            // session reports duplicates on its blocking worker.
             #[cfg(debug_assertions)]
-            let origin = super::read_origin::capture();
+            let origin = Some(common_utils::read_origin::capture());
             #[cfg(not(debug_assertions))]
-            let origin: Option<String> = None;
+            let origin = None;
             // The ledger keeps the detail; the session logs it once at the end
             // (`SessionStateInfo::flush_read_ledger`). The counter is immediate,
             // being an aggregate either way.
-            if ledger.record_read(table, statement, origin.as_deref()) {
+            if ledger.record_read(table, statement, origin) {
                 crate::metrics::DUPLICATE_DB_READ_COUNT
                     .add(1, router_env::metric_attributes!(("table", table)));
             }

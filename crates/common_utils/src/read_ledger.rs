@@ -19,6 +19,25 @@ use std::{collections::HashMap, sync::Mutex};
 /// call site, so the ninth copy of that path says nothing the eighth did.
 const ORIGINS_PER_RECORD: usize = 8;
 
+/// Raw stack frames retained until duplicate reporting in debug builds.
+#[cfg(debug_assertions)]
+pub type ReadOrigin = Vec<backtrace::BacktraceFrame>;
+/// Release builds do not capture stack frames.
+#[cfg(not(debug_assertions))]
+pub type ReadOrigin = ();
+
+fn resolve_origin(origin: ReadOrigin) -> Option<String> {
+    #[cfg(debug_assertions)]
+    {
+        crate::read_origin::resolve(origin)
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = origin;
+        None
+    }
+}
+
 /// A record this session read more than once.
 #[derive(Debug, serde::Serialize)]
 pub struct DuplicateRead {
@@ -38,11 +57,11 @@ pub struct DuplicateRead {
 #[derive(Debug)]
 struct Record {
     table: &'static str,
-    /// Absent in release builds or when debug source locations are unavailable.
-    first_origin: Option<String>,
+    /// Absent in release builds; debug source locations are resolved at reporting.
+    first_origin: Option<ReadOrigin>,
     repeats: usize,
     /// Keep a `None` placeholder for each retained repeat without an origin.
-    repeat_origins: Vec<Option<String>>,
+    repeat_origins: Vec<Option<ReadOrigin>>,
 }
 
 /// Per-session record of what has already been read.
@@ -69,14 +88,19 @@ impl ReadLedger {
     /// session had already run it -- same SQL, same binds, so the same rows.
     /// `origin` is where the read was issued, kept so the report can name call
     /// sites rather than just counts.
-    pub fn record_read(&self, table: &'static str, statement: &str, origin: Option<&str>) -> bool {
+    pub fn record_read(
+        &self,
+        table: &'static str,
+        statement: &str,
+        origin: Option<ReadOrigin>,
+    ) -> bool {
         let mut reads = self.reads();
 
         // Borrowed lookup: only a statement's first read allocates.
         if let Some(record) = reads.get_mut(statement) {
             record.repeats += 1;
             if record.repeat_origins.len() < ORIGINS_PER_RECORD {
-                record.repeat_origins.push(origin.map(str::to_owned));
+                record.repeat_origins.push(origin);
             }
             true
         } else {
@@ -88,7 +112,7 @@ impl ReadLedger {
                 statement.to_owned(),
                 Record {
                     table,
-                    first_origin: origin.map(str::to_owned),
+                    first_origin: origin,
                     repeats: 0,
                     repeat_origins: Vec::new(),
                 },
@@ -102,15 +126,22 @@ impl ReadLedger {
     /// The session logs these as one line rather than warning per duplicate: a
     /// flow that re-reads an intent four times is one thing to fix. Taking
     /// rather than borrowing means a second flush cannot double-report.
+    /// Resolves retained origins synchronously; call on a blocking worker.
     pub fn take_duplicates(&self) -> Vec<DuplicateRead> {
-        let mut duplicates = std::mem::take(&mut *self.reads())
+        // Release the ledger lock before any potentially expensive resolution.
+        let reads = std::mem::take(&mut *self.reads());
+        let mut duplicates = reads
             .into_values()
             .filter(|record| record.repeats > 0)
             .map(|record| DuplicateRead {
                 table: record.table,
                 repeats: record.repeats,
-                first_read_from: record.first_origin,
-                re_read_from: record.repeat_origins,
+                first_read_from: record.first_origin.and_then(resolve_origin),
+                re_read_from: record
+                    .repeat_origins
+                    .into_iter()
+                    .map(|origin| origin.and_then(resolve_origin))
+                    .collect(),
             })
             .collect::<Vec<_>>();
         duplicates.sort_by_key(|duplicate| std::cmp::Reverse(duplicate.repeats));
@@ -136,29 +167,29 @@ mod tests {
     #[test]
     fn a_single_read_is_nothing_to_report() {
         let ledger = ReadLedger::new();
-        assert!(!ledger.record_read("payment_intent", PI, Some("a")));
+        assert!(!ledger.record_read("payment_intent", PI, None));
         assert!(ledger.take_duplicates().is_empty());
     }
 
+    #[cfg(debug_assertions)]
     #[test]
-    fn repeats_accumulate_with_their_call_sites() {
+    fn repeats_preserve_the_original_frames_across_threads() {
+        let first = crate::read_origin::capture();
+        let repeat = crate::read_origin::capture();
+        let expected_first = resolve_origin(first.clone());
+        let expected_repeat = resolve_origin(repeat.clone());
+        assert!(expected_first.is_some());
+        assert!(expected_repeat.is_some());
         let ledger = ReadLedger::new();
-        assert!(!ledger.record_read("payment_intent", PI, Some("get_trackers")));
-        assert!(ledger.record_read("payment_intent", PI, Some("call_connector")));
-        assert!(ledger.record_read("payment_intent", PI, Some("generate_response")));
-        let mut duplicates = ledger.take_duplicates();
-        assert_eq!(duplicates.len(), 1);
-        let duplicate = duplicates.remove(0);
-        assert_eq!(duplicate.table, "payment_intent");
-        assert_eq!(duplicate.repeats, 2);
-        assert_eq!(duplicate.first_read_from.as_deref(), Some("get_trackers"));
-        assert_eq!(
-            duplicate.re_read_from,
-            vec![
-                Some("call_connector".to_string()),
-                Some("generate_response".to_string()),
-            ]
-        );
+        assert!(!ledger.record_read("payment_intent", PI, Some(first)));
+        assert!(ledger.record_read("payment_intent", PI, Some(repeat)));
+        let duplicates = std::thread::spawn(move || ledger.take_duplicates())
+            .join()
+            .unwrap();
+        assert_eq!(duplicates[0].table, "payment_intent");
+        assert_eq!(duplicates[0].repeats, 1);
+        assert_eq!(duplicates[0].first_read_from, expected_first);
+        assert_eq!(duplicates[0].re_read_from, vec![expected_repeat]);
     }
 
     #[test]
@@ -206,9 +237,9 @@ mod tests {
     #[test]
     fn repeats_are_counted_past_the_call_sites_named() {
         let ledger = ReadLedger::new();
-        ledger.record_read("payment_intent", PI, Some("first"));
+        ledger.record_read("payment_intent", PI, None);
         for _ in 0..ORIGINS_PER_RECORD + 5 {
-            ledger.record_read("payment_intent", PI, Some("again"));
+            ledger.record_read("payment_intent", PI, None);
         }
         let duplicate = ledger.take_duplicates().remove(0);
         assert_eq!(duplicate.repeats, ORIGINS_PER_RECORD + 5);

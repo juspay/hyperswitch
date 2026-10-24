@@ -272,20 +272,32 @@ impl SessionStateInfo for SessionState {
         let Some(read_ledger) = self.store.get_read_ledger() else {
             return;
         };
-        let duplicates = read_ledger.take_duplicates();
-        if duplicates.is_empty() {
-            return;
-        }
+        let read_ledger = Arc::clone(read_ledger);
+        let span = router_env::tracing::Span::current();
+        let report = move || {
+            span.in_scope(|| {
+                let duplicates = read_ledger.take_duplicates();
+                if duplicates.is_empty() {
+                    return;
+                }
 
-        let total: usize = duplicates.iter().map(|duplicate| duplicate.repeats).sum();
-        let detail =
-            serde_json::to_string(&duplicates).unwrap_or_else(|_| format!("{duplicates:?}"));
-        router_env::logger::warn!(
-            duplicate_reads = total,
-            records = duplicates.len(),
-            duplicates = %detail,
-            "records read more than once in this API session",
-        );
+                let total: usize = duplicates.iter().map(|duplicate| duplicate.repeats).sum();
+                let detail = serde_json::to_string(&duplicates)
+                    .unwrap_or_else(|_| format!("{duplicates:?}"));
+                router_env::logger::warn!(
+                    duplicate_reads = total,
+                    records = duplicates.len(),
+                    duplicates = %detail,
+                    "records read more than once in this API session",
+                );
+            })
+        };
+        // Debug origins require symbol lookup, which must not block the async
+        // worker or extend the request's database/cache timeout.
+        #[cfg(debug_assertions)]
+        tokio::task::spawn_blocking(report);
+        #[cfg(not(debug_assertions))]
+        report();
     }
 
     fn store(&self) -> Box<dyn StorageInterface> {

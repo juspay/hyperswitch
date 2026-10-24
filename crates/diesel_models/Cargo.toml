@@ -17,7 +17,6 @@ deja = ["dep:deja", "deja/diesel-pg"]
 
 [dependencies]
 async-bb8-diesel = "0.3.0"
-backtrace = "0.3.76"
 base64 = "0.22.1"
 bb8 = "0.9.1"
 diesel = { version = "2.3.12", features = ["postgres", "serde_json", "time", "128-column-tables", "i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }

@@ -3,9 +3,23 @@
 use std::path::Path;
 
 const MAX_LOCATIONS: usize = 16;
+// Allow room for runtime and query-helper frames that source filtering discards.
+const MAX_FRAMES: usize = MAX_LOCATIONS * 4;
 
-pub(super) fn capture() -> Option<String> {
-    let backtrace = backtrace::Backtrace::new();
+/// Capture a bounded stack without resolving its source locations.
+pub fn capture() -> crate::read_ledger::ReadOrigin {
+    let mut frames = Vec::with_capacity(MAX_FRAMES);
+    backtrace::trace(|frame| {
+        frames.push(backtrace::BacktraceFrame::from(frame.clone()));
+        frames.len() < MAX_FRAMES
+    });
+    frames
+}
+
+/// Resolve captured frames into a compact chain on the reporting worker.
+pub(crate) fn resolve(frames: crate::read_ledger::ReadOrigin) -> Option<String> {
+    let mut backtrace = backtrace::Backtrace::from(frames);
+    backtrace.resolve();
     compact(
         backtrace
             .frames()
@@ -40,7 +54,7 @@ fn compact<'a>(
         // The query funnel and this capture helper are identical for all reads.
         if matches!(
             relative,
-            "diesel_models/src/query/generics.rs" | "diesel_models/src/query/read_origin.rs"
+            "diesel_models/src/query/generics.rs" | "common_utils/src/read_origin.rs"
         ) {
             continue;
         }
@@ -62,14 +76,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn capture_keeps_only_bounded_unresolved_frames() {
+        let frames = capture();
+        assert!(!frames.is_empty());
+        assert!(frames.len() <= MAX_FRAMES);
+        assert!(frames.iter().all(|frame| frame.symbols().is_empty()));
+    }
+
+    #[test]
     fn keeps_application_locations_without_runtime_or_generic_noise() {
         let symbols = [
             ("/rustc/hash/library/std/src/backtrace.rs", 331),
             ("./crates/diesel_models/src/query/generics.rs", 217),
-            (
-                "/workspace/crates/diesel_models/src/query/read_origin.rs",
-                6,
-            ),
+            ("/workspace/crates/common_utils/src/read_origin.rs", 6),
             ("./crates/diesel_models/src/query/cards_info.rs", 21),
             (
                 "/home/user/.cargo/registry/src/tracing/src/instrument.rs",

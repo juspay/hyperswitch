@@ -2209,6 +2209,7 @@ version = "0.1.0"
 dependencies = [
  "ammonia",
  "async-trait",
+ "backtrace",
  "base64 0.22.1",
  "base64-serde",
  "blake3",
@@ -3180,7 +3181,6 @@ name = "diesel_models"
 version = "0.1.0"
 dependencies = [
  "async-bb8-diesel",
- "backtrace",
  "base64 0.22.1",
  "bb8",
  "common_enums",
