@@ -18,8 +18,21 @@ use crate::{
 pub struct AlertSettings {
     pub grafana: GrafanaConfig,
     pub datasources: HashMap<MetricSource, DatasourceSettings>,
+    /// Where the evaluator reads rules from. Exactly one source is used.
+    pub rule_source: RuleSource,
     #[serde(deserialize_with = "common_utils::custom_serde::json_string::deserialize")]
     pub(crate) rules: Vec<RuleDefinition>,
+}
+
+/// Where the evaluator reads rules from.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RuleSource {
+    /// `rules` in this section, every rule on every tick.
+    #[default]
+    Config,
+    /// The `alert_rules` table, managed through `/alerts/rules`; each rule when it is due.
+    Database,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -30,7 +43,17 @@ pub struct DatasourceSettings {
 
 impl AlertSettings {
     pub(crate) fn validate(&self, chat: &ChatSettings) -> Result<(), ConfigurationError> {
-        if !self.rules.is_empty() {
+        // Rules here would be silently ignored, so refuse them rather than surprise someone.
+        when(
+            self.rule_source == RuleSource::Database && !self.rules.is_empty(),
+            || {
+                Err(ConfigurationError::ConfigParsingError(
+                    "invalid alert configuration: field `rules` must be empty when `rule_source` is `database`".to_owned(),
+                ))
+            },
+        )?;
+        // Rules from the database arrive after startup, so Grafana must be usable from the start.
+        if !self.rules.is_empty() || self.rule_source == RuleSource::Database {
             when(
                 !url::Url::parse(&self.grafana.base_url)
                     .is_ok_and(|url| matches!(url.scheme(), "http" | "https")),
@@ -137,6 +160,33 @@ mod tests {
         assert!(settings.rules.is_empty());
         assert!(settings.datasources.is_empty());
         assert!(settings.grafana.base_url.is_empty());
+        assert_eq!(settings.rule_source, RuleSource::Config);
+    }
+
+    #[test]
+    fn database_rules_need_grafana_and_no_config_rules() {
+        let chat = ChatSettings::default();
+        let settings =
+            |value: serde_json::Value| -> AlertSettings { serde_json::from_value(value).unwrap() };
+
+        let without_grafana = settings(serde_json::json!({ "rule_source": "database" }));
+        let error = without_grafana.validate(&chat).unwrap_err().to_string();
+        assert!(error.contains("grafana.base_url"), "{error}");
+
+        let with_grafana = settings(serde_json::json!({
+            "rule_source": "database",
+            "grafana": { "base_url": "http://localhost:3000", "api_token": "token" },
+            "datasources": { "grafana_cloudwatch": { "uid": "cloudwatch" } }
+        }));
+        with_grafana.validate(&chat).unwrap();
+
+        let with_config_rules = settings(serde_json::json!({
+            "rule_source": "database",
+            "grafana": { "base_url": "http://localhost:3000", "api_token": "token" },
+            "rules": "[{\"id\":\"cpu\",\"name\":\"CPU\",\"config\":{\"interval_seconds\":60,\"query\":{\"datasource\":\"grafana_cloudwatch\",\"region\":\"us-east-1\",\"namespace\":\"AWS/EC2\",\"metric_name\":\"CPUUtilization\",\"statistic\":\"Average\",\"period\":60},\"thresholds\":{\"severities\":{\"critical\":{\"threshold\":90,\"comparison_operator\":\"GreaterThanThreshold\",\"description\":\"CPU\",\"destination\":\"oncall\"}}}}}]"
+        }));
+        let error = with_config_rules.validate(&chat).unwrap_err().to_string();
+        assert!(error.contains("field `rules` must be empty"), "{error}");
     }
 
     #[test]

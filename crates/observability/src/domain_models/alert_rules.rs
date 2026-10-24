@@ -9,9 +9,12 @@ use api_models::observability::alert_manager::alert_rules as api;
 use common_types::alert_rules::stored::{AlertConfiguration, AlertRuleStatus};
 use diesel_models::observability::alert_manager::alert_rules as storage;
 use error_stack::{report, Report};
-use time::PrimitiveDateTime;
+use time::{Duration, PrimitiveDateTime};
 
-use crate::errors::{ObservabilityApiResult, ObservabilityError};
+use crate::{
+    domain_models::evaluator::RuleDefinition,
+    errors::{ObservabilityApiResult, ObservabilityError},
+};
 
 const MAX_ID_LENGTH: usize = 64;
 const MAX_NAME_LENGTH: usize = 255;
@@ -84,6 +87,18 @@ pub fn invalid(reason: String) -> Report<ObservabilityError> {
     report!(ObservabilityError::InvalidAlertRule { reason })
 }
 
+/// When a rule checked at `now` is next due: the start of `now`'s minute plus the interval.
+///
+/// Counting from the minute rather than from `now` keeps a one-minute rule on every tick when the
+/// scheduler fires a few seconds late: a tick at 10:00:02 makes it due at 10:01:00, not 10:01:02,
+/// so the tick at 10:01:01 still runs it.
+pub fn next_run_after(now: PrimitiveDateTime, interval_seconds: u32) -> PrimitiveDateTime {
+    let into_minute = Duration::seconds(i64::from(now.second()))
+        + Duration::nanoseconds(i64::from(now.nanosecond()));
+    now.saturating_sub(into_minute)
+        .saturating_add(Duration::seconds(i64::from(interval_seconds)))
+}
+
 fn validate_id(id: &str) -> Result<(), String> {
     let leading = |c: char| c.is_ascii_lowercase() || c.is_ascii_digit();
     let valid = (1..=MAX_ID_LENGTH).contains(&id.len())
@@ -122,6 +137,17 @@ impl From<storage::AlertRule> for AlertRule {
             next_run_at: row.next_run_at,
             created_at: row.created_at,
             last_updated_at: row.last_updated_at,
+        }
+    }
+}
+
+/// What the evaluator works on. The configuration loses its versions here.
+impl From<AlertRule> for RuleDefinition {
+    fn from(rule: AlertRule) -> Self {
+        Self {
+            id: rule.id,
+            name: rule.name,
+            config: rule.alerts_configuration.into(),
         }
     }
 }
@@ -256,6 +282,52 @@ mod tests {
             reason.starts_with("alerts_configuration.interval_seconds"),
             "{reason}"
         );
+    }
+
+    #[test]
+    fn the_next_run_counts_from_the_start_of_the_minute() {
+        for (now, interval, next) in [
+            (
+                datetime!(2026-10-21 10:00:00),
+                60,
+                datetime!(2026-10-21 10:01:00),
+            ),
+            (
+                datetime!(2026-10-21 10:00:02.5),
+                60,
+                datetime!(2026-10-21 10:01:00),
+            ),
+            (
+                datetime!(2026-10-21 10:00:59),
+                300,
+                datetime!(2026-10-21 10:05:00),
+            ),
+            (
+                datetime!(2026-10-21 23:59:30),
+                86_400,
+                datetime!(2026-10-22 23:59:00),
+            ),
+        ] {
+            assert_eq!(next_run_after(now, interval), next, "{now} + {interval}s");
+        }
+    }
+
+    #[test]
+    fn the_evaluator_sees_every_stored_field() {
+        let new = storage::AlertRuleNew::from(rule("rds-writer-cpu", "RDS writer CPU").unwrap());
+        let definition = RuleDefinition::from(AlertRule {
+            id: new.id,
+            name: new.name,
+            status: new.status,
+            alerts_configuration: new.alerts_configuration.clone(),
+            next_run_at: new.next_run_at,
+            created_at: new.next_run_at,
+            last_updated_at: new.next_run_at,
+        });
+
+        assert_eq!(definition.id, "rds-writer-cpu");
+        assert_eq!(definition.name, "RDS writer CPU");
+        assert_eq!(definition.config, new.alerts_configuration.into());
     }
 
     #[test]
