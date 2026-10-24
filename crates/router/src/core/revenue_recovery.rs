@@ -56,6 +56,7 @@ use crate::{
         },
         transformers::{ForeignFrom, ForeignInto},
     },
+    utils,
     workflows::revenue_recovery as revenue_recovery_workflow,
 };
 pub const CALCULATE_WORKFLOW: &str = "CALCULATE_WORKFLOW";
@@ -1519,9 +1520,12 @@ pub async fn retrieve_revenue_recovery_process_tracker(
         .attach_printable("unable to deserialize  Pcr Workflow Tracking Data")?;
 
     // The process tracker is looked up by payment id alone, so make sure it belongs to the caller
-    if &tracking_data.merchant_id != platform.get_processor().get_account().get_id()
-        || &tracking_data.profile_id != profile.get_id()
-    {
+    if !utils::is_owned_by_merchant_and_profile(
+        &platform,
+        &profile,
+        &tracking_data.merchant_id,
+        &tracking_data.profile_id,
+    ) {
         return Err(report!(errors::ApiErrorResponse::GenericNotFoundError {
             message: "Entry For the following id doesn't exists".to_owned(),
         }));
