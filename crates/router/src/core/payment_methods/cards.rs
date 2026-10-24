@@ -1651,6 +1651,10 @@ impl PaymentMethodsController for PmCards<'_> {
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+        if pm.merchant_id != *self.provider.get_account().get_id() {
+            Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+        }
+
         let (card, locker_metadata) =
             if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
                 let (card_detail, locker_metadata) = if self.state.conf.locker.locker_enabled {
@@ -1718,6 +1722,10 @@ impl PaymentMethodsController for PmCards<'_> {
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+        if key.merchant_id != *self.provider.get_account().get_id() {
+            Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+        }
 
         let customer_id = key.customer_id.clone().get_required_value("customer_id")?;
 
@@ -2553,6 +2561,10 @@ pub async fn add_payment_method_data(
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
         .attach_printable("Unable to find payment method")?;
 
+    if payment_method.merchant_id != *provider.get_account().get_id() {
+        Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+    }
+
     if payment_method.status != enums::PaymentMethodStatus::AwaitingData {
         return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
     }
@@ -2804,13 +2816,19 @@ pub async fn update_customer_payment_method(
     let pm = if let Some(pm) = pm_data {
         pm
     } else {
-        db.find_payment_method(
-            provider.get_key_store(),
-            payment_method_id,
-            provider.get_account().storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?
+        let payment_method = db
+            .find_payment_method(
+                provider.get_key_store(),
+                payment_method_id,
+                provider.get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+        if payment_method.merchant_id != *provider.get_account().get_id() {
+            Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+        }
+        payment_method
     };
 
     let customer_id = pm.customer_id.clone().get_required_value("customer_id")?;
