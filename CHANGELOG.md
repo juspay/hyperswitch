@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.21.1-hotfix1
+
+### Bug Fixes
+
+- **deps:** Update dependencies to reject compromised CAs ([#14961](https://github.com/juspay/hyperswitch/pull/14961)) ([`f880a72`](https://github.com/juspay/hyperswitch/commit/f880a72e6881a053f6139f1adf8a6047971e7496))
+- **payouts:** Prevent concurrent fulfillment ([#14960](https://github.com/juspay/hyperswitch/pull/14960)) ([`751919d`](https://github.com/juspay/hyperswitch/commit/751919dda14345b5762a7e1185c1f1140aa11788))
+
+**Full Changelog:** [`2026.10.21.1...2026.10.21.1-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.10.21.1...2026.10.21.1-hotfix1)
+
+- - -
+
 ## 2026.10.21.1
 
 ### Features
