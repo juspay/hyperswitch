@@ -466,55 +466,55 @@ async fn get_tracker_for_sync<
     let payment_method_info =
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
             let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
-            let legacy_payment_method = if feature_config.is_payment_method_modular_allowed {
-                None
-            } else {
-                match db
-                    .find_payment_method(
-                        platform.get_provider().get_key_store(),
-                        payment_method_id,
-                        storage_scheme,
-                    )
-                    .await
-                {
-                    Ok(payment_method_info) => Some(payment_method_info),
-                    Err(error) => {
-                        if error.current_context().is_db_not_found() {
-                            logger::info!("Payment Method not found in db {:?}", error);
-                            None
-                        } else {
-                            Err(error)
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Error retrieving payment method from db")?
-                        }
-                    }
-                }
+            let payment_method_info = match db
+                .find_payment_method(
+                    platform.get_provider().get_key_store(),
+                    payment_method_id,
+                    storage_scheme,
+                )
+                .await
+            {
+                Ok(pm) => Some(pm),
+                Err(error) if error.current_context().is_db_not_found() => None,
+                Err(error) => Err(error)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error retrieving payment method from db")?,
             };
-
-            if feature_config.is_payment_method_modular_allowed
-                || legacy_payment_method.as_ref().is_some_and(|pm| {
+            let use_modular = payment_method_info.as_ref().map_or(
+                feature_config.is_payment_method_modular_allowed,
+                |pm| {
                     feature_config.should_use_modular_pm_path(
                         Some(pm.version),
                         pm.compatibility_updated_at,
                         Some(pm.last_modified),
                     )
-                })
-            {
-                Some(
-                    Box::pin(pm_transformers::fetch_payment_method_from_modular_service(
-                        state,
-                        platform,
-                        &profile_id,
-                        payment_method_id,
-                        None,
-                        false,
-                        false,
-                    ))
-                    .await?
-                    .payment_method,
-                )
+                },
+            );
+
+            if use_modular {
+                match Box::pin(pm_transformers::fetch_payment_method_from_modular_service(
+                    state,
+                    platform,
+                    &profile_id,
+                    payment_method_id,
+                    None,
+                    false,
+                    false,
+                ))
+                .await
+                {
+                    Ok(pm) => Some(pm.payment_method),
+                    Err(error) => {
+                        // Historical payments remain readable after PM deletion or an outage.
+                        logger::warn!(
+                            ?error,
+                            "Modular PM metadata unavailable during payment sync"
+                        );
+                        None
+                    }
+                }
             } else {
-                legacy_payment_method
+                payment_method_info
             }
         } else {
             None

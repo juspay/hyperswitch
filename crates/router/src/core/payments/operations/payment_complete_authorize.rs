@@ -461,31 +461,37 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .await?;
 
         let payment_method_info = if let Some(pm_id) = payment_attempt.payment_method_id.as_ref() {
-            let legacy_payment_method = if feature_config.is_payment_method_modular_allowed {
-                None
-            } else {
-                Some(
-                    state
-                        .store
-                        .find_payment_method(
-                            platform.get_provider().get_key_store(),
-                            pm_id,
-                            platform.get_processor().get_account().storage_scheme,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?,
+            let payment_method_info = match state
+                .store
+                .find_payment_method(
+                    platform.get_provider().get_key_store(),
+                    pm_id,
+                    platform.get_processor().get_account().storage_scheme,
                 )
-            };
+                .await
+            {
+                Ok(pm) => Ok(Some(pm)),
+                Err(error)
+                    if error.current_context().is_db_not_found()
+                        && feature_config.is_payment_method_modular_allowed =>
+                {
+                    Ok(None)
+                }
+                Err(error) => Err(error)
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound),
+            }?;
 
-            if feature_config.is_payment_method_modular_allowed
-                || legacy_payment_method.as_ref().is_some_and(|pm| {
+            // An existing V1 record must pass the freshness check even after rollout.
+            if payment_method_info.as_ref().map_or(
+                feature_config.is_payment_method_modular_allowed,
+                |pm| {
                     feature_config.should_use_modular_pm_path(
                         Some(pm.version),
                         pm.compatibility_updated_at,
                         Some(pm.last_modified),
                     )
-                })
-            {
+                },
+            ) {
                 let profile_id = payment_intent
                     .profile_id
                     .as_ref()
@@ -498,7 +504,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .payment_method,
                 )
             } else {
-                legacy_payment_method
+                payment_method_info
             }
         } else {
             None
