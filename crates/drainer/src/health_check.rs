@@ -118,8 +118,7 @@ impl HealthCheckInterface for Store {
     async fn health_check_db(&self) -> CustomResult<(), HealthCheckDBError> {
         let conn = pg_connection(&self.master_pool).await;
 
-        let conn = &conn;
-        conn.transaction_async(move || {
+        conn.transaction_async(move |conn| {
                 Box::pin(async move {
                     let query =
                         diesel::select(diesel::dsl::sql::<diesel::sql_types::Integer>("1 + 1"));

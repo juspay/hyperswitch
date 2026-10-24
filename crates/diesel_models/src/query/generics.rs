@@ -447,22 +447,19 @@ impl DatabaseConnectionWithContext<'_> {
 
     /// Run `f` inside a database transaction against this same connection.
     ///
-    /// `f` takes no connection: every existing caller already discarded the
-    /// one `async_bb8_diesel::transaction_async` hands its closure (`move |_|
-    /// ...`) in favour of the outer `&DatabaseConnectionWithContext` they
-    /// already hold, since that is what the methods above need -- so the
-    /// raw type is never given out here either. Not logged or ledger-checked
-    /// itself: queries issued through the outer connection inside `f` go
-    /// through the methods above as usual, each tracked individually.
-    pub async fn transaction_async<R, E, Func, Fut>(&self, f: Func) -> Result<R, E>
+    /// `f` receives this context-bearing connection, so queries inside the
+    /// transaction use the tracked methods without capturing an outer handle.
+    /// The transaction itself is not logged or ledger-checked; its queries are
+    /// tracked individually. The raw connection remains private.
+    pub async fn transaction_async<'a, R, E, Func, Fut>(&'a self, f: Func) -> Result<R, E>
     where
         R: Send + 'static,
         E: From<DieselError> + Send + 'static,
         Fut: std::future::Future<Output = Result<R, E>> + Send,
-        Func: FnOnce() -> Fut + Send,
+        Func: FnOnce(&'a Self) -> Fut + Send,
     {
         self.connection()
-            .transaction_async(move |_discarded| f())
+            .transaction_async(move |_raw_connection| f(self))
             .await
     }
 }

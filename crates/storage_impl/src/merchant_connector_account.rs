@@ -849,8 +849,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             Ok(())
         }
 
-        let connection_pool = &conn;
-        conn.transaction_async(move || async move {
+        conn.transaction_async(move |conn| async move {
             for (merchant_connector_account, update_merchant_connector_account) in
                 merchant_connector_accounts
             {
@@ -866,7 +865,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 let _merchant_connector_id = merchant_connector_account.get_id().clone();
 
                 let update = update_call(
-                    connection_pool,
+                    conn,
                     (
                         merchant_connector_account,
                         update_merchant_connector_account,

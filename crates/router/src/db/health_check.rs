@@ -22,8 +22,7 @@ impl HealthCheckDbInterface for Store {
             .await
             .change_context(errors::HealthCheckDBError::DBError)?;
 
-        let conn = &conn;
-        conn.transaction_async(move || async move {
+        conn.transaction_async(move |conn| async move {
             let query = diesel::select(diesel::dsl::sql::<diesel::sql_types::Integer>("1 + 1"));
             let _x: i32 = conn
                 .track_get_result::<(), _, i32>(
