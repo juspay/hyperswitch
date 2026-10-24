@@ -6,7 +6,7 @@ use common_enums::enums;
 use common_utils::{
     crypto,
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, BytesExt, ValueExt},
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
@@ -46,7 +46,7 @@ use hyperswitch_interfaces::{
     types::{self, RefreshTokenType, Response},
     webhooks,
 };
-use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface};
+use hyperswitch_masking::{Mask, PeekInterface};
 use lazy_static::lazy_static;
 use requests::{
     FacilitapayAuthRequest, FacilitapayCustomerRequest, FacilitapayPaymentsRequest,
@@ -812,32 +812,29 @@ impl webhooks::IncomingWebhook for Facilitapay {
     async fn verify_webhook_source(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         _connector_account_details: crypto::Encryptable<
             hyperswitch_masking::Secret<serde_json::Value>,
         >,
-        _connector_name: &str,
+        connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let webhook_body: responses::FacilitapayWebhookNotification = request
             .body
             .parse_struct("FacilitapayWebhookNotification")
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let connector_webhook_secrets = match connector_webhook_details {
-            Some(secret_value) => {
-                let secret = secret_value
-                    .parse_value::<api_models::admin::MerchantConnectorWebhookDetails>(
-                        "MerchantConnectorWebhookDetails",
-                    )
-                    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-                secret.merchant_secret.expose()
-            }
-            None => "default_secret".to_string(),
-        };
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_name,
+                connector_webhook_details,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         // FacilitaPay uses a simple 4-digit secret for verification
-        Ok(webhook_body.notification.secret.peek() == &connector_webhook_secrets)
+        Ok(webhook_body.notification.secret.peek().as_bytes() == connector_webhook_secrets.secret)
     }
 
     fn get_webhook_object_reference_id(

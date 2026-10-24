@@ -188,17 +188,22 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         let message = self
             .get_webhook_body_decoding_message(request)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let secret = self
-            .get_webhook_source_verification_merchant_secret(
+        // Ordinary bodies can be decoded before the merchant connector account is resolved.
+        let secret = if algorithm.requires_secret() {
+            self.get_webhook_source_verification_merchant_secret(
                 merchant_id,
                 connector_name,
                 connector_webhook_details,
             )
             .await
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+            .secret
+        } else {
+            Vec::new()
+        };
 
         algorithm
-            .decode_message(&secret.secret, message.into())
+            .decode_message(&secret, message.into())
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 
@@ -210,7 +215,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(Box::new(crypto::NoAlgorithm))
     }
 
-    /// fn get_webhook_source_verification_merchant_secret
+    /// Get the merchant's configured webhook verification secrets.
+    /// Returns an error when webhook details are not configured.
     async fn get_webhook_source_verification_merchant_secret(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -219,7 +225,6 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     ) -> CustomResult<api_models::webhooks::ConnectorWebhookSecrets, errors::ConnectorError> {
         let debug_suffix =
             format!("For merchant_id: {merchant_id:?}, and connector_name: {connector_name}");
-        let default_secret = "default_secret".to_string();
         let merchant_secret = match connector_webhook_details {
             Some(merchant_connector_webhook_details) => {
                 let connector_webhook_details = merchant_connector_webhook_details
@@ -241,16 +246,16 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                 }
             }
 
-            None => api_models::webhooks::ConnectorWebhookSecrets {
-                secret: default_secret.into_bytes(),
-                additional_secret: None,
-            },
+            None => {
+                return Err(errors::ConnectorError::WebhookVerificationSecretNotFound)
+                    .attach_printable_lazy(|| {
+                        format!("Merchant connector webhook details not configured {debug_suffix}")
+                    });
+            }
         };
 
         //need to fetch merchant secret from config table with caching in future for enhanced performance
 
-        //If merchant has not set the secret for webhook source verification, "default_secret" is returned.
-        //So it will fail during verification step and goes to psync flow.
         Ok(merchant_secret)
     }
 
@@ -469,5 +474,271 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             "get_subscription_mit_payment_data method".to_string(),
         )
         .into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common_utils::{
+        crypto::{EncodeMessage, SignMessage},
+        id_type::MerchantId,
+    };
+
+    use super::*;
+
+    #[derive(Default)]
+    struct TestConnector {
+        signature: Vec<u8>,
+        encrypted_body: bool,
+    }
+
+    impl ConnectorCommon for TestConnector {
+        fn id(&self) -> &'static str {
+            "test_connector"
+        }
+
+        fn base_url<'a>(
+            &self,
+            _connectors: &'a hyperswitch_domain_models::connector_endpoints::Connectors,
+        ) -> &'a str {
+            ""
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl IncomingWebhook for TestConnector {
+        fn get_webhook_body_decoding_algorithm(
+            &self,
+            _request: &IncomingWebhookRequestDetails<'_>,
+        ) -> CustomResult<Box<dyn crypto::DecodeMessage + Send>, errors::ConnectorError> {
+            if self.encrypted_body {
+                Ok(Box::new(crypto::GcmAes256))
+            } else {
+                Ok(Box::new(crypto::NoAlgorithm))
+            }
+        }
+
+        fn get_webhook_source_verification_algorithm(
+            &self,
+            _request: &IncomingWebhookRequestDetails<'_>,
+        ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+            Ok(Box::new(crypto::HmacSha256))
+        }
+
+        fn get_webhook_source_verification_signature(
+            &self,
+            _request: &IncomingWebhookRequestDetails<'_>,
+            _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+        ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+            Ok(self.signature.clone())
+        }
+
+        fn get_webhook_source_verification_message(
+            &self,
+            request: &IncomingWebhookRequestDetails<'_>,
+            _merchant_id: &MerchantId,
+            _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+        ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+            Ok(request.body.to_vec())
+        }
+
+        fn get_webhook_object_reference_id(
+            &self,
+            _request: &IncomingWebhookRequestDetails<'_>,
+        ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+            Err(errors::ConnectorError::WebhooksNotImplemented.into())
+        }
+
+        fn get_webhook_event_type(
+            &self,
+            _request: &IncomingWebhookRequestDetails<'_>,
+            _context: Option<&WebhookContext>,
+        ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError>
+        {
+            Err(errors::ConnectorError::WebhooksNotImplemented.into())
+        }
+
+        fn get_webhook_resource_object(
+            &self,
+            _request: &IncomingWebhookRequestDetails<'_>,
+        ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+        {
+            Err(errors::ConnectorError::WebhooksNotImplemented.into())
+        }
+    }
+
+    fn webhook_request<'a>(
+        headers: &'a actix_web::http::header::HeaderMap,
+        body: &'a [u8],
+    ) -> IncomingWebhookRequestDetails<'a> {
+        IncomingWebhookRequestDetails {
+            method: http::Method::POST,
+            uri: http::Uri::from_static("/webhooks"),
+            headers,
+            body,
+            query_params: String::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn ordinary_body_decoding_does_not_require_verification_secret(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let connector = TestConnector::default();
+        let headers = actix_web::http::header::HeaderMap::new();
+        let body = b"webhook payload";
+        let request = webhook_request(&headers, body);
+
+        for details in [
+            None,
+            Some(Secret::new(
+                serde_json::json!({ "merchant_secret": "merchant-secret" }),
+            )),
+            Some(Secret::new(serde_json::json!({}))),
+        ] {
+            let decoded = connector
+                .decode_webhook_body(
+                    &request,
+                    &MerchantId::get_irrelevant_merchant_id(),
+                    details,
+                    connector.id(),
+                )
+                .await?;
+
+            assert_eq!(decoded, body);
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn encrypted_body_decoding_requires_configured_secret(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let connector = TestConnector {
+            encrypted_body: true,
+            ..Default::default()
+        };
+        let headers = actix_web::http::header::HeaderMap::new();
+        let secret = "0123456789abcdef0123456789abcdef";
+        let body = b"webhook payload";
+        let encrypted_body = crypto::GcmAes256.encode_message(secret.as_bytes(), body)?;
+        let request = webhook_request(&headers, &encrypted_body);
+
+        let missing_secret = connector
+            .decode_webhook_body(
+                &request,
+                &MerchantId::get_irrelevant_merchant_id(),
+                None,
+                connector.id(),
+            )
+            .await;
+        assert!(matches!(
+            missing_secret
+                .as_ref()
+                .map_err(|error| error.current_context()),
+            Err(errors::ConnectorError::WebhookSourceVerificationFailed)
+        ));
+
+        let decoded = connector
+            .decode_webhook_body(
+                &request,
+                &MerchantId::get_irrelevant_merchant_id(),
+                Some(Secret::new(
+                    serde_json::json!({ "merchant_secret": secret }),
+                )),
+                connector.id(),
+            )
+            .await?;
+        assert_eq!(decoded, body);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn webhook_verification_requires_configured_merchant_secret(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let body = b"webhook payload";
+        let headers = actix_web::http::header::HeaderMap::new();
+        let request = webhook_request(&headers, body);
+
+        for (merchant_secret, signing_secret, expected_verification) in [
+            (None, "default_secret", None),
+            (Some("merchant-secret"), "merchant-secret", Some(true)),
+            (Some("merchant-secret"), "default_secret", Some(false)),
+        ] {
+            let connector = TestConnector {
+                signature: crypto::HmacSha256.sign_message(signing_secret.as_bytes(), body)?,
+                ..Default::default()
+            };
+            let details = merchant_secret
+                .map(|secret| Secret::new(serde_json::json!({ "merchant_secret": secret })));
+            let decoded_body = connector
+                .decode_webhook_body(
+                    &request,
+                    &MerchantId::get_irrelevant_merchant_id(),
+                    None,
+                    connector.id(),
+                )
+                .await?;
+            let decoded_request = webhook_request(&headers, &decoded_body);
+            let result = connector
+                .verify_webhook_source(
+                    &decoded_request,
+                    &MerchantId::get_irrelevant_merchant_id(),
+                    details,
+                    crypto::Encryptable::new(Secret::new(serde_json::json!({})), Vec::new().into()),
+                    connector.id(),
+                )
+                .await;
+
+            match expected_verification {
+                Some(expected) => assert_eq!(result?, expected),
+                None => assert!(matches!(
+                    result.as_ref().map_err(|error| error.current_context()),
+                    Err(errors::ConnectorError::WebhookSourceVerificationFailed)
+                )),
+            }
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn configured_webhook_secrets_are_preserved() -> Result<(), Box<dyn std::error::Error>> {
+        let connector = TestConnector::default();
+
+        for additional_secret in [None, Some("additional-secret")] {
+            let details = serde_json::json!({
+                "merchant_secret": "merchant-secret",
+                "additional_secret": additional_secret,
+            });
+            let secrets = connector
+                .get_webhook_source_verification_merchant_secret(
+                    &MerchantId::get_irrelevant_merchant_id(),
+                    connector.id(),
+                    Some(Secret::new(details)),
+                )
+                .await?;
+
+            assert_eq!(secrets.secret, b"merchant-secret");
+            assert_eq!(
+                secrets.additional_secret.map(|secret| secret.expose()),
+                additional_secret.map(str::to_owned)
+            );
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn malformed_webhook_details_fail_verification() {
+        let connector = TestConnector::default();
+        let result = connector
+            .get_webhook_source_verification_merchant_secret(
+                &MerchantId::get_irrelevant_merchant_id(),
+                connector.id(),
+                Some(Secret::new(serde_json::json!({}))),
+            )
+            .await;
+
+        assert!(matches!(
+            result.as_ref().map_err(|error| error.current_context()),
+            Err(errors::ConnectorError::WebhookSourceVerificationFailed)
+        ));
     }
 }

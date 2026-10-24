@@ -157,6 +157,11 @@ pub trait EncodeMessage {
 
 /// Trait for cryptographically decoding a message
 pub trait DecodeMessage {
+    /// Whether decoding requires a configured secret.
+    fn requires_secret(&self) -> bool {
+        true
+    }
+
     /// Takes in a secret, an encoded messages and attempts to decode it, returning bytes
     fn decode_message(
         &self,
@@ -202,6 +207,10 @@ impl EncodeMessage for NoAlgorithm {
 }
 
 impl DecodeMessage for NoAlgorithm {
+    fn requires_secret(&self) -> bool {
+        false
+    }
+
     fn decode_message(
         &self,
         _secret: &[u8],
