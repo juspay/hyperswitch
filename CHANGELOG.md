@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.07.0-hotfix7
+
+### Bug Fixes
+
+- Fix some resource access scoping ([#14979](https://github.com/juspay/hyperswitch/pull/14979)) ([`38cee16`](https://github.com/juspay/hyperswitch/commit/38cee1679b55ba7327aafcc4b3250248e767481a))
+
+**Full Changelog:** [`2026.10.07.0-hotfix6...2026.10.07.0-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.10.07.0-hotfix6...2026.10.07.0-hotfix7)
+
+- - -
+
 ## 2026.10.07.0-hotfix6
 
 ### Bug Fixes
