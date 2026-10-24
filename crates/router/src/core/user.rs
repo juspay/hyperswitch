@@ -2146,6 +2146,7 @@ pub async fn list_user_roles_details(
             };
 
             Ok(user_api::GetUserRoleDetailsResponseV2 {
+                name: required_user.get_name(),
                 role_id: user_role.role_id.clone(),
                 org: org.clone(),
                 merchant,
