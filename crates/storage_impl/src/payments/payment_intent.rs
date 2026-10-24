@@ -48,8 +48,6 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v2")]
 use redis_interface::HsetnxReply;
-#[cfg(feature = "olap")]
-use router_env::logger;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "olap")]
@@ -1313,8 +1311,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             Some(ending_at) => query.filter(pi_dsl::created_at.le(ending_at)),
             None => query,
         };
-
-        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         conn.track_get_results::<<DieselPaymentIntent as HasTable>::Table, _, (common_enums::IntentStatus, i64)>(
             db_metrics::DatabaseOperation::Filter,
