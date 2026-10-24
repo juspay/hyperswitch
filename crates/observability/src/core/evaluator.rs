@@ -6,14 +6,19 @@ use error_stack::{AttachmentKind, FrameKind, Report, ResultExt};
 use external_services::metrics_provider::grafana::cloudwatch::GrafanaCloudwatch;
 use futures::future::join_all;
 use hyperswitch_masking::Secret;
+use time::PrimitiveDateTime;
 
 use crate::{
     core::notifier,
     domain::notifier::Outcome,
-    domain_models::evaluator::{Delivery, EvaluatorError, Notification, RuleRun},
+    domain_models::{
+        alert_rules::next_run_after,
+        evaluator::{Delivery, EvaluatorError, Notification, RuleDefinition, RuleRun},
+    },
     errors::{ObservabilityApiResult, ObservabilityError},
     logger,
     services::chat,
+    settings::evaluator::RuleSource,
     state::AppState,
     types::{AlertEvaluationResponse, AlertRuleEvaluationResponse, ChatNotifyRequest},
 };
@@ -33,8 +38,20 @@ async fn evaluate_alert_rules(
     let settings = state.conf.alert.get_inner();
     let now = date_time::now();
     let provider = GrafanaCloudwatch::new(settings.grafana.clone(), state.conf.proxy.clone());
-    let rules = settings
-        .rules
+    let definitions = match settings.rule_source {
+        RuleSource::Config => settings.rules.clone(),
+        RuleSource::Database if deliver => claim_due_rules(state, now).await?,
+        RuleSource::Database => state
+            .store
+            .list_active_alert_rules()
+            .await
+            .change_context(ObservabilityError::InternalServerError)
+            .attach_printable("Failed to list active alert rules")?
+            .into_iter()
+            .map(RuleDefinition::from)
+            .collect(),
+    };
+    let rules = definitions
         .iter()
         .map(|rule| {
             let destination = rule
@@ -124,6 +141,37 @@ async fn evaluate_alert_rules(
         evaluated_at: now,
         rules: reports,
     })
+}
+
+/// The due rules from the table that this call claimed. Claiming moves a rule's `next_run_at`
+/// first, so another replica or an overlapping tick that read the same rule skips it.
+async fn claim_due_rules(
+    state: &AppState,
+    now: PrimitiveDateTime,
+) -> ObservabilityApiResult<Vec<RuleDefinition>> {
+    let due = state
+        .store
+        .list_due_alert_rules(now)
+        .await
+        .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to list due alert rules")?;
+
+    let mut claimed = Vec::with_capacity(due.len());
+    for rule in due {
+        let seen = rule.next_run_at;
+        let definition = RuleDefinition::from(rule);
+        let next = next_run_after(now, definition.config.interval_seconds);
+        if state
+            .store
+            .claim_alert_rule(&definition.id, seen, next)
+            .await
+            .change_context(ObservabilityError::InternalServerError)
+            .attach_printable("Failed to claim alert rule")?
+        {
+            claimed.push(definition);
+        }
+    }
+    Ok(claimed)
 }
 
 async fn deliver_notification(state: AppState, notification: &Notification) -> Delivery {
