@@ -6,7 +6,7 @@ use common_enums::enums;
 use common_utils::{
     crypto,
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, BytesExt},
+    ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
@@ -812,29 +812,29 @@ impl webhooks::IncomingWebhook for Facilitapay {
     async fn verify_webhook_source(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &common_utils::id_type::MerchantId,
+        _merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         _connector_account_details: crypto::Encryptable<
             hyperswitch_masking::Secret<serde_json::Value>,
         >,
-        connector_name: &str,
+        _connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let webhook_body: responses::FacilitapayWebhookNotification = request
             .body
             .parse_struct("FacilitapayWebhookNotification")
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let connector_webhook_secrets = self
-            .get_webhook_source_verification_merchant_secret(
-                merchant_id,
-                connector_name,
-                connector_webhook_details,
+        let connector_webhook_secrets = connector_webhook_details
+            .ok_or(errors::ConnectorError::WebhookVerificationSecretNotFound)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+            .parse_value::<api_models::admin::MerchantConnectorWebhookDetails>(
+                "MerchantConnectorWebhookDetails",
             )
-            .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         // FacilitaPay uses a simple 4-digit secret for verification
-        Ok(webhook_body.notification.secret.peek().as_bytes() == connector_webhook_secrets.secret)
+        Ok(webhook_body.notification.secret.peek()
+            == connector_webhook_secrets.merchant_secret.peek())
     }
 
     fn get_webhook_object_reference_id(
