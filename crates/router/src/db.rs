@@ -243,6 +243,7 @@ pub trait AccountsStorageInterface:
     + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
     + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
+    + RequestIdStore
     + 'static
 {
 }
@@ -370,6 +371,20 @@ pub trait RequestIdStore {
     fn get_request_id(&self) -> Option<String> {
         None
     }
+
+    /// Hand this store the session's read ledger, so what it reads is weighed
+    /// against what the session already read. One ledger per session, attached
+    /// to each of its stores.
+    fn attach_read_ledger(
+        &mut self,
+        _read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
+    ) {
+    }
+
+    /// The session ledger held by the underlying `RouterStore`, if attached.
+    fn get_read_ledger(&self) -> Option<&std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        None
+    }
 }
 
 impl RequestIdStore for MockDb {}
@@ -392,6 +407,25 @@ impl RequestIdStore for Store {
 
     fn get_request_id(&self) -> Option<String> {
         self.request_id.clone()
+    }
+
+    fn attach_read_ledger(
+        &mut self,
+        read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
+    ) {
+        // Both direct and KV-delegated reads use the ledger in `RouterStore`.
+        #[cfg(feature = "kv_store")]
+        {
+            self.router_store.read_ledger = Some(read_ledger);
+        }
+        #[cfg(not(feature = "kv_store"))]
+        {
+            self.read_ledger = Some(read_ledger);
+        }
+    }
+
+    fn get_read_ledger(&self) -> Option<&std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        common_utils::request_context::RequestContext::read_ledger(self)
     }
 }
 
@@ -418,6 +452,17 @@ dyn_clone::clone_trait_object!(AccountsStorageInterface);
 impl RequestIdStore for KafkaStore {
     fn add_request_id(&mut self, request_id: String) {
         self.diesel_store.add_request_id(request_id)
+    }
+
+    fn attach_read_ledger(
+        &mut self,
+        read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
+    ) {
+        self.diesel_store.attach_read_ledger(read_ledger)
+    }
+
+    fn get_read_ledger(&self) -> Option<&std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        self.diesel_store.get_read_ledger()
     }
 }
 
