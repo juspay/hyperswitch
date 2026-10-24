@@ -770,6 +770,7 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
                         network_transaction_id: None,
                         network_transaction_link_id: None,
                         last_modified_by: tracking_data.last_modified_by.clone(),
+                        last_used_at: None,
                     };
 
                     db.update_payment_method(

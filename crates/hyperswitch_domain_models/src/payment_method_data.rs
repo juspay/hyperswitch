@@ -1886,7 +1886,26 @@ pub enum WalletDetail {
     },
 }
 
-#[cfg(feature = "v1")]
+impl From<common_types::payments::ApplePayPredecryptData> for WalletDetail {
+    fn from(data: common_types::payments::ApplePayPredecryptData) -> Self {
+        Self::ApplePayDecryptedData {
+            application_primary_account_number: data.application_primary_account_number,
+            expiry_month: data.application_expiration_month,
+            expiry_year: data.application_expiration_year,
+        }
+    }
+}
+
+impl From<common_types::payments::GPayPredecryptData> for WalletDetail {
+    fn from(data: common_types::payments::GPayPredecryptData) -> Self {
+        Self::GooglePayDecryptedData {
+            application_primary_account_number: data.application_primary_account_number,
+            expiry_month: data.card_exp_month,
+            expiry_year: data.card_exp_year,
+        }
+    }
+}
+
 impl From<payment_methods::WalletDetail> for WalletDetail {
     fn from(wallet: payment_methods::WalletDetail) -> Self {
         match wallet {
@@ -1900,6 +1919,31 @@ impl From<payment_methods::WalletDetail> for WalletDetail {
                 expiry_year,
             },
             payment_methods::WalletDetail::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
+        }
+    }
+}
+
+impl From<WalletDetail> for payment_methods::WalletDetail {
+    fn from(wallet: WalletDetail) -> Self {
+        match wallet {
+            WalletDetail::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
+            WalletDetail::GooglePayDecryptedData {
                 application_primary_account_number,
                 expiry_month,
                 expiry_year,
@@ -2402,6 +2446,27 @@ impl From<CardWithOptionalCVC> for EligibilityCard {
             nick_name: card.nick_name,
             card_holder_name: card.card_holder_name,
             co_badged_card_data: card.co_badged_card_data,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl From<&api_models::payouts::CardPayout> for EligibilityCard {
+    fn from(card: &api_models::payouts::CardPayout) -> Self {
+        Self {
+            card_number: card.card_number.clone(),
+            card_exp_month: Some(card.expiry_month.clone()),
+            card_exp_year: Some(card.expiry_year.clone()),
+            card_cvc: None,
+            card_issuer: None,
+            card_network: card.card_network.clone(),
+            card_type: None,
+            card_issuing_country: None,
+            card_issuing_country_code: None,
+            bank_code: None,
+            nick_name: None,
+            card_holder_name: card.card_holder_name.clone(),
+            co_badged_card_data: None,
         }
     }
 }
@@ -4376,7 +4441,7 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             expiry_year: Some(item.card_exp_year),
             card_holder_name: item.card_holder_name,
             nick_name: item.nick_name,
-            card_isin: None,
+            card_isin: Some(item.card_number.get_card_isin()),
             card_issuer: item.card_issuer,
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),

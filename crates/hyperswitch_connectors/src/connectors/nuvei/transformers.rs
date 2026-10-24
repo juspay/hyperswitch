@@ -158,7 +158,9 @@ impl TryFrom<(&types::PaymentsPreAuthenticateRouterData, String)>
             payment_option: CardPaymentOption {
                 card: Card {
                     card_number: Some(card.card_number),
-                    card_holder_name: item.get_optional_billing_full_name(),
+                    card_holder_name: card
+                        .card_holder_name
+                        .or_else(|| item.get_optional_billing_full_name()),
                     expiration_month: Some(card.card_exp_month),
                     expiration_year: Some(card.card_exp_year),
                     cvv: Some(card.card_cvc),
@@ -1117,7 +1119,9 @@ where
     let payment_option: PaymentOption = PaymentOption {
         card: Some(Card {
             card_number: Some(data.card_number),
-            card_holder_name: data.card_holder_name,
+            card_holder_name: data
+                .card_holder_name
+                .or_else(|| router_data.get_optional_billing_full_name()),
             expiration_month: Some(data.card_exp_month),
             expiration_year: Some(data.card_exp_year),
             ..Default::default() // CVV should be disabled by nuvei
@@ -1380,7 +1384,10 @@ where
         payment_option: PaymentOption::from(NuveiCardDetails {
             card: card_details.clone(),
             three_d,
-            card_holder_name: item.get_optional_billing_full_name(),
+            card_holder_name: card_details
+                .card_holder_name
+                .clone()
+                .or_else(|| item.get_optional_billing_full_name()),
             stored_credentials: item.request.get_is_stored_credential(),
         }),
         is_moto: item.request.get_is_moto(),
@@ -1417,7 +1424,10 @@ where
                 card_number: Some(cards::CardNumber::from(
                     network_token_data.decrypted_token.clone(),
                 )),
-                card_holder_name: network_token_data.card_holder_name.clone(),
+                card_holder_name: network_token_data
+                    .card_holder_name
+                    .clone()
+                    .or_else(|| item.get_optional_billing_full_name()),
                 expiration_month: Some(network_token_data.token_exp_month.clone()),
                 expiration_year: Some(network_token_data.token_exp_year.clone()),
                 ..Default::default()
@@ -1460,9 +1470,12 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
         let request_data = match item.request.payment_method_data.clone() {
             Some(PaymentMethodData::Card(card)) => Ok(Self {
                 payment_option: PaymentOption::from(NuveiCardDetails {
+                    card_holder_name: card
+                        .card_holder_name
+                        .clone()
+                        .or_else(|| item.get_optional_billing_full_name()),
                     card,
                     three_d: None,
-                    card_holder_name: item.get_optional_billing_full_name(),
                     stored_credentials: StoredCredentialMode::get_optional_stored_credential(
                         item.request.is_stored_credential,
                     ),
@@ -1829,16 +1842,24 @@ pub struct NuveiPayoutErrorResponse {
 }
 
 #[cfg(feature = "payouts")]
-impl TryFrom<api_models::payouts::PayoutMethodData> for NuveiPayoutMethodData {
+impl
+    TryFrom<(
+        api_models::payouts::PayoutMethodData,
+        Option<Secret<String>>,
+    )> for NuveiPayoutMethodData
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        payout_method_data: api_models::payouts::PayoutMethodData,
+        (payout_method_data, billing_full_name): (
+            api_models::payouts::PayoutMethodData,
+            Option<Secret<String>>,
+        ),
     ) -> Result<Self, Self::Error> {
         match payout_method_data {
             api_models::payouts::PayoutMethodData::Card(card_data) => {
                 let card_data = Some(NuveiPayoutCardData {
                     card_number: card_data.card_number,
-                    card_holder_name: card_data.card_holder_name.ok_or(
+                    card_holder_name: card_data.card_holder_name.or(billing_full_name).ok_or(
                         errors::ConnectorError::MissingRequiredField {
                             field_name: "card_holder_name".into(),
                         },
@@ -1903,7 +1924,10 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for NuveiPayoutRequest {
 
         let payout_method_data = item.get_payout_method_data()?;
 
-        let payout_method_data: NuveiPayoutMethodData = payout_method_data.try_into()?;
+        let payout_method_data = NuveiPayoutMethodData::try_from((
+            payout_method_data,
+            item.get_optional_billing_full_name(),
+        ))?;
 
         let customer_details = item.request.get_customer_details()?;
 

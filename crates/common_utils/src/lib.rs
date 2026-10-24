@@ -25,6 +25,7 @@ pub mod macros;
 #[cfg(feature = "metrics")]
 pub mod metrics;
 pub mod new_type;
+pub mod outbound_url;
 pub mod payout_method_utils;
 pub mod pii;
 #[allow(missing_docs)] // Todo: add docs

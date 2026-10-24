@@ -13,10 +13,12 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payment_methods::transformers as pm_transformers,
         payments::{
             helpers, operations, types as payment_types, CustomerDetails, PaymentAddress,
             PaymentData,
         },
+        utils as core_utils,
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
@@ -235,7 +237,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
         _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
-        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
@@ -247,6 +249,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
             request,
             self,
             platform.get_processor().get_account().storage_scheme,
+            dimensions,
         ))
         .await
     }
@@ -264,6 +267,7 @@ async fn get_tracker_for_sync<
     _request: &api::PaymentsRetrieveRequest,
     _operation: Op,
     _storage_scheme: enums::MerchantStorageScheme,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>>
 {
     todo!()
@@ -282,6 +286,7 @@ async fn get_tracker_for_sync<
     request: &api::PaymentsRetrieveRequest,
     operation: Op,
     storage_scheme: enums::MerchantStorageScheme,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>>
 {
     let (payment_intent, mut payment_attempt, currency, amount);
@@ -460,25 +465,56 @@ async fn get_tracker_for_sync<
 
     let payment_method_info =
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
-            match db
-                .find_payment_method(
-                    platform.get_provider().get_key_store(),
-                    payment_method_id,
-                    storage_scheme,
-                )
-                .await
-            {
-                Ok(payment_method_info) => Some(payment_method_info),
-                Err(error) => {
-                    if error.current_context().is_db_not_found() {
-                        logger::info!("Payment Method not found in db {:?}", error);
-                        None
-                    } else {
-                        Err(error)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Error retrieving payment method from db")?
+            let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
+            let legacy_payment_method = if feature_config.is_payment_method_modular_allowed {
+                None
+            } else {
+                match db
+                    .find_payment_method(
+                        platform.get_provider().get_key_store(),
+                        payment_method_id,
+                        storage_scheme,
+                    )
+                    .await
+                {
+                    Ok(payment_method_info) => Some(payment_method_info),
+                    Err(error) => {
+                        if error.current_context().is_db_not_found() {
+                            logger::info!("Payment Method not found in db {:?}", error);
+                            None
+                        } else {
+                            Err(error)
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Error retrieving payment method from db")?
+                        }
                     }
                 }
+            };
+
+            if feature_config.is_payment_method_modular_allowed
+                || legacy_payment_method.as_ref().is_some_and(|pm| {
+                    feature_config.should_use_modular_pm_path(
+                        Some(pm.version),
+                        pm.compatibility_updated_at,
+                        Some(pm.last_modified),
+                    )
+                })
+            {
+                Some(
+                    Box::pin(pm_transformers::fetch_payment_method_from_modular_service(
+                        state,
+                        platform,
+                        &profile_id,
+                        payment_method_id,
+                        None,
+                        false,
+                        false,
+                    ))
+                    .await?
+                    .payment_method,
+                )
+            } else {
+                legacy_payment_method
             }
         } else {
             None

@@ -104,13 +104,15 @@ async fn prepare_pm_update_from_psync(
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
             bank_redirect_update,
         ) => {
-            payment_methods::cards::prepare_bank_redirect_payment_method_update(
-                state,
-                platform,
-                payment_method,
-                merchant_connector_id,
-                bank_redirect_update.clone(),
-                business_profile,
+            Box::pin(
+                payment_methods::cards::prepare_bank_redirect_payment_method_update(
+                    state,
+                    platform,
+                    payment_method,
+                    merchant_connector_id,
+                    bank_redirect_update.clone(),
+                    business_profile,
+                ),
             )
             .await
         }
@@ -351,6 +353,15 @@ where
                         network_transaction_id: network_transaction_id
                             .map(hyperswitch_masking::Secret::new),
                         acknowledgement_status,
+                        customer_acceptance: payment_data
+                            .payment_attempt
+                            .customer_acceptance
+                            .clone()
+                            .map(|acceptance| acceptance.expose().parse_value("CustomerAcceptance"))
+                            .transpose()
+                            .change_context(
+                                ::payment_methods::errors::ModularPaymentMethodError::UpdateFailed,
+                            )?,
                     };
 
                     // #3 - Execute the modular payment-method update call if there is something to be updated
@@ -1282,7 +1293,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             resp.connector_returned_payment_method_details.as_ref(),
         );
 
-        update_payment_method_status_ntid_and_additional_data(
+        Box::pin(update_payment_method_status_ntid_and_additional_data(
             state,
             platform.get_provider().get_key_store(),
             payment_data,
@@ -1295,7 +1306,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             payment_data.payment_attempt.merchant_connector_id.clone(),
             platform,
             business_profile,
-        )
+        ))
         .await?;
         Ok(())
     }
@@ -2366,7 +2377,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             payment_data,
         )?;
 
-        update_payment_method_status_ntid_and_additional_data(
+        Box::pin(update_payment_method_status_ntid_and_additional_data(
             state,
             platform.get_provider().get_key_store(),
             payment_data,
@@ -2379,7 +2390,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             None,
             platform,
             _business_profile,
-        )
+        ))
         .await?;
         Ok(())
     }
@@ -2716,7 +2727,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             error_reason: Some(Some(format!(
                                 "Integrity Check Failed! Value mismatched for fields {field_name}"
                             ))),
-                            amount_capturable: None,
+                            amount_capturable: router_data.minor_amount_capturable,
                             updated_by: processor.get_account().storage_scheme.to_string(),
                             unified_code: None,
                             unified_message: None,
@@ -3420,41 +3431,32 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     offer_engine::schedule_payment_notification_for_attempt(state, &payment_data.payment_attempt)
         .await;
 
-    match router_data.integrity_check {
-        Ok(()) => Ok(payment_data),
-        Err(err) => {
-            metrics::INTEGRITY_CHECK_FAILED.add(
-                1,
-                router_env::metric_attributes!(
-                    (
-                        "connector",
-                        payment_data
-                            .payment_attempt
-                            .connector
-                            .clone()
-                            .unwrap_or_default(),
-                    ),
-                    (
-                        "merchant_id",
-                        payment_data.payment_attempt.merchant_id.clone(),
-                    )
-                ),
-            );
-            Err(error_stack::Report::new(
-                errors::ApiErrorResponse::IntegrityCheckFailed {
-                    connector_transaction_id: payment_data
+    if router_data.integrity_check.is_err() {
+        metrics::INTEGRITY_CHECK_FAILED.add(
+            1,
+            router_env::metric_attributes!(
+                (
+                    "connector",
+                    payment_data
                         .payment_attempt
-                        .get_connector_payment_id()
-                        .map(ToString::to_string),
-                    reason: payment_data
-                        .payment_attempt
-                        .error_message
+                        .connector
+                        .clone()
                         .unwrap_or_default(),
-                    field_names: err.field_names,
-                },
-            ))
-        }
+                ),
+                (
+                    "merchant_id",
+                    payment_data.payment_attempt.merchant_id.clone(),
+                )
+            ),
+        );
     }
+
+    // The attempt/intent were already persisted above with the `IntegrityFailure`/`Conflicted`
+    // status and error fields (error_code, error_message, error_reason) when the integrity
+    // check failed, so `payment_data` here already reflects that outcome. Return it as a normal
+    // successful payment response — same shape as a genuinely declined payment — rather than a
+    // distinct top-level error envelope.
+    Ok(payment_data)
 }
 
 #[cfg(feature = "v1")]
@@ -3673,14 +3675,14 @@ async fn update_payment_method_status_ntid_and_additional_data<F: Clone>(
 
         let additional_data_update =
             if let Some(payment_method_data_update) = additional_payment_method_data {
-                prepare_pm_update_from_psync(
+                Box::pin(prepare_pm_update_from_psync(
                     state,
                     platform,
                     &payment_method,
                     merchant_connector_id,
                     payment_method_data_update,
                     business_profile,
-                )
+                ))
                 .await
                 .inspect_err(|error| {
                     logger::error!(
@@ -4596,6 +4598,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                         network_transaction_id: payments_response
                             .get_network_transaction_id()
                             .map(hyperswitch_masking::Secret::new),
+                        customer_acceptance: payment_data
+                            .payment_attempt
+                            .customer_acceptance
+                            .clone()
+                            .map(|acceptance| acceptance.expose()),
                         acknowledgement_status: router_data
                             .status
                             .should_update_payment_method()

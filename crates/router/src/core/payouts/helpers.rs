@@ -19,6 +19,8 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy
 use router_env::logger;
 
 use super::PayoutData;
+#[cfg(feature = "v1")]
+use crate::core::payments::helpers as payments_helpers;
 #[cfg(feature = "payouts")]
 use crate::core::payments::route_connector_v1_for_payouts;
 use crate::{
@@ -923,12 +925,20 @@ pub(super) async fn get_or_create_customer_details(
         .get_inner()
         .peek();
 
+    let use_merchant_reference_id =
+        payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+            state,
+            platform.get_provider(),
+            Some(&customer_id),
+        )
+        .await;
     match db
         .find_customer_optional_by_customer_id_merchant_id(
             &customer_id,
             merchant_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
+            use_merchant_reference_id,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?
