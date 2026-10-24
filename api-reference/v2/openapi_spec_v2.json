@@ -20240,6 +20240,12 @@
             "type": "string",
             "example": "123456789",
             "nullable": true
+          },
+          "merchant_vat_registration_id": {
+            "type": "string",
+            "description": "The merchant's VAT registration identifier",
+            "example": "GB987654321",
+            "nullable": true
           }
         },
         "additionalProperties": false

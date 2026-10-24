@@ -165,6 +165,7 @@ pub struct OrderInfo {
     pub discount_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
+    pub order_commodity_code: Option<String>,
 }
 
 impl OrderInfo {
@@ -178,6 +179,7 @@ impl OrderInfo {
             discount_amount,
             shipping_cost,
             duty_amount,
+            order_commodity_code,
         } = self;
         order_date.is_none()
             && order_details
@@ -187,6 +189,7 @@ impl OrderInfo {
             && discount_amount.is_none()
             && shipping_cost.is_none()
             && duty_amount.is_none()
+            && order_commodity_code.is_none()
     }
 }
 
@@ -195,8 +198,13 @@ pub struct TaxInfo {
     pub tax_status: Option<common_enums::TaxStatus>,
     pub customer_tax_registration_id: Option<Secret<String>>,
     pub merchant_tax_registration_id: Option<Secret<String>>,
+    pub merchant_vat_registration_id: Option<Secret<String>>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub value_added_tax_amount: Option<MinorUnit>,
+    /// A percentage between 0 and 100 — 2.5 means 2.5%.
+    pub value_added_tax_percent: Option<f64>,
+    pub vat_invoice_reference_number: Option<String>,
 }
 
 impl TaxInfo {
@@ -207,14 +215,22 @@ impl TaxInfo {
             tax_status,
             customer_tax_registration_id,
             merchant_tax_registration_id,
+            merchant_vat_registration_id,
             shipping_amount_tax,
             order_tax_amount,
+            value_added_tax_amount,
+            value_added_tax_percent,
+            vat_invoice_reference_number,
         } = self;
         tax_status.is_none()
             && customer_tax_registration_id.is_none()
             && merchant_tax_registration_id.is_none()
+            && merchant_vat_registration_id.is_none()
             && shipping_amount_tax.is_none()
             && order_tax_amount.is_none()
+            && value_added_tax_amount.is_none()
+            && value_added_tax_percent.is_none()
+            && vat_invoice_reference_number.is_none()
     }
 }
 
@@ -305,6 +321,12 @@ impl L2L3Data {
         self.order_info.as_ref().and_then(|order| order.duty_amount)
     }
 
+    pub fn get_order_commodity_code(&self) -> Option<String> {
+        self.order_info
+            .as_ref()
+            .and_then(|order| order.order_commodity_code.clone())
+    }
+
     pub fn get_tax_status(&self) -> Option<common_enums::TaxStatus> {
         self.tax_info.as_ref().and_then(|tax| tax.tax_status)
     }
@@ -321,10 +343,34 @@ impl L2L3Data {
             .and_then(|tax| tax.merchant_tax_registration_id.clone())
     }
 
+    pub fn get_merchant_vat_registration_id(&self) -> Option<Secret<String>> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.merchant_vat_registration_id.clone())
+    }
+
     pub fn get_shipping_amount_tax(&self) -> Option<MinorUnit> {
         self.tax_info
             .as_ref()
             .and_then(|tax| tax.shipping_amount_tax)
+    }
+
+    pub fn get_value_added_tax_amount(&self) -> Option<MinorUnit> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.value_added_tax_amount)
+    }
+
+    pub fn get_value_added_tax_percent(&self) -> Option<f64> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.value_added_tax_percent)
+    }
+
+    pub fn get_vat_invoice_reference_number(&self) -> Option<String> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.vat_invoice_reference_number.clone())
     }
 
     pub fn get_order_tax_amount(&self) -> Option<MinorUnit> {
