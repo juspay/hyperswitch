@@ -38,6 +38,7 @@ pub mod db_metrics {
     pub enum DatabaseOperation {
         FindOne,
         Filter,
+        StreamReadOnlyCursor,
         Update,
         Insert,
         Delete,
@@ -52,7 +53,10 @@ pub mod db_metrics {
         /// the row-returning ones least of all: handing their row back is why a
         /// write needs no re-read.
         pub(super) fn is_read(&self) -> bool {
-            matches!(self, Self::FindOne | Self::Filter | Self::Count)
+            matches!(
+                self,
+                Self::FindOne | Self::Filter | Self::Count | Self::StreamReadOnlyCursor
+            )
         }
     }
 
@@ -169,6 +173,66 @@ impl DatabaseConnectionWithContext<'_> {
         self.connection()
             .run(move |c| diesel::query_dsl::methods::ExecuteDsl::execute(query, c))
             .await
+    }
+
+    /// Run a cursor declaration in a read-only transaction and deliver bounded
+    /// pages of `R` until exhausted or the receiver returns false. `declaration`
+    /// must declare the cursor identified by `cursor_name`. The name is quoted
+    /// as a SQL identifier when fetching. The declaration and every fetch use
+    /// the same blocking connection; `fetch_timeout` applies to each statement.
+    ///
+    /// Track the cursor as one logical read. Individual `FETCH` statements
+    /// advance the cursor rather than repeat the same read. Timing includes page
+    /// delivery and its backpressure.
+    pub async fn stream_read_only_cursor<Q, R, F>(
+        &self,
+        declaration: Q,
+        cursor_name: &str,
+        page_size: usize,
+        fetch_timeout: std::time::Duration,
+        mut send_page: F,
+    ) -> diesel::QueryResult<()>
+    where
+        Q: QueryFragment<Pg>
+            + diesel::query_dsl::methods::ExecuteDsl<DejaPgConnection>
+            + Send
+            + 'static,
+        R: diesel::deserialize::QueryableByName<Pg> + Send + 'static,
+        F: FnMut(Vec<R>) -> bool + Send + 'static,
+    {
+        use diesel::Connection;
+
+        let statement = debug_query::<Pg, _>(&declaration).to_string();
+        let fetch = format!(
+            "FETCH {} FROM \"{}\"",
+            page_size.max(1),
+            cursor_name.replace('"', "\"\"")
+        );
+        let future = self.connection().run(move |conn| {
+            conn.transaction(|conn| {
+                diesel::sql_query("SET TRANSACTION READ ONLY").execute(conn)?;
+                diesel::sql_query(format!(
+                    "SET LOCAL statement_timeout = {}",
+                    fetch_timeout.as_millis()
+                ))
+                .execute(conn)?;
+                diesel::query_dsl::methods::ExecuteDsl::execute(declaration, conn)?;
+
+                loop {
+                    let page = diesel::sql_query(&fetch).load::<R>(conn)?;
+                    if page.is_empty() || !send_page(page) {
+                        return Ok(());
+                    }
+                }
+            })
+        });
+
+        self.track_database_call::<R, _, _>(
+            DatabaseOperation::StreamReadOnlyCursor,
+            &statement,
+            future,
+        )
+        .await
     }
 
     /// Logs the statement, times the call, records its latency metric, emits

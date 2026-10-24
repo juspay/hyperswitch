@@ -1428,7 +1428,7 @@ dependencies = [
  "miniz_oxide 0.8.7",
  "object",
  "rustc-demangle",
- "windows-link",
+ "windows-link 0.2.1",
 ]
 
 [[package]]
