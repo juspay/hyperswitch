@@ -1184,20 +1184,20 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         | Some(api_models::payments::PaymentMethodData::BankDebit(_))
                         | Some(api_models::payments::PaymentMethodData::Wallet(_))
                         | Some(api_models::payments::PaymentMethodData::BankRedirect(_)) => {
-                            let should_create = match req
-                                .payment_method_data
-                                .as_ref()
-                                .and_then(|pmd| pmd.payment_method_data.as_ref())
-                            {
+                            let should_create = matches!(
+                                req.payment_method_data
+                                    .as_ref()
+                                    .and_then(|pmd| pmd.payment_method_data.as_ref()),
                                 Some(api_models::payments::PaymentMethodData::Wallet(_))
-                                | Some(api_models::payments::PaymentMethodData::Card(_))
-                                | Some(api_models::payments::PaymentMethodData::CardWithNoCVC(_))
-                                | Some(api_models::payments::PaymentMethodData::BankRedirect(_))
-                                | Some(api_models::payments::PaymentMethodData::BankDebit(_)) => {
-                                    true
-                                }
-                                _ => false,
-                            };
+                                    | Some(api_models::payments::PaymentMethodData::Card(_))
+                                    | Some(api_models::payments::PaymentMethodData::CardWithNoCVC(
+                                        _
+                                    ))
+                                    | Some(api_models::payments::PaymentMethodData::BankRedirect(
+                                        _
+                                    ))
+                                    | Some(api_models::payments::PaymentMethodData::BankDebit(_))
+                            );
 
                             if should_create {
                                 let payment_method = req.payment_method.ok_or(
