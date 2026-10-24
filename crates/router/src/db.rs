@@ -243,6 +243,7 @@ pub trait AccountsStorageInterface:
     + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
     + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
+    + RequestIdStore
     + 'static
 {
 }
@@ -379,6 +380,11 @@ pub trait RequestIdStore {
         _read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
     ) {
     }
+
+    /// The session ledger held by the underlying `RouterStore`, if attached.
+    fn get_read_ledger(&self) -> Option<&std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        None
+    }
 }
 
 impl RequestIdStore for MockDb {}
@@ -407,13 +413,19 @@ impl RequestIdStore for Store {
         &mut self,
         read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
     ) {
-        // In KV builds the inner `RouterStore` serves the Postgres-delegated
-        // reads, so it needs this same ledger, not one of its own.
+        // Both direct and KV-delegated reads use the ledger in `RouterStore`.
         #[cfg(feature = "kv_store")]
         {
-            self.router_store.read_ledger = Some(std::sync::Arc::clone(&read_ledger));
+            self.router_store.read_ledger = Some(read_ledger);
         }
-        self.read_ledger = Some(read_ledger);
+        #[cfg(not(feature = "kv_store"))]
+        {
+            self.read_ledger = Some(read_ledger);
+        }
+    }
+
+    fn get_read_ledger(&self) -> Option<&std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        common_utils::request_context::RequestContext::read_ledger(self)
     }
 }
 
@@ -447,6 +459,10 @@ impl RequestIdStore for KafkaStore {
         read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
     ) {
         self.diesel_store.attach_read_ledger(read_ledger)
+    }
+
+    fn get_read_ledger(&self) -> Option<&std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        self.diesel_store.get_read_ledger()
     }
 }
 

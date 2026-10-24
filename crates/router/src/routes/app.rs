@@ -144,9 +144,6 @@ pub struct SessionState {
     pub pool: AnalyticsProvider,
     pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub request_id: Option<RequestId>,
-    /// Records this session has already read, shared with every store below
-    /// and reported at its end.
-    pub read_ledger: Option<Arc<common_utils::read_ledger::ReadLedger>>,
     pub base_url: String,
     pub tenant: Tenant,
     #[cfg(feature = "olap")]
@@ -262,12 +259,9 @@ impl SessionStateInfo for SessionState {
     fn start_read_ledger(&mut self) {
         let read_ledger = Arc::new(common_utils::read_ledger::ReadLedger::new());
         self.store.attach_read_ledger(Arc::clone(&read_ledger));
-        #[cfg(feature = "deja")]
         self.accounts_store
             .attach_read_ledger(Arc::clone(&read_ledger));
-        self.global_store
-            .attach_read_ledger(Arc::clone(&read_ledger));
-        self.read_ledger = Some(read_ledger);
+        self.global_store.attach_read_ledger(read_ledger);
     }
 
     /// Report what this session read more than once as one line, and forget it.
@@ -275,7 +269,7 @@ impl SessionStateInfo for SessionState {
     /// fix. Called where the session ends, while its span is still current: the
     /// line is only useful attached to its `request_id` and flow.
     fn flush_read_ledger(&self) {
-        let Some(read_ledger) = self.read_ledger.as_ref() else {
+        let Some(read_ledger) = self.store.get_read_ledger() else {
             return;
         };
         let duplicates = read_ledger.take_duplicates();
@@ -755,7 +749,6 @@ impl AppState {
         store.set_key_manager_state(key_manager_state);
         Ok(SessionState {
             store,
-            read_ledger: None,
             global_store: self.global_store.clone(),
             accounts_store: self.accounts_store.get(tenant).ok_or_else(err)?.clone(),
             conf: Arc::clone(&self.conf),

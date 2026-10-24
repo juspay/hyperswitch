@@ -44,8 +44,6 @@ pub struct KVRouterStore<T: DatabaseStore> {
     drainer_num_partitions: u8,
     pub ttl_for_kv: u32,
     pub request_id: Option<String>,
-    /// See [`RouterStore::read_ledger`]; the same ledger as the inner store's.
-    pub read_ledger: Option<std::sync::Arc<common_utils::read_ledger::ReadLedger>>,
     pub soft_kill_mode: bool,
 }
 
@@ -182,7 +180,7 @@ impl<T: DatabaseStore> RequestContext for KVRouterStore<T> {
     }
 
     fn read_ledger(&self) -> Option<&std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
-        self.read_ledger.as_ref()
+        self.router_store.read_ledger()
     }
 }
 
@@ -214,7 +212,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         key_manager_state: Option<KeyManagerState>,
     ) -> Self {
         let request_id = store.request_id.clone();
-        let read_ledger = store.read_ledger.clone();
 
         Self {
             router_store: store,
@@ -222,7 +219,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             drainer_num_partitions,
             ttl_for_kv,
             request_id,
-            read_ledger,
             soft_kill_mode: soft_kill.unwrap_or(false),
             key_manager_state,
         }
