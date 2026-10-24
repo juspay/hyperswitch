@@ -85,3 +85,25 @@ jobs:
       - name: Verify `diesel migration redo for v2`
         shell: bash
         run: just migrate_v2 redo --locked-schema --all
+
+      - name: Verify setup migrations do not require `rustfmt`
+        shell: bash
+        run: |
+          # The `migration_runner` setup containers do not have `rustfmt`, and they must not
+          # regenerate `crates/diesel_models/src/schema.rs` inside the user's checkout.
+          # `just migrate_setup` uses `diesel_migration.toml`, which has no `[print_schema]`
+          # section, so it only applies migrations. Hide `rustfmt` to reproduce the container
+          # environment and fail here if `print-schema` (and its patch file) is ever run again.
+          rustfmt_path="$(command -v rustfmt || true)"
+          if [[ -z "${rustfmt_path}" ]]; then
+            echo "::error::rustfmt is not installed, cannot verify the setup migration path"
+            exit 1
+          fi
+          mv "${rustfmt_path}" "${rustfmt_path}.disabled"
+          trap 'mv "${rustfmt_path}.disabled" "${rustfmt_path}"' EXIT
+
+          just resurrect hyperswitch_db
+          just migrate_setup
+
+          # `print-schema` rewrites `schema.rs` via `drop_id.patch`; the setup path must not.
+          git diff --exit-code -- crates/diesel_models/src/schema.rs
