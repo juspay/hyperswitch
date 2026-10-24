@@ -1,4 +1,5 @@
-use actix_multipart::Multipart;
+#[cfg(feature = "v1")]
+mod upload;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::files as file_types;
 use router_env::{instrument, tracing, Flow};
@@ -17,13 +18,17 @@ use crate::{
 /// Files - Create
 ///
 /// To create a file
+///
+/// The complete multipart request is limited to 11 MiB before parsing or authentication.
+/// Requests exceeding this limit return HTTP 413. Connector-specific file limits still apply.
 #[utoipa::path(
     post,
     path = "/files",
     request_body=MultipartRequestWithFile,
     responses(
         (status = 200, description = "File created", body = CreateFileResponse),
-        (status = 400, description = "Bad Request")
+        (status = 400, description = "Bad Request"),
+        (status = 413, description = "Multipart request exceeds 11 MiB")
     ),
     tag = "Files",
     operation_id = "Create a File",
@@ -33,9 +38,13 @@ use crate::{
 pub async fn files_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: Multipart,
+    payload: web::Payload,
 ) -> HttpResponse {
     let flow = Flow::CreateFile;
+    let payload = match upload::multipart(&req, payload).await {
+        Ok(payload) => payload,
+        Err(err) => return err.error_response(),
+    };
     let create_file_request_result = transformers::get_create_file_request(payload).await;
     let create_file_request = match create_file_request_result {
         Ok(valid_request) => valid_request,
