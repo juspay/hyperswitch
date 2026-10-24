@@ -1037,10 +1037,15 @@ where
                     (GatewaySystem::Direct, ExecutionPath::Direct)
                 }
             }
+            CallConnectorAction::StatusUpdate { .. } => {
+                router_env::logger::debug!(
+                    "CallConnectorAction StatusUpdate received, using Direct gateway"
+                );
+                (GatewaySystem::Direct, ExecutionPath::Direct)
+            }
             CallConnectorAction::Trigger
             | CallConnectorAction::HandleResponseWithoutBuildRequest
-            | CallConnectorAction::Avoid
-            | CallConnectorAction::StatusUpdate { .. } => {
+            | CallConnectorAction::Avoid => {
                 // If a rollout config key exists use its execution mode,
                 // otherwise default to Shadow so all traffic mirrors through UCS.
                 let execution_mode = if rollout_result.should_execute {

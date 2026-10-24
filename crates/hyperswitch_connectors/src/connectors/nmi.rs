@@ -1142,7 +1142,13 @@ impl ConnectorSpecifications for Nmi {
                 auth_type,
                 request_data,
                 connector_meta_data: _,
-            } => auth_type.is_three_ds() && request_data.is_card(),
+            } => {
+                // Merchant-supplied (external) 3DS results go straight to Authorize
+                // (transact.php cavv/eci/xid); only run the vault/Gateway.js leg otherwise.
+                auth_type.is_three_ds()
+                    && request_data.is_card()
+                    && request_data.authentication_data.is_none()
+            }
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate {
                 auth_type,
