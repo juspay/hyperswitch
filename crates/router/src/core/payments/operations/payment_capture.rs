@@ -11,7 +11,9 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{self, helpers, operations, types::MultipleCaptureData},
+        payments::{
+            self, helpers, multi_currency_processing, operations, types::MultipleCaptureData,
+        },
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
@@ -113,6 +115,31 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
 
         helpers::validate_capture_method(capture_method)?;
 
+        let payment_feature_metadata = payment_intent
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let capture_connector = payment_attempt
+            .connector
+            .as_deref()
+            .get_required_value("connector")?;
+        let capture_settlement =
+            multi_currency_processing::resolve_operation_multi_currency_processing(
+                capture_connector,
+                payment_feature_metadata.as_ref(),
+                request
+                    .feature_metadata
+                    .as_ref()
+                    .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
+            )?;
+        let capture_feature_metadata = capture_settlement
+            .clone()
+            .map(
+                |multi_currency_processing| api_models::payments::CaptureFeatureMetadata {
+                    multi_currency_processing: Some(multi_currency_processing),
+                },
+            )
+            .or_else(|| request.feature_metadata.clone());
+
         let multiple_capture_data = if capture_method == enums::CaptureMethod::ManualMultiple {
             let amount_to_capture = request
                 .amount_to_capture
@@ -133,12 +160,21 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+            // The route holds the payment lock while loading captures.
+            // Validate cumulative successful and pending capture amounts before inserting this one.
+            multi_currency_processing::validate_multi_currency_processing_capture_settlement(
+                capture_connector,
+                payment_feature_metadata.as_ref(),
+                capture_settlement.as_ref(),
+                &previous_captures,
+            )?;
+            let capture_new = payment_attempt.make_new_capture(
+                amount_to_capture,
+                enums::CaptureStatus::Started,
+                capture_feature_metadata.clone(),
+            )?;
             let capture = db
-                .insert_capture(
-                    payment_attempt
-                        .make_new_capture(amount_to_capture, enums::CaptureStatus::Started)?,
-                    storage_scheme.inner(),
-                )
+                .insert_capture(capture_new, storage_scheme.inner())
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment {
                     payment_id: payment_id.clone(),
@@ -222,6 +258,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             })?;
 
         let payment_data = payments::PaymentData {
+            capture_feature_metadata,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,

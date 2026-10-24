@@ -10,7 +10,7 @@ use crate::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
-            helpers,
+            helpers, multi_currency_processing,
             operations::{self, ValidateStatusForOperation},
         },
     },
@@ -19,6 +19,7 @@ use crate::{
         api::{self, ConnectorCallType},
         domain::{self},
         storage::{self, enums as storage_enums},
+        transformers::ForeignFrom,
     },
     utils::OptionExt,
 };
@@ -200,7 +201,32 @@ impl<F: Send + Clone> GetTracker<F, PaymentCaptureData<F>, PaymentsCaptureReques
                 .set_amount_to_capture(amount_to_capture);
         }
 
+        let payment_feature_metadata = payment_intent
+            .feature_metadata
+            .as_ref()
+            .map(api_models::payments::FeatureMetadata::foreign_from);
+        let capture_connector = payment_attempt
+            .connector
+            .as_deref()
+            .get_required_value("connector")?;
+        let capture_settlement =
+            multi_currency_processing::resolve_operation_multi_currency_processing(
+                capture_connector,
+                payment_feature_metadata.as_ref(),
+                request
+                    .feature_metadata
+                    .as_ref()
+                    .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
+            )?;
+        let capture_feature_metadata = capture_settlement
+            .map(
+                |multi_currency_processing| api_models::payments::CaptureFeatureMetadata {
+                    multi_currency_processing: Some(multi_currency_processing),
+                },
+            )
+            .or_else(|| request.feature_metadata.clone());
         let payment_data = PaymentCaptureData {
+            capture_feature_metadata,
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,

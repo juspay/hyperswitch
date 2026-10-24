@@ -689,6 +689,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         .flatten();
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
@@ -839,7 +840,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .payment_intent
             .skip_external_tax_calculation
             .unwrap_or(false);
-        if is_tax_connector_enabled && !skip_external_tax_calculation {
+        if is_tax_connector_enabled
+            && !skip_external_tax_calculation
+            && !payment_data
+                .payment_intent
+                .is_settlement_conclusion_applied()
+        {
             let db = state.store.as_ref();
 
             let merchant_connector_id = business_profile
@@ -2029,6 +2035,9 @@ impl PaymentCreate {
             external_surcharge_strategy: request.external_surcharge_strategy,
             external_surcharge_applicable: None,
             enable_avs_check: request.enable_avs_check,
+            settlement_conclusion_applied: Some(
+                request.settlement_conclusion_applied.unwrap_or(false),
+            ),
         })
     }
 }
