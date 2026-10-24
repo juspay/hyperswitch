@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.07.0-hotfix5
+
+### Bug Fixes
+
+- **router:** Validate urls ([#14958](https://github.com/juspay/hyperswitch/pull/14958)) ([`782de50`](https://github.com/juspay/hyperswitch/commit/782de508552dda3e9f578eb982d932417fc737ee))
+
+**Full Changelog:** [`2026.10.07.0-hotfix4...2026.10.07.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.10.07.0-hotfix4...2026.10.07.0-hotfix5)
+
+- - -
+
 ## 2026.10.07.0-hotfix4
 
 ### Features
