@@ -298,6 +298,54 @@ pub(crate) fn increment_webhook_outgoing_not_received_count(
     metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(1, attributes);
 }
 
+/// Externally initiated recovery attempts are recorded for invoice tracking, not
+/// executed by Hyperswitch. Do not notify merchants about those imported attempts.
+/// Payments without recovery metadata retain their existing webhook behavior.
+#[cfg(feature = "v2")]
+pub(crate) fn is_external_recovery_attempt(
+    feature_metadata: Option<
+        &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
+    >,
+) -> bool {
+    feature_metadata
+        .and_then(|metadata| metadata.revenue_recovery.as_ref())
+        .is_some_and(|recovery| {
+            recovery.attempt_triggered_by == common_enums::TriggeredBy::External
+        })
+}
+
+/// Recovery notifications are opt-in, independently of ordinary payment settings.
+#[cfg(feature = "v2")]
+pub(crate) fn recovery_webhook_status_enabled(
+    configured: Option<&[common_enums::RecoveryWebhookStatus]>,
+    event: Option<common_enums::EventType>,
+) -> bool {
+    use common_enums::{EventType, RecoveryWebhookStatus};
+    let outcome = match event {
+        Some(EventType::PaymentSucceeded) => RecoveryWebhookStatus::Success,
+        Some(EventType::PaymentCaptured) => RecoveryWebhookStatus::PartialSuccess,
+        Some(EventType::PaymentFailed) => RecoveryWebhookStatus::Failure,
+        _ => return false,
+    };
+    configured.is_some_and(|statuses| statuses.contains(&outcome))
+}
+
+/// None means an ordinary payment: the caller retains its existing policy.
+#[cfg(feature = "v2")]
+pub(crate) fn recovery_webhook_eligibility(
+    feature_metadata: Option<
+        &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
+    >,
+    configured: Option<&[common_enums::RecoveryWebhookStatus]>,
+    event: Option<common_enums::EventType>,
+) -> Option<bool> {
+    let recovery = feature_metadata?.revenue_recovery.as_ref()?;
+    Some(
+        recovery.attempt_triggered_by == common_enums::TriggeredBy::Internal
+            && recovery_webhook_status_enabled(configured, event),
+    )
+}
+
 pub fn is_outgoing_webhook_disabled(
     state: &SessionState,
     webhook_url_result: &Result<String, Report<errors::WebhooksFlowError>>,
@@ -583,6 +631,110 @@ pub fn redact_header_values(
 
         if is_sensitive {
             *header_value = Secret::new(REDACTED_HEADER_VALUE.to_string());
+        }
+    }
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod external_recovery_webhook_tests {
+    use hyperswitch_domain_models::payments::payment_attempt::{
+        PaymentAttemptFeatureMetadata, PaymentAttemptRevenueRecoveryData,
+    };
+
+    use super::is_external_recovery_attempt;
+
+    fn metadata(triggered_by: common_enums::TriggeredBy) -> PaymentAttemptFeatureMetadata {
+        PaymentAttemptFeatureMetadata {
+            revenue_recovery: Some(PaymentAttemptRevenueRecoveryData {
+                attempt_triggered_by: triggered_by,
+                charge_id: None,
+                billing_connector_transaction_id: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn skips_externally_initiated_recovery_attempts() {
+        assert!(is_external_recovery_attempt(Some(&metadata(
+            common_enums::TriggeredBy::External,
+        ))));
+    }
+
+    #[test]
+    fn preserves_internally_initiated_recovery_attempts() {
+        assert!(!is_external_recovery_attempt(Some(&metadata(
+            common_enums::TriggeredBy::Internal,
+        ))));
+    }
+
+    #[test]
+    fn preserves_payments_without_recovery_metadata() {
+        assert!(!is_external_recovery_attempt(None));
+        assert!(!is_external_recovery_attempt(Some(
+            &PaymentAttemptFeatureMetadata {
+                revenue_recovery: None,
+            },
+        )));
+    }
+
+    #[test]
+    fn recovery_webhook_opt_in_matrix() {
+        use common_enums::{EventType as E, RecoveryWebhookStatus as S, TriggeredBy};
+        let cases = [
+            (None, false, false, false),
+            (Some(vec![]), false, false, false),
+            (Some(vec![S::Success]), true, false, false),
+            (Some(vec![S::PartialSuccess]), false, true, false),
+            (Some(vec![S::Failure]), false, false, true),
+            (Some(vec![S::Success, S::Failure]), true, false, true),
+            (Some(vec![S::Success, S::PartialSuccess]), true, true, false),
+            (Some(vec![S::PartialSuccess, S::Failure]), false, true, true),
+            (
+                Some(vec![S::Success, S::PartialSuccess, S::Failure]),
+                true,
+                true,
+                true,
+            ),
+        ];
+        for (configured, success, partial_success, failure) in cases {
+            for (event, expected) in [
+                (Some(E::PaymentSucceeded), success),
+                (Some(E::PaymentCaptured), partial_success),
+                (Some(E::PaymentFailed), failure),
+                (Some(E::PaymentProcessing), false),
+                (None, false),
+            ] {
+                assert_eq!(
+                    super::recovery_webhook_eligibility(
+                        Some(&metadata(TriggeredBy::Internal)),
+                        configured.as_deref(),
+                        event,
+                    ),
+                    Some(expected)
+                );
+                assert_eq!(
+                    super::recovery_webhook_eligibility(
+                        Some(&metadata(TriggeredBy::External)),
+                        configured.as_deref(),
+                        event,
+                    ),
+                    Some(false)
+                );
+                assert_eq!(
+                    super::recovery_webhook_eligibility(None, configured.as_deref(), event),
+                    None
+                );
+                assert_eq!(
+                    super::recovery_webhook_eligibility(
+                        Some(&PaymentAttemptFeatureMetadata {
+                            revenue_recovery: None
+                        }),
+                        configured.as_deref(),
+                        event,
+                    ),
+                    None
+                );
+            }
         }
     }
 }

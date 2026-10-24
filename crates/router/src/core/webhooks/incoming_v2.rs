@@ -433,7 +433,7 @@ async fn payments_incoming_webhook_flow(
         payments::CallConnectorAction::Trigger
     };
     let key_manager_state = &(&state).into();
-    let (payments_response, created_by) = match webhook_details.object_reference_id {
+    let (payments_response, created_by, skip_webhook) = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::PaymentId(id) => {
             let get_trackers_response = get_trackers_response_for_payment_get_operation(
                 state.store.as_ref(),
@@ -496,6 +496,14 @@ async fn payments_incoming_webhook_flow(
             .await?;
 
             let created_by = payment_data.payment_attempt.created_by.clone();
+            let skip_webhook = utils::recovery_webhook_eligibility(
+                payment_data.payment_attempt.feature_metadata.as_ref(),
+                profile
+                    .webhook_details
+                    .as_ref()
+                    .and_then(|details| details.revenue_recovery_statuses_enabled.as_deref()),
+                payment_data.payment_intent.status.into(),
+            ) == Some(false);
 
             let response = payment_data.generate_response(
                 &state,
@@ -515,7 +523,7 @@ async fn payments_incoming_webhook_flow(
                 .await?;
 
             match response {
-                Ok(value) => (value, created_by),
+                Ok(value) => (value, created_by, skip_webhook),
                 Err(err)
                     if matches!(
                         err.current_context(),
@@ -550,6 +558,10 @@ async fn payments_incoming_webhook_flow(
             let payment_id = payments_response.id.clone();
 
             let status = payments_response.status;
+
+            if skip_webhook {
+                return Ok(WebhookResponseTracker::Payment { payment_id, status });
+            }
 
             let event_type: Option<enums::EventType> = payments_response.status.into();
 

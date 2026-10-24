@@ -2621,6 +2621,7 @@ impl ForeignFrom<api_models::admin::WebhookDetailsResponse>
 {
     fn foreign_from(item: api_models::admin::WebhookDetailsResponse) -> Self {
         Self {
+            revenue_recovery_statuses_enabled: item.revenue_recovery_statuses_enabled,
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
             webhook_password: item.webhook_password,
@@ -2644,6 +2645,7 @@ impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
 {
     fn foreign_from(item: diesel_models::business_profile::WebhookDetails) -> Self {
         Self {
+            revenue_recovery_statuses_enabled: item.revenue_recovery_statuses_enabled,
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
             webhook_password: item.webhook_password,

@@ -1,6 +1,19 @@
 mod accounts;
 mod payments;
 mod ui;
+/// Recovery outcomes for which a merchant opts into outgoing webhooks.
+#[derive(
+    Clone, Copy, Debug, serde::Deserialize, serde::Serialize, utoipa::ToSchema, PartialEq, Eq,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryWebhookStatus {
+    /// Fully successful recovery payments.
+    Success,
+    /// Partially captured recovery payments.
+    PartialSuccess,
+    Failure,
+}
+
 use std::{
     collections::HashSet,
     fmt,

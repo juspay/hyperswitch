@@ -878,6 +878,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::ToggleKVRequest,
         api_models::admin::ToggleKVResponse,
         api_models::admin::WebhookDetailsRequest,
+        api_models::enums::RecoveryWebhookStatus,
         api_models::admin::WebhookDetailsResponse,
         api_models::api_keys::ApiKeyExpiration,
         api_models::api_keys::CreateApiKeyRequest,

@@ -1955,6 +1955,7 @@ mod tests {
             merchant_details: None,
             return_url: None,
             webhook_details: Some(WebhookDetails {
+                revenue_recovery_statuses_enabled: None,
                 webhook_version: None,
                 webhook_username: None,
                 webhook_password: None,
@@ -2030,6 +2031,7 @@ mod tests {
             payment_response_hash_key: None,
             redirect_to_merchant_with_http_post: false,
             webhook_details: Some(WebhookDetails {
+                revenue_recovery_statuses_enabled: None,
                 webhook_version: None,
                 webhook_username: None,
                 webhook_password: None,

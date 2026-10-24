@@ -214,10 +214,7 @@ impl RevenueRecoveryPaymentIntentStatus {
                     payment_intent,
                     &platform,
                     profile,
-                    recovery_payment_attempt
-                        .attempt_id
-                        .get_string_repr()
-                        .to_string(),
+                    &psync_response.payment_attempt,
                     payments_response
                 ))
                 .await?;
@@ -293,10 +290,7 @@ impl RevenueRecoveryPaymentIntentStatus {
                     payment_intent,
                     &platform,
                     profile,
-                    recovery_payment_attempt
-                        .attempt_id
-                        .get_string_repr()
-                        .to_string(),
+                    &psync_response.payment_attempt,
                     payments_response
                 ))
                 .await?;
@@ -364,11 +358,29 @@ impl RevenueRecoveryPaymentIntentStatus {
                     state,
                     &process_tracker,
                     profile,
-                    platform,
+                    platform.clone(),
                     payment_intent,
                     revenue_recovery_payment_data,
                     psync_response.payment_attempt.get_id(),
                     reopened_standardised_error_code,
+                ))
+                .await?;
+
+                let payments_response = psync_response
+                    .clone()
+                    .generate_response(state, None, None, None, &platform, profile, None)
+                    .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed)
+                    .attach_printable("Failed while generating response for failed payment")?;
+
+                Box::pin(RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
+                    state,
+                    common_enums::EventClass::Payments,
+                    common_enums::EventType::PaymentFailed,
+                    &psync_response.payment_intent,
+                    &platform,
+                    profile,
+                    &psync_response.payment_attempt,
+                    payments_response,
                 ))
                 .await?;
             }
@@ -652,7 +664,7 @@ impl Action {
                         payment_intent,
                         &platform,
                         profile,
-                        payment_data.payment_attempt.id.get_string_repr().to_string(),
+                        &payment_data.payment_attempt,
                         payments_response
                     ))
                     .await?;
@@ -695,7 +707,7 @@ impl Action {
                         payment_intent,
                         &platform,
                         profile,
-                        payment_data.payment_attempt.id.get_string_repr().to_string(),
+                        &payment_data.payment_attempt,
                         payments_response
                     ))
                     .await?;
@@ -771,11 +783,31 @@ impl Action {
                             state,
                             process,
                             profile,
-                            platform,
+                            platform.clone(),
                             payment_intent,
                             revenue_recovery_payment_data,
                             latest_attempt_id,
                             reopened_standardised_error_code,
+                        ))
+                        .await?;
+
+                        let payments_response = payment_data
+                            .clone()
+                            .generate_response(state, None, None, None, &platform, profile, None)
+                            .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed)
+                            .attach_printable(
+                                "Failed while generating response for failed payment",
+                            )?;
+
+                        Box::pin(RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
+                            state,
+                            common_enums::EventClass::Payments,
+                            common_enums::EventType::PaymentFailed,
+                            &payment_data.payment_intent,
+                            &platform,
+                            profile,
+                            &payment_data.payment_attempt,
+                            payments_response,
                         ))
                         .await?;
 
@@ -1006,6 +1038,30 @@ impl Action {
         )
         .await;
         let used_token = get_payment_processor_token_id_from_payment_attempt(&payment_attempt);
+
+        // A processing attempt may have failed during this sync. Notify using the
+        // returned result, independently of the existing workflow status handling.
+        if let Ok(payment_data) = &response {
+            if payment_data.payment_intent.status == common_enums::IntentStatus::Failed {
+                let payments_response = payment_data
+                    .clone()
+                    .generate_response(state, None, None, None, &platform, profile, None)
+                    .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed)
+                    .attach_printable("Failed while generating response for failed payment")?;
+
+                Box::pin(RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
+                    state,
+                    common_enums::EventClass::Payments,
+                    common_enums::EventType::PaymentFailed,
+                    &payment_data.payment_intent,
+                    &platform,
+                    profile,
+                    &payment_data.payment_attempt,
+                    payments_response,
+                ))
+                .await?;
+            }
+        }
 
         match response {
             Ok(payment_data) => match payment_intent.status.foreign_into() {
@@ -1775,9 +1831,21 @@ impl RevenueRecoveryOutgoingWebhook {
         payment_intent: &PaymentIntent,
         platform: &domain::Platform,
         profile: &domain::Profile,
-        payment_attempt_id: String,
+        payment_attempt: &PaymentAttempt,
         payments_response: ApplicationResponse<api_models::payments::PaymentsResponse>,
     ) -> RecoveryResult<()> {
+        if utils::is_external_recovery_attempt(payment_attempt.feature_metadata.as_ref())
+            || !utils::recovery_webhook_status_enabled(
+                profile
+                    .webhook_details
+                    .as_ref()
+                    .and_then(|details| details.revenue_recovery_statuses_enabled.as_deref()),
+                Some(event_status),
+            )
+        {
+            return Ok(());
+        }
+
         match payments_response {
             ApplicationResponse::JsonWithHeaders((response, _headers)) => {
                 let outgoing_webhook_content =
@@ -1799,7 +1867,7 @@ impl RevenueRecoveryOutgoingWebhook {
                     platform.clone(),
                     event_status,
                     event_class,
-                    payment_attempt_id,
+                    payment_attempt.id.get_string_repr().to_string(),
                     common_enums::EventObjectType::PaymentDetails,
                     outgoing_webhook_content,
                     payment_intent.created_at,
