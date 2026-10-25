@@ -32,7 +32,7 @@ use crate::core::utils::validate_legacy_endpoint_access;
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use crate::core::{
     customers,
-    payment_methods::{batch_retrieve, fingerprint_cleanup, tokenize},
+    payment_methods::{batch_deletion, batch_retrieve, tokenize},
 };
 use crate::{
     core::{
@@ -700,7 +700,7 @@ pub async fn payment_methods_batch_retrieve_api(
 
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 #[derive(Debug, MultipartForm)]
-pub struct PaymentMethodFingerprintCleanupForm {
+pub struct PaymentMethodBatchDeletionForm {
     #[multipart(limit = "1MB")]
     pub file: MultipartBytes,
     pub deletion_type: MultipartText<api_models::payment_methods::PaymentMethodDeletionType>,
@@ -716,27 +716,27 @@ pub struct PaymentMethodFingerprintCleanupForm {
         description = "A multipart form with a `file` field containing a UTF-8 CSV whose only header is `payment_method_id`, plus `deletion_type` set to `locker_fingerprint_id` or `locker_id`. Maximum 10,000 rows."
     ),
     responses(
-        (status = 200, description = "Cleanup job initiated", body = api_models::payment_methods::PaymentMethodFingerprintCleanupResponse),
+        (status = 200, description = "Cleanup job initiated", body = api_models::payment_methods::PaymentMethodBatchDeletionResponse),
         (status = 400, description = "Invalid CSV"),
     ),
     tag = "Payment Methods",
     security(("admin_api_key" = []))
 )]
-pub async fn initiate_payment_method_fingerprint_cleanup(
+pub async fn initiate_payment_method_batch_deletion(
     state: web::Data<AppState>,
     req: HttpRequest,
-    MultipartForm(form): MultipartForm<PaymentMethodFingerprintCleanupForm>,
+    MultipartForm(form): MultipartForm<PaymentMethodBatchDeletionForm>,
 ) -> HttpResponse {
     let csv_bytes = form.file.data.to_vec();
     let deletion_type = form.deletion_type.0;
     Box::pin(api::server_wrap(
-        Flow::PaymentMethodFingerprintCleanup,
+        Flow::PaymentMethodBatchDeletion,
         state,
         &req,
         (),
         |state, _, _, _| {
             let csv_bytes = csv_bytes.clone();
-            async move { fingerprint_cleanup::initiate(&state, &csv_bytes, deletion_type).await }
+            async move { batch_deletion::initiate(&state, &csv_bytes, deletion_type).await }
         },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
@@ -750,24 +750,24 @@ pub async fn initiate_payment_method_fingerprint_cleanup(
     path = "/payment_methods/batch-deletion/{job_id}",
     params(("job_id" = String, Path, description = "Job ID returned by the initiation endpoint")),
     responses(
-        (status = 200, description = "Current cleanup progress", body = api_models::payment_methods::PaymentMethodFingerprintCleanupStatusResponse),
+        (status = 200, description = "Current cleanup progress", body = api_models::payment_methods::PaymentMethodBatchDeletionStatusResponse),
         (status = 404, description = "Job not found"),
     ),
     tag = "Payment Methods",
     security(("admin_api_key" = []))
 )]
-pub async fn get_payment_method_fingerprint_cleanup_status(
+pub async fn get_payment_method_batch_deletion_status(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
     let job_id = path.into_inner();
     Box::pin(api::server_wrap(
-        Flow::PaymentMethodFingerprintCleanupStatus,
+        Flow::PaymentMethodBatchDeletionStatus,
         state,
         &req,
         job_id,
-        |state, _, job_id, _| async move { fingerprint_cleanup::status(&state, &job_id).await },
+        |state, _, job_id, _| async move { batch_deletion::status(&state, &job_id).await },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -787,20 +787,18 @@ pub async fn get_payment_method_fingerprint_cleanup_status(
     tag = "Payment Methods",
     security(("admin_api_key" = []))
 )]
-pub async fn download_payment_method_fingerprint_cleanup_failures(
+pub async fn download_payment_method_batch_deletion_failures(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
     let job_id = path.into_inner();
     Box::pin(api::server_wrap(
-        Flow::PaymentMethodFingerprintCleanupFailures,
+        Flow::PaymentMethodBatchDeletionFailures,
         state,
         &req,
         job_id,
-        |state, _, job_id, _| async move {
-            fingerprint_cleanup::failed_rows_csv(&state, &job_id).await
-        },
+        |state, _, job_id, _| async move { batch_deletion::failed_rows_csv(&state, &job_id).await },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))

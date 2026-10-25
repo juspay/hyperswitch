@@ -1,4 +1,4 @@
-//! Durable batch cleanup for legacy locker fingerprint IDs.
+//! Durable batch deletion of payment method locker data.
 
 use api_models::payment_methods as api_pm;
 use common_utils::{date_time, ext_traits::ValueExt};
@@ -17,19 +17,19 @@ const CLEANUP_TAGS: [&str; 2] = ["PAYMENT_METHOD", "FINGERPRINT_CLEANUP"];
 const MAX_CSV_ROWS: usize = 10_000;
 
 #[derive(Debug, Deserialize)]
-struct CleanupCsvRecord {
+struct BatchDeletionCsvRecord {
     payment_method_id: String,
 }
 
 /// Persisted in `process_tracker.tracking_data`, so progress survives router and scheduler restarts.
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub(crate) struct FingerprintCleanupTrackingData {
+pub(crate) struct PaymentMethodBatchDeletionTrackingData {
     #[serde(default)]
     pub deletion_type: api_pm::PaymentMethodDeletionType,
     pub payment_method_ids: Vec<String>,
     pub next_index: usize,
     pub successful_ids: usize,
-    pub failures: Vec<api_pm::PaymentMethodFingerprintCleanupFailure>,
+    pub failures: Vec<api_pm::PaymentMethodBatchDeletionFailure>,
 }
 
 fn invalid_csv(message: impl Into<String>) -> error_stack::Report<errors::ApiErrorResponse> {
@@ -61,7 +61,7 @@ fn parse_csv(csv_bytes: &[u8]) -> RouterResult<Vec<String>> {
 
     let mut payment_method_ids = Vec::new();
     for (index, record) in reader
-        .deserialize::<CleanupCsvRecord>()
+        .deserialize::<BatchDeletionCsvRecord>()
         .enumerate()
         .take(MAX_CSV_ROWS + 1)
     {
@@ -92,26 +92,24 @@ fn parse_csv(csv_bytes: &[u8]) -> RouterResult<Vec<String>> {
     Ok(payment_method_ids)
 }
 
-fn cleanup_status(
-    process: &storage::ProcessTracker,
-) -> api_pm::PaymentMethodFingerprintCleanupStatus {
+fn cleanup_status(process: &storage::ProcessTracker) -> api_pm::PaymentMethodBatchDeletionStatus {
     match process.status {
         common_enums::ProcessTrackerStatus::New
         | common_enums::ProcessTrackerStatus::Pending
         | common_enums::ProcessTrackerStatus::Processing => {
-            api_pm::PaymentMethodFingerprintCleanupStatus::Initiated
+            api_pm::PaymentMethodBatchDeletionStatus::Initiated
         }
         common_enums::ProcessTrackerStatus::ProcessStarted => {
-            api_pm::PaymentMethodFingerprintCleanupStatus::Processing
+            api_pm::PaymentMethodBatchDeletionStatus::Processing
         }
         common_enums::ProcessTrackerStatus::Finish
             if process.business_status
                 == diesel_models::process_tracker::business_status::COMPLETED_BY_PT =>
         {
-            api_pm::PaymentMethodFingerprintCleanupStatus::Completed
+            api_pm::PaymentMethodBatchDeletionStatus::Completed
         }
         common_enums::ProcessTrackerStatus::Finish | common_enums::ProcessTrackerStatus::Review => {
-            api_pm::PaymentMethodFingerprintCleanupStatus::Failed
+            api_pm::PaymentMethodBatchDeletionStatus::Failed
         }
     }
 }
@@ -126,13 +124,13 @@ async fn find_cleanup_process(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?
         .ok_or_else(|| errors::ApiErrorResponse::GenericNotFoundError {
-            message: format!("Payment method fingerprint cleanup job `{job_id}` not found"),
+            message: format!("Payment method batch deletion job `{job_id}` not found"),
         })?;
 
-    let expected_runner = storage::ProcessTrackerRunner::PaymentMethodFingerprintCleanupWorkflow;
+    let expected_runner = storage::ProcessTrackerRunner::PaymentMethodBatchDeletionWorkflow;
     if process.runner.as_deref() != Some(expected_runner.to_string().as_str()) {
         return Err(errors::ApiErrorResponse::GenericNotFoundError {
-            message: format!("Payment method fingerprint cleanup job `{job_id}` not found"),
+            message: format!("Payment method batch deletion job `{job_id}` not found"),
         }
         .into());
     }
@@ -144,18 +142,18 @@ pub async fn initiate(
     state: &SessionState,
     csv_bytes: &[u8],
     deletion_type: api_pm::PaymentMethodDeletionType,
-) -> RouterResponse<api_pm::PaymentMethodFingerprintCleanupResponse> {
+) -> RouterResponse<api_pm::PaymentMethodBatchDeletionResponse> {
     let payment_method_ids = parse_csv(csv_bytes)?;
     let total_ids = payment_method_ids.len();
     let job_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pmfpc");
-    let tracking_data = FingerprintCleanupTrackingData {
+    let tracking_data = PaymentMethodBatchDeletionTrackingData {
         deletion_type,
         payment_method_ids,
         next_index: 0,
         successful_ids: 0,
         failures: Vec::new(),
     };
-    let runner = storage::ProcessTrackerRunner::PaymentMethodFingerprintCleanupWorkflow;
+    let runner = storage::ProcessTrackerRunner::PaymentMethodBatchDeletionWorkflow;
     let process = storage::ProcessTrackerNew::new(
         job_id.clone(),
         CLEANUP_TASK,
@@ -168,21 +166,21 @@ pub async fn initiate(
         common_enums::ApplicationSource::Main,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to create payment method fingerprint cleanup task")?;
+    .attach_printable("Failed to create payment method batch deletion task")?;
 
     state
         .store
         .insert_process(process)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to enqueue payment method fingerprint cleanup task")?;
+        .attach_printable("Failed to enqueue payment method batch deletion task")?;
 
     Ok(ApplicationResponse::Json(
-        api_pm::PaymentMethodFingerprintCleanupResponse {
+        api_pm::PaymentMethodBatchDeletionResponse {
             job_id,
             deletion_type,
             total_ids,
-            status: api_pm::PaymentMethodFingerprintCleanupStatus::Initiated,
+            status: api_pm::PaymentMethodBatchDeletionStatus::Initiated,
         },
     ))
 }
@@ -190,16 +188,16 @@ pub async fn initiate(
 pub async fn status(
     state: &SessionState,
     job_id: &str,
-) -> RouterResponse<api_pm::PaymentMethodFingerprintCleanupStatusResponse> {
+) -> RouterResponse<api_pm::PaymentMethodBatchDeletionStatusResponse> {
     let process = find_cleanup_process(state, job_id).await?;
-    let tracking_data: FingerprintCleanupTrackingData = process
+    let tracking_data: PaymentMethodBatchDeletionTrackingData = process
         .tracking_data
         .clone()
-        .parse_value("FingerprintCleanupTrackingData")
+        .parse_value("PaymentMethodBatchDeletionTrackingData")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(
-        api_pm::PaymentMethodFingerprintCleanupStatusResponse {
+        api_pm::PaymentMethodBatchDeletionStatusResponse {
             job_id: job_id.to_string(),
             deletion_type: tracking_data.deletion_type,
             status: cleanup_status(&process),
@@ -219,8 +217,8 @@ pub async fn failed_rows_csv(
     let status = cleanup_status(&process);
     if !matches!(
         status,
-        api_pm::PaymentMethodFingerprintCleanupStatus::Completed
-            | api_pm::PaymentMethodFingerprintCleanupStatus::Failed
+        api_pm::PaymentMethodBatchDeletionStatus::Completed
+            | api_pm::PaymentMethodBatchDeletionStatus::Failed
     ) {
         return Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "The cleanup job has not reached a terminal state".to_string(),
@@ -228,9 +226,9 @@ pub async fn failed_rows_csv(
         .into());
     }
 
-    let tracking_data: FingerprintCleanupTrackingData = process
+    let tracking_data: PaymentMethodBatchDeletionTrackingData = process
         .tracking_data
-        .parse_value("FingerprintCleanupTrackingData")
+        .parse_value("PaymentMethodBatchDeletionTrackingData")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let mut writer = csv::WriterBuilder::new()
         .has_headers(false)
@@ -255,7 +253,7 @@ pub async fn failed_rows_csv(
 mod tests {
     use api_models::payment_methods::PaymentMethodDeletionType;
 
-    use super::{parse_csv, FingerprintCleanupTrackingData};
+    use super::{parse_csv, PaymentMethodBatchDeletionTrackingData};
 
     #[test]
     fn parses_payment_method_ids() {
@@ -286,7 +284,7 @@ mod tests {
 
     #[test]
     fn legacy_tracking_data_defaults_to_fingerprint_deletion() {
-        let tracking_data: FingerprintCleanupTrackingData =
+        let tracking_data: PaymentMethodBatchDeletionTrackingData =
             serde_json::from_value(serde_json::json!({
                 "payment_method_ids": ["pm_1"],
                 "next_index": 0,

@@ -1,14 +1,12 @@
 use std::{collections::HashSet, time::Duration};
 
-use api_models::payment_methods::{
-    PaymentMethodDeletionType, PaymentMethodFingerprintCleanupFailure,
-};
+use api_models::payment_methods::{PaymentMethodBatchDeletionFailure, PaymentMethodDeletionType};
 use common_utils::ext_traits::ValueExt;
 use router_env::{instrument, tracing};
 use scheduler::{consumer, workflows::ProcessTrackerWorkflow};
 
 use crate::{
-    core::{errors, payment_methods::fingerprint_cleanup::FingerprintCleanupTrackingData},
+    core::{errors, payment_methods::batch_deletion::PaymentMethodBatchDeletionTrackingData},
     logger::{error, info},
     routes::SessionState,
     types::storage,
@@ -21,20 +19,20 @@ const FINGERPRINT_NOT_ELIGIBLE_REASON: &str =
 const PAYMENT_METHOD_NOT_FOUND_REASON: &str = "payment method was not found";
 const BATCH_UPDATE_FAILED_REASON: &str = "database update failed for this batch";
 
-pub struct PaymentMethodFingerprintCleanupWorkflow;
+pub struct PaymentMethodBatchDeletionWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<SessionState> for PaymentMethodFingerprintCleanupWorkflow {
-    #[instrument(skip_all, fields(flow = ?router_env::Flow::PaymentMethodFingerprintCleanup))]
+impl ProcessTrackerWorkflow<SessionState> for PaymentMethodBatchDeletionWorkflow {
+    #[instrument(skip_all, fields(flow = ?router_env::Flow::PaymentMethodBatchDeletion))]
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
-        let mut tracking_data: FingerprintCleanupTrackingData = process
+        let mut tracking_data: PaymentMethodBatchDeletionTrackingData = process
             .tracking_data
             .clone()
-            .parse_value("FingerprintCleanupTrackingData")
+            .parse_value("PaymentMethodBatchDeletionTrackingData")
             .map_err(errors::ProcessTrackerError::from)?;
 
         while tracking_data.next_index < tracking_data.payment_method_ids.len() {
@@ -66,7 +64,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodFingerprintCleanupWor
                         } else {
                             tracking_data
                                 .failures
-                                .push(PaymentMethodFingerprintCleanupFailure {
+                                .push(PaymentMethodBatchDeletionFailure {
                                     payment_method_id,
                                     failure_reason: match tracking_data.deletion_type {
                                         PaymentMethodDeletionType::LockerFingerprintId => {
@@ -92,7 +90,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodFingerprintCleanupWor
                     tracking_data
                         .failures
                         .extend(batch.into_iter().map(|payment_method_id| {
-                            PaymentMethodFingerprintCleanupFailure {
+                            PaymentMethodBatchDeletionFailure {
                                 payment_method_id,
                                 failure_reason: BATCH_UPDATE_FAILED_REASON.to_string(),
                             }

@@ -11886,7 +11886,10 @@ pub enum ProcessTrackerRunner {
     BlocklistExportWorkflow,
     BlocklistProfileCloneWorkflow,
     AnalyticsReportWorkflow,
-    PaymentMethodFingerprintCleanupWorkflow,
+    // Keep the persisted runner name so existing cleanup jobs remain executable.
+    #[serde(rename = "PAYMENT_METHOD_FINGERPRINT_CLEANUP_WORKFLOW")]
+    #[strum(serialize = "PAYMENT_METHOD_FINGERPRINT_CLEANUP_WORKFLOW")]
+    PaymentMethodBatchDeletionWorkflow,
 }
 
 #[derive(

@@ -4324,53 +4324,53 @@ pub enum PaymentMethodDeletionType {
     LockerId,
 }
 
-/// Lifecycle state of a batch locker-fingerprint cleanup job.
+/// Lifecycle state of a batch locker data deletion job.
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum PaymentMethodFingerprintCleanupStatus {
+pub enum PaymentMethodBatchDeletionStatus {
     Initiated,
     Processing,
     Completed,
     Failed,
 }
 
-/// Immediate response returned after a locker-fingerprint cleanup is queued.
+/// Immediate response returned after a locker data deletion is queued.
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
-pub struct PaymentMethodFingerprintCleanupResponse {
+pub struct PaymentMethodBatchDeletionResponse {
     pub job_id: String,
     pub deletion_type: PaymentMethodDeletionType,
     pub total_ids: usize,
-    pub status: PaymentMethodFingerprintCleanupStatus,
+    pub status: PaymentMethodBatchDeletionStatus,
 }
 
-/// Current progress of a locker-fingerprint cleanup job.
+/// Current progress of a locker data deletion job.
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
-pub struct PaymentMethodFingerprintCleanupStatusResponse {
+pub struct PaymentMethodBatchDeletionStatusResponse {
     pub job_id: String,
     pub deletion_type: PaymentMethodDeletionType,
-    pub status: PaymentMethodFingerprintCleanupStatus,
+    pub status: PaymentMethodBatchDeletionStatus,
     pub total_ids: usize,
     pub processed_ids: usize,
     pub successful_ids: usize,
     pub failed_ids: usize,
 }
 
-/// A payment method that could not be updated by a locker-fingerprint cleanup job.
+/// A payment method that could not be updated by a locker data deletion job.
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PaymentMethodFingerprintCleanupFailure {
+pub struct PaymentMethodBatchDeletionFailure {
     pub payment_method_id: String,
     pub failure_reason: String,
 }
 
 #[cfg(feature = "v1")]
-impl common_utils::events::ApiEventMetric for PaymentMethodFingerprintCleanupResponse {}
+impl common_utils::events::ApiEventMetric for PaymentMethodBatchDeletionResponse {}
 
 #[cfg(feature = "v1")]
-impl common_utils::events::ApiEventMetric for PaymentMethodFingerprintCleanupStatusResponse {}
+impl common_utils::events::ApiEventMetric for PaymentMethodBatchDeletionStatusResponse {}
 
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentMethodUpdateResponse {

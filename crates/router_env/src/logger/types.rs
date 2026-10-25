@@ -154,12 +154,12 @@ pub enum Flow {
     PaymentMethodsBatchUpdate,
     /// Payment methods batch retrieve flow.
     PaymentMethodsBatchRetrieve,
-    /// Start a batch locker fingerprint cleanup.
-    PaymentMethodFingerprintCleanup,
-    /// Retrieve batch locker fingerprint cleanup progress.
-    PaymentMethodFingerprintCleanupStatus,
-    /// Download the failed rows from a batch locker fingerprint cleanup.
-    PaymentMethodFingerprintCleanupFailures,
+    /// Start a batch locker data deletion.
+    PaymentMethodBatchDeletion,
+    /// Retrieve batch locker data deletion progress.
+    PaymentMethodBatchDeletionStatus,
+    /// Download the failed rows from a batch locker data deletion.
+    PaymentMethodBatchDeletionFailures,
     /// Payment methods list flow.
     PaymentMethodsList,
     /// Payment method save flow
