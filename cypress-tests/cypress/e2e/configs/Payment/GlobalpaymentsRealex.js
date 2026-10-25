@@ -28,6 +28,9 @@ const declinedCardDetails = {
   card_cvc: "123",
 };
 
+const threeDSNotConfiguredMessage =
+  "That Account ID is not configured for 3D Secure";
+
 export const connectorDetails = {
   card_pm: {
     // Confirmed live: shipping_cost is supported end to end — net_amount
@@ -112,7 +115,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "That Account ID is not configured for 3D Secure",
+          error_message: threeDSNotConfiguredMessage,
         },
       },
     },
@@ -129,7 +132,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "That Account ID is not configured for 3D Secure",
+          error_message: threeDSNotConfiguredMessage,
         },
       },
     },
@@ -266,12 +269,7 @@ export const connectorDetails = {
         },
       },
     },
-    // globalpayments_realex.rs) explicitly lists MandateRevoke, SetupMandate,
-    // RepeatPayment, and PaymentMethodToken under `not_implemented`. Mandate
-    // setup (CIT) is SetupMandate; MIT/subsequent-payment reuse is
-    // RepeatPayment; mandate listing/revocation is MandateRevoke. Only the
-    // six core flows are wired: Authorize, PSync, Capture, Void, Refund,
-    // RSync
+    // SetupMandate/RepeatPayment are `not_implemented` for this connector.
     MandateSingleUseNo3DSAutoCapture: {
       Configs: { TRIGGER_SKIP: true },
       Request: {},
@@ -378,6 +376,15 @@ export const connectorDetails = {
       },
       Response: { status: 200, body: { status: "succeeded" } },
     },
+    SaveCardUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulNo3DSCardDetails },
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: { status: 200, body: { status: "requires_capture" } },
+    },
     // Off-session / stored-credential (MIT-style) saved-card confirms.
     // Confirmed live (14-SaveCardFlow.cy.js) AND at the source: UCS's own
     // RepeatPayment flow for this connector is `not_implemented`.
@@ -423,7 +430,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "That Account ID is not configured for 3D Secure",
+          error_message: threeDSNotConfiguredMessage,
         },
       },
     },
