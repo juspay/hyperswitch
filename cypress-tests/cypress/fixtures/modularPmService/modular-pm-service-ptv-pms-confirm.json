@@ -1,0 +1,23 @@
+{
+  "payment_method_type": "card",
+  "payment_method_subtype": "credit",
+  "payment_method_data": {
+    "card": {
+      "card_number": "4111111111111111",
+      "card_exp_month": "03",
+      "card_exp_year": "30",
+      "card_holder_name": "John Doe",
+      "card_issuing_country": "US",
+      "card_cvc": "737"
+    }
+  },
+  "return_url": "https://hyperswitch.io",
+  "customer_acceptance": {
+    "acceptance_type": "online",
+    "accepted_at": "2025-01-01T00:00:00.000Z",
+    "online": {
+      "ip_address": "127.0.0.1",
+      "user_agent": "Mozilla/5.0"
+    }
+  }
+}
