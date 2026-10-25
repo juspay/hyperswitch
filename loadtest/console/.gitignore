@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.console-state.json
+.data/
+.worker-data/
+.svelte-kit/
+build/
+.env

@@ -1,0 +1,1798 @@
+{
+  "uid": "hs-router-pm-metrics",
+  "title": "Router <> PM metrics",
+  "description": "Router and Payment Method Modular load-test dashboard for the prod EU environment. There is no standalone encryption service in this environment; PAYMENT_METHOD_CRYPTO_DURATION represents cryptographic work observed inside the PM service.",
+  "tags": [
+    "hyperswitch",
+    "prod",
+    "eu",
+    "modular",
+    "loadtest"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 3,
+  "refresh": "1m",
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "regex": "/^VictoriaMetrics$/",
+        "refresh": 1,
+        "hide": 0,
+        "options": [],
+        "current": {}
+      },
+      {
+        "name": "router_deployment",
+        "label": "Router deployment",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": "label_values(kube_deployment_status_replicas{namespace=\"hyperswitch\", deployment=\"hyperswitch-router-hyperswitch-server\"}, deployment)",
+        "definition": "label_values(kube_deployment_status_replicas{namespace=\"hyperswitch\", deployment=\"hyperswitch-router-hyperswitch-server\"}, deployment)",
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "options": [],
+        "current": {}
+      },
+      {
+        "name": "pm_deployment",
+        "label": "PM application",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": "label_values(kube_deployment_status_replicas{namespace=\"hyperswitch\", deployment=~\"payment-method-modular-.*-hyperswitch-server\"}, deployment)",
+        "definition": "label_values(kube_deployment_status_replicas{namespace=\"hyperswitch\", deployment=~\"payment-method-modular-.*-hyperswitch-server\"}, deployment)",
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "options": [],
+        "current": {}
+      },
+      {
+        "name": "vault_deployment",
+        "label": "Card Vault deployment",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": "label_values(kube_deployment_status_replicas{namespace=\"hyperswitch\", deployment=\"hyperswitch-card-vault-hyperswitch-card-vault\"}, deployment)",
+        "definition": "label_values(kube_deployment_status_replicas{namespace=\"hyperswitch\", deployment=\"hyperswitch-card-vault-hyperswitch-card-vault\"}, deployment)",
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "options": [],
+        "current": {}
+      },
+      {
+        "name": "merchant_mode",
+        "label": "Merchant mode",
+        "type": "custom",
+        "query": "modular,non_modular",
+        "hide": 0,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "options": [],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "outcome",
+        "label": "Router outcome",
+        "type": "custom",
+        "query": "success,failure",
+        "hide": 0,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "options": [],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "percentile",
+        "label": "Percentile",
+        "type": "custom",
+        "query": "p50 : 0.50,p75 : 0.75,p90 : 0.90,p99 : 0.99",
+        "hide": 0,
+        "includeAll": false,
+        "allValue": null,
+        "multi": false,
+        "options": [],
+        "current": {
+          "selected": true,
+          "text": "p90",
+          "value": "0.90"
+        }
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "type": "dashboard",
+        "name": "Annotations & Alerts",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Router payment-confirm overview",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Payment-confirm latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, merchant_mode) (rate(payment_operation_duration_seconds_bucket{source_namespace=\"hyperswitch\", source_pod=~\"${router_deployment:raw}-.*\", merchant_mode=~\"${merchant_mode:regex}\", outcome=~\"${outcome:regex}\", operation=\"confirm\"}[$__rate_interval])))",
+          "legendFormat": "{{merchant_mode}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le) (rate(REQUEST_TIME_bucket{source_namespace=\"hyperswitch\", source_pod=~\"${router_deployment:raw}-.*\", path=\"/payments/{payment_id}/confirm\", method=\"POST\"}[$__rate_interval])))",
+          "legendFormat": "Request Time",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "B"
+        }
+      ],
+      "description": "Payment operation latency is the confirm-domain timer. Request Time is the end-to-end Router HTTP timer for POST /payments/{payment_id}/confirm."
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Confirm traffic",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (merchant_mode, outcome) (rate(payment_operation_duration_seconds_count{source_namespace=\"hyperswitch\", source_pod=~\"${router_deployment:raw}-.*\", operation=\"confirm\", merchant_mode=~\"${merchant_mode:regex}\", outcome=~\"${outcome:regex}\"}[$__rate_interval]))",
+          "legendFormat": "{{merchant_mode}} / {{outcome}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "row",
+      "title": "Router component latency",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "panels": []
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Router → PM service latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, operation, outcome) (rate(microservice_client_call_duration_seconds_bucket{source_pod=~\"${router_deployment:raw}-.*\", outcome=~\"${outcome:regex}\", operation=~\"create|retrieve|update\"}[$__rate_interval])))",
+          "legendFormat": "{{operation}} / {{outcome}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        }
+      ],
+      "description": "Router client latency for PM Modular calls. This environment exports operation and outcome labels, but not merchant_mode or service on this metric."
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "PM-server endpoint latency",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "panels": []
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Payment-method session latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, operation) (rate(PAYMENT_METHOD_SESSION_OPERATION_DURATION_bucket{source_pod=~\"${pm_deployment:raw}-.*\", operation=~\"session_create|session_confirm\"}[$__rate_interval])))",
+          "legendFormat": "{{operation}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Payment-method operation latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 19
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, operation) (rate(PAYMENT_METHOD_OPERATION_DURATION_bucket{source_pod=~\"${pm_deployment:raw}-.*\", operation=~\"create|retrieve|update\"}[$__rate_interval])))",
+          "legendFormat": "{{operation}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "row",
+      "title": "PM-server component latency",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "panels": []
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "PM → Card Vault latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, operation) (rate(VAULT_ADD_TIME_bucket{source_pod=~\"${pm_deployment:raw}-.*\"}[$__rate_interval])))",
+          "legendFormat": "add",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, operation) (rate(VAULT_GET_TIME_bucket{source_pod=~\"${pm_deployment:raw}-.*\"}[$__rate_interval])))",
+          "legendFormat": "get",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, operation) (rate(VAULT_FINGERPRINT_TIME_bucket{source_pod=~\"${pm_deployment:raw}-.*\"}[$__rate_interval])))",
+          "legendFormat": "fingerprint",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "C"
+        },
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, operation) (rate(VAULT_DELETE_TIME_bucket{source_pod=~\"${pm_deployment:raw}-.*\"}[$__rate_interval])))",
+          "legendFormat": "delete",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "PM cryptography latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, operation) (rate(PAYMENT_METHOD_CRYPTO_DURATION_bucket{source_pod=~\"${pm_deployment:raw}-.*\", operation=~\"encrypt|decrypt\"}[$__rate_interval])))",
+          "legendFormat": "{{operation}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        }
+      ],
+      "description": "Latency of encrypt/decrypt work measured by PAYMENT_METHOD_CRYPTO_DURATION inside the PM service. There is no standalone encryption-service deployment in this environment."
+    },
+    {
+      "id": 14,
+      "type": "row",
+      "title": "Datastore latency",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      },
+      "panels": []
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Router DB latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 37
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, table, operation) (rate(DATABASE_CALL_TIME_bucket{source_pod=~\"${router_deployment:raw}-.*\"}[$__rate_interval])))",
+          "legendFormat": "{{table}} / {{operation}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Router Redis latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 37
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, operation) (rate(REDIS_CALL_TIME_bucket{source_pod=~\"${router_deployment:raw}-.*\"}[$__rate_interval])))",
+          "legendFormat": "{{operation}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "PM DB latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 45
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, table, operation) (rate(DATABASE_CALL_TIME_bucket{source_pod=~\"${pm_deployment:raw}-.*\"}[$__rate_interval])))",
+          "legendFormat": "{{table}} / {{operation}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "PM Redis latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 45
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, operation) (rate(REDIS_CALL_TIME_bucket{source_pod=~\"${pm_deployment:raw}-.*\"}[$__rate_interval])))",
+          "legendFormat": "{{operation}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "type": "row",
+      "title": "Per-payment contribution",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 53
+      },
+      "panels": []
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Router DB contribution per payment",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 54
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (table, operation) (rate(DATABASE_CALL_TIME_sum{source_pod=~\"${router_deployment:raw}-.*\"}[$__rate_interval])) / scalar(sum(rate(payment_operation_duration_seconds_count{source_pod=~\"${router_deployment:raw}-.*\", operation=\"confirm\"}[$__rate_interval])))",
+          "legendFormat": "{{table}} / {{operation}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(DATABASE_CALL_TIME_sum{source_pod=~\"${router_deployment:raw}-.*\"}[$__rate_interval])) / sum(rate(payment_operation_duration_seconds_count{source_pod=~\"${router_deployment:raw}-.*\", operation=\"confirm\"}[$__rate_interval]))",
+          "legendFormat": "total",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "B"
+        }
+      ],
+      "description": "Seconds of downstream time per confirm. Sum of call durations divided by confirm rate."
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Router Redis contribution per payment",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 54
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (operation) (rate(REDIS_CALL_TIME_sum{source_pod=~\"${router_deployment:raw}-.*\"}[$__rate_interval])) / scalar(sum(rate(payment_operation_duration_seconds_count{source_pod=~\"${router_deployment:raw}-.*\", operation=\"confirm\"}[$__rate_interval])))",
+          "legendFormat": "{{operation}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(REDIS_CALL_TIME_sum{source_pod=~\"${router_deployment:raw}-.*\"}[$__rate_interval])) / sum(rate(payment_operation_duration_seconds_count{source_pod=~\"${router_deployment:raw}-.*\", operation=\"confirm\"}[$__rate_interval]))",
+          "legendFormat": "total",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "B"
+        }
+      ],
+      "description": "Seconds of downstream time per confirm. Sum of call durations divided by confirm rate."
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "PM DB contribution per payment",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 62
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (table, operation) (rate(DATABASE_CALL_TIME_sum{source_pod=~\"${pm_deployment:raw}-.*\"}[$__rate_interval])) / scalar(sum(rate(PAYMENT_METHOD_SESSION_OPERATION_DURATION_count{source_pod=~\"${pm_deployment:raw}-.*\", operation=\"session_confirm\"}[$__rate_interval])))",
+          "legendFormat": "{{table}} / {{operation}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(DATABASE_CALL_TIME_sum{source_pod=~\"${pm_deployment:raw}-.*\"}[$__rate_interval])) / sum(rate(PAYMENT_METHOD_SESSION_OPERATION_DURATION_count{source_pod=~\"${pm_deployment:raw}-.*\", operation=\"session_confirm\"}[$__rate_interval]))",
+          "legendFormat": "total",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "B"
+        }
+      ],
+      "description": "Seconds of PM datastore time per session confirm: sum of call durations divided by the PM session_confirm rate."
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "PM Redis contribution per payment",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 62
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (operation) (rate(REDIS_CALL_TIME_sum{source_pod=~\"${pm_deployment:raw}-.*\"}[$__rate_interval])) / scalar(sum(rate(PAYMENT_METHOD_SESSION_OPERATION_DURATION_count{source_pod=~\"${pm_deployment:raw}-.*\", operation=\"session_confirm\"}[$__rate_interval])))",
+          "legendFormat": "{{operation}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(REDIS_CALL_TIME_sum{source_pod=~\"${pm_deployment:raw}-.*\"}[$__rate_interval])) / sum(rate(PAYMENT_METHOD_SESSION_OPERATION_DURATION_count{source_pod=~\"${pm_deployment:raw}-.*\", operation=\"session_confirm\"}[$__rate_interval]))",
+          "legendFormat": "total",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "B"
+        }
+      ],
+      "description": "Seconds of PM datastore time per session confirm: sum of call durations divided by the PM session_confirm rate."
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "PM cryptography contribution per payment",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 70
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (operation) (rate(PAYMENT_METHOD_CRYPTO_DURATION_sum{source_pod=~\"${pm_deployment:raw}-.*\", operation=~\"encrypt|decrypt\"}[$__rate_interval])) / scalar(sum(rate(PAYMENT_METHOD_SESSION_OPERATION_DURATION_count{source_pod=~\"${pm_deployment:raw}-.*\", operation=\"session_confirm\"}[$__rate_interval])))",
+          "legendFormat": "{{operation}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(PAYMENT_METHOD_CRYPTO_DURATION_sum{source_pod=~\"${pm_deployment:raw}-.*\", operation=~\"encrypt|decrypt\"}[$__rate_interval])) / sum(rate(PAYMENT_METHOD_SESSION_OPERATION_DURATION_count{source_pod=~\"${pm_deployment:raw}-.*\", operation=\"session_confirm\"}[$__rate_interval]))",
+          "legendFormat": "total",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "B"
+        }
+      ],
+      "description": "Seconds of PM cryptographic work per session confirm: sum of encrypt/decrypt durations divided by the PM session_confirm rate."
+    },
+    {
+      "id": 29,
+      "type": "row",
+      "title": "Card Vault",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 78
+      },
+      "panels": []
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "Card Vault request rate",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 79
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (http_route, http_request_method) (rate(http_server_request_count_total{job=\"hyperswitch-vault\", pod=~\"${vault_deployment:raw}-.*\"}[$__rate_interval]))",
+          "legendFormat": "{{http_request_method}} {{http_route}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        }
+      ],
+      "description": "Card Vault request throughput split by method and normalized route. Card Vault uses job/pod labels rather than source_pod."
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "Card Vault request latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 79
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, http_route, http_request_method, http_response_status_code) (rate(http_server_request_duration_seconds_bucket{job=\"hyperswitch-vault\", pod=~\"${vault_deployment:raw}-.*\"}[$__rate_interval])))",
+          "legendFormat": "{{http_request_method}} {{http_route}} / {{http_response_status_code}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "Card Vault DB latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 87
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(${percentile:raw}, sum by (le, table, operation, pool, outcome) (rate(database_query_duration_seconds_bucket{job=\"hyperswitch-vault\", pod=~\"${vault_deployment:raw}-.*\"}[$__rate_interval])))",
+          "legendFormat": "{{pool}} / {{table}} / {{operation}} / {{outcome}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "type": "timeseries",
+      "title": "Card Vault DB query rate",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 87
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (table, operation, pool) (rate(database_query_count_total{job=\"hyperswitch-vault\", pod=~\"${vault_deployment:raw}-.*\"}[$__rate_interval]))",
+          "legendFormat": "{{pool}} / {{table}} / {{operation}}",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "type": "row",
+      "title": "Service CPU usage",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 95
+      },
+      "panels": []
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "Service CPU usage (cores)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 96
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"hyperswitch\", pod=~\"${router_deployment:raw}-.*\", container=\"hyperswitch-router\"}[$__rate_interval]))",
+          "legendFormat": "Router",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"hyperswitch\", pod=~\"${pm_deployment:raw}-.*\", container=\"hyperswitch-payment-method-modular\"}[$__rate_interval]))",
+          "legendFormat": "PM server",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"hyperswitch\", pod=~\"${vault_deployment:raw}-.*\", container=\"tartarus\"}[$__rate_interval]))",
+          "legendFormat": "Card Vault",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "type": "timeseries",
+      "title": "Service CPU usage (% of limit)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 96
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisSoftMin": 0,
+            "pointSize": 5
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(container_cpu_usage_seconds_total{namespace=\"hyperswitch\", pod=~\"${router_deployment:raw}-.*\", container=\"hyperswitch-router\"}[$__rate_interval])) / clamp_min(sum(kube_pod_container_resource_limits{namespace=\"hyperswitch\", pod=~\"${router_deployment:raw}-.*\", container=\"hyperswitch-router\", resource=\"cpu\", unit=\"core\"}), 0.001)",
+          "legendFormat": "Router",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A"
+        },
+        {
+          "expr": "100 * sum(rate(container_cpu_usage_seconds_total{namespace=\"hyperswitch\", pod=~\"${pm_deployment:raw}-.*\", container=\"hyperswitch-payment-method-modular\"}[$__rate_interval])) / clamp_min(sum(kube_pod_container_resource_limits{namespace=\"hyperswitch\", pod=~\"${pm_deployment:raw}-.*\", container=\"hyperswitch-payment-method-modular\", resource=\"cpu\", unit=\"core\"}), 0.001)",
+          "legendFormat": "PM server",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "B"
+        },
+        {
+          "expr": "100 * sum(rate(container_cpu_usage_seconds_total{namespace=\"hyperswitch\", pod=~\"${vault_deployment:raw}-.*\", container=\"tartarus\"}[$__rate_interval])) / clamp_min(sum(kube_pod_container_resource_limits{namespace=\"hyperswitch\", pod=~\"${vault_deployment:raw}-.*\", container=\"tartarus\", resource=\"cpu\", unit=\"core\"}), 0.001)",
+          "legendFormat": "Card Vault",
+          "editorMode": "code",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "C"
+        }
+      ]
+    }
+  ]
+}
