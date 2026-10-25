@@ -62,7 +62,7 @@ dyn-clone = "1.0.19"
 deja = { git = "https://github.com/juspay/deja", rev = "6ace82f8d37c7c5703f9636a608dd8d85a8f6953", optional = true, default-features = false }
 error-stack = "0.4.1"
 hex = "0.4.3"
-hyper = "0.14.32"
+hyper = "1.6.0"
 once_cell = "1.21.3"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"
@@ -82,8 +82,8 @@ typed-builder = "0.21.2"
 hyper-util = { version = "0.1.12", optional = true }
 http-body-util = { version = "0.1.3", optional = true }
 http-body = { version = "1.0.1", optional = true }
-reqwest = { version = "0.11.27", features = ["rustls-tls"] }
-http = "0.2.12"
+reqwest = { version = "0.13.5", features = ["rustls", "native-tls-no-alpn", "form", "query"] }
+http = "1.3.1"
 url = { version = "2.5.4", features = ["serde"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 

@@ -53,6 +53,7 @@ fn get_redirection_log_endpoint(base_url: &str) -> RouterResult<url::Url> {
 
 pub async fn retrieve_payment_link(
     state: SessionState,
+    requestor_processor_merchant_id: &common_utils::id_type::MerchantId,
     payment_link_id: String,
 ) -> RouterResponse<api_models::payments::RetrievePaymentLinkResponse> {
     let db = &*state.store;
@@ -60,6 +61,12 @@ pub async fn retrieve_payment_link(
         .find_payment_link_by_payment_link_id(&payment_link_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
+
+    if payment_link_config.processor_merchant_id.as_ref() != Some(requestor_processor_merchant_id)
+        && requestor_processor_merchant_id != &payment_link_config.merchant_id
+    {
+        Err(errors::ApiErrorResponse::PaymentLinkNotFound)?
+    }
 
     let session_expiry = payment_link_config.fulfilment_time.unwrap_or_else(|| {
         common_utils::date_time::now()
