@@ -68,6 +68,7 @@ pub trait PaymentMethodsController {
     async fn insert_payment_method(
         &self,
         resp: &payment_methods::PaymentMethodResponse,
+        payment_method_id: &str,
         req: &api::PaymentMethodCreate,
         key_store: &merchant_key_store::MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
@@ -214,7 +215,7 @@ pub trait PaymentMethodsController {
     async fn get_or_insert_payment_method(
         &self,
         req: api::PaymentMethodCreate,
-        resp: &mut payment_methods::PaymentMethodResponse,
+        resp: &payment_methods::PaymentMethodResponse,
         customer_id: &id_type::CustomerId,
         key_store: &merchant_key_store::MerchantKeyStore,
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
