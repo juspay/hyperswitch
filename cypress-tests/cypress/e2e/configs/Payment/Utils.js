@@ -621,6 +621,7 @@ export const CONNECTOR_LISTS = {
       "authorizedotnet",
       "fiservcommercehub",
       "givepayments",
+      "hipay",
       "ilixium",
       "stripe",
       "truelayer",

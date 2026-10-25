@@ -27,6 +27,17 @@ const billing_info = {
   },
 };
 
+// HiPay's POST /v1/order requires `payment_product`. On the card-token path
+// Hyperswitch does not forward the vault response's card brand, and the UCS
+// Authorize request's `metadata` is built solely from the payment request's own
+// metadata (crates/router/src/core/unified_connector_service/transformers.rs:635-641)
+// — never from the merchant connector account. So the payment request itself has
+// to declare it, or Hyperswitch rejects the payment with IR_19
+// "no payment product for card network".
+const hipayMetadata = {
+  payment_product: "visa",
+};
+
 const successful3DSCardDetails = {
   ...successfulNo3DSCardDetails,
   card_number: "4000000000000002",
@@ -52,6 +63,17 @@ const multiUseMandateData = {
   },
 };
 
+// HiPay is vault-first: the card reaches the connector as a Secure Vault token,
+// so Hyperswitch has no PAN of its own to enrich from and does not forward the
+// brand/issuer/country HiPay returns on the Tokenize and Authorize responses
+// (a known core-Hyperswitch gap, deferred to its own change — the same one that
+// makes `metadata.payment_product` mandatory on the payment request above).
+// Everything below is what a live HiPay payment through UCS actually returns:
+// the card fields Hyperswitch derives itself are asserted, and the BIN-derived
+// fields it cannot populate on this path are null. Do not "restore" the
+// enriched values here — they only appear when an externally provisioned
+// cards_info BIN table is present, which makes the assertion pass or fail on
+// the environment rather than on the connector.
 const paymentMethodDataNo3DSResponse = {
   card: {
     authentication_data: null,
@@ -61,13 +83,13 @@ const paymentMethodDataNo3DSResponse = {
     card_extended_bin: null,
     card_holder_name: "Joseph Doe",
     card_isin: "411111",
-    card_issuer: "CONOTOXIA SP Z OO",
-    card_issuing_country: "POLAND",
-    card_network: "Visa",
-    card_type: "DEBIT",
-    card_subtype: "VISA CLASSIC",
-    card_segment_type: "consumer",
-    funding_source: "DEBIT",
+    card_issuer: null,
+    card_issuing_country: null,
+    card_network: null,
+    card_type: null,
+    card_subtype: null,
+    card_segment_type: null,
+    funding_source: null,
     last4: "1111",
     payment_checks: null,
   },
@@ -104,6 +126,7 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
+        metadata: hipayMetadata,
         currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -118,6 +141,7 @@ export const connectorDetails = {
     },
     No3DSManualCapture: {
       Request: {
+        metadata: hipayMetadata,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -143,6 +167,7 @@ export const connectorDetails = {
 
     No3DSAutoCapture: {
       Request: {
+        metadata: hipayMetadata,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
