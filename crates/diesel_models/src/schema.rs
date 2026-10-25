@@ -1254,6 +1254,8 @@ diesel::table! {
         #[max_length = 64]
         active_frm_id -> Nullable<Varchar>,
         applied_overrides -> Nullable<Jsonb>,
+        #[max_length = 255]
+        connector_label -> Nullable<Varchar>,
     }
 }
 

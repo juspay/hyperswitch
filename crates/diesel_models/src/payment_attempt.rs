@@ -178,6 +178,7 @@ pub struct PaymentAttempt {
     pub payment_account_reference: Option<String>,
     pub active_frm_id: Option<String>,
     pub applied_overrides: Option<common_types::payments::AppliedOverrides>,
+    pub connector_label: Option<String>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -322,6 +323,7 @@ pub struct PaymentAttempt {
     pub payment_account_reference: Option<String>,
     pub active_frm_id: Option<String>,
     pub applied_overrides: Option<common_types::payments::AppliedOverrides>,
+    pub connector_label: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -481,6 +483,7 @@ pub struct PaymentAttemptNew {
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
     pub payment_account_reference: Option<String>,
     pub active_frm_id: Option<String>,
+    pub connector_label: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -584,6 +587,7 @@ pub struct PaymentAttemptNew {
     pub applied_overrides: Option<common_types::payments::AppliedOverrides>,
     pub payment_account_reference: Option<String>,
     pub active_frm_id: Option<String>,
+    pub connector_label: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -744,6 +748,7 @@ pub enum PaymentAttemptUpdate {
         error_details: Box<Option<Option<ErrorDetails>>>,
         sender_payment_instrument_id: Option<String>,
         payment_account_reference: Option<String>,
+        connector_label: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -780,6 +785,7 @@ pub enum PaymentAttemptUpdate {
         issuer_error_message: Option<Option<String>>,
         network_details: Option<Option<NetworkDetails>>,
         error_details: Box<Option<Option<ErrorDetails>>>,
+        connector_label: Option<String>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -1177,6 +1183,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub applied_overrides: Option<common_types::payments::AppliedOverrides>,
     pub payment_account_reference: Option<String>,
     pub active_frm_id: Option<String>,
+    pub connector_label: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -2607,6 +2614,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -2691,6 +2699,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -2821,6 +2830,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details,
                 applied_offer_details,
                 applied_overrides,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id,
             },
@@ -2906,6 +2916,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -2992,6 +3003,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -3078,6 +3090,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -3163,6 +3176,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -3247,6 +3261,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -3331,6 +3346,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -3369,6 +3385,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_details: boxed_error_details,
                 sender_payment_instrument_id,
                 payment_account_reference,
+                connector_label,
             } => {
                 let error_details = *boxed_error_details;
                 let (connector_transaction_id, processor_transaction_data) =
@@ -3454,6 +3471,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     external_surcharge_details: None,
                     applied_offer_details: None,
                     applied_overrides: None,
+                    connector_label,
                     payment_account_reference,
                     active_frm_id: None,
                 }
@@ -3477,6 +3495,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 issuer_error_message,
                 network_details,
                 error_details: boxed_error_details,
+                connector_label,
             } => {
                 let error_details = *boxed_error_details;
                 let (connector_transaction_id, processor_transaction_data) =
@@ -3562,6 +3581,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     external_surcharge_details: None,
                     applied_offer_details: None,
                     applied_overrides: None,
+                    connector_label,
                     payment_account_reference: None,
                     active_frm_id: None,
                 }
@@ -3644,6 +3664,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -3736,6 +3757,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -3835,6 +3857,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     external_surcharge_details: None,
                     applied_offer_details: None,
                     applied_overrides: None,
+                    connector_label: None,
                     payment_account_reference: None,
                     active_frm_id: None,
                 }
@@ -3931,6 +3954,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     external_surcharge_details: None,
                     applied_offer_details: None,
                     applied_overrides: None,
+                    connector_label: None,
                     payment_account_reference: None,
                     active_frm_id: None,
                 }
@@ -4017,6 +4041,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -4102,6 +4127,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -4196,6 +4222,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     external_surcharge_details: None,
                     applied_offer_details: None,
                     applied_overrides: None,
+                    connector_label: None,
                     payment_account_reference: None,
                     active_frm_id: None,
                 }
@@ -4281,6 +4308,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -4369,6 +4397,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -4466,6 +4495,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     external_surcharge_details: None,
                     applied_offer_details: None,
                     applied_overrides: None,
+                    connector_label: None,
                     payment_account_reference: None,
                     active_frm_id: None,
                 }
@@ -4551,6 +4581,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
@@ -4640,6 +4671,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id,
             },
@@ -4724,6 +4756,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_threeds_authentication_type: None,
                 applied_offer_details: None,
                 applied_overrides: None,
+                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },

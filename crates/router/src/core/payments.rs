@@ -6705,6 +6705,12 @@ where
     )
     .await?;
 
+    if let Some(connector_label) = merchant_connector_account.get_connector_label() {
+        let mut payment_attempt = payment_data.get_payment_attempt().clone();
+        payment_attempt.connector_label = Some(connector_label);
+        payment_data.set_payment_attempt(payment_attempt);
+    }
+
     let customer_acceptance = payment_data
         .get_payment_attempt()
         .customer_acceptance
