@@ -94,7 +94,7 @@ pub fn validate_maximum_refund_against_payment_attempt(
     all_refunds: &[diesel_refund::Refund],
     refund_max_attempts: usize,
 ) -> CustomResult<(), RefundValidationError> {
-    utils::when(all_refunds.len() > refund_max_attempts, || {
+    utils::when(all_refunds.len() >= refund_max_attempts, || {
         Err(report!(RefundValidationError::MaxRefundCountReached))
     })
 }
