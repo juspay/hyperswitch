@@ -37,8 +37,14 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodBatchDeletionWorkflow
 
         while tracking_data.next_index < tracking_data.payment_method_ids.len() {
             let batch_start = tracking_data.next_index;
-            let batch_end = (batch_start + BATCH_SIZE).min(tracking_data.payment_method_ids.len());
-            let batch = tracking_data.payment_method_ids[batch_start..batch_end].to_vec();
+            let batch: Vec<_> = tracking_data
+                .payment_method_ids
+                .iter()
+                .skip(batch_start)
+                .take(BATCH_SIZE)
+                .cloned()
+                .collect();
+            let batch_end = batch_start + batch.len();
 
             let update_result = match tracking_data.deletion_type {
                 PaymentMethodDeletionType::LockerFingerprintId => {
