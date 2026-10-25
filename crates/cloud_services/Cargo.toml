@@ -1,0 +1,59 @@
+[package]
+name = "cloud_services"
+description = "Cloud provider clients (KMS, object storage) shared across Hyperswitch services"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# Deliberately free of Hyperswitch crates (no `common_utils`, `router_env` or `error-stack`),
+# so services outside this workspace can depend on it without pulling in Hyperswitch.
+[features]
+default = []
+s3 = ["dep:aws-config", "dep:aws-sdk-s3", "dep:url"]
+oci_object_storage = ["s3"]
+gcs_object_storage = ["s3"]
+aws_kms = ["dep:aws-config", "dep:aws-sdk-kms", "dep:base64"]
+gcp_kms = ["dep:google-cloud-kms", "dep:google-cloud-gax", "dep:base64"]
+ses = [
+    "dep:aws-config",
+    "dep:aws-sdk-sesv2",
+    "dep:aws-sdk-sts",
+    "dep:aws-smithy-runtime",
+    "dep:aws-smithy-runtime-api",
+    "dep:hyper",
+    "dep:hyper-proxy",
+]
+smtp = ["dep:lettre", "dep:tokio", "dep:tokio-socks", "dep:tracing"]
+oci_kms = ["dep:oci_kms"]
+
+[dependencies]
+aws-config = { version = "1.6.0", optional = true, features = [
+    "behavior-version-latest",
+] }
+aws-sdk-kms = { version = "1.51.0", optional = true }
+aws-sdk-s3 = { version = "1.79.0", optional = true }
+aws-sdk-sesv2 = { version = "1.57.0", optional = true }
+aws-sdk-sts = { version = "1.51.0", optional = true }
+aws-smithy-runtime = { version = "1.8.3", optional = true }
+aws-smithy-runtime-api = { version = "1.7", optional = true, features = ["client"] }
+base64 = { version = "0.22.1", optional = true }
+google-cloud-gax = { version = "0.19.2", optional = true }
+google-cloud-kms = { version = "0.6.0", optional = true }
+hyper = { version = "0.14.32", optional = true, features = ["client", "tcp", "http1"] }
+hyper-proxy = { version = "0.9.1", optional = true }
+lettre = { version = "0.11.16", optional = true, features = ["tokio1", "tokio1-native-tls"] }
+oci_kms = { version = "0.1.0", path = "../oci_kms", optional = true }
+serde = { version = "1.0.219", features = ["derive"] }
+thiserror = "1.0.69"
+tokio = { version = "1.48.0", optional = true, features = ["net", "time"] }
+tokio-socks = { version = "0.5", optional = true }
+tracing = { workspace = true, optional = true }
+url = { version = "2.5.4", optional = true }
+
+[dev-dependencies]
+serde_json = "1.0.140"
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

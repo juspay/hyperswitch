@@ -109,6 +109,7 @@ impl MandateResponseExt for MandateResponse {
         let user_agent = mandate.get_user_agent_extended().unwrap_or_default();
         Ok(Self {
             mandate_id: mandate.mandate_id,
+            payment_id: mandate.original_payment_id,
             customer_acceptance: Some(api::payments::CustomerAcceptance {
                 acceptance_type: if mandate.customer_ip_address.is_some() {
                     api::payments::AcceptanceType::Online

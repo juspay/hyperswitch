@@ -246,6 +246,8 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
 pub struct JpmorganAuthType {
     pub(super) _api_key: Secret<String>,
     pub(super) _key1: Secret<String>,
+    pub(super) _api_secret: Option<Secret<String>>,
+    pub(super) _key2: Option<Secret<String>>,
 }
 
 impl TryFrom<&ConnectorAuthType> for JpmorganAuthType {
@@ -255,6 +257,19 @@ impl TryFrom<&ConnectorAuthType> for JpmorganAuthType {
             ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 _api_key: api_key.to_owned(),
                 _key1: key1.to_owned(),
+                _api_secret: None,
+                _key2: None,
+            }),
+            ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Ok(Self {
+                _api_key: api_key.to_owned(),
+                _key1: key1.to_owned(),
+                _api_secret: Some(api_secret.to_owned()),
+                _key2: Some(key2.to_owned()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

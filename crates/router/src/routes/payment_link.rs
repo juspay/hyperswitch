@@ -46,7 +46,17 @@ pub async fn payment_link_retrieve(
         state,
         &req,
         payload.clone(),
-        |state, _auth, _, _| retrieve_payment_link(state, path.clone()),
+        |state, auth, _, _| {
+            let payment_link_id = path.clone();
+            async move {
+                retrieve_payment_link(
+                    state,
+                    auth.platform.get_processor().get_account().get_id(),
+                    payment_link_id,
+                )
+                .await
+            }
+        },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
     )
