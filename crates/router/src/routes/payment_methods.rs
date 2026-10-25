@@ -709,7 +709,7 @@ pub struct PaymentMethodFingerprintCleanupForm {
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 #[utoipa::path(
     post,
-    path = "/payment_methods/locker-fingerprint/batch",
+    path = "/payment_methods/batch-deletion",
     request_body(
         content = String,
         content_type = "multipart/form-data",
@@ -747,7 +747,7 @@ pub async fn initiate_payment_method_fingerprint_cleanup(
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 #[utoipa::path(
     get,
-    path = "/payment_methods/locker-fingerprint/batch/{job_id}",
+    path = "/payment_methods/batch-deletion/{job_id}",
     params(("job_id" = String, Path, description = "Job ID returned by the initiation endpoint")),
     responses(
         (status = 200, description = "Current cleanup progress", body = api_models::payment_methods::PaymentMethodFingerprintCleanupStatusResponse),
@@ -777,7 +777,7 @@ pub async fn get_payment_method_fingerprint_cleanup_status(
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 #[utoipa::path(
     get,
-    path = "/payment_methods/locker-fingerprint/batch/{job_id}/failures",
+    path = "/payment_methods/batch-deletion/{job_id}/failures",
     params(("job_id" = String, Path, description = "Job ID returned by the initiation endpoint")),
     responses(
         (status = 200, description = "CSV containing payment_method_id and failure_reason", content_type = "text/csv"),
