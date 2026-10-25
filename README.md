@@ -142,7 +142,7 @@ Hyperswitch offers a fully hosted sandbox environment that requires no setup. Yo
 
 You can deploy to AWS, GCP, or Azure using Helm Charts.
 
-<a href="https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm">Cloud Deployment Instructions</a>.
+<a href="https://docs.hyperswitch.io/self-hosting">Cloud Deployment Instructions</a>.
 
 
 <a href="#architectural-overview">
