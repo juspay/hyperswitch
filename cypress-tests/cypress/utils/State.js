@@ -57,6 +57,41 @@ class State {
       "SUPERPOSITION_WORKSPACE_ID",
       "superpositionWorkspaceId"
     );
+    this.data["customHeaders"] = this.getCustomHeaders();
+  }
+
+  getCustomHeaders() {
+    const envVal = Cypress.env("CUSTOM_HEADERS");
+    const stateVal = this.data["customHeaders"];
+    const target =
+      envVal !== undefined && envVal !== null && envVal !== ""
+        ? envVal
+        : stateVal;
+
+    if (!target) {
+      return {};
+    }
+    if (typeof target === "object") {
+      return target;
+    }
+    if (typeof target === "string") {
+      try {
+        return JSON.parse(target);
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  }
+
+  setCustomHeader(key, value) {
+    if (
+      !this.data["customHeaders"] ||
+      typeof this.data["customHeaders"] !== "object"
+    ) {
+      this.data["customHeaders"] = {};
+    }
+    this.data["customHeaders"][key] = value;
   }
 
   getEnvOrState(envKey, stateKey = envKey) {
