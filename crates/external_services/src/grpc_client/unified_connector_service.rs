@@ -19,6 +19,37 @@ use crate::{
     utils::deserialize_hashset,
 };
 
+/// Typed marker carried through error-stack frames only for retryable UCS Psync failures.
+/// It lets the scheduler keep polling without interpreting human-readable gRPC messages.
+#[derive(Debug, Clone)]
+pub struct RetryablePsyncTransportFailure {
+    /// Connector whose existing payment-sync schedule should be used.
+    pub connector_name: String,
+}
+
+fn payment_get_error(
+    status: &tonic::Status,
+    connector_name: &str,
+) -> error_stack::Report<UnifiedConnectorServiceError> {
+    let report = error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+        status,
+        connector_name,
+    ));
+    let retryable_transport = status.code() == tonic::Code::Internal
+        && status
+            .metadata()
+            .get("x-ucs-retryable-transport")
+            .and_then(|value| value.to_str().ok())
+            == Some("1");
+    if retryable_transport {
+        report.attach(RetryablePsyncTransportFailure {
+            connector_name: connector_name.to_owned(),
+        })
+    } else {
+        report
+    }
+}
+
 /// Result type for Dynamic Routing
 pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServiceError>;
 
@@ -846,12 +877,7 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .get(request)
             .await
-            .map_err(|error| {
-                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
-                    &error,
-                    &connector_name,
-                ))
-            })
+            .map_err(|error| payment_get_error(&error, &connector_name))
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -1953,4 +1979,51 @@ pub fn build_unified_connector_service_grpc_headers_for_notify_connector(
     }
 
     Ok(metadata)
+}
+
+#[cfg(test)]
+mod psync_transport_retry_tests {
+    use super::*;
+
+    #[test]
+    fn retry_hint_survives_error_context_changes() {
+        let mut status = tonic::Status::internal("transport failure");
+        status
+            .metadata_mut()
+            .insert("x-ucs-retryable-transport", MetadataValue::from_static("1"));
+        let report = payment_get_error(&status, "cybersource")
+            .change_context(std::io::Error::other("outer caller context"));
+        let connector = report.frames().find_map(|frame| {
+            frame
+                .downcast_ref::<RetryablePsyncTransportFailure>()
+                .map(|failure| failure.connector_name.as_str())
+        });
+        assert_eq!(connector, Some("cybersource"));
+    }
+
+    #[test]
+    fn unmarked_internal_errors_are_not_retryable() {
+        let report =
+            payment_get_error(&tonic::Status::internal("transport failure"), "cybersource");
+        assert!(!report.frames().any(|frame| frame
+            .downcast_ref::<RetryablePsyncTransportFailure>()
+            .is_some()));
+    }
+
+    #[test]
+    fn invalid_or_unrelated_hints_are_not_retryable() {
+        for (mut status, hint) in [
+            (tonic::Status::internal("request failed"), "0"),
+            (tonic::Status::invalid_argument("invalid request"), "1"),
+        ] {
+            status.metadata_mut().insert(
+                "x-ucs-retryable-transport",
+                MetadataValue::from_static(hint),
+            );
+            let report = payment_get_error(&status, "cybersource");
+            assert!(!report.frames().any(|frame| frame
+                .downcast_ref::<RetryablePsyncTransportFailure>()
+                .is_some()));
+        }
+    }
 }
