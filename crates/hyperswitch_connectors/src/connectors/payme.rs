@@ -1195,6 +1195,14 @@ impl webhooks::IncomingWebhook for Payme {
                     resource.payme_transaction_id,
                 ),
             ),
+            transformers::NotifyType::Unknown => {
+                router_env::logger::warn!("Unknown notify_type received from Payme webhook in get_webhook_object_reference_id");
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        resource.payme_sale_id,
+                    ),
+                )
+            }
         };
         Ok(id)
     }
@@ -1232,6 +1240,10 @@ impl webhooks::IncomingWebhook for Payme {
             )),
             transformers::NotifyType::SaleChargeback
             | transformers::NotifyType::SaleChargebackRefund => Ok(Box::new(resource)),
+            transformers::NotifyType::Unknown => {
+                router_env::logger::warn!("Unknown notify_type received from Payme webhook in get_webhook_resource_object");
+                Ok(Box::new(payme::PaymePaySaleResponse::from(resource)))
+            }
         }
     }
 
