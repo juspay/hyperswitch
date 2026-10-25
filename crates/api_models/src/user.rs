@@ -213,6 +213,7 @@ pub struct GetUserRoleDetailsRequest {
 
 #[derive(Debug, serde::Serialize)]
 pub struct GetUserRoleDetailsResponseV2 {
+    pub name: Secret<String>,
     pub role_id: String,
     pub org: NameIdUnit<Option<String>, id_type::OrganizationId>,
     pub merchant: Option<NameIdUnit<OptionalEncryptableName, id_type::MerchantId>>,

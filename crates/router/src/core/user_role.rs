@@ -921,7 +921,7 @@ pub async fn list_users_in_lineage(
         })
         .collect::<HashSet<_>>();
 
-    let mut email_map = state
+    let mut user_map = state
         .global_store
         .find_active_users_by_user_ids(
             user_roles_set
@@ -932,7 +932,7 @@ pub async fn list_users_in_lineage(
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
-        .map(|user| (user.user_id.clone(), user.email))
+        .map(|user| (user.user_id.clone(), user))
         .collect::<HashMap<_, _>>();
 
     let role_info_map =
@@ -975,10 +975,12 @@ pub async fn list_users_in_lineage(
         user_role_map
             .into_iter()
             .map(|(user_id, role_id_vec)| {
+                let user = user_map
+                    .remove(&user_id)
+                    .ok_or(UserErrors::InternalServerError)?;
                 Ok::<_, error_stack::Report<UserErrors>>(user_role_api::ListUsersInEntityResponse {
-                    email: email_map
-                        .remove(&user_id)
-                        .ok_or(UserErrors::InternalServerError)?,
+                    email: user.email,
+                    name: user.name,
                     roles: role_id_vec
                         .into_iter()
                         .map(|role_id| {
