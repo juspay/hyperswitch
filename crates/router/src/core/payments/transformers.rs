@@ -1297,6 +1297,7 @@ pub async fn construct_router_data_for_psync<'a>(
         enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
         // The v2 payment attempt does not track overcapture yet
         is_overcapture_enabled: None,
+        created_at: Some(attempt.created_at),
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -5843,6 +5844,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 .and_then(|d| d.get_connector_mandate_id()),
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             is_overcapture_enabled: payment_data.payment_attempt.is_overcapture_enabled,
+            created_at: Some(payment_data.payment_attempt.created_at),
         })
     }
 }

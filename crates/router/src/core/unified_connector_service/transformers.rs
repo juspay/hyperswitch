@@ -240,6 +240,17 @@ pub(super) fn build_ucs_order_details(
         .unwrap_or_default()
 }
 
+/// proto3 gives a plain `string` no field presence, so a connector with no id to report sends
+/// `""` (and `Some("")` on an `optional string`). Treating that as a real id lets
+/// `PaymentAttemptUpdate::ErrorUpdate` overwrite the stored `connector_transaction_id` with the
+/// empty string, discarding the only handle on the transaction.
+fn response_id(id: Option<&str>) -> router_request_types::ResponseId {
+    match id.filter(|id| !id.is_empty()) {
+        Some(id) => router_request_types::ResponseId::ConnectorTransactionId(id.to_string()),
+        None => router_request_types::ResponseId::NoResponseId,
+    }
+}
+
 fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::L2l3Data> {
     let order_details = l2_l3_data
         .and_then(|data| data.get_order_details())
@@ -677,6 +688,83 @@ fn get_nuvei_previous_leg_feature_data(
             .map(|data| Some(Secret::new(data))),
         _ => Ok(None),
     }
+}
+
+/// `connector_feature_data` key through which the UCS Ilixium integration anchors its
+/// `/history/operations` window. That integration also accepts the `ilixium_`-prefixed spelling;
+/// this generic one is used so the key stays meaningful for any other windowed-report connector.
+const HISTORY_PERIOD_START_KEY: &str = "history_period_start";
+
+/// Connectors whose PSync is a **time-windowed report** rather than a per-payment query, and which
+/// therefore need the attempt's creation time to anchor that window.
+fn is_history_windowed_sync_connector(connector: &str) -> bool {
+    matches!(
+        common_enums::connector_enums::Connector::from_str(connector),
+        Ok(common_enums::connector_enums::Connector::Ilixium)
+    )
+}
+
+/// Builds `connector_feature_data` for a sync, adding the history-window anchor for connectors
+/// that need one.
+///
+/// Ilixium's `POST /history/operations` is the only query its Direct API offers: it is capped at
+/// 24 hours and has no per-payment filter, so a sync that does not say when the payment was
+/// created can only ask for `[now - 24h, now]`. Once a payment is older than that it falls out of
+/// the report entirely and the integration answers `ILIXIUM_NOT_IN_HISTORY_WINDOW` — for every
+/// subsequent sync, forever. Passing the creation time anchors the window at
+/// `[created_at, min(created_at + 24h, now)]`, which always contains the payment's own
+/// operations.
+///
+/// An anchor already present in `connector_metadata` wins, so a caller that tracks its own window
+/// keeps control of it.
+fn add_history_window_anchor(
+    connector: &str,
+    created_at: Option<time::PrimitiveDateTime>,
+    connector_meta: Option<serde_json::Value>,
+) -> Result<Option<serde_json::Value>, error_stack::Report<UnifiedConnectorServiceError>> {
+    if !is_history_windowed_sync_connector(connector) {
+        return Ok(connector_meta);
+    }
+    let Some(created_at) = created_at else {
+        return Ok(connector_meta);
+    };
+
+    let period_start = created_at
+        .assume_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
+        .attach_printable(
+            "Failed to render the attempt creation time as RFC 3339 for the connector history \
+             window",
+        )?;
+
+    let mut feature_data = connector_meta;
+    // A non-object `connector_metadata` has nowhere to put the anchor; leave it exactly as it is
+    // rather than discard whatever the connector stored there.
+    if let Some(object) = feature_data
+        .get_or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()))
+        .as_object_mut()
+    {
+        object
+            .entry(HISTORY_PERIOD_START_KEY)
+            .or_insert_with(|| serde_json::Value::String(period_start));
+    }
+    Ok(feature_data)
+}
+
+fn build_sync_connector_feature_data(
+    router_data: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+) -> Result<Option<Secret<String>>, error_stack::Report<UnifiedConnectorServiceError>> {
+    add_history_window_anchor(
+        &router_data.connector,
+        router_data.request.created_at,
+        router_data.request.connector_meta.clone(),
+    )?
+    .as_ref()
+    .map(serde_json::to_string)
+    .transpose()
+    .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
+    .map(|data| data.map(Secret::new))
 }
 
 impl
@@ -1382,14 +1470,7 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 currency: currency.into(),
             }),
             state,
-            connector_feature_data: router_data
-                .request
-                .connector_meta
-                .as_ref()
-                .map(serde_json::to_string)
-                .transpose()
-                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-                .map(|s| s.into()),
+            connector_feature_data: build_sync_connector_feature_data(router_data)?,
             sync_type: Some(
                 payments_grpc::SyncRequestType::foreign_from(&router_data.request.sync_type).into(),
             ),
@@ -3816,11 +3897,7 @@ impl
             AttemptStatus,
         ),
     ) -> Result<Self, Self::Error> {
-        let connector_transaction_id = response
-            .connector_transaction_id
-            .as_ref()
-            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.clone()))
-            .unwrap_or(router_request_types::ResponseId::NoResponseId);
+        let connector_transaction_id = response_id(response.connector_transaction_id.as_deref());
 
         let redirection_data = response
             .redirection_data
@@ -3944,11 +4021,7 @@ impl
             AttemptStatus,
         ),
     ) -> Result<Self, Self::Error> {
-        let connector_transaction_id = response
-            .connector_transaction_id
-            .as_ref()
-            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.clone()))
-            .unwrap_or(router_request_types::ResponseId::NoResponseId);
+        let connector_transaction_id = response_id(response.connector_transaction_id.as_deref());
 
         let (mut connector_metadata, redirection_data) = match response.redirection_data.clone() {
             Some(redirection_data) => match redirection_data.form_type {
@@ -4133,15 +4206,8 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
-        // proto3 `string` has no presence: "" means UCS sent no id. Never let it
-        // overwrite the stored connector_transaction_id (ErrorUpdate writes Some("")).
-        let connector_transaction_id = if response.connector_transaction_id.is_empty() {
-            router_request_types::ResponseId::NoResponseId
-        } else {
-            router_request_types::ResponseId::ConnectorTransactionId(
-                response.connector_transaction_id.clone(),
-            )
-        };
+        let connector_transaction_id =
+            response_id(Some(response.connector_transaction_id.as_str()));
 
         // Extract connector_metadata from response if present
         let connector_metadata = response.connector_feature_data.clone().and_then(|secret| {
@@ -4320,11 +4386,8 @@ impl
             AttemptStatus,
         ),
     ) -> Result<Self, Self::Error> {
-        let connector_transaction_id = response
-            .connector_recurring_payment_id
-            .as_ref()
-            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.clone()))
-            .unwrap_or(router_request_types::ResponseId::NoResponseId);
+        let connector_transaction_id =
+            response_id(response.connector_recurring_payment_id.as_deref());
 
         let connector_response_reference_id =
             Some(response.merchant_recurring_payment_id.clone()).filter(|id| !id.is_empty());
@@ -4458,11 +4521,7 @@ impl
             AttemptStatus,
         ),
     ) -> Result<Self, Self::Error> {
-        let connector_transaction_id = response
-            .connector_transaction_id
-            .as_ref()
-            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.clone()))
-            .unwrap_or(router_request_types::ResponseId::NoResponseId);
+        let connector_transaction_id = response_id(response.connector_transaction_id.as_deref());
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -6672,11 +6731,7 @@ impl
             AttemptStatus,
         ),
     ) -> Result<Self, Self::Error> {
-        let connector_transaction_id = response
-            .connector_transaction_id
-            .as_ref()
-            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.clone()))
-            .unwrap_or(router_request_types::ResponseId::NoResponseId);
+        let connector_transaction_id = response_id(response.connector_transaction_id.as_deref());
 
         let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
             Some(redirection_data) => match redirection_data.form_type {
@@ -7942,11 +7997,7 @@ impl
             .transpose()?
             .map(Box::new);
 
-        let connector_transaction_id = response
-            .connector_transaction_id
-            .as_ref()
-            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.clone()))
-            .unwrap_or(router_request_types::ResponseId::NoResponseId);
+        let connector_transaction_id = response_id(response.connector_transaction_id.as_deref());
 
         // Connector feature data (e.g. a handle token minted by the authenticate leg) must
         // survive this conversion even when no redirect is returned, so it is parsed
@@ -8928,13 +8979,8 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
     fn foreign_try_from(
         (response, prev_status): (payments_grpc::PaymentServiceVoidResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
-        let connector_transaction_id = if response.connector_transaction_id.is_empty() {
-            router_request_types::ResponseId::NoResponseId
-        } else {
-            router_request_types::ResponseId::ConnectorTransactionId(
-                response.connector_transaction_id.clone(),
-            )
-        };
+        let connector_transaction_id =
+            response_id(Some(response.connector_transaction_id.as_str()));
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -11327,5 +11373,138 @@ impl
                 .map(ConnectorState::foreign_from),
             ..Default::default()
         })
+    }
+}
+
+#[cfg(test)]
+mod response_id_tests {
+    use super::{response_id, router_request_types};
+
+    /// A connector that reports no id — absent or the empty string proto3 sends in its place —
+    /// must never produce a `ConnectorTransactionId`.
+    #[test]
+    fn empty_and_absent_ids_are_both_no_response_id() {
+        assert!(matches!(
+            response_id(None),
+            router_request_types::ResponseId::NoResponseId
+        ));
+        assert!(matches!(
+            response_id(Some("")),
+            router_request_types::ResponseId::NoResponseId
+        ));
+    }
+
+    /// A real id survives unchanged.
+    #[test]
+    fn a_real_id_is_preserved() {
+        assert!(matches!(
+            response_id(Some("ch_123")),
+            router_request_types::ResponseId::ConnectorTransactionId(ref id) if id == "ch_123"
+        ));
+    }
+}
+
+#[cfg(test)]
+mod history_window_anchor_tests {
+    use super::*;
+
+    /// 2026-10-21T15:43:27Z — the creation time of a real payment that later went unsyncable.
+    fn created_at() -> time::PrimitiveDateTime {
+        time::PrimitiveDateTime::new(
+            time::Date::from_calendar_date(2026, time::Month::October, 21)
+                .expect("valid calendar date"),
+            time::Time::from_hms(15, 43, 27).expect("valid time"),
+        )
+    }
+
+    #[test]
+    fn anchors_the_window_for_a_windowed_report_connector() {
+        let anchored = add_history_window_anchor("ilixium", Some(created_at()), None)
+            .expect("anchoring should not fail")
+            .expect("an anchor should have been added");
+
+        assert_eq!(
+            anchored
+                .get(HISTORY_PERIOD_START_KEY)
+                .and_then(|value| value.as_str()),
+            Some("2026-10-21T15:43:27Z"),
+            "the anchor must be an RFC 3339 instant with a literal Z and no fractional seconds"
+        );
+    }
+
+    #[test]
+    fn keeps_existing_connector_metadata_alongside_the_anchor() {
+        let existing = serde_json::json!({ "some_connector_state": "keep me" });
+
+        let anchored = add_history_window_anchor("ilixium", Some(created_at()), Some(existing))
+            .expect("anchoring should not fail")
+            .expect("metadata should still be present");
+
+        assert_eq!(
+            anchored
+                .get("some_connector_state")
+                .and_then(|value| value.as_str()),
+            Some("keep me"),
+            "anchoring must not drop state the connector already stored"
+        );
+        assert!(anchored.get(HISTORY_PERIOD_START_KEY).is_some());
+    }
+
+    #[test]
+    fn an_explicit_anchor_wins_over_the_creation_time() {
+        let caller_anchored =
+            serde_json::json!({ HISTORY_PERIOD_START_KEY: "2026-10-22T00:00:00Z" });
+
+        let anchored =
+            add_history_window_anchor("ilixium", Some(created_at()), Some(caller_anchored))
+                .expect("anchoring should not fail")
+                .expect("metadata should still be present");
+
+        assert_eq!(
+            anchored
+                .get(HISTORY_PERIOD_START_KEY)
+                .and_then(|value| value.as_str()),
+            Some("2026-10-22T00:00:00Z"),
+            "a caller that tracks its own window must keep control of it"
+        );
+    }
+
+    #[test]
+    fn leaves_other_connectors_untouched() {
+        assert_eq!(
+            add_history_window_anchor("stripe", Some(created_at()), None)
+                .expect("anchoring should not fail"),
+            None,
+            "only connectors whose sync is a time-windowed report get an anchor"
+        );
+
+        let existing = serde_json::json!({ "stripe_state": 1 });
+        assert_eq!(
+            add_history_window_anchor("stripe", Some(created_at()), Some(existing.clone()))
+                .expect("anchoring should not fail"),
+            Some(existing),
+            "other connectors' feature data must pass through byte for byte"
+        );
+    }
+
+    #[test]
+    fn a_non_object_metadata_is_passed_through_unchanged() {
+        let scalar = serde_json::json!("an opaque connector token");
+
+        assert_eq!(
+            add_history_window_anchor("ilixium", Some(created_at()), Some(scalar.clone()))
+                .expect("anchoring should not fail"),
+            Some(scalar),
+            "there is nowhere to put the anchor, and discarding the value would lose state"
+        );
+    }
+
+    #[test]
+    fn without_a_creation_time_nothing_is_added() {
+        assert_eq!(
+            add_history_window_anchor("ilixium", None, None).expect("anchoring should not fail"),
+            None,
+            "the connector then falls back to its own [now - 24h, now] default"
+        );
     }
 }

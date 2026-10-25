@@ -1092,6 +1092,15 @@ pub struct PaymentsSyncData {
     /// Whether overcapture was applied for this payment by the connector. Used to avoid treating
     /// a legitimate overcapture as an integrity mismatch on sync.
     pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
+    /// When the attempt was created.
+    ///
+    /// Connectors whose only sync surface is a *time-windowed report* need this to anchor the
+    /// window on the payment instead of on "now". Ilixium's `POST /history/operations` is such a
+    /// surface: it is capped at 24 hours and offers no per-payment query, so a sync that cannot
+    /// say when the payment was created can only ask for `[now - 24h, now]` — and a payment older
+    /// than that is simply absent from the report, leaving its status unreadable for the rest of
+    /// its life.
+    pub created_at: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]

@@ -677,6 +677,9 @@ pub async fn construct_relay_payments_retrieve_router_data(
             connector_mandate_id: None,
             enable_partial_authorization: None,
             is_overcapture_enabled: None,
+            // A relay has no payment attempt of its own (note the irrelevant intent/attempt ids
+            // above), so there is no creation time to anchor a connector history window on.
+            created_at: None,
         },
 
         response: Err(ErrorResponse::default()),
