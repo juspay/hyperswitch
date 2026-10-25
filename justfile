@@ -222,6 +222,9 @@ delete_dir_if_exists dir=resultant_dir:
     @rm -rf {{ dir }}
 
 v1_config_file_dir := source_directory() / 'diesel.toml'
+# Diesel configuration without `[print_schema]`, for setup containers that should only apply
+# migrations and must not regenerate `schema.rs` (they do not have `rustfmt` installed).
+v1_migration_config_file_dir := source_directory() / 'diesel_migration.toml'
 default_operation := 'run'
 
 [private]
@@ -235,6 +238,10 @@ run_migration operation=default_operation migration_dir=v1_migration_dir config_
 
 # Run database migrations for v1
 migrate operation=default_operation *args='': (run_migration operation v1_migration_dir v1_config_file_dir database_url args)
+
+# Run database migrations for v1 without regenerating `schema.rs`
+# Used by the `migration_runner` setup containers, which do not have `rustfmt` installed
+migrate_setup operation=default_operation *args='': (run_migration operation v1_migration_dir v1_migration_config_file_dir database_url args)
 
 v2_config_file_dir := source_directory() / 'diesel_v2.toml'
 

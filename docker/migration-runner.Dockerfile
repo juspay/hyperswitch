@@ -26,9 +26,9 @@ WORKDIR /hyperswitch
 
 # Copy migration files and diesel config from the workspace
 COPY --chown=app:app ./migrations/ ./migrations/
-COPY --chown=app:app ./diesel.toml ./diesel.toml
-COPY --chown=app:app ./crates/diesel_models/src/schema.rs ./crates/diesel_models/src/schema.rs
-COPY --chown=app:app ./crates/diesel_models/drop_id.patch ./crates/diesel_models/drop_id.patch
+# This runner only applies migrations, so it uses the config without `[print_schema]`: the image
+# does not have `rustfmt`, which `print-schema` needs to regenerate `schema.rs`.
+COPY --chown=app:app ./diesel_migration.toml ./diesel_migration.toml
 
 # Copy the migration runner script
 COPY --chown=app:app ./scripts/migration_runner_entrypoint.sh ./migration_runner_entrypoint.sh
