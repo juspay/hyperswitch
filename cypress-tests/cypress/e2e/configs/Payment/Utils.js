@@ -718,6 +718,7 @@ export const CONNECTOR_LISTS = {
     DANA_WALLET_MANDATE: ["adyen"],
     GOPAY_WALLET_MANDATE: ["adyen"],
     CARD_INSTALLMENTS: ["adyen"],
+    REVENUE_RECOVERY: ["stripe"],
     BILLING_DESCRIPTOR: [
       "adyen",
       "checkout",
