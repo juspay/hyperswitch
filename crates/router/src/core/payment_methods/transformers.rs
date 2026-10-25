@@ -695,15 +695,18 @@ pub fn generate_payment_method_response(
     raw_payment_method_data: Option<api_models::payment_methods::RawPaymentMethodData>,
     billing: Option<api::Address>,
     acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+    card_info: Option<api_models::payment_methods::CardInfoDetails>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
         .clone()
         .map(|data| data.into_inner())
         .and_then(|data| match data {
-            payment_method_data::PaymentMethodsData::Card(card) => Some(
-                api::PaymentMethodResponseData::Card(Box::new(card.to_card_details_from_locker())),
-            ),
+            payment_method_data::PaymentMethodsData::Card(card) => {
+                Some(api::PaymentMethodResponseData::Card(Box::new(
+                    card.to_card_details_from_locker(card_info),
+                )))
+            }
             payment_method_data::PaymentMethodsData::BankDebit(bank_debit) => {
                 Some(api::PaymentMethodResponseData::BankDebit(bank_debit.into()))
             }
@@ -929,6 +932,7 @@ pub fn get_card_detail(
         card_segment_type: None,
         funding_source: None,
         saved_to_locker: true,
+        card_info: None,
     };
     Ok(card_detail)
 }
@@ -1017,7 +1021,8 @@ impl
             .map(|payment_method_data| payment_method_data.into_inner())
             .and_then(|payment_method_data| match payment_method_data {
                 payment_method_data::PaymentMethodsData::Card(card_details_payment_method) => {
-                    let card_details = card_details_payment_method.to_card_details_from_locker();
+                    let card_details =
+                        card_details_payment_method.to_card_details_from_locker(None);
                     Some(api_models::payment_methods::PaymentMethodListData::Card(
                         card_details,
                     ))
@@ -1128,7 +1133,8 @@ impl
             .map(|payment_method_data| payment_method_data.into_inner())
             .and_then(|payment_method_data| match payment_method_data {
                 payment_method_data::PaymentMethodsData::Card(card_details_payment_method) => {
-                    let card_details = card_details_payment_method.to_card_details_from_locker();
+                    let card_details =
+                        card_details_payment_method.to_card_details_from_locker(None);
                     Some(api_models::payment_methods::PaymentMethodListData::Card(
                         card_details,
                     ))

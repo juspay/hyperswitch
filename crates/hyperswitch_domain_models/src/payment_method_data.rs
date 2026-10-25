@@ -4470,7 +4470,10 @@ impl TryFrom<CardNumberWithStoredDetails> for payment_methods::CardDetail {
 
 #[cfg(feature = "v2")]
 impl CardDetailsPaymentMethod {
-    pub fn to_card_details_from_locker(self) -> payment_methods::CardDetailFromLocker {
+    pub fn to_card_details_from_locker(
+        self,
+        card_info: Option<payment_methods::CardInfoDetails>,
+    ) -> payment_methods::CardDetailFromLocker {
         payment_methods::CardDetailFromLocker {
             card_number: None,
             card_holder_name: self.card_holder_name.clone(),
@@ -4488,6 +4491,7 @@ impl CardDetailsPaymentMethod {
             nick_name: self.nick_name,
             card_isin: self.card_isin,
             saved_to_locker: self.saved_to_locker,
+            card_info,
         }
     }
 
