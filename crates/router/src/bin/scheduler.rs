@@ -378,6 +378,21 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::PaymentMethodModularBackwardCompatWorkflow => Ok(Box::new(
                     workflows::payment_method_modular_backward_compat::PaymentMethodModularBackwardCompatWorkflow,
                 )),
+                storage::ProcessTrackerRunner::PaymentMethodFingerprintCleanupWorkflow => {
+                    #[cfg(feature = "v1")]
+                    {
+                        Ok(Box::new(
+                            workflows::payment_method_fingerprint_cleanup::PaymentMethodFingerprintCleanupWorkflow,
+                        ))
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run payment method fingerprint cleanup when v1 feature is disabled",
+                            )
+                    }
+                }
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow => {
                     Ok(Box::new(workflows::revenue_recovery::ExecutePcrWorkflow))
                 }

@@ -8,7 +8,9 @@ use ::payment_methods::{
     core::{migration, migration::payment_methods::migrate_payment_method},
 };
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
-use actix_multipart::form::MultipartForm;
+use actix_multipart::form::{
+    bytes::Bytes as MultipartBytes, text::Text as MultipartText, MultipartForm,
+};
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{errors::CustomResult, id_type, transformers::ForeignFrom};
 use diesel_models::enums::IntentStatus;
@@ -30,7 +32,7 @@ use crate::core::utils::validate_legacy_endpoint_access;
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use crate::core::{
     customers,
-    payment_methods::{batch_retrieve, tokenize},
+    payment_methods::{batch_retrieve, fingerprint_cleanup, tokenize},
 };
 use crate::{
     core::{
@@ -689,6 +691,115 @@ pub async fn payment_methods_batch_retrieve_api(
 
                 Ok(services::ApplicationResponse::Json(responses))
             }
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+#[derive(Debug, MultipartForm)]
+pub struct PaymentMethodFingerprintCleanupForm {
+    #[multipart(limit = "1MB")]
+    pub file: MultipartBytes,
+    pub deletion_type: MultipartText<api_models::payment_methods::PaymentMethodDeletionType>,
+}
+
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+#[utoipa::path(
+    post,
+    path = "/payment_methods/locker-fingerprint/batch",
+    request_body(
+        content = String,
+        content_type = "multipart/form-data",
+        description = "A multipart form with a `file` field containing a UTF-8 CSV whose only header is `payment_method_id`, plus `deletion_type` set to `locker_fingerprint_id` or `locker_id`. Maximum 10,000 rows."
+    ),
+    responses(
+        (status = 200, description = "Cleanup job initiated", body = api_models::payment_methods::PaymentMethodFingerprintCleanupResponse),
+        (status = 400, description = "Invalid CSV"),
+    ),
+    tag = "Payment Methods",
+    security(("admin_api_key" = []))
+)]
+pub async fn initiate_payment_method_fingerprint_cleanup(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<PaymentMethodFingerprintCleanupForm>,
+) -> HttpResponse {
+    let csv_bytes = form.file.data.to_vec();
+    let deletion_type = form.deletion_type.0;
+    Box::pin(api::server_wrap(
+        Flow::PaymentMethodFingerprintCleanup,
+        state,
+        &req,
+        (),
+        |state, _, _, _| {
+            let csv_bytes = csv_bytes.clone();
+            async move { fingerprint_cleanup::initiate(&state, &csv_bytes, deletion_type).await }
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+#[utoipa::path(
+    get,
+    path = "/payment_methods/locker-fingerprint/batch/{job_id}",
+    params(("job_id" = String, Path, description = "Job ID returned by the initiation endpoint")),
+    responses(
+        (status = 200, description = "Current cleanup progress", body = api_models::payment_methods::PaymentMethodFingerprintCleanupStatusResponse),
+        (status = 404, description = "Job not found"),
+    ),
+    tag = "Payment Methods",
+    security(("admin_api_key" = []))
+)]
+pub async fn get_payment_method_fingerprint_cleanup_status(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let job_id = path.into_inner();
+    Box::pin(api::server_wrap(
+        Flow::PaymentMethodFingerprintCleanupStatus,
+        state,
+        &req,
+        job_id,
+        |state, _, job_id, _| async move { fingerprint_cleanup::status(&state, &job_id).await },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+#[utoipa::path(
+    get,
+    path = "/payment_methods/locker-fingerprint/batch/{job_id}/failures",
+    params(("job_id" = String, Path, description = "Job ID returned by the initiation endpoint")),
+    responses(
+        (status = 200, description = "CSV containing payment_method_id and failure_reason", content_type = "text/csv"),
+        (status = 412, description = "Job has not completed"),
+        (status = 404, description = "Job not found"),
+    ),
+    tag = "Payment Methods",
+    security(("admin_api_key" = []))
+)]
+pub async fn download_payment_method_fingerprint_cleanup_failures(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let job_id = path.into_inner();
+    Box::pin(api::server_wrap(
+        Flow::PaymentMethodFingerprintCleanupFailures,
+        state,
+        &req,
+        job_id,
+        |state, _, job_id, _| async move {
+            fingerprint_cleanup::failed_rows_csv(&state, &job_id).await
         },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,

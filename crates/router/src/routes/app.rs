@@ -1851,6 +1851,19 @@ impl PaymentMethods {
                     web::resource("/fingerprint/migrate-batch")
                         .route(web::post().to(payment_methods::modular_migrate_payment_methods)),
                 )
+                .service(web::resource("/locker-fingerprint/batch").route(
+                    web::post().to(payment_methods::initiate_payment_method_fingerprint_cleanup),
+                ))
+                .service(web::resource("/locker-fingerprint/batch/{job_id}").route(
+                    web::get().to(payment_methods::get_payment_method_fingerprint_cleanup_status),
+                ))
+                .service(
+                    web::resource("/locker-fingerprint/batch/{job_id}/failures").route(
+                        web::get().to(
+                            payment_methods::download_payment_method_fingerprint_cleanup_failures,
+                        ),
+                    ),
+                )
                 .service(
                     web::resource("/tokenize-card")
                         .route(web::post().to(payment_methods::tokenize_card_api)),

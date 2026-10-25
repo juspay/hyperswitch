@@ -11886,6 +11886,7 @@ pub enum ProcessTrackerRunner {
     BlocklistExportWorkflow,
     BlocklistProfileCloneWorkflow,
     AnalyticsReportWorkflow,
+    PaymentMethodFingerprintCleanupWorkflow,
 }
 
 #[derive(
