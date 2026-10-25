@@ -169,6 +169,7 @@ impl From<PayoutOutcome> for enums::PayoutStatus {
             PayoutOutcome::RequestReceived => Self::Initiated,
             PayoutOutcome::Error | PayoutOutcome::Refused => Self::Failed,
             PayoutOutcome::QueryRequired => Self::Pending,
+            PayoutOutcome::Unknown => Self::Pending,
         }
     }
 }
@@ -180,9 +181,19 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, WorldpayPayoutResponse>>
     fn try_from(
         item: PayoutsResponseRouterData<PoFulfill, WorldpayPayoutResponse>,
     ) -> Result<Self, Self::Error> {
+        let status = match item.response.outcome {
+            PayoutOutcome::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown PayoutOutcome from Worldpay, preserving existing status: {:?}",
+                    item.data.status
+                );
+                item.data.status
+            }
+            _ => enums::PayoutStatus::from(item.response.outcome.clone()),
+        };
         Ok(Self {
             response: Ok(PayoutsResponseData {
-                status: Some(enums::PayoutStatus::from(item.response.outcome.clone())),
+                status: Some(status),
                 connector_payout_id: None,
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
