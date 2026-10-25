@@ -15,7 +15,7 @@ use crate::{
 };
 
 const BATCH_SIZE: usize = 50;
-const BATCH_DELAY: Duration = Duration::from_secs(1);
+const BATCH_DELAY: Duration = Duration::from_secs(5);
 const FINGERPRINT_NOT_ELIGIBLE_REASON: &str =
     "payment method was not found or is not an Apple Pay or Google Pay payment method with no locker ID";
 const PAYMENT_METHOD_NOT_FOUND_REASON: &str = "payment method was not found";
