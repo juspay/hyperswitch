@@ -238,7 +238,7 @@ where
             .switch()
         })?;
     session_state.add_request_id(request_id.clone());
-    session_state.start_read_ledger();
+    session_state.start_read_ledger(flow.to_string());
     let mut request_state = session_state.get_req_state();
 
     request_state.event_context.record_info(request_id.clone());
@@ -283,8 +283,6 @@ where
             .switch()?;
         res
     };
-    // The session is over: say once what it read more than once.
-    session_state.flush_read_ledger();
     let request_duration = Instant::now()
         .saturating_duration_since(start_instant)
         .as_millis();

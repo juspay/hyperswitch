@@ -28,7 +28,6 @@ deja = ["dep:deja"]
 
 [dependencies]
 async-trait = { version = "0.1.92", optional = true }
-backtrace = "0.3.76"
 base64 = "0.22.1"
 base64-serde = "0.8.0"
 blake3 = { version = "1.8.2", features = ["serde"] }

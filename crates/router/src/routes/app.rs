@@ -242,8 +242,7 @@ pub trait SessionStateInfo {
     fn event_handler(&self) -> EventsHandler;
     fn get_request_id(&self) -> Option<String>;
     fn add_request_id(&mut self, request_id: RequestId);
-    fn start_read_ledger(&mut self);
-    fn flush_read_ledger(&self);
+    fn start_read_ledger(&mut self, flow: String);
     #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
@@ -252,52 +251,19 @@ pub trait SessionStateInfo {
 }
 
 impl SessionStateInfo for SessionState {
-    /// Begin tracking which records this session reads. One ledger shared by
-    /// every store it holds, so a record read through two of them is one
-    /// record. Called once where the session begins; background work
+    /// Begin tracking which records this session reads. Store-labelled ledgers
+    /// share one set, so a record read through two stores is one record.
+    /// Called once where the session begins; background work
     /// (scheduler, drainer) is not a session and starts none.
-    fn start_read_ledger(&mut self) {
-        let read_ledger = Arc::new(common_utils::read_ledger::ReadLedger::new());
-        self.store.attach_read_ledger(Arc::clone(&read_ledger));
+    fn start_read_ledger(&mut self, flow: String) {
+        use common_utils::read_ledger::{ReadLedger, ReadStore};
+
+        let read_ledger = Arc::new(ReadLedger::new(flow));
         self.accounts_store
-            .attach_read_ledger(Arc::clone(&read_ledger));
-        self.global_store.attach_read_ledger(read_ledger);
-    }
-
-    /// Report what this session read more than once as one line, and forget it.
-    /// Silent when it read nothing twice, so a line always means something to
-    /// fix. Called where the session ends, while its span is still current: the
-    /// line is only useful attached to its `request_id` and flow.
-    fn flush_read_ledger(&self) {
-        let Some(read_ledger) = self.store.get_read_ledger() else {
-            return;
-        };
-        let read_ledger = Arc::clone(read_ledger);
-        let span = router_env::tracing::Span::current();
-        let report = move || {
-            span.in_scope(|| {
-                let duplicates = read_ledger.take_duplicates();
-                if duplicates.is_empty() {
-                    return;
-                }
-
-                let total: usize = duplicates.iter().map(|duplicate| duplicate.repeats).sum();
-                let detail = serde_json::to_string(&duplicates)
-                    .unwrap_or_else(|_| format!("{duplicates:?}"));
-                router_env::logger::warn!(
-                    duplicate_reads = total,
-                    records = duplicates.len(),
-                    duplicates = %detail,
-                    "records read more than once in this API session",
-                );
-            })
-        };
-        // Debug origins require symbol lookup, which must not block the async
-        // worker or extend the request's database/cache timeout.
-        #[cfg(debug_assertions)]
-        tokio::task::spawn_blocking(report);
-        #[cfg(not(debug_assertions))]
-        report();
+            .attach_read_ledger(Arc::new(read_ledger.for_store(ReadStore::Accounts)));
+        self.global_store
+            .attach_read_ledger(Arc::new(read_ledger.for_store(ReadStore::Global)));
+        self.store.attach_read_ledger(read_ledger);
     }
 
     fn store(&self) -> Box<dyn StorageInterface> {

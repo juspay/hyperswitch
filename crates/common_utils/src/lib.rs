@@ -33,8 +33,6 @@ pub mod outbound_url;
 pub mod payout_method_utils;
 pub mod pii;
 pub mod read_ledger;
-#[cfg(debug_assertions)]
-pub mod read_origin;
 #[allow(missing_docs)] // Todo: add docs
 pub mod request;
 pub mod request_context;
