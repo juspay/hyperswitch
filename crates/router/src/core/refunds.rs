@@ -1747,20 +1747,13 @@ pub async fn validate_and_create_refund(
     let payment_feature_metadata = payment_intent
         .get_optional_feature_metadata()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let refund_settlement =
+    let refund_feature_metadata =
         multi_currency_processing::validate_multi_currency_processing_refund_settlement(
             &connector,
             payment_feature_metadata.as_ref(),
-            req.feature_metadata.as_ref(),
+            req.feature_metadata,
             &all_refunds,
         )?;
-    let refund_feature_metadata = refund_settlement
-        .map(
-            |multi_currency_processing| api_models::refunds::RefundFeatureMetadata {
-                multi_currency_processing: Some(multi_currency_processing),
-            },
-        )
-        .or(req.feature_metadata);
     let refund_create_req = diesel_refund::RefundNew {
         refund_id: refund_id.to_string(),
         internal_reference_id: utils::generate_id(consts::ID_LENGTH, "refid"),

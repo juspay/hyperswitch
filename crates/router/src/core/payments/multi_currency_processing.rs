@@ -2,8 +2,6 @@
 
 use diesel_models::enums;
 use error_stack::report;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::payments::PaymentIntent;
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_env::logger;
 
@@ -44,56 +42,29 @@ pub fn validate_merchant_only_mcp_fields(
     Ok(())
 }
 
-#[cfg(feature = "v1")]
-pub fn validate_and_update_settlement_conclusion(
-    auth_flow: services::AuthFlow,
-    request: &api::PaymentsRequest,
-    payment_intent: &mut PaymentIntent,
-    operation: &'static str,
-) -> Result<(), errors::ApiErrorResponse> {
-    match (auth_flow, request.settlement_conclusion_applied) {
-        (services::AuthFlow::Client, Some(_)) => {
-            logger::error!(
-                error_status_code = 400,
-                error_status_class = "4xx",
-                error_category = "invalid_integration",
-                operation,
-                "Invalid integration: settlement_conclusion_applied supplied with client authentication"
-            );
-            metrics::CLIENT_SETTLEMENT_CONCLUSION_UPDATE_REJECTED
-                .add(1, router_env::metric_attributes!(("operation", operation)));
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message:
-                    "settlement_conclusion_applied can only be updated with merchant authentication"
-                        .to_string(),
-            })
-        }
-        (services::AuthFlow::Merchant, Some(settlement_conclusion_applied)) => {
-            payment_intent.settlement_conclusion_applied = Some(settlement_conclusion_applied);
-            Ok(())
-        }
-        (services::AuthFlow::Client | services::AuthFlow::Merchant, None) => Ok(()),
-    }
-}
-
 pub(crate) fn is_mcp_supported(connector: &str) -> RouterResult<bool> {
     Ok(api::ConnectorData::convert_connector(connector)?.is_multi_currency_processing_supported())
 }
 
-/// Require and validate explicit MCP data for every capture or refund of an MCP payment.
-pub(crate) fn resolve_operation_multi_currency_processing(
+/// Resolve operation MCP at dispatch boundaries, including automatic captures and refund retries.
+pub(crate) fn resolve_operation_multi_currency_processing<'a>(
     connector: &str,
     payment_feature_metadata: Option<&api_models::payments::FeatureMetadata>,
-    requested_operation_mcp: Option<&api_models::payments::MultiCurrencyProcessingAmountData>,
-) -> RouterResult<Option<api_models::payments::MultiCurrencyProcessingAmountData>> {
+    requested_operation_mcp: Option<&'a api_models::payments::MultiCurrencyProcessingAmountData>,
+) -> RouterResult<Option<&'a api_models::payments::MultiCurrencyProcessingAmountData>> {
     let payment_mcp =
         payment_feature_metadata.and_then(|metadata| metadata.multi_currency_processing.as_ref());
+    resolve_operation_mcp(connector, payment_mcp, requested_operation_mcp)
+}
 
-    match (
-        is_mcp_supported(connector)?,
-        payment_mcp,
-        requested_operation_mcp,
-    ) {
+/// Require and validate explicit MCP data for every capture or refund of an MCP payment.
+fn resolve_operation_mcp<'a>(
+    connector: &str,
+    payment_mcp: Option<&api_models::payments::MultiCurrencyProcessingData>,
+    requested_operation_mcp: Option<&'a api_models::payments::MultiCurrencyProcessingAmountData>,
+) -> RouterResult<Option<&'a api_models::payments::MultiCurrencyProcessingAmountData>> {
+    let supported = is_mcp_supported(connector)?;
+    match (supported, payment_mcp, requested_operation_mcp) {
         (false, _, _) | (true, None, None) => Ok(None),
         (true, None, Some(_)) => {
             Err(report!(errors::ApiErrorResponse::InvalidRequestData {
@@ -107,104 +78,91 @@ pub(crate) fn resolve_operation_multi_currency_processing(
             }))
         }
         (true, Some(payment_mcp), Some(requested_operation_mcp)) => {
-            let payment_mcp_currency = payment_mcp.currency;
-            let operation_mcp_currency = requested_operation_mcp.currency;
-
-            if operation_mcp_currency != payment_mcp_currency {
-                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "multi-currency processing settlement currency must match the payment's settlement currency"
-                        .to_string(),
-                }))
-            } else if requested_operation_mcp.amount.get_amount_as_i64() <= 0
-                || requested_operation_mcp.amount > payment_mcp.amount
-            {
-                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "multi-currency processing settlement amount must be positive and must not exceed the authorized settlement amount".to_string(),
-                }))
-            } else {
-                Ok(Some(requested_operation_mcp.clone()))
-            }
+            validate_operation_settlement(payment_mcp, requested_operation_mcp)?;
+            Ok(Some(requested_operation_mcp))
         }
     }
 }
 
-/// Read and validate MCP data from a previous capture's stored feature metadata.
-/// The caller includes successful and pending captures before calling this helper.
-fn get_previous_capture(
-    capture: &diesel_models::capture::Capture,
-    payment_mcp_currency: enums::Currency,
-) -> RouterResult<api_models::payments::MultiCurrencyProcessingAmountData> {
-    let previous_capture_mcp = capture
-        .feature_metadata
-        .as_ref()
-        .and_then(|metadata| metadata.multi_currency_processing.clone())
-        .ok_or_else(|| {
-            logger::error!("Missing MCP feature metadata for a previous capture");
-            report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                "Missing multi-currency processing feature metadata for a previous capture",
-            )
-        })?;
-
-    if previous_capture_mcp.currency != payment_mcp_currency
-        || previous_capture_mcp.amount.get_amount_as_i64() <= 0
+fn validate_operation_settlement(
+    payment_mcp: &api_models::payments::MultiCurrencyProcessingData,
+    operation_mcp: &api_models::payments::MultiCurrencyProcessingAmountData,
+) -> RouterResult<()> {
+    if operation_mcp.currency != payment_mcp.currency {
+        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "multi-currency processing settlement currency must match the payment's settlement currency"
+                .to_string(),
+        }))
+    } else if operation_mcp.amount.get_amount_as_i64() <= 0
+        || operation_mcp.amount > payment_mcp.amount
     {
-        logger::error!("Invalid MCP currency or amount in a previous capture's feature metadata");
-        Err(
-            report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                "Invalid multi-currency processing feature metadata for a previous capture",
-            ),
-        )
+        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "multi-currency processing settlement amount must be positive and must not exceed the authorized settlement amount".to_string(),
+        }))
     } else {
-        Ok(previous_capture_mcp)
+        Ok(())
     }
 }
 
-/// Read and resolve MCP data from a previous refund's stored feature metadata.
-/// The caller excludes failed refunds before calling this helper.
-fn get_previous_mcp(
-    connector: &str,
-    payment_feature_metadata: Option<&api_models::payments::FeatureMetadata>,
-    refund: &diesel_models::refund::Refund,
-) -> RouterResult<api_models::payments::MultiCurrencyProcessingAmountData> {
-    resolve_operation_multi_currency_processing(
-        connector,
-        payment_feature_metadata,
-        refund
-            .feature_metadata
-            .as_ref()
-            .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
-    )?
-    .ok_or_else(|| {
-        logger::error!(connector, "No MCP data resolved for a previous refund");
-        report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("No MCP data resolved for a previous refund")
+/// Reject missing or invalid settlement legs with an MCP validation error.
+fn validate_stored_settlement(
+    stored: Option<&api_models::payments::MultiCurrencyProcessingAmountData>,
+    currency: enums::Currency,
+) -> RouterResult<&api_models::payments::MultiCurrencyProcessingAmountData> {
+    let stored = stored.ok_or_else(|| {
+        report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Missing multi-currency processing metadata on a reserved operation"
+                .to_string(),
+        })
+    })?;
+    if stored.currency != currency || stored.amount.get_amount_as_i64() <= 0 {
+        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid multi-currency processing currency or amount on a reserved operation"
+                .to_string(),
+        }))
+    } else {
+        Ok(stored)
+    }
+}
+
+/// Status selection and the settlement ceiling belong to each operation's policy.
+fn remaining_settlement_balance<'a>(
+    ceiling: common_utils::types::MinorUnit,
+    currency: enums::Currency,
+    mut reservations: impl Iterator<
+        Item = Option<&'a api_models::payments::MultiCurrencyProcessingAmountData>,
+    >,
+) -> RouterResult<i64> {
+    reservations.try_fold(ceiling.get_amount_as_i64(), |remaining, stored| {
+        let reserved = validate_stored_settlement(stored, currency)?;
+        remaining.checked_sub(reserved.amount.get_amount_as_i64())
+            .filter(|balance| *balance >= 0)
+            .ok_or_else(|| {
+                report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Stored multi-currency processing reservations exceed the settlement ceiling or overflow its balance".to_string(),
+                })
+            })
     })
 }
 
-/// Validate capture MCP currency and cumulative amounts before inserting the current capture.
+/// Validate capture settlement and history, then construct its persistence metadata.
 pub(crate) fn validate_multi_currency_processing_capture_settlement(
     connector: &str,
     payment_feature_metadata: Option<&api_models::payments::FeatureMetadata>,
-    current_capture_mcp: Option<&api_models::payments::MultiCurrencyProcessingAmountData>,
+    requested_metadata: Option<&api_models::payments::CaptureFeatureMetadata>,
     previous_captures: &[diesel_models::capture::Capture],
-) -> RouterResult<()> {
+) -> RouterResult<Option<api_models::payments::CaptureFeatureMetadata>> {
     let payment_mcp =
         payment_feature_metadata.and_then(|metadata| metadata.multi_currency_processing.as_ref());
-
-    match (
-        is_mcp_supported(connector)?,
-        payment_mcp,
-        current_capture_mcp,
-    ) {
-        (false, _, _) | (true, None, _) => Ok(()),
-        (true, Some(_), None) => {
-            logger::error!("Missing resolved MCP data for the current capture");
-            Err(report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Missing resolved multi-currency processing for capture"))
-        }
-        (true, Some(payment_mcp), Some(current_capture_mcp)) => {
+    let requested_mcp =
+        requested_metadata.and_then(|metadata| metadata.multi_currency_processing.as_ref());
+    let settlement = resolve_operation_mcp(connector, payment_mcp, requested_mcp)?;
+    // No resolved operation MCP means the resolver found no active MCP processing.
+    match (payment_mcp, settlement) {
+        (_, None) | (None, _) => Ok(()),
+        (Some(payment_mcp), Some(current_capture_mcp)) => {
             // For the first capture, empty history leaves the full payment MCP amount available.
-            let remaining_mcp_amount = previous_captures
+            let reservations = previous_captures
                 .iter()
                 .filter(|capture| match capture.status {
                     enums::CaptureStatus::Charged
@@ -212,24 +170,19 @@ pub(crate) fn validate_multi_currency_processing_capture_settlement(
                     | enums::CaptureStatus::Pending => true,
                     enums::CaptureStatus::Failed => false,
                 })
-                .try_fold(
-                    payment_mcp.amount.get_amount_as_i64(),
-                    |remaining_mcp_amount, capture| {
-                        let previous_capture_mcp =
-                            get_previous_capture(capture, payment_mcp.currency)?;
+                .map(|capture| {
+                    capture
+                        .feature_metadata
+                        .as_ref()
+                        .and_then(|metadata| metadata.multi_currency_processing.as_ref())
+                });
+            let remaining_mcp_amount = remaining_settlement_balance(
+                payment_mcp.amount,
+                payment_mcp.currency,
+                reservations,
+            )?;
 
-                        Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
-                            remaining_mcp_amount - previous_capture_mcp.amount.get_amount_as_i64(),
-                        )
-                    },
-                )?;
-
-            if current_capture_mcp.currency != payment_mcp.currency {
-                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "multi-currency processing settlement currency must match the payment's settlement currency"
-                        .to_string(),
-                }))
-            } else if current_capture_mcp.amount.get_amount_as_i64() > remaining_mcp_amount {
+            if current_capture_mcp.amount.get_amount_as_i64() > remaining_mcp_amount {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Cumulative multi-currency processing settlement captures must not exceed the authorized MCP amount".to_string(),
                 }))
@@ -237,28 +190,36 @@ pub(crate) fn validate_multi_currency_processing_capture_settlement(
                 Ok(())
             }
         }
-    }
+    }?;
+    Ok(settlement
+        .cloned()
+        .map(
+            |multi_currency_processing| api_models::payments::CaptureFeatureMetadata {
+                multi_currency_processing: Some(multi_currency_processing),
+            },
+        )
+        .or_else(|| requested_metadata.cloned()))
 }
 
-/// Resolve the current refund MCP and validate cumulative refund MCP amounts.
+/// Validate refund settlement and history, then construct its persistence metadata.
 pub(crate) fn validate_multi_currency_processing_refund_settlement(
     connector: &str,
     payment_feature_metadata: Option<&api_models::payments::FeatureMetadata>,
-    refund_feature_metadata: Option<&api_models::refunds::RefundFeatureMetadata>,
+    requested_metadata: Option<api_models::refunds::RefundFeatureMetadata>,
     all_refunds: &[diesel_models::refund::Refund],
-) -> RouterResult<Option<api_models::payments::MultiCurrencyProcessingAmountData>> {
-    let current_refund_mcp = resolve_operation_multi_currency_processing(
-        connector,
-        payment_feature_metadata,
-        refund_feature_metadata.and_then(|metadata| metadata.multi_currency_processing.as_ref()),
-    )?;
+) -> RouterResult<Option<api_models::refunds::RefundFeatureMetadata>> {
     let payment_mcp =
         payment_feature_metadata.and_then(|metadata| metadata.multi_currency_processing.as_ref());
-
-    match (current_refund_mcp, payment_mcp) {
-        (Some(current_refund_mcp), Some(payment_mcp)) => {
+    let requested_mcp = requested_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.multi_currency_processing.as_ref());
+    let settlement = resolve_operation_mcp(connector, payment_mcp, requested_mcp)?;
+    // No resolved operation MCP means the resolver found no active MCP processing.
+    match (payment_mcp, settlement) {
+        (_, None) | (None, _) => Ok(()),
+        (Some(payment_mcp), Some(current_refund_mcp)) => {
             // For the first refund, empty history leaves the full payment MCP amount available.
-            let remaining_mcp_amount = all_refunds
+            let reservations = all_refunds
                 .iter()
                 .filter(|refund| match refund.refund_status {
                     enums::RefundStatus::Success
@@ -266,17 +227,17 @@ pub(crate) fn validate_multi_currency_processing_refund_settlement(
                     | enums::RefundStatus::ManualReview => true,
                     enums::RefundStatus::Failure | enums::RefundStatus::TransactionFailure => false,
                 })
-                .try_fold(
-                    payment_mcp.amount.get_amount_as_i64(),
-                    |remaining_mcp_amount, refund| {
-                        let previous_refund_mcp =
-                            get_previous_mcp(connector, payment_feature_metadata, refund)?;
-
-                        Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
-                            remaining_mcp_amount - previous_refund_mcp.amount.get_amount_as_i64(),
-                        )
-                    },
-                )?;
+                .map(|refund| {
+                    refund
+                        .feature_metadata
+                        .as_ref()
+                        .and_then(|metadata| metadata.multi_currency_processing.as_ref())
+                });
+            let remaining_mcp_amount = remaining_settlement_balance(
+                payment_mcp.amount,
+                payment_mcp.currency,
+                reservations,
+            )?;
 
             if current_refund_mcp.amount.get_amount_as_i64() > remaining_mcp_amount {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
@@ -285,9 +246,16 @@ pub(crate) fn validate_multi_currency_processing_refund_settlement(
                             .to_string(),
                 }))
             } else {
-                Ok(Some(current_refund_mcp))
+                Ok(())
             }
         }
-        _ => Ok(None),
-    }
+    }?;
+    Ok(settlement
+        .cloned()
+        .map(
+            |multi_currency_processing| api_models::refunds::RefundFeatureMetadata {
+                multi_currency_processing: Some(multi_currency_processing),
+            },
+        )
+        .or(requested_metadata))
 }

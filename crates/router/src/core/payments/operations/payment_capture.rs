@@ -122,25 +122,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             .connector
             .as_deref()
             .get_required_value("connector")?;
-        let capture_settlement =
-            multi_currency_processing::resolve_operation_multi_currency_processing(
-                capture_connector,
-                payment_feature_metadata.as_ref(),
-                request
-                    .feature_metadata
-                    .as_ref()
-                    .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
-            )?;
-        let capture_feature_metadata = capture_settlement
-            .clone()
-            .map(
-                |multi_currency_processing| api_models::payments::CaptureFeatureMetadata {
-                    multi_currency_processing: Some(multi_currency_processing),
-                },
-            )
-            .or_else(|| request.feature_metadata.clone());
-
-        let multiple_capture_data = if capture_method == enums::CaptureMethod::ManualMultiple {
+        let multiple_capture_input = if capture_method == enums::CaptureMethod::ManualMultiple {
             let amount_to_capture = request
                 .amount_to_capture
                 .get_required_value("amount_to_capture")?;
@@ -160,33 +142,44 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            // The route holds the payment lock while loading captures.
-            // Validate cumulative successful and pending capture amounts before inserting this one.
-            multi_currency_processing::validate_multi_currency_processing_capture_settlement(
-                capture_connector,
-                payment_feature_metadata.as_ref(),
-                capture_settlement.as_ref(),
-                &previous_captures,
-            )?;
-            let capture_new = payment_attempt.make_new_capture(
-                amount_to_capture,
-                enums::CaptureStatus::Started,
-                capture_feature_metadata.clone(),
-            )?;
-            let capture = db
-                .insert_capture(capture_new, storage_scheme.inner())
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_id.clone(),
-                })?;
-
-            Some(MultipleCaptureData::new_for_create(
-                previous_captures,
-                capture,
-            ))
+            Some((amount_to_capture, previous_captures))
         } else {
             None
         };
+        // The route holds the payment lock while loading capture history and validating MCP.
+        let previous_captures = multiple_capture_input
+            .as_ref()
+            .map(|(_, captures)| captures.as_slice())
+            .unwrap_or_default();
+        let capture_feature_metadata =
+            multi_currency_processing::validate_multi_currency_processing_capture_settlement(
+                capture_connector,
+                payment_feature_metadata.as_ref(),
+                request.feature_metadata.as_ref(),
+                previous_captures,
+            )?;
+
+        let multiple_capture_data =
+            if let Some((amount_to_capture, previous_captures)) = multiple_capture_input {
+                let capture_new = payment_attempt.make_new_capture(
+                    amount_to_capture,
+                    enums::CaptureStatus::Started,
+                    capture_feature_metadata.clone(),
+                )?;
+                let capture = db
+                    .insert_capture(capture_new, storage_scheme.inner())
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment {
+                        payment_id: payment_id.clone(),
+                    })?;
+
+                Some(MultipleCaptureData::new_for_create(
+                    previous_captures,
+                    capture,
+                ))
+            } else {
+                None
+            };
 
         currency = payment_attempt.currency.get_required_value("currency")?;
 

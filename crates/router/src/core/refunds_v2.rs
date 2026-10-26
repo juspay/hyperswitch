@@ -1234,20 +1234,13 @@ pub async fn validate_and_create_refund(
         .feature_metadata
         .as_ref()
         .map(api_models::payments::FeatureMetadata::foreign_from);
-    let refund_settlement =
+    let refund_feature_metadata =
         multi_currency_processing::validate_multi_currency_processing_refund_settlement(
             &connector,
             payment_feature_metadata.as_ref(),
-            req.feature_metadata.as_ref(),
+            req.feature_metadata,
             &all_refunds,
         )?;
-    let refund_feature_metadata = refund_settlement
-        .map(
-            |multi_currency_processing| api_models::refunds::RefundFeatureMetadata {
-                multi_currency_processing: Some(multi_currency_processing),
-            },
-        )
-        .or(req.feature_metadata);
     let refund_create_req = diesel_refund::RefundNew {
         id: global_refund_id,
         merchant_reference_id: merchant_reference_id.clone(),

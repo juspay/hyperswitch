@@ -129,7 +129,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         multi_currency_processing::validate_merchant_only_mcp_fields(auth_flow, request, "update")?;
         // Resolve the stored flag before update-and-confirm amount calculations.
-        multi_currency_processing::validate_and_update_settlement_conclusion(
+        helpers::validate_and_update_settlement_conclusion(
             auth_flow,
             request,
             &mut payment_intent,

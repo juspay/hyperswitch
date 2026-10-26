@@ -166,27 +166,14 @@ fn convert_currency_conversion_data(
         .transpose()
 }
 
-/// Require explicit MCP amounts for captures and refunds of MCP payments.
-pub(crate) fn convert_operation_currency_conversion_data(
-    connector: &str,
-    payment_feature_metadata: Option<&api_models::payments::FeatureMetadata>,
-    requested_operation_mcp: Option<&api_models::payments::MultiCurrencyProcessingAmountData>,
+/// Convert a settlement leg already validated by the UCS dispatch boundary.
+fn convert_operation_currency_conversion_data(
+    settlement: Option<&api_models::payments::MultiCurrencyProcessingAmountData>,
 ) -> Result<
     Option<payments_grpc::CurrencyConversionData>,
     error_stack::Report<UnifiedConnectorServiceError>,
 > {
-    let resolved_operation_mcp =
-        multi_currency_processing::resolve_operation_multi_currency_processing(
-            connector,
-            payment_feature_metadata,
-            requested_operation_mcp,
-        )
-        .map_err(|error| {
-            error_stack::report!(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(error.to_string(),)
-            )
-        })?;
-    let Some(resolved_operation_mcp) = resolved_operation_mcp else {
+    let Some(resolved_operation_mcp) = settlement else {
         return Ok(None);
     };
     Ok(Some(payments_grpc::CurrencyConversionData {
@@ -2411,7 +2398,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .as_ref()
             .map(ConnectorState::foreign_from);
 
-        let currency_conversion_data = convert_operation_currency_conversion_data(
+        let settlement = multi_currency_processing::resolve_operation_multi_currency_processing(
             &router_data.connector,
             router_data.request.payment_feature_metadata.as_ref(),
             router_data
@@ -2419,7 +2406,14 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .feature_metadata
                 .as_ref()
                 .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
-        )?;
+        )
+        .map_err(|error| {
+            report!(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(error.to_string())
+            )
+        })
+        .attach_printable("Invalid MCP data for UCS capture request")?;
+        let currency_conversion_data = convert_operation_currency_conversion_data(settlement)?;
 
         Ok(Self {
             split_settlement: None,
@@ -8659,13 +8653,19 @@ pub fn build_handle_event_request(
 // ============================================================================
 
 /// Transform RouterData for Execute refund into UCS PaymentServiceRefundRequest
-impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsResponseData>>
-    for payments_grpc::PaymentServiceRefundRequest
+impl
+    transformers::ForeignTryFrom<(
+        &RouterData<Execute, RefundsData, RefundsResponseData>,
+        Option<&api_models::payments::MultiCurrencyProcessingAmountData>,
+    )> for payments_grpc::PaymentServiceRefundRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        router_data: &RouterData<Execute, RefundsData, RefundsResponseData>,
+        (router_data, settlement): (
+            &RouterData<Execute, RefundsData, RefundsResponseData>,
+            Option<&api_models::payments::MultiCurrencyProcessingAmountData>,
+        ),
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
@@ -8700,15 +8700,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .transpose()?
             .map(|payment_method_type| payment_method_type.into());
 
-        let currency_conversion_data = convert_operation_currency_conversion_data(
-            &router_data.connector,
-            router_data.request.payment_feature_metadata.as_ref(),
-            router_data
-                .request
-                .feature_metadata
-                .as_ref()
-                .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
-        )?;
+        let currency_conversion_data = convert_operation_currency_conversion_data(settlement)?;
 
         Ok(Self {
             split_settlement_refund: None,
