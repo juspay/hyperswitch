@@ -1,13 +1,12 @@
 mod error;
 pub mod grafana;
 
-use common_utils::errors::CustomResult;
-use serde::{de::DeserializeOwned, Serialize};
-
 pub use self::{
     error::MetricsError,
     grafana::cloudwatch::{MetricPoint, MetricRange, MetricSeries},
 };
+use common_utils::errors::CustomResult;
+use serde::{de::DeserializeOwned, Serialize};
 
 pub type MetricsResult<T> = CustomResult<T, MetricsError>;
 
@@ -17,8 +16,6 @@ pub trait MetricsProvider: Send + Sync + std::fmt::Debug {
     type MetricsRequest: Serialize + Send + 'static;
     type MetricsResponse: DeserializeOwned + Send;
     type MetricsError: error_stack::Context;
-
-    fn validate_query(query: &Self::MetricsQuery) -> CustomResult<(), Self::MetricsError>;
 
     fn build_request(
         query: Self::MetricsQuery,

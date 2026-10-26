@@ -2,10 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use common_types::alert_rules::MetricSource;
 use common_utils::fp_utils::when;
-use external_services::metrics_provider::{
-    grafana::{cloudwatch::GrafanaCloudwatch, GrafanaConfig},
-    MetricsError, MetricsProvider,
-};
+use external_services::metrics_provider::grafana::GrafanaConfig;
 use hyperswitch_masking::PeekInterface;
 use serde::Deserialize;
 
@@ -97,21 +94,10 @@ impl AlertSettings {
                     },
                 )?;
             }
-            let datasource = self.datasources.get(&MetricSource::GrafanaCloudwatch)
+            self.datasources.get(&MetricSource::GrafanaCloudwatch)
                 .ok_or_else(|| ConfigurationError::ConfigParsingError(format!(
                     "invalid alert configuration: rule `{}` field `config.query.datasource` requires its configured provider/datasource UID", rule.id
                 )))?;
-            if let Err(error) =
-                GrafanaCloudwatch::validate_query(&rule.metrics_query(&datasource.uid))
-            {
-                let (field, requirement) = match error.current_context() {
-                    MetricsError::InvalidQuery { field, requirement } => (*field, *requirement),
-                    _ => ("query", "must be a valid metric query"),
-                };
-                return Err(ConfigurationError::ConfigParsingError(format!(
-                    "invalid alert configuration: rule `{}` field `config.query.{field}` {requirement}", rule.id
-                )));
-            }
             let common_types::alert_rules::AlertQuery::GrafanaCloudwatch(query) =
                 &rule.config.query;
             when(query.end_offset_seconds > 3600, || {
@@ -126,10 +112,7 @@ impl AlertSettings {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use super::*;
-    use crate::settings::{ChatDestination, ChatSettings};
 
     #[test]
     fn alert_settings_default_to_no_rules_or_provider_configuration() {
@@ -150,44 +133,5 @@ mod tests {
             .to_string();
         assert!(error.contains("EOF while parsing a list"));
         assert!(error.contains("line 1 column 1"));
-    }
-
-    #[test]
-    fn configured_rules_reuse_provider_query_validation() {
-        let settings: AlertSettings = serde_json::from_value(serde_json::json!({
-            "grafana": { "base_url": "http://localhost:3000", "api_token": "token" },
-            "datasources": { "grafana_cloudwatch": { "uid": "cloudwatch" } },
-            "rules": serde_json::to_string(&serde_json::json!([{
-                "id": "requests",
-                "name": "Requests",
-                "config": {
-                    "interval_seconds": 60,
-                    "query": {
-                        "datasource": "grafana_cloudwatch",
-                        "region": " ",
-                        "namespace": "AWS/ApplicationELB",
-                        "metric_name": "RequestCount",
-                        "statistic": "Sum",
-                        "period": 60
-                    },
-                    "thresholds": { "severities": {
-                        "critical": {
-                            "threshold": 1.0,
-                            "comparison_operator": "GreaterThanThreshold",
-                            "description": "requests",
-                            "destination": "oncall"
-                        }
-                    }}
-                }
-            }])).unwrap()
-        }))
-        .unwrap();
-        let chat = ChatSettings {
-            destinations: HashMap::from([("oncall".to_owned(), ChatDestination::Log)]),
-            ..Default::default()
-        };
-        let error = settings.validate(&chat).unwrap_err().to_string();
-        assert!(error.contains("config.query.region"));
-        assert!(error.contains("must not be blank"));
     }
 }

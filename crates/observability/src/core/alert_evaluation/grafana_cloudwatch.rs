@@ -2,27 +2,70 @@ use common_types::alert_rules::{AlertThresholds, GrafanaCloudwatchQuery};
 use common_utils::date_time::convert_to_pdt;
 use error_stack::{Report, ResultExt};
 use external_services::metrics_provider::{
-    grafana::cloudwatch::CloudwatchMetricsQuery, MetricRange, MetricSeries, MetricsError,
-    MetricsProvider,
+    grafana::cloudwatch::{CloudwatchMetricsQuery, GrafanaCloudwatch},
+    MetricRange, MetricSeries, MetricsProvider,
 };
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
-use crate::domain_models::evaluator::{
-    AlertEvaluationLevel, Evaluation, EvaluatorError, EvaluatorResult,
+use crate::{
+    core::alert_evaluation::AlertEvaluator,
+    domain_models::evaluator::{
+        AlertEvaluationLevel, Evaluation, EvaluatorError, EvaluatorResult, Notification,
+        RuleDefinition,
+    },
+    services::chat,
 };
 
 const LOOKBACK_SECONDS: u32 = 300;
 
-pub async fn evaluate<P>(
-    provider: &P,
+#[async_trait::async_trait]
+impl AlertEvaluator<GrafanaCloudwatchQuery> for GrafanaCloudwatch {
+    async fn evaluate(
+        &self,
+        rule: &RuleDefinition,
+        query: &GrafanaCloudwatchQuery,
+        datasource_uid: &str,
+        now: PrimitiveDateTime,
+    ) -> EvaluatorResult<(AlertEvaluationLevel, Option<Notification>)> {
+        let evaluation = evaluate(
+            self,
+            rule.metrics_query(datasource_uid),
+            query,
+            &rule.config.thresholds,
+            now,
+        )
+        .await?;
+        let notification = match (&evaluation.breach, evaluation.latest_point.as_ref()) {
+            (Some(threshold), Some(point)) => Some(chat::create_notification(
+                rule,
+                now,
+                chat::ChatBody::Alarm {
+                    evaluation: &evaluation,
+                    threshold,
+                    point,
+                },
+            )),
+            (Some(_), None) => {
+                return Err(Report::new(EvaluatorError::UnexpectedResponse)
+                    .attach_printable("a measured breach is missing its current datapoint"))
+            }
+            (None, _) => None,
+        };
+        Ok((evaluation.level, notification))
+    }
+}
+
+pub async fn evaluate(
+    provider: &GrafanaCloudwatch,
     metrics_query: CloudwatchMetricsQuery,
     query: &GrafanaCloudwatchQuery,
     thresholds: &AlertThresholds,
     now: PrimitiveDateTime,
-) -> EvaluatorResult<Evaluation>
-where
-    P: MetricsProvider<MetricsQuery = CloudwatchMetricsQuery, MetricsError = MetricsError>,
-{
+) -> EvaluatorResult<Evaluation> {
+    if query.period == 0 || query.end_offset_seconds > 3600 {
+        return Err(Report::new(EvaluatorError::InvalidTimeRange)
+            .attach_printable("query period or end offset is outside supported bounds"));
+    }
     let period = i64::from(query.period);
     let seconds = now.assume_utc().unix_timestamp()
         - i64::from(query.end_offset_seconds.saturating_sub(query.period));
@@ -40,7 +83,7 @@ where
         .ok_or(EvaluatorError::InvalidTimeRange)
         .attach_printable("query evaluation time range is outside supported bounds")?;
     let window = MetricRange { from, to };
-    let request = P::build_request(metrics_query, window)
+    let request = GrafanaCloudwatch::build_request(metrics_query, window)
         .change_context(EvaluatorError::DatasourceRequestFailed)?;
     let series = provider
         .fetch_metrics(request)

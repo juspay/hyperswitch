@@ -465,7 +465,7 @@ fn evaluator_uses_complete_windows_and_rejects_invalid_time_ranges() {
             config["config"]["query"]["end_offset_seconds"] = json!(offset);
             let rule: RuleDefinition = serde_json::from_value(config).unwrap();
             let AlertQuery::GrafanaCloudwatch(query) = &rule.config.query;
-            let result = observability::core::evaluator::cloudwatch::evaluate(
+            let result = observability::core::alert_evaluation::grafana_cloudwatch::evaluate(
                 &provider,
                 rule.metrics_query("cloudwatch"),
                 query,
@@ -509,7 +509,7 @@ fn evaluator_uses_complete_windows_and_rejects_invalid_time_ranges() {
             config["config"]["query"]["end_offset_seconds"] = json!(offset);
             let rule: RuleDefinition = serde_json::from_value(config).unwrap();
             let AlertQuery::GrafanaCloudwatch(query) = &rule.config.query;
-            let error = observability::core::evaluator::cloudwatch::evaluate(
+            let error = observability::core::alert_evaluation::grafana_cloudwatch::evaluate(
                 &provider,
                 rule.metrics_query("cloudwatch"),
                 query,
@@ -542,7 +542,7 @@ fn repeated_current_breach_sends_alarm_on_every_notify() {
         )
         .await;
         for _ in 0..2 {
-            let response = observability::core::evaluator::notify(state.clone(), ())
+            let response = observability::core::alert_evaluation::notify(state.clone(), ())
                 .await
                 .unwrap();
             let body = serde_json::to_value(response).unwrap();
@@ -580,7 +580,7 @@ fn evaluator_overlaps_requests_and_preserves_rule_order_after_reverse_completion
         )
         .await;
         let evaluation = tokio::spawn(async move {
-            observability::core::evaluator::evaluate(state, ())
+            observability::core::alert_evaluation::evaluate(state, ())
                 .await
                 .unwrap()
         });
@@ -647,7 +647,7 @@ fn provider_failure_does_not_cancel_later_breach_and_both_notifications_are_atte
         .await;
 
         let body = serde_json::to_value(
-            observability::core::evaluator::notify(state, ())
+            observability::core::alert_evaluation::notify(state, ())
                 .await
                 .unwrap(),
         )
@@ -743,7 +743,7 @@ fn dry_run_never_delivers_breaches_or_rule_errors() {
         )
         .await;
 
-        let response = observability::core::evaluator::evaluate(state, ())
+        let response = observability::core::alert_evaluation::evaluate(state, ())
             .await
             .unwrap();
         assert_eq!(response.rules.len(), 2);
@@ -774,7 +774,7 @@ fn no_data_and_normal_are_silent_and_keep_the_exact_wire_shape() {
         .await;
 
         let body = serde_json::to_value(
-            observability::core::evaluator::notify(state, ())
+            observability::core::alert_evaluation::notify(state, ())
                 .await
                 .unwrap(),
         )
@@ -820,7 +820,7 @@ fn refused_failed_and_successful_deliveries_are_isolated_and_ordered() {
         .await;
 
         let body = serde_json::to_value(
-            observability::core::evaluator::notify(state, ())
+            observability::core::alert_evaluation::notify(state, ())
                 .await
                 .unwrap(),
         )

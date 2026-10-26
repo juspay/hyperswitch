@@ -7,7 +7,7 @@ pub async fn notify(state: web::Data<AppState>, request: HttpRequest) -> HttpRes
         state.get_ref().clone(),
         &request,
         (),
-        core::evaluator::notify,
+        core::alert_evaluation::notify,
         &auth::InternalApiKeyAuth,
     )
     .await
@@ -18,7 +18,7 @@ pub async fn evaluate(state: web::Data<AppState>, request: HttpRequest) -> HttpR
         state.get_ref().clone(),
         &request,
         (),
-        core::evaluator::evaluate,
+        core::alert_evaluation::evaluate,
         &auth::InternalApiKeyAuth,
     )
     .await

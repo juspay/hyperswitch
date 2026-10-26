@@ -341,7 +341,8 @@ When rules are configured, provide Grafana connection settings, a metric-source-
 and `rules` as a JSON string. See `config/observability.toml`; environment overrides use the
 `OBSERVABILITY__ALERT__` prefix. Each datasource value contains only `uid`; its map key identifies
 the metric source. Each threshold's `destination` is an existing chat notifier ID, not a channel ID
-or a second severity mapping. Invalid configured rules or destinations fail startup.
+or a second severity mapping. Invalid rule structure or destinations fail startup; CloudWatch
+query errors are reported per rule when evaluated.
 
 - `POST /alerts/grafana/cloudwatch/notify` evaluates and delivers;
   `GET /alerts/grafana/cloudwatch/evaluate` never sends.
@@ -385,15 +386,15 @@ and one rule's query or delivery failure does not cancel independent rules.
 
 ```
 routes/         authenticated request handlers
-core/           request orchestration, including evaluator/cloudwatch execution
+core/           request orchestration, including alert_evaluation/grafana_cloudwatch execution
 domain_models/  typed configuration conversions and evaluation results
 domain/         existing notifier traits and delivery outcomes
 services/chat/  evaluator notification text assets
 ```
 
 `domain` holds no HTTP. Metric transport lives in `external_services::metrics_provider`.
-Its single `MetricsProvider` trait connects `MetricsQuery`, `MetricsRequest`, `MetricsResponse`
-and `MetricsError`: validate the query, build the complete request, fetch metrics and handle the
-actual typed response. CloudWatch query/request/response models and frame parsing are colocated
+The `MetricsProvider` trait uses provider-specific associated query, request, response and error
+types to build requests, fetch metrics and handle typed responses. CloudWatch query/request/response models and frame parsing
+are colocated
 in `external_services/src/metrics_provider/grafana/cloudwatch.rs`; `grafana.rs` holds the shared
 HTTP transport. The evaluator consumes normalized real metric points, not Grafana wire frames.
