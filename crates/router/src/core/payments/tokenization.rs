@@ -1514,7 +1514,7 @@ pub async fn save_in_locker_internal(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Wallet Failed"),
             WalletDecryptedToken::None => {
-                get_default_payment_method(state, provider, payment_method_request, &customer_id)
+                get_default_payment_method(provider, payment_method_request, &customer_id)
             }
         },
         (
@@ -1533,13 +1533,12 @@ pub async fn save_in_locker_internal(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Bank Redirect Failed"),
 
-        _ => get_default_payment_method(state, provider, payment_method_request, &customer_id),
+        _ => get_default_payment_method(provider, payment_method_request, &customer_id),
     }
 }
 
 #[cfg(feature = "v1")]
 fn get_default_payment_method(
-    state: &SessionState,
     provider: &domain::Provider,
     payment_method_request: api::PaymentMethodCreate,
     customer_id: &id_type::CustomerId,
