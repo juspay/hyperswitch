@@ -22,6 +22,8 @@ pub mod http_client;
 /// hubspot_proxy module
 pub mod hubspot_proxy;
 pub mod managers;
+#[allow(missing_docs)]
+pub mod metrics_provider;
 pub mod no_encryption;
 #[cfg(feature = "superposition")]
 pub mod superposition;

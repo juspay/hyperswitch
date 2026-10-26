@@ -5,6 +5,7 @@ pub mod alerts_info;
 pub mod app;
 pub mod blacklist;
 pub mod dictionary;
+pub mod evaluator;
 pub mod health_check;
 pub mod lifecycle_events;
 pub mod metadata;

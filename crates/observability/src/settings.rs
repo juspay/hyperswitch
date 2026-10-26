@@ -9,6 +9,7 @@
 //! configuration can be used to serve requests, so "did we remember to decrypt this?" is answered
 //! by the type checker rather than by review.
 
+pub mod evaluator;
 pub mod utils;
 
 use std::{collections::HashMap, path::PathBuf};
@@ -66,6 +67,7 @@ pub struct Settings<S: SecretState> {
     pub proxy: Proxy,
     /// Chat destinations this service can deliver to.
     pub chat: SecretStateContainer<ChatSettings, S>,
+    pub alert: SecretStateContainer<evaluator::AlertSettings, S>,
     /// Email destinations this service can deliver to.
     pub email: EmailSettings,
     /// The observability database, which holds alert state. Separate from `hyperswitch_db`.
@@ -416,6 +418,7 @@ impl Settings<SecuredSecret> {
         self.server.validate()?;
         self.auth.get_inner().validate()?;
         self.chat.get_inner().validate()?;
+        self.alert.get_inner().validate(self.chat.get_inner())?;
         self.email.validate()?;
         validate_config_ids(&self.monitoring.destinations, "monitoring destination")?;
         self.database.get_inner().validate()?;

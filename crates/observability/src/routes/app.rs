@@ -17,8 +17,8 @@ use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
     routes::{
-        alerts_info, blacklist, dictionary, health_check, lifecycle_events, metadata, notify,
-        rule_toggles, thresholds,
+        alerts_info, blacklist, dictionary, evaluator, health_check, lifecycle_events, metadata,
+        notify, rule_toggles, thresholds,
     },
     state::AppState,
 };
@@ -56,6 +56,11 @@ impl Alerts {
             .service(web::scope("/email").service(
                 web::resource("/notify/{destination}").route(web::post().to(notify::email)),
             ))
+            .service(
+                web::scope("/grafana/cloudwatch")
+                    .service(web::resource("/notify").route(web::post().to(evaluator::notify)))
+                    .service(web::resource("/evaluate").route(web::get().to(evaluator::evaluate))),
+            )
             .service(
                 web::resource("/blacklist")
                     .route(web::get().to(blacklist::list))
