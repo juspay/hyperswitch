@@ -2,6 +2,8 @@ use common_utils::ext_traits::ConfigExt;
 use hyperswitch_masking::PeekInterface;
 use storage_impl::errors::ApplicationError;
 
+use crate::consts::MIN_IDLE_SESSION_TIMEOUT_IN_SECS;
+
 impl super::settings::Secrets {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
@@ -30,11 +32,17 @@ impl super::settings::UserSettings {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
-        when(self.idle_session_timeout_in_secs == Some(0), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "user idle session timeout must be greater than 0 when set".into(),
-            ))
-        })
+        when(
+            self.idle_session_timeout_in_secs.is_some_and(|idle_timeout_in_secs| {
+                idle_timeout_in_secs < MIN_IDLE_SESSION_TIMEOUT_IN_SECS
+            }),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(format!(
+                    "user idle session timeout must be at least \
+                     {MIN_IDLE_SESSION_TIMEOUT_IN_SECS} seconds when set"
+                )))
+            },
+        )
     }
 }
 
