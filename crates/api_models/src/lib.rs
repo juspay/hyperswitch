@@ -51,6 +51,7 @@ pub mod subscription;
 pub mod superposition_proxy;
 pub mod superposition_sdk_config;
 pub mod surcharge_decision_configs;
+pub mod telephone_order;
 pub mod three_ds_decision_rule;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;

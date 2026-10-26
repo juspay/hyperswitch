@@ -29,7 +29,7 @@ env:
 jobs:
   pr_title_conventional_commit_check:
     name: Verify PR title follows conventional commit standards
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
 
     steps:
       - name: Install Rust
@@ -58,7 +58,7 @@ jobs:
 
   pr_linked_issues_check:
     name: Verify PR contains one or more linked issues
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
 
     steps:
       - name: Skip check for merge queue
@@ -124,16 +124,19 @@ jobs:
             issue_state="$(gh issue view --repo "${repository_with_owner}" --json 'state' "${issue_number}" --jq '.state')"
 
             # Transform `${issue_state}` to lowercase for comparison
-            if [[ "${issue_state,,}" != 'open' ]]; then
-              echo "::error::At least one of the linked issues is not open"
-              exit 1
+            if [[ "${issue_state,,}" == 'open' ]]; then
+              echo "PR contains at least one open linked issue"
+              exit 0
             fi
           done <<< "${linked_issues}"
+
+          echo "::error::PR does not contain any open linked issues"
+          exit 1
 
   pr_labeler:
     name: Attach suitable labels to PR
     if: ${{ github.event_name == 'pull_request_target' }}
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
 
     steps:
       - name: Generate GitHub app token

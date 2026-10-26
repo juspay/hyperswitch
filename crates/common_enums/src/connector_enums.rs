@@ -25,7 +25,7 @@ pub use crate::PaymentMethodType;
     Hash,
     SmithyModel,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -124,6 +124,7 @@ pub enum Connector {
     Givepayments,
     Globalpay,
     GlobalpaymentsHeartland,
+    GlobalpaymentsRealex,
     Globepay,
     Gocardless,
     GotymeSanlam,
@@ -310,6 +311,12 @@ impl Connector {
     pub fn supports_vendor_disburse_account_create_for_payout(self) -> bool {
         matches!(self, Self::Stripe | Self::Nomupay)
     }
+    /// Whether this FRM provider's risk API is bearer-authenticated, so a token
+    /// must be fetched before the risk check. Static-key providers (nSure) and
+    /// the in-process ones need none; add a provider here when it requires one.
+    pub fn supports_access_token_for_frm(self) -> bool {
+        false
+    }
     pub fn supports_access_token(self, payment_method: PaymentMethod) -> bool {
         matches!(
             (self, payment_method),
@@ -408,6 +415,7 @@ impl Connector {
             | Self::Getnet
             | Self::Gigadat
             | Self::Globalpay
+            | Self::GlobalpaymentsRealex
             | Self::Globepay
             | Self::Gocardless
             | Self::GotymeSanlam
@@ -581,7 +589,7 @@ impl Connector {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum InvoiceStatus {
