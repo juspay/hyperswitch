@@ -4,10 +4,10 @@ on:
   workflow_call:
     secrets:
       app_id:
-        description: App ID of the hyperswitch-bot GitHub App
+        description: App ID of the GitHub App
         required: true
       app_private_key:
-        description: Private key of the hyperswitch-bot GitHub App
+        description: Private key of the GitHub App
         required: true
     outputs:
       tag:
