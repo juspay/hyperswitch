@@ -65,7 +65,7 @@ pub struct Notification {
 
 pub enum RuleRun {
     Evaluated {
-        evaluation: Evaluation,
+        level: AlertEvaluationLevel,
         notification: Option<Notification>,
     },
     Failed {

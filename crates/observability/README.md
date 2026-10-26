@@ -344,9 +344,9 @@ the JWT.
 `[alert]` is required, including Grafana connection settings, a datasource-kind-to-UID registry and
 `rules` as a JSON string. See `config/observability.toml`; environment overrides use the
 `OBSERVABILITY__ALERT__` prefix. Each datasource value contains only `uid`; its map key identifies
-the provider/datasource kind. Each threshold's `destination` is an existing notifier ID,
-not a channel ID or a second severity mapping. Invalid/unknown IDs fail startup. Empty rule lists
-are allowed; missing alert settings are not.
+the metric source. Each threshold's `destination` is an existing chat notifier ID, not a channel ID
+or a second severity mapping. Invalid rule structure or destinations fail startup; CloudWatch
+query errors are reported per rule when evaluated.
 
 - `POST /alerts/grafana/notify` evaluates and delivers; `GET /alerts/grafana/evaluate` never sends.
   Both require the existing `X-Internal-Api-Key` authentication.
@@ -383,10 +383,16 @@ before integration. This foundation has no new database dependency or migration.
 ## Layout
 
 ```
-routes/   the route tree and handlers; deserialize, call core, serialize
-core/     what one request does: resolve a destination, hand the message over
-domain/   what delivering an alert is: the notifier traits and the types they exchange
+routes/         authenticated request handlers
+core/           request orchestration, including alert_evaluation/grafana_cloudwatch execution
+domain_models/  typed configuration conversions and evaluation results
+domain/         existing notifier traits and delivery outcomes
+services/chat/  evaluator notification text assets
 ```
 
-`domain` holds no HTTP. `core` holds no traits. A handler that grows logic belongs in `core`; a
-concept that a background job would also need belongs in `domain`.
+`domain` holds no HTTP. Metric transport lives in `external_services::metrics_provider`.
+The `MetricsProvider` trait uses provider-specific associated query, request, response and error
+types to build requests, fetch metrics and handle typed responses. CloudWatch query/request/response models and frame parsing
+are colocated
+in `external_services/src/metrics_provider/grafana/cloudwatch.rs`; `grafana.rs` holds the shared
+HTTP transport. The evaluator consumes normalized real metric points, not Grafana wire frames.

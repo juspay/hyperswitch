@@ -1,10 +1,5 @@
 #[derive(Debug, thiserror::Error)]
 pub enum MetricsError {
-    #[error("invalid metric query field {field}: {requirement}")]
-    InvalidQuery {
-        field: &'static str,
-        requirement: &'static str,
-    },
     #[error("failed to send the metric request")]
     Transport,
     #[error("the metric request timed out")]
