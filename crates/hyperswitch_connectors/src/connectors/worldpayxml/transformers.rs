@@ -678,8 +678,7 @@ struct FullName {
     first: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     middle: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    last: Option<Secret<String>>,
+    last: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1753,9 +1752,12 @@ fn build_worldpayxml_recipient_party(
                     "recipient_details.address.first_name",
                 ))?,
             middle: None,
-            last: Some(address.last_name.clone().ok_or_else(
-                connector_utils::missing_field_err("recipient_details.address.last_name"),
-            )?),
+            last: address
+                .last_name
+                .clone()
+                .ok_or_else(connector_utils::missing_field_err(
+                    "recipient_details.address.last_name",
+                ))?,
         },
         funding_address: FundingAddress {
             address1: address
@@ -1812,7 +1814,8 @@ fn build_worldpayxml_recipient_party(
 }
 
 /// Worldpay has no company-name element, so a corporate sender's name is spread over the
-/// `fullName` parts: first word, middle words, last word. A one-word name fills only first.
+/// `fullName` parts: first word, middle words, last word. Worldpay requires both the first and
+/// the last name, so a company name of fewer than two words is rejected.
 fn get_worldpayxml_company_full_name(
     company_name: &Secret<String>,
 ) -> Result<FullName, error_stack::Report<errors::ConnectorError>> {
@@ -1821,15 +1824,16 @@ fn get_worldpayxml_company_full_name(
         [] => Err(connector_utils::missing_field_err(
             "sender_details.company_name",
         )()),
-        [name] => Ok(FullName {
-            first: Secret::new((*name).to_string()),
-            middle: None,
-            last: None,
-        }),
+        [_] => Err(errors::ConnectorError::InvalidDataFormat {
+            field_name: "sender_details.company_name".into(),
+        })
+        .attach_printable(
+            "WorldpayXML requires a first and a last name, so the company name must have at least two words",
+        ),
         [first, middle @ .., last] => Ok(FullName {
             first: Secret::new((*first).to_string()),
             middle: (!middle.is_empty()).then(|| Secret::new(middle.join(" "))),
-            last: Some(Secret::new((*last).to_string())),
+            last: Secret::new((*last).to_string()),
         }),
     }
 }
@@ -1912,9 +1916,9 @@ fn build_worldpayxml_sender_party<F, Req, Res>(
                     connector_utils::missing_field_err("sender_details.first_name"),
                 )?,
                 middle: None,
-                last: Some(individual.last_name.clone().ok_or_else(
+                last: individual.last_name.clone().ok_or_else(
                     connector_utils::missing_field_err("sender_details.last_name"),
-                )?),
+                )?,
             },
             Some(FundingData {
                 // For backward compatibility, fall back to the customer's date of birth, which was
