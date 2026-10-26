@@ -324,6 +324,7 @@ where
                         Some(common_enums::AcknowledgementStatus::Authenticated);
 
                     let payload = UpdatePaymentMethodV1Payload {
+                        update_last_used_at: Some(true),
                         payment_method_data,
                         connector_token_details,
                         network_transaction_id: network_transaction_id
@@ -342,6 +343,7 @@ where
 
                     // #3 - Execute the modular payment-method update call if there is something to be updated
                     if payload.payment_method_data.is_some()
+                        || payload.update_last_used_at == Some(true)
                         || payload.connector_token_details.is_some()
                         || payload.network_transaction_id.is_some()
                         || payload.acknowledgement_status.is_some()
@@ -5054,6 +5056,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
 
                 let payment_method_update_request =
                     api_models::payment_methods::PaymentMethodUpdate {
+                        update_last_used_at: Some(true),
                         payment_method_data: None,
                         connector_token_details: Some(
                             connector_token_details_for_payment_method_update,

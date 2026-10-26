@@ -369,8 +369,16 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
             }
         }
 
-        Ok(customer_payment_methods)
+        Ok(filter_latest_wallet_methods(customer_payment_methods))
     }
+}
+
+fn filter_latest_wallet_methods(
+    payment_methods: Vec<CustomerPaymentMethodForClient>,
+) -> Vec<CustomerPaymentMethodForClient> {
+    cards::filter_latest_wallet_methods(payment_methods, |pm| {
+        (pm.payment_method, pm.payment_method_type, pm.last_used_at)
+    })
 }
 
 // ---------------------------------------------------------------------------
