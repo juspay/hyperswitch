@@ -1,4 +1,12 @@
-use std::{any::Any, borrow::Cow, fmt::Debug, num::NonZeroU64, sync::Arc, time::Duration};
+use std::{
+    any::Any,
+    borrow::Cow,
+    collections::HashMap,
+    fmt::Debug,
+    num::NonZeroU64,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use common_utils::{
     errors::{self, CustomResult},
@@ -6,10 +14,7 @@ use common_utils::{
 };
 use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
-use moka::{
-    future::Cache as MokaCache,
-    ops::compute::{CompResult, Op},
-};
+use moka::future::Cache as MokaCache;
 use redis_interface::{errors::RedisError, RedisConnectionWithContext, RedisValue};
 use router_env::{
     logger,
@@ -457,6 +462,74 @@ pub struct Cache {
     /// How long a single populate attempt may run before it's treated as failed. See
     /// [`Self::get_or_populate_in_memory`].
     populate_timeout: Duration,
+    loads: Mutex<HashMap<Arc<str>, LoadEntry>>,
+}
+
+struct CachePopulation<T> {
+    value: T,
+    cacheable: bool,
+}
+
+struct LoadEntry {
+    state: Arc<LoadState>,
+    users: usize,
+}
+
+struct LoadState {
+    key: Arc<str>,
+    serial: tokio::sync::Mutex<()>,
+    // A load may insert only while this is true. Hold the lock through the insert.
+    can_publish: tokio::sync::Mutex<bool>,
+}
+
+struct CacheLoad<'a> {
+    cache: &'a Cache,
+    state: Arc<LoadState>,
+}
+
+impl<'a> CacheLoad<'a> {
+    fn new(cache: &'a Cache, key: &str) -> Self {
+        let mut loads = cache.loads.lock().unwrap_or_else(|err| err.into_inner());
+        if let Some(entry) = loads.get_mut(key) {
+            entry.users += 1;
+            return Self {
+                cache,
+                state: entry.state.clone(),
+            };
+        }
+        let key: Arc<str> = key.into();
+        let state = Arc::new(LoadState {
+            key: key.clone(),
+            serial: tokio::sync::Mutex::new(()),
+            can_publish: tokio::sync::Mutex::new(false),
+        });
+        loads.insert(
+            key,
+            LoadEntry {
+                state: state.clone(),
+                users: 1,
+            },
+        );
+        Self { cache, state }
+    }
+}
+
+impl Drop for CacheLoad<'_> {
+    fn drop(&mut self) {
+        let mut loads = self
+            .cache
+            .loads
+            .lock()
+            .unwrap_or_else(|err| err.into_inner());
+        if let Some(entry) = loads.get_mut(self.state.key.as_ref()) {
+            // Count callers under the registry lock. Arc references are dropped
+            // after this function returns, so their count cannot decide cleanup.
+            entry.users -= 1;
+            if entry.users == 0 {
+                loads.remove(self.state.key.as_ref());
+            }
+        }
+    }
 }
 
 impl Debug for Cache {
@@ -559,6 +632,7 @@ impl Cache {
             name,
             inner: cache_builder.build(),
             populate_timeout,
+            loads: Mutex::new(HashMap::new()),
         }
     }
 
@@ -586,24 +660,10 @@ impl Cache {
         );
     }
 
-    fn record_invariant_violation(&self) {
-        metrics::IN_MEMORY_CACHE_INVARIANT_VIOLATION
-            .add(1, router_env::metric_attributes!(("cache_type", self.name)));
-        logger::error!(
-            cache_type = self.name,
-            "and_try_compute_with returned a CompResult variant get_or_populate_in_memory never asks for"
-        );
-    }
-
-    /// Reads `key`, and on a miss populates it by awaiting `populate`.
+    /// Read a cached value or run `populate` on a miss.
     ///
-    /// Concurrent callers for one key are serialized by moka's per-key lock
-    /// (`and_try_compute_with`): each caller's own `populate` runs in turn against the
-    /// then-current state, so a failure or a timed-out attempt only ever affects the caller it
-    /// happened to, never whoever's queued behind it. A single attempt is capped at
-    /// `populate_timeout`; since a caller's turn ends the moment its future resolves, this
-    /// also bounds how long anyone queued behind it can be made to wait. Every attempt is
-    /// capped — there is no value of `populate_timeout` that opts out of the cap.
+    /// Loads for a key run one at a time. Each has its own error and timeout;
+    /// time spent waiting for another load does not count toward the timeout.
     pub async fn get_or_populate_in_memory<T, Fut, E>(
         &self,
         key: CacheKey,
@@ -614,68 +674,66 @@ impl Cache {
         Fut: futures::Future<Output = Result<T, E>> + Send,
         E: From<StorageError> + Send + Sync + 'static,
     {
-        // Fast path: a hit never touches moka's entry API or its per-key lock at all.
+        self.get_or_populate_cacheable(key, async {
+            populate.await.map(|value| CachePopulation {
+                value,
+                cacheable: true,
+            })
+        })
+        .await
+    }
+
+    async fn get_or_populate_cacheable<T, Fut, E>(
+        &self,
+        key: CacheKey,
+        populate: Fut,
+    ) -> Result<T, E>
+    where
+        T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Clone,
+        Fut: futures::Future<Output = Result<CachePopulation<T>, E>> + Send,
+        E: From<StorageError> + Send + Sync + 'static,
+    {
+        // Cache hits skip load coordination.
         if let Some(val) = self.get_val::<T>(key.clone()).await {
             return Ok(val);
         }
 
         let moka_key = in_memory_cache_key(key.clone());
-        let populate_timeout = self.populate_timeout;
+        let load = CacheLoad::new(self, &moka_key);
+        let _serial = load.state.serial.lock().await;
 
-        // moka's `Op::Put` does the real insert; `record_populate_insert` below just mirrors
-        // `push`'s deja boundary so the write is still recorded.
-        let outcome = self
-            .inner
-            .entry(moka_key)
-            .and_try_compute_with(move |maybe_entry| async move {
-                if maybe_entry.is_some() {
-                    return Ok(Op::Nop);
-                }
-
-                match tokio::time::timeout(populate_timeout, populate).await {
-                    Ok(Ok(val)) => {
-                        let val: Arc<dyn Cacheable> = Arc::new(val);
-                        Ok(Op::Put(val))
-                    }
-                    Ok(Err(e)) => Err(Some(e)),
-                    Err(_elapsed) => Err(None),
-                }
-            })
-            .await;
-
-        match outcome {
-            // A same-typed entry is expected here; a downcast failure means some other
-            // caller used this key for a different `T`.
-            Ok(CompResult::Unchanged(entry)) => {
+        {
+            let mut can_publish = load.state.can_publish.lock().await;
+            // Another load or push may have filled the cache while we waited.
+            if let Some(value) = self.inner.get(&moka_key).await {
                 self.record_population_avoided();
-                downcast_cacheable::<T>(entry.into_value()).ok_or_else(|| {
+                return downcast_cacheable::<T>(value).ok_or_else(|| {
                     self.record_type_mismatch();
                     StorageError::CacheTypeMismatch.into()
-                })
+                });
             }
-            // `ReplacedWith` can't actually happen here (we never `Op::Put` over an existing
-            // entry), but it carries a value just like `Inserted` does.
-            Ok(CompResult::Inserted(entry) | CompResult::ReplacedWith(entry)) => {
-                self.record_populate_insert(key.clone()).await;
-                downcast_cacheable::<T>(entry.into_value()).ok_or_else(|| {
-                    self.record_type_mismatch();
-                    StorageError::CacheTypeMismatch.into()
-                })
-            }
-            // Can't happen either: we never ask for `Op::Remove`, and `Op::Nop` only follows
-            // an already-present entry.
-            Ok(CompResult::Removed(_) | CompResult::StillNone(_)) => {
-                self.record_invariant_violation();
-                Err(StorageError::CacheInvariantViolation.into())
-            }
-            Err(Some(e)) => Err(e),
-            // Our own cap elapsed, not the backend — there's no real `E` to report. Our turn
-            // already ended, so anyone queued behind us has already moved on.
-            Err(None) => {
-                self.record_populate_timeout();
-                Err(StorageError::CachePopulateTimedOut.into())
+            *can_publish = true;
+        }
+
+        // Allow push/remove while the backend load is pending.
+        let CachePopulation { value, cacheable } =
+            match tokio::time::timeout(self.populate_timeout, populate).await {
+                Ok(result) => result?,
+                Err(_) => {
+                    self.record_populate_timeout();
+                    return Err(StorageError::CachePopulateTimedOut.into());
+                }
+            };
+
+        if cacheable {
+            let can_publish = load.state.can_publish.lock().await;
+            if *can_publish {
+                self.inner.insert(moka_key, Arc::new(value.clone())).await;
+                drop(can_publish);
+                self.record_populate_insert(key).await;
             }
         }
+        Ok(value)
     }
 
     // Deja: recorded args-only for population accounting; the real moka insert
@@ -693,15 +751,14 @@ impl Cache {
         )
     )]
     pub async fn push<T: Cacheable>(&self, key: CacheKey, val: T) {
-        self.inner
-            .insert(in_memory_cache_key(key), Arc::new(val))
-            .await;
+        let moka_key = in_memory_cache_key(key);
+        let load = CacheLoad::new(self, &moka_key);
+        let mut can_publish = load.state.can_publish.lock().await;
+        *can_publish = false;
+        self.inner.insert(moka_key, Arc::new(val)).await;
     }
 
-    /// Records `push`'s exact `in_memory_push` boundary for a write that moka's own
-    /// `and_try_compute_with` (`Op::Put`) performed directly. deja's call-site identity hashes
-    /// the `boundary`/`operation` literals, not this function's body, so this is
-    /// indistinguishable from a real `push` call to its recording.
+    /// Record a cache fill as `in_memory_push` for Deja replay.
     #[cfg_attr(
         feature = "deja",
         deja::boundary(
@@ -790,10 +847,13 @@ impl Cache {
             args = deja_in_memory_args(self.name, &key),
         )
     )]
+    /// Remove the entry and prevent its pending load from caching a stale value.
     pub async fn remove(&self, key: CacheKey) {
-        self.inner
-            .invalidate::<String>(&in_memory_cache_key(key))
-            .await;
+        let moka_key = in_memory_cache_key(key);
+        let load = CacheLoad::new(self, &moka_key);
+        let mut can_publish = load.state.can_publish.lock().await;
+        *can_publish = false;
+        self.inner.invalidate::<String>(&moka_key).await;
     }
 
     /// Performs any pending maintenance operations needed by the cache.
@@ -877,42 +937,77 @@ impl Cache {
 }
 
 #[instrument(skip_all)]
-pub async fn get_or_populate_redis<T, Fut>(
+async fn get_or_populate_redis<T, Fut>(
     redis: &RedisConnectionWithContext,
-    key: impl AsRef<str>,
+    key: &str,
     ttl: Option<i64>,
     populate: Fut,
-) -> CustomResult<T, StorageError>
+) -> CustomResult<CachePopulation<T>, StorageError>
 where
     T: serde::Serialize + serde::de::DeserializeOwned + Debug,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
-    let type_name = std::any::type_name::<T>();
-    let key = key.as_ref();
-    let redis_val = redis
-        .get_and_deserialize_key::<T>(&key.into(), type_name)
-        .await;
-    match redis_val {
-        Err(err) => match err.current_context() {
-            RedisError::NotFound | RedisError::JsonDeserializationFailed => {
-                let data = populate.await?;
-                match ttl {
-                    Some(ttl) => {
-                        redis
-                            .serialize_and_set_key_with_expiry(&key.into(), &data, ttl)
-                            .await
-                    }
-                    None => redis.serialize_and_set_key(&key.into(), &data).await,
-                }
-                .change_context(StorageError::KVError)?;
-                Ok(data)
-            }
-            _ => Err(err
-                .change_context(StorageError::KVError)
-                .attach_printable(format!("Error while fetching cache for {type_name}"))),
-        },
-        Ok(val) => Ok(val),
+    let mut reservation = common_utils::generate_random_bytes(17);
+    if let Some(prefix) = reservation.first_mut() {
+        *prefix = 0;
     }
+    let previous = match redis
+        .get_key_or_reserve(&key.into(), &reservation, ttl)
+        .await
+    {
+        Ok(previous) => previous,
+        Err(error) => {
+            // SET may fail at Redis's memory limit while GET still succeeds.
+            if let Ok(bytes) = Box::pin(redis.get_key::<Vec<u8>>(&key.into())).await {
+                if let Ok(value) = serde_json::from_slice::<T>(&bytes) {
+                    return Ok(CachePopulation {
+                        value,
+                        cacheable: true,
+                    });
+                }
+            }
+            return Err(error.change_context(StorageError::KVError));
+        }
+    };
+    let mut token = Cow::Borrowed(reservation.as_slice());
+    if let Some(bytes) = previous {
+        if bytes.len() == reservation.len() && bytes.first() == Some(&0) {
+            token = Cow::Owned(bytes);
+        } else if let Ok(value) = serde_json::from_slice::<T>(&bytes) {
+            return Ok(CachePopulation {
+                value,
+                cacheable: true,
+            });
+        } else {
+            // Box this uncommon path to keep the cache future small.
+            let reserved = Box::pin(redis.reserve_cache_if_unchanged(
+                &key.into(),
+                &bytes,
+                token.as_ref(),
+                ttl,
+            ))
+            .await
+            .change_context(StorageError::KVError)?;
+            if !reserved {
+                return Ok(CachePopulation {
+                    value: populate.await?,
+                    cacheable: false,
+                });
+            }
+        }
+    }
+    let data = populate.await?;
+    let value = serde_json::to_vec(&data)
+        .change_context(RedisError::JsonSerializationFailed)
+        .change_context(StorageError::KVError)?;
+    let cacheable = redis
+        .compare_and_set_cache(&key.into(), &token, &value)
+        .await
+        .change_context(StorageError::KVError)?;
+    Ok(CachePopulation {
+        value: data,
+        cacheable,
+    })
 }
 
 /// Recorded args for the [`Cache`] boundaries: cache name + un-namespaced
@@ -934,6 +1029,8 @@ where
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
     S: RedisConnInterface + CacheInterface + Send + Sync + ?Sized,
 {
+    // Keep the fallback in this frame so nested cache futures only borrow it.
+    let fun = std::pin::pin!(fun);
     let cache = store.caches().get(cache);
     let cache_key = CacheKey {
         key: key.to_string(),
@@ -944,16 +1041,17 @@ where
 
     // The redis connection is acquired only when this caller is the one populating, so an
     // in-memory hit answers during a redis outage rather than erroring, and concurrent
-    // misses for one key cost a single redis round trip between them.
+    // misses for one key share one Redis lookup and, if needed, one DB population.
     cache
-        .get_or_populate_in_memory(cache_key, async {
+        .get_or_populate_cacheable(cache_key, async {
             let redis = store
                 .get_redis_conn()
                 .change_context(StorageError::RedisError(
                     RedisError::RedisConnectionError.into(),
                 ))
                 .attach_printable("Failed to get redis connection")?;
-            get_or_populate_redis(&redis, key, redis_ttl, fun).await
+            // Keep the larger Redis future off the in-memory hit path.
+            Box::pin(get_or_populate_redis(&redis, key, redis_ttl, fun)).await
         })
         .await
 }
@@ -1042,6 +1140,7 @@ where
 #[cfg(test)]
 mod cache_tests {
     use std::{
+        collections::HashSet,
         sync::atomic::{AtomicUsize, Ordering},
         time,
     };
@@ -1338,7 +1437,7 @@ mod cache_tests {
     /// which no string field will accept.
     #[test]
     fn the_documented_env_vars_deserialize() {
-        let source: std::collections::HashMap<String, String> = [
+        let source: HashMap<String, String> = [
             ("ROUTER__ACCOUNTS__MAX_ENTRIES", "500000"),
             ("ROUTER__CONFIG__MAX_ENTRIES", "0"),
             ("ROUTER__CGRAPH__TTL_IN_SECS", "120"),
@@ -1410,7 +1509,7 @@ mod cache_tests {
         let ttl = 300;
         let jittered = (0..1000)
             .map(|i| Cache::jittered_ttl(&format!("merchant_{i}"), ttl))
-            .collect::<std::collections::HashSet<_>>();
+            .collect::<HashSet<_>>();
 
         // A 300s ttl offers 31 distinct expiries; 1000 keys should reach most of them.
         assert!(jittered.len() > 25, "keys bunched onto {jittered:?}");
@@ -1528,5 +1627,447 @@ mod cache_tests {
                 .await,
             None
         );
+    }
+
+    #[tokio::test]
+    async fn invalidation_during_load() {
+        for (invalidated_key, expected) in [("a", None), ("b", Some(1))] {
+            let cache = Cache::new("test", 60, 60, None, TEST_POPULATE_TIMEOUT);
+            let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+            let (resume_tx, resume_rx) = tokio::sync::oneshot::channel();
+            let mut reader = Box::pin(cache.get_or_populate_in_memory(test_key("a"), async {
+                started_tx.send(()).unwrap();
+                resume_rx.await.unwrap();
+                Ok::<_, StorageError>(1_usize)
+            }));
+            tokio::select! {
+                result = &mut reader => panic!("load finished before release: {result:?}"),
+                result = started_rx => result.unwrap(),
+            }
+            tokio::time::timeout(
+                Duration::from_millis(100),
+                cache.remove(test_key(invalidated_key)),
+            )
+            .await
+            .expect("invalidation must not wait for the paused loader");
+            resume_tx.send(()).unwrap();
+            assert_eq!(reader.await.unwrap(), 1);
+            assert_eq!(cache.get_val::<usize>(test_key("a")).await, expected);
+        }
+    }
+
+    async fn wait_for_registered_loaders(cache: &Cache, callers: usize) {
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if cache
+                    .loads
+                    .lock()
+                    .unwrap()
+                    .values()
+                    .any(|state| state.users == callers)
+                {
+                    return;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("callers registered before cancellation/invalidation");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn cancelled_loads_release_state() {
+        for queued_count in [0, 32] {
+            let cache = Arc::new(Cache::new("test", 60, 60, None, Duration::from_secs(10)));
+            let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+            let mut active = Box::pin(cache.get_or_populate_in_memory(
+                test_key("lifecycle"),
+                async {
+                    started_tx.send(()).unwrap();
+                    futures::future::pending::<Result<usize, StorageError>>().await
+                },
+            ));
+            tokio::select! {
+                result = &mut active => panic!("pending load completed: {result:?}"),
+                result = started_rx => result.unwrap(),
+            }
+            let fresh_loads = Arc::new(AtomicUsize::new(0));
+            let mut queued = (0..queued_count)
+                .map(|_| {
+                    let cache = cache.clone();
+                    let fresh_loads = fresh_loads.clone();
+                    tokio::spawn(async move {
+                        cache
+                            .get_or_populate_in_memory(test_key("lifecycle"), async {
+                                fresh_loads.fetch_add(1, Ordering::SeqCst);
+                                Ok::<_, StorageError>(2_usize)
+                            })
+                            .await
+                    })
+                })
+                .collect::<Vec<_>>();
+            wait_for_registered_loaders(&cache, queued_count + 1).await;
+            for task in queued.drain(..queued_count / 2) {
+                task.abort();
+                assert!(task.await.unwrap_err().is_cancelled());
+            }
+            wait_for_registered_loaders(&cache, queued_count / 2 + 1).await;
+            drop(active);
+            for task in queued {
+                assert_eq!(task.await.unwrap().unwrap(), 2);
+            }
+            assert!(cache.loads.lock().unwrap().is_empty());
+            assert_eq!(
+                cache
+                    .get_or_populate_in_memory(test_key("lifecycle"), async {
+                        fresh_loads.fetch_add(1, Ordering::SeqCst);
+                        Ok::<_, StorageError>(2_usize)
+                    })
+                    .await
+                    .unwrap(),
+                2
+            );
+            assert_eq!(fresh_loads.load(Ordering::SeqCst), 1);
+            assert_eq!(cache.get_val::<usize>(test_key("lifecycle")).await, Some(2));
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn invalidation_allows_queued_load() {
+        let cache = Arc::new(Cache::new("test", 60, 60, None, Duration::from_secs(10)));
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+        let mut active = Box::pin(cache.get_or_populate_in_memory(test_key("key"), async {
+            started_tx.send(()).unwrap();
+            release_rx.await.unwrap();
+            Ok::<_, StorageError>(1_usize)
+        }));
+        tokio::select! {
+            result = &mut active => panic!("load finished before release: {result:?}"),
+            result = started_rx => result.unwrap(),
+        }
+
+        let queued_cache = cache.clone();
+        let queued = tokio::spawn(async move {
+            queued_cache
+                .get_or_populate_in_memory(test_key("key"), async {
+                    Ok::<_, StorageError>(2_usize)
+                })
+                .await
+        });
+        wait_for_registered_loaders(&cache, 2).await;
+        tokio::time::timeout(Duration::from_secs(1), cache.remove(test_key("key")))
+            .await
+            .expect("invalidation must not wait for the paused loader");
+
+        release_tx.send(()).unwrap();
+        assert_eq!(active.await.unwrap(), 1);
+        assert_eq!(queued.await.unwrap().unwrap(), 2);
+        assert_eq!(cache.get_val::<usize>(test_key("key")).await, Some(2));
+        assert!(cache.loads.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn push_overrides_pending_load() {
+        let cache = Arc::new(Cache::new("test", 60, 60, None, Duration::from_secs(10)));
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+        let mut active = Box::pin(cache.get_or_populate_in_memory(test_key("key"), async {
+            started_tx.send(()).unwrap();
+            release_rx.await.unwrap();
+            Ok::<_, StorageError>(1_usize)
+        }));
+        tokio::select! {
+            result = &mut active => panic!("load finished before release: {result:?}"),
+            result = started_rx => result.unwrap(),
+        }
+
+        let queued_cache = cache.clone();
+        let queued = tokio::spawn(async move {
+            queued_cache
+                .get_or_populate_in_memory::<usize, _, StorageError>(test_key("key"), async {
+                    panic!("queued reader should use the pushed value")
+                })
+                .await
+        });
+        wait_for_registered_loaders(&cache, 2).await;
+        tokio::time::timeout(Duration::from_secs(1), cache.push(test_key("key"), 2_usize))
+            .await
+            .expect("push must not wait for the paused loader");
+
+        release_tx.send(()).unwrap();
+        assert_eq!(active.await.unwrap(), 1);
+        assert_eq!(queued.await.unwrap().unwrap(), 2);
+        assert_eq!(cache.get_val::<usize>(test_key("key")).await, Some(2));
+        assert!(cache.loads.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[ignore = "requires Redis; set HYPERSWITCH_REDIS_REPRO_PORT"]
+    async fn redis_recovery_respects_updates() {
+        type DecodeGate = (
+            tokio::sync::oneshot::Sender<()>,
+            std::sync::mpsc::Receiver<()>,
+        );
+        static DECODE_GATE: Mutex<Option<DecodeGate>> = Mutex::new(None);
+
+        #[derive(Debug, serde::Serialize)]
+        #[serde(transparent)]
+        struct PausedValue(String);
+
+        impl<'de> serde::Deserialize<'de> for PausedValue {
+            // Broken synchronization must fail this test, not resemble malformed data.
+            #[allow(clippy::unwrap_in_result)]
+            fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                let text = <String as serde::Deserialize>::deserialize(deserializer)?;
+                if text == "bad-cache-entry" {
+                    let (started, release) = DECODE_GATE.lock().unwrap().take().unwrap();
+                    started.send(()).unwrap();
+                    release.recv_timeout(Duration::from_secs(10)).unwrap();
+                    Err(serde::de::Error::custom(
+                        "intentionally malformed cache value",
+                    ))
+                } else {
+                    Ok(Self(text))
+                }
+            }
+        }
+
+        let redis = test_redis_connection().await;
+        for replacement in [
+            None,
+            Some(b"\"new-value\"".as_slice()),
+            Some(b"\0bbbbbbbbbbbbbbbb".as_slice()),
+        ] {
+            let key = format!("malformed-recovery:{}", common_utils::generate_uuid_v4());
+            redis
+                .set_key_with_expiry(&key.as_str().into(), b"\"bad-cache-entry\"".as_slice(), 60)
+                .await
+                .unwrap();
+            let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+            let (release_tx, release_rx) = std::sync::mpsc::channel();
+            *DECODE_GATE.lock().unwrap() = Some((started_tx, release_rx));
+            let load_redis = redis.clone();
+            let load_key = key.clone();
+            let load = tokio::spawn(async move {
+                get_or_populate_redis(&load_redis, &load_key, Some(120), async {
+                    Ok(PausedValue("old-value".to_owned()))
+                })
+                .await
+                .unwrap()
+            });
+            tokio::time::timeout(Duration::from_secs(10), started_rx)
+                .await
+                .unwrap()
+                .unwrap();
+            redis.delete_key(&key.as_str().into()).await.unwrap();
+            if let Some(value) = replacement {
+                redis
+                    .set_key_with_expiry(&key.as_str().into(), value, 60)
+                    .await
+                    .unwrap();
+            }
+            release_tx.send(()).unwrap();
+            let result = load.await.unwrap();
+            let stored = redis
+                .get_key::<Vec<u8>>(&key.as_str().into())
+                .await
+                .unwrap();
+            redis.delete_key(&key.as_str().into()).await.unwrap();
+            assert_eq!(result.value.0, "old-value");
+            assert_eq!(
+                stored.as_slice(),
+                replacement.unwrap_or_default(),
+                "recovery overwrote invalidation/replacement"
+            );
+            assert!(
+                !result.cacheable,
+                "revoked malformed reader must not enter Moka"
+            );
+        }
+    }
+
+    async fn test_redis_connection() -> RedisConnectionWithContext {
+        let settings = redis_interface::RedisSettings {
+            port: std::env::var("HYPERSWITCH_REDIS_REPRO_PORT")
+                .expect("set HYPERSWITCH_REDIS_REPRO_PORT to a disposable Redis port")
+                .parse()
+                .unwrap(),
+            pool_size: 1,
+            ..redis_interface::RedisSettings::default()
+        };
+        RedisConnectionWithContext::new_without_context(Arc::new(
+            redis_interface::RedisConnectionPool::new_without_event_emitter(&settings)
+                .await
+                .unwrap(),
+        ))
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Redis; set HYPERSWITCH_REDIS_REPRO_PORT"]
+    async fn redis_invalidation_blocks_stale_fill() {
+        tokio::time::timeout(Duration::from_secs(10), async {
+            let redis = test_redis_connection().await;
+            for ttl in [None, Some(60)] {
+                let key = format!("cache-test:{}", common_utils::generate_uuid_v4());
+                let cache_key = CacheKey {
+                    key: key.clone(),
+                    prefix: String::new(),
+                };
+                let cache = Cache::new("test", 60, 60, None, TEST_POPULATE_TIMEOUT);
+                let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+                let (resume_tx, resume_rx) = tokio::sync::oneshot::channel();
+                let mut reader =
+                    Box::pin(cache.get_or_populate_cacheable(cache_key.clone(), async {
+                        Box::pin(get_or_populate_redis(&redis, &key, ttl, async {
+                            started_tx.send(()).unwrap();
+                            resume_rx.await.unwrap();
+                            Ok(1_usize)
+                        }))
+                        .await
+                    }));
+                tokio::select! {
+                    result = &mut reader => panic!("load finished before release: {result:?}"),
+                    result = started_rx => result.unwrap(),
+                }
+                // Revoke the Redis reservation while the old DB snapshot is in flight.
+                // This must protect Moka even before a pub/sub handler runs.
+                redis.delete_key(&key.as_str().into()).await.unwrap();
+                resume_tx.send(()).unwrap();
+                assert_eq!(reader.await.unwrap(), 1);
+                assert!(cache.get_val::<usize>(cache_key.clone()).await.is_none());
+                assert!(matches!(
+                    redis
+                        .get_and_deserialize_key::<usize>(&key.as_str().into(), "usize")
+                        .await
+                        .unwrap_err()
+                        .current_context(),
+                    RedisError::NotFound
+                ));
+                assert_eq!(
+                    cache
+                        .get_or_populate_cacheable(cache_key, async {
+                            Box::pin(get_or_populate_redis(&redis, &key, ttl, async {
+                                Ok(2_usize)
+                            }))
+                            .await
+                        })
+                        .await
+                        .unwrap(),
+                    2
+                );
+                assert!(redis.get_ttl(&key.as_str().into()).await.unwrap() > 0);
+                redis.delete_key(&key.as_str().into()).await.unwrap();
+            }
+        })
+        .await
+        .expect("Redis invalidation test timed out");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Redis; set HYPERSWITCH_REDIS_REPRO_PORT"]
+    async fn redis_competing_fills() {
+        tokio::time::timeout(Duration::from_secs(10), async {
+            let redis = test_redis_connection().await;
+            // Identical fills may share the result; different values must not
+            // replace it, even when the original reservation has expired.
+            for (expire, new_value) in [(false, 1_usize), (false, 2), (true, 2)] {
+                let key = format!("cache-test:{}", common_utils::generate_uuid_v4());
+                let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+                let (resume_tx, resume_rx) = tokio::sync::oneshot::channel();
+                let mut reader = Box::pin(get_or_populate_redis(&redis, &key, Some(60), async {
+                    started_tx.send(()).unwrap();
+                    resume_rx.await.unwrap();
+                    Ok(1_usize)
+                }));
+                tokio::select! {
+                    _ = &mut reader => panic!("load finished before release"),
+                    result = started_rx => result.unwrap(),
+                }
+                if expire {
+                    redis.set_expiry(&key.as_str().into(), 0).await.unwrap();
+                }
+                let newer = get_or_populate_redis(&redis, &key, Some(60), async { Ok(new_value) })
+                    .await
+                    .unwrap();
+                assert_eq!(newer.value, new_value);
+                assert!(newer.cacheable);
+                resume_tx.send(()).unwrap();
+                let older = reader.await.unwrap();
+                assert_eq!(older.value, 1);
+                assert_eq!(older.cacheable, new_value == 1);
+                assert_eq!(
+                    redis
+                        .get_and_deserialize_key::<usize>(&key.as_str().into(), "usize")
+                        .await
+                        .unwrap(),
+                    new_value
+                );
+                redis.delete_key(&key.as_str().into()).await.unwrap();
+            }
+        })
+        .await
+        .expect("Redis replacement test timed out");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires disposable Redis"]
+    async fn redis_subscriber_handles_pending_load() {
+        let capacity = redis_interface::RedisSettings::default().broadcast_channel_capacity;
+        let pool = test_redis_connection().await.redis_conn;
+        let channel = format!("review-invalidation-{}", common_utils::generate_uuid_v4());
+        let caches = Arc::new(Caches::new(&CacheConfig {
+            invalidation_channel: Some(channel.clone()),
+            ..CacheConfig::default()
+        }));
+        let key = |s: &str| CacheKey {
+            key: s.to_owned(),
+            prefix: String::new(),
+        };
+        caches.config.push(key("b"), 2_usize).await;
+        pool.subscriber.subscribe(&channel).await.unwrap();
+        let mut observer = pool.subscriber.message_rx();
+        let mut handler = Box::pin(pool.on_message(Arc::clone(&caches)));
+        assert!(futures::poll!(handler.as_mut()).is_pending());
+
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let (resume_tx, resume_rx) = tokio::sync::oneshot::channel();
+        let mut reader = Box::pin(caches.config.get_or_populate_in_memory(key("a"), async {
+            started_tx.send(()).unwrap();
+            resume_rx.await.unwrap();
+            Ok::<usize, StorageError>(1)
+        }));
+        tokio::select! {
+            result = &mut reader => panic!("load finished before release: {result:?}"),
+            result = started_rx => result.unwrap(),
+        }
+        pool.publish(&channel, CacheKind::Config("a".into()))
+            .await
+            .unwrap();
+        tokio::time::timeout(Duration::from_secs(1), observer.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(futures::poll!(handler.as_mut()).is_pending());
+
+        // Process more messages than the buffer holds while a's load is paused.
+        for _ in 0..capacity + 8 {
+            pool.publish(&channel, CacheKind::Config("b".into()))
+                .await
+                .unwrap();
+            tokio::time::timeout(Duration::from_secs(1), observer.recv())
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(futures::poll!(handler.as_mut()).is_pending());
+        }
+        assert_eq!(caches.config.get_val::<usize>(key("b")).await, None);
+        resume_tx.send(()).unwrap();
+        assert_eq!(reader.await.unwrap(), 1);
+        let exited = tokio::time::timeout(Duration::from_millis(100), handler.as_mut())
+            .await
+            .is_ok();
+        assert!(!exited, "subscriber must keep receiving after invalidation");
+        assert_eq!(caches.config.get_val::<usize>(key("a")).await, None);
     }
 }
