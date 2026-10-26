@@ -766,6 +766,7 @@ impl
                 .as_ref()
                 .map(ConnectorState::foreign_from),
             browser_info,
+            integrity_specifications: None,
         })
     }
 }
@@ -1063,6 +1064,7 @@ impl
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
             risk_assessment_data: None,
+            integrity_specifications: None,
         })
     }
 }
@@ -1336,6 +1338,7 @@ impl
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
             risk_assessment_data: None,
+            integrity_specifications: None,
         })
     }
 }
@@ -1548,6 +1551,9 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
             mandate_reference: Option::<payments_grpc::ConnectorMandateReferenceId>::foreign_from(
                 router_data,
             ),
+            enable_partial_authorization: None,
+            integrity_specifications: None,
+            is_overcapture_enabled: None,
         })
     }
 }
@@ -2467,6 +2473,8 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             }),
             currency_conversion_data,
             payment_method: None,
+            integrity_specifications: None,
+            is_overcapture_enabled: None,
         })
     }
 }
@@ -2651,6 +2659,7 @@ impl
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
             risk_assessment_data: None,
+            integrity_specifications: None,
         })
     }
 }
@@ -2873,6 +2882,7 @@ impl
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
             risk_assessment_data: None,
+            integrity_specifications: None,
         })
     }
 }
@@ -3060,6 +3070,7 @@ impl
             additional_connector_details: None,
             enable_avs_check: None,
             risk_assessment_data: None,
+            integrity_specifications: None,
         })
     }
 }
@@ -3531,6 +3542,7 @@ impl
             additional_connector_details: None,
             session_token: None,
             currency_conversion_data: None,
+            integrity_specifications: None,
         })
     }
 }
@@ -3858,6 +3870,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             session_token: None,
             currency_conversion_data,
+            integrity_specifications: None,
         })
     }
 }
@@ -5026,11 +5039,11 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::Prop => Self::Prop,
             common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
             common_enums::CardNetwork::Dinacard => Self::Dinacard,
-            common_enums::CardNetwork::AirPlus
-            | common_enums::CardNetwork::Aurore
-            | common_enums::CardNetwork::EftposAustralia
-            | common_enums::CardNetwork::GeCapital
-            | common_enums::CardNetwork::Uatp => Self::Unspecified,
+            common_enums::CardNetwork::AirPlus => Self::AirPlus,
+            common_enums::CardNetwork::Aurore => Self::Aurore,
+            common_enums::CardNetwork::EftposAustralia => Self::EftposAustralia,
+            common_enums::CardNetwork::GeCapital => Self::GeCapital,
+            common_enums::CardNetwork::Uatp => Self::Uatp,
         }
     }
 }
@@ -5058,6 +5071,11 @@ impl transformers::ForeignTryFrom<payments_grpc::CardNetwork> for common_enums::
             payments_grpc::CardNetwork::Prop => Ok(Self::Prop),
             payments_grpc::CardNetwork::PrivateLabel => Ok(Self::PrivateLabel),
             payments_grpc::CardNetwork::Dinacard => Ok(Self::Dinacard),
+            payments_grpc::CardNetwork::AirPlus => Ok(Self::AirPlus),
+            payments_grpc::CardNetwork::Aurore => Ok(Self::Aurore),
+            payments_grpc::CardNetwork::EftposAustralia => Ok(Self::EftposAustralia),
+            payments_grpc::CardNetwork::GeCapital => Ok(Self::GeCapital),
+            payments_grpc::CardNetwork::Uatp => Ok(Self::Uatp),
             payments_grpc::CardNetwork::Unspecified => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)?
             }
