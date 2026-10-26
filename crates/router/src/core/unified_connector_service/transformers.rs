@@ -609,6 +609,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            integrity_specifications: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -778,6 +779,8 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            integrity_specifications: None,
+            risk_assessment_data: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -1074,6 +1077,8 @@ impl
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
 
         Ok(Self {
+            integrity_specifications: None,
+            risk_assessment_data: None,
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -1382,6 +1387,9 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
             .transpose()?;
 
         Ok(Self {
+            integrity_specifications: None,
+            is_overcapture_enabled: None,
+            enable_partial_authorization: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -1432,6 +1440,19 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
     }
 }
 
+impl ForeignFrom<api_models::mandates::ProcessorPaymentTokenDetails>
+    for payments_grpc::AdditionalMandateDetails
+{
+    fn foreign_from(details: api_models::mandates::ProcessorPaymentTokenDetails) -> Self {
+        Self {
+            card_exp_month: details.card_exp_month,
+            card_exp_year: details.card_exp_year,
+            network_transaction_id: details.network_transaction_id,
+            transaction_link_id: details.transaction_link_id,
+        }
+    }
+}
+
 impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
     for payments_grpc::ConnectorMandateReferenceId
 {
@@ -1444,6 +1465,9 @@ impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
             mandate_metadata: value.get_mandate_metadata().map(|mandate_metadata| {
                 Secret::new(serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default())
             }),
+            additional_mandate_details: value
+                .get_additional_mandate_details()
+                .map(payments_grpc::AdditionalMandateDetails::foreign_from),
         }
     }
 }
@@ -1468,10 +1492,14 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
         let connector_mandate_request_reference_id = structured
             .and_then(|r| r.get_connector_mandate_request_reference_id())
             .or_else(|| router_data.connector_mandate_request_reference_id.clone());
+        let additional_mandate_details = structured
+            .and_then(|r| r.get_additional_mandate_details())
+            .map(payments_grpc::AdditionalMandateDetails::foreign_from);
 
         if connector_mandate_id.is_none()
             && payment_method_id.is_none()
             && connector_mandate_request_reference_id.is_none()
+            && additional_mandate_details.is_none()
         {
             return None;
         }
@@ -1479,6 +1507,7 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
             connector_mandate_id,
             payment_method_id,
             connector_mandate_request_reference_id,
+            additional_mandate_details,
             mandate_metadata: structured
                 .and_then(|connector_mandate_reference_id| {
                     connector_mandate_reference_id.get_mandate_metadata()
@@ -2286,6 +2315,9 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            integrity_specifications: None,
+            is_overcapture_enabled: None,
+            payment_method: None,
             split_settlement: None,
             connector_transaction_id,
             merchant_capture_id: Some(router_data.connector_request_reference_id.clone()),
@@ -2407,6 +2439,8 @@ impl
             .transpose()?;
 
         Ok(Self {
+            integrity_specifications: None,
+            risk_assessment_data: None,
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -2589,6 +2623,8 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            integrity_specifications: None,
+            risk_assessment_data: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2796,6 +2832,8 @@ impl
             .transpose()?;
 
         Ok(Self {
+            integrity_specifications: None,
+            risk_assessment_data: None,
             is_account_funding_transaction: None,
             recipient_details: None,
             business_country: None,
@@ -3278,6 +3316,7 @@ impl
         };
 
         Ok(Self {
+            integrity_specifications: None,
             merchant_charge_id: Some(router_data.connector_request_reference_id.clone()),
             connector_recurring_payment_id,
             payment_method,
@@ -3436,21 +3475,9 @@ impl
                     Some(payments_grpc::MandateReference {
                         mandate_id_type: Some(
                             payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
-                                payments_grpc::ConnectorMandateReferenceId {
-                                    connector_mandate_id: connector_mandate_id
-                                        .get_connector_mandate_id(),
-                                    payment_method_id: connector_mandate_id.get_payment_method_id(),
-                                    connector_mandate_request_reference_id: connector_mandate_id
-                                        .get_connector_mandate_request_reference_id(),
-                                    mandate_metadata: connector_mandate_id
-                                        .get_mandate_metadata()
-                                        .map(|mandate_metadata| {
-                                            Secret::new(
-                                                serde_json::to_string(&mandate_metadata.expose())
-                                                    .unwrap_or_default(),
-                                            )
-                                        }),
-                                },
+                                payments_grpc::ConnectorMandateReferenceId::foreign_from(
+                                    connector_mandate_id,
+                                ),
                             ),
                         ),
                     })
@@ -3555,6 +3582,7 @@ impl
         )?;
 
         Ok(Self {
+            integrity_specifications: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -3818,6 +3846,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            payment_method: None,
             test_mode: router_data.test_mode,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.total_amount,
@@ -4875,11 +4904,11 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::Prop => Self::Prop,
             common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
             common_enums::CardNetwork::Dinacard => Self::Dinacard,
-            common_enums::CardNetwork::AirPlus
-            | common_enums::CardNetwork::Aurore
-            | common_enums::CardNetwork::EftposAustralia
-            | common_enums::CardNetwork::GeCapital
-            | common_enums::CardNetwork::Uatp => Self::Unspecified,
+            common_enums::CardNetwork::AirPlus => Self::AirPlus,
+            common_enums::CardNetwork::Aurore => Self::Aurore,
+            common_enums::CardNetwork::EftposAustralia => Self::EftposAustralia,
+            common_enums::CardNetwork::GeCapital => Self::GeCapital,
+            common_enums::CardNetwork::Uatp => Self::Uatp,
         }
     }
 }
@@ -4907,6 +4936,11 @@ impl transformers::ForeignTryFrom<payments_grpc::CardNetwork> for common_enums::
             payments_grpc::CardNetwork::Prop => Ok(Self::Prop),
             payments_grpc::CardNetwork::PrivateLabel => Ok(Self::PrivateLabel),
             payments_grpc::CardNetwork::Dinacard => Ok(Self::Dinacard),
+            payments_grpc::CardNetwork::AirPlus => Ok(Self::AirPlus),
+            payments_grpc::CardNetwork::Aurore => Ok(Self::Aurore),
+            payments_grpc::CardNetwork::EftposAustralia => Ok(Self::EftposAustralia),
+            payments_grpc::CardNetwork::GeCapital => Ok(Self::GeCapital),
+            payments_grpc::CardNetwork::Uatp => Ok(Self::Uatp),
             payments_grpc::CardNetwork::Unspecified => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)?
             }
@@ -8837,6 +8871,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            payment_method: None,
             merchant_void_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             cancellation_reason: router_data.request.cancellation_reason.clone(),
@@ -8895,6 +8930,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            payment_method: None,
             merchant_void_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             split_payments: None,

@@ -219,6 +219,31 @@ pub struct ProcessorPaymentToken {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    /// Additional card and network reference details associated with the processor token.
+    #[smithy(value_type = "Option<ProcessorPaymentTokenDetails>")]
+    pub processor_payment_token_details: Option<ProcessorPaymentTokenDetails>,
+}
+
+/// Card and network reference details associated with a processor payment token.
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct ProcessorPaymentTokenDetails {
+    /// The card's expiry month.
+    #[schema(value_type = Option<String>, example = "12")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_exp_month: Option<Secret<String>>,
+    /// The card's expiry year.
+    #[schema(value_type = Option<String>, example = "2030")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_exp_year: Option<Secret<String>>,
+    /// The network transaction ID from the original customer initiated transaction.
+    #[smithy(value_type = "Option<String>")]
+    pub network_transaction_id: Option<String>,
+    /// The Mastercard Transaction Link Identifier from the original transaction.
+    #[smithy(value_type = "Option<String>")]
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(

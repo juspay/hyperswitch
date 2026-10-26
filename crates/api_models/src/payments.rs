@@ -14665,6 +14665,7 @@ impl PaymentRevenueRecoveryMetadata {
                 .payment_processor_token
                 .clone(),
             merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
+            processor_payment_token_details: None,
         }
     }
     pub fn get_merchant_connector_id_for_api_request(&self) -> id_type::MerchantConnectorAccountId {
