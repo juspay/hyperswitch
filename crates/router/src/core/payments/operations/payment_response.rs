@@ -3742,6 +3742,7 @@ async fn vault_deferred_payment_method<F: Clone>(
                 payment_method_create_request,
                 None,
                 business_profile,
+                common_enums::WalletDecryptedToken::None,
             ))
             .await
             .map(Some)
