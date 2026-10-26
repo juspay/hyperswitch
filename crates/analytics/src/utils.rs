@@ -25,6 +25,7 @@ pub fn get_payment_dimensions() -> Vec<NameDescription> {
         PaymentDimensions::CardNetwork,
         PaymentDimensions::MerchantId,
         PaymentDimensions::RoutingApproach,
+        PaymentDimensions::ErrorReason,
     ]
     .into_iter()
     .map(Into::into)
@@ -42,6 +43,8 @@ pub fn get_payment_intent_dimensions() -> Vec<NameDescription> {
         PaymentIntentDimensions::PaymentMethodType,
         PaymentIntentDimensions::CardNetwork,
         PaymentIntentDimensions::MerchantId,
+        PaymentIntentDimensions::OffSession,
+        PaymentIntentDimensions::SetupFutureUsage,
     ]
     .into_iter()
     .map(Into::into)

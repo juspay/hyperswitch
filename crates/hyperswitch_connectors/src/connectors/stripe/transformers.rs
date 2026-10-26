@@ -631,34 +631,6 @@ pub struct SepaBankTransferData {
     pub country: enums::CountryAlpha2,
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize)]
-#[serde(untagged)]
-pub enum StripeCreditTransferSourceRequest {
-    AchBankTansfer(AchCreditTransferSourceRequest),
-    MultibancoBankTansfer(MultibancoCreditTransferSourceRequest),
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct AchCreditTransferSourceRequest {
-    #[serde(rename = "type")]
-    pub transfer_type: StripeCreditTransferTypes,
-    #[serde(flatten)]
-    pub payment_method_data: AchTransferData,
-    pub currency: enums::Currency,
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct MultibancoCreditTransferSourceRequest {
-    #[serde(rename = "type")]
-    pub transfer_type: StripeCreditTransferTypes,
-    #[serde(flatten)]
-    pub payment_method_data: MultibancoTransferData,
-    pub currency: enums::Currency,
-    pub amount: Option<MinorUnit>,
-    #[serde(rename = "redirect[return_url]")]
-    pub return_url: Option<String>,
-}
-
 // Remove untagged when Deserialize is added
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
@@ -1040,6 +1012,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Trustly
             | enums::PaymentMethodType::Twint
             | enums::PaymentMethodType::Vipps
+            | enums::PaymentMethodType::Wero
             | enums::PaymentMethodType::Venmo
             | enums::PaymentMethodType::Alfamart
             | enums::PaymentMethodType::BcaBankTransfer
@@ -1407,6 +1380,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::SamsungPay(_)
         | WalletData::TwintRedirect {}
         | WalletData::VippsRedirect {}
+        | WalletData::WeroRedirect {}
         | WalletData::TouchNGoRedirect(_)
         | WalletData::SwishQr(_)
         | WalletData::WeChatPayRedirect(_)
@@ -1951,6 +1925,7 @@ impl
             | WalletData::SamsungPay(_)
             | WalletData::TwintRedirect {}
             | WalletData::VippsRedirect {}
+            | WalletData::WeroRedirect {}
             | WalletData::TouchNGoRedirect(_)
             | WalletData::SwishQr(_)
             | WalletData::WeChatPayRedirect(_)
@@ -4363,7 +4338,11 @@ impl<F> TryFrom<(&RefundsRouterData<F>, MinorUnit)> for RefundRequest {
 
 #[derive(Debug, Serialize)]
 pub struct ChargeRefundRequest {
-    pub charge: String,
+    /// Stripe's Create Refund API accepts either identifier. `charge` is used when it is known,
+    /// otherwise the refund is issued against `payment_intent` - which keeps `reverse_transfer`
+    /// and `refund_application_fee` on the request either way.
+    pub charge: Option<String>,
+    pub payment_intent: Option<String>,
     pub refund_application_fee: Option<bool>,
     pub reverse_transfer: Option<bool>,
     pub amount: Option<MinorUnit>, //amount in cents, hence passed as integer
@@ -4393,8 +4372,14 @@ impl<F> TryFrom<&RefundsRouterData<F>> for ChargeRefundRequest {
                         }) => (Some(*revert_platform_fee), Some(*revert_transfer)),
                     };
 
+                    let charge = stripe_refund.charge_id.clone();
+                    let payment_intent = charge
+                        .is_none()
+                        .then(|| item.request.connector_transaction_id.clone());
+
                     Ok(Self {
-                        charge: stripe_refund.charge_id.clone(),
+                        charge,
+                        payment_intent,
                         refund_application_fee,
                         reverse_transfer,
                         amount: Some(amount),

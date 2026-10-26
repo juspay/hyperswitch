@@ -334,6 +334,8 @@ pub enum ApiErrorResponse {
     WebhookUnprocessableEntity,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_06", message = "Merchant Secret set my merchant for webhook source verification is invalid")]
     WebhookInvalidMerchantSecret,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "WE_07", message = "Too many unverified webhooks received")]
+    WebhookRateLimited,
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IE", message = "{reason} as data mismatched for {field_names}")]
     IntegrityCheckFailed {
         payment_id: Option<common_utils::id_type::PaymentId>,
@@ -741,6 +743,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             },
             Self::WebhookInvalidMerchantSecret => {
                 AER::BadRequest(ApiError::new("WE", 6, "Merchant Secret set for webhook source verification is invalid", None))
+            }
+            Self::WebhookRateLimited => {
+                AER::TooManyRequests(ApiError::new("WE", 7, "Too many unverified webhooks received", None))
             }
             Self::IntegrityCheckFailed {
                 reason,
