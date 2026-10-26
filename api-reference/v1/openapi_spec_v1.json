@@ -10847,6 +10847,139 @@
           }
         ]
       }
+    },
+    "/telephone_order/{merchant_id}/{provider}": {
+      "post": {
+        "tags": [
+          "Telephone Order"
+        ],
+        "summary": "Telephone Order - Charge",
+        "description": "Charges a card that an IVR provider collected over the phone. Only `twilio` is supported as `{provider}`.",
+        "operationId": "Charge a telephone order",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account the card is charged under",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_1791294465"
+          },
+          {
+            "name": "provider",
+            "in": "path",
+            "description": "The telephone order provider posting the request. Currently only `twilio`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "twilio"
+          }
+        ],
+        "requestBody": {
+          "description": "The provider's charge request. Shown here in Twilio's Generic Pay Connector shape.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TwilioGenericPayRequest"
+              },
+              "examples": {
+                "Charge a card collected over the phone": {
+                  "value": {
+                    "amount": "1.00",
+                    "cardnumber": "4242424242424242",
+                    "currency_code": "USD",
+                    "cvv": "123",
+                    "description": "Order placed over the phone",
+                    "expiry_month": "12",
+                    "expiry_year": "28",
+                    "method": "charge",
+                    "parameters": {
+                      "profile_id": "pro_GUMsmmzTU7oadT00pJeo"
+                    },
+                    "postal_code": "94122",
+                    "transaction_id": "IPe16430-39ba-4820-bedc-7aad0762a487"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The outcome of the charge, in the provider's response shape.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwilioGenericPayResponse"
+                },
+                "examples": {
+                  "01. The card was charged": {
+                    "value": {
+                      "charge_id": "pay_8320b449b06630271e378214dab80ce5",
+                      "error_code": null,
+                      "error_message": null,
+                      "parameters": {
+                        "amount_capturable": "0",
+                        "amount_received": "100",
+                        "connector": "stripe",
+                        "connector_transaction_id": "pi_3URyI8D5R7gDAGff17RhZpfW",
+                        "merchant_order_reference_id": "IPe16430-39ba-4820-bedc-7aad0762a487",
+                        "payment_id": "pay_8320b449b06630271e378214dab80ce5",
+                        "status": "succeeded"
+                      }
+                    }
+                  },
+                  "02. The card was declined": {
+                    "value": {
+                      "charge_id": null,
+                      "error_code": "card_declined",
+                      "error_message": "Your card was declined.",
+                      "parameters": {
+                        "connector": "stripe",
+                        "merchant_order_reference_id": "IPe16430-39ba-4820-bedc-7aad0762a487",
+                        "payment_id": "pay_8320b449b06630271e378214dab80ce5",
+                        "status": "failed",
+                        "unified_code": "UE_9000"
+                      }
+                    }
+                  },
+                  "03. The charge has no final outcome": {
+                    "value": {
+                      "charge_id": null,
+                      "error_code": "PAYMENT_PENDING",
+                      "error_message": "Payment is not yet complete",
+                      "parameters": {
+                        "connector": "stripe",
+                        "merchant_order_reference_id": "IPe16430-39ba-4820-bedc-7aad0762a487",
+                        "payment_id": "pay_8320b449b06630271e378214dab80ce5",
+                        "status": "processing"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing, expired, or does not belong to this merchant"
+          },
+          "404": {
+            "description": "Unknown telephone order provider in the path"
+          },
+          "422": {
+            "description": "The request body could not be deserialized for this provider"
+          }
+        },
+        "security": [
+          {
+            "basic_api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -49728,6 +49861,127 @@
           }
         }
       },
+      "TwilioGenericPayRequest": {
+        "type": "object",
+        "required": [
+          "method",
+          "transaction_id"
+        ],
+        "properties": {
+          "method": {
+            "$ref": "#/components/schemas/TwilioPayMethod"
+          },
+          "transaction_id": {
+            "type": "string",
+            "description": "Twilio's id for this attempt. Stable across its retries, and used to derive the `payment_id` so a retry replays the original charge.",
+            "example": "IPe16430-39ba-4820-bedc-7aad0762a487"
+          },
+          "cardnumber": {
+            "type": "string",
+            "description": "Card number collected over DTMF. Required for a charge.",
+            "example": "4242424242424242",
+            "nullable": true
+          },
+          "cvv": {
+            "type": "string",
+            "description": "Card security code collected over DTMF. Required for a charge.",
+            "example": "123",
+            "nullable": true
+          },
+          "expiry_month": {
+            "type": "string",
+            "description": "Two digit card expiry month. Required for a charge.",
+            "example": "12",
+            "nullable": true
+          },
+          "expiry_year": {
+            "type": "string",
+            "description": "Two or four digit card expiry year. Required for a charge.",
+            "example": "28",
+            "nullable": true
+          },
+          "postal_code": {
+            "type": "string",
+            "description": "Billing postal code, collected for AVS.",
+            "example": "94122",
+            "nullable": true
+          },
+          "bankaccountnumber": {
+            "type": "string",
+            "description": "Bank account number for ACH debits. Not supported.",
+            "nullable": true
+          },
+          "routingnumber": {
+            "type": "string",
+            "description": "Bank routing number for ACH debits. Not supported.",
+            "nullable": true
+          },
+          "amount": {
+            "type": "string",
+            "description": "Amount in major units, as a decimal string. Absent for `tokenize`.",
+            "example": "1.00",
+            "nullable": true
+          },
+          "currency_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Free-form description configured on the `<Pay>` verb.",
+            "example": "Order placed over the phone",
+            "nullable": true
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Values from the IVR's `<Parameter>` tags, stored unmasked in the payment's `metadata`. `profile_id`, `payment_id` and `customer_id` are also read.",
+            "nullable": true
+          }
+        }
+      },
+      "TwilioGenericPayResponse": {
+        "type": "object",
+        "description": "Body Twilio expects back. It reads `error_code` to decide the outcome, so a decline is a `200` with that set.",
+        "required": [
+          "parameters"
+        ],
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "The Hyperswitch `payment_id`, on a successful charge.",
+            "example": "pay_8320b449b06630271e378214dab80ce5",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Set when the payment did not succeed: the connector's decline code, or one of `INVALID_REQUEST`, `PROFILE_NOT_FOUND`, `PAYMENT_NOT_COMPLETED`, `PAYMENT_PENDING`, `DUPLICATE_TRANSACTION`, `PROCESSING_ERROR`, `TOKENIZE_UNSUPPORTED`, `BANK_ACCOUNT_UNSUPPORTED`. On `PAYMENT_PENDING` the funds may be held, so do not re-prompt for a card.",
+            "example": "PAYMENT_NOT_COMPLETED",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Human readable counterpart to `error_code`.",
+            "example": "Your card was declined.",
+            "nullable": true
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Returned either way, and the only channel carrying a `payment_id` when `charge_id` is `null`. Flat and all-string; the request's own `parameters` are never echoed back."
+          }
+        }
+      },
+      "TwilioPayMethod": {
+        "type": "string",
+        "description": "The operation Twilio is asking us to perform.",
+        "enum": [
+          "charge",
+          "tokenize"
+        ]
+      },
       "TxnStatus": {
         "type": "string",
         "enum": [
@@ -52180,6 +52434,11 @@
         "name": "api-key",
         "description": "Use the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
       },
+      "basic_api_key": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "HTTP Basic authentication with a merchant API key as the password. The username is ignored. Used by endpoints that a third party posts to, such as telephone order providers."
+      },
       "ephemeral_key": {
         "type": "apiKey",
         "in": "header",
@@ -52267,6 +52526,10 @@
     {
       "name": "Card Issuer",
       "description": "Create and manage card issuers"
+    },
+    {
+      "name": "Telephone Order",
+      "description": "Charge cards collected over the phone by an IVR provider"
     }
   ]
 }
