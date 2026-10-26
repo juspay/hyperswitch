@@ -1537,6 +1537,7 @@ pub async fn save_in_locker_internal(
     }
 }
 
+#[cfg(feature = "v1")]
 fn get_default_payment_method(
     state: &SessionState,
     provider: &domain::Provider,
@@ -1566,6 +1567,19 @@ fn get_default_payment_method(
         locker_fingerprint_id: None,
     };
     Ok((payment_method_response, None))
+}
+
+#[cfg(feature = "v2")]
+fn get_default_payment_method(
+    state: &SessionState,
+    provider: &domain::Provider,
+    payment_method_request: api::PaymentMethodCreate,
+    customer_id: &id_type::CustomerId,
+) -> RouterResult<(
+    api_models::payment_methods::PaymentMethodResponse,
+    Option<payment_methods::transformers::DataDuplicationCheck>,
+)> {
+    todo!()
 }
 
 #[cfg(feature = "v1")]
