@@ -33,9 +33,10 @@ impl super::settings::UserSettings {
         use common_utils::fp_utils::when;
 
         when(
-            self.idle_session_timeout_in_secs.is_some_and(|idle_timeout_in_secs| {
-                idle_timeout_in_secs < MIN_IDLE_SESSION_TIMEOUT_IN_SECS
-            }),
+            self.idle_session_timeout_in_secs
+                .is_some_and(|idle_timeout_in_secs| {
+                    idle_timeout_in_secs < MIN_IDLE_SESSION_TIMEOUT_IN_SECS
+                }),
             || {
                 Err(ApplicationError::InvalidConfigurationValueError(format!(
                     "user idle session timeout must be at least \

@@ -159,8 +159,7 @@ impl BlackList for AuthToken {
         // A login token that isn't blacklisted must also belong to a session that
         // hasn't gone idle.
         if !is_blacklisted {
-            super::idle_session::check_idle_session(&state.session_state(), &self.user_id)
-                .await?;
+            super::idle_session::check_idle_session(&state.session_state(), &self.user_id).await?;
         }
 
         Ok(is_blacklisted)
