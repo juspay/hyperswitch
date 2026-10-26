@@ -155,10 +155,10 @@ mod tests {
 
     #[test]
     fn shared_ledger_counts_each_concurrent_repeat_once() {
-        let ledger = std::sync::Arc::new(ReadLedger::new("PaymentsConfirm".to_owned()));
+        let ledger = Arc::new(ReadLedger::new("PaymentsConfirm".to_owned()));
         let threads = (0..8)
             .map(|_| {
-                let ledger = std::sync::Arc::clone(&ledger);
+                let ledger = Arc::clone(&ledger);
                 std::thread::spawn(move || ledger.record_read(PI))
             })
             .collect::<Vec<_>>();
