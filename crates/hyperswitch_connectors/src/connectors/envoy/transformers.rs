@@ -777,13 +777,10 @@ pub struct Debit {
     debit_amount: FloatMajorUnit,
 }
 
-//--------------------- WEBHOOK RESPONSES ---------------------
-
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum EnvoyNotificationResult {
-    #[serde(rename = "SUCCESS")]
     Success,
-    #[serde(rename = "ERROR")]
     Error,
 }
 

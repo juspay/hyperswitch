@@ -684,7 +684,7 @@ impl webhooks::IncomingWebhook for Envoy {
         >,
         _connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(true)
+        Ok(false)
     }
 
     fn get_webhook_object_reference_id(
