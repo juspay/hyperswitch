@@ -20,6 +20,8 @@ jobs:
       - name: Generate GitHub app token
         id: generate_app_token
         uses: actions/create-github-app-token@v3
+        env:
+          NODE_USE_ENV_PROXY: "1"
         with:
           client-id: ${{ secrets.HYPERSWITCH_BOT_CLIENT_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
