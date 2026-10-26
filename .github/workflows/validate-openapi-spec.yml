@@ -21,7 +21,7 @@ jobs:
         id: generate_token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          client-id: ${{ secrets.HYPERSWITCH_BOT_CLIENT_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
 
       - name: Checkout PR from fork

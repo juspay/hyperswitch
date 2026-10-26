@@ -3,8 +3,8 @@ name: Create a nightly tag
 on:
   workflow_call:
     secrets:
-      app_id:
-        description: App ID of the GitHub App
+      client_id:
+        description: Client ID of the GitHub App
         required: true
       app_private_key:
         description: Private key of the GitHub App
@@ -35,7 +35,7 @@ jobs:
         id: generate_token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.app_id }}
+          client-id: ${{ secrets.client_id }}
           private-key: ${{ secrets.app_private_key }}
 
       - name: Checkout repository

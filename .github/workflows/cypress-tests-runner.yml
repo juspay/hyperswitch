@@ -51,7 +51,7 @@ jobs:
           # v3 refuses to run behind hypersage-runners' proxy without this.
           NODE_USE_ENV_PROXY: "1"
         with:
-          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          client-id: ${{ secrets.HYPERSWITCH_BOT_CLIENT_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
 
       - name: Checkout repository with token
