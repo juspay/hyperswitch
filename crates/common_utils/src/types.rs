@@ -677,6 +677,7 @@ impl StringMajorUnit {
                 error: e.to_string(),
             }
         })?;
+        //test
 
         let amount = if currency.is_zero_decimal_currency() {
             amount_decimal
