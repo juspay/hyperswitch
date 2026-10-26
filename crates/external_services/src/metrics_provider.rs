@@ -1,12 +1,13 @@
 mod error;
 pub mod grafana;
 
+use common_utils::errors::CustomResult;
+use serde::{de::DeserializeOwned, Serialize};
+
 pub use self::{
     error::MetricsError,
     grafana::cloudwatch::{MetricPoint, MetricRange, MetricSeries},
 };
-use common_utils::errors::CustomResult;
-use serde::{de::DeserializeOwned, Serialize};
 
 pub type MetricsResult<T> = CustomResult<T, MetricsError>;
 
