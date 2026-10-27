@@ -2995,13 +2995,16 @@ where
         "resolving modular vs legacy payment method update path"
     );
 
-    if payment_data.get_payment_method_info().is_some_and(|pm| {
-        feature_config.should_use_modular_pm_path(
-            Some(pm.version),
-            pm.compatibility_updated_at,
-            Some(pm.last_modified),
-        )
-    }) {
+    if payment_data.get_payment_method_info().map_or(
+        feature_config.is_payment_method_modular_allowed,
+        |pm| {
+            feature_config.should_use_modular_pm_path(
+                Some(pm.version),
+                pm.compatibility_updated_at,
+                Some(pm.last_modified),
+            )
+        },
+    ) {
         logger::info!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
             "Modular payment method path selected; calling update_modular_pm_and_mandate"
