@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.26.0-hotfix1
+
+### Bug Fixes
+
+- **auth:** Use Authorization for v1 admin API keys [hotfix-2026.10.26.0] ([#15007](https://github.com/juspay/hyperswitch/pull/15007)) ([`fbd83f7`](https://github.com/juspay/hyperswitch/commit/fbd83f7a43d970cea1a1ebef4b6049c5d1ef5183))
+- **payment-methods:** Use wallet preference for fingerprint_id creation ([#14993](https://github.com/juspay/hyperswitch/pull/14993)) ([`d68da08`](https://github.com/juspay/hyperswitch/commit/d68da08a9281f7444083d4b437909aaa44992179))
+
+**Full Changelog:** [`2026.10.26.0...2026.10.26.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.10.26.0...2026.10.26.0-hotfix1)
+
+- - -
+
 ## 2026.10.26.0
 
 ### Features
