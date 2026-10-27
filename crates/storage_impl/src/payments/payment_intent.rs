@@ -1601,13 +1601,21 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::amount.desc()),
                     Order {
-                        on: SortOn::Created | SortOn::Modified,
+                        on: SortOn::Created,
                         by: SortBy::Asc,
                     } => query.order(pi_dsl::created_at.asc()),
                     Order {
-                        on: SortOn::Created | SortOn::Modified,
+                        on: SortOn::Created,
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::created_at.desc()),
+                    Order {
+                        on: SortOn::Modified,
+                        by: SortBy::Asc,
+                    } => query.order(pi_dsl::modified_at.asc()),
+                    Order {
+                        on: SortOn::Modified,
+                        by: SortBy::Desc,
+                    } => query.order(pi_dsl::modified_at.desc()),
                     Order {
                         on: SortOn::AttemptCount,
                         by: SortBy::Asc,
@@ -1616,6 +1624,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         on: SortOn::AttemptCount,
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::attempt_count.desc()),
+                };
+                // Tie-break on id so paging is stable.
+                query = match params.order.by {
+                    SortBy::Asc => query.then_order_by(pi_dsl::id.asc()),
+                    SortBy::Desc => query.then_order_by(pi_dsl::id.desc()),
                 };
 
                 if let Some(customer_id) = &params.customer_id {
