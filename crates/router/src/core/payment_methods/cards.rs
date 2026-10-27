@@ -5929,6 +5929,12 @@ pub async fn call_surcharge_decision_management(
     billing_address: Option<domain::Address>,
     response_payment_method_types: &mut [ResponsePaymentMethodsEnabled],
 ) -> errors::RouterResult<api_surcharge_decision_configs::MerchantSurchargeConfigs> {
+    if payment_intent.is_settlement_conclusion_applied() {
+        return Ok(api_surcharge_decision_configs::MerchantSurchargeConfigs {
+            show_surcharge_breakup_screen: Some(false),
+        });
+    }
+
     #[cfg(feature = "v1")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = platform
         .get_processor()
@@ -5993,6 +5999,10 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     payment_intent: storage::PaymentIntent,
     customer_payment_method_response: &mut api::CustomerPaymentMethodsListResponse,
 ) -> errors::RouterResult<()> {
+    if payment_intent.is_settlement_conclusion_applied() {
+        return Ok(());
+    }
+
     #[cfg(feature = "v1")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = platform
         .get_processor()

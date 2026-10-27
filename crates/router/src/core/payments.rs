@@ -2922,6 +2922,10 @@ pub async fn call_surcharge_decision_management_for_session_flow(
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     session_connector_data: &api::SessionConnectorDatas,
 ) -> RouterResult<Option<api::SessionSurchargeDetails>> {
+    if payment_intent.is_settlement_conclusion_applied() {
+        return Ok(None);
+    }
+
     if let Some(surcharge_amount) = payment_attempt.net_amount.get_surcharge_amount() {
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
             types::SurchargeDetails {
