@@ -4,10 +4,9 @@
 //! message. What an alert looks like is decided here.
 //!
 //! - **Plain** — no alert: the caller's text is the whole message.
-//! - **Alert** — a bold heading built from the alert's domain data as the text, and the caller's
-//!   text as the body inside a coloured attachment. The rules match what the R alerts service sends
-//!   Xyne directly (`xyne_body_payload`, `alert_heading`, `alert_state_marker`,
-//!   `xyne_attachment_color`), so a message looks the same whichever path delivered it.
+//! - **Alert** — a bold heading built from the alert's fields as the text, and the caller's text as
+//!   the body in one section block of an attachment coloured by severity. Every caller's alerts
+//!   look the same.
 
 use external_services::chat_service::{ChatMessage, MessageId};
 use hyperswitch_masking::PeekInterface;
@@ -15,15 +14,8 @@ use serde_json::{json, Value};
 
 use super::{AlertSeverity, AlertState, ChatAlert};
 
-/// Longest heading a section-style message carries. The heading is one line; anything longer is
-/// clipped, as the R direct sink clips it.
-const HEADING_MAX_CHARS: usize = 150;
-
-/// What ends a clipped heading.
-const CLIP_MARKER: &str = "...";
-
-/// Longest text one section block accepts. An oversized block is rejected rather than trimmed, so
-/// a longer body is spread across several blocks.
+/// Longest text one section block accepts. The provider refuses a longer block, so a longer body
+/// is cut to fit.
 const SECTION_MAX_CHARS: usize = 3000;
 
 /// The message for `text`, laid out as an alert when `alert` is given, threaded under `reply_to`
@@ -54,21 +46,16 @@ fn content(text: &str, alert: Option<&ChatAlert>, resolved: bool) -> (String, Op
         return (text.to_owned(), None);
     };
 
-    let blocks: Vec<Value> = sections(text)
-        .into_iter()
-        .map(|section| {
-            json!({
-                "type": "section",
-                "text": { "type": "mrkdwn", "text": section },
-            })
-        })
-        .collect();
+    let body: String = text.chars().take(SECTION_MAX_CHARS).collect();
 
     (
-        format!("*{}*", clip(&heading(alert), HEADING_MAX_CHARS)),
+        format!("*{}*", heading(alert)),
         Some(vec![json!({
             "color": colour(alert, resolved),
-            "blocks": blocks,
+            "blocks": [{
+                "type": "section",
+                "text": { "type": "mrkdwn", "text": body },
+            }],
         })]),
     )
 }
@@ -93,19 +80,13 @@ fn heading(alert: &ChatAlert) -> String {
     };
     let title = alert.title.peek();
 
-    match alert
-        .region
-        .as_deref()
-        .map(str::trim)
-        .filter(|region| !region.is_empty())
-    {
+    match &alert.region {
         Some(region) => format!("{marker} [{region}] {lead} · {title}"),
         None => format!("{marker} {lead} · {title}"),
     }
 }
 
-/// The attachment's rail. The severity hexes are the ones the R alerts' report chart uses for the
-/// same levels, so a message and its chart agree.
+/// The attachment's rail: red, orange or yellow by severity, green once resolved.
 ///
 /// Resolved is a hex too — Slack's own "good" green — rather than the name `good`. Xyne reads the
 /// name, but Slack draws a named colour grey on an attachment carrying blocks.
@@ -118,55 +99,6 @@ fn colour(alert: &ChatAlert, resolved: bool) -> &'static str {
         AlertSeverity::Sev2 => "#e65100",
         AlertSeverity::Sev3 => "#f9a825",
     }
-}
-
-/// Spread `body` across as many section blocks as it needs, breaking between lines.
-///
-/// A single line longer than a block is split mid-line. Nothing is dropped.
-fn sections(body: &str) -> Vec<String> {
-    let mut sections = Vec::new();
-    let mut current = String::new();
-    let mut current_chars = 0;
-
-    for line in body.split_inclusive('\n') {
-        for piece in split_chars(line, SECTION_MAX_CHARS) {
-            let piece_chars = piece.chars().count();
-            if current_chars + piece_chars > SECTION_MAX_CHARS {
-                sections.push(std::mem::take(&mut current));
-                current_chars = 0;
-            }
-            current.push_str(&piece);
-            current_chars += piece_chars;
-        }
-    }
-    sections.push(current);
-
-    // A block ending on the line break it was split after would render a blank line.
-    sections
-        .into_iter()
-        .map(|section| section.trim_end_matches('\n').to_owned())
-        .filter(|section| !section.is_empty())
-        .collect()
-}
-
-/// `text` in pieces of at most `max_chars` characters.
-fn split_chars(text: &str, max_chars: usize) -> Vec<String> {
-    let chars: Vec<char> = text.chars().collect();
-    chars
-        .chunks(max_chars)
-        .map(|chunk| chunk.iter().collect())
-        .collect()
-}
-
-/// Shorten `text` to `max_chars`, ending in [`CLIP_MARKER`].
-fn clip(text: &str, max_chars: usize) -> String {
-    if text.chars().count() <= max_chars {
-        return text.to_owned();
-    }
-    let keep = max_chars.saturating_sub(CLIP_MARKER.chars().count());
-    let mut clipped: String = text.chars().take(keep).collect();
-    clipped.push_str(CLIP_MARKER);
-    clipped
 }
 
 #[cfg(test)]
@@ -189,19 +121,6 @@ mod tests {
     fn shaped(text: &str, alert: Option<&ChatAlert>, resolved: bool) -> Value {
         let (text, attachments) = content(text, alert, resolved);
         json!({ "text": text, "attachments": attachments })
-    }
-
-    fn sections_of(shaped: &Value) -> Vec<String> {
-        shaped["attachments"][0]["blocks"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|block| {
-                assert_eq!(block["type"], "section");
-                assert_eq!(block["text"]["type"], "mrkdwn");
-                block["text"]["text"].as_str().unwrap().to_owned()
-            })
-            .collect()
     }
 
     #[test]
@@ -311,56 +230,23 @@ mod tests {
             shaped("body", Some(&with_region), false)["text"],
             "*🟡 [eu-west-1] SEV3 · SR drop - connector (15m)*"
         );
-
-        with_region.region = Some("  ".to_owned());
-        assert_eq!(
-            shaped("body", Some(&with_region), false)["text"],
-            "*🟡 SEV3 · SR drop - connector (15m)*"
-        );
     }
 
     #[test]
-    fn a_long_heading_is_clipped_to_one_line() {
-        let mut long = alert(AlertState::Firing, AlertSeverity::Sev1);
-        long.title = Secret::new("t".repeat(400));
-
-        let text = shaped("body", Some(&long), false)["text"]
-            .as_str()
-            .unwrap()
-            .to_owned();
-        let heading = text.trim_matches('*');
-        assert_eq!(heading.chars().count(), HEADING_MAX_CHARS);
-        assert!(heading.ends_with(CLIP_MARKER));
-    }
-
-    #[test]
-    fn a_long_body_is_spread_across_sections_between_lines_and_loses_nothing() {
-        let line = format!("{}\n", "a".repeat(999));
-        let body = line.repeat(7);
-
-        let sections = sections_of(&shaped(
-            &body,
-            Some(&alert(AlertState::Firing, AlertSeverity::Sev1)),
-            false,
-        ));
-
-        assert_eq!(sections.len(), 3);
-        assert!(sections
-            .iter()
-            .all(|section| section.chars().count() <= SECTION_MAX_CHARS));
-        assert_eq!(sections.join("\n"), body.trim_end_matches('\n'));
-    }
-
-    #[test]
-    fn a_line_longer_than_a_section_is_split_mid_line() {
+    fn a_long_body_is_cut_to_one_section() {
         let body = "b".repeat(SECTION_MAX_CHARS + 500);
-        let sections = sections_of(&shaped(
+
+        let built = shaped(
             &body,
             Some(&alert(AlertState::Firing, AlertSeverity::Sev1)),
             false,
-        ));
+        );
 
-        assert_eq!(sections.len(), 2);
-        assert_eq!(sections.concat(), body);
+        let blocks = built["attachments"][0]["blocks"].as_array().unwrap();
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(
+            blocks[0]["text"]["text"],
+            "b".repeat(SECTION_MAX_CHARS).as_str()
+        );
     }
 }

@@ -120,9 +120,9 @@ X-Internal-Api-Key: <key>
 alert's own through its life; `region` is optional. The message is laid out here, not by the caller:
 
 - heading `*🔴 [eu-west-1] SEV1 · SR drop - connector (15m)*` — `STILL FIRING` for `persistent`,
-  `🟢 … RESOLVED` for `resolved` — clipped to 150 characters;
-- `text` in the section blocks of an attachment coloured by severity (`resolved` is green), spread
-  across as many 3000-character blocks as it needs, so nothing is cut;
+  `🟢 … RESOLVED` for `resolved`;
+- `text` in one section block of an attachment coloured by severity (`resolved` is green), cut to
+  the block's 3000-character limit;
 - **no top-level `mrkdwn`.** Xyne's adapter reads that flag as "text only" and drops the attachment —
   rail and body — while still answering `ok: true`.
 
