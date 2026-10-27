@@ -46,7 +46,7 @@ pub struct MultiCurrencyProcessingAmountData {
     #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
     /// Merchant settlement currency.
-    #[schema(value_type = enums::Currency)]
+    #[schema(value_type = Currency)]
     #[smithy(value_type = "Currency")]
     pub currency: enums::Currency,
 }

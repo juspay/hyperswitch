@@ -18085,6 +18085,7 @@
       },
       "CaptureFeatureMetadata": {
         "type": "object",
+        "description": "Feature metadata for a capture operation.",
         "properties": {
           "multi_currency_processing": {
             "allOf": [
@@ -30191,7 +30192,8 @@
         "properties": {
           "amount": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Merchant settlement amount in minor units."
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -45096,6 +45098,7 @@
       },
       "RefundFeatureMetadata": {
         "type": "object",
+        "description": "Feature metadata for a refund operation.",
         "properties": {
           "multi_currency_processing": {
             "allOf": [
