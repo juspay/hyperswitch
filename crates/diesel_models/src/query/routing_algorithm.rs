@@ -80,7 +80,7 @@ impl RoutingAlgorithm {
                     .and(dsl::profile_id.eq(profile_id.to_owned())),
             )
             .limit(1);
-        conn.track_load_async::<Self, _, (
+        conn.track_load::<Self, _, (
             common_utils::id_type::ProfileId,
             common_utils::id_type::RoutingId,
             String,
@@ -144,7 +144,7 @@ impl RoutingAlgorithm {
             .limit(limit)
             .offset(offset);
         Ok(conn
-            .track_load_async::<Self, _, (
+            .track_load::<Self, _, (
                 common_utils::id_type::RoutingId,
                 common_utils::id_type::ProfileId,
                 String,
@@ -212,7 +212,7 @@ impl RoutingAlgorithm {
             // `algorithm_id` breaks ties on `modified_at`, so the pages of one walk stay disjoint.
             .order((dsl::modified_at.desc(), dsl::algorithm_id.asc()));
         Ok(conn
-            .track_load_async::<Self, _, (
+            .track_load::<Self, _, (
                 common_utils::id_type::ProfileId,
                 common_utils::id_type::RoutingId,
                 String,
@@ -282,7 +282,7 @@ impl RoutingAlgorithm {
             // `algorithm_id` breaks ties on `modified_at`, so the pages of one walk stay disjoint.
             .order((dsl::modified_at.desc(), dsl::algorithm_id.asc()));
         Ok(conn
-            .track_load_async::<Self, _, (
+            .track_load::<Self, _, (
                 common_utils::id_type::ProfileId,
                 common_utils::id_type::RoutingId,
                 String,
@@ -352,7 +352,7 @@ impl RoutingAlgorithm {
             ))
             .filter(dsl::profile_id.eq_any(profile_ids.to_vec()))
             .order((dsl::profile_id.asc(), dsl::algorithm_id.asc()));
-        conn.track_load_async::<Self, _, (
+        conn.track_load::<Self, _, (
             common_utils::id_type::ProfileId,
             Option<common_utils::id_type::MerchantId>,
             common_utils::id_type::MerchantId,
@@ -395,7 +395,7 @@ impl RoutingAlgorithm {
             .order((dsl::merchant_id.asc(), dsl::profile_id.asc()))
             .limit(limit)
             .offset(offset);
-        conn.track_load_async::<Self, _, (
+        conn.track_load::<Self, _, (
             common_utils::id_type::ProfileId,
             common_utils::id_type::MerchantId,
         )>(DatabaseOperation::Filter, query)

@@ -1,6 +1,5 @@
 #[cfg(feature = "olap")]
 use api_models::enums::PayoutConnectors;
-#[cfg(feature = "olap")]
 use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
@@ -31,7 +30,6 @@ use hyperswitch_domain_models::payouts::{
     payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
 };
 use redis_interface::HsetnxReply;
-#[cfg(feature = "olap")]
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "olap")]

@@ -1,4 +1,7 @@
 //! Request correlation context shared by infrastructure clients.
+use std::sync;
+
+use crate::read_ledger;
 
 /// Minimal request correlation context for infrastructure calls.
 ///
@@ -11,7 +14,7 @@ pub trait RequestContext: Send + Sync {
     /// The ledger of records this API session has already read, if it has one.
     /// `None` by default: background callers (drainer, scheduler, consumer) are
     /// not sessions, so there is nothing for a read to repeat *within*.
-    fn read_ledger(&self) -> Option<&std::sync::Arc<crate::read_ledger::ReadLedger>> {
+    fn read_ledger(&self) -> Option<&sync::Arc<read_ledger::ReadLedger>> {
         None
     }
 }
