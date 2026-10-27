@@ -697,6 +697,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::BacsBankTransferInstructions,
         api_models::payments::RedirectResponse,
         api_models::payments::RequestSurchargeDetails,
+        api_models::payments::PaymentSurchargeDetailsResponse,
         api_models::payments::PaymentRevenueRecoveryMetadata,
         api_models::payments::BillingConnectorPaymentDetails,
         api_models::payments::ApplyPaymentMethodDataRequest,

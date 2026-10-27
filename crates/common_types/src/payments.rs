@@ -1632,9 +1632,34 @@ pub struct ExternalSurchargeDetails {
     pub surcharge_percentage: Option<Decimal>,
     /// Whether /v1/ch/sale has been successfully called
     pub sale_notified: bool,
+    /// Connector code for a failed calculation.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub error_code: String,
+    /// Connector message for a failed calculation.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub error_message: String,
+    /// Connector reason for a failed calculation.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub error_reason: String,
 }
 
 impl ExternalSurchargeDetails {
+    /// Connector ID only when a successful calculation can be notified or reused.
+    pub fn usable_connector_id(&self) -> Option<&str> {
+        match self {
+            details
+                if details.error_code.is_empty()
+                    && details.error_message.is_empty()
+                    && details.error_reason.is_empty()
+                    && !details.external_surcharge_id.is_empty()
+                    && details.external_surcharge_id != crate::consts::NO_SURCHARGE_ID_FOUND =>
+            {
+                Some(details.external_surcharge_id.as_str())
+            }
+            _ => None,
+        }
+    }
+
     /// Convert an `f64` surcharge percentage (as produced by the surcharge connector) into the
     /// `Decimal` representation stored on the attempt. Returns `None` for `None`/non-finite input.
     pub fn decimal_percentage_from_f64(value: Option<f64>) -> Option<Decimal> {

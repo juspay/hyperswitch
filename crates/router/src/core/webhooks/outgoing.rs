@@ -829,8 +829,8 @@ async fn update_payment_attempt_from_webhook_response(
             }
         };
         let existing_details = match payment_attempt.external_surcharge_details.clone() {
-            Some(details) => details,
-            None => {
+            Some(details) if details.usable_connector_id().is_some() => details,
+            Some(_) | None => {
                 logger::debug!(
                     attempt_id = %attempt_id,
                     "No external_surcharge_details found; nothing to update"
@@ -843,6 +843,9 @@ async fn update_payment_attempt_from_webhook_response(
             external_surcharge_amount: existing_details.external_surcharge_amount,
             surcharge_percentage: existing_details.surcharge_percentage,
             sale_notified: true,
+            error_code: existing_details.error_code,
+            error_message: existing_details.error_message,
+            error_reason: existing_details.error_reason,
         };
         let update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ExternalSurchargeUpdate {
         external_surcharge_details: updated_details,

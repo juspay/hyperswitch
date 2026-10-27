@@ -2638,6 +2638,31 @@ pub struct SurchargeDetailsResponse {
     pub display_total_surcharge_amount: f64,
     /// Surcharge percentage returned by the external surcharge connector, if provided.
     pub surcharge_percentage: Option<f64>,
+    /// Connector error code when the external calculation failed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+    /// Connector error message when the external calculation failed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+    /// Connector reason for a failed calculation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_reason: Option<String>,
+}
+
+impl SurchargeDetailsResponse {
+    pub fn connector_error(code: Option<String>, message: String, reason: Option<String>) -> Self {
+        Self {
+            surcharge: SurchargeResponse::Fixed(MinorUnit::zero()),
+            tax_on_surcharge: None,
+            display_surcharge_amount: 0.0,
+            display_tax_on_surcharge_amount: 0.0,
+            display_total_surcharge_amount: 0.0,
+            surcharge_percentage: None,
+            error_code: code,
+            error_message: Some(message),
+            error_reason: reason,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]

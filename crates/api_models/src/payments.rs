@@ -2031,6 +2031,90 @@ pub struct RequestSurchargeDetails {
     pub surcharge_percentage: Option<f64>,
 }
 
+/// Surcharge applied to a payment, or a zero surcharge with connector error details.
+#[derive(Debug, Clone, PartialEq, Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PaymentSurchargeDetailsResponse {
+    #[schema(value_type = i64, example = 325)]
+    #[smithy(value_type = "i64")]
+    pub surcharge_amount: MinorUnit,
+    #[smithy(value_type = "Option<i64>")]
+    pub tax_amount: Option<MinorUnit>,
+    #[smithy(value_type = "Option<f64>")]
+    pub surcharge_percentage: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(example = "INVALID_NICN")]
+    #[smithy(value_type = "Option<String>")]
+    pub error_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(example = "Card BIN is invalid")]
+    #[smithy(value_type = "Option<String>")]
+    pub error_message: Option<String>,
+    /// Connector reason for a failed calculation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<String>")]
+    pub error_reason: Option<String>,
+}
+
+impl PaymentSurchargeDetailsResponse {
+    pub fn from_calculated_amounts(
+        surcharge_amount: MinorUnit,
+        tax_amount: Option<MinorUnit>,
+        surcharge_percentage: Option<f64>,
+    ) -> Self {
+        Self {
+            surcharge_amount,
+            tax_amount,
+            surcharge_percentage,
+            error_code: None,
+            error_message: None,
+            error_reason: None,
+        }
+    }
+
+    pub fn from_connector_error(
+        code: Option<String>,
+        message: String,
+        reason: Option<String>,
+    ) -> Self {
+        Self {
+            surcharge_amount: MinorUnit::zero(),
+            tax_amount: None,
+            surcharge_percentage: None,
+            error_code: code,
+            error_message: Some(message),
+            error_reason: reason,
+        }
+    }
+
+    pub fn from_surcharge_details(
+        amount: Option<MinorUnit>,
+        tax_amount: Option<MinorUnit>,
+        external: Option<&common_types::payments::ExternalSurchargeDetails>,
+    ) -> Option<Self> {
+        match external {
+            Some(details)
+                if !details.error_code.is_empty()
+                    || !details.error_message.is_empty()
+                    || !details.error_reason.is_empty() =>
+            {
+                Some(Self::from_connector_error(
+                    (!details.error_code.is_empty()).then(|| details.error_code.clone()),
+                    details.error_message.clone(),
+                    (!details.error_reason.is_empty()).then(|| details.error_reason.clone()),
+                ))
+            }
+            _ => amount.map(|value| {
+                Self::from_calculated_amounts(
+                    value,
+                    tax_amount,
+                    external.and_then(|details| details.surcharge_percentage_as_f64()),
+                )
+            }),
+        }
+    }
+}
+
 // for v2 use the type from common_utils::types
 #[cfg(feature = "v1")]
 /// Browser information to be used for 3DS 2.0
@@ -7913,8 +7997,8 @@ pub struct PaymentsResponse {
     pub profile_id: Option<id_type::ProfileId>,
 
     /// Details of surcharge applied on this payment
-    #[smithy(value_type = "Option<RequestSurchargeDetails>")]
-    pub surcharge_details: Option<RequestSurchargeDetails>,
+    #[smithy(value_type = "Option<PaymentSurchargeDetailsResponse>")]
+    pub surcharge_details: Option<PaymentSurchargeDetailsResponse>,
 
     /// Applied Offer Engine offer details for this payment, if an offer was applied.
     #[schema(value_type = Option<AppliedOffer>)]
@@ -9647,7 +9731,7 @@ pub struct PlatformPaymentListItem {
     pub sender_payment_instrument_id: Option<String>,
 
     /// Surcharge and tax-on-surcharge applied on the active attempt.
-    pub surcharge_details: Option<RequestSurchargeDetails>,
+    pub surcharge_details: Option<PaymentSurchargeDetailsResponse>,
 
     /// Installment options available/selected for this payment.
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
