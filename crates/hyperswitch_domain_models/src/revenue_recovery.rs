@@ -187,6 +187,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             is_account_funded_transaction: None,
             recipient_details: None,
             enable_avs_check: None,
+            mit_category: None,
         }
     }
 }
