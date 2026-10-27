@@ -29882,6 +29882,12 @@
             "type": "string",
             "example": "123456789",
             "nullable": true
+          },
+          "merchant_vat_registration_id": {
+            "type": "string",
+            "description": "The merchant's VAT registration identifier",
+            "example": "GB987654321",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -35976,12 +35982,38 @@
             ],
             "nullable": true
           },
+          "value_added_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Value added tax (VAT) amount applied to the order or transaction.",
+            "example": 54,
+            "nullable": true
+          },
+          "value_added_tax_percent": {
+            "type": "number",
+            "format": "double",
+            "description": "Value added tax (VAT) rate applied to the order or transaction, as a\npercentage between 0 and 100 — 2.5 means 2.5%.",
+            "example": 2.5,
+            "nullable": true
+          },
           "duty_amount": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MinorUnit"
               }
             ],
+            "nullable": true
+          },
+          "order_commodity_code": {
+            "type": "string",
+            "description": "Commodity code classifying the order as a whole, as opposed to the\nper-item codes in `order_details`.",
+            "example": "4900",
+            "nullable": true
+          },
+          "vat_invoice_reference_number": {
+            "type": "string",
+            "description": "Reference number of the value added tax (VAT) invoice for this order.",
+            "example": "9999",
             "nullable": true
           },
           "order_date": {
@@ -36545,12 +36577,38 @@
             ],
             "nullable": true
           },
+          "value_added_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Value added tax (VAT) amount applied to the order or transaction.",
+            "example": 54,
+            "nullable": true
+          },
+          "value_added_tax_percent": {
+            "type": "number",
+            "format": "double",
+            "description": "Value added tax (VAT) rate applied to the order or transaction, as a\npercentage between 0 and 100 — 2.5 means 2.5%.",
+            "example": 2.5,
+            "nullable": true
+          },
           "duty_amount": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MinorUnit"
               }
             ],
+            "nullable": true
+          },
+          "order_commodity_code": {
+            "type": "string",
+            "description": "Commodity code classifying the order as a whole, as opposed to the\nper-item codes in `order_details`.",
+            "example": "4900",
+            "nullable": true
+          },
+          "vat_invoice_reference_number": {
+            "type": "string",
+            "description": "Reference number of the value added tax (VAT) invoice for this order.",
+            "example": "9999",
             "nullable": true
           },
           "order_date": {
@@ -38419,12 +38477,38 @@
             ],
             "nullable": true
           },
+          "value_added_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Value added tax (VAT) amount applied to the order or transaction.",
+            "example": 54,
+            "nullable": true
+          },
+          "value_added_tax_percent": {
+            "type": "number",
+            "format": "double",
+            "description": "Value added tax (VAT) rate applied to the order or transaction, as a\npercentage between 0 and 100 — 2.5 means 2.5%.",
+            "example": 2.5,
+            "nullable": true
+          },
           "duty_amount": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MinorUnit"
               }
             ],
+            "nullable": true
+          },
+          "order_commodity_code": {
+            "type": "string",
+            "description": "Commodity code classifying the order as a whole, as opposed to the\nper-item codes in `order_details`.",
+            "example": "4900",
+            "nullable": true
+          },
+          "vat_invoice_reference_number": {
+            "type": "string",
+            "description": "Reference number of the value added tax (VAT) invoice for this order.",
+            "example": "9999",
             "nullable": true
           },
           "order_date": {
@@ -40030,12 +40114,38 @@
             ],
             "nullable": true
           },
+          "value_added_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Value added tax (VAT) amount applied to the order or transaction.",
+            "example": 54,
+            "nullable": true
+          },
+          "value_added_tax_percent": {
+            "type": "number",
+            "format": "double",
+            "description": "Value added tax (VAT) rate applied to the order or transaction, as a\npercentage between 0 and 100 — 2.5 means 2.5%.",
+            "example": 2.5,
+            "nullable": true
+          },
           "duty_amount": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MinorUnit"
               }
             ],
+            "nullable": true
+          },
+          "order_commodity_code": {
+            "type": "string",
+            "description": "Commodity code classifying the order as a whole, as opposed to the\nper-item codes in `order_details`.",
+            "example": "4900",
+            "nullable": true
+          },
+          "vat_invoice_reference_number": {
+            "type": "string",
+            "description": "Reference number of the value added tax (VAT) invoice for this order.",
+            "example": "9999",
             "nullable": true
           },
           "order_date": {
