@@ -51566,8 +51566,8 @@
       "admin_api_key": {
         "type": "apiKey",
         "in": "header",
-        "name": "api-key",
-        "description": "Admin API keys allow you to perform some privileged actions such as creating a merchant account and Merchant Connector account."
+        "name": "Authorization",
+        "description": "Format: `admin-api-key=<admin-api-key>`\n\nAdmin API keys allow you to perform some privileged actions such as creating a merchant account and Merchant Connector account."
       },
       "api_key": {
         "type": "apiKey",
