@@ -7443,16 +7443,16 @@
             "$ref": "#/components/schemas/SepaBankTransferAdditionalData"
           },
           {
-            "$ref": "#/components/schemas/PixBankTransferAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/OpenBankingAdditionalData"
-          },
-          {
             "$ref": "#/components/schemas/PayshapBankTransferAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PayshapProxyBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/OpenBankingAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -28703,7 +28703,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PayshapProxyBankTransfer": {
         "type": "object",
@@ -28738,7 +28739,8 @@
             "example": "**** 3123",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PazeSessionTokenResponse": {
         "type": "object",

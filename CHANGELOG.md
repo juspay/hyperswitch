@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.30.0-hotfix5
+
+### Bug Fixes
+
+- **ucs:** Handle embedded connector errors across flows ([#14954](https://github.com/juspay/hyperswitch/pull/14954)) ([`fa7d93c`](https://github.com/juspay/hyperswitch/commit/fa7d93cc082f02ff98bb36a039cf216ad3baaee2))
+
+**Full Changelog:** [`2026.09.30.0-hotfix4...2026.09.30.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.09.30.0-hotfix4...2026.09.30.0-hotfix5)
+
+- - -
+
+## 2026.09.30.0-hotfix4
+
+### Bug Fixes
+
+- **payouts:** Fix PayShap payout methods being read as Pix ([#14871](https://github.com/juspay/hyperswitch/pull/14871)) ([`8ec8bb9`](https://github.com/juspay/hyperswitch/commit/8ec8bb91d3c7261cb459ff52df3765d001e5c528))
+
+**Full Changelog:** [`2026.09.30.0-hotfix3...2026.09.30.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.09.30.0-hotfix3...2026.09.30.0-hotfix4)
+
+- - -
+
 ## 2026.09.30.0-hotfix3
 
 ### Bug Fixes
