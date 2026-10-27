@@ -95,8 +95,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_method_with_raw_data,
             token_data: prefetched_token_data,
         } = payment_method_fetch_data;
-        let processor_merchant_id = platform.get_processor().get_account().get_id();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
+        let storage_scheme = platform.get_processor().get_storage_scheme();
         let (currency, amount);
 
         let payment_id = payment_id
@@ -259,7 +259,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         .or(m_customer_details_customer_id.as_ref()),
                     &m_key_store,
                     &m_payment_intent_payment_id,
-                    storage_scheme,
+                    storage_scheme.inner(),
                 )
                 .await
             }
@@ -287,7 +287,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         .or(m_customer_details_customer_id.as_ref()),
                     &m_key_store,
                     &m_payment_intent_payment_id,
-                    storage_scheme,
+                    storage_scheme.inner(),
                 )
                 .await
             }
@@ -613,7 +613,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         .or(m_customer_details_customer_id.as_ref()),
                     &m_key_store,
                     &m_payment_intent_payment_id,
-                    storage_scheme,
+                    storage_scheme.inner(),
                 )
                 .await
             }
@@ -1199,10 +1199,21 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 .as_ref()
                                 .and_then(|pmd| pmd.payment_method_data.as_ref())
                             {
-                                Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
-                                    req.setup_future_usage
-                                        .or(payment_data.payment_intent.setup_future_usage)
-                                        == Some(common_enums::FutureUsage::OffSession)
+                                Some(api_models::payments::PaymentMethodData::Wallet(
+                                    wallet_data,
+                                )) => {
+                                    let payment_method_token =
+                                        payment_data.get_payment_method_token().cloned();
+                                    let is_decrypted_flow = payment_method_token
+                                        .map(|pmt| pmt.is_decrypted_flow())
+                                        .unwrap_or(false)
+                                        || wallet_data.is_decrypted_flow();
+
+                                    is_decrypted_flow
+                                        || req
+                                            .setup_future_usage
+                                            .or(payment_data.payment_intent.setup_future_usage)
+                                            == Some(common_enums::FutureUsage::OffSession)
                                 }
                                 Some(api_models::payments::PaymentMethodData::Card(_))
                                 | Some(api_models::payments::PaymentMethodData::CardWithNoCVC(_))
@@ -1338,9 +1349,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .store
             .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                platform.get_processor().get_account().get_id(),
+                &platform.get_processor().get_processor_merchant_id(),
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -2644,8 +2655,18 @@ impl PaymentConfirm {
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
 
+        // The customer id in the request can be the `merchant_reference_id` of the customer, while
+        // the payment method holds the id of the customer record.
+        let request_customer_id = match req.get_customer_id() {
+            Some(customer_id) => Some(
+                helpers::resolve_request_customer_id(state, platform.get_provider(), customer_id)
+                    .await,
+            ),
+            None => None,
+        };
+
         utils::when(
-            req.get_customer_id().is_some_and(|customer_id| {
+            request_customer_id.as_ref().is_some_and(|customer_id| {
                 pm_info.payment_method.customer_id.as_ref() != Some(customer_id)
             }),
             || {
@@ -2716,7 +2737,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
@@ -2973,7 +2994,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         straight_through_algorithm: m_straight_through_algorithm,
                         error_code: m_error_code,
                         error_message: m_error_message,
-                        updated_by: storage_scheme.to_string(),
+                        updated_by: storage_scheme.inner().to_string(),
                         merchant_connector_id,
                         external_three_ds_authentication_attempted,
                         external_threeds_authentication_type,
@@ -3091,7 +3112,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_metadata = metadata.clone();
         let m_frm_metadata = frm_metadata.clone();
         let m_db = state.clone().store;
-        let m_storage_scheme = storage_scheme.to_string();
+        let m_storage_scheme = storage_scheme.inner().to_string();
         let session_expiry = m_payment_data_payment_intent.session_expiry;
         let m_key_store = key_store.clone();
         let is_payment_processor_token_flow =
@@ -3375,7 +3396,7 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         message: "Offer Engine is not available for this offer selection".to_string(),
     })?;
 
-    let processor_merchant_id = processor.get_account().get_id().clone();
+    let processor_merchant_id = processor.get_processor_merchant_id();
     let payment_id = payment_data.payment_attempt.payment_id.clone();
 
     // Recover the eligibility quote stored at `/eligibility`.

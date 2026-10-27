@@ -154,7 +154,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentCaptureData<F>, PaymentsCaptureReques
     ) -> RouterResult<operations::GetTrackerResponse<PaymentCaptureData<F>>> {
         let db = &*state.store;
 
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let storage_scheme = platform.get_processor().get_storage_scheme();
 
         let payment_intent = db
             .find_payment_intent_by_id(
@@ -305,9 +305,9 @@ impl<F: Clone> UpdateTracker<F, PaymentCaptureData<F>, PaymentsCaptureRequest> f
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
-        let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::PreCaptureUpdate { amount_to_capture: payment_data.payment_attempt.amount_details.get_amount_to_capture(), updated_by: storage_scheme.to_string() };
+        let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::PreCaptureUpdate { amount_to_capture: payment_data.payment_attempt.amount_details.get_amount_to_capture(), updated_by: storage_scheme.inner().to_string() };
 
         let payment_attempt = state
             .store

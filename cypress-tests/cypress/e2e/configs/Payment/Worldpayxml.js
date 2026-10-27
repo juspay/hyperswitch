@@ -20,6 +20,13 @@ const failedNo3DSCardDetails = {
   card_holder_name: "REFUSED33",
 };
 
+const noCardHolderNameCardDetails = {
+  card_number: successfulNo3DSCardDetails.card_number,
+  card_exp_month: successfulNo3DSCardDetails.card_exp_month,
+  card_exp_year: successfulNo3DSCardDetails.card_exp_year,
+  card_cvc: successfulNo3DSCardDetails.card_cvc,
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -167,6 +174,79 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           payment_method_data: {},
+        },
+      },
+    },
+    CardHolderNameFallbackToBilling: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        amount: 6000,
+        payment_method_data: {
+          card: noCardHolderNameCardDetails,
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "Sakil",
+            last_name: "Mostak",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount_received: 6000,
+        },
+      },
+    },
+    // Negative counterpart to CardHolderNameFallbackToBilling: with no
+    // card_holder_name AND no billing name to fall back to, the connector
+    // errors instead of silently sending a nameless card. This is what
+    // actually distinguishes "fallback to billing name worked" from "the
+    // connector accepts a missing cardholder name anyway" in the success
+    // case above, since that success alone can't tell the two apart.
+    CardHolderNameMissingBoth: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        amount: 6000,
+        payment_method_data: {
+          card: noCardHolderNameCardDetails,
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Missing required param: card_holder_name",
+            code: "IR_04",
+          },
         },
       },
     },

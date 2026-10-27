@@ -551,6 +551,9 @@ impl PaymentMethodCreate {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
+    #[schema(example = true)]
+    pub update_last_used_at: Option<bool>,
+
     /// Card Details
     #[schema(example = json!({
     "card_number": "4111111145551142",
@@ -570,6 +573,9 @@ pub struct PaymentMethodUpdate {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentMethodUpdate {
+    #[schema(example = true)]
+    pub update_last_used_at: Option<bool>,
+
     /// Payment method details to be updated for the payment_method
     pub payment_method_data: Option<PaymentMethodUpdateData>,
 
@@ -3730,6 +3736,11 @@ pub struct PaymentMethodResponseItem {
         value_type = String
     )]
     pub customer_id: id_type::GlobalCustomerId,
+
+    /// The customer reference supplied in the request path when merchant reference ID lookup is enabled.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>, example = "merchant_customer_123")]
+    pub merchant_customer_reference_id: Option<id_type::CustomerId>,
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]

@@ -45,7 +45,7 @@ pub async fn payments_check_gift_card_balance_core(
 ) -> errors::RouterResult<(MinorUnit, common_enums::Currency)> {
     let db = state.store.as_ref();
 
-    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+    let storage_scheme = platform.get_processor().get_storage_scheme();
     let payment_intent = db
         .find_payment_intent_by_id(
             payment_id,
@@ -200,7 +200,7 @@ pub async fn payments_check_and_apply_pm_data_core(
     payment_id: id_type::GlobalPaymentId,
 ) -> RouterResponse<CheckAndApplyPaymentMethodDataResponse> {
     let db = state.store.as_ref();
-    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+    let storage_scheme = platform.get_processor().get_storage_scheme();
     let payment_intent = db
         .find_payment_intent_by_id(
             &payment_id,

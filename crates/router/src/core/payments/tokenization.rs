@@ -23,7 +23,6 @@ use hyperswitch_domain_models::{
     payment_method_data::{get_applepay_wallet_info, get_googlepay_wallet_info},
     transformers::ForeignFrom as _,
 };
-use hyperswitch_interfaces::api::gateway;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
@@ -39,7 +38,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::{self, cards::PmCards, network_tokenization},
-        payments::{self, gateway::context as gateway_context},
+        payments::{self, gateway, gateway::context as gateway_context},
         utils::create_encrypted_data,
     },
     logger,
@@ -1434,12 +1433,20 @@ pub async fn save_in_locker_internal(
         .clone()
         .get_required_value("customer_id")?;
 
+    let use_merchant_reference_id =
+        helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+            state,
+            provider,
+            Some(&customer_id),
+        )
+        .await;
     let customer_obj = db
         .find_customer_by_customer_id_merchant_id(
             &customer_id,
             provider.get_account().get_id(),
             provider.get_key_store(),
             provider.get_account().storage_scheme,
+            use_merchant_reference_id,
         )
         .await
         .change_context(errors::ApiErrorResponse::CustomerNotFound)

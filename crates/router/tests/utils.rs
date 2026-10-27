@@ -20,6 +20,11 @@ use tokio::sync::{oneshot, OnceCell};
 static SERVER: OnceCell<bool> = OnceCell::const_new();
 
 async fn spawn_server() -> bool {
+    // Tests call start_server directly, bypassing the router binary's crypto-provider setup.
+    // Both Ring and AWS-LC are enabled, so Rustls cannot choose a provider automatically when
+    // awc builds its default TLS client. Register AWS-LC as main does to prevent a panic;
+    // an error here means another caller has already installed a default provider.
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     let conf = Settings::new().expect("invalid settings");
     let server = Box::pin(router::start_server(conf, env!("CARGO_PKG_NAME")))
         .await
