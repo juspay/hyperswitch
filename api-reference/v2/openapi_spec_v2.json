@@ -35030,13 +35030,11 @@
           "error_code": {
             "type": "string",
             "description": "Connector error code when the external calculation failed.",
-            "example": "INVALID_NICN",
             "nullable": true
           },
           "error_message": {
             "type": "string",
             "description": "Connector error message when the external calculation failed.",
-            "example": "Card BIN is invalid",
             "nullable": true
           },
           "error_reason": {
