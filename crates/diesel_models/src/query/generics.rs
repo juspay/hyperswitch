@@ -49,9 +49,7 @@ pub mod db_metrics {
     }
 
     impl DatabaseOperation {
-        /// Whether this operation only reads. Writes are not tracked at all,
-        /// the row-returning ones least of all: handing their row back is why a
-        /// write needs no re-read.
+        /// Whether this operation reads without writing.
         pub(super) fn is_read(&self) -> bool {
             matches!(
                 self,
@@ -70,8 +68,7 @@ pub mod db_metrics {
         }
     }
 
-    /// Row-returning executors resolve to the `(result, wire)` pair under `deja` (see
-    /// `Captured` in this module); success is determined by the inner result alone.
+    /// Use the inner result to determine success for Deja wire-row results.
     #[cfg(feature = "deja")]
     impl<T> DatabaseCallStatus for (Result<T, DieselError>, Option<Vec<deja::db::WireRow>>) {
         fn is_success(&self) -> bool {
@@ -109,42 +106,16 @@ pub mod db_metrics {
 
 use db_metrics::*;
 
-/// The gateway for every query against this connection.
+/// Tracked query methods with private access to the raw connection.
 ///
-/// `track_database_call` is private: no code outside this `impl` block can
-/// run a query with the connection's raw handle, log a statement by hand, or
-/// skip the ledger check -- the typed methods below are the only way in.
-///
-/// Which diesel method a call needs depends on its return shape, not on the
-/// `DatabaseOperation` alone (an `Insert` with `RETURNING` and a plain
-/// `UPDATE` both write, but one needs `get_result_async`, the other
-/// `execute_async`), so there is one method per shape rather than one
-/// generic entry point. None of them captures for `deja`: that capturing
-/// exists only on the ten `generic_*` builders below, each already wrapped by
-/// its own `#[deja::boundary]` executor; these five cover every call site
-/// that was never part of that boundary.
+/// Methods follow Diesel result shapes; generic builders own Deja boundaries.
 impl DatabaseConnectionWithContext<'_> {
-    /// The connection, coerced to the type its async methods need.
-    ///
-    /// `self.connection` is a `bb8::PooledConnection`, which only derefs into
-    /// `RawPgConnection` -- deref coercion fires on a `return` whose
-    /// annotated type forces it (as it did for the removed `raw_connection`
-    /// accessor), not when the same expression is passed as a generic
-    /// argument, so every caller needs this explicit coercion rather than
-    /// `&self.connection` directly.
-    ///
-    /// Private: the raw connection never leaves this `impl` block. Every other
-    /// method on this type is the full set of ways to use it; `kv.rs`'s two
-    /// non-query needs (collecting a query's binds, running an
-    /// already-collected one) each get their own narrow method below instead
-    /// of this one handed out crate-wide.
+    /// Coerce the pooled connection to the raw type required by async methods.
     fn connection(&self) -> &RawPgConnection {
         &self.connection
     }
 
-    /// Collect `query`'s bind values as raw bytes, without running it --
-    /// `kv.rs` uses this to serialize a write for the KV write-behind queue.
-    /// Not a database round trip, so not logged or ledger-checked.
+    /// Collect raw bind values for the KV write-behind queue without executing a query.
     pub(crate) async fn collect_query_binds<Q>(
         &self,
         query: Q,
@@ -162,10 +133,7 @@ impl DatabaseConnectionWithContext<'_> {
             .await
     }
 
-    /// Run a query already collected into SQL text and raw bind bytes --
-    /// `kv.rs` uses this to replay a queued KV write against Postgres. Not
-    /// logged or ledger-checked here: the write was already described, with
-    /// its own statement log, when it was first collected and queued.
+    /// Execute a queued KV write whose statement was logged when collected.
     pub(crate) async fn execute_collected<Q>(&self, query: Q) -> diesel::QueryResult<usize>
     where
         Q: diesel::query_dsl::methods::ExecuteDsl<DejaPgConnection> + Send + 'static,
@@ -175,15 +143,10 @@ impl DatabaseConnectionWithContext<'_> {
             .await
     }
 
-    /// Run a cursor declaration in a read-only transaction and deliver bounded
-    /// pages of `R` until exhausted or the receiver returns false. `declaration`
-    /// must declare the cursor identified by `cursor_name`. The name is quoted
-    /// as a SQL identifier when fetching. The declaration and every fetch use
-    /// the same blocking connection; `fetch_timeout` applies to each statement.
-    ///
-    /// Track the cursor as one logical read. Individual `FETCH` statements
-    /// advance the cursor rather than repeat the same read. Timing includes page
-    /// delivery and its backpressure.
+    /// Stream pages in one read-only transaction until exhausted or `send_page` returns false.
+    /// `declaration` must declare `cursor_name`; fetches quote the name as an identifier.
+    /// `fetch_timeout` limits each statement on the same connection.
+    /// The stream counts as one read; timing includes page delivery and backpressure.
     pub async fn stream_read_only_cursor<Q, R, F>(
         &self,
         declaration: Q,
@@ -235,29 +198,11 @@ impl DatabaseConnectionWithContext<'_> {
         .await
     }
 
-    /// Logs the statement, times the call, records its latency metric, emits
-    /// one `ExternalServiceCall` event, and records the read in the session's
-    /// ledger. Writes are not recorded there -- only a read repeats a read.
+    /// Log statements and track duplicate reads when called; measure execution when polled.
+    /// Emit a database-call event only when a request ID is present.
     ///
-    /// Every query in the workspace passes here, so the statement is logged
-    /// once rather than at each builder. With `debug_assertions` enabled,
-    /// ledger reads also capture a backtrace, reduced to repository-relative
-    /// source locations for the duplicate report.
-    /// Runtime frames, generic query wrappers, and type signatures are omitted;
-    /// source locations require debug information in the running binary.
-    ///
-    /// Not an `async fn`: the ledger must see reads in the order they are
-    /// *issued*, not the order their futures are polled, and logging on call
-    /// keeps the pre-execution ordering that debugging a hung query needs. The
-    /// returned future then borrows neither `statement` nor the ledger, so a
-    /// caller can still move its statement afterwards.
-    ///
-    /// `Send` is left undeclared on purpose: `impl Trait` leaks auto traits, so
-    /// a `Send` future stays `Send`, while callers passing one that holds a
-    /// `&dyn QueryFragment` (not `Sync`) keep compiling.
-    ///
-    /// Without a `request_id` (drainer, scheduler) no event is emitted: the
-    /// correlator joins on it and cannot place request-less rows.
+    /// The returned future does not borrow the statement or ledger. Its `Send`
+    /// implementation follows the supplied future through auto-trait inference.
     #[inline]
     fn track_database_call<'a, T, Fut, U>(
         &'a self,
@@ -324,9 +269,7 @@ impl DatabaseConnectionWithContext<'_> {
         }
     }
 
-    /// Run `query` and return a single row, logging and ledger-checking it as
-    /// `operation`. Derives the statement from `query` itself, so it cannot
-    /// drift from what actually ran.
+    /// Run a tracked single-row query, deriving its logged statement from `query`.
     pub fn track_get_result<'a, T, Q, R>(
         &'a self,
         operation: DatabaseOperation,
@@ -349,9 +292,7 @@ impl DatabaseConnectionWithContext<'_> {
         )
     }
 
-    /// As [`Self::track_get_result`], via `first` rather than `get_result`:
-    /// the query must already be limited to (at most) one row, and the error
-    /// on zero rows is diesel's `NotFound` either way.
+    /// Run a tracked query via Diesel's `first`, returning `NotFound` if empty.
     pub fn track_first<'a, T, Q, R>(
         &'a self,
         operation: DatabaseOperation,
@@ -371,7 +312,7 @@ impl DatabaseConnectionWithContext<'_> {
         )
     }
 
-    /// As [`Self::track_get_result`], for a query returning multiple rows.
+    /// Run a tracked query returning multiple rows.
     pub fn track_get_results<'a, T, Q, R>(
         &'a self,
         operation: DatabaseOperation,
@@ -394,11 +335,8 @@ impl DatabaseConnectionWithContext<'_> {
         )
     }
 
-    /// As [`Self::track_get_results`], via diesel's `load` rather than
-    /// `get_results`. Same bounds, same call, same result -- `get_results` is
-    /// diesel's own name for `load`; this is the other spelling, for callers
-    /// that want it.
-    pub fn track_load_async<'a, T, Q, R>(
+    /// Run a tracked multi-row query via Diesel's `load` alias.
+    pub fn track_load<'a, T, Q, R>(
         &'a self,
         operation: DatabaseOperation,
         query: Q,
@@ -420,8 +358,7 @@ impl DatabaseConnectionWithContext<'_> {
         )
     }
 
-    /// Run a write with no `RETURNING`, logging and ledger-checking it as
-    /// `operation`. Returns the affected row count.
+    /// Run a tracked write without `RETURNING` and return the affected row count.
     pub fn track_execute<'a, T, Q>(
         &'a self,
         operation: DatabaseOperation,
@@ -443,12 +380,8 @@ impl DatabaseConnectionWithContext<'_> {
         )
     }
 
-    /// Run `f` inside a database transaction against this same connection.
-    ///
-    /// `f` receives this context-bearing connection, so queries inside the
-    /// transaction use the tracked methods without capturing an outer handle.
-    /// The transaction itself is not logged or ledger-checked; its queries are
-    /// tracked individually. The raw connection remains private.
+    /// Run `f` in a transaction on this connection, passing it the tracked context.
+    /// Queries inside the transaction are tracked individually.
     pub async fn transaction_async<'a, R, E, Func, Fut>(&'a self, f: Func) -> Result<R, E>
     where
         R: Send + 'static,
@@ -469,11 +402,7 @@ fn table_name<T>() -> &'static str {
         .unwrap_or("unknown")
 }
 
-/// Bound alias for generic query results. Recording/replaying a db row needs
-/// serde only when the `deja` feature is compiled in; default builds must not
-/// force `Serialize`/`Deserialize` onto every row type (some rows — e.g.
-/// `LockerMockUp` with raw card data — deliberately have no serde impls
-/// outside deja builds).
+/// Query-result bounds requiring serde only when Deja recording is enabled.
 #[cfg(feature = "deja")]
 pub trait DejaQueryResult: Debug + serde::Serialize + serde::de::DeserializeOwned {}
 #[cfg(feature = "deja")]
@@ -513,10 +442,7 @@ impl<T> DejaQueryResult for T {}
 // All three are `Secret`-wrapped so `Debug` redacts them.
 // Feature-off, every executor is a plain async fn passthrough.
 
-/// Under `deja`, a row-returning query future resolves to the result paired
-/// with the binary wire rows its own connection captured while producing it;
-/// the pairing is lexical, riding the future's value to the boundary.
-/// Feature-off the alias is the bare result.
+/// Pair query results with captured wire rows under Deja; otherwise use the result alone.
 #[cfg(feature = "deja")]
 type Captured<T> = (T, Option<Vec<deja::db::WireRow>>);
 #[cfg(not(feature = "deja"))]
@@ -532,7 +458,7 @@ fn capture<Q: QueryFragment<Pg>>(query: &Q) -> (String, serde_json::Value) {
     }
 }
 
-/// What an observing call records.
+/// Capture SQL and bind values for an observed query.
 #[cfg(feature = "deja")]
 fn capture_statement<Q: QueryFragment<Pg>>(query: &Q) -> (String, serde_json::Value) {
     let captured = deja::db::capture_query(query);
@@ -543,8 +469,7 @@ fn capture<Q>(_query: &Q) -> (String, serde_json::Value) {
     (String::new(), serde_json::Value::Null)
 }
 
-/// A unique violation writes no row, so replay serves the recorded error
-/// instead of inserting into a store that lacks the conflicting row.
+/// Identify unique violations, which replay as errors without changing database state.
 #[cfg(feature = "deja")]
 fn is_unique_violation<R>(out: &Captured<StorageResult<R>>) -> bool {
     matches!(
