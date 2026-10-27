@@ -106,6 +106,7 @@ mod tests {
         assert!(!ledger.record_read(PI));
         assert!(!ledger.record_read(OTHER));
         assert!(ledger.record_read(OTHER));
+        assert!(ledger.record_read(PI));
     }
 
     #[test]
@@ -137,10 +138,12 @@ mod tests {
     }
 
     #[test]
-    fn statements_that_collide_when_fingerprinted_stay_distinct() {
+    fn different_statements_are_different_reads() {
         let ledger = ReadLedger::new("PaymentsConfirm".to_owned());
         assert!(!ledger.record_read("SELECT 1908"));
         assert!(!ledger.record_read("SELECT 3600"));
+        assert!(ledger.record_read("SELECT 1908"));
+        assert!(ledger.record_read("SELECT 3600"));
     }
 
     #[test]
@@ -156,10 +159,15 @@ mod tests {
     #[test]
     fn shared_ledger_counts_each_concurrent_repeat_once() {
         let ledger = Arc::new(ReadLedger::new("PaymentsConfirm".to_owned()));
+        let barrier = Arc::new(std::sync::Barrier::new(8));
         let threads = (0..8)
             .map(|_| {
                 let ledger = Arc::clone(&ledger);
-                std::thread::spawn(move || ledger.record_read(PI))
+                let barrier = Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    ledger.record_read(PI)
+                })
             })
             .collect::<Vec<_>>();
         let repeats = threads
