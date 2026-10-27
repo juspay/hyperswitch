@@ -1651,6 +1651,10 @@ impl PaymentMethodsController for PmCards<'_> {
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+        if pm.merchant_id != *self.provider.get_account().get_id() {
+            Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+        }
+
         let (card, locker_metadata) =
             if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
                 let (card_detail, locker_metadata) = if self.state.conf.locker.locker_enabled {
@@ -1718,6 +1722,10 @@ impl PaymentMethodsController for PmCards<'_> {
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+        if key.merchant_id != *self.provider.get_account().get_id() {
+            Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+        }
 
         let customer_id = key.customer_id.clone().get_required_value("customer_id")?;
 
@@ -2553,6 +2561,10 @@ pub async fn add_payment_method_data(
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
         .attach_printable("Unable to find payment method")?;
 
+    if payment_method.merchant_id != *provider.get_account().get_id() {
+        Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+    }
+
     if payment_method.status != enums::PaymentMethodStatus::AwaitingData {
         return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
     }
@@ -2804,13 +2816,19 @@ pub async fn update_customer_payment_method(
     let pm = if let Some(pm) = pm_data {
         pm
     } else {
-        db.find_payment_method(
-            provider.get_key_store(),
-            payment_method_id,
-            provider.get_account().storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?
+        let payment_method = db
+            .find_payment_method(
+                provider.get_key_store(),
+                payment_method_id,
+                provider.get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+        if payment_method.merchant_id != *provider.get_account().get_id() {
+            Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+        }
+        payment_method
     };
 
     let customer_id = pm.customer_id.clone().get_required_value("customer_id")?;
@@ -6421,14 +6439,22 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
 /// Filters customer payment methods to keep only the latest Apple Pay and Google Pay method
 /// when multiple DPANs exist. All other payment methods are returned unchanged.
 #[cfg(feature = "v1")]
-fn filter_latest_wallet_methods(
-    payment_methods: Vec<api::CustomerPaymentMethod>,
-) -> Vec<api::CustomerPaymentMethod> {
+pub(super) fn filter_latest_wallet_methods<T: Clone>(
+    payment_methods: Vec<T>,
+    wallet_details: impl Fn(
+        &T,
+    ) -> (
+        api_enums::PaymentMethod,
+        Option<api_enums::PaymentMethodType>,
+        Option<time::PrimitiveDateTime>,
+    ),
+) -> Vec<T> {
     let (wallet_methods, other_methods): (Vec<_>, Vec<_>) =
         payment_methods.into_iter().partition(|pm| {
-            pm.payment_method == api_enums::PaymentMethod::Wallet
-                && (pm.payment_method_type == Some(api_enums::PaymentMethodType::ApplePay)
-                    || pm.payment_method_type == Some(api_enums::PaymentMethodType::GooglePay))
+            let (payment_method, payment_method_type, _) = wallet_details(pm);
+            payment_method == api_enums::PaymentMethod::Wallet
+                && (payment_method_type == Some(api_enums::PaymentMethodType::ApplePay)
+                    || payment_method_type == Some(api_enums::PaymentMethodType::GooglePay))
         });
 
     if wallet_methods.is_empty() {
@@ -6443,13 +6469,13 @@ fn filter_latest_wallet_methods(
     ] {
         let type_methods: Vec<_> = wallet_methods
             .iter()
-            .filter(|pm| pm.payment_method_type == Some(wallet_type))
+            .filter(|pm| wallet_details(pm).1 == Some(wallet_type))
             .cloned()
             .collect();
 
         if type_methods.len() > 1 {
             let mut sorted = type_methods;
-            sorted.sort_by_key(|b| std::cmp::Reverse(b.last_used_at));
+            sorted.sort_by_key(|pm| std::cmp::Reverse(wallet_details(pm).2));
             if let Some(latest) = sorted.into_iter().next() {
                 result.push(latest);
             }
@@ -6764,7 +6790,9 @@ pub async fn list_customer_payment_method(
     }
 
     // // Filter to keep only the latest Apple Pay method if duplicates exist
-    let filtered_customer_pms = filter_latest_wallet_methods(customer_pms);
+    let filtered_customer_pms = filter_latest_wallet_methods(customer_pms, |pm| {
+        (pm.payment_method, pm.payment_method_type, pm.last_used_at)
+    });
 
     let mut response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods: filtered_customer_pms,

@@ -12,6 +12,7 @@ use common_utils::{
     },
     errors::CustomResult,
     request::{Headers, Request, RequestContent},
+    transformers::ForeignTryFrom,
 };
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
@@ -571,7 +572,7 @@ pub async fn handle_response(
         .map(|response| async {
             logger::info!(?response);
             let status_code = response.status().as_u16();
-            let headers = Some(response.headers().to_owned());
+            let headers = Some(http::HeaderMap::foreign_try_from(response.headers())?);
             match status_code {
                 200..=202 | 302 | 204 => {
                     // If needed add log line
