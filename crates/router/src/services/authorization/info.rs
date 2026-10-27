@@ -61,6 +61,9 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::ReconTransactionsManage => Some("View and edit recon staging entries and transactions"),
         PermissionGroup::ReconRulesView => Some("View reconciliation rules"),
         PermissionGroup::ReconRulesManage => Some("Create and edit reconciliation rules"),
+        PermissionGroup::ReconAccountsView => Some("View recon ledger accounts and balances"),
+        PermissionGroup::ReconAccountsManage => Some("Create and edit recon ledger accounts"),
+        PermissionGroup::ReconAuditView => Some("View the recon audit trail"),
         PermissionGroup::OffersView => Some("View Offers"),
         PermissionGroup::OffersManage => Some("Create, modify and delete Offers"),
         PermissionGroup::AlertsView
@@ -88,6 +91,8 @@ pub fn get_parent_group_description(group: ParentGroup) -> Option<&'static str> 
         ParentGroup::ReconExceptions => Some("Recon exception investigation and resolution"),
         ParentGroup::ReconTransactions => Some("Recon staging entries and transactions"),
         ParentGroup::ReconRules => Some("Reconciliation rules"),
+        ParentGroup::ReconAccounts => Some("Recon ledger accounts and balances"),
+        ParentGroup::ReconAudit => Some("Recon audit trail"),
         ParentGroup::Offers => Some("Manage and view offers"),
         ParentGroup::Alerts |
         ParentGroup::Monitoring => None,
