@@ -1062,8 +1062,8 @@ impl RevenueRecoveryAttempt {
             consts::DEFAULT_SUBFLOW_STR,
             error_code.clone(),
             error_message,
-            None, // issuer_error_code
-            None, // card_network
+            revenue_recovery_attempt_data.network_decline_code.clone(),
+            revenue_recovery_attempt_data.card_info.card_network.clone(),
         )
         .await;
 
