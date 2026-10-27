@@ -2498,8 +2498,9 @@ where
     todo!()
 }
 
-// CIT revalidates the cached eligibility quote for the selected payment method.
-// MIT calculates only when the attempt does not already have a successful result.
+// True when the profile uses external surcharge and the attempt hasn't been populated yet
+// (retry safety). Gates preload_external_surcharge_for_routing so both CIT and MIT share
+// one entry check.
 #[cfg(feature = "v1")]
 fn is_external_surcharge_pending<F, D>(business_profile: &domain::Profile, payment_data: &D) -> bool
 where
