@@ -3317,6 +3317,24 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState, data = null) => {
         }
       }
 
+      // Verify customer_acceptance_support for each listed payment method type
+      if (resData?.customer_acceptance_support) {
+        resData.customer_acceptance_support.forEach(
+          ({ paymentMethod, paymentMethodType, expected }) => {
+            const pmType = response.body.payment_methods
+              .find((pm) => pm.payment_method === paymentMethod)
+              ?.payment_method_types.find(
+                (type) => type.payment_method_type === paymentMethodType
+              );
+            expect(pmType, `${paymentMethod}.${paymentMethodType}`).to.exist;
+            expect(
+              pmType.customer_acceptance_support,
+              `${paymentMethod}.${paymentMethodType} customer_acceptance_support`
+            ).to.equal(expected);
+          }
+        );
+      }
+
       expect(response.body).to.have.property("redirect_url");
       expect(response.body).to.have.property("payment_methods");
       if (
@@ -3521,7 +3539,13 @@ Cypress.Commands.add(
       const offerQuoteId = globalState.get("offerQuoteId");
       expect(offerQuoteId, "offerQuoteId").to.not.be.undefined;
 
-      confirmBody.offer_details.offer_quote_ids = [offerQuoteId];
+      // Replace rather than mutate: offer_details is shared by reference with
+      // the connector config, so mutating it would bake this payment's quote id
+      // into the config and later payments would resend a stale id.
+      confirmBody.offer_details = {
+        ...confirmBody.offer_details,
+        offer_quote_ids: [offerQuoteId],
+      };
     }
 
     if (reqData?.split_payments && supportsSplitPayments(globalState)) {
@@ -4740,7 +4764,13 @@ Cypress.Commands.add(
       const offerQuoteId = globalState.get("offerQuoteId");
       expect(offerQuoteId, "offerQuoteId").to.not.be.undefined;
 
-      saveCardConfirmBody.offer_details.offer_quote_ids = [offerQuoteId];
+      // Replace rather than mutate: offer_details is shared by reference with
+      // the connector config, so mutating it would bake this payment's quote id
+      // into the config and later payments would resend a stale id.
+      saveCardConfirmBody.offer_details = {
+        ...saveCardConfirmBody.offer_details,
+        offer_quote_ids: [offerQuoteId],
+      };
     }
 
     cy.request({

@@ -623,8 +623,9 @@ pub async fn retrieve_customer(
     let db = state.store.as_ref();
 
     let response = db
-        .find_customer_by_global_id(
+        .find_customer_by_global_id_merchant_id(
             &id,
+            provider.get_account().get_id(),
             provider.get_key_store(),
             provider.get_account().storage_scheme,
         )
@@ -819,8 +820,9 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
         let provider = platform.get_provider();
         let customer_orig = db
-            .find_customer_by_global_id(
+            .find_customer_by_global_id_merchant_id(
                 self,
+                provider.get_account().get_id(),
                 provider.get_key_store(),
                 provider.get_account().storage_scheme,
             )
@@ -1408,8 +1410,9 @@ impl VerifyIdForUpdateCustomer<'_> {
         db: &dyn StorageInterface,
     ) -> Result<domain::Customer, error_stack::Report<errors::CustomersErrorResponse>> {
         let customer = db
-            .find_customer_by_global_id(
+            .find_customer_by_global_id_merchant_id(
                 self.id,
+                self.merchant_account.get_id(),
                 self.key_store,
                 self.merchant_account.storage_scheme,
             )

@@ -4882,11 +4882,22 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("UCS surcharge_calculate gRPC call failed")?;
 
-    hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData::foreign_try_from(
-        response.into_inner(),
-    )
+    let surcharge_response = Result::<
+        hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData,
+        ErrorResponse,
+    >::foreign_try_from(response.into_inner())
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to parse UCS surcharge calculate response")
+    .attach_printable("Failed to parse UCS surcharge calculate response")?;
+
+    surcharge_response.map_err(|error| {
+        error_stack::report!(errors::ApiErrorResponse::ExternalConnectorError {
+            code: error.code,
+            message: error.message,
+            connector: connector_name,
+            status_code: error.status_code,
+            reason: error.reason,
+        })
+    })
 }
 
 #[cfg(feature = "v1")]
