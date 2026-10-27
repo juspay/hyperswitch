@@ -5,8 +5,12 @@ use std::sync::Arc;
 use common_utils::errors::CustomResult;
 
 /// Includes functionality for AWS S3 storage operations, and the S3 client that OCI Object
-/// Storage also uses.
-#[cfg(any(feature = "aws_s3", feature = "oci_object_storage"))]
+/// Storage and Google Cloud Storage also use.
+#[cfg(any(
+    feature = "aws_s3",
+    feature = "oci_object_storage",
+    feature = "gcs_object_storage"
+))]
 mod aws_s3;
 
 mod file_system;
@@ -14,6 +18,10 @@ mod file_system;
 /// Includes functionality for OCI Object Storage, through its S3 Compatibility API.
 #[cfg(feature = "oci_object_storage")]
 mod oci_object_storage;
+
+/// Includes functionality for Google Cloud Storage, through its XML API.
+#[cfg(feature = "gcs_object_storage")]
+mod gcs_object_storage;
 
 /// Enum representing different file storage configurations, allowing for multiple storage schemes.
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -32,6 +40,12 @@ pub enum FileStorageConfig {
         /// Configuration for OCI Object Storage.
         oci_object_storage: oci_object_storage::OciFileStorageConfig,
     },
+    /// Google Cloud Storage configuration.
+    #[cfg(feature = "gcs_object_storage")]
+    GcsObjectStorage {
+        /// Configuration for Google Cloud Storage.
+        gcs_object_storage: gcs_object_storage::GcsFileStorageConfig,
+    },
     /// Local file system storage configuration.
     #[default]
     FileSystem,
@@ -45,6 +59,8 @@ impl FileStorageConfig {
             Self::AwsS3 { aws_s3 } => aws_s3.validate()?,
             #[cfg(feature = "oci_object_storage")]
             Self::OciObjectStorage { oci_object_storage } => oci_object_storage.validate()?,
+            #[cfg(feature = "gcs_object_storage")]
+            Self::GcsObjectStorage { gcs_object_storage } => gcs_object_storage.validate()?,
             Self::FileSystem => {}
         }
 
@@ -59,6 +75,10 @@ impl FileStorageConfig {
             #[cfg(feature = "oci_object_storage")]
             Self::OciObjectStorage { oci_object_storage } => {
                 Arc::new(oci_object_storage::client(oci_object_storage).await)
+            }
+            #[cfg(feature = "gcs_object_storage")]
+            Self::GcsObjectStorage { gcs_object_storage } => {
+                Arc::new(gcs_object_storage::client(gcs_object_storage).await)
             }
             Self::FileSystem => Arc::new(file_system::FileSystem),
         }
@@ -201,7 +221,11 @@ impl<'a> MultipartUpload<'a> {
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum InvalidFileStorageConfig {
     /// The configuration of a cloud storage backend is invalid.
-    #[cfg(any(feature = "aws_s3", feature = "oci_object_storage"))]
+    #[cfg(any(
+        feature = "aws_s3",
+        feature = "oci_object_storage",
+        feature = "gcs_object_storage"
+    ))]
     #[error("file_storage: {0}")]
     CloudStorage(#[from] cloud_services::storage::InvalidStorageConfig),
 }

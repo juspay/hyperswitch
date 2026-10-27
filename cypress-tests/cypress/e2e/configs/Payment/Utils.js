@@ -622,6 +622,7 @@ export const CONNECTOR_LISTS = {
       "fiservcommercehub",
       "givepayments",
       "ilixium",
+      "stripe",
       "truelayer",
       "trustly",
     ],

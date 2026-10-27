@@ -429,6 +429,7 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
             metadata: None,
             // TODO! This field should be handled for billing connnector integrations
             enable_partial_authorization: None,
+            customer_present: common_enums::PresenceOfCustomerDuringPayment::Absent,
         })
     }
 }

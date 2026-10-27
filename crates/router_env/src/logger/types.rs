@@ -834,6 +834,8 @@ pub enum Flow {
     ListMembersForEntity,
     /// Authorize external token
     AuthorizeUserToken,
+    /// Generic pay inbound charge flow, for any provider
+    TelephoneOrderCharge,
 }
 
 /// Trait for providing generic behaviour to flow metric
