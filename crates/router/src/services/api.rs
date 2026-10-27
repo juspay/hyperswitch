@@ -1509,6 +1509,38 @@ pub fn build_redirection_form(
                         responseForm.submit();
                     }});
 
+                    threeDSsecureInterface.on('error', function(e) {{
+                        var responseForm = document.createElement('form');
+                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/([^/]+)\\/([^/]+)\\/[^/]+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.method='POST';
+
+                        var error_message_value;
+                        if (e && e.message) {{
+                            error_message_value = String(e.message);
+                        }} else {{
+                            try {{
+                                error_message_value = JSON.stringify(e);
+                            }} catch (err) {{
+                                error_message_value = String(e);
+                            }}
+                        }}
+
+                        var error_code=document.createElement('input');
+                        error_code.type='hidden';
+                        error_code.name='code';
+                        error_code.value= (e && e.code) ? String(e.code) : 'GATEWAY_JS_ERROR';
+                        responseForm.appendChild(error_code);
+
+                        var error_message=document.createElement('input');
+                        error_message.type='hidden';
+                        error_message.name='message';
+                        error_message.value= error_message_value || 'Gateway.js 3DS error';
+                        responseForm.appendChild(error_message);
+
+                        document.body.appendChild(responseForm);
+                        responseForm.submit();
+                    }});
+
                     threeDSsecureInterface.start('#threeds-wrapper');
             </script>"
             )))
