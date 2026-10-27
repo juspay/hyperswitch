@@ -6852,7 +6852,7 @@ where
     // Internal surcharge only; external surcharge is populated by preload_external_surcharge_for_routing.
     populate_surcharge_details(state, business_profile, payment_data).await?;
 
-    let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
+    let (pd, tokenization_action) = Box::pin(get_connector_tokenization_action_when_confirm_true(
         state,
         operation,
         payment_data,
@@ -6861,7 +6861,7 @@ where
         business_profile,
         should_retry_with_pan,
         feature_config,
-    )
+    ))
     .await?;
     *payment_data = pd;
 
@@ -15628,8 +15628,11 @@ async fn calculate_mit_external_surcharge(
                     external_surcharge_amount: MinorUnit::zero(),
                     surcharge_percentage: None,
                     sale_notified: false,
-                    error_code: (error.code != hyperswitch_interfaces::consts::NO_ERROR_CODE)
-                        .then_some(error.code).unwrap_or_default(),
+                    error_code: if error.code != hyperswitch_interfaces::consts::NO_ERROR_CODE {
+                        error.code
+                    } else {
+                        String::new()
+                    },
                     error_message: error.message,
                     error_reason: error.reason.unwrap_or_default(),
                 }),
