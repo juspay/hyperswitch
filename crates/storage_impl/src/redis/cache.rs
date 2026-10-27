@@ -945,29 +945,20 @@ where
     // The redis connection is acquired only when this caller is the one populating, so an
     // in-memory hit answers during a redis outage rather than erroring, and concurrent
     // misses for one key cost a single redis round trip between them.
-
-    // Keep the nested population futures on the heap:
-
-    // - Your cache functions are generic over T and Fut. If Clippy cannot calculate the future’s layout while linting, it skips that check.
-    // - Polling futures uses additional stack for local variables, temporary values, and nested calls—especially in debug builds.
-    // - Several nested poll() calls can collectively overflow the worker stack even when individual futures don’t trigger a warning.
-    let populate_future = Box::pin(fun);
-    Box::pin(cache.get_or_populate_in_memory(cache_key, async {
-        let redis = store
-            .get_redis_conn()
-            .change_context(StorageError::RedisError(
-                RedisError::RedisConnectionError.into(),
-            ))
-            .attach_printable("Failed to get redis connection")?;
-        Box::pin(get_or_populate_redis(
-            &redis,
-            key,
-            redis_ttl,
-            populate_future,
-        ))
+    cache
+        .get_or_populate_in_memory(
+            cache_key,
+            Box::pin(async {
+                let redis = store
+                    .get_redis_conn()
+                    .change_context(StorageError::RedisError(
+                        RedisError::RedisConnectionError.into(),
+                    ))
+                    .attach_printable("Failed to get redis connection")?;
+                Box::pin(get_or_populate_redis(&redis, key, redis_ttl, fun)).await
+            }),
+        )
         .await
-    }))
-    .await
 }
 
 #[instrument(skip_all)]
