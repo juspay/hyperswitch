@@ -56,6 +56,13 @@ import {
   MICRODEPOSIT_CONFIG,
 } from "./redirectionHandler";
 
+function getManagementAuthHeaders(globalState) {
+  const managementApiKey = globalState.get("managementApiKey");
+  return managementApiKey
+    ? { "api-key": managementApiKey }
+    : { Authorization: `admin-api-key=${globalState.get("adminApiKey")}` };
+}
+
 // Returns true (after logging a consistent skip line) when a redirection
 // command should bail out early because we're in replay mode.
 function skipRedirectionInMockServer(commandName) {
@@ -178,7 +185,6 @@ function createIndividualRolloutConfig(
   configType = "rollout"
 ) {
   const merchantId = globalState.get("merchantId");
-  const adminApiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
   const connector = getConnectorIdForRedirect(globalState);
   const httpUrl = globalState.get("proxyHttp");
@@ -207,7 +213,7 @@ function createIndividualRolloutConfig(
 
   const headers = {
     "Content-Type": "application/json",
-    "api-key": adminApiKey,
+    ...getManagementAuthHeaders(globalState),
   };
 
   const url = `${baseUrl}/configs/`;
@@ -481,7 +487,6 @@ function createUcsConfigs(globalState, flow, type) {
 Cypress.Commands.add(
   "deleteBusinessProfileTest",
   (globalState, profilePrefix = "profile") => {
-    const adminApiKey = globalState.get("adminApiKey");
     const baseUrl = globalState.get("baseUrl");
     const profileId = globalState.get(`${profilePrefix}Id`);
     const merchantId = globalState.get("merchantId");
@@ -498,7 +503,7 @@ Cypress.Commands.add(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": adminApiKey,
+        ...getManagementAuthHeaders(globalState),
       },
       failOnStatusCode: false,
     }).then((response) => {
@@ -825,7 +830,7 @@ Cypress.Commands.add(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
+        ...getManagementAuthHeaders(globalState),
       },
       body: merchantCreateBody,
       failOnStatusCode: false,
@@ -888,7 +893,7 @@ Cypress.Commands.add(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
+        ...getManagementAuthHeaders(globalState),
       },
       body: merchantKvEnableBody,
       failOnStatusCode: false,
@@ -919,7 +924,7 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState, options = {}) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      ...getManagementAuthHeaders(globalState),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -960,7 +965,7 @@ Cypress.Commands.add("merchantDeleteCall", (globalState) => {
     url: `${globalState.get("baseUrl")}/accounts/${merchant_id}`,
     headers: {
       Accept: "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      ...getManagementAuthHeaders(globalState),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -1006,7 +1011,7 @@ Cypress.Commands.add("merchantListCall", (globalState) => {
     url: `${globalState.get("baseUrl")}/accounts/list?organization_id=${organization_id}`,
     headers: {
       Accept: "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      ...getManagementAuthHeaders(globalState),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -1041,7 +1046,7 @@ Cypress.Commands.add(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
+        ...getManagementAuthHeaders(globalState),
       },
       body: merchantUpdateBody,
       failOnStatusCode: false,
@@ -1495,7 +1500,6 @@ Cypress.Commands.add("retrieveConnectorWebhooksTest", (data, globalState) => {
 Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
   // Define the necessary variables and constant
 
-  const apiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
   // We do not want to keep API Key forever,
   // so we set the expiry to tomorrow as new merchant accounts are created with every run
@@ -1514,7 +1518,7 @@ Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": apiKey,
+      ...getManagementAuthHeaders(globalState),
     },
     body: apiKeyCreateBody,
     failOnStatusCode: false,
@@ -1562,7 +1566,7 @@ Cypress.Commands.add("apiKeyUpdateCall", (apiKeyUpdateBody, globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      ...getManagementAuthHeaders(globalState),
     },
     body: apiKeyUpdateBody,
     failOnStatusCode: false,
@@ -1596,7 +1600,7 @@ Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      ...getManagementAuthHeaders(globalState),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -1620,7 +1624,7 @@ Cypress.Commands.add("apiKeyListCall", (globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      ...getManagementAuthHeaders(globalState),
     },
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
@@ -1656,7 +1660,7 @@ Cypress.Commands.add("apiKeyDeleteCall", (globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      ...getManagementAuthHeaders(globalState),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -2307,7 +2311,7 @@ Cypress.Commands.add("connectorDeleteCall", (globalState) => {
     url: `${globalState.get("baseUrl")}/account/${merchant_id}/connectors/${merchant_connector_id}`,
     headers: {
       Accept: "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      ...getManagementAuthHeaders(globalState),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -2325,7 +2329,6 @@ Cypress.Commands.add("connectorDeleteCall", (globalState) => {
 
 Cypress.Commands.add("setFrmRoutingAlgorithm", (body, globalState) => {
   const merchantId = globalState.get("merchantId");
-  const adminApiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
 
   body.merchant_id = merchantId;
@@ -2336,7 +2339,7 @@ Cypress.Commands.add("setFrmRoutingAlgorithm", (body, globalState) => {
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
-      "api-key": adminApiKey,
+      ...getManagementAuthHeaders(globalState),
     },
     body: body,
     failOnStatusCode: false,
@@ -2367,14 +2370,13 @@ Cypress.Commands.add("deleteFrmConnector", (globalState) => {
 
   const merchantId = globalState.get("merchantId");
   const baseUrl = globalState.get("baseUrl");
-  const adminApiKey = globalState.get("adminApiKey");
 
   cy.request({
     method: "DELETE",
     url: `${baseUrl}/account/${merchantId}/connectors/${frmMcaId}`,
     headers: {
       Accept: "application/json",
-      "api-key": adminApiKey,
+      ...getManagementAuthHeaders(globalState),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -7824,7 +7826,11 @@ Cypress.Commands.add(
       method: "PUT",
       url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
       headers: {
-        "api-key": globalState.get("apiKey"),
+        ...(globalState.get("userInfoToken")
+          ? { Authorization: `Bearer ${globalState.get("userInfoToken")}` }
+          : {
+              "api-key": globalState.get("apiKey"),
+            }),
         "Content-Type": "application/json",
       },
       body: surchargeBody,
@@ -7935,7 +7941,11 @@ Cypress.Commands.add("retrieveSurchargeDSLConfig", (data, globalState) => {
     method: "GET",
     url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
     headers: {
-      "api-key": globalState.get("apiKey"),
+      ...(globalState.get("userInfoToken")
+        ? { Authorization: `Bearer ${globalState.get("userInfoToken")}` }
+        : {
+            "api-key": globalState.get("apiKey"),
+          }),
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
@@ -7963,7 +7973,11 @@ Cypress.Commands.add("deleteSurchargeDSLConfig", (data, globalState) => {
     method: "DELETE",
     url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
     headers: {
-      "api-key": globalState.get("apiKey"),
+      ...(globalState.get("userInfoToken")
+        ? { Authorization: `Bearer ${globalState.get("userInfoToken")}` }
+        : {
+            "api-key": globalState.get("apiKey"),
+          }),
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
@@ -7993,7 +8007,7 @@ Cypress.Commands.add(
       url: `${globalState.get("baseUrl")}/gsm/update`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
+        ...getManagementAuthHeaders(globalState),
       },
       body: gsmBody,
       failOnStatusCode: false,
@@ -8198,7 +8212,6 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
     throw new Error(`Invalid requestType: ${requestType}`);
   }
 
-  const apiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
   const url = `${baseUrl}/configs/${config.useKey ? key : ""}`;
 
@@ -8213,7 +8226,7 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
     url,
     headers: {
       "Content-Type": "application/json",
-      "api-key": apiKey,
+      ...getManagementAuthHeaders(globalState),
     },
     ...(body && { body }),
     failOnStatusCode: false,
@@ -8634,7 +8647,6 @@ Cypress.Commands.add("manualPaymentStatusUpdateTest", (globalState, data) => {
   const merchantId = globalState.get("merchantId");
   const paymentId = globalState.get("paymentID");
   const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/manual-update`;
-  const adminApiKey = globalState.get("adminApiKey");
 
   const manualUpdateBody = {
     merchant_id: merchantId,
@@ -8655,7 +8667,7 @@ Cypress.Commands.add("manualPaymentStatusUpdateTest", (globalState, data) => {
     url: completeUrl,
     headers: {
       "Content-Type": "application/json",
-      "api-key": adminApiKey,
+      ...getManagementAuthHeaders(globalState),
       "X-Merchant-Id": merchantId,
     },
     body: manualUpdateBody,
@@ -8705,7 +8717,6 @@ Cypress.Commands.add(
     const merchantId = globalState.get("merchantId");
     const paymentId = globalState.get("paymentID");
     const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/manual-update`;
-    const adminApiKey = globalState.get("adminApiKey");
 
     const manualUpdateBody = {
       merchant_id: merchantId,
@@ -8718,7 +8729,7 @@ Cypress.Commands.add(
       url: completeUrl,
       headers: {
         "Content-Type": "application/json",
-        "api-key": adminApiKey,
+        ...getManagementAuthHeaders(globalState),
         "X-Merchant-Id": merchantId,
       },
       body: manualUpdateBody,
@@ -8735,14 +8746,13 @@ Cypress.Commands.add(
     const merchantId = globalState.get("merchantId");
     const refundId = globalState.get("refundId");
     const completeUrl = `${Cypress.env("BASEURL")}/refunds/${refundId}/manual-update`;
-    const adminApiKey = globalState.get("adminApiKey");
 
     cy.request({
       method: "PUT",
       url: completeUrl,
       headers: {
         "Content-Type": "application/json",
-        "api-key": adminApiKey,
+        ...getManagementAuthHeaders(globalState),
         "X-Merchant-Id": merchantId,
       },
       body: {
@@ -9343,7 +9353,6 @@ Cypress.Commands.add(
   "merchantListByOrgCall",
   (globalState, expectedMerchants = []) => {
     const baseUrl = globalState.get("baseUrl");
-    const adminApiKey = globalState.get("adminApiKey");
     const organizationId = globalState.get("organizationId");
     const url = `${baseUrl}/accounts/list?organization_id=${organizationId}`;
 
@@ -9354,7 +9363,7 @@ Cypress.Commands.add(
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
-          "api-key": adminApiKey,
+          ...getManagementAuthHeaders(globalState),
         },
         failOnStatusCode: false,
       })
@@ -10325,7 +10334,6 @@ Cypress.Commands.add(
 // ============================================
 
 Cypress.Commands.add("createCardIssuer", (body, globalState) => {
-  const apiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
 
   cy.request({
@@ -10333,7 +10341,7 @@ Cypress.Commands.add("createCardIssuer", (body, globalState) => {
     url: `${baseUrl}/card_issuers`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": apiKey,
+      ...getManagementAuthHeaders(globalState),
     },
     body: body,
     failOnStatusCode: false,
@@ -10389,7 +10397,6 @@ Cypress.Commands.add("listCardIssuers", (query, limit, globalState) => {
 });
 
 Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
-  const apiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
 
   cy.request({
@@ -10397,7 +10404,7 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
     url: `${baseUrl}/card_issuers/${id}`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": apiKey,
+      ...getManagementAuthHeaders(globalState),
     },
     body: body,
     failOnStatusCode: false,
@@ -11204,7 +11211,6 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
  */
 Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
   const merchantId = globalState.get("merchantId");
-  const apiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
   const url = `${baseUrl}/accounts/${merchantId}`;
 
@@ -11213,7 +11219,7 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
     url,
     headers: {
       "Content-Type": "application/json",
-      "api-key": apiKey,
+      ...getManagementAuthHeaders(globalState),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -11531,7 +11537,7 @@ Cypress.Commands.add("captureRedirectReturnUrl", (globalState) => {
 // ============================================
 
 Cypress.Commands.add("getForexRates", (globalState) => {
-  const apiKey = globalState.get("apiKey") || globalState.get("adminApiKey");
+  const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
 
   cy.request({
@@ -11580,10 +11586,7 @@ function requestForexConvert(
 Cypress.Commands.add(
   "convertCurrency",
   (amount, fromCurrency, toCurrency, globalState, options = {}) => {
-    const apiKey =
-      options.apiKey ||
-      globalState.get("apiKey") ||
-      globalState.get("adminApiKey");
+    const apiKey = options.apiKey || globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
 
     requestForexConvert(baseUrl, apiKey, amount, fromCurrency, toCurrency).then(
@@ -11639,7 +11642,6 @@ Cypress.Commands.add("getForexRatesWithoutAuth", (globalState) => {
 // ============================================
 
 Cypress.Commands.add("toggleExtendedCardInfoTest", (enabled, globalState) => {
-  const adminApiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
   const merchantId = globalState.get("merchantId");
   const profileId = globalState.get("profileId");
@@ -11650,7 +11652,7 @@ Cypress.Commands.add("toggleExtendedCardInfoTest", (enabled, globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": adminApiKey,
+      ...getManagementAuthHeaders(globalState),
     },
     body: { enabled },
     failOnStatusCode: false,
