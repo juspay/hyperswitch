@@ -4544,6 +4544,14 @@ impl MerchantEnabledPmsContext {
     ) -> Vec<ResponsePaymentMethodsEnabledForClient> {
         let mut out = vec![];
         for (payment_method, pmt_map) in &self.card_networks_consolidated_hm {
+            // Non-card MCA configuration can contain card_networks: []. It must not
+            // create an extra wallet/APM entry in the flat client response.
+            if !matches!(
+                payment_method,
+                api_enums::PaymentMethod::Card | api_enums::PaymentMethod::CardRedirect
+            ) {
+                continue;
+            }
             for (payment_method_type, card_network_hashmap) in pmt_map {
                 let card_networks: Vec<api_enums::CardNetwork> =
                     card_network_hashmap.keys().cloned().collect();
