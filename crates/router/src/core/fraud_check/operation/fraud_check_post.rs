@@ -256,6 +256,8 @@ where
                 cancellation_reason: frm_data.fraud_check.frm_error.clone(),
                 merchant_connector_details: None,
                 all_keys_required: None,
+                payment_method_data: None,
+                recurring_details: None,
             };
             let cancel_res = Box::pin(payments::payments_core::<
                 Void,
@@ -313,6 +315,8 @@ where
                 statement_descriptor_prefix: None,
                 merchant_connector_details: None,
                 all_keys_required: None,
+                payment_method_data: None,
+                recurring_details: None,
             };
             let capture_response = Box::pin(payments::payments_core::<
                 Capture,

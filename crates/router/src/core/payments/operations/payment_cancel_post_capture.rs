@@ -3,7 +3,9 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::mandates;
+use hyperswitch_domain_models::{
+    mandates, payment_method_data::RecurringDetails as domain_recurring_details,
+};
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -45,7 +47,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
         _auth_flow: services::AuthFlow,
         _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_fetch_data: operations::PaymentMethodFetchData,
+        payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<
@@ -148,6 +150,31 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
+        // mandate id is not in use, kept for future impl
+        let (_, payment_method_recurring_details) = match request
+            .recurring_details
+            .clone()
+            .map(domain_recurring_details::from)
+            .and_then(|details| {
+                details.get_mandate_reference_id_and_payment_method_data_for_proxy_flow()
+            }) {
+            Some((mandate_reference_id, payment_method_recurring_details)) => (
+                Some(mandate_reference_id),
+                Some(payment_method_recurring_details),
+            ),
+            None => (None, None),
+        };
+
+        let payment_method_data = payment_method_fetch_data
+            .payment_method_with_raw_data
+            .clone()
+            .and_then(|pm| pm.raw_payment_method_data)
+            .or(request
+                .payment_method_data
+                .clone()
+                .map(domain::PaymentMethodData::from))
+            .or(payment_method_recurring_details);
+
         let payment_data = PaymentData {
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
@@ -168,7 +195,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
                 business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: None,
-            payment_method_data: None,
+            payment_method_data,
             payment_method_token: None,
             payment_method_info: None,
             force_sync: None,
@@ -190,7 +217,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             incremental_authorization_details: None,
             authorizations: vec![],
             authentication: None,
-            recurring_details: None,
+            recurring_details: request.recurring_details.clone(),
             poll_config: None,
             tax_data: None,
             session_id: None,

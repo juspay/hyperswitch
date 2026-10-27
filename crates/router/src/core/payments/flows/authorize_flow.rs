@@ -1380,6 +1380,7 @@ impl<F>
             is_overcapture_enabled: item.request.enable_overcapture.map(|enable_overcapture| {
                 common_types::primitive_wrappers::OvercaptureEnabledBool::new(*enable_overcapture)
             }),
+            payment_method_data: None,
         })
     }
 }

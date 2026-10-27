@@ -6847,6 +6847,12 @@ pub struct PaymentsCaptureRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     /// If true, returns stringified connector raw response body
     pub all_keys_required: Option<bool>,
+    /// Collects payment method data to be passed through to the Connector
+    #[smithy(value_type = "Option<PaymentMethodData>")]
+    pub payment_method_data: Option<PaymentMethodData>,
+    /// Details required for recurring payment
+    #[smithy(value_type = "Option<RecurringDetails>")]
+    pub recurring_details: Option<RecurringDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -12265,6 +12271,12 @@ pub struct PaymentsCancelRequest {
     /// If enabled, provides whole connector response
     #[smithy(value_type = "Option<bool>")]
     pub all_keys_required: Option<bool>,
+    /// Collects payment method data to be passed through to the Connector
+    #[smithy(value_type = "Option<PaymentMethodData>")]
+    pub payment_method_data: Option<PaymentMethodData>,
+    /// Details required for recurring payment
+    #[smithy(value_type = "Option<RecurringDetails>")]
+    pub recurring_details: Option<RecurringDetails>,
 }
 
 /// Request to cancel a payment when the payment is already captured
@@ -12275,6 +12287,10 @@ pub struct PaymentsCancelPostCaptureRequest {
     pub payment_id: id_type::PaymentId,
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
+    /// Collects payment method data to be passed through to the Connector
+    pub payment_method_data: Option<PaymentMethodData>,
+    /// Details required for recurring payment
+    pub recurring_details: Option<RecurringDetails>,
 }
 
 /// Tracking data for the post_capture_void_sync workflow stored in process_tracker
@@ -12303,6 +12319,10 @@ pub struct PaymentsIncrementalAuthorizationRequest {
     pub amount: MinorUnit,
     /// Reason for incremental authorization
     pub reason: Option<String>,
+    /// Collects payment method data to be passed through to the Connector
+    pub payment_method_data: Option<PaymentMethodData>,
+    /// Details required for recurring payment
+    pub recurring_details: Option<RecurringDetails>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
