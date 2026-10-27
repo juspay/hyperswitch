@@ -849,9 +849,9 @@ pub async fn get_token_for_recurring_mandate(
         .async_map(|payment_id| async {
             db.find_payment_intent_by_payment_id_processor_merchant_id(
                 payment_id,
-                &mandate.merchant_id,
+                &platform.get_processor().get_processor_merchant_id(),
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -866,9 +866,9 @@ pub async fn get_token_for_recurring_mandate(
         .async_map(|payment_intent| async {
             db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                &mandate.merchant_id,
+                &platform.get_processor().get_processor_merchant_id(),
                 payment_intent.active_attempt.get_id().as_str(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
                 platform.get_processor().get_key_store(),
             )
             .await
@@ -2029,6 +2029,87 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     todo!()
 }
 
+/// Resolves the Superposition flag that decides whether a customer identifier supplied in a
+/// request should be interpreted as the customer's `merchant_reference_id`.
+///
+/// Merchants creating customers via the v2 customers API get a global id as the `customer_id`, but
+/// can continue sending their own `merchant_reference_id` in request fields that historically
+/// accepted `customer_id`. This function only resolves the provider-merchant and organization
+/// scoped configuration; each caller remains responsible for applying it to its lookup flow.
+#[cfg(any(feature = "v1", feature = "v2"))]
+pub async fn should_use_merchant_reference_id_as_customer_id(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    customer_id: Option<&id_type::CustomerId>,
+) -> bool {
+    dimensions
+        .get_use_merchant_reference_id_as_customer_id(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
+/// Convenience wrapper over [`should_use_merchant_reference_id_as_customer_id`] for the common
+/// case where only a `Provider` (and no additional dimensions) is available.
+#[cfg(any(feature = "v1", feature = "v2"))]
+pub async fn should_use_merchant_reference_id_as_customer_id_for_provider(
+    state: &SessionState,
+    provider: &domain::Provider,
+    customer_id: Option<&id_type::CustomerId>,
+) -> bool {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(provider.get_provider_merchant_id())
+        .with_organization_id(provider.get_account().organization_id.clone());
+
+    should_use_merchant_reference_id_as_customer_id(state, &dimensions, customer_id).await
+}
+
+/// Resolves the customer id received in a payments request to the id of the customer record, so
+/// that it can be compared with ids that are stored against the customer (like the customer id of
+/// a payment method). When the customer cannot be resolved, the id is returned as it is.
+#[cfg(feature = "v1")]
+pub async fn resolve_request_customer_id(
+    state: &SessionState,
+    provider: &domain::Provider,
+    customer_id: &id_type::CustomerId,
+) -> id_type::CustomerId {
+    let use_merchant_reference_id = should_use_merchant_reference_id_as_customer_id_for_provider(
+        state,
+        provider,
+        Some(customer_id),
+    )
+    .await;
+
+    // Skip the customer-table lookup entirely for the (overwhelming) majority of merchants who
+    // don't have this config enabled: the request's `customer_id` is already correct for them, and
+    // this function sits on the hot path of every payment create/confirm.
+    if use_merchant_reference_id {
+        state
+            .store
+            .find_customer_optional_by_customer_id_merchant_id(
+                customer_id,
+                provider.get_account().get_id(),
+                provider.get_key_store(),
+                provider.get_account().storage_scheme,
+                use_merchant_reference_id,
+            )
+            .await
+            .inspect_err(|error| {
+                logger::error!(
+                    ?error,
+                    "Failed to resolve the customer using the merchant reference id"
+                )
+            })
+            .ok()
+            .flatten()
+            .map_or_else(|| customer_id.clone(), |customer| customer.get_id().clone())
+    } else {
+        customer_id.clone()
+    }
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
@@ -2056,12 +2137,22 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     let key_manager_state = &state.into();
     let optional_customer = match customer_id {
         Some(customer_id) => {
+            let use_merchant_reference_id = should_use_merchant_reference_id_as_customer_id(
+                state,
+                &dimensions
+                    .without_profile_id()
+                    .without_processor_merchant_id()
+                    .with_organization_id(provider.get_account().organization_id.clone()),
+                Some(&customer_id),
+            )
+            .await;
             let customer_data = db
                 .find_customer_optional_by_customer_id_merchant_id(
                     &customer_id,
                     merchant_id,
                     key_store,
                     storage_scheme,
+                    use_merchant_reference_id,
                 )
                 .await?;
             let key = key_store.key.get_inner().peek();
@@ -2177,8 +2268,10 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                                 .map(|last_modified_by| last_modified_by.to_string()),
                         };
 
+                        // The id of the fetched record is used for the update, because the id
+                        // received in the request can be the `merchant_reference_id`.
                         db.update_customer_by_customer_id_merchant_id(
-                            customer_id,
+                            c.get_id().clone(),
                             merchant_id.to_owned(),
                             c,
                             customer_update,
@@ -2205,7 +2298,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             )
                             .await;
 
-                    if should_block_implicit_customer_creation {
+                    // A customer looked up through the `merchant_reference_id` has to exist already,
+                    // because it can only be created via the v2 customers API. Creating a v1 customer
+                    // with the reference id as the `customer_id` would leave it unreachable by the
+                    // same lookup.
+                    if should_block_implicit_customer_creation || use_merchant_reference_id {
                         Err(report!(errors::StorageError::ValueNotFound(
                             "customer".to_owned()
                         )))?
@@ -2338,12 +2435,21 @@ pub async fn get_customer_if_exists(
 
     match customer_id {
         Some(customer_id) => {
+            let use_merchant_reference_id =
+                should_use_merchant_reference_id_as_customer_id_for_provider(
+                    state,
+                    provider,
+                    Some(customer_id),
+                )
+                .await;
+
             let customer = db
                 .find_customer_by_customer_id_merchant_id(
                     customer_id,
                     provider.get_account().get_id(),
                     provider.get_key_store(),
                     provider.get_account().storage_scheme,
+                    use_merchant_reference_id,
                 )
                 .await?;
             Ok(Some(customer))
@@ -4294,9 +4400,9 @@ where
 pub(super) async fn filter_by_constraints(
     state: &SessionState,
     constraints: &PaymentIntentFetchConstraints,
-    merchant_id: &id_type::MerchantId,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: storage_enums::MerchantStorageScheme,
+    merchant_id: &domain::ProcessorMerchantId,
+    key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
 ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
     let db = &*state.store;
     let result = db
@@ -5003,9 +5109,9 @@ pub async fn verify_payment_intent_time_and_client_secret(
             let payment_intent = db
                 .find_payment_intent_by_payment_id_processor_merchant_id(
                     &payment_id,
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -5382,7 +5488,7 @@ pub async fn insert_merchant_connector_creds_to_config(
     processor: &domain::Processor,
     merchant_connector_details: admin::MerchantConnectorDetailsWrap,
 ) -> RouterResult<()> {
-    let merchant_id = processor.get_account().get_id();
+    let merchant_id = processor.get_processor_merchant_id();
     if let Some(encoded_data) = merchant_connector_details.encoded_data {
         let redis = &db
             .get_redis_conn()
@@ -5984,8 +6090,8 @@ impl AttemptType {
         fetched_payment_intent: PaymentIntent,
         fetched_payment_attempt: PaymentAttempt,
         state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: storage::enums::MerchantStorageScheme,
+        key_store: &domain::ProcessorKeyStore,
+        storage_scheme: domain::ProcessorStorageScheme,
     ) -> RouterResult<(PaymentIntent, PaymentAttempt)> {
         match self {
             Self::SameOld => Ok((fetched_payment_intent, fetched_payment_attempt)),
@@ -5996,7 +6102,7 @@ impl AttemptType {
                     request,
                     fetched_payment_attempt,
                     new_attempt_count,
-                    storage_scheme,
+                    storage_scheme.inner(),
                 );
 
                 #[cfg(feature = "v1")]
@@ -6036,7 +6142,7 @@ impl AttemptType {
                             ),
                             active_attempt_id: new_payment_attempt.get_id().to_owned(),
                             attempt_count: new_attempt_count,
-                            updated_by: storage_scheme.to_string(),
+                            updated_by: storage_scheme.inner().to_string(),
                         },
                         key_store,
                         storage_scheme,

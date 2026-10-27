@@ -20288,6 +20288,17 @@
                 "$ref": "#/components/schemas/SantanderData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "revolv3"
+            ],
+            "properties": {
+              "revolv3": {
+                "$ref": "#/components/schemas/Revolv3Data"
+              }
+            }
           }
         ]
       },
@@ -35133,6 +35144,11 @@
       "PaymentMethodUpdate": {
         "type": "object",
         "properties": {
+          "update_last_used_at": {
+            "type": "boolean",
+            "example": true,
+            "nullable": true
+          },
           "card": {
             "allOf": [
               {
@@ -46375,6 +46391,17 @@
       },
       "RevolutPayData": {
         "type": "object"
+      },
+      "Revolv3Data": {
+        "type": "object",
+        "properties": {
+          "processor": {
+            "type": "string",
+            "description": "Name of the downstream processor Revolv3 routed the payment to.",
+            "example": "Paysafe",
+            "nullable": true
+          }
+        }
       },
       "RewardData": {
         "type": "object",

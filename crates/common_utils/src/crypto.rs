@@ -157,6 +157,11 @@ pub trait EncodeMessage {
 
 /// Trait for cryptographically decoding a message
 pub trait DecodeMessage {
+    /// Whether decoding requires a configured secret.
+    fn requires_secret(&self) -> bool {
+        true
+    }
+
     /// Takes in a secret, an encoded messages and attempts to decode it, returning bytes
     fn decode_message(
         &self,
@@ -166,7 +171,7 @@ pub trait DecodeMessage {
 }
 
 /// Represents no cryptographic algorithm.
-/// Implements all crypto traits and acts like a Nop
+/// Passes messages through during encoding and decoding, but never verifies signatures.
 #[derive(Debug)]
 pub struct NoAlgorithm;
 
@@ -187,7 +192,7 @@ impl VerifySignature for NoAlgorithm {
         _signature: &[u8],
         _msg: &[u8],
     ) -> CustomResult<bool, errors::CryptoError> {
-        Ok(true)
+        Ok(false)
     }
 }
 
@@ -202,6 +207,10 @@ impl EncodeMessage for NoAlgorithm {
 }
 
 impl DecodeMessage for NoAlgorithm {
+    fn requires_secret(&self) -> bool {
+        false
+    }
+
     fn decode_message(
         &self,
         _secret: &[u8],
