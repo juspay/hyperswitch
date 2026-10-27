@@ -130,6 +130,7 @@ async fn deliver_to(state: &AppState, destination: &str, message: &str) -> Deliv
         .notify(ChatNotification {
             text: Secret::new(message.to_owned()),
             reply_to: None,
+            alert: None,
         })
         .await
     {

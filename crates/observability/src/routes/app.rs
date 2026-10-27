@@ -49,6 +49,10 @@ impl Alerts {
                         web::resource("/notify/{destination}").route(web::post().to(notify::chat)),
                     )
                     .service(
+                        web::resource("/update/{destination}")
+                            .route(web::post().to(notify::chat_update)),
+                    )
+                    .service(
                         web::resource("/upload/{destination}")
                             .route(web::post().to(notify::chat_upload)),
                     ),

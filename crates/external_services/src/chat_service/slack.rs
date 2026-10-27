@@ -108,6 +108,14 @@ impl ChatClient for SlackClient {
         self.endpoint.post_message(message).await
     }
 
+    async fn update_message(
+        &self,
+        message_id: &MessageId,
+        message: ChatMessage,
+    ) -> ChatResult<MessageId> {
+        self.endpoint.update_message(message_id, message).await
+    }
+
     async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId> {
         self.endpoint.upload_file(file).await
     }
@@ -155,6 +163,52 @@ mod tests {
         assert_eq!(
             client
                 .post_message(ChatMessage::new("hello"))
+                .await
+                .unwrap(),
+            MessageId::ts("1.1")
+        );
+    }
+
+    #[tokio::test]
+    async fn an_update_names_the_message_and_keeps_its_attachments() {
+        let server = MockServer::start().await;
+        let attachments = json!([{"color": "#2eb886", "blocks": [
+            {"type": "section", "text": {"type": "mrkdwn", "text": "body"}}
+        ]}]);
+        Mock::given(method("POST"))
+            .and(path("/chat.update"))
+            .and(header("authorization", "Bearer xoxb-test"))
+            .and(body_json(json!({
+                "channel": "C1",
+                "ts": "1.1",
+                "text": "*heading*",
+                "attachments": attachments
+            })))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({"ok": true, "ts": "1.1"})),
+            )
+            .mount(&server)
+            .await;
+
+        let client = SlackClient::new(
+            SlackConfig {
+                base_url: Url::parse(&server.uri()).unwrap(),
+                bot_token: Secret::new("xoxb-test".to_owned()),
+                channel: "C1".to_owned(),
+                timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
+                max_message_chars: DEFAULT_MAX_MESSAGE_CHARS,
+            },
+            Proxy::default(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            client
+                .update_message(
+                    &MessageId::ts("1.1"),
+                    ChatMessage::new("*heading*")
+                        .with_attachments(attachments.as_array().unwrap().clone()),
+                )
                 .await
                 .unwrap(),
             MessageId::ts("1.1")
