@@ -2586,9 +2586,11 @@ where
             attempt.net_amount.set_external_surcharge_amount(None);
             attempt.external_surcharge_details =
                 attempt.external_surcharge_details.filter(|details| {
-                    !details.error_code.is_empty()
-                        || !details.error_message.is_empty()
-                        || !details.error_reason.is_empty()
+                    has_external_surcharge_error(
+                        Some(&details.error_code),
+                        Some(&details.error_message),
+                        Some(&details.error_reason),
+                    )
                 });
             payment_data.set_payment_attempt(attempt);
             logger::debug!(
@@ -2685,6 +2687,18 @@ where
     .await
 }
 
+#[cfg(feature = "v1")]
+fn has_external_surcharge_error(
+    error_code: Option<&str>,
+    error_message: Option<&str>,
+    error_reason: Option<&str>,
+) -> bool {
+    [error_code, error_message, error_reason]
+        .into_iter()
+        .flatten()
+        .any(|value| !value.is_empty())
+}
+
 // CIT external surcharge: read whatever /eligibility cached in Redis, if any.
 #[cfg(feature = "v1")]
 async fn resolve_external_surcharge<F, D>(
@@ -2706,9 +2720,11 @@ where
                 .get_payment_intent()
                 .external_surcharge_applicable
                 .unwrap_or(false)
-                || external.error_code.as_ref().is_some_and(|value| !value.is_empty())
-                || external.error_message.as_ref().is_some_and(|value| !value.is_empty())
-                || external.error_reason.as_ref().is_some_and(|value| !value.is_empty()))
+                || has_external_surcharge_error(
+                    external.error_code.as_deref(),
+                    external.error_message.as_deref(),
+                    external.error_reason.as_deref(),
+                ))
         })
 }
 
