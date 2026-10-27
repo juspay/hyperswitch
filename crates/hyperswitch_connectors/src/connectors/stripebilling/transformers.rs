@@ -430,6 +430,8 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
             // TODO! This field should be handled for billing connnector integrations
             enable_partial_authorization: None,
             customer_present: common_enums::PresenceOfCustomerDuringPayment::Absent,
+            // Not set since Stripe Billing recovers only through Stripe, which doesn't use the mit category
+            mit_category: None,
         })
     }
 }
