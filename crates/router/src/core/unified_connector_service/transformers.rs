@@ -623,6 +623,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            integrity_specifications: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -792,6 +793,8 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            integrity_specifications: None,
+            risk_assessment_data: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -1084,6 +1087,8 @@ impl
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
 
         Ok(Self {
+            integrity_specifications: None,
+            risk_assessment_data: None,
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -1392,6 +1397,9 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
             .transpose()?;
 
         Ok(Self {
+            integrity_specifications: None,
+            is_overcapture_enabled: None,
+            enable_partial_authorization: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -2296,6 +2304,10 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            payment_method: None,
+            integrity_specifications: None,
+            is_overcapture_enabled: None,
+            currency_conversion_data: None,
             split_settlement: None,
             connector_transaction_id,
             merchant_capture_id: Some(router_data.connector_request_reference_id.clone()),
@@ -2417,6 +2429,8 @@ impl
             .transpose()?;
 
         Ok(Self {
+            integrity_specifications: None,
+            risk_assessment_data: None,
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -2599,6 +2613,8 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            integrity_specifications: None,
+            risk_assessment_data: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2806,6 +2822,8 @@ impl
             .transpose()?;
 
         Ok(Self {
+            integrity_specifications: None,
+            risk_assessment_data: None,
             is_account_funding_transaction: None,
             recipient_details: None,
             business_country: None,
@@ -3284,6 +3302,8 @@ impl
         };
 
         Ok(Self {
+            integrity_specifications: None,
+            currency_conversion_data: None,
             merchant_charge_id: Some(router_data.connector_request_reference_id.clone()),
             connector_recurring_payment_id,
             payment_method,
@@ -3561,6 +3581,8 @@ impl
         )?;
 
         Ok(Self {
+            integrity_specifications: None,
+            currency_conversion_data: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -3824,6 +3846,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            payment_method: None,
             test_mode: router_data.test_mode,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.total_amount,
@@ -4913,6 +4936,11 @@ impl transformers::ForeignTryFrom<payments_grpc::CardNetwork> for common_enums::
             payments_grpc::CardNetwork::Prop => Ok(Self::Prop),
             payments_grpc::CardNetwork::PrivateLabel => Ok(Self::PrivateLabel),
             payments_grpc::CardNetwork::Dinacard => Ok(Self::Dinacard),
+            payments_grpc::CardNetwork::AirPlus => Ok(Self::AirPlus),
+            payments_grpc::CardNetwork::Aurore => Ok(Self::Aurore),
+            payments_grpc::CardNetwork::EftposAustralia => Ok(Self::EftposAustralia),
+            payments_grpc::CardNetwork::GeCapital => Ok(Self::GeCapital),
+            payments_grpc::CardNetwork::Uatp => Ok(Self::Uatp),
             payments_grpc::CardNetwork::Unspecified => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)?
             }
@@ -8542,6 +8570,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .map(|payment_method_type| payment_method_type.into());
 
         Ok(Self {
+            currency_conversion_data: None,
             split_settlement_refund: None,
             split_refunds: router_data
                 .request
@@ -8847,6 +8876,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            payment_method: None,
             merchant_void_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             cancellation_reason: router_data.request.cancellation_reason.clone(),
@@ -8905,6 +8935,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            payment_method: None,
             merchant_void_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             split_payments: None,
