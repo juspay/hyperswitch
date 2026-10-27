@@ -64,6 +64,10 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             } else {
                 common_enums::PresenceOfCustomerDuringPayment::Absent
             },
+            mit_category: Some(
+                data.mit_category
+                    .unwrap_or(common_enums::MitCategory::Recurring),
+            ),
         }
     }
 }

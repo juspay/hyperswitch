@@ -31538,6 +31538,14 @@
             "default": false,
             "example": false
           },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {

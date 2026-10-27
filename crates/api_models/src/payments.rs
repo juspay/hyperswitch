@@ -14847,6 +14847,11 @@ pub struct RecoveryPaymentsCreate {
     #[schema(default = false, example = false)]
     pub customer_present: bool,
 
+    /// Category of the merchant initiated transactions made to recover this invoice. Defaults to
+    /// `recurring`.
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    pub mit_category: Option<api_enums::MitCategory>,
+
     /// The billing details of the transaction.
     pub billing: Option<Address>,
 
