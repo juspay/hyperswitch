@@ -1609,13 +1609,13 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        feature_metadata -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         #[max_length = 64]
         connector_id -> Nullable<Varchar>,
-        feature_metadata -> Nullable<Jsonb>,
     }
 }
 
