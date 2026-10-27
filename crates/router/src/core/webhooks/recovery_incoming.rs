@@ -1607,6 +1607,7 @@ impl RecoveryAction {
             | webhooks::IncomingWebhookEvent::DisputeLost
             | webhooks::IncomingWebhookEvent::MandateActive
             | webhooks::IncomingWebhookEvent::MandateRevoked
+            | webhooks::IncomingWebhookEvent::MandateFailed
             | webhooks::IncomingWebhookEvent::MandateActionRequired
             | webhooks::IncomingWebhookEvent::EndpointVerification
             | webhooks::IncomingWebhookEvent::PaymentIntentExtendAuthorizationSuccess
