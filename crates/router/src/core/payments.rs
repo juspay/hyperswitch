@@ -2506,17 +2506,29 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F>,
 {
-    payment_data
-        .get_payment_intent()
-        .get_surcharge_mode(business_profile)
-        == Some(domain_payments::SurchargeMode::External)
-        && (payment_data.get_payment_intent().off_session != Some(true)
-            || payment_data
-                .get_payment_attempt()
-                .external_surcharge_details
-                .as_ref()
-                .and_then(common_types::payments::ExternalSurchargeDetails::usable_connector_id)
-                .is_none())
+    let payment_intent = payment_data.get_payment_intent();
+    match payment_intent.get_surcharge_mode(business_profile) {
+        Some(domain_payments::SurchargeMode::External) => {
+            payment_intent.off_session != Some(true)
+                || payment_data
+                    .get_payment_attempt()
+                    .external_surcharge_details
+                    .as_ref()
+                    .and_then(common_types::payments::ExternalSurchargeDetails::usable_connector_id)
+                    .is_none()
+        }
+        // A failed eligibility calculation disables the fee, but its cached error
+        // still needs to be loaded and persisted by confirmation.
+        None => {
+            payment_intent.off_session != Some(true)
+                && business_profile
+                    .surcharge_connector_details
+                    .as_ref()
+                    .and_then(|details| details.surcharge_connector_id.as_ref())
+                    .is_some()
+        }
+        Some(domain_payments::SurchargeMode::Internal) => false,
+    }
 }
 
 // Populates payment_attempt.external_surcharge_details before choose_connector so the routing
@@ -2551,9 +2563,9 @@ where
                         external_surcharge_amount: cached.surcharge_amount,
                         surcharge_percentage: percentage,
                         sale_notified: false,
-                        error_code: String::new(),
-                        error_message: String::new(),
-                        error_reason: String::new(),
+                        error_code: cached.error_code.unwrap_or_default(),
+                        error_message: cached.error_message.unwrap_or_default(),
+                        error_reason: cached.error_reason.unwrap_or_default(),
                     }
                 })
         };
@@ -2690,7 +2702,13 @@ where
             external.matches_payment_method(
                 payment_attempt.payment_method,
                 payment_attempt.payment_method_type,
-            )
+            ) && (payment_data
+                .get_payment_intent()
+                .external_surcharge_applicable
+                .unwrap_or(false)
+                || external.error_code.as_ref().is_some_and(|value| !value.is_empty())
+                || external.error_message.as_ref().is_some_and(|value| !value.is_empty())
+                || external.error_reason.as_ref().is_some_and(|value| !value.is_empty()))
         })
 }
 
@@ -15204,54 +15222,11 @@ async fn previous_connector_surcharge_id(
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
-async fn update_eligibility_surcharge_details(
-    state: &SessionState,
-    processor: &domain::Processor,
-    payment_id: &id_type::PaymentId,
-    attempt_id: &str,
-    details: common_types::payments::ExternalSurchargeDetails,
-) -> RouterResult<()> {
-    let merchant_id = processor.get_processor_merchant_id();
-    let storage_scheme = processor.get_storage_scheme();
-    let key_store = processor.get_key_store();
-    let attempt = state
-        .store
-        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-            payment_id,
-            &merchant_id,
-            attempt_id,
-            storage_scheme,
-            key_store,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    state
-        .store
-        .update_payment_attempt_with_attempt_id(
-            attempt,
-            payments::payment_attempt::PaymentAttemptUpdate::ExternalSurchargeUpdate {
-                external_surcharge_details: details,
-                updated_by: storage_scheme.inner().to_string(),
-            },
-            storage_scheme,
-            key_store,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    Ok(())
-}
-
-#[cfg(all(feature = "oltp", feature = "v1"))]
-#[allow(clippy::too_many_arguments)]
 async fn store_external_surcharge_in_redis(
     state: &SessionState,
     payment_id: &id_type::PaymentId,
     merchant_id: &id_type::MerchantId,
-    surcharge_amount: MinorUnit,
-    payment_method: common_enums::PaymentMethod,
-    payment_method_type: Option<common_enums::PaymentMethodType>,
-    external_surcharge_id: String,
-    surcharge_percentage: Option<f64>,
+    surcharge_details: &hyperswitch_domain_models::router_request_types::ExternalSurchargeDetails,
 ) -> RouterResult<()> {
     let redis_conn = state
         .store
@@ -15259,19 +15234,10 @@ async fn store_external_surcharge_in_redis(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection for surcharge")?;
     let redis_key = payment_id.get_external_surcharge_redis_key(merchant_id);
-    let surcharge_to_store =
-        hyperswitch_domain_models::router_request_types::ExternalSurchargeDetails {
-            surcharge_amount,
-            tax_amount: None,
-            payment_method,
-            payment_method_type,
-            external_surcharge_id,
-            surcharge_percentage,
-        };
     redis_conn
         .serialize_and_set_key_with_expiry(
             &redis_key.as_str().into(),
-            &surcharge_to_store,
+            surcharge_details,
             consts::EXTERNAL_SURCHARGE_TTL,
         )
         .await
@@ -15331,7 +15297,7 @@ async fn calculate_external_surcharge(
         }
         None => None,
     };
-    let surcharge_details = match (surcharge_mca, inputs.card_iin.clone(), inputs.currency) {
+    let calculation_result = match (surcharge_mca, inputs.card_iin.clone(), inputs.currency) {
         (Some(surcharge_mca), Some(card_iin), Some(currency)) => {
             match run_external_surcharge_ucs(
                 state,
@@ -15346,133 +15312,93 @@ async fn calculate_external_surcharge(
             .await?
             {
                 Some(Ok(resp)) => {
-                    let surcharge_amount = resp.surcharge_amount;
                     let surcharge_percentage = resp
                         .surcharge_fee_percent
                         .as_ref()
                         .map(|percent| percent.get_percentage());
-                    let external_surcharge_id = resp.connector_surcharge_id.clone();
-                    let merchant_id = processor.get_processor_merchant_id();
-                    let storage_scheme = processor.get_storage_scheme();
-                    let key_store = processor.get_key_store().clone();
-                    // Both writes must succeed: without Redis the cached surcharge can't be
-                    // applied on /confirm, and without the flag /confirm wouldn't even try.
-                    store_external_surcharge_in_redis(
-                        state,
-                        payment_id,
-                        &merchant_id,
-                        surcharge_amount,
-                        inputs.payment_method,
-                        inputs.payment_method_type,
-                        external_surcharge_id.clone(),
-                        surcharge_percentage,
-                    )
-                    .await
-                    .attach_printable("eligibility: failed to write surcharge to Redis")?;
-                    update_eligibility_surcharge_details(
-                        state,
-                        processor,
-                        payment_id,
-                        &inputs.active_attempt_id,
-                        common_types::payments::ExternalSurchargeDetails {
-                            external_surcharge_id,
-                            external_surcharge_amount: surcharge_amount,
-                            surcharge_percentage: common_types::payments::ExternalSurchargeDetails::decimal_percentage_from_f64(surcharge_percentage),
-                            sale_notified: false,
-                            error_code: String::new(),
-                            error_message: String::new(),
-                            error_reason: String::new(),
-                        },
-                    )
-                    .await?;
-                    state
-                        .store
-                        .update_payment_intent(
-                            payment_intent,
-                            storage::PaymentIntentUpdate::ExternalSurchargeApplicableUpdate {
-                                external_surcharge_applicable: true,
-                                updated_by: storage_scheme.inner().to_string(),
-                            },
-                            &key_store,
-                            storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "eligibility: failed to set external_surcharge_applicable on payment_intent",
-                        )?;
-                    Some(build_surcharge_response(
-                        surcharge_amount,
+                    let response = build_surcharge_response(
+                        resp.surcharge_amount,
                         currency,
                         surcharge_percentage,
-                    ))
+                    );
+                    let cached_result =
+                        hyperswitch_domain_models::router_request_types::ExternalSurchargeDetails {
+                            surcharge_amount: resp.surcharge_amount,
+                            tax_amount: None,
+                            payment_method: inputs.payment_method,
+                            payment_method_type: inputs.payment_method_type,
+                            external_surcharge_id: resp.connector_surcharge_id,
+                            surcharge_percentage,
+                            // A successful calculation has no connector error details.
+                            error_code: None,
+                            error_message: None,
+                            error_reason: None,
+                        };
+                    Some((cached_result, response, true))
                 }
                 Some(Err(error)) => {
                     let code = (error.code != hyperswitch_interfaces::consts::NO_ERROR_CODE)
                         .then(|| error.code.clone());
-                    let details = common_types::payments::ExternalSurchargeDetails {
-                        external_surcharge_id: error
-                            .connector_transaction_id
-                            .clone()
-                            .unwrap_or_else(|| {
-                                common_types::consts::NO_SURCHARGE_ID_FOUND.to_string()
-                            }),
-                        external_surcharge_amount: MinorUnit::zero(),
-                        surcharge_percentage: None,
-                        sale_notified: false,
-                        error_code: code.clone().unwrap_or_default(),
-                        error_message: error.message.clone(),
-                        error_reason: error.reason.clone().unwrap_or_default(),
-                    };
-                    let merchant_id = processor.get_processor_merchant_id();
-                    if let Ok(redis_conn) = state.store.get_redis_conn() {
-                        let redis_key = payment_id.get_external_surcharge_redis_key(&merchant_id);
-                        if let Err(err) = redis_conn.delete_key(&redis_key.as_str().into()).await {
-                            logger::warn!(error=?err, "Could not clear previous external surcharge quote");
-                        }
-                    }
-                    let storage_scheme = processor.get_storage_scheme();
-                    state
-                        .store
-                        .update_payment_intent(
-                            payment_intent,
-                            storage::PaymentIntentUpdate::ExternalSurchargeApplicableUpdate {
-                                external_surcharge_applicable: false,
-                                updated_by: storage_scheme.inner().to_string(),
-                            },
-                            processor.get_key_store(),
-                            storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-                    update_eligibility_surcharge_details(
-                        state,
-                        processor,
-                        payment_id,
-                        &inputs.active_attempt_id,
-                        details,
-                    )
-                    .await?;
-                    Some(
+                    let cached_result =
+                        hyperswitch_domain_models::router_request_types::ExternalSurchargeDetails {
+                            surcharge_amount: MinorUnit::zero(),
+                            tax_amount: None,
+                            payment_method: inputs.payment_method,
+                            payment_method_type: inputs.payment_method_type,
+                            external_surcharge_id: error.connector_transaction_id.unwrap_or_else(
+                                || common_types::consts::NO_SURCHARGE_ID_FOUND.to_string(),
+                            ),
+                            surcharge_percentage: None,
+                            error_code: code.clone(),
+                            error_message: Some(error.message.clone()),
+                            error_reason: error.reason.clone(),
+                        };
+                    let response =
                         api_models::payment_methods::SurchargeDetailsResponse::connector_error(
                             code,
                             error.message,
                             error.reason,
-                        ),
-                    )
+                        );
+                    Some((cached_result, response, false))
                 }
                 None => None,
             }
         }
         _ => None,
     };
-    Ok(surcharge_details)
+    match calculation_result {
+        Some((cached_result, response, external_surcharge_applicable)) => {
+            let merchant_id = processor.get_processor_merchant_id();
+            let storage_scheme = processor.get_storage_scheme();
+            // Overwrite any previous success or error before updating the flag.
+            // Confirmation consumes this result and persists it on the attempt.
+            store_external_surcharge_in_redis(state, payment_id, &merchant_id, &cached_result)
+                .await
+                .attach_printable("eligibility: failed to write surcharge result to Redis")?;
+            state
+                .store
+                .update_payment_intent(
+                    payment_intent,
+                    storage::PaymentIntentUpdate::ExternalSurchargeApplicableUpdate {
+                        external_surcharge_applicable,
+                        updated_by: storage_scheme.inner().to_string(),
+                    },
+                    processor.get_key_store(),
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("eligibility: failed to update external_surcharge_applicable")?;
+            Ok(Some(response))
+        }
+        None => Ok(None),
+    }
 }
 
 // Fire the UCS `surcharge_calculate` gRPC for `payment_id` using the given
 // surcharge MCA and return the connector's surcharge amount + id or error details.
 // Failures remain non-blocking, but must reach the caller's surcharge error handling
-// so eligibility exposes them and clears any previous successful quote.
+// so eligibility exposes them and replaces any previous cached quote with the error.
 #[cfg(all(feature = "oltp", feature = "v1"))]
 #[allow(clippy::too_many_arguments)]
 async fn run_external_surcharge_ucs(
