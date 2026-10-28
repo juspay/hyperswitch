@@ -45220,6 +45220,22 @@
             "type": "boolean",
             "description": "If true, returns stringified connector raw response body",
             "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
+            "nullable": true
+          },
+          "recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
