@@ -857,6 +857,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::TransactionType,
         api_models::enums::PresenceOfCustomerDuringPayment,
         api_models::enums::MitExemptionRequest,
+        api_models::enums::MitCategory,
         api_models::enums::EnablePaymentLinkRequest,
         api_models::enums::RequestIncrementalAuthorization,
         api_models::enums::SplitTxnsEnabled,

@@ -14,7 +14,7 @@ use diesel::{
 };
 #[cfg(feature = "diesel")]
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use regex::Regex;
 #[cfg(feature = "logs")]
 use router_env::logger;
@@ -197,6 +197,16 @@ pub struct GenericLinkUiConfig {
     /// Primary color to be used in the form represented in hex format
     #[schema(value_type = Option<String>, max_length = 255, example = "#4285F4")]
     pub theme: Option<String>,
+}
+
+impl crate::validation::ValidateXSSOrSQLi for GenericLinkUiConfig {
+    fn validate_xss_or_sqli(&self) -> Result<(), String> {
+        self.merchant_name
+            .as_ref()
+            .map(|merchant_name| merchant_name.peek().clone())
+            .validate_xss_or_sqli()?;
+        self.theme.validate_xss_or_sqli()
+    }
 }
 
 /// Object for GenericLinkUiConfigFormData
