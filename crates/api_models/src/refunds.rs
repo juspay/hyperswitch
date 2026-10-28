@@ -7,10 +7,10 @@ use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use super::payments::AmountFilter;
+use super::payments::{AmountFilter, PaymentMethodData};
 #[cfg(feature = "v1")]
 use crate::admin;
-use crate::{admin::MerchantConnectorInfo, enums};
+use crate::{admin::MerchantConnectorInfo, enums, mandates::RecurringDetails};
 
 #[cfg(feature = "v1")]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize, SmithyModel)]
@@ -73,6 +73,14 @@ pub struct RefundRequest {
 
     /// If true, returns stringified connector raw response body
     pub all_keys_required: Option<bool>,
+
+    /// Collects payment method data to be passed through to the connector
+    #[smithy(value_type = "Option<PaymentMethodData>")]
+    pub payment_method_data: Option<PaymentMethodData>,
+
+    /// Details required for a recurring payment
+    #[smithy(value_type = "Option<RecurringDetails>")]
+    pub recurring_details: Option<RecurringDetails>,
 }
 
 #[cfg(feature = "v2")]

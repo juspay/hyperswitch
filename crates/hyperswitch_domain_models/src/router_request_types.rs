@@ -1459,6 +1459,7 @@ pub struct RefundsData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
+    pub payment_method_data: Option<PaymentMethodData>,
     /// The `connector_request_reference_id` that was sent to the connector for the *original
     /// payment* this refund targets.
     ///

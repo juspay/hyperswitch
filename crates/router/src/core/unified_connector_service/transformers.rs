@@ -8531,6 +8531,20 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .transpose()?
             .map(|payment_method_type| payment_method_type.into());
 
+        let payment_method = router_data
+            .request
+            .payment_method_data
+            .clone()
+            .map(|payment_method_data| {
+                unified_connector_service::build_unified_connector_service_payment_method(
+                    payment_method_data,
+                    router_data.payment_method_type,
+                    router_data.payment_method_token.as_ref(),
+                    router_data.connector_meta_data.as_ref(),
+                )
+            })
+            .transpose()?;
+
         Ok(Self {
             split_settlement_refund: None,
             split_refunds: router_data
@@ -8592,7 +8606,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .request
                 .payment_connector_request_reference_id
                 .clone(),
-            payment_method: None,
+            payment_method,
         })
     }
 }

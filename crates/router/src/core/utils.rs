@@ -578,6 +578,7 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_connector_metadata: refund.metadata.clone(),
             capture_method: Some(capture_method),
             additional_payment_method_data: None,
+            payment_method_data: None,
             payment_connector_request_reference_id: payment_attempt
                 .connector_request_reference_id
                 .clone(),
@@ -670,6 +671,7 @@ pub async fn construct_refund_router_data<'a, F>(
     refund: &'a diesel_refund::Refund,
     split_refunds: Option<router_request_types::SplitRefundsRequest>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    payment_method_data: Option<domain::PaymentMethodData>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -805,6 +807,7 @@ pub async fn construct_refund_router_data<'a, F>(
             merchant_config_currency,
             capture_method,
             additional_payment_method_data,
+            payment_method_data,
             payment_connector_request_reference_id: payment_attempt
                 .connector_request_reference_id
                 .clone(),
