@@ -702,7 +702,9 @@ impl ForeignTryFrom<(payments_grpc::PaymentStatus, Self)> for AttemptStatus {
             payments_grpc::PaymentStatus::DeviceDataCollectionPending => {
                 Ok(Self::DeviceDataCollectionPending)
             }
-            payments_grpc::PaymentStatus::VoidedPostCapture => Ok(Self::Voided),
+            // Deprecated in UCS in favour of `PostCaptureVoidStatus`; kept for exhaustiveness.
+            #[allow(deprecated)]
+            payments_grpc::PaymentStatus::VoidedPostCapture |
             payments_grpc::PaymentStatus::Unspecified => Ok(prev_status),
             payments_grpc::PaymentStatus::PartiallyAuthorized => Ok(Self::PartiallyAuthorized),
             payments_grpc::PaymentStatus::Expired => Ok(Self::Expired),

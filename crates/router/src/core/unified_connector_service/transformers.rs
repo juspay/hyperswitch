@@ -2402,6 +2402,8 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .request
                 .is_overcapture_enabled
                 .map(|enabled| *enabled),
+            // Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
+            currency_conversion_data: None,
         })
     }
 }
@@ -3469,6 +3471,8 @@ impl
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
+            // Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
+            currency_conversion_data: None,
         })
     }
 }
@@ -3793,6 +3797,8 @@ impl
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
+            // Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
+            currency_conversion_data: None,
         })
     }
 }
@@ -8684,6 +8690,8 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .payment_connector_request_reference_id
                 .clone(),
             payment_method: None,
+            // Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
+            currency_conversion_data: None,
         })
     }
 }
