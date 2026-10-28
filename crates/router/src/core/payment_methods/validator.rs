@@ -1,7 +1,7 @@
 use api_models::{admin, payment_methods::PaymentMethodCollectLinkRequest};
-use common_utils::link_utils;
+use common_utils::{link_utils, validation::ValidateXSSOrSQLi};
 use diesel_models::generic_link::PaymentMethodCollectLinkData;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_masking::Secret;
 
 #[cfg(feature = "v1")]
@@ -109,6 +109,9 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
         .as_ref()
         .or(merchant_ui_config.as_ref())
         .cloned();
+    ui_config
+        .validate_xss_or_sqli()
+        .map_err(|message| report!(errors::ApiErrorResponse::InvalidRequestData { message }))?;
 
     // Form data to be injected in the link
     let (logo, merchant_name, theme) = match ui_config {

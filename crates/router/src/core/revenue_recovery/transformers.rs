@@ -64,6 +64,11 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             } else {
                 common_enums::PresenceOfCustomerDuringPayment::Absent
             },
+            // Defaults to recurring since recovery retries are merchant initiated transactions on a saved card for a recurring invoice
+            mit_category: Some(
+                data.mit_category
+                    .unwrap_or(common_enums::MitCategory::Recurring),
+            ),
         }
     }
 }
