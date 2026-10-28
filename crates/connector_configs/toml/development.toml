@@ -9451,6 +9451,45 @@ payment_method_type = "DinersClub"
 [[ilixium.debit]]
 payment_method_type = "UnionPay"
 
+[ecommpay]
+[[ecommpay.credit]]
+payment_method_type = "Mastercard"
+[[ecommpay.credit]]
+payment_method_type = "Visa"
+[[ecommpay.credit]]
+payment_method_type = "AmericanExpress"
+[[ecommpay.credit]]
+payment_method_type = "JCB"
+[[ecommpay.credit]]
+payment_method_type = "Discover"
+[[ecommpay.credit]]
+payment_method_type = "DinersClub"
+[[ecommpay.credit]]
+payment_method_type = "UnionPay"
+[[ecommpay.debit]]
+payment_method_type = "Mastercard"
+[[ecommpay.debit]]
+payment_method_type = "Visa"
+[[ecommpay.debit]]
+payment_method_type = "AmericanExpress"
+[[ecommpay.debit]]
+payment_method_type = "JCB"
+[[ecommpay.debit]]
+payment_method_type = "Discover"
+[[ecommpay.debit]]
+payment_method_type = "DinersClub"
+[[ecommpay.debit]]
+payment_method_type = "UnionPay"
+[[ecommpay.wallet]]
+payment_method_type = "apple_pay"
+[[ecommpay.wallet]]
+payment_method_type = "google_pay"
+[ecommpay.connector_auth.BodyKey]
+api_key = "Secret key"
+key1 = "Project ID"
+[ecommpay.connector_webhook_details]
+merchant_secret = "Secret key"
+
 [worldpayraft]
 [[worldpayraft.credit]]
   payment_method_type = "Visa"
