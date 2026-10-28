@@ -1090,7 +1090,6 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
-            risk_assessment_data: None,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -1367,7 +1366,6 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
-            risk_assessment_data: None,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -2521,7 +2519,6 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 }
             }),
             currency_conversion_data,
-            payment_method: None,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -2713,7 +2710,6 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
-            risk_assessment_data: None,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -2939,7 +2935,6 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
-            risk_assessment_data: None,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -3130,7 +3125,6 @@ impl
             currency_conversion_data: None,
             additional_connector_details: None,
             enable_avs_check: None,
-            risk_assessment_data: None,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
