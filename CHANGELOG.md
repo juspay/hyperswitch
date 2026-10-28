@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.26.0-hotfix2
+
+### Bug Fixes
+
+- **generic_link:** Escape link data embedded in inline scripts and validate ui_config for XSS ([#15013](https://github.com/juspay/hyperswitch/pull/15013)) ([`5258f3e`](https://github.com/juspay/hyperswitch/commit/5258f3eeb2ed200a2c40613a622dd091a5196e50))
+- **routing:** Remove unauthorized dynamic_routing config update endpoints ([#15014](https://github.com/juspay/hyperswitch/pull/15014)) ([`08e6115`](https://github.com/juspay/hyperswitch/commit/08e61159e172332f31c1325891b35b56e2efe38e))
+
+**Full Changelog:** [`2026.10.26.0-hotfix1...2026.10.26.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.10.26.0-hotfix1...2026.10.26.0-hotfix2)
+
+- - -
+
 ## 2026.10.26.0-hotfix1
 
 ### Bug Fixes
