@@ -399,9 +399,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCaptureRequest, payments::Pa
         state: &SessionState,
         request: &api::PaymentsCaptureRequest,
         platform: &domain::Platform,
-        _feature_config: &core_utils::FeatureConfig,
+        feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<operations::PaymentMethodFetchData> {
-        if request.payment_method_data.is_none() {
+        if request.payment_method_data.is_none() && feature_config.is_payment_method_modular_allowed
+        {
             let payment_method_fetch_result = async {
                 let payment_attempt = state
                     .store
@@ -418,6 +419,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCaptureRequest, payments::Pa
                     operations::is_payment_method_data_collection_allowed(
                         state,
                         platform,
+                        feature_config,
                         &request.payment_id,
                         payment_attempt.connector.as_deref(),
                     )

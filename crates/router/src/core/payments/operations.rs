@@ -234,11 +234,15 @@ pub enum PaymentFlowKind {
 pub async fn is_payment_method_data_collection_allowed(
     state: &SessionState,
     platform: &domain::Platform,
+    feature_config: &core_utils::FeatureConfig,
     payment_id: &common_utils::id_type::PaymentId,
     connector_name: Option<&str>,
 ) -> bool {
-    let connector = match connector_name {
-        Some(connector_name) => {
+    let connector = match (
+        feature_config.is_payment_method_modular_allowed,
+        connector_name,
+    ) {
+        (true, Some(connector_name)) => {
             match connector_name.parse::<common_enums::connector_enums::Connector>() {
                 Ok(connector) => Some(connector),
                 Err(error) => {
@@ -251,9 +255,15 @@ pub async fn is_payment_method_data_collection_allowed(
                 }
             }
         }
-        None => {
+        (true, None) => {
             logger::warn!(
                 "Connector is unavailable while checking payment method data collection; skipping collection."
+            );
+            None
+        }
+        (false, _) => {
+            logger::info!(
+                "Organization is not eligible for PM Modular Service; skipping payment method data collection."
             );
             None
         }

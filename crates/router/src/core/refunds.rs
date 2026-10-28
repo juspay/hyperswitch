@@ -388,14 +388,30 @@ async fn get_refund_payment_method_data(
 ) -> Option<domain::PaymentMethodData> {
     let request_payment_method_data = payment_method_data.map(domain::PaymentMethodData::from);
 
-    let allow_payment_method_data_collection = match (
+    let feature_config = match (
         request_payment_method_data.as_ref(),
         payment_attempt.payment_method_id.as_ref(),
     ) {
         (None, Some(_)) => {
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
+            Some(core_utils::get_feature_config(state, platform, &dimensions).await)
+        }
+        _ => None,
+    };
+
+    let allow_payment_method_data_collection = match (
+        request_payment_method_data.as_ref(),
+        payment_attempt.payment_method_id.as_ref(),
+        feature_config.as_ref(),
+    ) {
+        (None, Some(_), Some(feature_config)) => {
             payments::operations::is_payment_method_data_collection_allowed(
                 state,
                 platform,
+                feature_config,
                 &payment_attempt.payment_id,
                 payment_attempt.connector.as_deref(),
             )
