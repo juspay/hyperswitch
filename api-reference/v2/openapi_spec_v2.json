@@ -16011,6 +16011,14 @@
           "sale_notified": {
             "type": "boolean",
             "description": "Whether /v1/ch/sale has been successfully called"
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeErrorDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -25836,6 +25844,41 @@
           }
         }
       },
+      "PaymentSurchargeDetailsResponse": {
+        "type": "object",
+        "description": "Surcharge applied to a payment, or a zero surcharge with connector error details.",
+        "required": [
+          "surcharge_amount"
+        ],
+        "properties": {
+          "surcharge_amount": {
+            "type": "integer",
+            "format": "int64",
+            "example": 325
+          },
+          "tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "surcharge_percentage": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeErrorDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentType": {
         "type": "string",
         "description": "The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.",
@@ -34993,6 +35036,37 @@
             "type": "number",
             "format": "double",
             "description": "Surcharge percentage returned by the external surcharge connector, if provided.",
+            "nullable": true
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeErrorDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SurchargeErrorDetails": {
+        "type": "object",
+        "description": "Connector error details shared by surcharge responses, cached quotes, and stored attempts.",
+        "properties": {
+          "error_code": {
+            "type": "string",
+            "description": "Connector error code when the external calculation failed.",
+            "example": "INVALID_NICN",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Connector error message when the external calculation failed.",
+            "example": "Card BIN is invalid",
+            "nullable": true
+          },
+          "error_reason": {
+            "type": "string",
+            "description": "Connector reason for a failed calculation.",
             "nullable": true
           }
         }

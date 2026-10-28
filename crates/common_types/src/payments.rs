@@ -1617,6 +1617,22 @@ pub enum TokenSource {
     ApplePay,
 }
 
+/// Connector error details shared by surcharge responses, cached quotes, and stored attempts.
+#[derive(
+    Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, ToSchema, smithy::SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SurchargeErrorDetails {
+    /// Connector error code when the external calculation failed.
+    #[schema(example = "INVALID_NICN")]
+    pub error_code: Option<String>,
+    /// Connector error message when the external calculation failed.
+    #[schema(example = "Card BIN is invalid")]
+    pub error_message: Option<String>,
+    /// Connector reason for a failed calculation.
+    pub error_reason: Option<String>,
+}
+
 /// External surcharge details from InterPayments (stored as JSONB)
 #[derive(Clone, Debug, serde::Deserialize, Eq, ToSchema, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "diesel", derive(diesel::AsExpression))]
@@ -1632,9 +1648,31 @@ pub struct ExternalSurchargeDetails {
     pub surcharge_percentage: Option<Decimal>,
     /// Whether /v1/ch/sale has been successfully called
     pub sale_notified: bool,
+    /// Connector error details when the calculation failed; null on success.
+    #[serde(default)]
+    pub error_details: Option<SurchargeErrorDetails>,
 }
 
 impl ExternalSurchargeDetails {
+    /// Whether any connector error details are present.
+    pub fn has_error(&self) -> bool {
+        self.error_details.is_some()
+    }
+
+    /// Connector ID only when a successful calculation can be notified or reused.
+    pub fn usable_connector_id(&self) -> Option<&str> {
+        match self {
+            details
+                if !details.has_error()
+                    && !details.external_surcharge_id.is_empty()
+                    && details.external_surcharge_id != crate::consts::NO_SURCHARGE_ID_FOUND =>
+            {
+                Some(details.external_surcharge_id.as_str())
+            }
+            _ => None,
+        }
+    }
+
     /// Convert an `f64` surcharge percentage (as produced by the surcharge connector) into the
     /// `Decimal` representation stored on the attempt. Returns `None` for `None`/non-finite input.
     pub fn decimal_percentage_from_f64(value: Option<f64>) -> Option<Decimal> {

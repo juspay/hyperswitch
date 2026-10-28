@@ -674,6 +674,7 @@ pub fn make_dsl_input(
                 .payment_attempt
                 .external_surcharge_details
                 .as_ref()
+                .filter(|details| details.usable_connector_id().is_some())
                 .map(|details| details.external_surcharge_amount),
         };
 

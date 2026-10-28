@@ -2569,7 +2569,7 @@ impl PaymentAttemptUpdate {
                 network_transaction_link_id,
                 is_stored_credential,
                 request_extended_authorization,
-                external_surcharge_details,
+                external_surcharge_details: external_surcharge_details.map(Box::new),
                 applied_offer_details,
                 applied_overrides,
                 active_frm_id,
