@@ -1,7 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
-use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::{errors::CustomResult, id_type};
 use diesel_models::{Config, ConfigNew};
 use error_stack::ResultExt;
@@ -119,16 +118,15 @@ impl HealthCheckInterface for Store {
     async fn health_check_db(&self) -> CustomResult<(), HealthCheckDBError> {
         let conn = pg_connection(&self.master_pool).await;
 
-        // The connection handed to the closure is another handle to the connection `conn` already
-        // holds, so queries issued through `conn` run within this transaction.
-        let conn = &conn;
-        conn.raw_connection()
-            .transaction_async(move |_| {
+        conn.transaction_async(move |conn| {
                 Box::pin(async move {
                     let query =
                         diesel::select(diesel::dsl::sql::<diesel::sql_types::Integer>("1 + 1"));
-                    let _x: i32 = query
-                        .get_result_async(conn.raw_connection())
+                    let _x: i32 = conn
+                        .track_get_result::<(), _, i32>(
+                            diesel_models::query::generics::db_metrics::DatabaseOperation::FindOne,
+                            query,
+                        )
                         .await
                         .map_err(|err| {
                             logger::error!(read_err=?err,"Error while reading element in the database");
