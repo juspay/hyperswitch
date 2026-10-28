@@ -31,6 +31,7 @@ use common_utils::{
     link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
     payout_method_utils,
     types::{MinorUnit, UnifiedCode, UnifiedMessage},
+    validation::ValidateXSSOrSQLi,
 };
 use diesel_models::{
     enums as storage_enums,
@@ -4262,6 +4263,9 @@ pub async fn create_payout_link(
         .as_ref()
         .and_then(|config| config.ui_config.clone())
         .or(profile_ui_config);
+    ui_config
+        .validate_xss_or_sqli()
+        .map_err(|message| report!(errors::ApiErrorResponse::InvalidRequestData { message }))?;
 
     let test_mode_in_config = payout_link_config_req
         .as_ref()
