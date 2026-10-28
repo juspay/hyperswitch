@@ -6561,7 +6561,7 @@ pub struct CustomRecoveryPaymentMethodData {
     #[schema(value_type = String, example = "token_1234")]
     pub primary_processor_payment_method_token: Secret<String>,
 
-    /// Card details associated with the primary payment method token. If this is not available it can be skipped initially, but retries will not be scheduled at a granular level, which affects recovery outcomes.
+    /// Card details associated with the primary payment method token.
     pub payment_method_metadata: AdditionalCardInfo,
 }
 
@@ -14815,7 +14815,7 @@ pub struct RecoveryPaymentsCreate {
     )]
     pub merchant_reference_id: id_type::PaymentReferenceId,
 
-    /// Error details of a failed transaction. `code` and `message` are mandatory when the object is sent; `reason`, `network_advice_code`, `network_decline_code` and `network_error_message` are optional. For payment connectors that support payment sync (for example Stripe, Shift4 and Dlocal) the optional fields can be skipped, as they are fetched from the connector. Adyen has no payment sync, so send them whenever the data is available. If it is not, they can be skipped initially, but retries will not be scheduled at a granular level, which affects recovery outcomes.
+    /// Error details of a failed transaction. `code` and `message` are mandatory when the object is sent; `reason`, `network_advice_code`, `network_decline_code` and `network_error_message` are optional.
     pub error: Option<ErrorDetails>,
 
     /// Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header.
@@ -14843,7 +14843,7 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     pub mit_category: Option<api_enums::MitCategory>,
 
-    /// The billing details of the transaction. If this is not available it can be skipped initially, but retries will not be scheduled at a granular level, which affects recovery outcomes.
+    /// The billing details of the transaction.
     pub billing: Option<Address>,
 
     /// Payer details stored with the payment intent; does not create or attach a customer.
