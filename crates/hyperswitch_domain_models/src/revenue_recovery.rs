@@ -94,6 +94,8 @@ pub struct RevenueRecoveryInvoiceData {
     /// Whether the customer was present during the payment. Billing connectors only report
     /// merchant initiated transactions, so they always set this to absent.
     pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
+    /// Category of the merchant initiated transactions made to recover this invoice.
+    pub mit_category: Option<common_enums::MitCategory>,
 }
 
 #[derive(Clone, Debug)]
@@ -187,6 +189,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             is_account_funded_transaction: None,
             recipient_details: None,
             enable_avs_check: None,
+            mit_category: data.mit_category,
         }
     }
 }
@@ -205,6 +208,7 @@ impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
             metadata: None,
             enable_partial_authorization: None,
             customer_present: common_enums::PresenceOfCustomerDuringPayment::Absent,
+            mit_category: None,
         }
     }
 }

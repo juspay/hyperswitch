@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.28.0
+
+### Features
+
+- **connector:** [Peachpayments] Add Support For External Authentication ([#14982](https://github.com/juspay/hyperswitch/pull/14982)) ([`cbd19bc`](https://github.com/juspay/hyperswitch/commit/cbd19bc2bd419b7609d861e63338c778cce6ebf2))
+- **revenue_recovery:**
+  - Use network decline code and card network for hard decline gsm lookup ([#15001](https://github.com/juspay/hyperswitch/pull/15001)) ([`1308d3e`](https://github.com/juspay/hyperswitch/commit/1308d3e867c4d2440bd7ba6b8b5f686c5cdf78d0))
+  - Set recurring mit category on recovery payment intents ([#14995](https://github.com/juspay/hyperswitch/pull/14995)) ([`b3b0ca7`](https://github.com/juspay/hyperswitch/commit/b3b0ca710dcf9b2f321ae893bc835b7c2961db15))
+
+### Bug Fixes
+
+- **auth:** Use Authorization for v1 admin API keys ([#15006](https://github.com/juspay/hyperswitch/pull/15006)) ([`faf260a`](https://github.com/juspay/hyperswitch/commit/faf260aeffdb49cd5acd69e72e52bcae62fe43f1))
+- **generic_link:** Escape link data embedded in inline scripts and validate ui_config for XSS ([#15002](https://github.com/juspay/hyperswitch/pull/15002)) ([`597cef6`](https://github.com/juspay/hyperswitch/commit/597cef60c0503e5d9067e2c332a5a442e6e96951))
+- **payment-methods:**
+  - Use wallet preference for fingerprint_id creation ([#14988](https://github.com/juspay/hyperswitch/pull/14988)) ([`e835a7a`](https://github.com/juspay/hyperswitch/commit/e835a7a8f2e7abc994908d9dfdb2aaeae2418817))
+  - Never execute legacy PM update path for modular flow ([#14976](https://github.com/juspay/hyperswitch/pull/14976)) ([`409394a`](https://github.com/juspay/hyperswitch/commit/409394a073847bbf812d8c57dcc70d4fb062b76b))
+- **routing:** Remove unauthorized dynamic_routing config update endpoints ([#14963](https://github.com/juspay/hyperswitch/pull/14963)) ([`1665f4d`](https://github.com/juspay/hyperswitch/commit/1665f4dce6f08cbffedf0a45ba9e27aec1c5b888))
+- **ucs:** Preserve invalid data errors in payment flows ([#14955](https://github.com/juspay/hyperswitch/pull/14955)) ([`c66c90b`](https://github.com/juspay/hyperswitch/commit/c66c90b1fe2d28712d7cb17cf3d6ae1baa7dc610))
+- **worldpayxml:** Validate DDC postMessage origin ([#14992](https://github.com/juspay/hyperswitch/pull/14992)) ([`7f69124`](https://github.com/juspay/hyperswitch/commit/7f69124ea98d4e8dcdf176b049deb422b045afa1))
+
+**Full Changelog:** [`2026.10.26.0...2026.10.28.0`](https://github.com/juspay/hyperswitch/compare/2026.10.26.0...2026.10.28.0)
+
+- - -
+
 ## 2026.10.26.0
 
 ### Features

@@ -42,6 +42,7 @@ pub async fn pg_connection_read<'a, T: DatabaseStore + RequestContext>(
         connection,
         store.request_id().map(str::to_owned),
         pool.event_emitter.clone(),
+        store.read_ledger().cloned(),
     ))
 }
 
@@ -68,5 +69,6 @@ pub async fn pg_connection_write<'a, T: DatabaseStore + RequestContext>(
         connection,
         store.request_id().map(str::to_owned),
         pool.event_emitter.clone(),
+        store.read_ledger().cloned(),
     ))
 }

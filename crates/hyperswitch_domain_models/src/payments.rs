@@ -1062,6 +1062,8 @@ pub struct PaymentIntent {
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
     pub enable_avs_check: Option<bool>,
+    /// Denotes the category of the merchant initiated transactions made on this intent.
+    pub mit_category: Option<common_enums::MitCategory>,
 }
 
 #[cfg(feature = "v2")]
@@ -1275,6 +1277,7 @@ impl PaymentIntent {
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: decrypted_payment_intent.recipient_details,
             enable_avs_check: request.enable_avs_check,
+            mit_category: request.mit_category,
         })
     }
 
