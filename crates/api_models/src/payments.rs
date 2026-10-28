@@ -14815,7 +14815,7 @@ pub struct RecoveryPaymentsCreate {
     )]
     pub merchant_reference_id: id_type::PaymentReferenceId,
 
-    /// Error details of a failed transaction. `code` and `message` are mandatory when the object is sent; `reason`, `network_advice_code`, `network_decline_code` and `network_error_message` are optional.
+    /// Error details of a failed transaction.
     pub error: Option<ErrorDetails>,
 
     /// Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header.
