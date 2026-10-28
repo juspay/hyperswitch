@@ -189,13 +189,11 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::routing_retrieve_linked_config,
         routes::routing::routing_retrieve_default_config_for_profiles,
         routes::routing::routing_update_default_config_for_profile,
-        routes::routing::success_based_routing_update_configs,
         routes::routing::toggle_success_based_routing,
         routes::routing::toggle_elimination_routing,
         routes::routing::create_success_based_routing,
         routes::routing::create_elimination_routing,
         routes::routing::contract_based_routing_setup_config,
-        routes::routing::contract_based_routing_update_configs,
         routes::routing::call_decide_gateway_open_router,
         routes::routing::call_update_gateway_score_open_router,
         routes::routing::evaluate_routing_rule,
@@ -1296,8 +1294,8 @@ impl utoipa::Modify for SecurityAddon {
                 (
                     "admin_api_key",
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Admin API keys allow you to perform some privileged actions such as \
+                        "Authorization",
+                        "Format: `admin-api-key=<admin-api-key>`\n\nAdmin API keys allow you to perform some privileged actions such as \
                         creating a merchant account and Merchant Connector account."
                     ))),
                 ),
