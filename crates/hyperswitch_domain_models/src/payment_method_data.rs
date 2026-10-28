@@ -1396,6 +1396,8 @@ pub struct CashappQr {}
 pub struct PaypalRedirection {
     /// paypal's email address
     pub email: Option<Email>,
+    /// PayPal payer identifier disclosed by the connector response.
+    pub payer_id: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -2957,6 +2959,7 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::PaypalRedirect(paypal_redirect_data) => {
                 Self::PaypalRedirect(PaypalRedirection {
                     email: paypal_redirect_data.email,
+                    payer_id: paypal_redirect_data.payer_id,
                 })
             }
             api_models::payments::WalletData::PaypalSdk(paypal_sdk_data) => {
@@ -4195,6 +4198,7 @@ pub fn get_applepay_wallet_info(
         card_exp_year,
         // To be populated after connector response
         auth_code: None,
+        provider_details: None,
         email: None,
     }
 }
@@ -4219,6 +4223,7 @@ pub fn get_googlepay_wallet_info(
         card_exp_year,
         // to be populated after connector response
         auth_code: None,
+        provider_details: None,
         email: None,
     }
 }
@@ -4533,7 +4538,7 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             expiry_year: Some(item.card_exp_year),
             card_holder_name: item.card_holder_name,
             nick_name: item.nick_name,
-            card_isin: None,
+            card_isin: Some(item.card_number.get_card_isin()),
             card_issuer: item.card_issuer,
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),

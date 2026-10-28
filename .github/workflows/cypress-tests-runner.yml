@@ -41,19 +41,22 @@ jobs:
   formatter:
     name: Run formatter on Cypress tests and address lints
     if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Generate a token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         id: generate_token
         uses: actions/create-github-app-token@v3
+        env:
+          # v3 refuses to run behind hypersage-runners' proxy without this.
+          NODE_USE_ENV_PROXY: "1"
         with:
-          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          client-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
 
       - name: Checkout repository with token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -61,7 +64,7 @@ jobs:
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -99,7 +102,7 @@ jobs:
 
   check-cypress-prerequisites:
     name: Check Cypress prerequisites
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     outputs:
       run-checks: ${{ steps.check.outputs.run-checks }}
     steps:
@@ -162,7 +165,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install mold linker
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -319,7 +322,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -495,7 +498,7 @@ jobs:
     name: Mandatory Cypress Tests — Consolidated Result
     needs: [mandatory-cypress-tests]
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     permissions:
       pull-requests: write
     steps:
@@ -609,7 +612,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -775,7 +778,7 @@ jobs:
     name: Prepare Mock Connectors matrix
     needs: [check-cypress-prerequisites]
     if: ${{ needs.check-cypress-prerequisites.outputs.run-checks == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     outputs:
       mock-matrix: ${{ steps.set-mock-matrix.outputs.matrix }}
     steps:
@@ -886,7 +889,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1215,7 +1218,7 @@ jobs:
     name: MITM Mock Cypress Tests — Consolidated Result
     needs: [mitm-cassette-replay-cypress-tests]
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     permissions:
       pull-requests: write
     steps:
@@ -1326,7 +1329,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -1528,7 +1531,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Mask S3 cache location in job logs
         shell: bash
@@ -1763,7 +1766,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ env.RUN_TESTS == 'true' }}

@@ -123,18 +123,6 @@ pub enum HealthCheckOutGoing {
     OutGoingFailed { message: String },
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum AwsKmsError {
-    #[error("Failed to base64 decode input data")]
-    Base64DecodingFailed,
-    #[error("Failed to AWS KMS decrypt input data")]
-    DecryptionFailed,
-    #[error("Missing plaintext AWS KMS decryption output")]
-    MissingPlaintextDecryptionOutput,
-    #[error("Failed to UTF-8 decode decryption output")]
-    Utf8DecodingFailed,
-}
-
 #[derive(Debug, thiserror::Error, serde::Serialize)]
 pub enum WebhooksFlowError {
     #[error("Merchant webhook config not found")]
@@ -460,12 +448,16 @@ pub enum RevenueRecoveryError {
     TransactionWebhookProcessingFailed,
     #[error("Failed to create payment intent")]
     PaymentIntentCreateFailed,
+    #[error("Failed to update payment intent")]
+    PaymentIntentUpdateFailed,
     #[error("Source verification failed for billing connector")]
     WebhookAuthenticationFailed,
     #[error("Payment merchant connector account {id} not found using account reference id")]
     PaymentMerchantConnectorAccountNotFound { id: String },
     #[error("Payment attempt cannot be recorded while the invoice is in {status} state")]
     PaymentAttemptRecordNotAllowed { status: String },
+    #[error("The transaction is already recorded against the invoice")]
+    PaymentAttemptAlreadyRecorded,
     #[error("Failed to fetch primitive date_time")]
     ScheduleTimeFetchFailed,
     #[error("Failed to create process tracker")]
@@ -514,6 +506,10 @@ impl common_utils::errors::ErrorSwitch<ApiErrorResponse> for RevenueRecoveryErro
                 }
             }
 
+            Self::PaymentAttemptAlreadyRecorded => ApiErrorResponse::GenericDuplicateError {
+                message: "The transaction is already recorded against this invoice".to_string(),
+            },
+
             Self::BillingThresholdRetryCountFetchFailed => {
                 ApiErrorResponse::InvalidConnectorConfiguration {
                     config: "revenue_recovery.billing_connector_retry_threshold".to_string(),
@@ -523,7 +519,8 @@ impl common_utils::errors::ErrorSwitch<ApiErrorResponse> for RevenueRecoveryErro
             Self::PaymentAttemptIdNotFound | Self::RetryAlgorithmTypeNotFound => {
                 ApiErrorResponse::WebhookResourceNotFound
             }
-            Self::PaymentIntentFetchFailed
+            Self::PaymentIntentUpdateFailed
+            | Self::PaymentIntentFetchFailed
             | Self::PaymentAttemptFetchFailed
             | Self::PaymentIntentCreateFailed
             | Self::ScheduleTimeFetchFailed
