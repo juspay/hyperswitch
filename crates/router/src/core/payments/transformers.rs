@@ -1143,6 +1143,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         webhook_url: None,
         merchant_order_reference_id: None,
         is_overcapture_enabled: None,
+        payment_method_data: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1509,6 +1510,7 @@ pub async fn construct_router_data_for_cancel<'a>(
         merchant_order_reference_id: None,
         feature_metadata: None,
         payment_method_type: None,
+        payment_method_data: None,
     };
 
     // Construct RouterDataV2 for cancel operation
@@ -5946,6 +5948,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
                 .payment_attempt
                 .connector_metadata
                 .map(|secret| secret.expose()),
+            payment_method_data: payment_data.payment_method_data.clone(),
         })
     }
 }
