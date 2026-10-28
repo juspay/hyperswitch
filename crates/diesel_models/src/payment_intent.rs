@@ -226,8 +226,8 @@ pub struct PaymentIntent {
     pub enable_avs_check: Option<bool>,
     pub value_added_tax_amount: Option<MinorUnit>,
     pub value_added_tax_percent: Option<f64>,
-    pub order_commodity_code: Option<String>,
     pub vat_invoice_reference_number: Option<String>,
+    pub order_commodity_code: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]

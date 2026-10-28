@@ -1376,8 +1376,8 @@ diesel::table! {
         enable_avs_check -> Nullable<Bool>,
         value_added_tax_amount -> Nullable<Int8>,
         value_added_tax_percent -> Nullable<Float8>,
-        order_commodity_code -> Nullable<Varchar>,
         vat_invoice_reference_number -> Nullable<Varchar>,
+        order_commodity_code -> Nullable<Varchar>,
     }
 }
 
