@@ -1381,6 +1381,7 @@ impl<F>
                 common_types::primitive_wrappers::OvercaptureEnabledBool::new(*enable_overcapture)
             }),
             payment_method_data: None,
+            mandate_id: item.request.mandate_id,
         })
     }
 }

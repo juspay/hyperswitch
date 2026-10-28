@@ -412,6 +412,7 @@ pub trait ConnectorActions: Connector {
                 capture_method: None,
                 additional_payment_method_data: None,
                 payment_method_data: None,
+                mandate_id: None,
                 payment_connector_request_reference_id: None,
             }),
             payment_info,
@@ -1146,6 +1147,7 @@ impl Default for PaymentRefundType {
             capture_method: None,
             additional_payment_method_data: None,
             payment_method_data: None,
+            mandate_id: None,
             payment_connector_request_reference_id: None,
         };
         Self(data)

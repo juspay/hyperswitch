@@ -25,6 +25,7 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::types::VaultRouterData;
 use hyperswitch_domain_models::{
+    mandates,
     merchant_connector_account::{
         MerchantConnectorAccount, MerchantConnectorAccountWithoutEncrypted,
     },
@@ -579,6 +580,7 @@ pub async fn construct_refund_router_data<'a, F>(
             capture_method: Some(capture_method),
             additional_payment_method_data: None,
             payment_method_data: None,
+            mandate_id: None,
             payment_connector_request_reference_id: payment_attempt
                 .connector_request_reference_id
                 .clone(),
@@ -672,6 +674,7 @@ pub async fn construct_refund_router_data<'a, F>(
     split_refunds: Option<router_request_types::SplitRefundsRequest>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     payment_method_data: Option<domain::PaymentMethodData>,
+    mandate_id: Option<mandates::MandateIds>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -808,6 +811,7 @@ pub async fn construct_refund_router_data<'a, F>(
             capture_method,
             additional_payment_method_data,
             payment_method_data,
+            mandate_id,
             payment_connector_request_reference_id: payment_attempt
                 .connector_request_reference_id
                 .clone(),

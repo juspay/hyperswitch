@@ -14,7 +14,7 @@ use diesel_models::{process_tracker::business_status, refund as diesel_refund};
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{
-    payment_method_data::RecurringDetails as domain_recurring_details, payments::HeaderPayload,
+    payment_method_data::ApiPaymentMethodDataMandateIds, payments::HeaderPayload,
     router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
 };
 use hyperswitch_interfaces::{
@@ -208,6 +208,7 @@ pub async fn refund_reverse_core(
         None,
         &merchant_connector_account,
         None,
+        None,
     )
     .await?;
     router_data.request.reason = req.cancellation_reason.clone();
@@ -384,18 +385,8 @@ async fn get_refund_payment_method_data(
     platform: &domain::Platform,
     payment_attempt: &storage::PaymentAttempt,
     payment_method_data: Option<api_models::payments::PaymentMethodData>,
-    recurring_details: Option<api_models::mandates::RecurringDetails>,
 ) -> Option<domain::PaymentMethodData> {
-    let recurring_payment_method_data = recurring_details
-        .map(domain_recurring_details::from)
-        .and_then(|details| {
-            details.get_mandate_reference_id_and_payment_method_data_for_proxy_flow()
-        })
-        .map(|(_, payment_method_data)| payment_method_data);
-
-    let request_payment_method_data = payment_method_data
-        .map(domain::PaymentMethodData::from)
-        .or(recurring_payment_method_data);
+    let request_payment_method_data = payment_method_data.map(domain::PaymentMethodData::from);
 
     let allow_payment_method_data_collection = match (
         request_payment_method_data.as_ref(),
@@ -563,7 +554,6 @@ pub async fn trigger_refund_to_gateway(
     split_refunds: Option<SplitRefundsRequest>,
     all_keys_required: Option<bool>,
     payment_method_data: Option<api_models::payments::PaymentMethodData>,
-    recurring_details: Option<api_models::mandates::RecurringDetails>,
 ) -> RouterResult<(
     diesel_refund::Refund,
     Option<hyperswitch_masking::Secret<String>>,
@@ -611,14 +601,11 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
-    let payment_method_data = get_refund_payment_method_data(
-        state,
-        platform,
-        payment_attempt,
-        payment_method_data,
-        recurring_details,
-    )
-    .await;
+    let mandate_id = payment_method_data
+        .as_ref()
+        .and_then(ApiPaymentMethodDataMandateIds::get_mandate_ids);
+    let payment_method_data =
+        get_refund_payment_method_data(state, platform, payment_attempt, payment_method_data).await;
 
     let mut router_data = core_utils::construct_refund_router_data(
         state,
@@ -631,6 +618,7 @@ pub async fn trigger_refund_to_gateway(
         split_refunds,
         &merchant_connector_account,
         payment_method_data,
+        mandate_id,
     )
     .await?;
 
@@ -1324,6 +1312,7 @@ pub async fn sync_refund_with_gateway(
         split_refunds,
         &merchant_connector_account,
         None,
+        None,
     )
     .await?;
 
@@ -1739,7 +1728,6 @@ pub async fn validate_and_create_refund(
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
     let payment_method_data = req.payment_method_data.clone();
-    let recurring_details = req.recurring_details.clone();
     let split_refunds = core_utils::get_split_refunds(SplitRefundInput {
         split_payment_request: payment_intent.split_payments.clone(),
         payment_charges: payment_attempt.charges.clone(),
@@ -1892,7 +1880,6 @@ pub async fn validate_and_create_refund(
                 split_refunds,
                 req.all_keys_required,
                 payment_method_data,
-                recurring_details,
             ))
             .await?;
 
@@ -2489,7 +2476,6 @@ pub async fn schedule_refund_execution(
     split_refunds: Option<SplitRefundsRequest>,
     all_keys_required: Option<bool>,
     payment_method_data: Option<api_models::payments::PaymentMethodData>,
-    recurring_details: Option<api_models::mandates::RecurringDetails>,
 ) -> RouterResult<(
     diesel_refund::Refund,
     Option<hyperswitch_masking::Secret<String>>,
@@ -2540,7 +2526,6 @@ pub async fn schedule_refund_execution(
                                 split_refunds,
                                 all_keys_required,
                                 payment_method_data,
-                                recurring_details,
                             ))
                             .await;
 
@@ -2837,7 +2822,6 @@ pub async fn trigger_refund_execute_workflow(
                 &payment_intent,
                 None,
                 split_refunds,
-                None,
                 None,
                 None,
             ))

@@ -3,9 +3,7 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    mandates, payment_method_data::RecurringDetails as domain_recurring_details,
-};
+use hyperswitch_domain_models::{mandates, payment_method_data::ApiPaymentMethodDataMandateIds};
 use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -152,21 +150,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        // mandate id is not in use, kept for future impl
-        let (_, payment_method_recurring_details) = match request
-            .recurring_details
-            .clone()
-            .map(domain_recurring_details::from)
-            .and_then(|details| {
-                details.get_mandate_reference_id_and_payment_method_data_for_proxy_flow()
-            }) {
-            Some((mandate_reference_id, payment_method_recurring_details)) => (
-                Some(mandate_reference_id),
-                Some(payment_method_recurring_details),
-            ),
-            None => (None, None),
-        };
-
         let payment_method_data = payment_method_fetch_data
             .payment_method_with_raw_data
             .clone()
@@ -174,8 +157,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             .or(request
                 .payment_method_data
                 .clone()
-                .map(domain::PaymentMethodData::from))
-            .or(payment_method_recurring_details);
+                .map(domain::PaymentMethodData::from));
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -184,7 +166,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             payment_attempt,
             currency,
             amount,
-            mandate_id: None,
+            mandate_id: request
+                .payment_method_data
+                .as_ref()
+                .and_then(ApiPaymentMethodDataMandateIds::get_mandate_ids),
             mandate_connector: None,
             setup_mandate: None,
             customer_acceptance: None,
@@ -219,7 +204,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             incremental_authorization_details: None,
             authorizations: vec![],
             authentication: None,
-            recurring_details: request.recurring_details.clone(),
+            recurring_details: None,
             poll_config: None,
             tax_data: None,
             session_id: None,
@@ -298,7 +283,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
         platform: &domain::Platform,
         _feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<operations::PaymentMethodFetchData> {
-        if request.payment_method_data.is_none() && request.recurring_details.is_none() {
+        if request.payment_method_data.is_none() {
             let payment_method_fetch_result = async {
                 let payment_attempt = state
                     .store
