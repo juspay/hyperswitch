@@ -4,6 +4,8 @@ pub mod browse;
 pub mod client;
 pub mod config;
 pub mod connectivity;
+#[cfg(feature = "v1")]
+pub mod dashboard;
 pub mod eligibility;
 #[cfg(feature = "v1")]
 pub mod notify;

@@ -10,15 +10,20 @@ use hyperswitch_masking::{Mask, PeekInterface};
 use router_env::{IdReuse, RequestIdentifier};
 
 use super::types::{
-    BrowseOfferListRequest, BrowseOfferListResponse, OfferApplyRequest, OfferApplyResponse,
-    OfferEngineError, OfferListRequest, OfferListResponse, OfferNotifyRequest,
-    ResolvedOfferEngineConfig,
+    BrowseOfferListRequest, BrowseOfferListResponse, DashboardProxyRequest, DashboardProxyResponse,
+    OfferApplyRequest, OfferApplyResponse, OfferEngineError, OfferListRequest, OfferListResponse,
+    OfferNotifyRequest, ResolvedOfferEngineConfig,
 };
 use crate::{consts::BASE64_ENGINE, routes::SessionState};
 
 const OFFERS_LIST_PATH: &str = "v1/offers/list";
 const OFFERS_APPLY_PATH: &str = "offers/apply";
 const OFFERS_NOTIFY_PATH: &str = "offers/notify";
+const DASHBOARD_LIST_OFFERS_PATH: &str = "offers/dashboard/dashboard-list";
+const DASHBOARD_OFFER_DETAIL_PATH: &str = "offers/dashboard/detail";
+const DASHBOARD_CREATE_OFFER_PATH: &str = "offers/dashboard/create";
+const DASHBOARD_DELETE_OFFER_PATH: &str = "offers/dashboard/{offer_id}/delete";
+const DASHBOARD_OFFER_STATUS_UPDATE_PATH: &str = "offers/dashboard/{offer_id}/status/update";
 
 #[derive(Debug)]
 pub struct OfferEngineClient {
@@ -93,6 +98,25 @@ impl OfferEngineClient {
             .await
             .map(|_| ())
             .map_err(map_offer_engine_error)
+    }
+
+    pub async fn dashboard_proxy(
+        &self,
+        state: &SessionState,
+        flow: DashboardFlow,
+        request: DashboardProxyRequest,
+    ) -> CustomResult<serde_json::Value, OfferEngineError> {
+        match flow {
+            DashboardFlow::ListOffers => DashboardListOffers::call(state, self, request).await,
+            DashboardFlow::OfferDetail => DashboardOfferDetail::call(state, self, request).await,
+            DashboardFlow::CreateOffer => DashboardCreateOffer::call(state, self, request).await,
+            DashboardFlow::DeleteOffer => DashboardDeleteOffer::call(state, self, request).await,
+            DashboardFlow::UpdateOfferStatus => {
+                DashboardOfferStatusUpdate::call(state, self, request).await
+            }
+        }
+        .map(|response| response.0)
+        .map_err(map_dashboard_error)
     }
 
     pub async fn check_connectivity(&self, state: &SessionState) -> ConnectivityResult {
@@ -332,6 +356,134 @@ hyperswitch_interfaces::impl_microservice_flow!(
     v1_response = OfferBrowseListV1Response,
     client = OfferEngineClient,
     body = OfferBrowseList::build_body
+);
+
+/// Unlike the payment flows, a dashboard caller needs to see why Offer Engine rejected the
+/// request, so the upstream status and body are carried through.
+fn map_dashboard_error(err: MicroserviceClientError) -> error_stack::Report<OfferEngineError> {
+    match err.kind {
+        MicroserviceClientErrorKind::Upstream { status, ref body } => {
+            error_stack::report!(OfferEngineError::UpstreamRejected {
+                status,
+                body: body.clone(),
+            })
+            .attach_printable(format!("Offer Engine dashboard call rejected: {err:?}"))
+        }
+        _ => map_offer_engine_error(err),
+    }
+}
+
+/// `offer_id` is substituted into the path template of the routes that take one.
+fn dashboard_path_params<F>(_: &F, request: &DashboardProxyRequest) -> Vec<(&'static str, String)> {
+    request
+        .offer_id
+        .clone()
+        .map(|offer_id| vec![("offer_id", offer_id)])
+        .unwrap_or_default()
+}
+
+fn dashboard_body<F>(_: &F, request: DashboardProxyRequest) -> Option<RequestContent> {
+    Some(RequestContent::Json(Box::new(request.body)))
+}
+
+impl TryFrom<&DashboardProxyRequest> for DashboardProxyRequest {
+    type Error = MicroserviceClientError;
+    fn try_from(value: &Self) -> Result<Self, Self::Error> {
+        Ok(value.clone())
+    }
+}
+
+impl TryFrom<serde_json::Value> for DashboardProxyResponse {
+    type Error = MicroserviceClientError;
+    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+        Ok(Self(value))
+    }
+}
+
+/// The Offer Engine dashboard routes Hyperswitch proxies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DashboardFlow {
+    ListOffers,
+    OfferDetail,
+    CreateOffer,
+    DeleteOffer,
+    UpdateOfferStatus,
+}
+
+pub struct DashboardListOffers;
+
+hyperswitch_interfaces::impl_microservice_flow!(
+    DashboardListOffers,
+    method = Method::Post,
+    path = DASHBOARD_LIST_OFFERS_PATH,
+    v1_request = DashboardProxyRequest,
+    v2_request = DashboardProxyRequest,
+    v2_response = serde_json::Value,
+    v1_response = DashboardProxyResponse,
+    client = OfferEngineClient,
+    body = dashboard_body
+);
+
+pub struct DashboardOfferDetail;
+
+hyperswitch_interfaces::impl_microservice_flow!(
+    DashboardOfferDetail,
+    method = Method::Post,
+    path = DASHBOARD_OFFER_DETAIL_PATH,
+    v1_request = DashboardProxyRequest,
+    v2_request = DashboardProxyRequest,
+    v2_response = serde_json::Value,
+    v1_response = DashboardProxyResponse,
+    client = OfferEngineClient,
+    body = dashboard_body
+);
+
+pub struct DashboardCreateOffer;
+
+hyperswitch_interfaces::impl_microservice_flow!(
+    DashboardCreateOffer,
+    method = Method::Post,
+    path = DASHBOARD_CREATE_OFFER_PATH,
+    v1_request = DashboardProxyRequest,
+    v2_request = DashboardProxyRequest,
+    v2_response = serde_json::Value,
+    v1_response = DashboardProxyResponse,
+    client = OfferEngineClient,
+    body = dashboard_body,
+    query_params = |_: &DashboardCreateOffer, request: &DashboardProxyRequest| request
+        .draft
+        .map(|draft| vec![("draft", draft.to_string())])
+        .unwrap_or_default()
+);
+
+pub struct DashboardDeleteOffer;
+
+hyperswitch_interfaces::impl_microservice_flow!(
+    DashboardDeleteOffer,
+    method = Method::Post,
+    path = DASHBOARD_DELETE_OFFER_PATH,
+    v1_request = DashboardProxyRequest,
+    v2_request = DashboardProxyRequest,
+    v2_response = serde_json::Value,
+    v1_response = DashboardProxyResponse,
+    client = OfferEngineClient,
+    body = dashboard_body,
+    path_params = dashboard_path_params
+);
+
+pub struct DashboardOfferStatusUpdate;
+
+hyperswitch_interfaces::impl_microservice_flow!(
+    DashboardOfferStatusUpdate,
+    method = Method::Post,
+    path = DASHBOARD_OFFER_STATUS_UPDATE_PATH,
+    v1_request = DashboardProxyRequest,
+    v2_request = DashboardProxyRequest,
+    v2_response = serde_json::Value,
+    v1_response = DashboardProxyResponse,
+    client = OfferEngineClient,
+    body = dashboard_body,
+    path_params = dashboard_path_params
 );
 
 #[derive(Debug, Clone, serde::Serialize)]

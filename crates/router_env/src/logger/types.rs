@@ -60,6 +60,8 @@ pub enum Flow {
     OfferEngineConnectivityCheck,
     /// Browse the offers available to a merchant
     OfferEngineBrowseOffers,
+    /// Proxy a Control Center request to an Offer Engine dashboard route
+    OfferEngineDashboardProxy,
     /// OIDC Discovery endpoint
     OidcDiscovery,
     /// OIDC JWKS endpoint
