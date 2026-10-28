@@ -33,6 +33,9 @@ max_lifetime = 1800       # Maximum lifetime in seconds before a connection is r
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # API key hashing key.
 
 [internal_merchant_id_profile_id_auth]
+primary_internal_api_key = ""
+key_rotation_enabled = false
+use_legacy_key_for_outbound = false
 enabled = false
 internal_api_key = "test_internal_api_key"
 

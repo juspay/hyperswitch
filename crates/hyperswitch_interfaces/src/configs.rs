@@ -87,8 +87,8 @@ impl Default for GlobalTenant {
 #[serde(default)]
 pub struct InternalMerchantIdProfileIdAuthSettings {
     pub enabled: bool,
-    pub internal_api_key: Secret<String>,
-    pub primary_internal_api_key: Option<Secret<String>>,
+    pub internal_api_key: Option<Secret<String>>,
+    pub primary_internal_api_key: Secret<String>,
     pub key_rotation_enabled: bool,
     pub use_legacy_key_for_outbound: bool,
 }
@@ -101,13 +101,19 @@ impl InternalMerchantIdProfileIdAuthSettings {
     ) -> CustomResult<Self, crate::secrets_interface::SecretsManagementError> {
         use crate::secrets_interface::SecretsManagementError;
 
+        let legacy_key_configured = self
+            .internal_api_key
+            .as_ref()
+            .is_some_and(|key| !key.peek().is_empty());
+        let primary_key = (!self.primary_internal_api_key.peek().is_empty())
+            .then(|| std::mem::take(&mut self.primary_internal_api_key));
         let decrypted = client
             .decrypt_optional_secret(
-                self.primary_internal_api_key.take(),
+                primary_key,
                 "internal_merchant_id_profile_id_auth.primary_internal_api_key",
             )
             .await?;
-        if (self.enabled || self.key_rotation_enabled || !self.internal_api_key.peek().is_empty())
+        if (self.enabled || self.key_rotation_enabled || legacy_key_configured)
             && decrypted.is_none()
         {
             return Err(
@@ -115,7 +121,7 @@ impl InternalMerchantIdProfileIdAuthSettings {
                     .attach_printable("Internal authentication requires primary_internal_api_key"),
             );
         }
-        if self.key_rotation_enabled && self.internal_api_key.peek().is_empty() {
+        if self.key_rotation_enabled && !legacy_key_configured {
             return Err(
                 error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
                     .attach_printable("Internal key rotation requires the legacy internal_api_key"),
@@ -130,51 +136,47 @@ impl InternalMerchantIdProfileIdAuthSettings {
             );
         }
         if !self.key_rotation_enabled {
-            self.internal_api_key = Secret::default();
+            self.internal_api_key = None;
         }
-        self.primary_internal_api_key = decrypted;
+        self.primary_internal_api_key = decrypted.unwrap_or_default();
         Ok(self)
     }
 
     pub fn accepts_api_key(&self, candidate: &str) -> bool {
         use subtle::ConstantTimeEq;
 
-        let Some(primary_key) = self.primary_internal_api_key.as_ref() else {
-            return false;
-        };
+        let primary_key = &self.primary_internal_api_key;
         if primary_key.peek().is_empty() {
             return false;
         }
         let matches = |key: &Secret<String>| {
             !key.peek().is_empty() && bool::from(candidate.as_bytes().ct_eq(key.peek().as_bytes()))
         };
-        matches(primary_key) || (self.key_rotation_enabled && matches(&self.internal_api_key))
+        matches(primary_key)
+            || (self.key_rotation_enabled && self.internal_api_key.as_ref().is_some_and(matches))
     }
 
     pub fn outbound_api_key(
         &self,
     ) -> CustomResult<Secret<String>, crate::secrets_interface::SecretsManagementError> {
-        let primary_key = self
-            .primary_internal_api_key
-            .as_ref()
-            .filter(|key| !key.peek().is_empty())
-            .ok_or_else(|| {
-                error_stack::Report::new(
-                    crate::secrets_interface::SecretsManagementError::FetchSecretFailed,
-                )
-                .attach_printable("Internal service primary API key is missing or empty")
-            })?;
-        let key = if self.key_rotation_enabled && self.use_legacy_key_for_outbound {
-            &self.internal_api_key
-        } else {
-            primary_key
-        };
-        if key.peek().is_empty() {
+        let primary_key = &self.primary_internal_api_key;
+        if primary_key.peek().is_empty() {
             return Err(error_stack::Report::new(
                 crate::secrets_interface::SecretsManagementError::FetchSecretFailed,
             )
-            .attach_printable("Internal service authentication key must not be empty"));
+            .attach_printable("Internal service primary API key is missing or empty"));
         }
+        let key = if self.key_rotation_enabled && self.use_legacy_key_for_outbound {
+            self.internal_api_key.as_ref()
+        } else {
+            Some(primary_key)
+        };
+        let key = key.filter(|key| !key.peek().is_empty()).ok_or_else(|| {
+            error_stack::Report::new(
+                crate::secrets_interface::SecretsManagementError::FetchSecretFailed,
+            )
+            .attach_printable("Internal service authentication key is missing or empty")
+        })?;
         Ok(key.clone())
     }
 }
