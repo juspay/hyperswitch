@@ -1662,6 +1662,7 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
+            ..Default::default()
         })
     }
 }
@@ -1786,6 +1787,7 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
+            ..Default::default()
         })
     }
 }
@@ -2112,6 +2114,7 @@ impl
             // below silently leaves the field None and the connector rejects the session.
             connector_order_id: router_data.request.order_id.clone(),
             test_mode: router_data.test_mode,
+            session_token: None,
         })
     }
 }
@@ -2221,6 +2224,7 @@ impl
             // hosted-payment-page 3DS opens its payment session against that Order resource.
             connector_order_id: router_data.request.order_id.clone(),
             test_mode: router_data.test_mode,
+            session_token: None,
         })
     }
 }
@@ -3352,6 +3356,7 @@ impl
             is_account_funding_transaction: None,
             recipient_details: None,
             additional_connector_details: None,
+            session_token: None,
         })
     }
 }
@@ -3672,6 +3677,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            session_token: None,
         })
     }
 }
@@ -3799,6 +3805,8 @@ impl
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
             state,
+            additional_amount: None,
+            network_transaction_id: None,
         })
     }
 }
@@ -11512,6 +11520,22 @@ impl transformers::ForeignTryFrom<(&crate::types::SubmitEvidenceRouterData, Opti
                 "shipping_date",
             )?,
             evidence_documents,
+            access_activity_log: request.access_activity_log.clone(),
+            billing_address: request.billing_address.clone(),
+            cancellation_policy_disclosure: request.cancellation_policy_disclosure.clone(),
+            cancellation_rebuttal: request.cancellation_rebuttal.clone(),
+            customer_email_address: request
+                .customer_email_address
+                .as_ref()
+                .map(|email| Secret::new(email.peek().to_owned())),
+            customer_name: request.customer_name.clone(),
+            customer_purchase_ip: request.customer_purchase_ip.clone(),
+            product_description: request.product_description.clone(),
+            refund_policy_disclosure: request.refund_policy_disclosure.clone(),
+            refund_refusal_explanation: request.refund_refusal_explanation.clone(),
+            shipping_address: request.shipping_address.clone(),
+            shipping_carrier: request.shipping_carrier.clone(),
+            shipping_tracking_number: request.shipping_tracking_number.clone(),
         })
     }
 }
