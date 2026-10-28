@@ -811,10 +811,9 @@ where
 
 #[cfg(feature = "v1")]
 #[async_trait]
-impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCaptureRequest, Data = D>>
-    Domain<F, api::PaymentsCaptureRequest, D> for Op
+impl<D, F: Clone + Send>
+    Domain<F, api::PaymentsCaptureRequest, D> for PaymentApprove
 where
-    for<'a> &'a Op: Operation<F, api::PaymentsCaptureRequest, Data = D>,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
     #[instrument(skip_all)]
@@ -913,10 +912,9 @@ where
 
 #[cfg(feature = "v1")]
 #[async_trait]
-impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCancelRequest, Data = D>>
-    Domain<F, api::PaymentsCancelRequest, D> for Op
+impl<D, F: Clone + Send>
+    Domain<F, api::PaymentsCancelRequest, D> for PaymentReject
 where
-    for<'a> &'a Op: Operation<F, api::PaymentsCancelRequest, Data = D>,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
     #[instrument(skip_all)]

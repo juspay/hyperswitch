@@ -4,15 +4,17 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payment_method_data::RecurringDetails as domain_recurring_details;
-use router_env::{instrument, tracing};
+use hyperswitch_domain_models::{payment_method_data::RecurringDetails as domain_recurring_details};
+use router_env::{instrument, tracing, logger};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         configs::dimension_state,
-        errors::{self, RouterResult, StorageErrorExt},
-        payments::{helpers, operations, PaymentData},
+        errors::{self, RouterResult, StorageErrorExt, CustomResult},
+        payment_methods::transformers as pm_transformers,
+        payments::{helpers, operations, PaymentData, CustomerDetails},
+        utils as core_utils,
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
@@ -355,5 +357,156 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsCancelRequest, Paym
                 requeue: false,
             },
         ))
+    }
+}
+
+#[async_trait]
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelRequest, PaymentData<F>>
+    for PaymentCancel
+{
+    #[instrument(skip_all)]
+    async fn fetch_payment_method(
+        &self,
+        state: &SessionState,
+        request: &api::PaymentsCancelRequest,
+        platform: &domain::Platform,
+        _feature_config: &core_utils::FeatureConfig,
+    ) -> RouterResult<operations::PaymentMethodFetchData> {
+        if request.payment_method_data.is_none() {
+            let payment_attempt = state
+                .store
+                .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
+                    &request.payment_id,
+                    &platform.get_processor().get_processor_merchant_id(),
+                    platform.get_processor().get_storage_scheme(),
+                    platform.get_processor().get_key_store(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            match payment_attempt.payment_method_id {
+                Some(payment_method_id) => {
+                    self.fetch_payment_method_from_modular_service(
+                        state,
+                        request,
+                        platform,
+                        &payment_attempt.profile_id,
+                        payment_method_id.as_str(),
+                    )
+                    .await
+                }
+                None => Ok(operations::PaymentMethodFetchData::default()),
+            }
+        } else {
+            Ok(operations::PaymentMethodFetchData::default())
+        }
+    }
+
+    #[instrument(skip_all)]
+    #[cfg(feature = "v1")]
+    async fn get_or_create_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut PaymentData<F>,
+        _request: Option<CustomerDetails>,
+        _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
+    ) -> CustomResult<
+        (
+            PaymentCancelOperation<'a, F>,
+            Option<domain::Customer>,
+        ),
+        errors::StorageError,
+    > {
+        // We don't need to fetch customer here.
+        // Customer details have already been populated in the payment_intent during Confirm
+        // The customer returned from this method is only used for updating connector_customer_id
+        // which does not happen in case of Cancel
+
+        Ok((Box::new(self), None))
+    }
+
+    #[instrument(skip_all)]
+    #[cfg(feature = "v2")]
+    async fn get_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut PaymentData<F>,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<
+        (
+            PaymentCancelOperation<'a, F>,
+            Option<domain::Customer>,
+        ),
+        errors::StorageError,
+    > {
+        todo!()
+    }
+
+    #[instrument(skip_all)]
+    async fn make_pm_data<'a>(
+        &'a self,
+        _state: &'a SessionState,
+        _payment_data: &mut PaymentData<F>,
+        _storage_scheme: enums::MerchantStorageScheme,
+        _platform: &domain::Platform,
+        _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
+    ) -> RouterResult<(
+        PaymentCancelOperation<'a, F>,
+        Option<domain::PaymentMethodData>,
+        Option<String>,
+    )> {
+        Ok((Box::new(self), None, None))
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        _processor: &domain::Processor,
+        state: &SessionState,
+        _request: &api::PaymentsCancelRequest,
+        _payment_intent: &storage::PaymentIntent,
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, None).await
+    }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &SessionState,
+        _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_data: &mut PaymentData<F>,
+        _business_profile: &domain::Profile,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
+    }
+}
+
+impl PaymentCancel {
+    async fn fetch_payment_method_from_modular_service(
+        &self,
+        state: &SessionState,
+        _request: &api::PaymentsCancelRequest,
+        platform: &domain::Platform,
+        profile_id: &common_utils::id_type::ProfileId,
+        payment_method_ref: &str,
+    ) -> RouterResult<operations::PaymentMethodFetchData> {
+        let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
+            state,
+            platform,
+            profile_id,
+            payment_method_ref,
+            None,
+            true, // fetch raw card detail from the internal vault
+            false,
+        )
+        .await?;
+        logger::info!("Payment method fetched for Payment Cancel from PM Modular Service.");
+
+        Ok(operations::PaymentMethodFetchData::from_modular(pm_info))
     }
 }

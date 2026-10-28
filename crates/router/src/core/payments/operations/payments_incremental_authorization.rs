@@ -9,17 +9,19 @@ use hyperswitch_domain_models::{
     mandates::MandateTransactionType,
     payment_method_data::RecurringDetails as domain_recurring_details,
 };
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, logger};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods::transformers as pm_transformers,
         payments::{
             self, helpers, operations, CustomerDetails, IncrementalAuthorizationDetails,
             PaymentAddress,
         },
+        utils as core_utils,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -360,6 +362,44 @@ impl<F: Clone + Send + Sync>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
+    async fn fetch_payment_method(
+        &self,
+        state: &SessionState,
+        request: &PaymentsIncrementalAuthorizationRequest,
+        platform: &domain::Platform,
+        _feature_config: &core_utils::FeatureConfig,
+    ) -> RouterResult<operations::PaymentMethodFetchData> {
+        if request.payment_method_data.is_none() {
+            let payment_attempt = state
+                .store
+                .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
+                    &request.payment_id,
+                    &platform.get_processor().get_processor_merchant_id(),
+                    platform.get_processor().get_storage_scheme(),
+                    platform.get_processor().get_key_store(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            
+            match payment_attempt.payment_method_id {
+                Some(payment_method_id) => {
+                    self.fetch_payment_method_from_modular_service(
+                        state,
+                        request,
+                        platform,
+                        &payment_attempt.profile_id,
+                        payment_method_id.as_str(),
+                    )
+                    .await
+                }
+                None => Ok(operations::PaymentMethodFetchData::default()),
+            }
+        } else {
+            Ok(operations::PaymentMethodFetchData::default())
+        }
+    }
+
+    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -432,5 +472,32 @@ impl<F: Clone + Send + Sync>
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
+    }
+}
+
+impl PaymentIncrementalAuthorization {
+    async fn fetch_payment_method_from_modular_service(
+        &self,
+        state: &SessionState,
+        _request: &PaymentsIncrementalAuthorizationRequest,
+        platform: &domain::Platform,
+        profile_id: &common_utils::id_type::ProfileId,
+        payment_method_ref: &str,
+    ) -> RouterResult<operations::PaymentMethodFetchData> {
+        let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
+            state,
+            platform,
+            profile_id,
+            payment_method_ref,
+            None,
+            true, // fetch raw card detail from the internal vault
+            false,
+        )
+        .await?;
+        logger::info!(
+            "Payment method fetched for Payment Incrmeental Authorization from PM Modular Service."
+        );
+
+        Ok(operations::PaymentMethodFetchData::from_modular(pm_info))
     }
 }
