@@ -119,7 +119,9 @@ impl PaymentMethodVaultingData {
             Self::BankDebit(bank_debit) => Some(payment_methods::RawPaymentMethodData::BankDebit(
                 bank_debit.clone().into(),
             )),
-            Self::Wallet(_) => None,
+            Self::Wallet(wallet) => Some(payment_methods::RawPaymentMethodData::Wallet(
+                wallet.clone().into(),
+            )),
             Self::BankRedirect(_) => None,
         }
     }
@@ -517,12 +519,22 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
                 }
                 .into(),
             ),
-            payment_methods::PaymentMethodCreateData::Wallet(_) => Err(
-                errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
-                    message: "Wallet for PaymentMethodCreateData".to_string(),
-                }
-                .into(),
-            ),
+            payment_methods::PaymentMethodCreateData::Wallet(wallet) => match wallet {
+                payment_methods::WalletPaymentMethodData::ApplePayDecrypted(
+                    apple_pay_decrypted,
+                ) => Ok(Self::Wallet(From::from(apple_pay_decrypted.decrypted_data))),
+                payment_methods::WalletPaymentMethodData::GooglePayDecrypted(
+                    google_pay_decrypted,
+                ) => Ok(Self::Wallet(From::from(
+                    google_pay_decrypted.decrypted_data,
+                ))),
+                _ => Err(
+                    errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
+                        message: "Wallet for PaymentMethodCreateData".to_string(),
+                    }
+                    .into(),
+                ),
+            },
             payment_methods::PaymentMethodCreateData::BankRedirect(_) => Err(
                 errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
                     message: "BankRedirect for PaymentMethodCreateData".to_string(),

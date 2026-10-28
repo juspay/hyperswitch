@@ -8,6 +8,9 @@ pub mod delete;
 /// List customer payment methods flow.
 #[cfg(feature = "v1")]
 pub mod list;
+/// Raw-card migration uses its own conversion; ordinary create conversions remain unchanged.
+#[cfg(feature = "v1")]
+pub mod migration;
 #[cfg(feature = "v1")]
 /// Retrieve payment method flow.
 pub mod retrieve;

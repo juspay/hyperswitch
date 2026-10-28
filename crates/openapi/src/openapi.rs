@@ -969,7 +969,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantDetails,
         api_models::admin::ToggleKVRequest,
         api_models::admin::ToggleKVResponse,
-        api_models::admin::WebhookDetails,
+        api_models::admin::WebhookDetailsRequest,
+        api_models::admin::WebhookDetailsResponse,
         api_models::api_keys::ApiKeyExpiration,
         api_models::api_keys::CreateApiKeyRequest,
         api_models::api_keys::CreateApiKeyResponse,
@@ -1037,6 +1038,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::offer_engine::BrowseOffersResponse,
         api_models::offer_engine::BrowseOffer,
         api_models::blocklist::BlocklistRequest,
+        api_models::blocklist::BlocklistEntryRequest,
         api_models::blocklist::BlocklistResponse,
         api_models::blocklist::ToggleBlocklistResponse,
         api_models::blocklist::ListBlocklistQuery,
@@ -1045,9 +1047,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::blocklist::BlocklistLookupQuery,
         api_models::blocklist::BlocklistLookupResponse,
         api_models::blocklist::BatchBlocklistUploadResponse,
+        api_models::blocklist::BatchBlocklistUploadQuery,
         api_models::blocklist::BatchBlocklistJobStatusResponse,
         api_models::blocklist::ListBatchBlocklistJobsResponse,
         api_models::blocklist::BlocklistRowError,
+        api_models::blocklist::BlocklistExportQuery,
         api_models::blocklist::BlocklistExportResponse,
         api_models::blocklist::CloneBlocklistEntriesRequest,
         api_models::blocklist::CloneBlocklistEntriesResponse,
@@ -1056,6 +1060,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::BatchBlocklistJobStatus,
         api_models::enums::BatchBlocklistJobType,
         api_models::enums::BlocklistDataKind,
+        api_models::enums::BlocklistTransactionType,
         api_models::enums::ErrorCategory,
         api_models::webhook_events::EventListConstraints,
         api_models::webhook_events::EventListItemResponse,
@@ -1276,8 +1281,8 @@ impl utoipa::Modify for SecurityAddon {
                 (
                     "admin_api_key",
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Admin API keys allow you to perform some privileged actions such as \
+                        "Authorization",
+                        "Format: `admin-api-key=<admin-api-key>`\n\nAdmin API keys allow you to perform some privileged actions such as \
                         creating a merchant account and Merchant Connector account."
                     ))),
                 ),

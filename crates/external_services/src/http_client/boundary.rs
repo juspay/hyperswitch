@@ -12,6 +12,7 @@ use serde_json::json;
 /// Extension key used to smuggle the captured response body out of the
 /// `send_request` function so that the boundary codec can report it without
 /// consuming the response stream.
+#[derive(Clone)]
 pub(super) struct CapturedResponseBody(pub(super) bytes::Bytes);
 
 pub(super) fn is_active() -> bool {

@@ -65,7 +65,20 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
+        use_merchant_reference_id_lookup: bool,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
+        if use_merchant_reference_id_lookup && !domain::is_customer_id_in_global_format(customer_id)
+        {
+            return self
+                .find_optional_by_merchant_id_merchant_reference_id(
+                    customer_id,
+                    merchant_id,
+                    key_store,
+                    storage_scheme,
+                )
+                .await;
+        }
+
         let conn = pg_connection_read(self).await?;
         let maybe_result = Box::pin(self.find_optional_resource_by_id(
             key_store,
@@ -100,7 +113,24 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
+        use_merchant_reference_id_lookup: bool,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
+        if use_merchant_reference_id_lookup && !domain::is_customer_id_in_global_format(customer_id)
+        {
+            // Same reasoning as `find_optional_by_merchant_id_merchant_reference_id` above: a
+            // reference-id lookup is always served from the database for v1.
+            return self
+                .router_store
+                .find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
+                    customer_id,
+                    merchant_id,
+                    key_store,
+                    storage_scheme,
+                    use_merchant_reference_id_lookup,
+                )
+                .await;
+        }
+
         let conn = pg_connection_read(self).await?;
         Box::pin(self.find_optional_resource_by_id(
             key_store,
@@ -119,6 +149,28 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             ),
         ))
         .await
+    }
+
+    // Customers looked up by `merchant_reference_id` are created by the v2 customers API, which
+    // keeps them under the global id KV partition. The v1 KV layout is keyed by `customer_id`, so
+    // this lookup is always served from the database.
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn find_optional_by_merchant_id_merchant_reference_id(
+        &self,
+        merchant_reference_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Option<domain::Customer>, StorageError> {
+        self.router_store
+            .find_optional_by_merchant_id_merchant_reference_id(
+                merchant_reference_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
+            .await
     }
 
     #[cfg(feature = "v2")]
@@ -230,6 +282,27 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         .await
     }
 
+    // Same reasoning as `find_optional_by_merchant_id_merchant_reference_id` above: a
+    // reference-id lookup is always served from the database for v1.
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn find_customer_by_merchant_reference_id_merchant_id(
+        &self,
+        merchant_reference_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::Customer, StorageError> {
+        self.router_store
+            .find_customer_by_merchant_reference_id_merchant_id(
+                merchant_reference_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
+            .await
+    }
+
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_customer_by_merchant_reference_id_merchant_id(
@@ -272,7 +345,20 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
+        use_merchant_reference_id_lookup: bool,
     ) -> CustomResult<domain::Customer, StorageError> {
+        if use_merchant_reference_id_lookup && !domain::is_customer_id_in_global_format(customer_id)
+        {
+            return self
+                .find_customer_by_merchant_reference_id_merchant_id(
+                    customer_id,
+                    merchant_id,
+                    key_store,
+                    storage_scheme,
+                )
+                .await;
+        }
+
         let conn = pg_connection_read(self).await?;
         let result: domain::Customer = Box::pin(self.find_resource_by_id(
             key_store,
@@ -612,8 +698,21 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
-        _storage_scheme: MerchantStorageScheme,
+        storage_scheme: MerchantStorageScheme,
+        use_merchant_reference_id_lookup: bool,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
+        if use_merchant_reference_id_lookup && !domain::is_customer_id_in_global_format(customer_id)
+        {
+            return self
+                .find_optional_by_merchant_id_merchant_reference_id(
+                    customer_id,
+                    merchant_id,
+                    key_store,
+                    storage_scheme,
+                )
+                .await;
+        }
+
         let conn = pg_connection_read(self).await?;
         let maybe_customer: Option<domain::Customer> = self
             .find_optional_resource_new(
@@ -645,7 +744,23 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
+        use_merchant_reference_id_lookup: bool,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
+        if use_merchant_reference_id_lookup && !domain::is_customer_id_in_global_format(customer_id)
+        {
+            let conn = pg_connection_read(self).await?;
+            return self
+                .find_optional_resource_new(
+                    key_store,
+                    diesel_models::Customer::find_optional_by_merchant_id_merchant_reference_id(
+                        &conn,
+                        customer_id,
+                        merchant_id,
+                    ),
+                )
+                .await;
+        }
+
         let conn = pg_connection_read(self).await?;
         self.find_optional_resource_new(
             key_store,
@@ -659,7 +774,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
         customer_id: &id_type::CustomerId,
@@ -758,8 +872,21 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
-        _storage_scheme: MerchantStorageScheme,
+        storage_scheme: MerchantStorageScheme,
+        use_merchant_reference_id_lookup: bool,
     ) -> CustomResult<domain::Customer, StorageError> {
+        if use_merchant_reference_id_lookup && !domain::is_customer_id_in_global_format(customer_id)
+        {
+            return self
+                .find_customer_by_merchant_reference_id_merchant_id(
+                    customer_id,
+                    merchant_id,
+                    key_store,
+                    storage_scheme,
+                )
+                .await;
+        }
+
         let conn = pg_connection_read(self).await?;
         let customer: domain::Customer = self
             .call_database_new(
@@ -777,7 +904,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         }
     }
 
-    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
@@ -996,6 +1122,7 @@ impl domain::CustomerInterface for MockDb {
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
+        _use_merchant_reference_id_lookup: bool,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         let customers = self.customers.lock().await;
         self.find_resource_new(key_store, customers, |customer| {
@@ -1011,12 +1138,25 @@ impl domain::CustomerInterface for MockDb {
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
+        _use_merchant_reference_id_lookup: bool,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         let customers = self.customers.lock().await;
         self.find_resource_new(key_store, customers, |customer| {
             customer.customer_id == *customer_id && &customer.merchant_id == merchant_id
         })
         .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_optional_by_merchant_id_merchant_reference_id(
+        &self,
+        _customer_id: &id_type::CustomerId,
+        _merchant_id: &id_type::MerchantId,
+        _key_store: &MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Option<domain::Customer>, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
     }
 
     #[cfg(feature = "v2")]
@@ -1177,12 +1317,12 @@ impl domain::CustomerInterface for MockDb {
         _merchant_id: &id_type::MerchantId,
         _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
+        _use_merchant_reference_id_lookup: bool,
     ) -> CustomResult<domain::Customer, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(feature = "v2")]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
         _merchant_reference_id: &id_type::CustomerId,
@@ -1326,6 +1466,7 @@ impl Conversion for domain::Customer {
                 .map(|last_modified_by| last_modified_by.to_string()),
             id: global_customer_id,
             preferred_connectors: self.preferred_connectors,
+            merchant_reference_id: None,
         })
     }
 

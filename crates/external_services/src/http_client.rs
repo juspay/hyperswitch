@@ -10,6 +10,8 @@ use router_env::{instrument, logger, tracing};
 pub mod client;
 /// metrics module
 pub mod metrics;
+/// outbound_destination module
+pub mod outbound_destination;
 /// request module
 pub mod request;
 

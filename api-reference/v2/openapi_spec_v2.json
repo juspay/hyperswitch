@@ -6493,6 +6493,21 @@
           }
         }
       },
+      "ApplePayDecryptedInfo": {
+        "type": "object",
+        "required": [
+          "decrypted_data",
+          "wallet_info"
+        ],
+        "properties": {
+          "decrypted_data": {
+            "$ref": "#/components/schemas/ApplePayPredecryptData"
+          },
+          "wallet_info": {
+            "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+          }
+        }
+      },
       "ApplePayPaymentData": {
         "oneOf": [
           {
@@ -10468,6 +10483,7 @@
         "required": [
           "fingerprint_id",
           "data_kind",
+          "transaction_type",
           "created_at"
         ],
         "properties": {
@@ -10476,6 +10492,9 @@
           },
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/BlocklistTransactionType"
           },
           "created_at": {
             "type": "string",
@@ -10487,6 +10506,14 @@
             "nullable": true
           }
         }
+      },
+      "BlocklistTransactionType": {
+        "type": "string",
+        "description": "The transaction namespace of a blocklist entry, stored as text.",
+        "enum": [
+          "payment",
+          "payout"
+        ]
       },
       "BoletoAdditionalDetails": {
         "type": "object",
@@ -16908,6 +16935,21 @@
           }
         }
       },
+      "GooglePayDecryptedInfo": {
+        "type": "object",
+        "required": [
+          "decrypted_data",
+          "wallet_info"
+        ],
+        "properties": {
+          "decrypted_data": {
+            "$ref": "#/components/schemas/GPayPredecryptData"
+          },
+          "wallet_info": {
+            "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+          }
+        }
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -18168,6 +18210,9 @@
         "properties": {
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/BlocklistTransactionType"
           },
           "limit": {
             "type": "integer",
@@ -24465,6 +24510,12 @@
             "maxLength": 64,
             "minLength": 32
           },
+          "merchant_customer_reference_id": {
+            "type": "string",
+            "description": "The customer reference supplied in the request path when merchant reference ID lookup is enabled.",
+            "example": "merchant_customer_123",
+            "nullable": true
+          },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
@@ -25015,6 +25066,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/AcknowledgementStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
@@ -29390,7 +29449,7 @@
           "webhook_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WebhookDetails"
+                "$ref": "#/components/schemas/WebhookDetailsRequest"
               }
             ],
             "nullable": true
@@ -29695,7 +29754,7 @@
           "webhook_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WebhookDetails"
+                "$ref": "#/components/schemas/WebhookDetailsResponse"
               }
             ],
             "nullable": true
@@ -30183,8 +30242,9 @@
           },
           "destination_url": {
             "type": "string",
-            "description": "The destination URL where the request needs to be forwarded",
-            "example": "https://api.example.com/endpoint"
+            "description": "The non-empty HTTP or HTTPS destination URL. Configured proxy bypass hosts are rejected.\nIP literals must be publicly routable.",
+            "example": "https://api.example.com/endpoint",
+            "minLength": 1
           },
           "headers": {
             "type": "object",
@@ -30290,6 +30350,17 @@
             "properties": {
               "bank_debit": {
                 "$ref": "#/components/schemas/BankDebitDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletDetail"
               }
             }
           },
@@ -36079,6 +36150,72 @@
           }
         ]
       },
+      "WalletDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay_decrypted_data"
+            ],
+            "properties": {
+              "apple_pay_decrypted_data": {
+                "type": "object",
+                "required": [
+                  "application_primary_account_number",
+                  "expiry_month",
+                  "expiry_year"
+                ],
+                "properties": {
+                  "application_primary_account_number": {
+                    "type": "string",
+                    "description": "The application primary account number associated with the card",
+                    "example": "4242424242424242"
+                  },
+                  "expiry_month": {
+                    "type": "string",
+                    "description": "The card's expiry month"
+                  },
+                  "expiry_year": {
+                    "type": "string",
+                    "description": "The card's expiry year"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay_decrypted_data"
+            ],
+            "properties": {
+              "google_pay_decrypted_data": {
+                "type": "object",
+                "required": [
+                  "application_primary_account_number",
+                  "expiry_month",
+                  "expiry_year"
+                ],
+                "properties": {
+                  "application_primary_account_number": {
+                    "type": "string",
+                    "description": "The application primary account number (PAN) associated with the card",
+                    "example": "4242424242424242"
+                  },
+                  "expiry_month": {
+                    "type": "string",
+                    "description": "The card's expiry month"
+                  },
+                  "expiry_year": {
+                    "type": "string",
+                    "description": "The card's expiry year"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "WalletPaymentMethodData": {
         "oneOf": [
           {
@@ -36095,11 +36232,33 @@
           {
             "type": "object",
             "required": [
+              "apple_pay_decrypted"
+            ],
+            "properties": {
+              "apple_pay_decrypted": {
+                "$ref": "#/components/schemas/ApplePayDecryptedInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "google_pay"
             ],
             "properties": {
               "google_pay": {
                 "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay_decrypted"
+            ],
+            "properties": {
+              "google_pay_decrypted": {
+                "$ref": "#/components/schemas/GooglePayDecryptedInfo"
               }
             }
           },
@@ -36197,7 +36356,134 @@
           "manual_retry"
         ]
       },
-      "WebhookDetails": {
+      "WebhookDetailsRequest": {
+        "type": "object",
+        "required": [
+          "payment_statuses_enabled",
+          "refund_statuses_enabled"
+        ],
+        "properties": {
+          "webhook_version": {
+            "type": "string",
+            "description": "The version for Webhook",
+            "example": "1.0.2",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "webhook_username": {
+            "type": "string",
+            "description": "The user name for Webhook login",
+            "example": "ekart_retail",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "webhook_password": {
+            "type": "string",
+            "description": "The password for Webhook login",
+            "example": "ekart@123",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "webhook_url": {
+            "type": "string",
+            "description": "The HTTP or HTTPS webhook URL. DNS must resolve to public addresses. Must not be empty;\nomit this field entirely to leave an existing stored webhook URL unchanged.",
+            "example": "https://www.ekart.com/webhooks",
+            "nullable": true,
+            "minLength": 1
+          },
+          "payment_created_enabled": {
+            "type": "boolean",
+            "description": "If this property is true, a webhook message is posted whenever a new payment is created",
+            "example": true,
+            "nullable": true
+          },
+          "payment_succeeded_enabled": {
+            "type": "boolean",
+            "description": "If this property is true, a webhook message is posted whenever a payment is successful",
+            "example": true,
+            "nullable": true
+          },
+          "payment_failed_enabled": {
+            "type": "boolean",
+            "description": "If this property is true, a webhook message is posted whenever a payment fails",
+            "example": true,
+            "nullable": true
+          },
+          "payment_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of payment statuses that triggers a webhook for payment intents",
+            "example": [
+              "succeeded",
+              "failed",
+              "partially_captured",
+              "requires_merchant_action"
+            ]
+          },
+          "refund_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RefundStatus"
+            },
+            "description": "List of refund statuses that triggers a webhook for refunds",
+            "example": [
+              "success",
+              "failure"
+            ]
+          },
+          "payout_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutStatus"
+            },
+            "description": "List of payout statuses that triggers a webhook for payouts",
+            "example": [
+              "success",
+              "failed"
+            ],
+            "nullable": true
+          },
+          "dispute_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DisputeStatus"
+            },
+            "description": "List of dispute statuses that trigger outgoing webhooks for disputes",
+            "example": [
+              "dispute_opened",
+              "dispute_won"
+            ],
+            "nullable": true
+          },
+          "mandate_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MandateStatus"
+            },
+            "description": "List of mandate statuses that trigger outgoing webhooks for mandates",
+            "example": [
+              "active",
+              "inactive"
+            ],
+            "nullable": true
+          },
+          "invoice_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceStatus"
+            },
+            "description": "List of invoice statuses that trigger outgoing webhooks for subscriptions",
+            "example": [
+              "invoice_paid"
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WebhookDetailsResponse": {
         "type": "object",
         "required": [
           "payment_statuses_enabled",
@@ -36228,7 +36514,7 @@
           "webhook_url": {
             "type": "string",
             "description": "The url for the webhook endpoint",
-            "example": "www.ekart.com/webhooks",
+            "example": "https://www.ekart.com/webhooks",
             "nullable": true
           },
           "payment_created_enabled": {

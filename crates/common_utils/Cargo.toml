@@ -10,7 +10,7 @@ license.workspace = true
 [features]
 default = []
 keymanager = ["dep:router_env"]
-keymanager_mtls = ["reqwest/rustls-tls"]
+keymanager_mtls = ["reqwest/rustls"]
 encryption_service = ["dep:router_env"]
 km_forward_x_request_id = ["dep:router_env", "router_env/actix_web"]
 ext_services_latency = ["dep:router_env"]
@@ -26,7 +26,7 @@ tokenization_v2 = []
 deja = ["dep:deja"]
 
 [dependencies]
-async-trait = { version = "0.1.88", optional = true }
+async-trait = { version = "0.1.92", optional = true }
 base64 = "0.22.1"
 base64-serde = "0.8.0"
 blake3 = { version = "1.8.2", features = ["serde"] }
@@ -38,6 +38,7 @@ futures = { version = "0.3.31", optional = true }
 globset = "0.4.16"
 hex = "0.4.3"
 http = "0.2.12"
+ip_network = { version = "0.4.1", default-features = false }
 md5 = "0.7.0"
 nanoid = "0.4.0"
 nutype = { version = "0.4.3", features = ["serde"] }
@@ -48,7 +49,7 @@ phonenumber = "0.3.7"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"
 regex = "1.11.1"
-reqwest = { version = "0.11.27", features = ["json", "native-tls", "gzip", "multipart"] }
+reqwest = { version = "0.13.5", features = ["json", "native-tls-no-alpn", "gzip", "multipart"] }
 ring = { version = "0.17.14", features = ["std", "wasm32_unknown_unknown_js"] }
 rsa = {version = "0.9.8", features = ["sha2"]}
 rust_decimal = "1.37"
@@ -70,7 +71,7 @@ ammonia = "3.3"
 
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }
-hyperswitch_masking = { version = "0.0.1", features = ["diesel", "time"] }
+hyperswitch_masking = { version = "0.0.1", features = ["diesel", "serde", "time"] }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true, default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.uuid]

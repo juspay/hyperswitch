@@ -1021,7 +1021,11 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/manual-status-update")
-                        .route(web::post().to(payments::payments_manual_status_update)),
+                        .route(web::post().to(payments::payments_manual_status_update))
+                        .route(
+                            web::get()
+                                .to(payments::payments_manual_status_update_eligible_statuses),
+                        ),
                 )
         }
         #[cfg(feature = "oltp")]
@@ -1791,7 +1795,9 @@ impl PaymentMethods {
                 )
                 .service(
                     web::resource("/migrate-batch")
-                        .route(web::post().to(payment_methods::migrate_payment_methods)),
+                        .route(web::post().to(payment_methods::migrate_payment_methods))
+                        // Capability discovery shares the existing admin-authenticated endpoint.
+                        .route(web::get().to(payment_methods::migration_capabilities)),
                 )
                 .service(
                     web::resource("/update-batch")
