@@ -4,14 +4,14 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{mandates, payment_method_data::RecurringDetails as domain_recurring_details};
-use router_env::{instrument, tracing, logger};
+use hyperswitch_domain_models::payment_method_data::RecurringDetails as domain_recurring_details;
+use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         configs::dimension_state,
-        errors::{self, RouterResult, StorageErrorExt, CustomResult},
+        errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::transformers as pm_transformers,
         payments::{self, helpers, operations, types::MultipleCaptureData, CustomerDetails},
         utils as core_utils,
@@ -456,10 +456,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCaptureRequest, payments::Pa
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
-        (
-            PaymentCaptureOperation<'a, F>,
-            Option<domain::Customer>,
-        ),
+        (PaymentCaptureOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
         // We don't need to fetch customer here.
@@ -478,10 +475,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCaptureRequest, payments::Pa
         _merchant_key_store: &domain::MerchantKeyStore,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
-        (
-            PaymentCaptureOperation<'a, F>,
-            Option<domain::Customer>,
-        ),
+        (PaymentCaptureOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
         todo!()

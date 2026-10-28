@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     mandates::MandateTransactionType,
     payment_method_data::RecurringDetails as domain_recurring_details,
 };
-use router_env::{instrument, tracing, logger};
+use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -380,7 +380,7 @@ impl<F: Clone + Send + Sync>
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            
+
             match payment_attempt.payment_method_id {
                 Some(payment_method_id) => {
                     self.fetch_payment_method_from_modular_service(
