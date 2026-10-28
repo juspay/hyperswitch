@@ -19,7 +19,6 @@ static HC_CLIENT: tokio::sync::OnceCell<HashiCorpVault> = tokio::sync::OnceCell:
 pub struct HashiCorpVault {
     /// The underlying client used for interacting with HashiCorp Vault.
     client: VaultClient,
-    kms: Arc<dyn EncryptionManagementInterface>,
 }
 
 /// Configuration for connecting to HashiCorp Vault.
@@ -65,7 +64,7 @@ impl HashiCorpVaultConfig {
     }
 }
 
-async fn decrypt_kms_credential(
+async fn decrypt_vault_token(
     kms: &dyn EncryptionManagementInterface,
     ciphertext: &Secret<String>,
 ) -> error_stack::Result<Secret<String>, SecretsManagementError> {
@@ -151,7 +150,7 @@ impl HashiCorpVault {
     /// - `config`: A reference to a `HashiCorpVaultConfig` containing the configuration details.
     pub async fn new(config: &HashiCorpVaultConfig) -> error_stack::Result<Self, HashiCorpError> {
         let kms = config.initialize_kms().await?;
-        let token = decrypt_kms_credential(kms.as_ref(), &config.encrypted_token)
+        let token = decrypt_vault_token(kms.as_ref(), &config.encrypted_token)
             .await
             .change_context(HashiCorpError::ClientCreationFailed)
             .attach_printable("Failed to decrypt hc_vault.encrypted_token")?;
@@ -166,14 +165,7 @@ impl HashiCorpVault {
         )
         .map_err(Into::<Report<_>>::into)
         .change_context(HashiCorpError::ClientCreationFailed)
-        .map(|client| Self { client, kms })
-    }
-
-    pub(super) async fn decrypt_credential(
-        &self,
-        ciphertext: &Secret<String>,
-    ) -> error_stack::Result<Secret<String>, SecretsManagementError> {
-        decrypt_kms_credential(self.kms.as_ref(), ciphertext).await
+        .map(|client| Self { client })
     }
 
     /// Asynchronously fetches data from HashiCorp Vault using the specified engine.

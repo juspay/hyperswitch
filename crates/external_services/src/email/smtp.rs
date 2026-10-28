@@ -5,7 +5,7 @@
 
 pub use cloud_services::email::smtp::{SmtpConnection, SmtpError};
 use cloud_services::email::{smtp as shared, EmailMessage};
-use common_utils::{errors::CustomResult, pii};
+use common_utils::{errors::CustomResult, ext_traits::AsyncExt, pii};
 use hyperswitch_masking::{PeekInterface, Secret};
 
 use crate::{
@@ -75,16 +75,28 @@ impl SmtpServerConfig {
         mut self,
         client: &dyn hyperswitch_interfaces::secrets_interface::SecretManagementInterface,
     ) -> CustomResult<Self, hyperswitch_interfaces::secrets_interface::SecretsManagementError> {
-        self.primary_password = client
-            .decrypt_optional_secret(self.primary_password.take(), "email.smtp.primary_password")
-            .await?;
+        self.primary_password = self
+            .primary_password
+            .take()
+            .async_map(|secret| async move {
+                client
+                    .get_secret(secret)
+                    .await
+                    .map_err(|error| error.attach_printable("email.smtp.primary_password"))
+            })
+            .await
+            .transpose()?;
         if let Some(socks5) = self.socks5.as_mut() {
-            socks5.primary_password = client
-                .decrypt_optional_secret(
-                    socks5.primary_password.take(),
-                    "email.smtp.socks5.primary_password",
-                )
-                .await?;
+            socks5.primary_password = socks5
+                .primary_password
+                .take()
+                .async_map(|secret| async move {
+                    client.get_secret(secret).await.map_err(|error| {
+                        error.attach_printable("email.smtp.socks5.primary_password")
+                    })
+                })
+                .await
+                .transpose()?;
         }
         Ok(self)
     }
@@ -95,12 +107,6 @@ impl SmtpServerConfig {
         when(self.host.is_default_or_empty(), || {
             Err("email.smtp.host must not be empty")
         })?;
-        when(
-            self.username.is_some() != self.primary_password.is_some(),
-            || {
-                Err("email.smtp.username and email.smtp.primary_password must be specified together")
-            },
-        )?;
         self.username
             .clone()
             .zip(self.primary_password.clone())

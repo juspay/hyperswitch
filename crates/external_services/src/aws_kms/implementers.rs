@@ -29,10 +29,6 @@ impl EncryptionManagementInterface for AwsKmsClient {
 
 #[async_trait::async_trait]
 impl SecretManagementInterface for AwsKmsClient {
-    fn supports_kms_decryption(&self) -> bool {
-        true
-    }
-
     async fn get_secret(
         &self,
         input: Secret<String>,

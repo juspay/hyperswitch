@@ -489,9 +489,17 @@ pub(crate) async fn fetch_raw_secrets(
         .decrypt_credentials(secret_management_client)
         .await?;
     let mut redis = conf.redis;
-    redis.primary_password = secret_management_client
-        .decrypt_optional_secret(redis.primary_password.take(), "redis.primary_password")
-        .await?;
+    redis.primary_password = redis
+        .primary_password
+        .take()
+        .async_map(|secret| async move {
+            secret_management_client
+                .get_secret(secret)
+                .await
+                .map_err(|error| error.attach_printable("redis.primary_password"))
+        })
+        .await
+        .transpose()?;
     let internal_merchant_id_profile_id_auth = conf
         .internal_merchant_id_profile_id_auth
         .decrypt_credentials(secret_management_client)

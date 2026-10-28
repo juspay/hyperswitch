@@ -8,6 +8,7 @@ use api_models::{
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::{
     errors::{CustomResult, ErrorSwitch},
+    ext_traits::AsyncExt,
     types::TimeRange,
 };
 use error_stack::ResultExt;
@@ -490,18 +491,16 @@ impl OpenSearchConfig {
             primary_password, ..
         } = &mut self.auth
         {
-            *primary_password = Some(
-                client
-                    .decrypt_optional_secret(
-                        primary_password.take(),
-                        "opensearch.auth.primary_password",
-                    )
-                    .await?
-                    .ok_or_else(|| {
-                        error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
-                            .attach_printable("OpenSearch Basic auth requires primary_password")
-                    })?,
-            );
+            *primary_password = primary_password
+                .take()
+                .async_map(|secret| async move {
+                    client
+                        .get_secret(secret)
+                        .await
+                        .map_err(|error| error.attach_printable("opensearch.auth.primary_password"))
+                })
+                .await
+                .transpose()?;
         }
         Ok(self)
     }

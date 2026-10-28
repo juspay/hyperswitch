@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use actix_web::http::StatusCode;
-use common_utils::errors::ParsingError;
+use common_utils::{errors::ParsingError, ext_traits::AsyncExt};
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
@@ -61,12 +61,16 @@ impl ClickhouseConfig {
         (),
         hyperswitch_interfaces::secrets_interface::SecretsManagementError,
     > {
-        self.primary_password = client
-            .decrypt_optional_secret(
-                self.primary_password.take(),
-                "analytics.clickhouse.primary_password",
-            )
-            .await?;
+        self.primary_password = self
+            .primary_password
+            .take()
+            .async_map(|secret| async move {
+                client.get_secret(secret).await.map_err(|error| {
+                    error.attach_printable("analytics.clickhouse.primary_password")
+                })
+            })
+            .await
+            .transpose()?;
         Ok(())
     }
 }

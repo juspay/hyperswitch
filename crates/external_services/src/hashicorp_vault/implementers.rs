@@ -11,17 +11,6 @@ use crate::hashicorp_vault::core::{HashiCorpVault, Kv2};
 
 #[async_trait::async_trait]
 impl SecretManagementInterface for HashiCorpVault {
-    fn supports_kms_decryption(&self) -> bool {
-        true
-    }
-
-    async fn get_kms_secret(
-        &self,
-        input: Secret<String>,
-    ) -> CustomResult<Secret<String>, SecretsManagementError> {
-        self.decrypt_credential(&input).await
-    }
-
     async fn get_secret(
         &self,
         input: Secret<String>,

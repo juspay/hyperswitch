@@ -1,4 +1,4 @@
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use hyperswitch_interfaces::secrets_interface::{
     secret_handler::SecretsHandler,
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
@@ -33,9 +33,17 @@ pub async fn fetch_raw_secrets(
     secret_management_client: &dyn SecretManagementInterface,
 ) -> CustomResult<Settings<RawSecret>, SecretsManagementError> {
     let mut redis = conf.redis;
-    redis.primary_password = secret_management_client
-        .decrypt_optional_secret(redis.primary_password.take(), "redis.primary_password")
-        .await?;
+    redis.primary_password = redis
+        .primary_password
+        .take()
+        .async_map(|secret| async move {
+            secret_management_client
+                .get_secret(secret)
+                .await
+                .map_err(|error| error.attach_printable("redis.primary_password"))
+        })
+        .await
+        .transpose()?;
     #[allow(clippy::expect_used)]
     let database = Database::convert_to_raw_secret(conf.master_database, secret_management_client)
         .await

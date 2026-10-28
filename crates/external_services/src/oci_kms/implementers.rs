@@ -29,10 +29,6 @@ impl EncryptionManagementInterface for OciKmsClient {
 
 #[async_trait::async_trait]
 impl SecretManagementInterface for OciKmsClient {
-    fn supports_kms_decryption(&self) -> bool {
-        true
-    }
-
     async fn get_secret(
         &self,
         input: Secret<String>,

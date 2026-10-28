@@ -26,15 +26,10 @@ impl MicroServicesConfig {
     > {
         if let Some(service) = self.authentication_service.as_mut() {
             service.api_key = client
-                .decrypt_optional_secret(
-                    Some(std::mem::take(&mut service.api_key)),
-                    "micro_services.authentication_service.api_key",
-                )
-                .await?
-                .ok_or_else(|| {
-                    error_stack::Report::new(
-                hyperswitch_interfaces::secrets_interface::SecretsManagementError::FetchSecretFailed
-            ).attach_printable("Authentication service requires an API key")
+                .get_secret(std::mem::take(&mut service.api_key))
+                .await
+                .map_err(|error| {
+                    error.attach_printable("micro_services.authentication_service.api_key")
                 })?;
         }
         Ok(self)

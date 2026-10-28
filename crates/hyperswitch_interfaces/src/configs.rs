@@ -105,21 +105,24 @@ impl InternalMerchantIdProfileIdAuthSettings {
             .internal_api_key
             .as_ref()
             .is_some_and(|key| !key.peek().is_empty());
-        let primary_key = (!self.primary_internal_api_key.peek().is_empty())
-            .then(|| std::mem::take(&mut self.primary_internal_api_key));
-        let decrypted = client
-            .decrypt_optional_secret(
-                primary_key,
-                "internal_merchant_id_profile_id_auth.primary_internal_api_key",
-            )
-            .await?;
-        if (self.enabled || self.key_rotation_enabled || legacy_key_configured)
-            && decrypted.is_none()
-        {
-            return Err(
-                error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
-                    .attach_printable("Internal authentication requires primary_internal_api_key"),
-            );
+        if self.primary_internal_api_key.peek().is_empty() {
+            if self.enabled || self.key_rotation_enabled || legacy_key_configured {
+                return Err(
+                    error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
+                        .attach_printable(
+                            "Internal authentication requires primary_internal_api_key",
+                        ),
+                );
+            }
+        } else {
+            self.primary_internal_api_key = client
+                .get_secret(std::mem::take(&mut self.primary_internal_api_key))
+                .await
+                .map_err(|error| {
+                    error.attach_printable(
+                        "internal_merchant_id_profile_id_auth.primary_internal_api_key",
+                    )
+                })?;
         }
         if self.key_rotation_enabled && !legacy_key_configured {
             return Err(
@@ -138,7 +141,6 @@ impl InternalMerchantIdProfileIdAuthSettings {
         if !self.key_rotation_enabled {
             self.internal_api_key = None;
         }
-        self.primary_internal_api_key = decrypted.unwrap_or_default();
         Ok(self)
     }
 
