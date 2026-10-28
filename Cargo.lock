@@ -2236,7 +2236,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#a2f980a5b50426f79771f600308499736624aa02"
+source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#22173103d062b00d8f5574207df029e6ed34babe"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4247,7 +4247,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#a2f980a5b50426f79771f600308499736624aa02"
+source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#22173103d062b00d8f5574207df029e6ed34babe"
 dependencies = [
  "axum 0.8.4",
  "bytes 1.10.1",
@@ -7417,8 +7417,8 @@ version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "343d3bd7056eda839b03204e68deff7d1b13aba7af2b2fd16890697274262ee7"
 dependencies = [
- "heck 0.5.0",
- "itertools 0.11.0",
+ "heck 0.4.1",
+ "itertools 0.10.5",
  "log",
  "multimap",
  "petgraph",
@@ -7439,7 +7439,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.11.0",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -7452,7 +7452,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27c6023962132f4b30eb4c172c91ce92d933da334c59c23cddee82358ddafb0b"
 dependencies = [
  "anyhow",
- "itertools 0.11.0",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -8396,7 +8396,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#a2f980a5b50426f79771f600308499736624aa02"
+source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#22173103d062b00d8f5574207df029e6ed34babe"
 dependencies = [
  "grpc-api-types",
 ]
