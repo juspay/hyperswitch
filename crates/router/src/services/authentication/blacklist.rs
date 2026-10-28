@@ -153,10 +153,16 @@ impl BlackList for AuthToken {
     where
         A: SessionStateInfo + Sync,
     {
-        Ok(
-            check_user_in_blacklist(state, &self.user_id, self.exp).await?
-                || check_role_in_blacklist(state, &self.role_id, self.exp).await?,
-        )
+        let is_blacklisted = check_user_in_blacklist(state, &self.user_id, self.exp).await?
+            || check_role_in_blacklist(state, &self.role_id, self.exp).await?;
+
+        // A login token that isn't blacklisted must also belong to a session that
+        // hasn't gone idle.
+        if !is_blacklisted {
+            super::idle_session::check_idle_session(&state.session_state(), &self.user_id).await?;
+        }
+
+        Ok(is_blacklisted)
     }
 }
 

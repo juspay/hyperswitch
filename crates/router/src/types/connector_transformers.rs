@@ -62,6 +62,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Dlocal => Self::Dlocal,
             api_enums::Connector::Dwolla => Self::Dwolla,
             api_enums::Connector::Ebanx => Self::Ebanx,
+            api_enums::Connector::Ecommpay => Self::Ecommpay,
             api_enums::Connector::Elavon => Self::Elavon,
             api_enums::Connector::ElavonPg => Self::ElavonPg,
             api_enums::Connector::Envoy => Self::Envoy,

@@ -54,6 +54,7 @@ pub struct Connectors {
     pub dummyconnector: ConnectorParams,
     pub dwolla: ConnectorParams,
     pub ebanx: ConnectorParams,
+    pub ecommpay: ConnectorParams,
     pub elavon: ConnectorParams,
     pub elavon_pg: ConnectorParams,
     pub envoy: ConnectorParams,
