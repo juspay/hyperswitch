@@ -477,14 +477,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         mandate_id: None,
                         mandate_reference_id: Some(
                             mandates::MandateReferenceId::ConnectorMandateId(
-                                mandates::ConnectorMandateReferenceId::new(
-                                    Some(token.processor_payment_token.clone()),
-                                    None,
-                                    None,
-                                    None,
-                                    None,
-                                    None,
-                                ),
+                                mandates::ConnectorMandateReferenceId::from(token),
                             ),
                         ),
                     }),

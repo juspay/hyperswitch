@@ -745,6 +745,7 @@ pub struct ConnectorMandateReferenceId {
     mandate_metadata: Option<pii::SecretSerdeValue>,
     connector_mandate_request_reference_id: Option<String>,
     updated_mandate_details: Option<UpdatedMandateDetails>,
+    additional_mandate_details: Option<Box<api_models::mandates::ProcessorPaymentTokenDetails>>,
 }
 
 impl ConnectorMandateReferenceId {
@@ -763,6 +764,7 @@ impl ConnectorMandateReferenceId {
             mandate_metadata,
             connector_mandate_request_reference_id,
             updated_mandate_details,
+            additional_mandate_details: None,
         }
     }
 
@@ -771,6 +773,11 @@ impl ConnectorMandateReferenceId {
     }
     pub fn get_payment_method_id(&self) -> Option<String> {
         self.payment_method_id.clone()
+    }
+    pub fn get_additional_mandate_details(
+        &self,
+    ) -> Option<api_models::mandates::ProcessorPaymentTokenDetails> {
+        self.additional_mandate_details.as_deref().cloned()
     }
     pub fn get_mandate_metadata(&self) -> Option<pii::SecretSerdeValue> {
         self.mandate_metadata.clone()
@@ -793,6 +800,20 @@ impl ConnectorMandateReferenceId {
         self.mandate_metadata = mandate_metadata.or(self.mandate_metadata.clone());
         self.connector_mandate_request_reference_id = connector_mandate_request_reference_id
             .or(self.connector_mandate_request_reference_id.clone());
+    }
+}
+
+impl From<&api_models::mandates::ProcessorPaymentToken> for ConnectorMandateReferenceId {
+    fn from(token: &api_models::mandates::ProcessorPaymentToken) -> Self {
+        Self {
+            connector_mandate_id: Some(token.processor_payment_token.clone()),
+            payment_method_id: None,
+            update_history: None,
+            mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
+            updated_mandate_details: None,
+            additional_mandate_details: token.processor_payment_token_details.clone().map(Box::new),
+        }
     }
 }
 

@@ -95,6 +95,7 @@ pub enum RecurringDetails {
 pub struct ProcessorPaymentToken {
     pub processor_payment_token: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub processor_payment_token_details: Option<api_mandates::ProcessorPaymentTokenDetails>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -4983,6 +4984,7 @@ impl From<api_mandates::RecurringDetails> for RecurringDetails {
                 Self::ProcessorPaymentToken(ProcessorPaymentToken {
                     processor_payment_token: token.processor_payment_token,
                     merchant_connector_id: token.merchant_connector_id,
+                    processor_payment_token_details: token.processor_payment_token_details,
                 })
             }
             api_mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(
