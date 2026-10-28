@@ -190,8 +190,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .update_payment_attempt_with_attempt_id(
                             payment_data.payment_attempt,
                             payment_attempt_update,
-                            merchant_account.storage_scheme,
-                            &key_store,
+                            platform.get_processor().get_storage_scheme(),
+                            platform.get_processor().get_key_store(),
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -200,8 +200,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .update_payment_intent(
                             payment_data.payment_intent,
                             payment_intent_update,
-                            &key_store,
-                            merchant_account.storage_scheme,
+                            platform.get_processor().get_key_store(),
+                            platform.get_processor().get_storage_scheme(),
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

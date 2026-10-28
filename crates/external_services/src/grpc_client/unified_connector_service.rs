@@ -337,7 +337,7 @@ impl UnifiedConnectorServiceClient {
         };
 
         let uri: Uri = ucs_config.base_url.get_string_repr().parse().map_err(
-            |err: tonic::codegen::http::uri::InvalidUri| {
+            |err: http::uri::InvalidUri| {
                 logger::error!(error = ?err, "Failed to parse URI for Unified Connector Service");
                 UcsClientBuildError::InvalidUri(err.to_string())
             },

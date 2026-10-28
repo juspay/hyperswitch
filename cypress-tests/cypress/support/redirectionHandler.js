@@ -3606,6 +3606,46 @@ function threeDsRedirection(
     return;
   }
 
+  // Elavon PG uses its hosted page to collect the card details again before
+  // completing 3DS and redirecting through Hyperswitch's CompleteAuthorize
+  // endpoint. Keep this interaction in the test layer; the router only needs
+  // to preserve the connector-issued payment token across that redirect.
+  if (connectorId === "elavon_pg") {
+    cy.get("#qa_card_holder_name", { timeout: CONSTANTS.TIMEOUT })
+      .clear()
+      .type("Elavon PG Test");
+    cy.get("#qa_cc_section").clear().type("4546341111111119");
+    cy.get("#qa_expiryDate_section").clear().type("1230");
+    cy.get("#qa_secCode_section").clear().type("123");
+    cy.get("#shopperEmailAddress").clear().type("test@example.com");
+
+    cy.get("#qa_submit_payment", { timeout: CONSTANTS.WAIT_TIME })
+      .should("be.visible")
+      .and("be.enabled")
+      .click();
+
+    cy.get('iframe[name="acsIframe"]', { timeout: CONSTANTS.TIMEOUT })
+      .should("be.visible")
+      .should(($iframe) => {
+        const doc = $iframe[0].contentDocument;
+        expect(doc, "Elavon ACS iframe document").to.exist;
+        expect(
+          doc.querySelector("#challengeData"),
+          "Elavon ACS challenge form to render inside the iframe"
+        ).to.exist;
+      })
+      .its("0.contentDocument.body")
+      .within(() => {
+        cy.get("#challengeData").should("be.visible").clear().type("validdata");
+        cy.get("#transStatus").select("Y").should("have.value", "Y");
+        cy.get("a.buttonBase").should("contain.text", "Continue").click();
+      });
+
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl.host);
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
+
   // For all other connectors, use the standard flow
   waitForRedirect(redirectionUrl.href);
 

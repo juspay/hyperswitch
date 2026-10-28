@@ -26,7 +26,7 @@ futures = "0.3.31"
 http = "0.2.12"
 mime = "0.3.17"
 prost = "0.14"
-reqwest = "0.11.27"
+reqwest = "0.13.5"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 strum = { version = "0.26", features = ["derive"] }
@@ -35,7 +35,7 @@ time = "0.3.41"
 tonic = "0.14"
 url = { version = "2.5.4", features = ["serde"] }
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "4c3b1ad33eb9116410f876be27b8cdabc1c673ae", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "7cd25f6eb8bc4834b0d09bdf21f4e9757ce7fe30", package = "rust-grpc-client" }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
 # First party crates

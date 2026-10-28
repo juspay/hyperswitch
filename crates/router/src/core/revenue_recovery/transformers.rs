@@ -59,6 +59,16 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             billing_started_at: Some(data.billing_started_at),
             metadata: data.metadata,
             enable_partial_authorization: data.enable_partial_authorization,
+            customer_present: if data.customer_present {
+                common_enums::PresenceOfCustomerDuringPayment::Present
+            } else {
+                common_enums::PresenceOfCustomerDuringPayment::Absent
+            },
+            // Defaults to recurring since recovery retries are merchant initiated transactions on a saved card for a recurring invoice
+            mit_category: Some(
+                data.mit_category
+                    .unwrap_or(common_enums::MitCategory::Recurring),
+            ),
         }
     }
 }
@@ -69,6 +79,7 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
     fn foreign_from(data: &api_models::payments::RecoveryPaymentsCreate) -> Self {
         Self {
             amount: data.amount_details.order_amount().into(),
+            amount_captured: data.amount_captured,
             currency: data.amount_details.currency(),
             merchant_reference_id: data.merchant_reference_id.to_owned(),
             connector_transaction_id: Some(common_utils::types::ConnectorTransactionId::TxnId(
