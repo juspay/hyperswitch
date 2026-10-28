@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.14.0-hotfix5
+
+### Bug Fixes
+
+- **auth:** Use Authorization for v1 admin API keys ([#15006](https://github.com/juspay/hyperswitch/pull/15006)) ([#15020](https://github.com/juspay/hyperswitch/pull/15020)) ([`0597670`](https://github.com/juspay/hyperswitch/commit/05976709d57a06ab21e9b0d61699c5fc88f3f1c8))
+- **authentication:** Allow netcetera webhook to enter without signature verification ([#15019](https://github.com/juspay/hyperswitch/pull/15019)) ([`a5bf512`](https://github.com/juspay/hyperswitch/commit/a5bf5122a07c6a97a4bad12314377701dd350b83))
+
+**Full Changelog:** [`2026.10.14.0-hotfix4...2026.10.14.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.10.14.0-hotfix4...2026.10.14.0-hotfix5)
+
+- - -
+
 ## 2026.10.14.0-hotfix4
 
 ### Bug Fixes
