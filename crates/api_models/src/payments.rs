@@ -14834,11 +14834,6 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_captured: Option<MinorUnit>,
 
-    /// Whether the customer was present, and so able to authenticate, when the transaction was made. Defaults to `false`, which marks the transaction as merchant initiated.
-    #[serde(default)]
-    #[schema(default = false, example = false)]
-    pub customer_present: bool,
-
     /// Category of the merchant initiated transactions made to recover this invoice. Defaults to `recurring`.
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     pub mit_category: Option<api_enums::MitCategory>,

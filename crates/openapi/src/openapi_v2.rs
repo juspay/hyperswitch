@@ -1041,7 +1041,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::TokenSource,
         common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
     )),
-    modifiers(&SecurityAddon, &HiddenFieldsAddon)
+    modifiers(&SecurityAddon)
 )]
 // Bypass clippy lint for not being constructed
 #[allow(dead_code)]
@@ -1084,23 +1084,6 @@ impl utoipa::Modify for SecurityAddon {
                     SecurityScheme::Http(HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build())
                 )
             ]);
-        }
-    }
-}
-
-/// Fields that are accepted by the API but are intentionally left out of the documentation.
-struct HiddenFieldsAddon;
-
-impl utoipa::Modify for HiddenFieldsAddon {
-    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-        use utoipa::openapi::{RefOr, Schema};
-
-        if let Some(RefOr::T(Schema::Object(schema))) = openapi
-            .components
-            .as_mut()
-            .and_then(|components| components.schemas.get_mut("RecoveryPaymentsCreate"))
-        {
-            schema.properties.shift_remove("customer_present");
         }
     }
 }
