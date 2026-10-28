@@ -801,6 +801,7 @@ pub struct PaymentIntentUpdateInternal {
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
     pub enable_avs_check: Option<bool>,
+    pub sender_details: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]

@@ -459,11 +459,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse recipient details")?;
 
-    let intent_sender_details = payment_data
-        .payment_intent
-        .get_sender_details()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse sender details")?;
+    let intent_sender_details = payment_data.payment_intent.get_sender_details();
     let sender_details = helpers::get_sender_details_with_billing_fallback(
         intent_sender_details,
         payment_data.payment_address.get_payment_method_billing(),
@@ -1840,11 +1836,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse recipient details")?;
 
-    let intent_sender_details = payment_data
-        .payment_intent
-        .get_sender_details()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse sender details")?;
+    let intent_sender_details = payment_data.payment_intent.get_sender_details();
     let sender_details = helpers::get_sender_details_with_billing_fallback(
         intent_sender_details,
         payment_data.payment_address.get_payment_method_billing(),
@@ -3038,8 +3030,6 @@ where
             .map(api_models::payments::MaskedRecipientDetails::from);
         let masked_sender_details = payment_intent
             .get_sender_details()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse sender details")?
             .map(api_models::payments::MaskedSenderDetails::from);
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -4422,8 +4412,6 @@ where
             payment_attempt.get_setup_future_usage_with_fallback(&payment_intent);
         let masked_sender_details = payment_intent
             .get_sender_details()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse sender details")?
             .map(api_models::payments::MaskedSenderDetails::from);
         let payments_response = api::PaymentsResponse {
             // Populated only for server integrations, by the update-context enrichment.
@@ -4929,11 +4917,6 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             .map(api_models::payments::MaskedRecipientDetails::from);
         let masked_sender_details = pi
             .get_sender_details()
-            .inspect_err(|error| {
-                router_env::logger::error!(?error, "Failed to parse sender details")
-            })
-            .ok()
-            .flatten()
             .map(api_models::payments::MaskedSenderDetails::from);
         Self {
             // Populated only for server integrations, by the update-context enrichment.
@@ -5421,11 +5404,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?;
 
-        let intent_sender_details = payment_data
-            .payment_intent
-            .get_sender_details()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse sender details")?;
+        let intent_sender_details = payment_data.payment_intent.get_sender_details();
         let sender_details = helpers::get_sender_details_with_billing_fallback(
             intent_sender_details,
             payment_data.address.get_payment_method_billing(),
@@ -5729,11 +5708,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?;
 
-        let intent_sender_details = payment_data
-            .payment_intent
-            .get_sender_details()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse sender details")?;
+        let intent_sender_details = payment_data.payment_intent.get_sender_details();
         let sender_details = helpers::get_sender_details_with_billing_fallback(
             intent_sender_details,
             payment_data.address.get_payment_method_billing(),
@@ -7399,11 +7374,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?;
 
-        let intent_sender_details = payment_data
-            .payment_intent
-            .get_sender_details()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse sender details")?;
+        let intent_sender_details = payment_data.payment_intent.get_sender_details();
         let sender_details = helpers::get_sender_details_with_billing_fallback(
             intent_sender_details,
             payment_data.address.get_payment_method_billing(),
@@ -7631,11 +7602,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?;
 
-        let intent_sender_details = payment_data
-            .payment_intent
-            .get_sender_details()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse sender details")?;
+        let intent_sender_details = payment_data.payment_intent.get_sender_details();
         let sender_details = helpers::get_sender_details_with_billing_fallback(
             intent_sender_details,
             payment_data.address.get_payment_method_billing(),

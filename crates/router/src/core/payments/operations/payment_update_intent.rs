@@ -318,6 +318,12 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             sender_details: decrypted_payment_intent
                 .sender_details
                 .clone()
+                .map(|sender| {
+                    sender.deserialize_inner_value(|value| value.parse_value("SenderDetails"))
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to decode sender details")?
                 .or(payment_intent.sender_details.clone()),
             enable_avs_check: enable_avs_check.or(payment_intent.enable_avs_check),
             ..payment_intent
@@ -417,6 +423,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 external_surcharge_strategy: intent.external_surcharge_strategy,
                 external_surcharge_applicable: intent.external_surcharge_applicable,
                 enable_avs_check: intent.enable_avs_check,
+                sender_details: intent.sender_details,
             }));
 
         let new_payment_intent = db

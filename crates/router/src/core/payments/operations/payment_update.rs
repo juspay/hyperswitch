@@ -1293,7 +1293,10 @@ impl PaymentUpdate {
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt sender details")?,
+                .attach_printable("Unable to encrypt sender details")?
+                .deserialize_inner_value(|value| value.parse_value("SenderDetails"))
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to decode sender details")?,
             ),
             None => payment_data.payment_intent.sender_details.clone(),
         };

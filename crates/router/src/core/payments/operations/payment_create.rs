@@ -2029,7 +2029,14 @@ impl PaymentCreate {
             billing_descriptor: request.billing_descriptor.clone(),
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: encrypted_data.recipient_details,
-            sender_details: encrypted_data.sender_details,
+            sender_details: encrypted_data
+                .sender_details
+                .map(|sender| {
+                    sender.deserialize_inner_value(|value| value.parse_value("SenderDetails"))
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to decode sender details")?,
             tokenization: request.tokenization,
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details
