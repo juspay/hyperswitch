@@ -426,9 +426,28 @@ jobs:
           ORG_ID: "localorg"
         run: bash scripts/seed_superposition.sh
 
+      - name: Start CI metrics collector
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          CI_METRICS_DROP_CONDITION=$(bash scripts/check_metrics.sh --collector-filter)
+          METRICS_DIR=$(mktemp -d "${RUNNER_TEMP}/cypress-metrics.XXXXXX")
+          echo "CI_METRICS_FILE=${METRICS_DIR}/metrics.jsonl" >> "$GITHUB_ENV"
+          COLLECTOR_ID=$(docker run --detach \
+            --user "$(id -u):$(id -g)" \
+            --env "CI_METRICS_DROP_CONDITION=${CI_METRICS_DROP_CONDITION}" \
+            --publish 127.0.0.1:4317:4317 \
+            --volume "${METRICS_DIR}:/metrics:rw" \
+            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otelcol-contrib/config.yaml:ro" \
+            otel/opentelemetry-collector-contrib:0.123.0)
+          echo "CI_METRICS_COLLECTOR_ID=${COLLECTOR_ID}" >> "$GITHUB_ENV"
+
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
+          ROUTER__LOG__TELEMETRY__METRICS_ENABLED: "true"
+          ROUTER__LOG__TELEMETRY__IGNORE_ERRORS: "false"
+          ROUTER__LOG__TELEMETRY__OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4317"
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
@@ -457,6 +476,7 @@ jobs:
           done
 
       - name: Run Cypress tests
+        id: cypress
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
@@ -465,9 +485,32 @@ jobs:
           PLATFORM_CONNECTORS: "${{ matrix.batch.platform_connectors }}"
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
+          bash scripts/run_with_metrics.sh scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
-          kill "${{ env.PID }}"
+      - name: Check application metrics
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && steps.cypress.outcome != 'skipped' }}
+        run: bash scripts/check_metrics.sh
+
+      - name: Stop router and metrics collector
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          if [ -n "${PID:-}" ]; then
+            kill "$PID" 2>/dev/null || true
+          fi
+          if [ -n "${CI_METRICS_COLLECTOR_ID:-}" ]; then
+            docker logs "$CI_METRICS_COLLECTOR_ID" || true
+            docker rm --force "$CI_METRICS_COLLECTOR_ID"
+          fi
+
+      - name: Upload application metrics on failure
+        if: ${{ failure() && env.CI_METRICS_FILE != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: application-metrics-${{ github.job }}-${{ strategy.job-index || '0' }}
+          path: ${{ env.CI_METRICS_FILE }}
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
@@ -687,8 +730,27 @@ jobs:
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy gateway_status_map FROM '.github/data/gateway_status_map.csv' DELIMITER ',' CSV HEADER;"
 
+      - name: Start CI metrics collector
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          CI_METRICS_DROP_CONDITION=$(bash scripts/check_metrics.sh --collector-filter)
+          METRICS_DIR=$(mktemp -d "${RUNNER_TEMP}/cypress-metrics.XXXXXX")
+          echo "CI_METRICS_FILE=${METRICS_DIR}/metrics.jsonl" >> "$GITHUB_ENV"
+          COLLECTOR_ID=$(docker run --detach \
+            --user "$(id -u):$(id -g)" \
+            --env "CI_METRICS_DROP_CONDITION=${CI_METRICS_DROP_CONDITION}" \
+            --publish 127.0.0.1:4317:4317 \
+            --volume "${METRICS_DIR}:/metrics:rw" \
+            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otelcol-contrib/config.yaml:ro" \
+            otel/opentelemetry-collector-contrib:0.123.0)
+          echo "CI_METRICS_COLLECTOR_ID=${COLLECTOR_ID}" >> "$GITHUB_ENV"
+
       - name: Setup Local Server
         env:
+          ROUTER__LOG__TELEMETRY__METRICS_ENABLED: "true"
+          ROUTER__LOG__TELEMETRY__IGNORE_ERRORS: "false"
+          ROUTER__LOG__TELEMETRY__OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4317"
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
@@ -717,6 +779,7 @@ jobs:
           done
 
       - name: Run Cypress tests
+        id: cypress
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
@@ -724,9 +787,32 @@ jobs:
           PAYOUTS_CONNECTORS: "${{ matrix.batch.payouts_connectors }}"
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
+          bash scripts/run_with_metrics.sh scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
-          kill "${{ env.PID }}"
+      - name: Check application metrics
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && steps.cypress.outcome != 'skipped' }}
+        run: bash scripts/check_metrics.sh
+
+      - name: Stop router and metrics collector
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          if [ -n "${PID:-}" ]; then
+            kill "$PID" 2>/dev/null || true
+          fi
+          if [ -n "${CI_METRICS_COLLECTOR_ID:-}" ]; then
+            docker logs "$CI_METRICS_COLLECTOR_ID" || true
+            docker rm --force "$CI_METRICS_COLLECTOR_ID"
+          fi
+
+      - name: Upload application metrics on failure
+        if: ${{ failure() && env.CI_METRICS_FILE != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: application-metrics-${{ github.job }}-${{ strategy.job-index || '0' }}
+          path: ${{ env.CI_METRICS_FILE }}
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Upload server logs on failure
         if: failure()
@@ -1092,9 +1178,28 @@ jobs:
           timeout 5 mitmdump --listen-port 18888 >/tmp/mitm-certgen.log 2>&1 || true
           test -f "$HOME/.mitmproxy/mitmproxy-ca-cert.pem"
 
+      - name: Start CI metrics collector
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          CI_METRICS_DROP_CONDITION=$(bash scripts/check_metrics.sh --collector-filter)
+          METRICS_DIR=$(mktemp -d "${RUNNER_TEMP}/cypress-metrics.XXXXXX")
+          echo "CI_METRICS_FILE=${METRICS_DIR}/metrics.jsonl" >> "$GITHUB_ENV"
+          COLLECTOR_ID=$(docker run --detach \
+            --user "$(id -u):$(id -g)" \
+            --env "CI_METRICS_DROP_CONDITION=${CI_METRICS_DROP_CONDITION}" \
+            --publish 127.0.0.1:4317:4317 \
+            --volume "${METRICS_DIR}:/metrics:rw" \
+            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otelcol-contrib/config.yaml:ro" \
+            otel/opentelemetry-collector-contrib:0.123.0)
+          echo "CI_METRICS_COLLECTOR_ID=${COLLECTOR_ID}" >> "$GITHUB_ENV"
+
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
+          ROUTER__LOG__TELEMETRY__METRICS_ENABLED: "true"
+          ROUTER__LOG__TELEMETRY__IGNORE_ERRORS: "false"
+          ROUTER__LOG__TELEMETRY__OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4317"
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
@@ -1154,6 +1259,7 @@ jobs:
           echo "mitmproxy replay started (PID=${MITM_PID})"
 
       - name: Run Cypress tests
+        id: cypress
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
@@ -1168,10 +1274,34 @@ jobs:
           CYPRESS_CAPTURE_DIR: "${{ github.workspace }}/cypress-tests/mitm-proxy/captures"
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
+          bash scripts/run_with_metrics.sh scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
-          kill "${{ env.PID }}"
           kill "${{ env.MITM_PID }}" 2>/dev/null || true
+
+      - name: Check application metrics
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && steps.cypress.outcome != 'skipped' }}
+        run: bash scripts/check_metrics.sh
+
+      - name: Stop router and metrics collector
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          if [ -n "${PID:-}" ]; then
+            kill "$PID" 2>/dev/null || true
+          fi
+          if [ -n "${CI_METRICS_COLLECTOR_ID:-}" ]; then
+            docker logs "$CI_METRICS_COLLECTOR_ID" || true
+            docker rm --force "$CI_METRICS_COLLECTOR_ID"
+          fi
+
+      - name: Upload application metrics on failure
+        if: ${{ failure() && env.CI_METRICS_FILE != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: application-metrics-${{ github.job }}-${{ strategy.job-index || '0' }}
+          path: ${{ env.CI_METRICS_FILE }}
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Upload MITM replay logs on failure
         if: env.RUN_TESTS == 'true' && failure()
@@ -1405,8 +1535,27 @@ jobs:
           ORG_ID: "localorg"
         run: bash scripts/seed_superposition.sh
 
+      - name: Start CI metrics collector
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          CI_METRICS_DROP_CONDITION=$(bash scripts/check_metrics.sh --collector-filter)
+          METRICS_DIR=$(mktemp -d "${RUNNER_TEMP}/cypress-metrics.XXXXXX")
+          echo "CI_METRICS_FILE=${METRICS_DIR}/metrics.jsonl" >> "$GITHUB_ENV"
+          COLLECTOR_ID=$(docker run --detach \
+            --user "$(id -u):$(id -g)" \
+            --env "CI_METRICS_DROP_CONDITION=${CI_METRICS_DROP_CONDITION}" \
+            --publish 127.0.0.1:4317:4317 \
+            --volume "${METRICS_DIR}:/metrics:rw" \
+            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otelcol-contrib/config.yaml:ro" \
+            otel/opentelemetry-collector-contrib:0.123.0)
+          echo "CI_METRICS_COLLECTOR_ID=${COLLECTOR_ID}" >> "$GITHUB_ENV"
+
       - name: Setup Local Server
         env:
+          ROUTER__LOG__TELEMETRY__METRICS_ENABLED: "true"
+          ROUTER__LOG__TELEMETRY__IGNORE_ERRORS: "false"
+          ROUTER__LOG__TELEMETRY__OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4317"
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
@@ -1435,15 +1584,39 @@ jobs:
           done
 
       - name: Run Cypress tests
+        id: cypress
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
+          bash scripts/run_with_metrics.sh scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
-          kill "${{ env.PID }}"
+      - name: Check application metrics
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && steps.cypress.outcome != 'skipped' }}
+        run: bash scripts/check_metrics.sh
+
+      - name: Stop router and metrics collector
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          if [ -n "${PID:-}" ]; then
+            kill "$PID" 2>/dev/null || true
+          fi
+          if [ -n "${CI_METRICS_COLLECTOR_ID:-}" ]; then
+            docker logs "$CI_METRICS_COLLECTOR_ID" || true
+            docker rm --force "$CI_METRICS_COLLECTOR_ID"
+          fi
+
+      - name: Upload application metrics on failure
+        if: ${{ failure() && env.CI_METRICS_FILE != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: application-metrics-${{ github.job }}-${{ strategy.job-index || '0' }}
+          path: ${{ env.CI_METRICS_FILE }}
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
@@ -1621,9 +1794,28 @@ jobs:
           done
           echo "Mock server for ${connector} is ready"
 
+      - name: Start CI metrics collector
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          CI_METRICS_DROP_CONDITION=$(bash scripts/check_metrics.sh --collector-filter)
+          METRICS_DIR=$(mktemp -d "${RUNNER_TEMP}/cypress-metrics.XXXXXX")
+          echo "CI_METRICS_FILE=${METRICS_DIR}/metrics.jsonl" >> "$GITHUB_ENV"
+          COLLECTOR_ID=$(docker run --detach \
+            --user "$(id -u):$(id -g)" \
+            --env "CI_METRICS_DROP_CONDITION=${CI_METRICS_DROP_CONDITION}" \
+            --publish 127.0.0.1:4317:4317 \
+            --volume "${METRICS_DIR}:/metrics:rw" \
+            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otelcol-contrib/config.yaml:ro" \
+            otel/opentelemetry-collector-contrib:0.123.0)
+          echo "CI_METRICS_COLLECTOR_ID=${COLLECTOR_ID}" >> "$GITHUB_ENV"
+
       - name: Setup Local Server with Alpha Connector Configs
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
+          ROUTER__LOG__TELEMETRY__METRICS_ENABLED: "true"
+          ROUTER__LOG__TELEMETRY__IGNORE_ERRORS: "false"
+          ROUTER__LOG__TELEMETRY__OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4317"
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
@@ -1658,6 +1850,7 @@ jobs:
           done
 
       - name: Run Cypress tests for Alpha Connectors
+        id: cypress
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
@@ -1666,11 +1859,35 @@ jobs:
         shell: bash -leuo pipefail {0}
         run: |
           # Run tests for alpha connectors
-          scripts/execute_cypress.sh
+          bash scripts/run_with_metrics.sh scripts/execute_cypress.sh
 
           # Cleanup
-          kill "${{ env.PID }}"
           kill "${{ env.MOCK_PID }}"
+
+      - name: Check application metrics
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && steps.cypress.outcome != 'skipped' }}
+        run: bash scripts/check_metrics.sh
+
+      - name: Stop router and metrics collector
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          if [ -n "${PID:-}" ]; then
+            kill "$PID" 2>/dev/null || true
+          fi
+          if [ -n "${CI_METRICS_COLLECTOR_ID:-}" ]; then
+            docker logs "$CI_METRICS_COLLECTOR_ID" || true
+            docker rm --force "$CI_METRICS_COLLECTOR_ID"
+          fi
+
+      - name: Upload application metrics on failure
+        if: ${{ failure() && env.CI_METRICS_FILE != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: application-metrics-${{ github.job }}-${{ strategy.job-index || '0' }}
+          path: ${{ env.CI_METRICS_FILE }}
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Upload Cypress test results for Alpha Connectors
         if: env.RUN_TESTS == 'true' && failure()
@@ -1885,9 +2102,28 @@ jobs:
         shell: bash
         run: .github/scripts/sccache-save-s3.sh runner-v2 "${{ github.event.pull_request.number }}"
 
+      - name: Start CI metrics collector
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          CI_METRICS_DROP_CONDITION=$(bash scripts/check_metrics.sh --collector-filter)
+          METRICS_DIR=$(mktemp -d "${RUNNER_TEMP}/cypress-metrics.XXXXXX")
+          echo "CI_METRICS_FILE=${METRICS_DIR}/metrics.jsonl" >> "$GITHUB_ENV"
+          COLLECTOR_ID=$(docker run --detach \
+            --user "$(id -u):$(id -g)" \
+            --env "CI_METRICS_DROP_CONDITION=${CI_METRICS_DROP_CONDITION}" \
+            --publish 127.0.0.1:4317:4317 \
+            --volume "${METRICS_DIR}:/metrics:rw" \
+            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otelcol-contrib/config.yaml:ro" \
+            otel/opentelemetry-collector-contrib:0.123.0)
+          echo "CI_METRICS_COLLECTOR_ID=${COLLECTOR_ID}" >> "$GITHUB_ENV"
+
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
+          ROUTER__LOG__TELEMETRY__METRICS_ENABLED: "true"
+          ROUTER__LOG__TELEMETRY__IGNORE_ERRORS: "false"
+          ROUTER__LOG__TELEMETRY__OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4317"
           LLVM_PROFILE_FILE: "coverage.profraw"
           # Apply seeded Superposition config quickly in CI (default is 300s).
           ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
@@ -1912,6 +2148,7 @@ jobs:
           done
 
       - name: Run Cypress tests
+        id: cypress
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
@@ -1919,12 +2156,32 @@ jobs:
           PAYMENTS_CONNECTORS: ${{ env.PAYMENTS_CONNECTORS }}
         shell: bash -leuo pipefail {0}
         # We aren't specifying `command` and `jobs` arguments currently
-        run: scripts/execute_cypress.sh "" "" "cypress-tests-v2"
+        run: bash scripts/run_with_metrics.sh scripts/execute_cypress.sh "" "" "cypress-tests-v2"
 
-      - name: Stop running server
-        if: ${{ env.RUN_TESTS == 'true' && (success() || failure()) }}
+      - name: Check application metrics
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && steps.cypress.outcome != 'skipped' }}
+        run: bash scripts/check_metrics.sh --health-url http://localhost:8080/v2/health
+
+      - name: Stop router and metrics collector
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
         run: |
-          kill "${{ env.PID }}"
+          if [ -n "${PID:-}" ]; then
+            kill "$PID" 2>/dev/null || true
+          fi
+          if [ -n "${CI_METRICS_COLLECTOR_ID:-}" ]; then
+            docker logs "$CI_METRICS_COLLECTOR_ID" || true
+            docker rm --force "$CI_METRICS_COLLECTOR_ID"
+          fi
+
+      - name: Upload application metrics on failure
+        if: ${{ failure() && env.CI_METRICS_FILE != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: application-metrics-${{ github.job }}-${{ strategy.job-index || '0' }}
+          path: ${{ env.CI_METRICS_FILE }}
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
