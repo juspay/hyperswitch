@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.07.0-hotfix8
+
+### Bug Fixes
+
+- **auth:** Use Authorization for v1 admin API keys ([#15022](https://github.com/juspay/hyperswitch/pull/15022)) ([`b2ea846`](https://github.com/juspay/hyperswitch/commit/b2ea846bdf47e1f452672be77ca5096ad29fa2ad))
+
+**Full Changelog:** [`2026.10.07.0-hotfix7...2026.10.07.0-hotfix8`](https://github.com/juspay/hyperswitch/compare/2026.10.07.0-hotfix7...2026.10.07.0-hotfix8)
+
+- - -
+
 ## 2026.10.07.0-hotfix7
 
 ### Bug Fixes
