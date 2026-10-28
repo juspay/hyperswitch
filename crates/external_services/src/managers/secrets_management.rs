@@ -88,7 +88,9 @@ impl SecretsManagementConfig {
             #[cfg(feature = "hashicorp-vault")]
             Self::HashiCorpVault { hc_vault } => {
                 hashicorp_vault::core::HashiCorpVault::new(hc_vault)
+                    .await
                     .change_context(SecretsManagementError::ClientCreationFailed)
+                    .attach_printable("Failed to initialize HashiCorp Vault with a decrypted token")
                     .map(|inner| -> Box<dyn SecretManagementInterface> { Box::new(inner) })
             }
             #[cfg(feature = "oci_kms")]

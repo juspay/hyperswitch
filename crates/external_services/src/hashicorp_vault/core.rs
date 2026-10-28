@@ -1,11 +1,16 @@
 //! Interactions with the HashiCorp Vault
 
-use std::{collections::HashMap, future::Future, pin::Pin};
+use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 
 use common_utils::{ext_traits::ConfigExt, fp_utils::when};
 use error_stack::{Report, ResultExt};
+use hyperswitch_interfaces::{
+    encryption_interface::EncryptionManagementInterface, secrets_interface::SecretsManagementError,
+};
 use hyperswitch_masking::{PeekInterface, Secret};
 use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
+
+use crate::managers::encryption_management::EncryptionManagementConfig;
 
 static HC_CLIENT: tokio::sync::OnceCell<HashiCorpVault> = tokio::sync::OnceCell::const_new();
 
@@ -14,6 +19,7 @@ static HC_CLIENT: tokio::sync::OnceCell<HashiCorpVault> = tokio::sync::OnceCell:
 pub struct HashiCorpVault {
     /// The underlying client used for interacting with HashiCorp Vault.
     client: VaultClient,
+    kms: Arc<dyn EncryptionManagementInterface>,
 }
 
 /// Configuration for connecting to HashiCorp Vault.
@@ -23,7 +29,9 @@ pub struct HashiCorpVaultConfig {
     /// The URL of the HashiCorp Vault server.
     pub url: String,
     /// The authentication token used to access HashiCorp Vault.
-    pub token: Secret<String>,
+    pub encrypted_token: Secret<String>,
+    #[allow(missing_docs)]
+    pub token_kms: EncryptionManagementConfig,
 }
 
 impl HashiCorpVaultConfig {
@@ -33,10 +41,48 @@ impl HashiCorpVaultConfig {
             Err("HashiCorp vault url must not be empty")
         })?;
 
-        when(self.token.is_default_or_empty(), || {
-            Err("HashiCorp vault token must not be empty")
-        })
+        when(self.encrypted_token.is_default_or_empty(), || {
+            Err("HashiCorp vault encrypted_token must not be empty")
+        })?;
+        when(
+            matches!(self.token_kms, EncryptionManagementConfig::NoEncryption),
+            || Err("HashiCorp vault token_kms must select a KMS backend"),
+        )?;
+        self.token_kms.validate()
     }
+
+    async fn initialize_kms(
+        &self,
+    ) -> error_stack::Result<Arc<dyn EncryptionManagementInterface>, HashiCorpError> {
+        self.validate().map_err(|message| {
+            Report::new(HashiCorpError::ConfigurationBuildFailed).attach_printable(message)
+        })?;
+        self.token_kms
+            .get_encryption_management_client()
+            .await
+            .change_context(HashiCorpError::ClientCreationFailed)
+            .attach_printable("Failed to initialize KMS for the Vault token")
+    }
+}
+
+async fn decrypt_kms_credential(
+    kms: &dyn EncryptionManagementInterface,
+    ciphertext: &Secret<String>,
+) -> error_stack::Result<Secret<String>, SecretsManagementError> {
+    let plaintext = kms
+        .decrypt(ciphertext.peek().as_bytes())
+        .await
+        .change_context(SecretsManagementError::FetchSecretFailed)
+        .attach_printable("Failed to decrypt credential with the Vault bootstrap KMS")?;
+    let plaintext = String::from_utf8(plaintext).map_err(|_| {
+        Report::new(SecretsManagementError::FetchSecretFailed)
+            .attach_printable("Decrypted credential must be UTF-8")
+    })?;
+    if plaintext.is_empty() {
+        return Err(Report::new(SecretsManagementError::FetchSecretFailed)
+            .attach_printable("Decrypted credential must not be empty"));
+    }
+    Ok(plaintext.into())
 }
 
 /// Asynchronously retrieves a HashiCorp Vault client based on the provided configuration.
@@ -48,7 +94,7 @@ pub async fn get_hashicorp_client(
     config: &HashiCorpVaultConfig,
 ) -> error_stack::Result<&'static HashiCorpVault, HashiCorpError> {
     HC_CLIENT
-        .get_or_try_init(|| async { HashiCorpVault::new(config) })
+        .get_or_try_init(|| async { HashiCorpVault::new(config).await })
         .await
 }
 
@@ -103,11 +149,16 @@ impl HashiCorpVault {
     /// # Parameters
     ///
     /// - `config`: A reference to a `HashiCorpVaultConfig` containing the configuration details.
-    pub fn new(config: &HashiCorpVaultConfig) -> error_stack::Result<Self, HashiCorpError> {
+    pub async fn new(config: &HashiCorpVaultConfig) -> error_stack::Result<Self, HashiCorpError> {
+        let kms = config.initialize_kms().await?;
+        let token = decrypt_kms_credential(kms.as_ref(), &config.encrypted_token)
+            .await
+            .change_context(HashiCorpError::ClientCreationFailed)
+            .attach_printable("Failed to decrypt hc_vault.encrypted_token")?;
         VaultClient::new(
             VaultClientSettingsBuilder::default()
                 .address(&config.url)
-                .token(config.token.peek())
+                .token(token.peek())
                 .build()
                 .map_err(Into::<Report<_>>::into)
                 .change_context(HashiCorpError::ClientCreationFailed)
@@ -115,7 +166,14 @@ impl HashiCorpVault {
         )
         .map_err(Into::<Report<_>>::into)
         .change_context(HashiCorpError::ClientCreationFailed)
-        .map(|client| Self { client })
+        .map(|client| Self { client, kms })
+    }
+
+    pub(super) async fn decrypt_credential(
+        &self,
+        ciphertext: &Secret<String>,
+    ) -> error_stack::Result<Secret<String>, SecretsManagementError> {
+        decrypt_kms_credential(self.kms.as_ref(), ciphertext).await
     }
 
     /// Asynchronously fetches data from HashiCorp Vault using the specified engine.

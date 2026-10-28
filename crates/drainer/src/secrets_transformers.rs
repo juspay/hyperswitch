@@ -31,20 +31,24 @@ impl SecretsHandler for Database {
 pub async fn fetch_raw_secrets(
     conf: Settings<SecuredSecret>,
     secret_management_client: &dyn SecretManagementInterface,
-) -> Settings<RawSecret> {
+) -> CustomResult<Settings<RawSecret>, SecretsManagementError> {
+    let mut redis = conf.redis;
+    redis.primary_password = secret_management_client
+        .decrypt_optional_secret(redis.primary_password.take(), "redis.primary_password")
+        .await?;
     #[allow(clippy::expect_used)]
     let database = Database::convert_to_raw_secret(conf.master_database, secret_management_client)
         .await
         .expect("Failed to decrypt database password");
 
-    Settings {
+    Ok(Settings {
         server: conf.server,
         master_database: database,
-        redis: conf.redis,
+        redis,
         log: conf.log,
         drainer: conf.drainer,
         encryption_management: conf.encryption_management,
         secrets_management: conf.secrets_management,
         multitenancy: conf.multitenancy,
-    }
+    })
 }

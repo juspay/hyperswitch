@@ -16,6 +16,31 @@ pub struct MicroServicesConfig {
     pub authentication_service: Option<AuthenticationServiceConfig>,
 }
 
+impl MicroServicesConfig {
+    pub async fn decrypt_credentials(
+        mut self,
+        client: &dyn hyperswitch_interfaces::secrets_interface::SecretManagementInterface,
+    ) -> common_utils::errors::CustomResult<
+        Self,
+        hyperswitch_interfaces::secrets_interface::SecretsManagementError,
+    > {
+        if let Some(service) = self.authentication_service.as_mut() {
+            service.api_key = client
+                .decrypt_optional_secret(
+                    Some(std::mem::take(&mut service.api_key)),
+                    "micro_services.authentication_service.api_key",
+                )
+                .await?
+                .ok_or_else(|| {
+                    error_stack::Report::new(
+                hyperswitch_interfaces::secrets_interface::SecretsManagementError::FetchSecretFailed
+            ).attach_printable("Authentication service requires an API key")
+                })?;
+        }
+        Ok(self)
+    }
+}
+
 /// Configuration for the authentication microservice.
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]

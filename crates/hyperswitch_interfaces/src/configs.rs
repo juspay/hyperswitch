@@ -88,6 +88,101 @@ impl Default for GlobalTenant {
 pub struct InternalMerchantIdProfileIdAuthSettings {
     pub enabled: bool,
     pub internal_api_key: Secret<String>,
+    pub primary_internal_api_key: Option<Secret<String>>,
+    pub key_rotation_enabled: bool,
+    pub use_legacy_key_for_outbound: bool,
+    #[serde(skip)]
+    credentials_initialized: bool,
+}
+
+#[allow(missing_docs)]
+impl InternalMerchantIdProfileIdAuthSettings {
+    pub async fn decrypt_credentials(
+        mut self,
+        client: &dyn crate::secrets_interface::SecretManagementInterface,
+    ) -> CustomResult<Self, crate::secrets_interface::SecretsManagementError> {
+        use crate::secrets_interface::SecretsManagementError;
+
+        let decrypted = client
+            .decrypt_optional_secret(
+                self.primary_internal_api_key.take(),
+                "internal_merchant_id_profile_id_auth.primary_internal_api_key",
+            )
+            .await?;
+        if (self.enabled || self.key_rotation_enabled || !self.internal_api_key.peek().is_empty())
+            && decrypted.is_none()
+        {
+            return Err(
+                error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
+                    .attach_printable("Internal authentication requires primary_internal_api_key"),
+            );
+        }
+        if self.key_rotation_enabled && self.internal_api_key.peek().is_empty() {
+            return Err(
+                error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
+                    .attach_printable("Internal key rotation requires the legacy internal_api_key"),
+            );
+        }
+        if self.use_legacy_key_for_outbound && !self.key_rotation_enabled {
+            return Err(
+                error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
+                    .attach_printable(
+                        "Legacy outbound authentication requires key_rotation_enabled",
+                    ),
+            );
+        }
+        if !self.key_rotation_enabled {
+            self.internal_api_key = Secret::default();
+        }
+        self.primary_internal_api_key = decrypted;
+        self.credentials_initialized = true;
+        Ok(self)
+    }
+
+    pub fn accepts_api_key(&self, candidate: &str) -> bool {
+        use subtle::ConstantTimeEq;
+
+        if !self.credentials_initialized {
+            return false;
+        }
+        let Some(primary_key) = self.primary_internal_api_key.as_ref() else {
+            return false;
+        };
+        if primary_key.peek().is_empty() {
+            return false;
+        }
+        let matches = |key: &Secret<String>| {
+            !key.peek().is_empty() && bool::from(candidate.as_bytes().ct_eq(key.peek().as_bytes()))
+        };
+        matches(primary_key) || (self.key_rotation_enabled && matches(&self.internal_api_key))
+    }
+
+    pub fn outbound_api_key(
+        &self,
+    ) -> CustomResult<Secret<String>, crate::secrets_interface::SecretsManagementError> {
+        let primary_key = self
+            .primary_internal_api_key
+            .as_ref()
+            .filter(|key| self.credentials_initialized && !key.peek().is_empty())
+            .ok_or_else(|| {
+                error_stack::Report::new(
+                    crate::secrets_interface::SecretsManagementError::FetchSecretFailed,
+                )
+                .attach_printable("Internal service credentials have not been decrypted")
+            })?;
+        let key = if self.key_rotation_enabled && self.use_legacy_key_for_outbound {
+            &self.internal_api_key
+        } else {
+            primary_key
+        };
+        if key.peek().is_empty() {
+            return Err(error_stack::Report::new(
+                crate::secrets_interface::SecretsManagementError::FetchSecretFailed,
+            )
+            .attach_printable("Internal service authentication key must not be empty"));
+        }
+        Ok(key.clone())
+    }
 }
 
 #[allow(missing_docs)]

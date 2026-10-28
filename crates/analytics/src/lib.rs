@@ -1065,8 +1065,18 @@ impl SecretsHandler for AnalyticsConfig {
         value: SecretStateContainer<Self, SecuredSecret>,
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let analytics_config = value.get_inner();
-        let decrypted_password = match analytics_config {
+        let mut analytics_config = value.get_inner().clone();
+        match &mut analytics_config {
+            Self::Clickhouse { clickhouse, .. }
+            | Self::CombinedCkh { clickhouse, .. }
+            | Self::CombinedSqlx { clickhouse, .. } => {
+                clickhouse
+                    .decrypt_credentials(secret_management_client)
+                    .await?;
+            }
+            Self::Sqlx { .. } => {}
+        }
+        let decrypted_password = match &analytics_config {
             // Todo: Perform kms decryption of clickhouse password
             Self::Clickhouse { .. } => hyperswitch_masking::Secret::new(String::default()),
             Self::Sqlx { sqlx, .. }
@@ -1078,7 +1088,7 @@ impl SecretsHandler for AnalyticsConfig {
             }
         };
 
-        Ok(value.transition_state(|conf| match conf {
+        Ok(value.transition_state(|_| match analytics_config {
             Self::Sqlx {
                 sqlx,
                 forex_enabled,

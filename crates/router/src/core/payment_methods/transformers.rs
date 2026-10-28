@@ -1410,8 +1410,11 @@ pub async fn call_modular_payment_method_update(
         state
             .conf
             .internal_merchant_id_profile_id_auth
-            .internal_api_key
-            .clone()
+            .outbound_api_key()
+            .change_context(
+                ::payment_methods::errors::ModularPaymentMethodError::InternalServerError,
+            )
+            .attach_printable("Failed to resolve internal service authentication")?
             .expose()
             .to_string()
             .into_masked(),
@@ -2162,7 +2165,9 @@ pub async fn retrieve_pm_modular_service_call(
     let internal_api_key = &state
         .conf
         .internal_merchant_id_profile_id_auth
-        .internal_api_key;
+        .outbound_api_key()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to resolve internal service authentication")?;
     let mut parent_headers = Headers::new();
     parent_headers.insert((
         headers::X_PROFILE_ID.to_string(),
@@ -2432,7 +2437,9 @@ pub async fn list_customer_payment_methods_from_modular_service(
     let internal_api_key = &state
         .conf
         .internal_merchant_id_profile_id_auth
-        .internal_api_key;
+        .outbound_api_key()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to resolve internal service authentication")?;
     let mut parent_headers = Headers::new();
     parent_headers.insert((
         headers::X_PROFILE_ID.to_string(),
@@ -2493,7 +2500,9 @@ pub async fn create_pm_modular_service_call(
     let internal_api_key = &state
         .conf
         .internal_merchant_id_profile_id_auth
-        .internal_api_key;
+        .outbound_api_key()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to resolve internal service authentication")?;
     let mut parent_headers = Headers::new();
     parent_headers.insert((
         headers::X_PROFILE_ID.to_string(),

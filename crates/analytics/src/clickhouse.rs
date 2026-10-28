@@ -3,6 +3,7 @@ use std::sync::Arc;
 use actix_web::http::StatusCode;
 use common_utils::errors::ParsingError;
 use error_stack::{report, Report, ResultExt};
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
 use time::PrimitiveDateTime;
 
@@ -48,15 +49,34 @@ pub struct ClickhouseClient {
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct ClickhouseConfig {
     username: String,
-    password: Option<String>,
+    #[serde(default)]
+    primary_password: Option<Secret<String>>,
     host: String,
+}
+
+impl ClickhouseConfig {
+    pub(crate) async fn decrypt_credentials(
+        &mut self,
+        client: &dyn hyperswitch_interfaces::secrets_interface::SecretManagementInterface,
+    ) -> common_utils::errors::CustomResult<
+        (),
+        hyperswitch_interfaces::secrets_interface::SecretsManagementError,
+    > {
+        self.primary_password = client
+            .decrypt_optional_secret(
+                self.primary_password.take(),
+                "analytics.clickhouse.primary_password",
+            )
+            .await?;
+        Ok(())
+    }
 }
 
 impl Default for ClickhouseConfig {
     fn default() -> Self {
         Self {
             username: "default".to_string(),
-            password: None,
+            primary_password: None,
             host: "http://localhost:8123".to_string(),
         }
     }
@@ -74,7 +94,13 @@ impl ClickhouseClient {
         let response = client
             .post(&self.config.host)
             .query(&params)
-            .basic_auth(self.config.username.clone(), self.config.password.clone())
+            .basic_auth(
+                self.config.username.clone(),
+                self.config
+                    .primary_password
+                    .as_ref()
+                    .map(|password| password.peek()),
+            )
             .body(format!("{query}\nFORMAT JSON"))
             .send()
             .await

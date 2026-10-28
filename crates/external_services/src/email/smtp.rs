@@ -47,7 +47,8 @@ pub struct SmtpServerConfig {
     /// Username name of the SMTP server
     pub username: Option<Secret<String>>,
     /// Password of the SMTP server
-    pub password: Option<Secret<String>>,
+    #[serde(default)]
+    pub primary_password: Option<Secret<String>>,
     /// Connection type of the SMTP server
     #[serde(default)]
     pub connection: SmtpConnection,
@@ -66,27 +67,47 @@ pub struct Socks5Config {
     /// SOCKS5 username, if the proxy requires auth.
     pub username: Option<Secret<String>>,
     /// SOCKS5 password, if the proxy requires auth.
-    pub password: Option<Secret<String>>,
+    #[serde(default)]
+    pub primary_password: Option<Secret<String>>,
 }
 
 impl SmtpServerConfig {
+    #[allow(missing_docs)]
+    pub async fn decrypt_credentials(
+        mut self,
+        client: &dyn hyperswitch_interfaces::secrets_interface::SecretManagementInterface,
+    ) -> CustomResult<Self, hyperswitch_interfaces::secrets_interface::SecretsManagementError> {
+        self.primary_password = client
+            .decrypt_optional_secret(self.primary_password.take(), "email.smtp.primary_password")
+            .await?;
+        if let Some(socks5) = self.socks5.as_mut() {
+            socks5.primary_password = client
+                .decrypt_optional_secret(
+                    socks5.primary_password.take(),
+                    "email.smtp.socks5.primary_password",
+                )
+                .await?;
+        }
+        Ok(self)
+    }
+
     /// Validation for the SMTP server client specific configs
     pub fn validate(&self) -> Result<(), &'static str> {
         use common_utils::{ext_traits::ConfigExt, fp_utils::when};
         when(self.host.is_default_or_empty(), || {
             Err("email.smtp.host must not be empty")
         })?;
-        self.username.clone().zip(self.password.clone()).map_or(
-            Ok(()),
-            |(username, password)| {
+        self.username
+            .clone()
+            .zip(self.primary_password.clone())
+            .map_or(Ok(()), |(username, password)| {
                 when(username.peek().is_default_or_empty(), || {
                     Err("email.smtp.username must not be empty")
                 })?;
                 when(password.peek().is_default_or_empty(), || {
-                    Err("email.smtp.password must not be empty")
+                    Err("email.smtp.primary_password must not be empty")
                 })
-            },
-        )?;
+            })?;
         self.socks5.as_ref().map_or(Ok(()), Socks5Config::validate)
     }
 
@@ -96,7 +117,10 @@ impl SmtpServerConfig {
             port: self.port,
             timeout: self.timeout,
             username: self.username.as_ref().map(|value| value.peek().to_owned()),
-            password: self.password.as_ref().map(|value| value.peek().to_owned()),
+            password: self
+                .primary_password
+                .as_ref()
+                .map(|value| value.peek().to_owned()),
             connection: self.connection.clone(),
             socks5: self.socks5.as_ref().map(|socks5| shared::Socks5Config {
                 host: socks5.host.clone(),
@@ -106,7 +130,7 @@ impl SmtpServerConfig {
                     .as_ref()
                     .map(|value| value.peek().to_owned()),
                 password: socks5
-                    .password
+                    .primary_password
                     .as_ref()
                     .map(|value| value.peek().to_owned()),
             }),
@@ -123,13 +147,13 @@ impl Socks5Config {
         when(self.port == 0, || {
             Err("email.smtp.socks5.port must not be zero")
         })?;
-        match (self.username.as_ref(), self.password.as_ref()) {
+        match (self.username.as_ref(), self.primary_password.as_ref()) {
             (Some(username), Some(password)) => {
                 when(username.peek().is_default_or_empty(), || {
                     Err("email.smtp.socks5.username must not be empty")
                 })?;
                 when(password.peek().is_default_or_empty(), || {
-                    Err("email.smtp.socks5.password must not be empty")
+                    Err("email.smtp.socks5.primary_password must not be empty")
                 })
             }
             (None, None) => Ok(()),
