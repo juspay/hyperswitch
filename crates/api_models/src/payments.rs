@@ -2043,6 +2043,7 @@ pub struct PaymentSurchargeDetailsResponse {
     #[smithy(value_type = "Option<f64>")]
     pub surcharge_percentage: Option<f64>,
     /// Connector error details when the external calculation failed; null on success.
+    #[schema(value_type = Option<SurchargeErrorDetails>)]
     #[smithy(value_type = "Option<SurchargeErrorDetails>")]
     pub error_details: Option<payment_methods::SurchargeErrorDetails>,
 }

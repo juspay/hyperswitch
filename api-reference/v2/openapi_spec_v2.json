@@ -16011,17 +16011,13 @@
             "type": "boolean",
             "description": "Whether /v1/ch/sale has been successfully called"
           },
-          "error_code": {
-            "type": "string",
-            "description": "Connector code for a failed calculation."
-          },
-          "error_message": {
-            "type": "string",
-            "description": "Connector message for a failed calculation."
-          },
-          "error_reason": {
-            "type": "string",
-            "description": "Connector reason for a failed calculation."
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeErrorDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -25862,19 +25858,12 @@
             "format": "double",
             "nullable": true
           },
-          "error_code": {
-            "type": "string",
-            "example": "INVALID_NICN",
-            "nullable": true
-          },
-          "error_message": {
-            "type": "string",
-            "example": "Card BIN is invalid",
-            "nullable": true
-          },
-          "error_reason": {
-            "type": "string",
-            "description": "Connector reason for a failed calculation.",
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeErrorDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -35027,14 +35016,30 @@
             "description": "Surcharge percentage returned by the external surcharge connector, if provided.",
             "nullable": true
           },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeErrorDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SurchargeErrorDetails": {
+        "type": "object",
+        "description": "Connector error details shared by surcharge responses, cached quotes, and stored attempts.",
+        "properties": {
           "error_code": {
             "type": "string",
             "description": "Connector error code when the external calculation failed.",
+            "example": "INVALID_NICN",
             "nullable": true
           },
           "error_message": {
             "type": "string",
             "description": "Connector error message when the external calculation failed.",
+            "example": "Card BIN is invalid",
             "nullable": true
           },
           "error_reason": {
