@@ -438,8 +438,8 @@ jobs:
             --env "CI_METRICS_DROP_CONDITION=${CI_METRICS_DROP_CONDITION}" \
             --publish 127.0.0.1:4317:4317 \
             --volume "${METRICS_DIR}:/metrics:rw" \
-            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otelcol-contrib/config.yaml:ro" \
-            otel/opentelemetry-collector-contrib:0.123.0)
+            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otel-config.yaml:ro" \
+            public.ecr.aws/aws-observability/aws-otel-collector:v0.50.0)
           echo "CI_METRICS_COLLECTOR_ID=${COLLECTOR_ID}" >> "$GITHUB_ENV"
 
       - name: Setup Local Server
@@ -742,8 +742,8 @@ jobs:
             --env "CI_METRICS_DROP_CONDITION=${CI_METRICS_DROP_CONDITION}" \
             --publish 127.0.0.1:4317:4317 \
             --volume "${METRICS_DIR}:/metrics:rw" \
-            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otelcol-contrib/config.yaml:ro" \
-            otel/opentelemetry-collector-contrib:0.123.0)
+            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otel-config.yaml:ro" \
+            public.ecr.aws/aws-observability/aws-otel-collector:v0.50.0)
           echo "CI_METRICS_COLLECTOR_ID=${COLLECTOR_ID}" >> "$GITHUB_ENV"
 
       - name: Setup Local Server
@@ -1190,8 +1190,8 @@ jobs:
             --env "CI_METRICS_DROP_CONDITION=${CI_METRICS_DROP_CONDITION}" \
             --publish 127.0.0.1:4317:4317 \
             --volume "${METRICS_DIR}:/metrics:rw" \
-            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otelcol-contrib/config.yaml:ro" \
-            otel/opentelemetry-collector-contrib:0.123.0)
+            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otel-config.yaml:ro" \
+            public.ecr.aws/aws-observability/aws-otel-collector:v0.50.0)
           echo "CI_METRICS_COLLECTOR_ID=${COLLECTOR_ID}" >> "$GITHUB_ENV"
 
       - name: Setup Local Server
@@ -1547,8 +1547,8 @@ jobs:
             --env "CI_METRICS_DROP_CONDITION=${CI_METRICS_DROP_CONDITION}" \
             --publish 127.0.0.1:4317:4317 \
             --volume "${METRICS_DIR}:/metrics:rw" \
-            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otelcol-contrib/config.yaml:ro" \
-            otel/opentelemetry-collector-contrib:0.123.0)
+            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otel-config.yaml:ro" \
+            public.ecr.aws/aws-observability/aws-otel-collector:v0.50.0)
           echo "CI_METRICS_COLLECTOR_ID=${COLLECTOR_ID}" >> "$GITHUB_ENV"
 
       - name: Setup Local Server
@@ -1806,8 +1806,8 @@ jobs:
             --env "CI_METRICS_DROP_CONDITION=${CI_METRICS_DROP_CONDITION}" \
             --publish 127.0.0.1:4317:4317 \
             --volume "${METRICS_DIR}:/metrics:rw" \
-            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otelcol-contrib/config.yaml:ro" \
-            otel/opentelemetry-collector-contrib:0.123.0)
+            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otel-config.yaml:ro" \
+            public.ecr.aws/aws-observability/aws-otel-collector:v0.50.0)
           echo "CI_METRICS_COLLECTOR_ID=${COLLECTOR_ID}" >> "$GITHUB_ENV"
 
       - name: Setup Local Server with Alpha Connector Configs
@@ -2114,8 +2114,8 @@ jobs:
             --env "CI_METRICS_DROP_CONDITION=${CI_METRICS_DROP_CONDITION}" \
             --publish 127.0.0.1:4317:4317 \
             --volume "${METRICS_DIR}:/metrics:rw" \
-            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otelcol-contrib/config.yaml:ro" \
-            otel/opentelemetry-collector-contrib:0.123.0)
+            --volume "${{ github.workspace }}/config/otel-collector-ci.yaml:/etc/otel-config.yaml:ro" \
+            public.ecr.aws/aws-observability/aws-otel-collector:v0.50.0)
           echo "CI_METRICS_COLLECTOR_ID=${COLLECTOR_ID}" >> "$GITHUB_ENV"
 
       - name: Setup Local Server
