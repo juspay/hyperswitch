@@ -369,30 +369,44 @@ impl<F: Clone + Send + Sync>
         platform: &domain::Platform,
         _feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<operations::PaymentMethodFetchData> {
-        if request.payment_method_data.is_none() {
-            let payment_attempt = state
-                .store
-                .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
-                    &request.payment_id,
-                    &platform.get_processor().get_processor_merchant_id(),
-                    platform.get_processor().get_storage_scheme(),
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-            match payment_attempt.payment_method_id {
-                Some(payment_method_id) => {
-                    self.fetch_payment_method_from_modular_service(
-                        state,
-                        request,
-                        platform,
-                        &payment_attempt.profile_id,
-                        payment_method_id.as_str(),
+        if request.payment_method_data.is_none() && request.recurring_details.is_none() {
+            let payment_method_fetch_result = async {
+                let payment_attempt = state
+                    .store
+                    .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
+                        &request.payment_id,
+                        &platform.get_processor().get_processor_merchant_id(),
+                        platform.get_processor().get_storage_scheme(),
+                        platform.get_processor().get_key_store(),
                     )
                     .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                match payment_attempt.payment_method_id {
+                    Some(payment_method_id) => {
+                        self.fetch_payment_method_from_modular_service(
+                            state,
+                            request,
+                            platform,
+                            &payment_attempt.profile_id,
+                            payment_method_id.as_str(),
+                        )
+                        .await
+                    }
+                    None => Ok(operations::PaymentMethodFetchData::default()),
                 }
-                None => Ok(operations::PaymentMethodFetchData::default()),
+            }
+            .await;
+
+            match payment_method_fetch_result {
+                Ok(payment_method_fetch_data) => Ok(payment_method_fetch_data),
+                Err(error) => {
+                    logger::warn!(
+                        ?error,
+                        "Failed to fetch optional payment method data for incremental authorization; continuing without it."
+                    );
+                    Ok(operations::PaymentMethodFetchData::default())
+                }
             }
         } else {
             Ok(operations::PaymentMethodFetchData::default())
