@@ -17,6 +17,12 @@ const passthrough_data = {
   token_type: "open_banking_uk",
 };
 
+const passthrough_open_banking_data = {
+  psp_token: "0f03fd53-c3c9-5a84-a406-1082bfd65c7a",
+  psp_customer_id: "a29d2d16-15e2-4b66-8646-bc29e206210a",
+  token_type: "open_banking",
+};
+
 const error = {
   type: "invalid_request",
   message: "Payout Eligibility for Truelayer is not implemented",
@@ -151,6 +157,53 @@ export const connectorDetails = {
               code: "IR_16",
               message:
                 "alphanumeric, hyphen, or period and length between 1 and 18 characters",
+            },
+          },
+        },
+      },
+      PassthroughBankPayout: {
+        Request: {
+          amount: 10,
+          currency: "GBP",
+          payout_type: "bank",
+          payout_method_data: {
+            passthrough: passthrough_open_banking_data,
+          },
+          billing: billing,
+          billing_descriptor: {
+            reference: "heellow-world",
+          },
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "initiated",
+            payout_type: "bank",
+            billing_descriptor: {
+              reference: "heellow-world",
+              statement_descriptor: null,
+            },
+          },
+        },
+      },
+      PassthroughBankPayoutWithoutBillingDescriptor: {
+        Request: {
+          amount: 10,
+          currency: "GBP",
+          payout_type: "bank",
+          payout_method_data: {
+            passthrough: passthrough_open_banking_data,
+          },
+          billing: billing,
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              message:
+                "Missing required param: Missing required field: billing_descriptor.reference",
+              code: "IR_04",
             },
           },
         },
