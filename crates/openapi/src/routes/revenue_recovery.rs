@@ -116,7 +116,12 @@ pub async fn revenue_recovery_payments_create() {}
 #[cfg(feature = "v2")]
 /// Revenue Recovery - Cancel
 ///
-/// Cancel the revenue recovery workflow of an invoice that is still in recovery: its scheduled retries are stopped and no further recovery attempts are made. A `failed` payment moves to `cancelled`, and a partially captured payment moves to `cancelled_post_capture`. The request is refused with `400` when the payment is in any other state, when a retry is in progress, or when recovery already reached a terminal status. The invoice is looked up by its merchant reference id within the business profile given in the `X-Profile-Id` header.
+/// Cancel the revenue recovery workflow of an invoice that is still in recovery: its scheduled
+/// retries are stopped and no further recovery attempts are made. A `failed` payment moves to
+/// `cancelled`, and a partially captured payment moves to `cancelled_post_capture`. The request
+/// is refused with `400` when the payment is in any other state, when a retry is in progress,
+/// or when recovery already reached a terminal status. The invoice is looked up by its merchant
+/// reference id within the business profile given in the `X-Profile-Id` header.
 #[utoipa::path(
     post,
     path = "/v2/recovery/{merchant_reference_id}/cancel",
