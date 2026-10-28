@@ -46,6 +46,7 @@ use hyperswitch_domain_models::{
     },
     ApiModelToDieselModelConvertor,
 };
+use hyperswitch_interfaces::consts as interface_consts;
 pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,
     unified_connector_service::transformers::convert_connector_service_status_code,
@@ -10775,48 +10776,96 @@ impl ForeignFrom<common_enums::SurchargeStrategy> for payments_grpc::SurchargeSt
     }
 }
 
+fn build_ucs_connector_error_response(
+    error_info: &payments_grpc::ErrorInfo,
+    status_code: u16,
+    connector_transaction_id: Option<String>,
+) -> ErrorResponse {
+    let connector_details = error_info.connector_details.as_ref();
+
+    ErrorResponse {
+        code: connector_details
+            .and_then(|details| details.code.clone())
+            .unwrap_or_else(|| interface_consts::NO_ERROR_CODE.to_string()),
+        message: connector_details
+            .and_then(|details| details.message.clone())
+            .unwrap_or_else(|| interface_consts::NO_ERROR_MESSAGE.to_string()),
+        reason: connector_details.and_then(|details| details.reason.clone()),
+        status_code,
+        attempt_status: None,
+        connector_transaction_id,
+        connector_response_reference_id: None,
+        network_decline_code: error_info.issuer_details.as_ref().and_then(|details| {
+            details
+                .network_details
+                .as_ref()
+                .and_then(|network| network.decline_code.clone())
+        }),
+        network_advice_code: error_info.issuer_details.as_ref().and_then(|details| {
+            details
+                .network_details
+                .as_ref()
+                .and_then(|network| network.advice_code.clone())
+        }),
+        network_error_message: error_info.issuer_details.as_ref().and_then(|details| {
+            details
+                .network_details
+                .as_ref()
+                .and_then(|network| network.error_message.clone())
+        }),
+        connector_metadata: None,
+    }
+}
+
 impl transformers::ForeignTryFrom<payments_grpc::SurchargeServiceCalculateResponse>
-    for SurchargeCalculationResponseData
+    for Result<SurchargeCalculationResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
         grpc_response: payments_grpc::SurchargeServiceCalculateResponse,
     ) -> Result<Self, Self::Error> {
-        let surcharge_amount = grpc_response
-            .surcharge_amount
-            .map(|money| MinorUnit::new(money.minor_amount))
-            .unwrap_or_else(MinorUnit::zero);
+        let status_code = convert_connector_service_status_code(grpc_response.status_code)?;
 
-        let external_surcharge_transaction_id =
-            grpc_response.connector_surcharge_id.unwrap_or_default();
+        match grpc_response.error.as_ref() {
+            Some(error_info) => Ok(Err(build_ucs_connector_error_response(
+                error_info,
+                status_code,
+                grpc_response.connector_surcharge_id.clone().or_else(|| {
+                    error_info
+                        .connector_details
+                        .as_ref()
+                        .and_then(|details| details.connector_transaction_id.clone())
+                }),
+            ))),
+            None => {
+                let surcharge_amount = grpc_response
+                    .surcharge_amount
+                    .map(|money| MinorUnit::new(money.minor_amount))
+                    .unwrap_or_else(MinorUnit::zero);
 
-        let surcharge_fee_percent = grpc_response
-            .surcharge_percentage
-            .map(|percent| {
-                types::Percentage::<2>::from_string(percent.to_string())
-                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
-                    .attach_printable("Failed to parse surcharge percentage")
-            })
-            .transpose()?;
+                let external_surcharge_transaction_id = grpc_response
+                    .connector_surcharge_id
+                    .unwrap_or_else(|| common_types::consts::NO_SURCHARGE_ID_FOUND.to_string());
 
-        Ok(Self {
-            surcharge_amount,
-            connector_surcharge_id: external_surcharge_transaction_id,
-            surcharge_fee_percent,
-            error_code: grpc_response.error.as_ref().and_then(|error_info| {
-                error_info
-                    .connector_details
-                    .as_ref()
-                    .and_then(|cd| cd.code.clone())
-            }),
-            error_message: grpc_response.error.as_ref().and_then(|error_info| {
-                error_info
-                    .connector_details
-                    .as_ref()
-                    .and_then(|cd| cd.message.clone())
-            }),
-        })
+                let surcharge_fee_percent = grpc_response
+                    .surcharge_percentage
+                    .map(|percent| {
+                        types::Percentage::<2>::from_string(percent.to_string())
+                            .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                            .attach_printable("Failed to parse surcharge percentage")
+                    })
+                    .transpose()?;
+
+                Ok(Ok(SurchargeCalculationResponseData {
+                    surcharge_amount,
+                    connector_surcharge_id: external_surcharge_transaction_id,
+                    surcharge_fee_percent,
+                    error_code: None,
+                    error_message: None,
+                }))
+            }
+        }
     }
 }
 

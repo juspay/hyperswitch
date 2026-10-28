@@ -4802,8 +4802,12 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
     payment_id: &id_type::PaymentId,
     profile_id: &id_type::ProfileId,
     connector_name: String,
-) -> RouterResult<hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData>
-{
+) -> RouterResult<
+    Result<
+        hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData,
+        ErrorResponse,
+    >,
+> {
     let ucs_client = get_ucs_client(state)?;
 
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
@@ -4864,15 +4868,33 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
 
     let response = ucs_client
         .surcharge_calculate(surcharge_request, connector_auth_metadata, grpc_headers)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("UCS surcharge_calculate gRPC call failed")?;
+        .await;
+    match response {
+        Ok(response) => {
+            let surcharge_response = Result::<
+                hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData,
+                ErrorResponse,
+            >::foreign_try_from(response.into_inner())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse UCS surcharge calculate response")?;
 
-    hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData::foreign_try_from(
-        response.into_inner(),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to parse UCS surcharge calculate response")
+            Ok(surcharge_response)
+        }
+        Err(error) => {
+            let error_response = match error.current_context() {
+                UnifiedConnectorServiceError::ConnectorError(inner) => inner.as_ref().into(),
+                error => {
+                    let api_error: errors::ApiErrorResponse = error.switch();
+                    let status_code = api_error.status_code().as_u16();
+                    ErrorResponse {
+                        status_code,
+                        ..api_error.into()
+                    }
+                }
+            };
+            Ok(Err(error_response))
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
