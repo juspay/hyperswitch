@@ -11,7 +11,10 @@ use hyperswitch_domain_models::{
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
-use hyperswitch_interfaces::webhooks::{IncomingWebhookRequestDetails, WebhookResourceData};
+use hyperswitch_interfaces::{
+    api::ConnectorCommon,
+    webhooks::{IncomingWebhookRequestDetails, WebhookResourceData},
+};
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
