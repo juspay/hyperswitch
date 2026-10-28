@@ -3912,6 +3912,7 @@ impl GetPaymentMethodType for WalletData {
             Self::Skrill(_) => api_enums::PaymentMethodType::Skrill,
             Self::Neteller(_) => api_enums::PaymentMethodType::Neteller,
             Self::Paysera(_) => api_enums::PaymentMethodType::Paysera,
+            Self::Esewa(_) => api_enums::PaymentMethodType::Esewa,
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
@@ -5421,6 +5422,10 @@ pub enum WalletData {
     #[schema(title = "Paysera")]
     #[smithy(value_type = "PayseraData")]
     Paysera(PayseraData),
+    /// The wallet data for eSewa
+    #[schema(title = "Esewa")]
+    #[smithy(value_type = "EsewaData")]
+    Esewa(EsewaData),
     /// The wallet data for Paze
     #[schema(title = "Paze")]
     #[smithy(value_type = "PazeWalletData")]
@@ -5523,6 +5528,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::Skrill(_)
             | Self::Neteller(_)
             | Self::Paysera(_)
+            | Self::Esewa(_)
             | Self::ApplePay(_)
             | Self::ApplePayRedirect(_)
             | Self::ApplePayThirdPartySdk(_)
@@ -5782,6 +5788,12 @@ pub struct NetellerData {}
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PayseraData {}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct EsewaData {}
 
 #[derive(
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,

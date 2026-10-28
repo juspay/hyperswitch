@@ -45,6 +45,7 @@ mod dwolla;
 mod ebanx;
 mod elavon;
 mod envoy;
+mod esewa;
 mod facilitapay;
 mod finix;
 mod fiserv;

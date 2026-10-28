@@ -2572,6 +2572,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             | WalletData::AliPayQr(_)
             | WalletData::AmazonPayRedirect(_)
             | WalletData::Paysera(_)
+            | WalletData::Esewa(_)
             | WalletData::Skrill(_)
             | WalletData::Neteller(_)
             | WalletData::ApplePayRedirect(_)

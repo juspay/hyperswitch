@@ -372,6 +372,7 @@ impl ConnectorValidation for Adyen {
                 PaymentMethodType::AmazonPay
                 | PaymentMethodType::Breadpay
                 | PaymentMethodType::Paysera
+                | PaymentMethodType::Esewa
                 | PaymentMethodType::Skrill
                 | PaymentMethodType::Neteller
                 | PaymentMethodType::CardRedirect

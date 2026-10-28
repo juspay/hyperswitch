@@ -414,3 +414,7 @@ key2 = "key2"
 
 [globalpayments_heartland]
 api_key = "Secret API Key"
+
+[esewa]
+api_key = "Secret Key"
+key1 = "Product Code"
