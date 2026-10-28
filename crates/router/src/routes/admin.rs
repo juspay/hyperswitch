@@ -426,7 +426,7 @@ pub async fn merchant_account_list(
                 organization_id: None,
             },
             &auth::JWTAuthMerchantFromHeader {
-                required_permission: Permission::MerchantAccountRead,
+                required_permission: Permission::OrganizationAccountRead,
                 allow_connected: true,
                 allow_platform: true,
             },
