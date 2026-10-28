@@ -386,7 +386,7 @@ fn dashboard_body<F>(_: &F, request: DashboardProxyRequest) -> Option<RequestCon
     Some(RequestContent::Json(Box::new(request.body)))
 }
 
-impl TryFrom<&DashboardProxyRequest> for DashboardProxyRequest {
+impl TryFrom<&Self> for DashboardProxyRequest {
     type Error = MicroserviceClientError;
     fn try_from(value: &Self) -> Result<Self, Self::Error> {
         Ok(value.clone())

@@ -66,7 +66,7 @@ fn dashboard_flow(flow: OfferEngineDashboardFlow) -> DashboardFlow {
     }
 }
 
-/// The route carries a single `Permission::ProfileOffersRead` check, so the flows that change
+/// The route carries a single `Permission::MerchantOffersRead` check, so the flows that change
 /// an offer are gated here instead.
 fn requires_write_permission(flow: OfferEngineDashboardFlow) -> bool {
     match flow {
@@ -99,7 +99,7 @@ fn takes_offer_id(flow: OfferEngineDashboardFlow) -> bool {
     }
 }
 
-/// Reads need only the `ProfileOffersRead` the route already carries; changing an offer needs
+/// Reads need only the `MerchantOffersRead` the route already carries; changing an offer needs
 /// the write permission as well.
 async fn authorize_flow(
     state: &SessionState,
@@ -134,7 +134,7 @@ async fn check_offers_write_permission(
     .attach_printable("Failed to fetch role info for the Offer Engine dashboard proxy")?;
 
     fp_utils::when(
-        !role_info.check_permission_exists(Permission::ProfileOffersWrite),
+        !role_info.check_permission_exists(Permission::MerchantOffersWrite),
         || {
             Err(error_stack::report!(
                 errors::ApiErrorResponse::AccessForbidden {

@@ -72,7 +72,7 @@ pub async fn offer_engine_dashboard_proxy(
             offer_engine::dashboard::proxy_dashboard_request(state, user, payload)
         },
         &auth::JWTAuth {
-            permission: Permission::ProfileOffersRead,
+            permission: Permission::MerchantOffersRead,
             allow_connected: true,
             allow_platform: false,
         },
