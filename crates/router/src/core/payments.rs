@@ -58,6 +58,8 @@ use euclid::backend::inputs as dsl_inputs;
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::payments::SurchargeMode;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
     PaymentAttemptListData, PaymentCancelData, PaymentCaptureData, PaymentConfirmData,
@@ -2498,42 +2500,55 @@ where
     todo!()
 }
 
-// Load external results until the attempt has a usable quote. CIT must also load
-// cached eligibility errors, which leave external_surcharge_applicable false.
 #[cfg(feature = "v1")]
-fn is_external_surcharge_pending<F, D>(business_profile: &domain::Profile, payment_data: &D) -> bool
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F>,
-{
-    let payment_intent = payment_data.get_payment_intent();
-    match payment_intent.get_surcharge_mode(business_profile) {
-        Some(domain_payments::SurchargeMode::External) => {
-            payment_intent.off_session != Some(true)
-                || payment_data
+#[derive(Clone, Copy, Debug)]
+enum ExternalSurchargeAction {
+    Skip,
+    LoadEligibilityResult,
+    CalculateInline,
+}
+
+#[cfg(feature = "v1")]
+impl ExternalSurchargeAction {
+    fn from_payment_data<F, D>(business_profile: &domain::Profile, payment_data: &D) -> Self
+    where
+        F: Send + Clone,
+        D: OperationSessionGetters<F>,
+    {
+        let payment_intent = payment_data.get_payment_intent();
+        let is_mit = payment_intent.off_session == Some(true);
+        match (payment_intent.get_surcharge_mode(business_profile), is_mit) {
+            // CIT always refreshes from eligibility, including when the attempt has details.
+            (Some(SurchargeMode::External), false) => Self::LoadEligibilityResult,
+            (Some(SurchargeMode::External), true) => {
+                if payment_data
                     .get_payment_attempt()
                     .external_surcharge_details
                     .as_ref()
                     .and_then(common_types::payments::ExternalSurchargeDetails::usable_connector_id)
-                    .is_none()
-        }
-        // A failed eligibility calculation disables the fee, but its cached error
-        // still needs to be loaded and persisted by confirmation.
-        None => {
-            payment_intent.off_session != Some(true)
-                && business_profile
+                    .is_some()
+                {
+                    Self::Skip
+                } else {
+                    Self::CalculateInline
+                }
+            }
+            // Failed eligibility disables the fee but its cached error must still be loaded.
+            (None, false)
+                if business_profile
                     .surcharge_connector_details
                     .as_ref()
                     .and_then(|details| details.surcharge_connector_id.as_ref())
-                    .is_some()
+                    .is_some() =>
+            {
+                Self::LoadEligibilityResult
+            }
+            _ => Self::Skip,
         }
-        Some(domain_payments::SurchargeMode::Internal) => false,
     }
 }
 
-// Populates payment_attempt.external_surcharge_details before choose_connector so the routing
-// DSL can condition on `surcharge_amount`. CIT reads from Redis (cached by /eligibility);
-// MIT computes inline via UCS.
+/// Prepare the amount and calculation details before the routing DSL reads the attempt.
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn populate_external_surcharge_details<F, D>(
@@ -2546,57 +2561,72 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
 {
-    if is_external_surcharge_pending(business_profile, payment_data) {
-        let is_mit = payment_data.get_payment_intent().off_session == Some(true);
-
-        let external_surcharge_details = if is_mit {
-            compute_mit_external_surcharge(state, processor, business_profile, payment_data).await
-        } else {
-            resolve_external_surcharge(state, payment_data)
-                .await
-                .map(|cached| {
-                    let percentage = common_types::payments::ExternalSurchargeDetails::decimal_percentage_from_f64(
-                        cached.surcharge_percentage,
-                    );
-                    common_types::payments::ExternalSurchargeDetails {
-                        external_surcharge_id: cached.external_surcharge_id,
-                        external_surcharge_amount: cached.surcharge_amount,
-                        surcharge_percentage: percentage,
-                        sale_notified: false,
-                        error_details: cached.error_details,
-                    }
-                })
-        };
-
-        if let Some(external_surcharge_details) = external_surcharge_details {
-            let mut attempt = payment_data.get_payment_attempt().clone();
-            attempt.net_amount.set_external_surcharge_amount(
-                external_surcharge_details
-                    .usable_connector_id()
-                    .map(|_| external_surcharge_details.external_surcharge_amount),
-            );
-            attempt.external_surcharge_details = Some(external_surcharge_details);
-            payment_data.set_payment_attempt(attempt);
-        } else {
-            // A saved eligibility result must not apply a fee when its cached quote
-            // has expired or does not match the selected payment method.
-            let mut attempt = payment_data.get_payment_attempt().clone();
-            attempt.net_amount.set_external_surcharge_amount(None);
-            attempt.external_surcharge_details = attempt
-                .external_surcharge_details
-                .filter(|details| details.has_error());
-            payment_data.set_payment_attempt(attempt);
-            logger::debug!(
-                is_mit,
-                "external surcharge not populated at pre-routing preload; routing DSL will see 0"
-            );
+    let action = ExternalSurchargeAction::from_payment_data(business_profile, payment_data);
+    let details = match action {
+        ExternalSurchargeAction::Skip => return Ok(()),
+        ExternalSurchargeAction::LoadEligibilityResult => {
+            load_eligibility_surcharge(state, payment_data).await
         }
+        ExternalSurchargeAction::CalculateInline => {
+            compute_mit_external_surcharge(state, processor, business_profile, payment_data).await
+        }
+    };
+
+    if details.is_none() {
+        logger::debug!(
+            ?action,
+            "external surcharge not populated at pre-routing preload; routing DSL will see 0"
+        );
     }
+    apply_external_surcharge_result(payment_data, details);
     Ok(())
 }
 
-// Populates internal surcharge on the payment attempt. External surcharge (both CIT and MIT)
-// is owned by preload_external_surcharge_for_routing, which runs before choose_connector.
+#[cfg(feature = "v1")]
+fn apply_external_surcharge_result<F, D>(
+    payment_data: &mut D,
+    details: Option<common_types::payments::ExternalSurchargeDetails>,
+) where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F>,
+{
+    let mut attempt = payment_data.get_payment_attempt().clone();
+    attempt
+        .net_amount
+        .set_external_surcharge_amount(details.as_ref().and_then(|details| {
+            details
+                .usable_connector_id()
+                .map(|_| details.external_surcharge_amount)
+        }));
+    attempt.external_surcharge_details = match details {
+        Some(details) => Some(details),
+        // Expired or mismatched quotes must not leave a stale fee on the attempt.
+        // Preserve any existing error so the response can still explain the failure.
+        None => attempt
+            .external_surcharge_details
+            .filter(common_types::payments::ExternalSurchargeDetails::has_error),
+    };
+    payment_data.set_payment_attempt(attempt);
+}
+
+#[cfg(feature = "v1")]
+fn cached_surcharge_to_attempt_details(
+    cached: hyperswitch_domain_models::router_request_types::ExternalSurchargeDetails,
+) -> common_types::payments::ExternalSurchargeDetails {
+    common_types::payments::ExternalSurchargeDetails {
+        external_surcharge_id: cached.external_surcharge_id,
+        external_surcharge_amount: cached.surcharge_amount,
+        surcharge_percentage:
+            common_types::payments::ExternalSurchargeDetails::decimal_percentage_from_f64(
+                cached.surcharge_percentage,
+            ),
+        sale_notified: false,
+        error_details: cached.error_details,
+    }
+}
+
+// Populates internal surcharge on the payment attempt. External surcharge is prepared
+// by populate_external_surcharge_details before choose_connector.
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn populate_surcharge_details<F, D>(
@@ -2611,7 +2641,7 @@ where
     if payment_data
         .get_payment_intent()
         .get_surcharge_mode(business_profile)
-        != Some(domain_payments::SurchargeMode::Internal)
+        != Some(SurchargeMode::Internal)
     {
         return Ok(());
     }
@@ -2682,10 +2712,10 @@ where
 
 // CIT external surcharge: read whatever /eligibility cached in Redis, if any.
 #[cfg(feature = "v1")]
-async fn resolve_external_surcharge<F, D>(
+async fn load_eligibility_surcharge<F, D>(
     state: &SessionState,
     payment_data: &D,
-) -> Option<hyperswitch_domain_models::router_request_types::ExternalSurchargeDetails>
+) -> Option<common_types::payments::ExternalSurchargeDetails>
 where
     F: Send + Clone,
     D: OperationSessionGetters<F>,
@@ -2703,6 +2733,7 @@ where
                 .unwrap_or(false)
                 || external.error_details.is_some())
         })
+        .map(cached_surcharge_to_attempt_details)
 }
 
 #[cfg(feature = "v1")]
@@ -6825,7 +6856,7 @@ where
         )
         .await?;
 
-    // Internal surcharge only; external surcharge is populated by preload_external_surcharge_for_routing.
+    // Internal surcharge only; external surcharge is prepared before connector selection.
     populate_surcharge_details(state, business_profile, payment_data).await?;
 
     let (pd, tokenization_action) = Box::pin(get_connector_tokenization_action_when_confirm_true(
