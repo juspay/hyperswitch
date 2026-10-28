@@ -99,7 +99,10 @@ impl AppClient<Admin> {
     {
         let request = TestRequest::post()
             .uri("/accounts")
-            .append_header(("api-key".to_owned(), self.state.authkey.clone()))
+            .append_header((
+                "Authorization".to_owned(),
+                format!("admin-api-key={}", self.state.authkey),
+            ))
             .set_json(mk_merchant_account(merchant_id.into()))
             .to_request();
 
@@ -122,7 +125,10 @@ impl AppClient<Admin> {
                 "/account/{}/connectors",
                 merchant_id.get_string_repr()
             ))
-            .append_header(("api-key".to_owned(), self.state.authkey.clone()))
+            .append_header((
+                "Authorization".to_owned(),
+                format!("admin-api-key={}", self.state.authkey),
+            ))
             .set_json(mk_connector(connector_name, api_key))
             .to_request();
 
