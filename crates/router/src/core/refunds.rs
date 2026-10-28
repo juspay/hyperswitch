@@ -32,7 +32,6 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
-        payment_methods::transformers as pm_transformers,
         payments::{
             self, access_token, gateway::context as gateway_context, helpers,
             helpers::MerchantConnectorAccountType, PaymentIntentStateMetadataExt,
@@ -388,78 +387,13 @@ async fn get_refund_payment_method_data(
 ) -> Option<domain::PaymentMethodData> {
     let request_payment_method_data = payment_method_data.map(domain::PaymentMethodData::from);
 
-    let feature_config = match (
-        request_payment_method_data.as_ref(),
-        payment_attempt.payment_method_id.as_ref(),
-    ) {
-        (None, Some(_)) => {
-            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
-                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
-
-            Some(core_utils::get_feature_config(state, platform, &dimensions).await)
-        }
-        _ => None,
-    };
-
-    let allow_payment_method_data_collection = match (
-        request_payment_method_data.as_ref(),
-        payment_attempt.payment_method_id.as_ref(),
-        feature_config.as_ref(),
-    ) {
-        (None, Some(_), Some(feature_config)) => {
-            payments::operations::is_payment_method_data_collection_allowed(
-                state,
-                platform,
-                feature_config,
-                &payment_attempt.payment_id,
-                payment_attempt.connector.as_deref(),
-            )
-            .await
-        }
-        _ => false,
-    };
-
-    match (
+    payments::operations::get_or_fetch_payment_method_data_for_operation(
+        state,
+        platform,
+        payment_attempt,
         request_payment_method_data,
-        allow_payment_method_data_collection,
-        payment_attempt.payment_method_id.as_ref(),
-    ) {
-        (Some(payment_method_data), _, _) => Some(payment_method_data),
-        (None, true, Some(payment_method_id)) => {
-            match pm_transformers::fetch_payment_method_from_modular_service(
-                state,
-                platform,
-                &payment_attempt.profile_id,
-                payment_method_id.as_str(),
-                None,
-                true,
-                false,
-            )
-            .await
-            {
-                Ok(payment_method_with_raw_data) => {
-                    let payment_method_data = payment_method_with_raw_data.raw_payment_method_data;
-
-                    if payment_method_data.is_none() {
-                        logger::warn!(
-                            "Payment method fetch returned no raw data; continuing refund without payment method data."
-                        );
-                    }
-
-                    payment_method_data
-                }
-                Err(error) => {
-                    logger::warn!(
-                        ?error,
-                        "Failed to fetch payment method; continuing refund without payment method data."
-                    );
-                    None
-                }
-            }
-        }
-        (None, _, _) => None,
-    }
+    )
+    .await
 }
 
 #[instrument(skip_all)]
@@ -1753,6 +1687,15 @@ pub async fn validate_and_create_refund(
 
     // Only for initial dev and testing
     let refund_type = req.refund_type.unwrap_or_default();
+
+    utils::when(
+        refund_type == api_models::refunds::RefundType::Scheduled && payment_method_data.is_some(),
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "payment_method_data is not supported for scheduled refunds".to_string(),
+            }))
+        },
+    )?;
 
     // If Refund Id not passed in request Generate one.
 

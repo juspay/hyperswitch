@@ -116,6 +116,8 @@ use super::{
     helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters, PaymentData,
 };
 #[cfg(feature = "v1")]
+use crate::core::payment_methods::transformers as pm_transformers;
+#[cfg(feature = "v1")]
 pub use crate::core::payment_methods::transformers::PaymentMethodFetchData;
 #[cfg(feature = "v2")]
 use crate::core::payments;
@@ -285,6 +287,75 @@ pub async fn is_payment_method_data_collection_allowed(
                 .await
         }
         None => false,
+    }
+}
+
+#[cfg(feature = "v1")]
+pub async fn get_or_fetch_payment_method_data_for_operation(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_method_data: Option<domain::PaymentMethodData>,
+) -> Option<domain::PaymentMethodData> {
+    match (
+        payment_method_data,
+        payment_attempt.payment_method_id.as_ref(),
+    ) {
+        (Some(payment_method_data), _) => Some(payment_method_data),
+        (None, Some(payment_method_id)) => {
+            let dimensions = dimension_state::Dimensions::new()
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+            let feature_config = core_utils::get_feature_config(state, platform, &dimensions).await;
+
+            let collection_allowed = is_payment_method_data_collection_allowed(
+                state,
+                platform,
+                &feature_config,
+                &payment_attempt.payment_id,
+                payment_attempt.connector.as_deref(),
+            )
+            .await;
+
+            if collection_allowed {
+                match pm_transformers::fetch_payment_method_from_modular_service(
+                    state,
+                    platform,
+                    &payment_attempt.profile_id,
+                    payment_method_id.as_str(),
+                    None,
+                    true,
+                    false,
+                )
+                .await
+                {
+                    Ok(payment_method_with_raw_data) => {
+                        let payment_method_data =
+                            payment_method_with_raw_data.raw_payment_method_data;
+
+                        if payment_method_data.is_none() {
+                            logger::warn!(
+                                payment_id = ?payment_attempt.payment_id,
+                                "Payment method data is unavailable after fetching it from PM Modular Service; continuing without it."
+                            );
+                        }
+
+                        payment_method_data
+                    }
+                    Err(error) => {
+                        logger::warn!(
+                            ?error,
+                            payment_id = ?payment_attempt.payment_id,
+                            "Failed to fetch optional payment method data from PM Modular Service; continuing without it."
+                        );
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        }
+        (None, None) => None,
     }
 }
 
