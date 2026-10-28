@@ -866,10 +866,11 @@ pub struct PrimaryBusinessDetails {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WebhookDetailsRequest {
-    /// Recovery webhook opt-in. Missing on creation or an empty list disables notifications.
-    /// Omit on update to preserve the selection; send an empty list to disable it.
-    #[schema(example = json!(["success", "partial_success", "failure"]))]
-    pub revenue_recovery_statuses_enabled: Option<Vec<api_enums::RecoveryWebhookStatus>>,
+    /// List of payment statuses that trigger a webhook for revenue recovery attempts.
+    /// Missing or empty disables them. On v1 updates, omitting it keeps the stored list;
+    /// v2 updates replace the stored webhook details.
+    #[schema(value_type = Option<Vec<IntentStatus>>, example = json!(["succeeded", "partially_captured", "failed"]))]
+    pub revenue_recovery_statuses_enabled: Option<Vec<api_enums::IntentStatus>>,
     ///The version for Webhook
     #[schema(max_length = 255, max_length = 255, example = "1.0.2")]
     pub webhook_version: Option<String>,
@@ -928,9 +929,10 @@ pub struct WebhookDetailsRequest {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WebhookDetailsResponse {
-    /// Recovery webhook opt-in. Missing or empty means disabled.
-    #[schema(example = json!(["success", "partial_success", "failure"]))]
-    pub revenue_recovery_statuses_enabled: Option<Vec<api_enums::RecoveryWebhookStatus>>,
+    /// List of payment statuses that trigger a webhook for revenue recovery attempts.
+    /// Missing or empty means disabled.
+    #[schema(value_type = Option<Vec<IntentStatus>>, example = json!(["succeeded", "partially_captured", "failed"]))]
+    pub revenue_recovery_statuses_enabled: Option<Vec<api_enums::IntentStatus>>,
     ///The version for Webhook
     #[schema(max_length = 255, max_length = 255, example = "1.0.2")]
     pub webhook_version: Option<String>,
@@ -4058,21 +4060,21 @@ mod tests {
 
     #[test]
     fn recovery_webhook_default_and_update_semantics() {
-        use common_enums::RecoveryWebhookStatus;
+        use common_enums::IntentStatus;
         let empty: WebhookDetailsRequest =
             serde_json::from_value(serde_json::json!({})).expect("omitted setting");
         assert!(empty.revenue_recovery_statuses_enabled.is_none());
         let selected: WebhookDetailsRequest = serde_json::from_value(serde_json::json!({
-            "revenue_recovery_statuses_enabled": ["success", "partial_success", "failure"]
+            "revenue_recovery_statuses_enabled": ["succeeded", "partially_captured", "failed"]
         }))
         .expect("valid outcomes");
         let preserved = WebhookDetailsResponse::from(selected).merge(empty.into());
         assert_eq!(
             preserved.revenue_recovery_statuses_enabled,
             Some(vec![
-                RecoveryWebhookStatus::Success,
-                RecoveryWebhookStatus::PartialSuccess,
-                RecoveryWebhookStatus::Failure
+                IntentStatus::Succeeded,
+                IntentStatus::PartiallyCaptured,
+                IntentStatus::Failed
             ])
         );
         let clear: WebhookDetailsRequest = serde_json::from_value(serde_json::json!({
@@ -4091,7 +4093,7 @@ mod tests {
     fn recovery_webhook_rejects_unsupported_outcomes() {
         assert!(
             serde_json::from_value::<WebhookDetailsRequest>(serde_json::json!({
-                "revenue_recovery_statuses_enabled": ["processing"]
+                "revenue_recovery_statuses_enabled": ["success"]
             }))
             .is_err()
         );

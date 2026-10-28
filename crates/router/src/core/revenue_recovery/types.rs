@@ -1822,6 +1822,22 @@ pub fn get_payment_processor_token_id_from_payment_attempt(
 
 pub struct RevenueRecoveryOutgoingWebhook;
 
+/// This setting applies only to notifications emitted by revenue recovery.
+fn recovery_webhook_enabled(
+    configured: Option<&[common_enums::IntentStatus]>,
+    status: common_enums::IntentStatus,
+    metadata: Option<
+        &hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptFeatureMetadata,
+    >,
+) -> bool {
+    let external = metadata
+        .and_then(|metadata| metadata.revenue_recovery.as_ref())
+        .is_some_and(|recovery| {
+            recovery.attempt_triggered_by == common_enums::TriggeredBy::External
+        });
+    !external && configured.is_some_and(|statuses| statuses.contains(&status))
+}
+
 impl RevenueRecoveryOutgoingWebhook {
     #[allow(clippy::too_many_arguments)]
     pub async fn send_outgoing_webhook_based_on_revenue_recovery_status(
@@ -1834,20 +1850,18 @@ impl RevenueRecoveryOutgoingWebhook {
         payment_attempt: &PaymentAttempt,
         payments_response: ApplicationResponse<api_models::payments::PaymentsResponse>,
     ) -> RecoveryResult<()> {
-        if utils::is_external_recovery_attempt(payment_attempt.feature_metadata.as_ref())
-            || !utils::recovery_webhook_status_enabled(
-                profile
-                    .webhook_details
-                    .as_ref()
-                    .and_then(|details| details.revenue_recovery_statuses_enabled.as_deref()),
-                Some(event_status),
-            )
-        {
-            return Ok(());
-        }
-
         match payments_response {
             ApplicationResponse::JsonWithHeaders((response, _headers)) => {
+                if !recovery_webhook_enabled(
+                    profile
+                        .webhook_details
+                        .as_ref()
+                        .and_then(|details| details.revenue_recovery_statuses_enabled.as_deref()),
+                    response.status,
+                    payment_attempt.feature_metadata.as_ref(),
+                ) {
+                    return Ok(());
+                }
                 let outgoing_webhook_content =
                     api_models::webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
                         response,
@@ -1885,6 +1899,57 @@ impl RevenueRecoveryOutgoingWebhook {
                 logger::warn!("Unexpected application response variant for outgoing webhook");
                 Err(errors::RecoveryError::RevenueRecoveryOutgoingWebhookFailed.into())
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod recovery_webhook_tests {
+    use common_enums::{IntentStatus as S, TriggeredBy};
+    use hyperswitch_domain_models::payments::payment_attempt::{
+        PaymentAttemptFeatureMetadata, PaymentAttemptRevenueRecoveryData,
+    };
+
+    use super::recovery_webhook_enabled;
+
+    #[test]
+    fn recovery_webhook_matches_exact_intent_status() {
+        for status in [
+            S::Succeeded,
+            S::Failed,
+            S::PartiallyCaptured,
+            S::PartiallyCapturedAndCapturable,
+        ] {
+            assert!(!recovery_webhook_enabled(None, status, None));
+            assert!(!recovery_webhook_enabled(Some(&[]), status, None));
+            for configured in [
+                S::Succeeded,
+                S::Failed,
+                S::PartiallyCaptured,
+                S::PartiallyCapturedAndCapturable,
+            ] {
+                assert_eq!(
+                    recovery_webhook_enabled(Some(&[configured]), status, None),
+                    status == configured
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn recovery_webhook_blocks_external_attempts() {
+        for triggered_by in [TriggeredBy::Internal, TriggeredBy::External] {
+            let metadata = PaymentAttemptFeatureMetadata {
+                revenue_recovery: Some(PaymentAttemptRevenueRecoveryData {
+                    attempt_triggered_by: triggered_by,
+                    charge_id: None,
+                    billing_connector_transaction_id: None,
+                }),
+            };
+            assert_eq!(
+                recovery_webhook_enabled(Some(&[S::Succeeded]), S::Succeeded, Some(&metadata)),
+                triggered_by == TriggeredBy::Internal
+            );
         }
     }
 }

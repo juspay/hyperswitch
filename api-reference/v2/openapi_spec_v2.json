@@ -37356,6 +37356,19 @@
           "refund_statuses_enabled"
         ],
         "properties": {
+          "revenue_recovery_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of payment statuses that trigger a webhook for revenue recovery attempts.\nMissing or empty disables them. On v1 updates, omitting it keeps the stored list;\nv2 updates replace the stored webhook details.",
+            "example": [
+              "succeeded",
+              "partially_captured",
+              "failed"
+            ],
+            "nullable": true
+          },
           "webhook_version": {
             "type": "string",
             "description": "The version for Webhook",
@@ -37483,6 +37496,19 @@
           "refund_statuses_enabled"
         ],
         "properties": {
+          "revenue_recovery_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of payment statuses that trigger a webhook for revenue recovery attempts.\nMissing or empty means disabled.",
+            "example": [
+              "succeeded",
+              "partially_captured",
+              "failed"
+            ],
+            "nullable": true
+          },
           "webhook_version": {
             "type": "string",
             "description": "The version for Webhook",
