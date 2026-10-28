@@ -401,6 +401,10 @@ pub struct PaymentsCreateIntentRequest {
     /// Request address verification using the billing address for supported card payments.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
+
+    /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    pub mit_category: Option<api_enums::MitCategory>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -8799,6 +8803,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             recipient_details: request.recipient_details.clone(),
             sender_details: request.sender_details.clone(),
             enable_avs_check: request.enable_avs_check,
+            mit_category: None,
         }
     }
 }
@@ -14878,6 +14883,11 @@ pub struct RecoveryPaymentsCreate {
     #[serde(default)]
     #[schema(default = false, example = false)]
     pub customer_present: bool,
+
+    /// Category of the merchant initiated transactions made to recover this invoice. Defaults to
+    /// `recurring`.
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    pub mit_category: Option<api_enums::MitCategory>,
 
     /// The billing details of the transaction.
     pub billing: Option<Address>,

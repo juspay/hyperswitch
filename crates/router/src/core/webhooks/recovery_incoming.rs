@@ -1055,6 +1055,13 @@ impl RevenueRecoveryAttempt {
             .attach_printable("unable to derive payment connector")?
             .to_string();
 
+        // The recorded attempt is synced with the payment connector, so prefer the decline code
+        // it carries and fall back to the one the caller sent.
+        let network_decline_code = recovery_attempt
+            .network_decline_code
+            .clone()
+            .or_else(|| revenue_recovery_attempt_data.network_decline_code.clone());
+
         let gsm_record = helpers::get_gsm_record(
             state,
             connector_name,
@@ -1062,8 +1069,8 @@ impl RevenueRecoveryAttempt {
             consts::DEFAULT_SUBFLOW_STR,
             error_code.clone(),
             error_message,
-            None, // issuer_error_code
-            None, // card_network
+            network_decline_code,
+            revenue_recovery_attempt_data.card_info.card_network.clone(),
         )
         .await;
 

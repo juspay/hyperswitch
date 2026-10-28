@@ -238,6 +238,7 @@ where
             .switch()
         })?;
     session_state.add_request_id(request_id.clone());
+    session_state.start_read_ledger(flow.to_string());
     let mut request_state = session_state.get_req_state();
 
     request_state.event_context.record_info(request_id.clone());
@@ -1726,52 +1727,55 @@ pub fn build_redirection_form(
                                 form.submit();
                             }}
 
+                            var allowedHost = new URL("{base_url}").origin;
                             window.addEventListener("message", function(event) {{
-                                try {{
-                                    var data = JSON.parse(event.data);
-                                    var responseForm = document.createElement('form');
-                                    responseForm.action=window.location.pathname.replace(
-                                        new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
-                                        "payments/$1/$2/redirect/complete/worldpayxml"
-                                    );
-                                    responseForm.method='POST';
+                                if (event.origin === allowedHost) {{
+                                    try {{
+                                        var data = JSON.parse(event.data);
+                                        var responseForm = document.createElement('form');
+                                        responseForm.action=window.location.pathname.replace(
+                                            new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
+                                            "payments/$1/$2/redirect/complete/worldpayxml"
+                                        );
+                                        responseForm.method='POST';
 
-                                    var item1=document.createElement('input');
-                                    item1.type='hidden';
-                                    item1.name='SessionId';
-                                    item1.value=data.Payload.SessionId;
-                                    responseForm.appendChild(item1);
+                                        var item1=document.createElement('input');
+                                        item1.type='hidden';
+                                        item1.name='SessionId';
+                                        item1.value=data.Payload.SessionId;
+                                        responseForm.appendChild(item1);
 
-                                    var item2=document.createElement('input');
-                                    item2.type='hidden';
-                                    item2.name='ActionCode';
-                                    item2.value=data.Payload.ActionCode;
-                                    responseForm.appendChild(item2);
+                                        var item2=document.createElement('input');
+                                        item2.type='hidden';
+                                        item2.name='ActionCode';
+                                        item2.value=data.Payload.ActionCode;
+                                        responseForm.appendChild(item2);
 
-                                    document.body.appendChild(responseForm);
-                                    responseForm.submit();
-                                }} catch (e) {{
-                                    var responseForm = document.createElement('form');
-                                    responseForm.action=window.location.pathname.replace(
-                                        new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
-                                        "payments/$1/$2/redirect/complete/worldpayxml"
-                                    );
-                                    responseForm.method='POST';
+                                        document.body.appendChild(responseForm);
+                                        responseForm.submit();
+                                    }} catch (e) {{
+                                        var responseForm = document.createElement('form');
+                                        responseForm.action=window.location.pathname.replace(
+                                            new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
+                                            "payments/$1/$2/redirect/complete/worldpayxml"
+                                        );
+                                        responseForm.method='POST';
 
-                                    var item1=document.createElement('input');
-                                    item1.type='hidden';
-                                    item1.name='SessionId';
-                                    item1.value=null;
-                                    responseForm.appendChild(item1);
+                                        var item1=document.createElement('input');
+                                        item1.type='hidden';
+                                        item1.name='SessionId';
+                                        item1.value=null;
+                                        responseForm.appendChild(item1);
 
-                                    var item2=document.createElement('input');
-                                    item2.type='hidden';
-                                    item2.name='ActionCode';
-                                    item2.value="FAILURE";
-                                    responseForm.appendChild(item2);
+                                        var item2=document.createElement('input');
+                                        item2.type='hidden';
+                                        item2.name='ActionCode';
+                                        item2.value="FAILURE";
+                                        responseForm.appendChild(item2);
 
-                                    document.body.appendChild(responseForm);
-                                    responseForm.submit();
+                                        document.body.appendChild(responseForm);
+                                        responseForm.submit();
+                                    }}
                                 }}
                             }}, false);
                         </script>"#)))

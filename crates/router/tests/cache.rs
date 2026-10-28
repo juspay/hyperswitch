@@ -33,7 +33,7 @@ async fn invalidate_existing_cache_success() {
         .set_key(&cache_key.clone().into(), cache_key_value.clone())
         .await;
 
-    let api_key = ("api-key", "test_admin");
+    let api_key = ("Authorization", "admin-api-key=test_admin");
     let client = awc::Client::default();
 
     state
@@ -103,7 +103,7 @@ async fn invalidate_non_existing_cache_success() {
     // Arrange
     Box::pin(utils::setup()).await;
     let cache_key = "cacheKey".to_string();
-    let api_key = ("api-key", "test_admin");
+    let api_key = ("Authorization", "admin-api-key=test_admin");
     let client = awc::Client::default();
 
     // Act

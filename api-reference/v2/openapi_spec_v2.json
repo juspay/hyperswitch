@@ -12656,6 +12656,7 @@
           "dlocal",
           "dwolla",
           "ebanx",
+          "ecommpay",
           "envoy",
           "elavon",
           "etisalat",
@@ -20651,6 +20652,16 @@
         "format": "int64",
         "description": "This Unit struct represents MinorUnit in which core amount works"
       },
+      "MitCategory": {
+        "type": "string",
+        "description": "Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.",
+        "enum": [
+          "installment",
+          "unscheduled",
+          "recurring",
+          "resubmission"
+        ]
+      },
       "MitExemptionRequest": {
         "type": "string",
         "enum": [
@@ -26467,6 +26478,14 @@
             "default": false,
             "example": true,
             "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -31782,6 +31801,14 @@
             "default": false,
             "example": false
           },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -33063,6 +33090,7 @@
           "dlocal",
           "dwolla",
           "ebanx",
+          "ecommpay",
           "elavon",
           "elavon_pg",
           "envoy",
