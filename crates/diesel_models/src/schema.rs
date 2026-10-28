@@ -1354,11 +1354,7 @@ diesel::table! {
         tax_status -> Nullable<Varchar>,
         discount_amount -> Nullable<Int8>,
         shipping_amount_tax -> Nullable<Int8>,
-        value_added_tax_amount -> Nullable<Int8>,
-        value_added_tax_percent -> Nullable<Float8>,
         duty_amount -> Nullable<Int8>,
-        order_commodity_code -> Nullable<Varchar>,
-        vat_invoice_reference_number -> Nullable<Varchar>,
         order_date -> Nullable<Timestamp>,
         enable_partial_authorization -> Nullable<Bool>,
         enable_overcapture -> Nullable<Bool>,
@@ -1378,6 +1374,10 @@ diesel::table! {
         is_account_funded_transaction -> Nullable<Bool>,
         recipient_details -> Nullable<Bytea>,
         enable_avs_check -> Nullable<Bool>,
+        value_added_tax_amount -> Nullable<Int8>,
+        value_added_tax_percent -> Nullable<Float8>,
+        order_commodity_code -> Nullable<Varchar>,
+        vat_invoice_reference_number -> Nullable<Varchar>,
     }
 }
 

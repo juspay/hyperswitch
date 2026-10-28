@@ -207,11 +207,7 @@ pub struct PaymentIntent {
     pub tax_status: Option<common_enums::TaxStatus>,
     pub discount_amount: Option<MinorUnit>,
     pub shipping_amount_tax: Option<MinorUnit>,
-    pub value_added_tax_amount: Option<MinorUnit>,
-    pub value_added_tax_percent: Option<f64>,
     pub duty_amount: Option<MinorUnit>,
-    pub order_commodity_code: Option<String>,
-    pub vat_invoice_reference_number: Option<String>,
     pub order_date: Option<PrimitiveDateTime>,
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
@@ -228,6 +224,10 @@ pub struct PaymentIntent {
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
     pub enable_avs_check: Option<bool>,
+    pub value_added_tax_amount: Option<MinorUnit>,
+    pub value_added_tax_percent: Option<f64>,
+    pub order_commodity_code: Option<String>,
+    pub vat_invoice_reference_number: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
