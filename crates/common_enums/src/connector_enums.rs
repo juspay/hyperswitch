@@ -107,6 +107,7 @@ pub enum Connector {
     Dlocal,
     Dwolla,
     Ebanx,
+    Ecommpay,
     Envoy,
     Elavon,
     Etisalat,
@@ -516,6 +517,7 @@ impl Connector {
             | Self::Phonepe
             | Self::Imerchantsolutions
             | Self::Ilixium
+            | Self::Ecommpay
             | Self::JpmorganOrbital
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
