@@ -2995,13 +2995,16 @@ where
         "resolving modular vs legacy payment method update path"
     );
 
-    if payment_data.get_payment_method_info().is_some_and(|pm| {
-        feature_config.should_use_modular_pm_path(
-            Some(pm.version),
-            pm.compatibility_updated_at,
-            Some(pm.last_modified),
-        )
-    }) {
+    if payment_data.get_payment_method_info().map_or(
+        feature_config.is_payment_method_modular_allowed,
+        |pm| {
+            feature_config.should_use_modular_pm_path(
+                Some(pm.version),
+                pm.compatibility_updated_at,
+                Some(pm.last_modified),
+            )
+        },
+    ) {
         logger::info!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
             "Modular payment method path selected; calling update_modular_pm_and_mandate"
@@ -10825,6 +10828,14 @@ impl PaymentEligibilityData {
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        helpers::authenticate_client_secret(
+            payments_eligibility_request
+                .client_secret
+                .as_ref()
+                .map(|cs| cs.peek()),
+            &payment_intent,
+        )?;
+
         let payment_method_data = match &payments_eligibility_request.payment_token {
             Some(payment_token) => {
                 let profile_id = payment_intent
@@ -13794,6 +13805,10 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    helpers::authenticate_client_secret(
+        req.client_secret.as_ref().map(|cs| cs.peek()),
+        &payment_intent,
+    )?;
     let attempt_id = payment_intent.active_attempt.get_id().clone();
     let payment_attempt = db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(

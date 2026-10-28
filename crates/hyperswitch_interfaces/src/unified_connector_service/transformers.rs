@@ -2559,9 +2559,12 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             // Connection/availability errors → ResponseHandlingFailed
             Self::ConnectionError(_) => ConnectorError::ResponseHandlingFailed,
             // Request encoding errors
-            Self::RequestEncodingFailed
-            | Self::RequestEncodingFailedWithReason(_)
-            | Self::InvalidDataFormat { .. } => ConnectorError::RequestEncodingFailed,
+            Self::RequestEncodingFailed | Self::RequestEncodingFailedWithReason(_) => {
+                ConnectorError::RequestEncodingFailed
+            }
+            Self::InvalidDataFormat { field_name } => ConnectorError::InvalidDataFormat {
+                field_name: field_name.clone(),
+            },
             // Missing field errors
             Self::MissingRequiredField { field_name } => ConnectorError::MissingRequiredField {
                 field_name: field_name.clone(),

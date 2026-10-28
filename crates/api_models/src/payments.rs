@@ -389,6 +389,10 @@ pub struct PaymentsCreateIntentRequest {
     /// Request address verification using the billing address for supported card payments.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
+
+    /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    pub mit_category: Option<api_enums::MitCategory>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -6553,7 +6557,7 @@ impl PaymentMethodDataResponseWithBilling {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct CustomRecoveryPaymentMethodData {
-    /// Primary payment method token at payment processor end.
+    /// Primary payment method token at payment processor end, i.e. the connector token or connector mandate id.
     #[schema(value_type = String, example = "token_1234")]
     pub primary_processor_payment_method_token: Secret<String>,
 
@@ -8762,6 +8766,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: request.recipient_details.clone(),
             enable_avs_check: request.enable_avs_check,
+            mit_category: None,
         }
     }
 }
@@ -14801,8 +14806,7 @@ pub struct RecoveryPaymentsCreate {
     /// The amount details for the payment
     pub amount_details: AmountDetails,
 
-    /// Unique identifier of the invoice in the merchant's billing system against which the
-    /// transaction is being recorded.
+    /// Unique identifier of the invoice in the merchant's billing system against which the transaction is being recorded.
     #[schema(
         value_type = String,
         min_length = 30,
@@ -14811,17 +14815,14 @@ pub struct RecoveryPaymentsCreate {
     )]
     pub merchant_reference_id: id_type::PaymentReferenceId,
 
-    /// Error details for the payment if any
+    /// Error details of a failed transaction.
     pub error: Option<ErrorDetails>,
 
-    /// Unique identifier of the billing connector account, such as Chargebee, that manages the
-    /// invoice. The account must belong to the profile passed in the `X-Profile-Id` header.
+    /// Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header.
     #[schema(value_type = String, example = "mca_1234567890")]
     pub billing_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
-    /// Unique identifier of the payment connector account, such as Stripe, on which the
-    /// transaction was processed. The account must belong to the profile passed in the
-    /// `X-Profile-Id` header.
+    /// Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header.
     #[schema(value_type = String, example = "mca_1234567890")]
     pub payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
@@ -14829,18 +14830,13 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = RecoveryTransactionStatus, example = "failure")]
     pub transaction_status: common_payments_types::RecoveryTransactionStatus,
 
-    /// Amount captured by the transaction, in the lowest denomination of the currency. It is
-    /// required when `transaction_status` is `partial_charged`, where it must be greater than
-    /// zero and less than the order amount. For `charged` it may be omitted, and if sent it
-    /// must equal the order amount. It must not be sent for a `failure`.
+    /// Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`.
     #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_captured: Option<MinorUnit>,
 
-    /// Whether the customer was present, and so able to authenticate, when the transaction was
-    /// made. Defaults to `false`, which marks the transaction as merchant initiated.
-    #[serde(default)]
-    #[schema(default = false, example = false)]
-    pub customer_present: bool,
+    /// Category of the merchant initiated transactions made to recover this invoice. Defaults to `recurring`.
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    pub mit_category: Option<api_enums::MitCategory>,
 
     /// The billing details of the transaction.
     pub billing: Option<Address>,
@@ -14861,8 +14857,7 @@ pub struct RecoveryPaymentsCreate {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub transaction_created_at: PrimitiveDateTime,
 
-    /// Unique identifier of the customer at the payment connector, with which the payment
-    /// method token used for the transaction is associated.
+    /// Unique identifier of the customer at the payment connector (connector customer id), with which the payment method token used for the transaction is associated.
     #[schema(value_type = String, example = "cust_12345")]
     pub connector_customer_id: Secret<String>,
 
@@ -14871,12 +14866,11 @@ pub struct RecoveryPaymentsCreate {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub billing_started_at: PrimitiveDateTime,
 
-    /// Unique identifier of the transaction at the payment connector. It is used to identify
-    /// the transaction among the attempts recorded for the invoice.
+    /// Unique identifier of the transaction at the payment connector (connector transaction id). It is used to identify the transaction among the attempts recorded for the invoice, and together with `merchant_reference_id` it has to be unique.
     #[schema(value_type = String, example = "993672945374576J")]
     pub connector_transaction_id: String,
 
-    /// payment method token units at payment processor end.
+    /// Payment method token and card details at the payment processor's end.
     pub payment_method_data: CustomRecoveryPaymentMethodData,
 
     /// Allow partial authorization for this payment
