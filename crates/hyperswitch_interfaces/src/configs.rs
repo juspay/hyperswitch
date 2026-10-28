@@ -91,8 +91,6 @@ pub struct InternalMerchantIdProfileIdAuthSettings {
     pub primary_internal_api_key: Option<Secret<String>>,
     pub key_rotation_enabled: bool,
     pub use_legacy_key_for_outbound: bool,
-    #[serde(skip)]
-    credentials_initialized: bool,
 }
 
 #[allow(missing_docs)]
@@ -135,16 +133,12 @@ impl InternalMerchantIdProfileIdAuthSettings {
             self.internal_api_key = Secret::default();
         }
         self.primary_internal_api_key = decrypted;
-        self.credentials_initialized = true;
         Ok(self)
     }
 
     pub fn accepts_api_key(&self, candidate: &str) -> bool {
         use subtle::ConstantTimeEq;
 
-        if !self.credentials_initialized {
-            return false;
-        }
         let Some(primary_key) = self.primary_internal_api_key.as_ref() else {
             return false;
         };
@@ -163,12 +157,12 @@ impl InternalMerchantIdProfileIdAuthSettings {
         let primary_key = self
             .primary_internal_api_key
             .as_ref()
-            .filter(|key| self.credentials_initialized && !key.peek().is_empty())
+            .filter(|key| !key.peek().is_empty())
             .ok_or_else(|| {
                 error_stack::Report::new(
                     crate::secrets_interface::SecretsManagementError::FetchSecretFailed,
                 )
-                .attach_printable("Internal service credentials have not been decrypted")
+                .attach_printable("Internal service primary API key is missing or empty")
             })?;
         let key = if self.key_rotation_enabled && self.use_legacy_key_for_outbound {
             &self.internal_api_key

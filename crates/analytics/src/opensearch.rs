@@ -43,7 +43,6 @@ mod recording;
 pub enum OpenSearchAuth {
     Basic {
         username: String,
-        #[serde(default)]
         primary_password: Option<Secret<String>>,
     },
     Aws {
@@ -88,8 +87,6 @@ pub struct OpenSearchConfig {
     indexes: OpenSearchIndexes,
     #[serde(default)]
     enabled: bool,
-    #[serde(skip)]
-    credentials_initialized: bool,
 }
 
 impl Default for OpenSearchConfig {
@@ -112,7 +109,6 @@ impl Default for OpenSearchConfig {
                 sessionizer_disputes: "sessionizer-dispute-events".to_string(),
             },
             enabled: false,
-            credentials_initialized: false,
         }
     }
 }
@@ -227,16 +223,12 @@ impl OpenSearchClient {
                 primary_password,
                 ..
             } => {
-                if !conf.credentials_initialized {
-                    return Err(error_stack::Report::new(OpenSearchError::ConnectionError)
-                        .attach_printable("OpenSearch credentials have not been initialized"));
-                }
                 let password = primary_password
                     .as_ref()
                     .filter(|password| !password.peek().is_empty())
                     .ok_or_else(|| {
                         error_stack::Report::new(OpenSearchError::ConnectionError).attach_printable(
-                            "OpenSearch Basic auth password has not been decrypted",
+                            "OpenSearch Basic auth primary_password is missing or empty",
                         )
                     })?;
                 let credentials = Credentials::Basic(username.clone(), password.peek().clone());
@@ -511,7 +503,6 @@ impl OpenSearchConfig {
                     })?,
             );
         }
-        self.credentials_initialized = true;
         Ok(self)
     }
 

@@ -49,7 +49,6 @@ pub struct ClickhouseClient {
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct ClickhouseConfig {
     username: String,
-    #[serde(default)]
     primary_password: Option<Secret<String>>,
     host: String,
 }

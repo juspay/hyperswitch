@@ -21,11 +21,13 @@ Keep old and new environment names available while old and new binaries coexist.
 
 When migrating password storage without rotating the upstream database or SMTP credential, encrypt the same existing credential into the new field. Rotating the upstream credential itself requires coordinating the upstream service's credential acceptance independently.
 
+SMTP authentication requires both `username` and `primary_password`; configuring only one fails validation. Leave both absent for an unauthenticated SMTP server.
+
 An absent optional encrypted password remains absent. Do not omit the encrypted field for a service that requires authentication. File-backed credentials and credentials embedded in connection URLs are outside this migration.
 
 ## Internal-service key rotation
 
-The `primary_internal_api_key` field receives KMS ciphertext from the environment. Startup replaces that same field with the decrypted key; there is no separate decrypted-key field. A private initialization flag prevents authentication before decryption succeeds and cannot be set through configuration.
+The `primary_internal_api_key` field receives KMS ciphertext from the environment. Startup replaces that same field with the decrypted key; there is no separate decrypted-key field. Startup completes decryption before authentication and client creation; there is no separate initialization flag.
 
 The flags are:
 
@@ -43,7 +45,7 @@ Both flags default to false. The new encrypted key is required when internal aut
 | true | true | Decrypted new key first, then legacy key | Legacy key |
 | false | true | Invalid configuration; startup fails | Invalid configuration |
 
-Rotation mode requires both the encrypted new key and a nonempty legacy key. Invalid new ciphertext fails startup even when a legacy key exists. Empty/uninitialized keys cannot authenticate. Disabling rotation clears the legacy key from the runtime authentication settings.
+Rotation mode requires both the encrypted new key and a nonempty legacy key. Invalid new ciphertext fails startup even when a legacy key exists. Missing or empty primary keys cannot authenticate. Disabling rotation clears the legacy key from the runtime authentication settings.
 
 The outbound switch is independent so requests do not fail during either rolling upgrade or rolling removal of legacy acceptance. No payment request is automatically retried with another authentication key.
 

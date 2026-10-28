@@ -47,7 +47,6 @@ pub struct SmtpServerConfig {
     /// Username name of the SMTP server
     pub username: Option<Secret<String>>,
     /// Password of the SMTP server
-    #[serde(default)]
     pub primary_password: Option<Secret<String>>,
     /// Connection type of the SMTP server
     #[serde(default)]
@@ -67,7 +66,6 @@ pub struct Socks5Config {
     /// SOCKS5 username, if the proxy requires auth.
     pub username: Option<Secret<String>>,
     /// SOCKS5 password, if the proxy requires auth.
-    #[serde(default)]
     pub primary_password: Option<Secret<String>>,
 }
 
@@ -97,6 +95,12 @@ impl SmtpServerConfig {
         when(self.host.is_default_or_empty(), || {
             Err("email.smtp.host must not be empty")
         })?;
+        when(
+            self.username.is_some() != self.primary_password.is_some(),
+            || {
+                Err("email.smtp.username and email.smtp.primary_password must be specified together")
+            },
+        )?;
         self.username
             .clone()
             .zip(self.primary_password.clone())
