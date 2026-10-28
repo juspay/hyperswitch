@@ -79,6 +79,8 @@ use async_trait::async_trait;
 #[cfg(feature = "v1")]
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v1")]
+use router_env::logger;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
@@ -226,6 +228,54 @@ pub enum PaymentFlowKind {
     #[default]
     Standard,
     ExternalVaultProxy,
+}
+
+#[cfg(feature = "v1")]
+pub async fn is_payment_method_data_collection_allowed(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_id: &common_utils::id_type::PaymentId,
+    connector_name: Option<&str>,
+) -> bool {
+    let connector = match connector_name {
+        Some(connector_name) => {
+            match connector_name.parse::<common_enums::connector_enums::Connector>() {
+                Ok(connector) => Some(connector),
+                Err(error) => {
+                    logger::warn!(
+                    ?error,
+                    connector = connector_name,
+                    "Failed to resolve connector while checking payment method data collection; skipping collection."
+                );
+                    None
+                }
+            }
+        }
+        None => {
+            logger::warn!(
+                "Connector is unavailable while checking payment method data collection; skipping collection."
+            );
+            None
+        }
+    };
+
+    match connector {
+        Some(connector) => {
+            let dimensions = dimension_state::Dimensions::new()
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_connector(connector);
+
+            dimensions
+                .get_allow_payment_method_data_collection(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    Some(payment_id),
+                )
+                .await
+        }
+        None => false,
+    }
 }
 
 #[cfg(feature = "v2")]

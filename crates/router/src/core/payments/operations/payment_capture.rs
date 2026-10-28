@@ -427,8 +427,17 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCaptureRequest, payments::Pa
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-                match payment_attempt.payment_method_id {
-                    Some(payment_method_id) => {
+                match (
+                    operations::is_payment_method_data_collection_allowed(
+                        state,
+                        platform,
+                        &request.payment_id,
+                        payment_attempt.connector.as_deref(),
+                    )
+                    .await,
+                    payment_attempt.payment_method_id,
+                ) {
+                    (true, Some(payment_method_id)) => {
                         self.fetch_payment_method_from_modular_service(
                             state,
                             request,
@@ -438,7 +447,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCaptureRequest, payments::Pa
                         )
                         .await
                     }
-                    None => Ok(operations::PaymentMethodFetchData::default()),
+                    _ => Ok(operations::PaymentMethodFetchData::default()),
                 }
             }
             .await;

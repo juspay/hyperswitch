@@ -397,12 +397,29 @@ async fn get_refund_payment_method_data(
         .map(domain::PaymentMethodData::from)
         .or(recurring_payment_method_data);
 
-    match (
-        request_payment_method_data,
+    let allow_payment_method_data_collection = match (
+        request_payment_method_data.as_ref(),
         payment_attempt.payment_method_id.as_ref(),
     ) {
-        (Some(payment_method_data), _) => Some(payment_method_data),
-        (None, Some(payment_method_id)) => {
+        (None, Some(_)) => {
+            payments::operations::is_payment_method_data_collection_allowed(
+                state,
+                platform,
+                &payment_attempt.payment_id,
+                payment_attempt.connector.as_deref(),
+            )
+            .await
+        }
+        _ => false,
+    };
+
+    match (
+        request_payment_method_data,
+        allow_payment_method_data_collection,
+        payment_attempt.payment_method_id.as_ref(),
+    ) {
+        (Some(payment_method_data), _, _) => Some(payment_method_data),
+        (None, true, Some(payment_method_id)) => {
             match pm_transformers::fetch_payment_method_from_modular_service(
                 state,
                 platform,
@@ -434,7 +451,7 @@ async fn get_refund_payment_method_data(
                 }
             }
         }
-        (None, None) => None,
+        (None, _, _) => None,
     }
 }
 
