@@ -625,6 +625,7 @@ export const CONNECTOR_LISTS = {
       "stripe",
       "truelayer",
       "trustly",
+      "trustpay",
     ],
     OVERCAPTURE: ["adyen"],
     IFRAME_REDIRECTION: [

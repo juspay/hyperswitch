@@ -758,8 +758,8 @@ slack_invite_url = "https://www.example.com/"   # Slack invite url for hyperswit
 discord_invite_url = "https://www.example.com/" # Discord invite url for hyperswitch
 
 [zero_mandates.supported_payment_methods]
-card.credit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,archipel,mollie,imerchantsolutions,peachpayments,shift4,jpmorgan"
-card.debit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,archipel,mollie,imerchantsolutions,peachpayments,shift4,jpmorgan"
+card.credit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,archipel,mollie,imerchantsolutions,peachpayments,shift4,jpmorgan,trustpay"
+card.debit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,archipel,mollie,imerchantsolutions,peachpayments,shift4,jpmorgan,trustpay"
 wallet.paypal = { connector_list = "adyen" }                                          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = { connector_list = "adyen" }                                       # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless,adyen" }                              # Mandate supported payment method type and connector for bank_debit
@@ -777,8 +777,8 @@ bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 network_token.network_token.connector_list = "peachpayments"
 
 [mandates.supported_payment_methods]
-card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie.airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan"
-card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan"
+card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie.airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,trustpay"
+card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,trustpay"
 wallet.paypal = { connector_list = "adyen,novalnet" }                                          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = { connector_list = "adyen" }                                       # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless,adyen" }                              # Mandate supported payment method type and connector for bank_debit
@@ -1571,7 +1571,7 @@ fetch_altid_url= ""           # base url to fetch Alt-ID and cryptogram for gues
 connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan" # Supported connectors for network transaction id
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,trustpay" # Supported connectors for network transaction id
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
@@ -1611,7 +1611,7 @@ request_timeout = 35                    # Per-RPC Request Timeout in Seconds
 keep_alive_interval = 30                # HTTP/2 PING keepalive interval in Seconds on the shared channel
 keep_alive_timeout = 20                 # Time in Seconds to wait for a keepalive PING acknowledgement before the connection is treated as dead
 tcp_keepalive = 60                      # TCP keepalive idle time in Seconds on the shared channel
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer, globalpayments_realex"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer, globalpayments_realex, trustpay"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url

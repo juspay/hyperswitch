@@ -1241,6 +1241,12 @@ static TRUSTPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::CaptureMethod::SequentialAutomatic,
         ];
 
+        let card_supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
         let supported_card_network = vec![
             common_enums::CardNetwork::Mastercard,
             common_enums::CardNetwork::Visa,
@@ -1259,13 +1265,13 @@ static TRUSTPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
+                mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
+                supported_capture_methods: card_supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            three_ds: common_enums::FeatureStatus::Supported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
@@ -1278,13 +1284,13 @@ static TRUSTPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
+                mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
+                supported_capture_methods: card_supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            three_ds: common_enums::FeatureStatus::Supported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
@@ -1459,10 +1465,26 @@ impl ConnectorSpecifications for Trustpay {
                 auth_type: _,
                 request_data,
                 connector_meta_data: _,
-            } => matches!(
-                &request_data.payment_method_data,
-                payment_method_data::PaymentMethodData::Wallet(_)
-            ),
+            } => match &request_data.payment_method_data {
+                // HS-decrypted ApplePay/GooglePay carry raw card data and go straight to Authorize
+                payment_method_data::PaymentMethodData::Wallet(
+                    payment_method_data::WalletData::ApplePay(
+                        payment_method_data::ApplePayWalletData {
+                            payment_data: common_types::payments::ApplePayPaymentData::Decrypted(_),
+                            ..
+                        },
+                    )
+                    | payment_method_data::WalletData::GooglePay(
+                        payment_method_data::GooglePayWalletData {
+                            tokenization_data:
+                                common_types::payments::GpayTokenizationData::Decrypted(_),
+                            ..
+                        },
+                    ),
+                ) => false,
+                payment_method_data::PaymentMethodData::Wallet(_) => true,
+                _ => false,
+            },
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
