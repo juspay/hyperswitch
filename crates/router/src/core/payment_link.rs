@@ -53,6 +53,7 @@ fn get_redirection_log_endpoint(base_url: &str) -> RouterResult<url::Url> {
 
 pub async fn retrieve_payment_link(
     state: SessionState,
+    requestor_processor_merchant_id: &common_utils::id_type::MerchantId,
     payment_link_id: String,
 ) -> RouterResponse<api_models::payments::RetrievePaymentLinkResponse> {
     let db = &*state.store;
@@ -60,6 +61,12 @@ pub async fn retrieve_payment_link(
         .find_payment_link_by_payment_link_id(&payment_link_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
+
+    if payment_link_config.processor_merchant_id.as_ref() != Some(requestor_processor_merchant_id)
+        && requestor_processor_merchant_id != &payment_link_config.merchant_id
+    {
+        Err(errors::ApiErrorResponse::PaymentLinkNotFound)?
+    }
 
     let session_expiry = payment_link_config.fulfilment_time.unwrap_or_else(|| {
         common_utils::date_time::now()
@@ -89,17 +96,18 @@ pub async fn form_payment_link_data(
 pub async fn form_payment_link_data(
     state: &SessionState,
     processor: domain::Processor,
-    processor_merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     let db = &*state.store;
+    let processor_merchant_id = domain::ProcessorMerchantId::from(merchant_id);
 
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
             &processor_merchant_id,
             processor.get_key_store(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -229,7 +237,7 @@ pub async fn form_payment_link_data(
             &payment_intent.payment_id,
             &processor_merchant_id,
             &attempt_id.clone(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
             processor.get_key_store(),
         )
         .await
@@ -263,7 +271,7 @@ pub async fn form_payment_link_data(
                 &payment_intent.payment_id,
                 &processor_merchant_id,
                 &attempt_id.clone(),
-                processor.get_account().storage_scheme,
+                processor.get_storage_scheme(),
                 processor.get_key_store(),
             )
             .await
@@ -876,17 +884,18 @@ pub async fn get_payment_link_status(
 pub async fn get_payment_link_status(
     state: SessionState,
     processor: domain::Processor,
-    processor_merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let db = &*state.store;
+    let processor_merchant_id = domain::ProcessorMerchantId::from(merchant_id);
 
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
             &processor_merchant_id,
             processor.get_key_store(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -897,7 +906,7 @@ pub async fn get_payment_link_status(
             &payment_intent.payment_id,
             &processor_merchant_id,
             &attempt_id.clone(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
             processor.get_key_store(),
         )
         .await

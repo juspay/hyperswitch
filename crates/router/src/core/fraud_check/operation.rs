@@ -94,7 +94,7 @@ pub trait UpdateTracker<Fd, F: Clone, D>: Send {
     async fn update_tracker<'b>(
         &'b self,
         state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
+        processor: &domain::Processor,
         frm_data: Fd,
         payment_data: &mut D,
         _frm_suggestion: Option<FrmSuggestion>,

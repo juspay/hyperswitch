@@ -1282,6 +1282,7 @@ diesel::table! {
         external_surcharge_applicable -> Nullable<Bool>,
         is_account_funded_transaction -> Nullable<Bool>,
         recipient_details -> Nullable<Bytea>,
+        enable_avs_check -> Nullable<Bool>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,

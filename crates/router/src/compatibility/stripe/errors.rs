@@ -1,3 +1,4 @@
+use actix_web::http;
 use common_utils::{errors::ErrorSwitch, id_type};
 use hyperswitch_domain_models::errors::api_error_response as errors;
 
@@ -735,8 +736,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
 }
 
 impl actix_web::ResponseError for StripeErrorCode {
-    fn status_code(&self) -> reqwest::StatusCode {
-        use reqwest::StatusCode;
+    fn status_code(&self) -> http::StatusCode {
+        use http::StatusCode;
 
         match self {
             Self::Unauthorized

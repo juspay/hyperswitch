@@ -1,14 +1,14 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::{
-    api::{gateway, ConnectorCommon, ConnectorValidation},
+    api::{ConnectorCommon, ConnectorValidation},
     consts,
 };
 
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payments,
+        payments::{self, gateway},
         payouts::gateway::context as gateway_context,
     },
     routes::{metrics, SessionState},

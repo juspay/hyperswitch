@@ -46,6 +46,8 @@ pub enum CurrentFlowInfo {
         auth_type: storage_enums::AuthenticationType,
         /// The payment authorize request data
         request_data: Box<PaymentsAuthorizeData>,
+        /// The metadata configured at the merchant connector account level
+        connector_meta_data: Option<pii::SecretSerdeValue>,
     },
     /// CompleteAuthorize flow information
     CompleteAuthorize {
@@ -176,6 +178,7 @@ pub struct PaymentsAuthorizeData {
     /// The merchant's business country for this payment. Connectors use it for requirements that
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
+    pub enable_avs_check: Option<bool>,
 }
 
 impl PaymentsAuthorizeData {
@@ -879,6 +882,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             device_channel,
             webhook_url: data.webhook_url,
             force_3ds_challenge: data.force_3ds_challenge,
+            router_return_url: data.router_return_url,
         })
     }
 }
@@ -900,6 +904,8 @@ pub struct PaymentsAuthenticateData {
     pub device_channel: Option<api_models::payments::DeviceChannel>,
     pub webhook_url: Option<String>,
     pub force_3ds_challenge: Option<bool>,
+    /// Merchant return URL, forwarded to the authentication leg.
+    pub router_return_url: Option<String>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -925,6 +931,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             device_channel,
             webhook_url: None,
             force_3ds_challenge: data.force_3ds_challenge,
+            router_return_url: data.router_return_url,
         })
     }
 }
@@ -1046,6 +1053,12 @@ pub struct CompleteAuthorizeData {
     pub connector_intent_metadata: Option<ConnectorMetadata>,
     pub order_id: Option<String>,
     pub force_3ds_challenge: Option<bool>,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub enable_partial_authorization:
+        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
@@ -1926,6 +1939,7 @@ pub struct SetupMandateRequestData {
     /// The merchant's business country for this payment. Connectors use it for requirements that
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
+    pub enable_avs_check: Option<bool>,
 }
 
 impl SetupMandateRequestData {
