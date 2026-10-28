@@ -90,6 +90,28 @@ use crate::{
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
+fn get_pix_automatico_cit_mandate_metadata(
+    feature_metadata: Option<&FeatureMetadata>,
+) -> Result<Option<Secret<Value>>, Error> {
+    let mandate_details = feature_metadata
+        .and_then(|metadata| metadata.pix_automatico_additional_details.as_ref())
+        .and_then(|pix_automatico_details| match pix_automatico_details {
+            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                push.mandate_details.as_ref()
+            }
+            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => {
+                qr.mandate_details.as_ref()
+            }
+            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => None,
+        });
+
+    mandate_details
+        .map(|details| details.encode_to_value().map(Secret::new))
+        .transpose()
+        .change_context(errors::ConnectorError::ParsingFailed)
+        .attach_printable("Failed to serialize Pix Automático mandate details")
+}
+
 impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
     fn from((amount, item): (StringMajorUnit, T)) -> Self {
         Self {
@@ -173,7 +195,9 @@ impl
         let mandate_reference = Some(MandateReference {
             connector_mandate_id: Some(item.response.id_rec.clone().expose()),
             payment_method_id: None,
-            mandate_metadata: None,
+            mandate_metadata: get_pix_automatico_cit_mandate_metadata(
+                item.data.request.feature_metadata.as_ref(),
+            )?,
             connector_mandate_request_reference_id: Some(
                 item.response.id_solic_rec.clone().expose(),
             ),
@@ -247,7 +271,9 @@ impl
         let mandate_reference = Box::new(Some(MandateReference {
             connector_mandate_id: Some(item.response.id_rec.clone().expose()),
             payment_method_id: None,
-            mandate_metadata: None,
+            mandate_metadata: get_pix_automatico_cit_mandate_metadata(
+                item.data.request.feature_metadata.as_ref(),
+            )?,
             connector_mandate_request_reference_id: connector_mandate_request_reference_id.clone(),
         }));
         let connector_transaction_id = match journey.as_ref() {
@@ -2945,7 +2971,9 @@ impl<F>
                 mandate_reference: Box::new(Some(MandateReference {
                     connector_mandate_id: Some(item.response.id_rec.expose()),
                     payment_method_id: None,
-                    mandate_metadata: None,
+                    mandate_metadata: get_pix_automatico_cit_mandate_metadata(
+                        item.data.request.feature_metadata.as_ref(),
+                    )?,
                     connector_mandate_request_reference_id: None,
                 })),
                 connector_metadata: None,

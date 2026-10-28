@@ -2571,13 +2571,16 @@ async fn update_payment_method_mandate_status(
     let updated_mandate_details = updated_mandate_details
         .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("no updated mandate details for payment method")?;
-    let connector_mandate_id = updated_mandate_details
+    let mandate_record = updated_mandate_details
         .payments
         .as_ref()
         .and_then(|payments| payments.get(merchant_connector_id))
-        .map(|mandate_record| mandate_record.connector_mandate_id.clone())
         .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
-        .attach_printable("connector mandate id not found for payment method mandate webhook")?;
+        .attach_printable("mandate record not found for payment method mandate webhook")?;
+    let connector_mandate_id = mandate_record.connector_mandate_id.clone();
+    let mandate_metadata = mandate_record.mandate_metadata.clone();
+    let mandate_amount = mandate_record.original_payment_authorized_amount;
+    let mandate_currency = mandate_record.original_payment_authorized_currency;
     let connector_mandate_details_value = updated_mandate_details
         .get_mandate_details_value()
         .map_err(|err| {
@@ -2621,6 +2624,10 @@ async fn update_payment_method_mandate_status(
         let mandate_response = api::mandates::MandateResponse {
             mandate_id: connector_mandate_id.clone(),
             payment_id: Some(payment_id.clone()),
+            amount: mandate_amount.map(common_utils::types::MinorUnit::new),
+            currency: mandate_currency,
+            profile_id: Some(business_profile.get_id().to_owned()),
+            mandate_metadata,
             status: mandate_status,
             payment_method_id: payment_method_id.to_string(),
             payment_method: payment_method_name,
