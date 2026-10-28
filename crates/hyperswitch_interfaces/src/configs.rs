@@ -101,7 +101,7 @@ impl InternalMerchantIdProfileIdAuthSettings {
     pub async fn decrypt_credentials(
         mut self,
         client: &dyn crate::secrets_interface::SecretManagementInterface,
-    ) -> CustomResult<Self, crate::secrets_interface::SecretsManagementError> {
+    ) -> CustomResult<Self, SecretsManagementError> {
         let legacy_key_configured = self
             .internal_api_key
             .as_ref()
@@ -157,15 +157,13 @@ impl InternalMerchantIdProfileIdAuthSettings {
             || (self.key_rotation_enabled && self.internal_api_key.as_ref().is_some_and(matches))
     }
 
-    pub fn outbound_api_key(
-        &self,
-    ) -> CustomResult<Secret<String>, crate::secrets_interface::SecretsManagementError> {
+    pub fn outbound_api_key(&self) -> CustomResult<Secret<String>, SecretsManagementError> {
         let primary_key = &self.primary_internal_api_key;
         if primary_key.peek().is_empty() {
-            return Err(error_stack::Report::new(
-                crate::secrets_interface::SecretsManagementError::FetchSecretFailed,
-            )
-            .attach_printable("Internal service primary API key is missing or empty"));
+            return Err(
+                error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
+                    .attach_printable("Internal service primary API key is missing or empty"),
+            );
         }
         let key = if self.key_rotation_enabled && self.use_legacy_key_for_outbound {
             self.internal_api_key.as_ref()
@@ -173,10 +171,8 @@ impl InternalMerchantIdProfileIdAuthSettings {
             Some(primary_key)
         };
         let key = key.filter(|key| !key.peek().is_empty()).ok_or_else(|| {
-            error_stack::Report::new(
-                crate::secrets_interface::SecretsManagementError::FetchSecretFailed,
-            )
-            .attach_printable("Internal service authentication key is missing or empty")
+            error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
+                .attach_printable("Internal service authentication key is missing or empty")
         })?;
         Ok(key.clone())
     }
