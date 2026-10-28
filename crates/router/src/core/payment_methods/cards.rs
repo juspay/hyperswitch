@@ -3417,6 +3417,7 @@ pub async fn prepare_bank_redirect_payment_method_update(
                 pm_create_req,
                 None, // card_detail not needed for bank redirect
                 business_profile,
+                common_enums::WalletDecryptedToken::None,
             ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
