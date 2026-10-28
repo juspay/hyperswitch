@@ -863,6 +863,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::DefaultPaymentMethod,
         api_models::payment_methods::MaskedBankDetails,
         api_models::payment_methods::SurchargeDetailsResponse,
+        api_models::payment_methods::SurchargeErrorDetails,
         api_models::payment_methods::SurchargeResponse,
         api_models::payment_methods::SurchargePercentage,
         api_models::enums::SurchargeStrategy,

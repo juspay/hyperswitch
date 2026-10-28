@@ -2498,9 +2498,8 @@ where
     todo!()
 }
 
-// True when the profile uses external surcharge and the attempt hasn't been populated yet
-// (retry safety). Gates preload_external_surcharge_for_routing so both CIT and MIT share
-// one entry check.
+// Load external results until the attempt has a usable quote. CIT must also load
+// cached eligibility errors, which leave external_surcharge_applicable false.
 #[cfg(feature = "v1")]
 fn is_external_surcharge_pending<F, D>(business_profile: &domain::Profile, payment_data: &D) -> bool
 where
@@ -2564,9 +2563,7 @@ where
                         external_surcharge_amount: cached.surcharge_amount,
                         surcharge_percentage: percentage,
                         sale_notified: false,
-                        error_code: cached.error_code.unwrap_or_default(),
-                        error_message: cached.error_message.unwrap_or_default(),
-                        error_reason: cached.error_reason.unwrap_or_default(),
+                        error_details: cached.error_details,
                     }
                 })
         };
@@ -2585,14 +2582,9 @@ where
             // has expired or does not match the selected payment method.
             let mut attempt = payment_data.get_payment_attempt().clone();
             attempt.net_amount.set_external_surcharge_amount(None);
-            attempt.external_surcharge_details =
-                attempt.external_surcharge_details.filter(|details| {
-                    has_external_surcharge_error(
-                        Some(&details.error_code),
-                        Some(&details.error_message),
-                        Some(&details.error_reason),
-                    )
-                });
+            attempt.external_surcharge_details = attempt
+                .external_surcharge_details
+                .filter(|details| details.has_error());
             payment_data.set_payment_attempt(attempt);
             logger::debug!(
                 is_mit,
@@ -2688,18 +2680,6 @@ where
     .await
 }
 
-#[cfg(feature = "v1")]
-fn has_external_surcharge_error(
-    error_code: Option<&str>,
-    error_message: Option<&str>,
-    error_reason: Option<&str>,
-) -> bool {
-    [error_code, error_message, error_reason]
-        .into_iter()
-        .flatten()
-        .any(|value| !value.is_empty())
-}
-
 // CIT external surcharge: read whatever /eligibility cached in Redis, if any.
 #[cfg(feature = "v1")]
 async fn resolve_external_surcharge<F, D>(
@@ -2721,11 +2701,7 @@ where
                 .get_payment_intent()
                 .external_surcharge_applicable
                 .unwrap_or(false)
-                || has_external_surcharge_error(
-                    external.error_code.as_deref(),
-                    external.error_message.as_deref(),
-                    external.error_reason.as_deref(),
-                ))
+                || external.error_details.is_some())
         })
 }
 
@@ -15283,9 +15259,7 @@ fn build_surcharge_response(
         display_tax_on_surcharge_amount: 0.0,
         display_total_surcharge_amount: surcharge_f64,
         surcharge_percentage,
-        error_code: None,
-        error_message: None,
-        error_reason: None,
+        error_details: None,
     }
 }
 
@@ -15347,9 +15321,7 @@ async fn calculate_external_surcharge(
                             external_surcharge_id: resp.connector_surcharge_id,
                             surcharge_percentage,
                             // A successful calculation has no connector error details.
-                            error_code: None,
-                            error_message: None,
-                            error_reason: None,
+                            error_details: None,
                         };
                     Some((cached_result, response, true))
                 }
@@ -15366,9 +15338,11 @@ async fn calculate_external_surcharge(
                                 || common_types::consts::NO_SURCHARGE_ID_FOUND.to_string(),
                             ),
                             surcharge_percentage: None,
-                            error_code: code.clone(),
-                            error_message: Some(error.message.clone()),
-                            error_reason: error.reason.clone(),
+                            error_details: Some(common_types::payments::SurchargeErrorDetails {
+                                error_code: code.clone(),
+                                error_message: Some(error.message.clone()),
+                                error_reason: error.reason.clone(),
+                            }),
                         };
                     let response =
                         api_models::payment_methods::SurchargeDetailsResponse::connector_error(
@@ -15619,22 +15593,19 @@ async fn calculate_mit_external_surcharge(
                             .map(|percent| percent.get_percentage()),
                     ),
                     sale_notified: false,
-                    error_code: String::new(),
-                    error_message: String::new(),
-                    error_reason: String::new(),
+                    error_details: None,
                 }),
                 Ok(Some(Err(error))) => Some(common_types::payments::ExternalSurchargeDetails {
                     external_surcharge_id: error.connector_transaction_id.unwrap_or_else(|| common_types::consts::NO_SURCHARGE_ID_FOUND.to_string()),
                     external_surcharge_amount: MinorUnit::zero(),
                     surcharge_percentage: None,
                     sale_notified: false,
-                    error_code: if error.code != hyperswitch_interfaces::consts::NO_ERROR_CODE {
-                        error.code
-                    } else {
-                        String::new()
-                    },
-                    error_message: error.message,
-                    error_reason: error.reason.unwrap_or_default(),
+                    error_details: Some(common_types::payments::SurchargeErrorDetails {
+                        error_code: (error.code != hyperswitch_interfaces::consts::NO_ERROR_CODE)
+                            .then_some(error.code),
+                        error_message: Some(error.message),
+                        error_reason: error.reason,
+                    }),
                 }),
                 Ok(None) => None,
                 Err(err) => {

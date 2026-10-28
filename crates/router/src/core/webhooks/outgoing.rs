@@ -843,9 +843,7 @@ async fn update_payment_attempt_from_webhook_response(
             external_surcharge_amount: existing_details.external_surcharge_amount,
             surcharge_percentage: existing_details.surcharge_percentage,
             sale_notified: true,
-            error_code: existing_details.error_code,
-            error_message: existing_details.error_message,
-            error_reason: existing_details.error_reason,
+            error_details: existing_details.error_details,
         };
         let update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ExternalSurchargeUpdate {
         external_surcharge_details: updated_details,

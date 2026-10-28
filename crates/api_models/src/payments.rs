@@ -2042,18 +2042,9 @@ pub struct PaymentSurchargeDetailsResponse {
     pub tax_amount: Option<MinorUnit>,
     #[smithy(value_type = "Option<f64>")]
     pub surcharge_percentage: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schema(example = "INVALID_NICN")]
-    #[smithy(value_type = "Option<String>")]
-    pub error_code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schema(example = "Card BIN is invalid")]
-    #[smithy(value_type = "Option<String>")]
-    pub error_message: Option<String>,
-    /// Connector reason for a failed calculation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[smithy(value_type = "Option<String>")]
-    pub error_reason: Option<String>,
+    /// Connector error details when the external calculation failed; null on success.
+    #[smithy(value_type = "Option<SurchargeErrorDetails>")]
+    pub error_details: Option<payment_methods::SurchargeErrorDetails>,
 }
 
 impl PaymentSurchargeDetailsResponse {
@@ -2066,24 +2057,24 @@ impl PaymentSurchargeDetailsResponse {
             surcharge_amount,
             tax_amount,
             surcharge_percentage,
-            error_code: None,
-            error_message: None,
-            error_reason: None,
+            error_details: None,
         }
     }
 
     pub fn from_connector_error(
         code: Option<String>,
-        message: String,
+        message: Option<String>,
         reason: Option<String>,
     ) -> Self {
         Self {
             surcharge_amount: MinorUnit::zero(),
             tax_amount: None,
             surcharge_percentage: None,
-            error_code: code,
-            error_message: Some(message),
-            error_reason: reason,
+            error_details: Some(payment_methods::SurchargeErrorDetails {
+                error_code: code,
+                error_message: message,
+                error_reason: reason,
+            }),
         }
     }
 
@@ -2093,17 +2084,12 @@ impl PaymentSurchargeDetailsResponse {
         external: Option<&common_types::payments::ExternalSurchargeDetails>,
     ) -> Option<Self> {
         match external {
-            Some(details)
-                if !details.error_code.is_empty()
-                    || !details.error_message.is_empty()
-                    || !details.error_reason.is_empty() =>
-            {
-                Some(Self::from_connector_error(
-                    (!details.error_code.is_empty()).then(|| details.error_code.clone()),
-                    details.error_message.clone(),
-                    (!details.error_reason.is_empty()).then(|| details.error_reason.clone()),
-                ))
-            }
+            Some(details) if details.has_error() => Some(Self {
+                surcharge_amount: MinorUnit::zero(),
+                tax_amount: None,
+                surcharge_percentage: None,
+                error_details: details.error_details.clone(),
+            }),
             _ => amount.map(|value| {
                 Self::from_calculated_amounts(
                     value,

@@ -226,9 +226,7 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
             display_tax_on_surcharge_amount,
             display_total_surcharge_amount,
             surcharge_percentage: None,
-            error_code: None,
-            error_message: None,
-            error_reason: None,
+            error_details: None,
         })
     }
 }

@@ -1349,12 +1349,7 @@ pub struct ExternalSurchargeDetails {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub external_surcharge_id: String,
     pub surcharge_percentage: Option<f64>,
-
-    pub error_code: Option<String>,
-
-    pub error_message: Option<String>,
-
-    pub error_reason: Option<String>,
+    pub error_details: Option<common_types::payments::SurchargeErrorDetails>,
 }
 
 impl ExternalSurchargeDetails {
