@@ -3,6 +3,8 @@ pub mod access_token;
 #[cfg(feature = "v2")]
 mod backward_compat;
 #[cfg(feature = "v1")]
+pub mod batch_deletion;
+#[cfg(feature = "v1")]
 pub mod batch_retrieve;
 pub mod cards;
 #[cfg(feature = "v1")]

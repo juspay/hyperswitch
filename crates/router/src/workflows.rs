@@ -5,6 +5,8 @@ pub mod api_key_expiry;
 #[cfg(feature = "payouts")]
 pub mod attach_payout_account_workflow;
 pub mod outgoing_webhook_retry;
+#[cfg(feature = "v1")]
+pub mod payment_method_batch_deletion;
 pub mod payment_method_modular_backward_compat;
 pub mod payment_method_modular_forward_compat;
 pub mod payment_method_status_update;

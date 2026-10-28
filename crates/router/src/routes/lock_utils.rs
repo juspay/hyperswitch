@@ -151,6 +151,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ModularPaymentMethodsMigrate
             | Flow::PaymentMethodsBatchUpdate
             | Flow::PaymentMethodsBatchRetrieve
+            | Flow::PaymentMethodBatchDeletion
+            | Flow::PaymentMethodBatchDeletionStatus
+            | Flow::PaymentMethodBatchDeletionFailures
             | Flow::PaymentMethodsList
             | Flow::CustomerPaymentMethodsList
             | Flow::GetPaymentMethodTokenData

@@ -552,6 +552,22 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
+    /// Clears `locker_fingerprint_id` for eligible Apple Pay or Google Pay payment methods with no
+    /// locker ID and returns the IDs that matched.
+    #[cfg(feature = "v1")]
+    async fn clear_locker_fingerprint_ids_by_payment_method_ids(
+        &self,
+        payment_method_ids: &[String],
+    ) -> CustomResult<Vec<String>, Self::Error>;
+
+    /// Clears `locker_id` for every existing payment method in the supplied batch and returns the
+    /// IDs that matched.
+    #[cfg(feature = "v1")]
+    async fn clear_locker_ids_by_payment_method_ids(
+        &self,
+        payment_method_ids: &[String],
+    ) -> CustomResult<Vec<String>, Self::Error>;
+
     #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,

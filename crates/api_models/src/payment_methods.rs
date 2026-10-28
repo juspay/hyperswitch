@@ -4323,6 +4323,66 @@ impl common_utils::events::ApiEventMetric for PaymentMethodsBatchRecord {}
 
 impl common_utils::events::ApiEventMetric for PaymentMethodsBatchRetrieveResponse {}
 
+/// Payment method column to clear during a batch deletion job.
+#[cfg(feature = "v1")]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize, ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodDeletionType {
+    #[default]
+    LockerFingerprintId,
+    LockerId,
+}
+
+/// Lifecycle state of a batch locker data deletion job.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodBatchDeletionStatus {
+    Initiated,
+    Processing,
+    Completed,
+    Failed,
+}
+
+/// Immediate response returned after a locker data deletion is queued.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct PaymentMethodBatchDeletionResponse {
+    pub job_id: String,
+    pub deletion_type: PaymentMethodDeletionType,
+    pub total_ids: usize,
+    pub status: PaymentMethodBatchDeletionStatus,
+}
+
+/// Current progress of a locker data deletion job.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct PaymentMethodBatchDeletionStatusResponse {
+    pub job_id: String,
+    pub deletion_type: PaymentMethodDeletionType,
+    pub status: PaymentMethodBatchDeletionStatus,
+    pub total_ids: usize,
+    pub processed_ids: usize,
+    pub successful_ids: usize,
+    pub failed_ids: usize,
+}
+
+/// A payment method that could not be updated by a locker data deletion job.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodBatchDeletionFailure {
+    pub payment_method_id: String,
+    pub failure_reason: String,
+}
+
+#[cfg(feature = "v1")]
+impl common_utils::events::ApiEventMetric for PaymentMethodBatchDeletionResponse {}
+
+#[cfg(feature = "v1")]
+impl common_utils::events::ApiEventMetric for PaymentMethodBatchDeletionStatusResponse {}
+
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentMethodUpdateResponse {
     pub payment_method_id: String,

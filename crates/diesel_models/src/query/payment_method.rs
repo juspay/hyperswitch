@@ -144,6 +144,71 @@ impl PaymentMethod {
         .await
     }
 
+    /// Clears the locker fingerprint for eligible Apple Pay or Google Pay rows in one statement
+    /// and returns every updated payment method ID.
+    pub async fn clear_locker_fingerprint_ids_by_payment_method_ids(
+        conn: &DatabaseConnectionWithContext<'_>,
+        payment_method_ids: &[String],
+    ) -> StorageResult<Vec<String>> {
+        if payment_method_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let query = diesel::update(
+            <Self as HasTable>::table()
+                .filter(dsl::payment_method_id.eq_any(payment_method_ids.to_owned()))
+                .filter(dsl::locker_id.is_null())
+                .filter(dsl::payment_method_type.eq_any([
+                    storage_enums::PaymentMethodType::ApplePay,
+                    storage_enums::PaymentMethodType::GooglePay,
+                ])),
+        )
+        .set(dsl::locker_fingerprint_id.eq(Option::<String>::None))
+        .returning(dsl::payment_method_id);
+
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            generics::db_metrics::DatabaseOperation::Update,
+            query.get_results_async::<String>(conn.raw_connection()),
+        )
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to clear payment method locker fingerprint IDs")
+    }
+
+    /// Clears the locker ID for every matched payment method in one statement and returns every
+    /// updated payment method ID.
+    pub async fn clear_locker_ids_by_payment_method_ids(
+        conn: &DatabaseConnectionWithContext<'_>,
+        payment_method_ids: &[String],
+    ) -> StorageResult<Vec<String>> {
+        if payment_method_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let query = diesel::update(
+            <Self as HasTable>::table()
+                .filter(dsl::payment_method_id.eq_any(payment_method_ids.to_owned())),
+        )
+        .set(dsl::locker_id.eq(Option::<String>::None))
+        .returning(dsl::payment_method_id);
+
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            generics::db_metrics::DatabaseOperation::Update,
+            query.get_results_async::<String>(conn.raw_connection()),
+        )
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Failed to clear payment method locker IDs")
+    }
+
     pub async fn get_count_by_customer_id_merchant_id_status(
         conn: &DatabaseConnectionWithContext<'_>,
         customer_id: &common_utils::id_type::CustomerId,

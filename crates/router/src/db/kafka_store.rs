@@ -2579,6 +2579,26 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v1")]
+    async fn clear_locker_fingerprint_ids_by_payment_method_ids(
+        &self,
+        payment_method_ids: &[String],
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
+        self.diesel_store
+            .clear_locker_fingerprint_ids_by_payment_method_ids(payment_method_ids)
+            .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn clear_locker_ids_by_payment_method_ids(
+        &self,
+        payment_method_ids: &[String],
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
+        self.diesel_store
+            .clear_locker_ids_by_payment_method_ids(payment_method_ids)
+            .await
+    }
+
     async fn insert_payment_method(
         &self,
         key_store: &domain::MerchantKeyStore,
