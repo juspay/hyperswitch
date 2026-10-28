@@ -4,6 +4,76 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.07.0-hotfix7
+
+### Bug Fixes
+
+- Fix some resource access scoping ([#14979](https://github.com/juspay/hyperswitch/pull/14979)) ([`38cee16`](https://github.com/juspay/hyperswitch/commit/38cee1679b55ba7327aafcc4b3250248e767481a))
+
+**Full Changelog:** [`2026.10.07.0-hotfix6...2026.10.07.0-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.10.07.0-hotfix6...2026.10.07.0-hotfix7)
+
+- - -
+
+## 2026.10.07.0-hotfix6
+
+### Bug Fixes
+
+- **webhooks:** Remove default verification secret fallbacks ([#14973](https://github.com/juspay/hyperswitch/pull/14973)) ([`20c2621`](https://github.com/juspay/hyperswitch/commit/20c26212b3d8abac29d75328c932bf24150a1d29))
+
+**Full Changelog:** [`2026.10.07.0-hotfix5...2026.10.07.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.10.07.0-hotfix5...2026.10.07.0-hotfix6)
+
+- - -
+
+## 2026.10.07.0-hotfix5
+
+### Bug Fixes
+
+- **router:** Validate urls ([#14958](https://github.com/juspay/hyperswitch/pull/14958)) ([`782de50`](https://github.com/juspay/hyperswitch/commit/782de508552dda3e9f578eb982d932417fc737ee))
+
+**Full Changelog:** [`2026.10.07.0-hotfix4...2026.10.07.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.10.07.0-hotfix4...2026.10.07.0-hotfix5)
+
+- - -
+
+## 2026.10.07.0-hotfix4
+
+### Features
+
+- **connector:**
+  - Migrate Fiuu connector to fiuu.com domain ([#14897](https://github.com/juspay/hyperswitch/pull/14897)) ([`15de0ac`](https://github.com/juspay/hyperswitch/commit/15de0acb8b8410afaeb8396ae774b5065341152c))
+  - [SANTANDER] Implemented MIT webhooks for PixAutomaticoPush & PixAutomaticoQr ([#14899](https://github.com/juspay/hyperswitch/pull/14899)) ([`7b49368`](https://github.com/juspay/hyperswitch/commit/7b49368a52b78ba7a1a613c3c6317427095227eb))
+
+### Bug Fixes
+
+- **webhooks:**
+  - Preserve setup payment id for Santander mandate API events ([#14900](https://github.com/juspay/hyperswitch/pull/14900)) ([`3347dba`](https://github.com/juspay/hyperswitch/commit/3347dba90f737d04b3ee2ab52a948c43ba4693ae))
+  - Include setup payment ID in outgoing mandate bodies ([#14921](https://github.com/juspay/hyperswitch/pull/14921)) ([`90d8fc1`](https://github.com/juspay/hyperswitch/commit/90d8fc11cdb010ae08b1175f30bf01606bafbf73))
+
+**Full Changelog:** [`2026.10.07.0-hotfix3...2026.10.07.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.10.07.0-hotfix3...2026.10.07.0-hotfix4)
+
+- - -
+
+## 2026.10.07.0-hotfix3
+
+### Bug Fixes
+
+- **routing:** Validate eligibility per merchant connector account ([#14902](https://github.com/juspay/hyperswitch/pull/14902)) ([`997fec9`](https://github.com/juspay/hyperswitch/commit/997fec98391d96ab983b7dbc4c8cd94f1d695b8e))
+
+**Full Changelog:** [`2026.10.07.0-hotfix2...2026.10.07.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.10.07.0-hotfix2...2026.10.07.0-hotfix3)
+
+- - -
+
+## 2026.10.07.0-hotfix2
+
+### Bug Fixes
+
+- **config:** Remove country filter for worldpayxml ([#14791](https://github.com/juspay/hyperswitch/pull/14791)) ([`2e83703`](https://github.com/juspay/hyperswitch/commit/2e837035e0cecbd3b96637f0314c15d801a7a090))
+- **connector:** [WorldpayXML][Checkout] map issuer errors and allow optional return-code attributes ([#14790](https://github.com/juspay/hyperswitch/pull/14790)) ([`3d76771`](https://github.com/juspay/hyperswitch/commit/3d76771cb3f057efbe2f9ee1ccc6f208ecc3fb54))
+- **connectors:** [fiuu] psync deserialization error ([#14772](https://github.com/juspay/hyperswitch/pull/14772)) ([`93b4698`](https://github.com/juspay/hyperswitch/commit/93b469873b0d574f03eb8cf12708d159bb9fb3da))
+
+**Full Changelog:** [`2026.10.07.0-hotfix1...2026.10.07.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.10.07.0-hotfix1...2026.10.07.0-hotfix2)
+
+- - -
+
 ## 2026.10.07.0-hotfix1
 
 ### Bug Fixes

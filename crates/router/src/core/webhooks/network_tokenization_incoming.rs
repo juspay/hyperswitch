@@ -265,6 +265,7 @@ pub async fn handle_metadata_update(
             Ok(WebhookResponseTracker::PaymentMethod {
                 payment_method_id,
                 status,
+                payment_id: None,
             })
         }
         true => {
@@ -399,6 +400,7 @@ pub async fn handle_metadata_update(
             Ok(WebhookResponseTracker::PaymentMethod {
                 payment_method_id,
                 status,
+                payment_id: None,
             })
         }
     }

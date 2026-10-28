@@ -6113,16 +6113,14 @@ where
     )
     .await?;
 
-    if let Some(connector_customer_id) = {
-        core_utils::get_connector_customer_id(
-            &state.conf,
-            &connector.connector_name.to_string(),
-            payment_data.get_connector_customer_id(),
-            &payment_data.get_payment_intent().customer_id,
-            &payment_data.get_payment_method_info().cloned(),
-            payment_data.get_payment_attempt(),
-        )?
-    } {
+    if let Some(connector_customer_id) = core_utils::get_connector_customer_id(
+        &state.conf,
+        &connector.connector_name.to_string(),
+        payment_data.get_connector_customer_id(),
+        &payment_data.get_payment_intent().customer_id,
+        &payment_data.get_payment_method_info().cloned(),
+        payment_data.get_payment_attempt(),
+    )? {
         router_data.connector_customer = Some(connector_customer_id);
     }
 
@@ -6391,7 +6389,10 @@ fn apply_auto_fallback_capture_method<F, D>(
     let applied = if should_fall_back {
         logger::info!(
             payment_id = ?attempt.payment_id,
-            connector = %connector.connector_name,
+            connector = %core_routing::format_connector_for_logging(
+                connector.connector_name,
+                connector.merchant_connector_id.as_ref(),
+            ),
             payment_method_type = ?attempt.payment_method_type,
             %requested,
             %fallback,
@@ -12161,6 +12162,9 @@ where
         .inspect_err(|err| {
             logger::error!(
                 error = ?err,
+                profile_id = %business_profile.get_id().get_string_repr(),
+                eligibility_bypassed = true,
+                fallback_connectors = ?core_routing::format_connectors_for_logging(&fallback_config),
                 "euclid: eligibility analysis failed, using fallback connectors"
             );
         })
@@ -12408,6 +12412,11 @@ where
                         .attach_printable("No mandate record found for merchant connector ID")
                 })?;
 
+            validate_connector_mandate_status_for_mit(
+                &connector_routing_data.connector_data,
+                mandate_reference_record,
+            )?;
+
             if let Some(mandate_currency) =
                 mandate_reference_record.original_payment_authorized_currency
             {
@@ -12482,6 +12491,11 @@ where
                             .attach_printable("no eligible connector found for token-based MIT flow since there were no connector mandate details")?
                             .get(merchant_connector_id)
                         {
+                            validate_connector_mandate_status_for_mit(
+                                &connector_data,
+                                mandate_reference_record,
+                            )?;
+
                             common_utils::fp_utils::when(
                                 mandate_reference_record
                                     .original_payment_authorized_currency
@@ -12559,6 +12573,28 @@ where
     Ok(ConnectorCallType::PreDetermined(
         chosen_connector_data.into(),
     ))
+}
+
+#[cfg(feature = "v1")]
+fn validate_connector_mandate_status_for_mit(
+    connector_data: &api::ConnectorData,
+    mandate_reference_record: &mandates::PaymentsMandateReferenceRecord,
+) -> RouterResult<()> {
+    let should_allow_inactive_connector_mandate = connector_data
+        .connector
+        .should_allow_mit_when_connector_mandate_status_is_inactive()
+        .unwrap_or(true);
+
+    common_utils::fp_utils::when(
+        !should_allow_inactive_connector_mandate
+            && mandate_reference_record.connector_mandate_status
+                == Some(common_enums::ConnectorMandateStatus::Inactive),
+        || {
+            Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                reason: "connector mandate is inactive".into(),
+            }))
+        },
+    )
 }
 
 pub fn filter_ntid_supported_connectors(
