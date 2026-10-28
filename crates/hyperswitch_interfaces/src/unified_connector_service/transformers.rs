@@ -704,8 +704,8 @@ impl ForeignTryFrom<(payments_grpc::PaymentStatus, Self)> for AttemptStatus {
             }
             // Deprecated in UCS in favour of `PostCaptureVoidStatus`; kept for exhaustiveness.
             #[allow(deprecated)]
-            payments_grpc::PaymentStatus::VoidedPostCapture |
-            payments_grpc::PaymentStatus::Unspecified => Ok(prev_status),
+            payments_grpc::PaymentStatus::VoidedPostCapture
+            | payments_grpc::PaymentStatus::Unspecified => Ok(prev_status),
             payments_grpc::PaymentStatus::PartiallyAuthorized => Ok(Self::PartiallyAuthorized),
             payments_grpc::PaymentStatus::Expired => Ok(Self::Expired),
             payments_grpc::PaymentStatus::Conflicted => Ok(Self::IntegrityFailure),
