@@ -4,6 +4,9 @@ pub use hyperswitch_domain_models::{
 };
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::Deserialize;
+use subtle::ConstantTimeEq;
+
+use crate::secrets_interface::SecretsManagementError;
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
@@ -99,8 +102,6 @@ impl InternalMerchantIdProfileIdAuthSettings {
         mut self,
         client: &dyn crate::secrets_interface::SecretManagementInterface,
     ) -> CustomResult<Self, crate::secrets_interface::SecretsManagementError> {
-        use crate::secrets_interface::SecretsManagementError;
-
         let legacy_key_configured = self
             .internal_api_key
             .as_ref()
@@ -145,8 +146,6 @@ impl InternalMerchantIdProfileIdAuthSettings {
     }
 
     pub fn accepts_api_key(&self, candidate: &str) -> bool {
-        use subtle::ConstantTimeEq;
-
         let primary_key = &self.primary_internal_api_key;
         if primary_key.peek().is_empty() {
             return false;

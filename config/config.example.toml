@@ -122,7 +122,7 @@ tcp_user_timeout_ms = 5000 # Unacked-data timeout (ms); keep below connection_ti
 host = "127.0.0.1"
 port = 6379
 # username = "default"            # Optional ACL username for authenticated Redis (Redis 6+ / Redis Cloud); requires `password`
-# password = ""                   # Optional password for authenticated Redis (AUTH); leave unset for unauthenticated Redis
+# primary_password = ""                   # Optional password for authenticated Redis (AUTH); leave unset for unauthenticated Redis
 # tls_enabled = true              # Connect over TLS (`rediss://`); the server certificate is verified against the platform's trusted CA roots
 # tls_ca_certificate_path = "/path/to/redis_ca.pem"    # When set, the server certificate is verified against the CA certificate(s) in this PEM file; when unset, against the platform's trusted CA roots
 pool_size = 5                     # Number of connections to keep open
@@ -1374,7 +1374,7 @@ forex_enabled = false # Enable or disable forex conversion for analytics
 
 [analytics.clickhouse]
 username = ""      # Clickhouse username
-password = ""      # Clickhouse password (optional)
+primary_password = ""      # Clickhouse password (optional)
 host = ""          # Clickhouse host in http(s)://<URL>:<PORT> format
 database_name = "" # Clickhouse database name
 
@@ -1509,7 +1509,7 @@ enabled = false
 [opensearch.auth]
 auth = "basic"
 username = "admin"
-password = "admin"
+primary_password = "admin"
 region = "eu-central-1"
 
 [opensearch.indexes]
@@ -1695,7 +1695,6 @@ primary_internal_api_key = ""
 key_rotation_enabled = false
 use_legacy_key_for_outbound = false
 enabled = false # Enable or disable internal api key, merchant id and profile id based authentication
-internal_api_key = "test_internal_api_key" # API key for internal merchant id and profile id based authentication
 
 [internal_services] # Internal services base urls and configs
 payments_base_url = "http://localhost:8080"
