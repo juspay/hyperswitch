@@ -29,11 +29,14 @@ use hyperswitch_domain_models::{
     payment_method_data as domain_pm,
     platform::Processor,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
-    router_flow_types::refunds,
-    router_request_types::{RefundsData, ResponseId},
+    router_flow_types::{dispute, refunds},
+    router_request_types::{
+        AcceptDisputeRequestData, DefendDisputeRequestData, RefundsData, ResponseId,
+        SubmitEvidenceRequestData,
+    },
     router_response_types::{
-        fraud_check::FraudCheckResponseData, PaymentsResponseData, PayoutsResponseData,
-        RefundsResponseData,
+        fraud_check::FraudCheckResponseData, AcceptDisputeResponse, DefendDisputeResponse,
+        PaymentsResponseData, PayoutsResponseData, RefundsResponseData, SubmitEvidenceResponse,
     },
 };
 use hyperswitch_interfaces::{consts as interface_consts, helpers as interface_helpers};
@@ -954,6 +957,32 @@ pub async fn should_call_unified_connector_service<F: Clone, T, R>(
 where
     R: Send + Sync + Clone,
 {
+    should_call_unified_connector_service_with_rollout_keys(
+        state,
+        processor,
+        router_data,
+        previous_gateway,
+        call_connector_action,
+        shadow_ucs_call_connector_action,
+        transaction_type,
+        None,
+    )
+    .await
+}
+
+async fn should_call_unified_connector_service_with_rollout_keys<F: Clone, T, R>(
+    state: &SessionState,
+    processor: &Processor,
+    router_data: &RouterData<F, T, R>,
+    previous_gateway: Option<GatewaySystem>,
+    call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
+    transaction_type: common_enums::TransactionType,
+    rollout_keys_override: Option<Vec<String>>,
+) -> RouterResult<(ExecutionPath, SessionState, RolloutExecutionResult)>
+where
+    R: Send + Sync + Clone,
+{
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
     let org_id = processor.get_account().get_org_id().get_string_repr();
@@ -970,7 +999,7 @@ where
 
     // Build rollout keys in ascending precedence order.
     // Payments use org-level hierarchy; payouts use a single merchant-level key for now.
-    let rollout_keys = match transaction_type {
+    let rollout_keys = rollout_keys_override.unwrap_or_else(|| match transaction_type {
         common_enums::TransactionType::Payment
         | common_enums::TransactionType::ThreeDsAuthentication => build_rollout_keys_by_precedence(
             org_id,
@@ -986,7 +1015,7 @@ where
             &flow_name,
             router_data.payment_method_type,
         ),
-    };
+    });
 
     // Determine connector integration type
     let connector_integration_type =
@@ -1340,8 +1369,10 @@ pub fn build_merchant_rollout_scope(
     let payment_method_str = payment_method.to_string();
 
     match flow_name {
-        // Refund keys carry no payment method.
-        "Execute" | "RSync" => format!("{merchant_id}_{connector_name}_{flow_name}"),
+        // Refund and dispute keys carry no payment method.
+        "Execute" | "RSync" | "Accept" | "Evidence" | "Defend" => {
+            format!("{merchant_id}_{connector_name}_{flow_name}")
+        }
 
         _ => match payment_method {
             // These payment methods are discriminated further by payment method type.
@@ -1399,6 +1430,80 @@ fn build_rollout_keys_by_precedence(
         format!("{prefix}_{org_id}_{scope}"),
         format!("{prefix}_{scope}"),
     ]
+}
+
+/// Dispute gate. UCS implements the dispute service for only a few connectors, so the org- and
+/// merchant-wide rollout keys (which are connector- and flow-agnostic) must never move a dispute
+/// off the direct integration. Only a UCS-only connector, or a rollout key scoped to this
+/// connector and flow that selects `Primary`, routes a dispute action to UCS.
+pub async fn should_call_unified_connector_service_for_dispute<F: Clone, T, R>(
+    state: &SessionState,
+    processor: &Processor,
+    router_data: &RouterData<F, T, R>,
+) -> RouterResult<(ExecutionPath, SessionState, RolloutExecutionResult)>
+where
+    R: Send + Sync + Clone,
+{
+    let connector_name = &router_data.connector;
+    let connector_enum = Connector::from_str(connector_name)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+        .attach_printable_lazy(|| format!("Failed to parse connector name: {connector_name}"))?;
+
+    if determine_connector_integration_type(state, connector_enum).await?
+        == ConnectorIntegrationType::UcsConnector
+    {
+        return should_call_unified_connector_service(
+            state,
+            processor,
+            router_data,
+            None,
+            CallConnectorAction::Trigger,
+            None,
+            common_enums::TransactionType::Payment,
+        )
+        .await;
+    }
+
+    let merchant_id = processor.get_account().get_id().get_string_repr();
+    let org_id = processor.get_account().get_org_id().get_string_repr();
+    let flow_name = get_flow_name::<F>()?;
+    let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
+    let scope = build_merchant_rollout_scope(
+        merchant_id,
+        connector_name,
+        &flow_name,
+        router_data.payment_method,
+        router_data.payment_method_type,
+    );
+
+    // Connector- and flow-scoped keys only, lowest precedence first.
+    let scoped_keys = vec![
+        format!("{prefix}_{org_id}_{scope}"),
+        format!("{prefix}_{scope}"),
+    ];
+    // Evaluate the scoped rollout once. The common gate then applies availability,
+    // kill-switch and proxy rules to that same decision.
+    let (execution_path, updated_state, rollout_result) =
+        should_call_unified_connector_service_with_rollout_keys(
+            state,
+            processor,
+            router_data,
+            None,
+            CallConnectorAction::Trigger,
+            None,
+            common_enums::TransactionType::Payment,
+            Some(scoped_keys),
+        )
+        .await?;
+    Ok((
+        if execution_path == ExecutionPath::UnifiedConnectorService {
+            execution_path
+        } else {
+            ExecutionPath::Direct
+        },
+        updated_state,
+        rollout_result,
+    ))
 }
 
 /// Build rollout key for payouts — single key, org-level precedence not applied to payouts yet.
@@ -3609,6 +3714,150 @@ pub fn handle_unified_connector_service_response_for_refund_void_post_refund(
     ))
 }
 
+impl ForeignTryFrom<payments_grpc::DisputeStatus> for common_enums::DisputeStatus {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(status: payments_grpc::DisputeStatus) -> Result<Self, Self::Error> {
+        match status {
+            payments_grpc::DisputeStatus::DisputeOpened => Ok(Self::DisputeOpened),
+            payments_grpc::DisputeStatus::DisputeExpired => Ok(Self::DisputeExpired),
+            payments_grpc::DisputeStatus::DisputeAccepted => Ok(Self::DisputeAccepted),
+            payments_grpc::DisputeStatus::DisputeCancelled => Ok(Self::DisputeCancelled),
+            payments_grpc::DisputeStatus::DisputeChallenged => Ok(Self::DisputeChallenged),
+            payments_grpc::DisputeStatus::DisputeWon => Ok(Self::DisputeWon),
+            payments_grpc::DisputeStatus::DisputeLost => Ok(Self::DisputeLost),
+            payments_grpc::DisputeStatus::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("UCS dispute response carried DISPUTE_STATUS_UNSPECIFIED")),
+        }
+    }
+}
+
+/// Builds the router-data error for a UCS dispute response that carries an `ErrorInfo`.
+fn build_dispute_error_response(
+    error_info: &payments_grpc::ErrorInfo,
+    status_code: u16,
+) -> Result<ErrorResponse, error_stack::Report<UnifiedConnectorServiceError>> {
+    let connector_details = error_info.connector_details.as_ref();
+    Ok(ErrorResponse {
+        code: connector_details
+            .and_then(|details| details.code.clone())
+            .ok_or(
+                error_stack::Report::new(
+                    UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                )
+                .attach_printable("Missing error code in UCS dispute response ErrorInfo"),
+            )?,
+        message: connector_details
+            .and_then(|details| details.message.clone())
+            .ok_or(
+                error_stack::Report::new(
+                    UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                )
+                .attach_printable("Missing error message in UCS dispute response ErrorInfo"),
+            )?,
+        reason: connector_details.and_then(|details| details.reason.clone()),
+        status_code,
+        attempt_status: None,
+        connector_transaction_id: None,
+        connector_response_reference_id: None,
+        network_decline_code: None,
+        network_advice_code: None,
+        network_error_message: None,
+        connector_metadata: None,
+    })
+}
+
+/// Return type of the shared UCS dispute response handler.
+type UnifiedConnectorServiceDisputeResult = CustomResult<
+    (
+        Result<(common_enums::DisputeStatus, Option<String>), ErrorResponse>,
+        u16,
+    ),
+    UnifiedConnectorServiceError,
+>;
+
+/// Shared shape of the three dispute responses: (dispute_status, connector_status) or error.
+fn handle_unified_connector_service_dispute_response(
+    error: Option<&payments_grpc::ErrorInfo>,
+    dispute_status: payments_grpc::DisputeStatus,
+    connector_status_code: Option<String>,
+    grpc_status_code: u32,
+) -> UnifiedConnectorServiceDisputeResult {
+    let status_code = transformers::convert_connector_service_status_code(grpc_status_code)?;
+    let response = match error {
+        Some(error_info) => Err(build_dispute_error_response(error_info, status_code)?),
+        None => Ok((
+            common_enums::DisputeStatus::foreign_try_from(dispute_status)?,
+            connector_status_code,
+        )),
+    };
+    Ok((response, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_dispute_accept(
+    response: payments_grpc::DisputeServiceAcceptResponse,
+) -> CustomResult<(Result<AcceptDisputeResponse, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let dispute_status = response.dispute_status();
+    let (router_data_response, status_code) = handle_unified_connector_service_dispute_response(
+        response.error.as_ref(),
+        dispute_status,
+        response.connector_status_code,
+        response.status_code,
+    )?;
+    Ok((
+        router_data_response.map(|(dispute_status, connector_status)| AcceptDisputeResponse {
+            dispute_status,
+            connector_status,
+        }),
+        status_code,
+    ))
+}
+
+pub fn handle_unified_connector_service_response_for_dispute_submit_evidence(
+    response: payments_grpc::DisputeServiceSubmitEvidenceResponse,
+) -> CustomResult<(Result<SubmitEvidenceResponse, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let dispute_status = response.dispute_status();
+    let (router_data_response, status_code) = handle_unified_connector_service_dispute_response(
+        response.error.as_ref(),
+        dispute_status,
+        response.connector_status_code,
+        response.status_code,
+    )?;
+    Ok((
+        router_data_response.map(
+            |(dispute_status, connector_status)| SubmitEvidenceResponse {
+                dispute_status,
+                connector_status,
+            },
+        ),
+        status_code,
+    ))
+}
+
+pub fn handle_unified_connector_service_response_for_dispute_defend(
+    response: payments_grpc::DisputeServiceDefendResponse,
+) -> CustomResult<(Result<DefendDisputeResponse, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let dispute_status = response.dispute_status();
+    let (router_data_response, status_code) = handle_unified_connector_service_dispute_response(
+        response.error.as_ref(),
+        dispute_status,
+        response.connector_status_code,
+        response.status_code,
+    )?;
+    Ok((
+        router_data_response.map(|(dispute_status, connector_status)| DefendDisputeResponse {
+            dispute_status,
+            connector_status,
+        }),
+        status_code,
+    ))
+}
+
 pub fn handle_unified_connector_service_response_for_payment_cancel(
     response: payments_grpc::PaymentServiceVoidResponse,
     prev_status: AttemptStatus,
@@ -4799,6 +5048,233 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
     .map(|(_router_data, reverse_response)| reverse_response)
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("UCS refund reverse execution failed")
+}
+
+/// Execute a dispute accept using DisputeService.Accept.
+#[instrument(skip_all)]
+pub async fn call_unified_connector_service_for_dispute_accept(
+    state: &SessionState,
+    processor: &Processor,
+    router_data: RouterData<dispute::Accept, AcceptDisputeRequestData, AcceptDisputeResponse>,
+    connector_transaction_id: Option<String>,
+    rollout_settings: kill_switch::RolloutSettings,
+    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
+) -> RouterResult<RouterData<dispute::Accept, AcceptDisputeRequestData, AcceptDisputeResponse>> {
+    let ucs_client = get_ucs_client(state)?;
+    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+        merchant_connector_account,
+        processor.get_account().get_id(),
+        router_data.connector.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to build UCS auth metadata for dispute accept")?;
+    let grpc_request = payments_grpc::DisputeServiceAcceptRequest::foreign_try_from((
+        &router_data,
+        connector_transaction_id,
+    ))
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to transform router data to UCS dispute accept request")?;
+
+    let merchant_id = processor.get_account().get_id().clone();
+    let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert merchant_id to profile_id for UCS dispute accept")?;
+    let lineage_ids = LineageIds::new(merchant_id, profile_id);
+    let merchant_reference_id =
+        id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert payment_id to UCS reference id")
+            .map(ucs_types::UcsReferenceId::Payment)
+            .map(Some)?;
+    // UcsResourceId has no dispute variant; the dispute is identified by the request body.
+    let grpc_header_builder = state
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
+        .payment_method(Some(router_data.payment_method))
+        .payment_method_type(router_data.payment_method_type)
+        .lineage_ids(lineage_ids)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(merchant_reference_id)
+        .resource_id(None);
+
+    Box::pin(ucs_logging_wrapper(
+        router_data,
+        state,
+        grpc_request,
+        grpc_header_builder,
+        rollout_settings.clone(),
+        |mut router_data, grpc_request, grpc_headers| async move {
+            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
+            let grpc_response = ucs_client
+                .dispute_accept(grpc_request, connector_auth_metadata, grpc_headers)
+                .await
+                .attach_printable("UCS dispute accept execution failed")?
+                .into_inner();
+            let (router_data_response, status_code) =
+                handle_unified_connector_service_response_for_dispute_accept(grpc_response.clone())
+                    .attach_printable("Failed to transform UCS dispute accept response")?;
+
+            router_data.connector_http_status_code = Some(status_code);
+            router_data.response = router_data_response;
+
+            Ok((router_data, (), grpc_response))
+        },
+    ))
+    .await
+    .map(|(router_data, _flow_response)| router_data)
+}
+
+/// Execute a dispute submit evidence using DisputeService.SubmitEvidence.
+#[instrument(skip_all)]
+pub async fn call_unified_connector_service_for_dispute_submit_evidence(
+    state: &SessionState,
+    processor: &Processor,
+    router_data: RouterData<dispute::Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>,
+    connector_transaction_id: Option<String>,
+    rollout_settings: kill_switch::RolloutSettings,
+    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
+) -> RouterResult<RouterData<dispute::Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>>
+{
+    let ucs_client = get_ucs_client(state)?;
+    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+        merchant_connector_account,
+        processor.get_account().get_id(),
+        router_data.connector.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to build UCS auth metadata for dispute submit evidence")?;
+    let grpc_request = payments_grpc::DisputeServiceSubmitEvidenceRequest::foreign_try_from((
+        &router_data,
+        connector_transaction_id,
+    ))
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to transform router data to UCS dispute submit evidence request")?;
+
+    let merchant_id = processor.get_account().get_id().clone();
+    let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Failed to convert merchant_id to profile_id for UCS dispute submit evidence",
+        )?;
+    let lineage_ids = LineageIds::new(merchant_id, profile_id);
+    let merchant_reference_id =
+        id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert payment_id to UCS reference id")
+            .map(ucs_types::UcsReferenceId::Payment)
+            .map(Some)?;
+    // UcsResourceId has no dispute variant; the dispute is identified by the request body.
+    let grpc_header_builder = state
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
+        .payment_method(Some(router_data.payment_method))
+        .payment_method_type(router_data.payment_method_type)
+        .lineage_ids(lineage_ids)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(merchant_reference_id)
+        .resource_id(None);
+
+    Box::pin(ucs_logging_wrapper(
+        router_data,
+        state,
+        grpc_request,
+        grpc_header_builder,
+        rollout_settings.clone(),
+        |mut router_data, grpc_request, grpc_headers| async move {
+            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
+            let grpc_response = ucs_client
+                .dispute_submit_evidence(grpc_request, connector_auth_metadata, grpc_headers)
+                .await
+                .attach_printable("UCS dispute submit evidence execution failed")?
+                .into_inner();
+            let (router_data_response, status_code) =
+                handle_unified_connector_service_response_for_dispute_submit_evidence(
+                    grpc_response.clone(),
+                )
+                .attach_printable("Failed to transform UCS dispute submit evidence response")?;
+
+            router_data.connector_http_status_code = Some(status_code);
+            router_data.response = router_data_response;
+
+            Ok((router_data, (), grpc_response))
+        },
+    ))
+    .await
+    .map(|(router_data, _flow_response)| router_data)
+}
+
+/// Execute a dispute defend using DisputeService.Defend.
+#[instrument(skip_all)]
+pub async fn call_unified_connector_service_for_dispute_defend(
+    state: &SessionState,
+    processor: &Processor,
+    router_data: RouterData<dispute::Defend, DefendDisputeRequestData, DefendDisputeResponse>,
+    connector_transaction_id: Option<String>,
+    rollout_settings: kill_switch::RolloutSettings,
+    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
+) -> RouterResult<RouterData<dispute::Defend, DefendDisputeRequestData, DefendDisputeResponse>> {
+    let ucs_client = get_ucs_client(state)?;
+    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+        merchant_connector_account,
+        processor.get_account().get_id(),
+        router_data.connector.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to build UCS auth metadata for dispute defend")?;
+    let grpc_request = payments_grpc::DisputeServiceDefendRequest::foreign_try_from((
+        &router_data,
+        connector_transaction_id,
+    ))
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to transform router data to UCS dispute defend request")?;
+
+    let merchant_id = processor.get_account().get_id().clone();
+    let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert merchant_id to profile_id for UCS dispute defend")?;
+    let lineage_ids = LineageIds::new(merchant_id, profile_id);
+    let merchant_reference_id =
+        id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert payment_id to UCS reference id")
+            .map(ucs_types::UcsReferenceId::Payment)
+            .map(Some)?;
+    // UcsResourceId has no dispute variant; the dispute is identified by the request body.
+    let grpc_header_builder = state
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
+        .payment_method(Some(router_data.payment_method))
+        .payment_method_type(router_data.payment_method_type)
+        .lineage_ids(lineage_ids)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(merchant_reference_id)
+        .resource_id(None);
+
+    Box::pin(ucs_logging_wrapper(
+        router_data,
+        state,
+        grpc_request,
+        grpc_header_builder,
+        rollout_settings.clone(),
+        |mut router_data, grpc_request, grpc_headers| async move {
+            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
+            let grpc_response = ucs_client
+                .dispute_defend(grpc_request, connector_auth_metadata, grpc_headers)
+                .await
+                .attach_printable("UCS dispute defend execution failed")?
+                .into_inner();
+            let (router_data_response, status_code) =
+                handle_unified_connector_service_response_for_dispute_defend(grpc_response.clone())
+                    .attach_printable("Failed to transform UCS dispute defend response")?;
+
+            router_data.connector_http_status_code = Some(status_code);
+            router_data.response = router_data_response;
+
+            Ok((router_data, (), grpc_response))
+        },
+    ))
+    .await
+    .map(|(router_data, _flow_response)| router_data)
 }
 
 /// Execute a surcharge calculation call via UCS SurchargeService.Calculate.
