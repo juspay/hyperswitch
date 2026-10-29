@@ -1307,7 +1307,7 @@ bank_redirect.sofort = { connector_list = "globalpay,aci" }
 bank_redirect.giropay = { connector_list = "globalpay,aci" }
 bank_transfer.pix_automatico_push = { connector_list = "santander" }
 bank_transfer.pix_automatico_qr = { connector_list = "santander" }
-network_token.network_token.connector_list = "peachpayments"
+network_token.network_token.connector_list = "peachpayments,worldpayraft"
 
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }
