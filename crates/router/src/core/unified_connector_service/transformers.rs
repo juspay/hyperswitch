@@ -4082,7 +4082,10 @@ impl
             }),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             merchant_authorization_id: Some(router_data.connector_request_reference_id.clone()),
-            additional_amount: None,
+            additional_amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.additional_amount,
+                currency: currency.into(),
+            }),
             network_transaction_id: None,
             reason: router_data.request.reason.clone(),
             connector_feature_data: router_data
