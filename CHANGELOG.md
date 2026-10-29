@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.21.1-hotfix4
+
+### Bug Fixes
+
+- **connector:** Preserve InterPayments surcharge errors ([#15040](https://github.com/juspay/hyperswitch/pull/15040)) ([`728a9d4`](https://github.com/juspay/hyperswitch/commit/728a9d428c5ecc45d9e163325bed77913d599058))
+
+**Full Changelog:** [`2026.10.21.1-hotfix3...2026.10.21.1-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.10.21.1-hotfix3...2026.10.21.1-hotfix4)
+
+- - -
+
 ## 2026.10.21.1-hotfix3
 
 ### Bug Fixes
