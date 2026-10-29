@@ -160,26 +160,11 @@ impl InternalMerchantIdProfileIdAuthSettings {
             || (self.key_rotation_enabled && self.internal_api_key.as_ref().is_some_and(matches))
     }
 
-    pub fn outbound_api_key(&self) -> CustomResult<Secret<String>, SecretsManagementError> {
-        let primary_key = &self.primary_internal_api_key;
-        if primary_key.is_default_or_empty() {
-            return Err(
-                error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
-                    .attach_printable("Internal service primary API key is missing or empty"),
-            );
-        }
-        let key = if self.use_legacy_key_for_outbound {
-            self.internal_api_key.as_ref()
-        } else {
-            Some(primary_key)
-        };
-        let key = key
-            .filter(|key| !key.is_default_or_empty())
-            .ok_or_else(|| {
-                error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
-                    .attach_printable("Internal service authentication key is missing or empty")
-            })?;
-        Ok(key.clone())
+    pub fn outbound_api_key(&self) -> &Secret<String> {
+        self.internal_api_key
+            .as_ref()
+            .filter(|_| self.use_legacy_key_for_outbound)
+            .unwrap_or(&self.primary_internal_api_key)
     }
 }
 

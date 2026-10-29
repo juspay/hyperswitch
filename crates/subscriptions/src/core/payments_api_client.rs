@@ -25,18 +25,16 @@ impl PaymentsApiClient {
         state: &SessionState,
         merchant_id: &str,
         profile_id: &str,
-    ) -> common_utils::errors::CustomResult<
-        Vec<(String, hyperswitch_masking::Maskable<String>)>,
-        hyperswitch_interfaces::secrets_interface::SecretsManagementError,
-    > {
-        Ok(vec![
+    ) -> Vec<(String, hyperswitch_masking::Maskable<String>)> {
+        vec![
             (
                 helpers::X_INTERNAL_API_KEY.to_string(),
                 hyperswitch_masking::Maskable::Masked(
                     state
                         .conf
                         .internal_merchant_id_profile_id_auth
-                        .outbound_api_key()?,
+                        .outbound_api_key()
+                        .clone(),
                 ),
             ),
             (
@@ -53,7 +51,7 @@ impl PaymentsApiClient {
                 helpers::X_PROFILE_ID.to_string(),
                 hyperswitch_masking::Maskable::Normal(profile_id.to_string()),
             ),
-        ])
+        ]
     }
 
     /// Generic method to handle payment API calls with different HTTP methods and URL patterns
@@ -69,9 +67,7 @@ impl PaymentsApiClient {
         let subscription_error = errors::ApiErrorResponse::SubscriptionError {
             operation: operation_name.to_string(),
         };
-        let headers = Self::get_internal_auth_headers(state, merchant_id, profile_id)
-            .change_context(subscription_error.clone())
-            .attach_printable("Failed to resolve internal service authentication")?;
+        let headers = Self::get_internal_auth_headers(state, merchant_id, profile_id);
 
         let mut request_builder = services::RequestBuilder::new()
             .method(method)

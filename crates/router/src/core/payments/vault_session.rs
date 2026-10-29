@@ -241,12 +241,10 @@ async fn call_internal_pm_session_create_for_vault(
     // (provider) merchant whose profile carries the external vault configuration.
     let merchant_id = &profile.merchant_id;
     let profile_id = profile.get_id();
-    let internal_api_key = &state
+    let internal_api_key = state
         .conf
         .internal_merchant_id_profile_id_auth
-        .outbound_api_key()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to resolve internal service authentication")?;
+        .outbound_api_key();
 
     let mut headers = Headers::new();
     headers.insert((
