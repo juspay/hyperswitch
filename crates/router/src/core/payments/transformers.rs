@@ -1112,7 +1112,14 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         .unwrap_or(payment_data.payment_attempt.amount_details.get_net_amount());
 
     let amount = payment_data.payment_attempt.amount_details.get_net_amount();
+    let connector_intent_metadata = payment_data.payment_intent.connector_metadata.clone();
     let request = types::PaymentsCaptureData {
+        feature_metadata: payment_data.capture_feature_metadata.clone(),
+        payment_feature_metadata: payment_data
+            .payment_intent
+            .feature_metadata
+            .as_ref()
+            .map(api_models::payments::FeatureMetadata::foreign_from),
         capture_method: Some(payment_data.payment_intent.capture_method),
         amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
         minor_amount_to_capture: amount_to_capture,
@@ -1132,6 +1139,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
             .connector_metadata
             .clone()
             .expose_option(),
+        connector_intent_metadata,
         // TODO: add multiple capture data
         multiple_capture_data: None,
         // TODO: why do we need browser info during capture?
@@ -1142,6 +1150,8 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         webhook_url: None,
         merchant_order_reference_id: None,
         is_overcapture_enabled: None,
+        payment_method_data: None,
+        mandate_id: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1513,6 +1523,8 @@ pub async fn construct_router_data_for_cancel<'a>(
         merchant_order_reference_id: None,
         feature_metadata: None,
         payment_method_type: None,
+        payment_method_data: None,
+        mandate_id: None,
     };
 
     // Construct RouterDataV2 for cancel operation
@@ -5896,6 +5908,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
                 .connector_transaction_id(payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             connector_meta: payment_attempt.connector_metadata.clone(),
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -5934,6 +5948,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
                 .payment_attempt
                 .connector_metadata
                 .map(|secret| secret.expose()),
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -5971,7 +5987,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                     .clone()
                     .and_then(|tax_details| tax_details.get_default_tax_amount())
             });
+        let connector_intent_metadata = payment_data.payment_intent.connector_metadata.clone();
         Ok(Self {
+            feature_metadata: payment_data.capture_feature_metadata.clone(),
+            payment_feature_metadata: payment_data
+                .payment_intent
+                .feature_metadata
+                .as_ref()
+                .map(api_models::payments::FeatureMetadata::foreign_from),
             capture_method: Some(payment_data.payment_intent.capture_method),
             amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
             minor_amount_to_capture: amount_to_capture,
@@ -5987,6 +6010,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 .payment_attempt
                 .connector_metadata
                 .expose_option(),
+            connector_intent_metadata,
             // TODO: add multiple capture data
             multiple_capture_data: None,
             // TODO: why do we need browser info during capture?
@@ -5997,6 +6021,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             webhook_url: None,
             merchant_order_reference_id: None,
             is_overcapture_enabled: None,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6053,7 +6079,18 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             &attempt.processor_merchant_id,
             merchant_connector_account_id,
         ));
+        let connector_intent_metadata = payment_data
+            .get_payment_intent()
+            .get_connector_metadata_from_intent()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse connector metadata")?;
         Ok(Self {
+            feature_metadata: payment_data.capture_feature_metadata.clone(),
+            payment_feature_metadata: payment_data
+                .get_payment_intent()
+                .get_optional_feature_metadata()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse payment feature metadata")?,
             capture_method: payment_data.get_capture_method(),
             amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
             minor_amount_to_capture: amount_to_capture,
@@ -6066,6 +6103,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             payment_amount: amount.get_amount_as_i64(), // This should be removed once we start moving to connector module
             minor_payment_amount: amount,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            connector_intent_metadata,
             multiple_capture_data: match payment_data.multiple_capture_data {
                 Some(multiple_capture_data) => Some(MultipleCaptureRequestData {
                     capture_sequence: multiple_capture_data.get_captures_count()?,
@@ -6083,6 +6121,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             webhook_url,
             merchant_order_reference_id: payment_data.payment_intent.merchant_order_reference_id,
             is_overcapture_enabled: payment_data.payment_attempt.is_overcapture_enabled,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6148,6 +6188,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             merchant_order_reference_id: None,
             feature_metadata: None,
             payment_method_type: None,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6216,6 +6258,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             merchant_order_reference_id: payment_data.payment_intent.merchant_order_reference_id,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             feature_metadata,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6275,6 +6319,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPo
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6469,6 +6515,10 @@ trait Diff: Sized + PartialEq {
 impl Diff for api_payments::FeatureMetadata {
     fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
         let diffed = Self {
+            multi_currency_processing: changed(
+                &stored.multi_currency_processing,
+                requested.multi_currency_processing,
+            ),
             redirect_response: changed(&stored.redirect_response, requested.redirect_response),
             search_tags: changed(&stored.search_tags, requested.search_tags),
             apple_pay_recurring_details: changed(
@@ -6493,7 +6543,8 @@ impl Diff for api_payments::FeatureMetadata {
             ),
         };
 
-        if diffed.redirect_response.is_none()
+        if diffed.multi_currency_processing.is_none()
+            && diffed.redirect_response.is_none()
             && diffed.search_tags.is_none()
             && diffed.apple_pay_recurring_details.is_none()
             && diffed.pix_additional_details.is_none()
@@ -7488,6 +7539,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let feature_metadata = payment_data
+            .get_payment_intent()
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse payment feature metadata")?;
         let router_base_url = &additional_data.router_base_url;
         let connector_name = &additional_data.connector_name;
         let attempt = &payment_data.payment_attempt;
@@ -7661,6 +7717,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             order_details,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
+            feature_metadata,
         })
     }
 }
@@ -7979,6 +8036,22 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
             .clone()
             .map(api_models::payments::RedirectResponse::foreign_from);
         Self {
+            multi_currency_processing: feature_metadata.multi_currency_processing.as_ref().map(
+                |multi_currency_processing| api_models::payments::MultiCurrencyProcessingData {
+                    amount: multi_currency_processing.amount,
+                    currency: multi_currency_processing.currency,
+                    conversion_rate: multi_currency_processing.conversion_rate,
+                    date: multi_currency_processing.date,
+                    processing_reference_id: multi_currency_processing
+                        .processing_reference_id
+                        .clone(),
+                    conversion_provider: multi_currency_processing.conversion_provider.clone(),
+                    user_id: multi_currency_processing.user_id.clone(),
+                    conversion_reason_code: multi_currency_processing
+                        .conversion_reason_code
+                        .clone(),
+                },
+            ),
             revenue_recovery,
             apple_pay_recurring_details: apple_pay_details,
             redirect_response: redirect_res,

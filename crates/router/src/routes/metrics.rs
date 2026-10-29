@@ -10,6 +10,9 @@ global_meter!(GLOBAL_METER, "ROUTER_API");
 counter_metric!(HEALTH_METRIC, GLOBAL_METER); // No. of health API hits
 counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
 counter_metric!(PREFERRED_CONNECTORS_UPDATE_FAILURES, GLOBAL_METER);
+// Client-authenticated requests supplying merchant-only fields.
+counter_metric!(CLIENT_MCP_UPDATE_REJECTED, GLOBAL_METER);
+counter_metric!(CLIENT_SETTLEMENT_CONCLUSION_UPDATE_REJECTED, GLOBAL_METER);
 
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);

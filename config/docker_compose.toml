@@ -1296,8 +1296,8 @@ wallet.google_pay = { connector_list = "stripe,cybersource,adyen,zift,bankofamer
 wallet.apple_pay = { connector_list = "stripe,adyen,braintree,cybersource,zift,noon,bankofamerica,authorizedotnet,novalnet,multisafepay,wellsfargo,nuvei,worldpayxml,payme,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan,fiservcommercehub" }
 wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.paypal = { connector_list = "adyen,novalnet,authorizedotnet" }
-card.credit = { connector_list = "aci,checkout,stripe,adyen,authorizedotnet,zift,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv,payload,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay" }
-card.debit = { connector_list = "aci,checkout,stripe,adyen,authorizedotnet,zift,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv,payload,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay" }
+card.credit = { connector_list = "aci,checkout,stripe,adyen,authorizedotnet,zift,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv,payload,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,worldpayraft" }
+card.debit = { connector_list = "aci,checkout,stripe,adyen,authorizedotnet,zift,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv,payload,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,worldpayraft" }
 bank_debit.ach = { connector_list = "gocardless,adyen" }
 bank_debit.becs = { connector_list = "gocardless" }
 bank_debit.bacs = { connector_list = "adyen" }
@@ -1307,7 +1307,7 @@ bank_redirect.sofort = { connector_list = "globalpay,aci" }
 bank_redirect.giropay = { connector_list = "globalpay,aci" }
 bank_transfer.pix_automatico_push = { connector_list = "santander" }
 bank_transfer.pix_automatico_qr = { connector_list = "santander" }
-network_token.network_token.connector_list = "peachpayments"
+network_token.network_token.connector_list = "peachpayments,worldpayraft"
 
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }
@@ -1321,7 +1321,7 @@ card.debit = "adyen"
 adyen = "BRL,MXN,JPY"
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan"
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit

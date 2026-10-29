@@ -11202,6 +11202,21 @@
           "flat_amount"
         ]
       },
+      "CaptureFeatureMetadata": {
+        "type": "object",
+        "description": "Feature metadata for a capture operation.",
+        "properties": {
+          "multi_currency_processing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MultiCurrencyProcessingAmountData"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "CaptureMethod": {
         "type": "string",
         "description": "Specifies how the payment is captured.\n- `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.\n- `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.",
@@ -16194,6 +16209,14 @@
               }
             ],
             "nullable": true
+          },
+          "multi_currency_processing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MultiCurrencyProcessingData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20437,6 +20460,7 @@
           "installment",
           "unscheduled",
           "recurring",
+          "subscription",
           "resubmission"
         ]
       },
@@ -20517,6 +20541,74 @@
       },
       "MomoRedirection": {
         "type": "object"
+      },
+      "MultiCurrencyProcessingAmountData": {
+        "type": "object",
+        "description": "Merchant settlement leg for a single capture or refund. No conversion is recomputed.",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Merchant settlement amount in minor units."
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MultiCurrencyProcessingData": {
+        "type": "object",
+        "description": "Datatrans multi-currency processing (multi-currency processing) details supplied by the merchant.\n\n`amount`/`currency` here describe the **merchant settlement leg** — what Planet pays out to\nthe merchant. The payment's own `amount`/`currency` remain the **customer-facing leg**, i.e.\nwhat the shopper saw at checkout and is charged. Hyperswitch never recomputes either leg; the\nmerchant is the source of truth for both.",
+        "required": [
+          "currency",
+          "amount"
+        ],
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The merchant settlement amount, expressed in `currency`. The merchant converts the\ncustomer-facing amount itself and supplies the result here."
+          },
+          "conversion_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "Conversion rate received from the currency rates endpoint. Required for dynamic multi-currency processing.",
+            "nullable": true
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Transaction datetime received from the currency rates endpoint.",
+            "nullable": true
+          },
+          "processing_reference_id": {
+            "type": "string",
+            "description": "Processing reference received from the currency rates endpoint.",
+            "nullable": true
+          },
+          "user_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "conversion_provider": {
+            "type": "string",
+            "description": "The provider for multi-currency processing.",
+            "nullable": true
+          },
+          "conversion_reason_code": {
+            "type": "string",
+            "description": "Reason indicator received from the acquirer.",
+            "nullable": true
+          }
+        }
       },
       "MultibancoBillingDetails": {
         "type": "object",
@@ -24294,6 +24386,39 @@
           },
           {
             "type": "object",
+            "required": [
+              "network_transaction_id_and_card_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_card_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndCardDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "network_transaction_id_and_network_token_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_network_token_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndNetworkTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "network_transaction_id_and_decrypted_wallet_token_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_decrypted_wallet_token_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndDecryptedWalletTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "VaultDataCard",
             "required": [
               "vault_data_card"
@@ -25919,6 +26044,14 @@
             "type": "boolean",
             "description": "If true, returns stringified connector raw response body",
             "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureFeatureMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -26460,6 +26593,14 @@
           "reason": {
             "type": "string",
             "description": "Reason for incremental authorization",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
             "nullable": true
           }
         }
@@ -31894,6 +32035,21 @@
           }
         }
       },
+      "RefundFeatureMetadata": {
+        "type": "object",
+        "description": "Feature metadata for a refund operation.",
+        "properties": {
+          "multi_currency_processing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MultiCurrencyProcessingAmountData"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "RefundListRequest": {
         "allOf": [
           {
@@ -32106,6 +32262,14 @@
             "type": "string",
             "description": "Contains raw connector response",
             "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RefundFeatureMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -32195,6 +32359,14 @@
           "return_raw_connector_response": {
             "type": "boolean",
             "description": "If true, returns stringified connector raw response body",
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RefundFeatureMetadata"
+              }
+            ],
             "nullable": true
           }
         },

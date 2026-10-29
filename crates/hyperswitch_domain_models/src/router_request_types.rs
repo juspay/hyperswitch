@@ -370,6 +370,14 @@ pub struct PaymentsCaptureData {
     /// amount for this payment. Used to avoid treating a legitimate overcapture as an integrity
     /// mismatch.
     pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub mandate_id: Option<mandates::MandateIds>,
+    /// Original payment settlement metadata for operation validation.
+    pub payment_feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    /// Feature metadata persisted for this operation.
+    pub feature_metadata: Option<api_models::payments::CaptureFeatureMetadata>,
+    // Contains the connector specific metadata coming from payments request
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -388,6 +396,8 @@ pub struct PaymentsIncrementalAuthorizationData {
     pub reason: Option<String>,
     pub connector_transaction_id: String,
     pub connector_meta: Option<serde_json::Value>,
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub mandate_id: Option<mandates::MandateIds>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -1060,6 +1070,8 @@ pub struct CompleteAuthorizeData {
         Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    /// Payment feature metadata retained through redirect completion.
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1122,6 +1134,8 @@ pub struct PaymentsCancelData {
     pub merchant_order_reference_id: Option<String>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub mandate_id: Option<mandates::MandateIds>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1132,6 +1146,8 @@ pub struct PaymentsCancelPostCaptureData {
     pub connector_meta: Option<serde_json::Value>,
     // minor amount data for amount framework
     pub minor_amount: Option<MinorUnit>,
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub mandate_id: Option<mandates::MandateIds>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1456,6 +1472,8 @@ pub struct RefundsData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub mandate_id: Option<mandates::MandateIds>,
     /// The `connector_request_reference_id` that was sent to the connector for the *original
     /// payment* this refund targets.
     ///
@@ -1463,6 +1481,10 @@ pub struct RefundsData {
     /// `connector_transaction_id` holds the connector-generated identifier, so neither can be used
     /// by connectors that bind a refund to the merchant-side reference of the original payment.
     pub payment_connector_request_reference_id: Option<String>,
+    /// Original payment settlement metadata for operation validation.
+    pub payment_feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    /// Feature metadata persisted for this operation.
+    pub feature_metadata: Option<api_models::refunds::RefundFeatureMetadata>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]

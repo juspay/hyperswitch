@@ -17893,6 +17893,21 @@
           }
         }
       },
+      "CaptureFeatureMetadata": {
+        "type": "object",
+        "description": "Feature metadata for a capture operation.",
+        "properties": {
+          "multi_currency_processing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MultiCurrencyProcessingAmountData"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "CaptureMethod": {
         "type": "string",
         "description": "Specifies how the payment is captured.\n- `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.\n- `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.",
@@ -24841,6 +24856,14 @@
               }
             ],
             "nullable": true
+          },
+          "multi_currency_processing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MultiCurrencyProcessingData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -29904,6 +29927,7 @@
           "installment",
           "unscheduled",
           "recurring",
+          "subscription",
           "resubmission"
         ]
       },
@@ -29977,6 +30001,74 @@
       },
       "MomoRedirection": {
         "type": "object"
+      },
+      "MultiCurrencyProcessingAmountData": {
+        "type": "object",
+        "description": "Merchant settlement leg for a single capture or refund. No conversion is recomputed.",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Merchant settlement amount in minor units."
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MultiCurrencyProcessingData": {
+        "type": "object",
+        "description": "Datatrans multi-currency processing (multi-currency processing) details supplied by the merchant.\n\n`amount`/`currency` here describe the **merchant settlement leg** — what Planet pays out to\nthe merchant. The payment's own `amount`/`currency` remain the **customer-facing leg**, i.e.\nwhat the shopper saw at checkout and is charged. Hyperswitch never recomputes either leg; the\nmerchant is the source of truth for both.",
+        "required": [
+          "currency",
+          "amount"
+        ],
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The merchant settlement amount, expressed in `currency`. The merchant converts the\ncustomer-facing amount itself and supplies the result here."
+          },
+          "conversion_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "Conversion rate received from the currency rates endpoint. Required for dynamic multi-currency processing.",
+            "nullable": true
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Transaction datetime received from the currency rates endpoint.",
+            "nullable": true
+          },
+          "processing_reference_id": {
+            "type": "string",
+            "description": "Processing reference received from the currency rates endpoint.",
+            "nullable": true
+          },
+          "user_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "conversion_provider": {
+            "type": "string",
+            "description": "The provider for multi-currency processing.",
+            "nullable": true
+          },
+          "conversion_reason_code": {
+            "type": "string",
+            "description": "Reason indicator received from the acquirer.",
+            "nullable": true
+          }
+        }
       },
       "MultibancoBillingDetails": {
         "type": "object",
@@ -33899,6 +33991,39 @@
           },
           {
             "type": "object",
+            "required": [
+              "network_transaction_id_and_card_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_card_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndCardDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "network_transaction_id_and_network_token_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_network_token_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndNetworkTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "network_transaction_id_and_decrypted_wallet_token_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_decrypted_wallet_token_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndDecryptedWalletTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "VaultDataCard",
             "required": [
               "vault_data_card"
@@ -35286,6 +35411,14 @@
             "type": "string",
             "description": "The reason for the payment cancel",
             "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -35308,6 +35441,14 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
             "nullable": true
           }
         }
@@ -35354,6 +35495,22 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If true, returns stringified connector raw response body",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureFeatureMetadata"
+              }
+            ],
             "nullable": true
           }
         }
@@ -35938,6 +36095,13 @@
             "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
             "default": false,
             "example": true,
+            "nullable": true
+          },
+          "settlement_conclusion_applied": {
+            "type": "boolean",
+            "description": "Indicates that the merchant has concluded settlement and supplied final amounts.\nWhen true, Hyperswitch skips tax and surcharge calculations that would change\nthose amounts. Omit this field on updates or confirmation to preserve the setting.",
+            "default": false,
+            "example": false,
             "nullable": true
           }
         }
@@ -36527,6 +36691,13 @@
             "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
             "default": false,
             "example": true,
+            "nullable": true
+          },
+          "settlement_conclusion_applied": {
+            "type": "boolean",
+            "description": "Indicates that the merchant has concluded settlement and supplied final amounts.\nWhen true, Hyperswitch skips tax and surcharge calculations that would change\nthose amounts. Omit this field on updates or confirmation to preserve the setting.",
+            "default": false,
+            "example": false,
             "nullable": true
           }
         }
@@ -37681,6 +37852,14 @@
             "type": "string",
             "description": "Reason for incremental authorization",
             "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -38401,6 +38580,13 @@
             "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
             "default": false,
             "example": true,
+            "nullable": true
+          },
+          "settlement_conclusion_applied": {
+            "type": "boolean",
+            "description": "Indicates that the merchant has concluded settlement and supplied final amounts.\nWhen true, Hyperswitch skips tax and surcharge calculations that would change\nthose amounts. Omit this field on updates or confirmation to preserve the setting.",
+            "default": false,
+            "example": false,
             "nullable": true
           }
         },
@@ -40012,6 +40198,13 @@
             "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
             "default": false,
             "example": true,
+            "nullable": true
+          },
+          "settlement_conclusion_applied": {
+            "type": "boolean",
+            "description": "Indicates that the merchant has concluded settlement and supplied final amounts.\nWhen true, Hyperswitch skips tax and surcharge calculations that would change\nthose amounts. Omit this field on updates or confirmation to preserve the setting.",
+            "default": false,
+            "example": false,
             "nullable": true
           }
         }
@@ -44823,6 +45016,21 @@
           }
         }
       },
+      "RefundFeatureMetadata": {
+        "type": "object",
+        "description": "Feature metadata for a refund operation.",
+        "properties": {
+          "multi_currency_processing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MultiCurrencyProcessingAmountData"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "RefundListRequest": {
         "allOf": [
           {
@@ -45010,6 +45218,22 @@
             "type": "boolean",
             "description": "If true, returns stringified connector raw response body",
             "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RefundFeatureMetadata"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -45130,6 +45354,14 @@
           "connector_refund_id": {
             "type": "string",
             "description": "A unique identifier for a payment provided by the connector",
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RefundFeatureMetadata"
+              }
+            ],
             "nullable": true
           }
         }
