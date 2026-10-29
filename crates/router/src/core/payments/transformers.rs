@@ -2665,6 +2665,7 @@ where
             .request_external_three_ds_authentication,
         enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
         card_attached,
+        created_at: payment_intent.created_at,
     }
 }
 
