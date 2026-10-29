@@ -1046,6 +1046,26 @@ impl DatabaseBackedConfig for IncomingWebhookIpVerificationEnabled {
     }
 }
 
+#[derive(Debug, Default, serde::Deserialize)]
+#[serde(default)]
+pub struct EmailDomainOverrides {
+    pub blocked: HashSet<String>,
+    pub allowed: HashSet<String>,
+}
+
+config! {
+    superposition_key = USER_EMAIL_DOMAIN_OVERRIDES,
+    output = EmailDomainOverrides,
+    default = serde_json::json!({}),
+    object = true,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for UserEmailDomainOverrides {
+    const KEY: &'static str = "user_email_domain_overrides";
+}
+
 config! {
     superposition_key = INCOMING_WEBHOOK_MTLS_VERIFICATION_ENABLED,
     output = bool,

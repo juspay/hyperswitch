@@ -1,3 +1,5 @@
+use std::{collections::HashSet, sync::LazyLock};
+
 #[cfg(feature = "v1")]
 use api_models::admin as admin_api;
 use api_models::user as user_api;
@@ -20,7 +22,10 @@ use router_env::{env, instrument, logger, tracing, tracing::Instrument};
 
 use crate::{
     consts::user::{REDIS_SSO_PREFIX, REDIS_SSO_TTL},
-    core::errors::{StorageError, UserErrors, UserResult},
+    core::{
+        configs::dimension_state,
+        errors::{StorageError, UserErrors, UserResult},
+    },
     routes::SessionState,
     services::{
         authentication::{blacklist, AuthToken, UserFromToken},
@@ -342,11 +347,48 @@ pub fn create_merchant_account_request_for_org(
     })
 }
 
+/// Built once per process; entries borrow from the embedded file instead of allocating.
+static BLOCKED_EMAIL_DOMAINS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    include_str!("user/blocker_emails.txt")
+        .lines()
+        .map(str::trim)
+        .collect()
+});
+
+/// Rejects temporary / disposable email domains: the compiled-in list plus the
+/// `user.email_domain_overrides` Superposition config.
+pub async fn validate_email_domain_not_blocked(
+    state: &SessionState,
+    email: &domain::UserEmail,
+) -> UserResult<()> {
+    let overrides = dimension_state::Dimensions::new()
+        .get_user_email_domain_overrides(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+    let domain = email.extract_domain()?;
+
+    // `allowed` wins over both the compiled-in list and `blocked`.
+    if !overrides.allowed.contains(domain)
+        && (BLOCKED_EMAIL_DOMAINS.contains(domain) || overrides.blocked.contains(domain))
+    {
+        Err(UserErrors::BlockedEmailDomain.into())
+    } else {
+        Ok(())
+    }
+}
+
+/// Every signup / signin / magic link / password reset / SSO entry point calls this,
+/// so it also rejects blocked email domains before touching the database.
 pub async fn validate_email_domain_auth_type_using_db(
     state: &SessionState,
     email: &domain::UserEmail,
     required_auth_type: UserAuthType,
 ) -> UserResult<()> {
+    validate_email_domain_not_blocked(state, email).await?;
+
     let domain = email.extract_domain()?;
     let user_auth_methods = state
         .store
@@ -419,7 +461,7 @@ pub async fn build_cloned_connector_create_request(
     destination_connector_label: Option<String>,
     payment_method_types: &std::collections::HashMap<
         common_enums::PaymentMethod,
-        std::collections::HashSet<common_enums::PaymentMethodType>,
+        HashSet<common_enums::PaymentMethodType>,
     >,
 ) -> UserResult<admin_api::MerchantConnectorCreate> {
     let source_mca_name = source_mca

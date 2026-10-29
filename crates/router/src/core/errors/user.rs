@@ -128,6 +128,8 @@ pub enum UserErrors {
     SavedViewNotFound,
     #[error("InvalidSavedViewName")]
     InvalidSavedViewName,
+    #[error("BlockedEmailDomain")]
+    BlockedEmailDomain,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -330,6 +332,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidSavedViewName => {
                 AER::BadRequest(ApiError::new(sub_code, 65, self.get_error_message(), None))
             }
+            Self::BlockedEmailDomain => {
+                AER::BadRequest(ApiError::new(sub_code, 66, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -419,6 +424,9 @@ impl UserErrors {
             Self::SavedViewNotFound => "Saved view not found".to_string(),
             Self::InvalidSavedViewName => {
                 "The saved view name cannot be empty or contain only whitespace".to_string()
+            }
+            Self::BlockedEmailDomain => {
+                "Temporary or disposable email addresses are not allowed".to_string()
             }
         }
     }

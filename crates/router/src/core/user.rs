@@ -814,6 +814,7 @@ async fn handle_invitation(
     }
 
     let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
+    utils::user::validate_email_domain_not_blocked(state, &invitee_email).await?;
     let invitee_user = state
         .global_store
         .find_active_user_by_user_email(&invitee_email)
@@ -1257,6 +1258,7 @@ pub async fn resend_invite(
     auth_id: Option<String>,
 ) -> UserResponse<()> {
     let invitee_email = domain::UserEmail::from_pii_email(request.email)?;
+    utils::user::validate_email_domain_not_blocked(&state, &invitee_email).await?;
     let user: domain::UserFromStorage = state
         .global_store
         .find_active_user_by_user_email(&invitee_email)

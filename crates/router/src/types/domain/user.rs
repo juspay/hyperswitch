@@ -1,8 +1,6 @@
 use std::{
-    collections::HashSet,
     ops::{Deref, Not},
     str::FromStr,
-    sync::LazyLock,
 };
 
 use api_models::{
@@ -95,15 +93,6 @@ impl TryFrom<pii::Email> for UserName {
 #[derive(Clone, Debug)]
 pub struct UserEmail(pii::Email);
 
-static BLOCKED_EMAIL: LazyLock<HashSet<String>> = LazyLock::new(|| {
-    let blocked_emails_content = include_str!("../../utils/user/blocker_emails.txt");
-    let blocked_emails: HashSet<String> = blocked_emails_content
-        .lines()
-        .map(|s| s.trim().to_owned())
-        .collect();
-    blocked_emails
-});
-
 impl UserEmail {
     pub fn new(email: Secret<String, pii::EmailStrategy>) -> UserResult<Self> {
         use validator::ValidateEmail;
@@ -113,14 +102,6 @@ impl UserEmail {
             pii::Email::from_str(&email_string).change_context(UserErrors::EmailParsingError)?;
 
         if email_string.validate_email() {
-            let (_username, domain) = match email_string.as_str().split_once('@') {
-                Some((u, d)) => (u, d),
-                None => return Err(UserErrors::EmailParsingError.into()),
-            };
-
-            if BLOCKED_EMAIL.contains(domain) {
-                return Err(UserErrors::InvalidEmailError.into());
-            }
             Ok(Self(email))
         } else {
             Err(UserErrors::EmailParsingError.into())

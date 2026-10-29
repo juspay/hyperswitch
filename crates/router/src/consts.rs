@@ -611,6 +611,9 @@ pub mod superposition {
     /// and payment method type). When enabled, a connector-reported payment amount that differs
     /// from the requested amount does not fail the integrity check. Refunds are not affected.
     pub const ACCEPT_PAYMENT_AMOUNT_MISMATCH: &str = "payments.accept_payment_amount_mismatch";
+    /// Runtime overrides to the compiled-in user email domain blocklist:
+    /// `{"blocked": [..], "allowed": [..]}`, where `allowed` wins over both lists.
+    pub const USER_EMAIL_DOMAIN_OVERRIDES: &str = "user.email_domain_overrides";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.
