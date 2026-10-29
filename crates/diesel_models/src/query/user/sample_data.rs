@@ -1,5 +1,4 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, debug_query, ExpressionMethods, TextExpressionMethods};
+use diesel::{associations::HasTable, ExpressionMethods, TextExpressionMethods};
 use error_stack::ResultExt;
 use router_env::logger;
 
@@ -14,8 +13,9 @@ use crate::schema_v2::{
     refund::dsl as refund_dsl,
 };
 use crate::{
-    errors, schema::dispute::dsl as dispute_dsl, DatabaseConnectionWithContext, Dispute,
-    DisputeNew, PaymentAttempt, PaymentIntent, Refund, RefundNew, StorageResult,
+    errors, query::generics::db_metrics::DatabaseOperation, schema::dispute::dsl as dispute_dsl,
+    DatabaseConnectionWithContext, Dispute, DisputeNew, PaymentAttempt, PaymentIntent, Refund,
+    RefundNew, StorageResult,
 };
 #[cfg(feature = "v1")]
 use crate::{user, PaymentIntentNew};
@@ -27,10 +27,7 @@ pub async fn insert_payment_intents(
 ) -> StorageResult<Vec<PaymentIntent>> {
     let query = diesel::insert_into(<PaymentIntent>::table()).values(batch);
 
-    logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-    query
-        .get_results_async(conn.raw_connection())
+    conn.track_get_results::<PaymentIntent, _, _>(DatabaseOperation::Insert, query)
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while inserting payment intents")
@@ -43,10 +40,7 @@ pub async fn insert_payment_attempts(
 ) -> StorageResult<Vec<PaymentAttempt>> {
     let query = diesel::insert_into(<PaymentAttempt>::table()).values(batch);
 
-    logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-    query
-        .get_results_async(conn.raw_connection())
+    conn.track_get_results::<PaymentAttempt, _, _>(DatabaseOperation::Insert, query)
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while inserting payment attempts")
@@ -58,10 +52,7 @@ pub async fn insert_refunds(
 ) -> StorageResult<Vec<Refund>> {
     let query = diesel::insert_into(<Refund>::table()).values(batch);
 
-    logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-    query
-        .get_results_async(conn.raw_connection())
+    conn.track_get_results::<Refund, _, _>(DatabaseOperation::Insert, query)
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while inserting refunds")
@@ -73,10 +64,7 @@ pub async fn insert_disputes(
 ) -> StorageResult<Vec<Dispute>> {
     let query = diesel::insert_into(<Dispute>::table()).values(batch);
 
-    logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-    query
-        .get_results_async(conn.raw_connection())
+    conn.track_get_results::<Dispute, _, _>(DatabaseOperation::Insert, query)
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while inserting disputes")
@@ -91,10 +79,7 @@ pub async fn delete_payment_intents(
         .filter(payment_intent_dsl::merchant_id.eq(merchant_id.to_owned()))
         .filter(payment_intent_dsl::payment_id.like("test_%"));
 
-    logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-    query
-        .get_results_async(conn.raw_connection())
+    conn.track_get_results::<PaymentIntent, _, _>(DatabaseOperation::DeleteWithResult, query)
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting payment intents")
@@ -118,10 +103,7 @@ pub async fn delete_payment_intents(
         .filter(payment_intent_dsl::merchant_id.eq(merchant_id.to_owned()))
         .filter(payment_intent_dsl::merchant_reference_id.like("test_%"));
 
-    logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-    query
-        .get_results_async(conn.raw_connection())
+    conn.track_get_results::<PaymentIntent, _, _>(DatabaseOperation::DeleteWithResult, query)
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting payment intents")
@@ -143,10 +125,7 @@ pub async fn delete_payment_attempts(
         .filter(payment_attempt_dsl::merchant_id.eq(merchant_id.to_owned()))
         .filter(payment_attempt_dsl::payment_id.like("test_%"));
 
-    logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-    query
-        .get_results_async(conn.raw_connection())
+    conn.track_get_results::<PaymentAttempt, _, _>(DatabaseOperation::DeleteWithResult, query)
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting payment attempts")
@@ -169,10 +148,7 @@ pub async fn delete_refunds(
         .filter(refund_dsl::merchant_id.eq(merchant_id.to_owned()))
         .filter(refund_dsl::payment_id.like("test_%"));
 
-    logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-    query
-        .get_results_async(conn.raw_connection())
+    conn.track_get_results::<Refund, _, _>(DatabaseOperation::DeleteWithResult, query)
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting refunds")
@@ -195,10 +171,7 @@ pub async fn delete_disputes(
         .filter(dispute_dsl::merchant_id.eq(merchant_id.to_owned()))
         .filter(dispute_dsl::dispute_id.like("test_%"));
 
-    logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-    query
-        .get_results_async(conn.raw_connection())
+    conn.track_get_results::<Dispute, _, _>(DatabaseOperation::DeleteWithResult, query)
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting disputes")
