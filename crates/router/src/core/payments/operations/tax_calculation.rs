@@ -150,6 +150,7 @@ impl<F: Send + Clone + Sync>
         };
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
@@ -257,7 +258,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
             .payment_intent
             .skip_external_tax_calculation
             .unwrap_or(false);
-        if is_tax_connector_enabled && !skip_external_tax_calculation {
+        if is_tax_connector_enabled
+            && !skip_external_tax_calculation
+            && !payment_data
+                .payment_intent
+                .is_settlement_conclusion_applied()
+        {
             let db = state.store.as_ref();
 
             let merchant_connector_id = business_profile
