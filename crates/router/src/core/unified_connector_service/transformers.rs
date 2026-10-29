@@ -3064,7 +3064,7 @@ impl
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             session_token: router_data.session_token.clone(),
             order_tax_amount: None,
-            order_category: router_data.request.order_category.clone(),
+            order_category: None,
             merchant_order_id: None,
             shipping_cost: router_data
                 .request

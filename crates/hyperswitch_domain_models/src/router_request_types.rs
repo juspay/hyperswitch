@@ -1940,9 +1940,6 @@ pub struct SetupMandateRequestData {
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
     pub enable_avs_check: Option<bool>,
-    /// Category of the order, for connectors that require it on the mandate-setup order.
-    /// Derived from `connector_metadata`, the same way as for `PaymentsAuthorizeData`.
-    pub order_category: Option<String>,
 }
 
 impl SetupMandateRequestData {
