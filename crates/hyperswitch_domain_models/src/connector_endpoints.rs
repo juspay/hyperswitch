@@ -224,8 +224,6 @@ impl NoParams {
 pub struct ConnectorParamsWithKeys {
     /// base url
     pub base_url: String,
-    /// api key
-    pub api_key: Secret<String>,
     /// merchant ID
     pub merchant_id: Secret<String>,
 }
