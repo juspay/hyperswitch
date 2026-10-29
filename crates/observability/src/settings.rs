@@ -237,7 +237,7 @@ pub struct RouterSettings {
     /// Internal Router origin or public API base URL, such as https://app.hyperswitch.io/api/.
     pub base_url: url::Url,
     /// Tenant sent to Router as `x-tenant-id`.
-    pub tenant_id: Option<String>,
+    pub tenant_id: String,
 }
 
 /// Credentials guarding this service's routes.
@@ -513,13 +513,11 @@ mod tests {
             .unwrap()
             .try_deserialize()
             .unwrap();
-        assert_eq!(
-            settings.router.unwrap().tenant_id.as_deref(),
-            Some("public")
+        assert_eq!(settings.router.unwrap().tenant_id, "public");
+        assert!(
+            serde_json::from_str::<RouterSettings>(r#"{"base_url":"http://router:8080"}"#,)
+                .is_err()
         );
-        let router: RouterSettings =
-            serde_json::from_str(r#"{"base_url":"http://router:8080"}"#).unwrap();
-        assert!(router.tenant_id.is_none());
     }
 
     #[test]
@@ -533,7 +531,7 @@ mod tests {
         )
         .is_err());
         assert!(serde_json::from_str::<Settings<SecuredSecret>>(
-            r#"{"router":{"base_url":"http://localhost:8080"}}"#,
+            r#"{"router":{"base_url":"http://localhost:8080","tenant_id":"public"}}"#,
         )
         .is_ok());
     }

@@ -127,7 +127,7 @@ async fn session_cookie_and_fail_closed_contract() {
                                 "Bearer signed.token.value"
                             );
                             assert!(request.headers().get(header::COOKIE).is_none());
-                            assert!(request.headers().get("x-tenant-id").is_none());
+                            assert_eq!(request.headers().get("x-tenant-id").unwrap(), "public");
                             HttpResponse::build(StatusCode::from_u16(user_status).unwrap())
                                 .body(body)
                         },
@@ -142,7 +142,7 @@ async fn session_cookie_and_fail_closed_contract() {
         actix_web::rt::spawn(server);
         let client = RouterClient::new(
             url.parse().unwrap(),
-            None,
+            "public",
             &hyperswitch_interfaces::types::Proxy::default(),
         )
         .unwrap();
@@ -229,7 +229,7 @@ async fn router_timeout_does_not_set_cookie() {
     actix_web::rt::spawn(server);
     let client = RouterClient::new(
         url.parse().unwrap(),
-        None,
+        "public",
         &hyperswitch_interfaces::types::Proxy::default(),
     )
     .unwrap();
@@ -296,7 +296,7 @@ async fn router_owns_token_validation() {
     actix_web::rt::spawn(server);
     let client = RouterClient::new(
         url.parse().unwrap(),
-        None,
+        "public",
         &hyperswitch_interfaces::types::Proxy::default(),
     )
     .unwrap();

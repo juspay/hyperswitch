@@ -38,7 +38,7 @@ internal_api_key = "observability_dev_key"
 # Without it, monitoring auth/session return 503; alert-only deployments need not set it.
 # [router]
 # base_url = "https://app.hyperswitch.io/api/"
-# Tenant header for internal Router calls; override with OBSERVABILITY__ROUTER__TENANT_ID.
+# Required when [router] is configured; override with OBSERVABILITY__ROUTER__TENANT_ID.
 # tenant_id = "public"
 
 # Optional Grafana embed targets. IDs use underscores; use the same HTTPS CC host and proxy path.
