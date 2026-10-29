@@ -92,6 +92,8 @@ pub async fn construct_relay_refund_router_data<F>(
         minor_amount_captured: None,
         request: hyperswitch_domain_models::router_request_types::RefundsData {
             refund_id: relay_id_string.clone(),
+            payment_feature_metadata: None,
+            feature_metadata: None,
             connector_transaction_id: relay_record.connector_resource_id.clone(),
             refund_amount: relay_refund_data.amount.get_amount_as_i64(),
             minor_refund_amount: relay_refund_data.amount,
@@ -236,6 +238,9 @@ pub async fn construct_relay_capture_router_data(
         payment_method_status: None,
         minor_amount_captured: None,
         request: hyperswitch_domain_models::router_request_types::PaymentsCaptureData {
+            // Relay captures do not carry payment-intent or operation feature metadata.
+            feature_metadata: None,
+            payment_feature_metadata: None,
             amount_to_capture: relay_capture_data.amount_to_capture.get_amount_as_i64(),
             currency: relay_capture_data.currency,
             connector_transaction_id: relay_record.connector_resource_id.clone(),
@@ -248,6 +253,7 @@ pub async fn construct_relay_capture_router_data(
                 },
             ),
             connector_meta: None,
+            connector_intent_metadata: None,
             browser_info: None,
             metadata: None,
             capture_method: None,
