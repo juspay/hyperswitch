@@ -4166,6 +4166,29 @@ pub fn build_webhook_secrets_from_merchant_connector_account(
     }
 }
 
+fn redact_dispute_evidence_for_logging(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(fields) => {
+            for (key, field) in fields {
+                if matches!(
+                    key.as_str(),
+                    "file_content" | "fileContent" | "text_content" | "textContent"
+                ) {
+                    *field = serde_json::Value::String("[REDACTED]".to_string());
+                } else {
+                    redact_dispute_evidence_for_logging(field);
+                }
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                redact_dispute_evidence_for_logging(item);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Emit the connector event for a Hyperswitch -> UCS gRPC call, tagged
 /// `destination = unified_connector_service` (same `connector_events` stream as a direct call).
 #[allow(clippy::too_many_arguments)]
@@ -4263,8 +4286,9 @@ where
     let router_data_clone = router_data.clone();
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
-    let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
+    let mut grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
+    redact_dispute_evidence_for_logging(&mut grpc_request_body);
 
     // Update connector call count metrics for UCS operations
     crate::routes::metrics::CONNECTOR_CALL_COUNT.add(

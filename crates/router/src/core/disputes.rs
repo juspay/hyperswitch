@@ -777,21 +777,16 @@ pub async fn submit_evidence(
             &dispute,
         )
         .await?;
-        let (defend_execution_path, defend_updated_state, defend_rollout_result) =
-            unified_connector_service::should_call_unified_connector_service_for_dispute(
-                &state,
-                &processor,
-                &defend_dispute_router_data,
-            )
-            .await?;
-        let defend_response = match defend_execution_path {
+        // Submit evidence and defend form one connector operation for Adyen.
+        // Keep both calls on the same execution path.
+        let defend_response = match execution_path {
             common_enums::ExecutionPath::UnifiedConnectorService => {
                 unified_connector_service::call_unified_connector_service_for_dispute_defend(
-                    &defend_updated_state,
+                    &updated_state,
                     &processor,
                     defend_dispute_router_data,
                     connector_transaction_id,
-                    get_dispute_ucs_rollout_settings(&defend_rollout_result),
+                    get_dispute_ucs_rollout_settings(&rollout_result),
                     merchant_connector_account,
                 )
                 .await
