@@ -3688,8 +3688,7 @@ impl
             mit_category: router_data
                 .request
                 .mit_category
-                .map(payments_grpc::MitCategory::foreign_from)
-                .map(|mit_category| mit_category.into()),
+                .map(|mit_category| payments_grpc::MitCategory::foreign_from(mit_category).into()),
             shipping_cost: router_data
                 .request
                 .shipping_cost
@@ -8347,6 +8346,7 @@ impl ForeignFrom<common_enums::MitCategory> for payments_grpc::MitCategory {
         match mit_category {
             common_enums::MitCategory::Installment => Self::InstallmentMit,
             common_enums::MitCategory::Recurring => Self::RecurringMit,
+            common_enums::MitCategory::Subscription => Self::SubscriptionMit,
             common_enums::MitCategory::Resubmission => Self::ResubmissionMit,
             common_enums::MitCategory::Unscheduled => Self::UnscheduledMit,
         }
