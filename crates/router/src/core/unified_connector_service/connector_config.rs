@@ -770,6 +770,14 @@ pub enum ConnectorSpecificConfig {
         key1: Secret<String>,
         api_secret: Secret<String>,
     },
+    /// Ecommpay connector configuration (Gate API v2).
+    /// Field names must match `EcommpayConfig` in the connector-service repo.
+    /// `project_id` = `general.project_id` (from `key1`)
+    /// `secret_key` = HMAC-SHA512 signing key (from `api_key`); never transmitted
+    Ecommpay {
+        project_id: Secret<String>,
+        secret_key: Secret<String>,
+    },
     /// JP Morgan Orbital (Chase Paymentech Orbital Gateway JSON API v4).
     /// NOT the `Jpmorgan` variant, which is the OAuth2-based Payments API v2.
     /// Field names must match `ConnectorSpecificConfig::JpmorganOrbital` in the
@@ -1420,6 +1428,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_secret: api_secret.clone(),
                 }),
                 _ => Err(err("Ilixium requires SignatureKey auth type")),
+            },
+            Connector::Ecommpay => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Ecommpay {
+                    project_id: key1.clone(),
+                    secret_key: api_key.clone(),
+                }),
+                _ => Err(err("Ecommpay requires BodyKey auth type")),
             },
             Connector::JpmorganOrbital => match auth {
                 ConnectorAuthType::SignatureKey {

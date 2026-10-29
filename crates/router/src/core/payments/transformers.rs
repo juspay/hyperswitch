@@ -8,7 +8,6 @@ use api_models::payments as api_payments;
 use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::payments::{
     Address, CustomerDetails, CustomerDetailsResponse, FrmMessage, NetworkDetails,
-    RequestSurchargeDetails,
 };
 use common_enums::{Currency, MerchantAccountType, RequestIncrementalAuthorization};
 #[cfg(feature = "v1")]
@@ -519,7 +518,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_testing_data: None,
         order_id: None,
         locale: None,
-        mit_category: None,
+        mit_category: payment_data.payment_intent.mit_category,
         tokenization: None,
         payment_channel: None,
         enable_partial_authorization: Some(
@@ -1491,8 +1490,13 @@ pub async fn construct_router_data_for_cancel<'a>(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("connector_request_reference_id not found in payment_attempt")?;
 
+    // Void the capturable amount, fall back to net amount if amount_capturable is not set
+    let void_amount = Some(attempt.amount_details.get_amount_capturable())
+        .filter(|amount_capturable| amount_capturable.is_greater_than(0))
+        .unwrap_or_else(|| attempt.amount_details.get_net_amount());
+
     let request = types::PaymentsCancelData {
-        amount: Some(attempt.amount_details.get_net_amount().get_amount_as_i64()),
+        amount: Some(void_amount.get_amount_as_i64()),
         currency: Some(payment_intent.amount_details.currency),
         connector_transaction_id: attempt
             .get_connector_payment_id()
@@ -1502,7 +1506,7 @@ pub async fn construct_router_data_for_cancel<'a>(
         connector_meta: attempt.connector_metadata.clone().expose_option(),
         browser_info: None,
         metadata: None,
-        minor_amount: Some(attempt.amount_details.get_net_amount()),
+        minor_amount: Some(void_amount),
         webhook_url: None,
         capture_method: Some(payment_intent.capture_method),
         split_payments: None,
@@ -3976,17 +3980,11 @@ where
             .attach_printable("Failed to parse the AdditionalPaymentData from payment_attempt.payment_method_data")?;
 
     let surcharge_details =
-        payment_attempt
-            .net_amount
-            .get_surcharge_amount()
-            .map(|surcharge_amount| RequestSurchargeDetails {
-                surcharge_amount,
-                tax_amount: payment_attempt.net_amount.get_tax_on_surcharge(),
-                surcharge_percentage: payment_attempt
-                    .external_surcharge_details
-                    .as_ref()
-                    .and_then(|details| details.surcharge_percentage_as_f64()),
-            });
+        api_models::payments::PaymentSurchargeDetailsResponse::from_surcharge_details(
+            payment_attempt.net_amount.get_surcharge_amount(),
+            payment_attempt.net_amount.get_tax_on_surcharge(),
+            payment_attempt.external_surcharge_details.as_ref(),
+        );
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.get_frm_message().map(FrmMessage::foreign_from);
 
@@ -4810,16 +4808,12 @@ impl ForeignFrom<(DieselPaymentIntent, DieselPaymentAttempt)> for api::PlatformP
             partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
             installment_data: pa.installment_data,
             sender_payment_instrument_id: pa.sender_payment_instrument_id,
-            surcharge_details: pa.surcharge_amount.map(|surcharge_amount| {
-                RequestSurchargeDetails {
-                    surcharge_amount,
-                    tax_amount: pa.tax_amount,
-                    surcharge_percentage: pa
-                        .external_surcharge_details
-                        .as_ref()
-                        .and_then(|details| details.surcharge_percentage_as_f64()),
-                }
-            }),
+            surcharge_details:
+                api_models::payments::PaymentSurchargeDetailsResponse::from_surcharge_details(
+                    pa.surcharge_amount,
+                    pa.tax_amount,
+                    pa.external_surcharge_details.as_ref(),
+                ),
             installment_options: pi.installment_options.map(|options| options.0),
         }
     }
@@ -5013,16 +5007,11 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             feature_metadata: None,
             reference_id: None,
             payment_link: None,
-            surcharge_details: pa.net_amount.get_surcharge_amount().map(|surcharge_amount| {
-                RequestSurchargeDetails {
-                    surcharge_amount,
-                    tax_amount: pa.net_amount.get_tax_on_surcharge(),
-                    surcharge_percentage: pa
-                        .external_surcharge_details
-                        .as_ref()
-                        .and_then(|details| details.surcharge_percentage_as_f64()),
-                }
-            }),
+            surcharge_details: api_models::payments::PaymentSurchargeDetailsResponse::from_surcharge_details(
+                pa.net_amount.get_surcharge_amount(),
+                pa.net_amount.get_tax_on_surcharge(),
+                pa.external_surcharge_details.as_ref(),
+            ),
             merchant_decision: None,
             incremental_authorization_allowed: None,
             authorization_count: None,
@@ -6126,7 +6115,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .clone()
             .map(types::BrowserInformation::from);
 
-        let amount = payment_data.payment_attempt.amount_details.get_net_amount();
+        // Void the capturable amount, fall back to net amount if amount_capturable is not set
+        let amount_details = &payment_data.payment_attempt.amount_details;
+        let amount = Some(amount_details.get_amount_capturable())
+            .filter(|amount_capturable| amount_capturable.is_greater_than(0))
+            .unwrap_or_else(|| amount_details.get_net_amount());
 
         let router_base_url = &additional_data.router_base_url;
         let attempt = &payment_data.payment_attempt;
@@ -6195,7 +6188,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .get_optional_feature_metadata()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse feature metadata")?;
-        let amount = payment_data.payment_attempt.get_total_amount();
+        // Void the capturable amount, fall back to total amount if amount_capturable is not set
+        let amount = Some(payment_data.payment_attempt.amount_capturable)
+            .filter(|amount_capturable| amount_capturable.is_greater_than(0))
+            .unwrap_or_else(|| payment_data.payment_attempt.get_total_amount());
 
         let router_base_url = &additional_data.router_base_url;
         let attempt = &payment_data.payment_attempt;

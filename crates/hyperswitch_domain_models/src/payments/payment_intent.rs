@@ -2331,6 +2331,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_account_funded_transaction,
             recipient_details,
             enable_avs_check,
+            mit_category,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -2440,7 +2441,7 @@ impl behaviour::Conversion for PaymentIntent {
             order_date: None,
             enable_partial_authorization: Some(enable_partial_authorization),
             enable_overcapture: None,
-            mit_category: None,
+            mit_category,
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
@@ -2612,6 +2613,7 @@ impl behaviour::Conversion for PaymentIntent {
                 is_account_funded_transaction: storage_model.is_account_funded_transaction,
                 recipient_details: data.recipient_details,
                 enable_avs_check: storage_model.enable_avs_check,
+                mit_category: storage_model.mit_category,
             })
         }
         .await
@@ -2713,7 +2715,7 @@ impl behaviour::Conversion for PaymentIntent {
             payment_channel: None,
             tax_status: None,
             discount_amount: None,
-            mit_category: None,
+            mit_category: self.mit_category,
             shipping_amount_tax: None,
             value_added_tax_amount: None,
             value_added_tax_percent: None,

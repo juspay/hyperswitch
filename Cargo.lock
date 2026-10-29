@@ -7099,7 +7099,7 @@ dependencies = [
  "regex-cache",
  "serde",
  "serde_derive",
- "strum 0.26.3",
+ "strum 0.25.0",
  "thiserror 1.0.69",
 ]
 
@@ -9875,9 +9875,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "superposition_core"
-version = "0.115.5"
+version = "0.118.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fed4c2aa7224ad8d848bc2266cc8f5908667ac9caf99c3cf6da97b76efa25ef6"
+checksum = "c80b82118971128e6da0edfe58b04522b31e1046ee1ae192e5d4fc3ebdaed780"
 dependencies = [
  "bigdecimal 0.3.1",
  "blake3",
@@ -9896,9 +9896,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_derives"
-version = "0.115.5"
+version = "0.118.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e1f5f16481c2a0e4654ccf2c7a834991f1ac2cd189820f4e8a6d26ddb86c4af"
+checksum = "1efc2a4c201597b70ccf1fdf4ba3ec1f7518e95a99f55d033fd29c5453720625"
 dependencies = [
  "proc-macro-crate 3.2.0",
  "quote",
@@ -9907,9 +9907,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_provider"
-version = "0.115.5"
+version = "0.118.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be01f2952ff92c8ea21e57f7b8615491863b07e5ddc830c59f3e9fdcbb298325"
+checksum = "8cc376cefdfff66b202b77d6c37e126abd7b2948460a28090db262d245eef211"
 dependencies = [
  "async-trait",
  "aws-smithy-types",
@@ -9932,9 +9932,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_sdk"
-version = "0.115.5"
+version = "0.118.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "732c84601c078655a4ee6f7888ad4f6a1fef3e619027de03d94837c4df881094"
+checksum = "82172c3361f0d3b5914939fd2cd220d4348566c4a3b9b2f405e876e2d906dd27"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-http 0.62.1",
@@ -9950,9 +9950,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_types"
-version = "0.115.5"
+version = "0.118.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f9c04634344b80b2e0ebb50b5c4f752fd636dabf98902fe5986a1121be9d2fe"
+checksum = "b755c3781c619c3f65608342c45424a407549504b896ba8a637be855beacccf0"
 dependencies = [
  "bigdecimal 0.3.1",
  "chrono",
@@ -12177,7 +12177,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
