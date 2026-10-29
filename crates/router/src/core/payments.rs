@@ -10578,8 +10578,8 @@ where
                 .map(|mandate_reference| mandate_reference.is_network_mandate_id())
                 .unwrap_or(false);
 
-            let payment_method_action = single_use_token_decision
-                .get_tokenization_action(
+            let payment_method_action =
+                Box::pin(single_use_token_decision.get_tokenization_action(
                     state,
                     &connector,
                     payment_method,
@@ -10587,7 +10587,7 @@ where
                     payment_data.get_token(),
                     is_connector_tokenization_enabled,
                     is_network_transaction_id_flow,
-                )
+                ))
                 .await?;
 
             let connector_tokenization_action = match payment_method_action {
