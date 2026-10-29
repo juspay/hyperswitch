@@ -1,5 +1,5 @@
 pub use hyperswitch_domain_models::customer::update_connector_customer_in_customers;
-use hyperswitch_interfaces::api::{gateway, ConnectorSpecifications};
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
@@ -8,7 +8,7 @@ use crate::types::domain;
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        payments::{self, gateway::context as gateway_context},
+        payments::{self, gateway, gateway::context as gateway_context},
     },
     logger,
     routes::{metrics, SessionState},

@@ -1,5 +1,7 @@
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
+
+use crate::core::payouts::gateway as payout_gateway;
 pub mod access_token;
 pub mod gateway;
 #[cfg(feature = "v1")]
@@ -29,6 +31,7 @@ use common_utils::{
     link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
     payout_method_utils,
     types::{MinorUnit, UnifiedCode, UnifiedMessage},
+    validation::ValidateXSSOrSQLi,
 };
 use diesel_models::{
     enums as storage_enums,
@@ -41,7 +44,6 @@ use external_services::grpc_client;
 #[cfg(feature = "olap")]
 use futures::future::join_all;
 use hyperswitch_domain_models::{self as domain_models, payment_methods::PaymentMethod};
-use hyperswitch_interfaces::api::gateway as payout_gateway;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
@@ -1219,6 +1221,7 @@ pub async fn payouts_list_core(
                             merchant_id,
                             platform.get_processor().get_key_store(),
                             platform.get_processor().get_account().storage_scheme,
+                            false,
                         )
                         .await
                         .map_err(|err| {
@@ -1348,7 +1351,7 @@ pub async fn payouts_filtered_list_core(
                     <domain::Customer as storage_impl::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         cust,
-                        &(platform.get_processor().get_key_store().clone()).key,
+                        &(platform.get_processor().get_key_store().inner().clone()).key,
                         platform
                             .get_processor()
                             .get_key_store()
@@ -1370,7 +1373,7 @@ pub async fn payouts_filtered_list_core(
                     <domain::Address as domain::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         addr,
-                        &(platform.get_processor().get_key_store().clone()).key,
+                        &(platform.get_processor().get_key_store().inner().clone()).key,
                         platform
                             .get_processor()
                             .get_key_store()
@@ -3937,6 +3940,7 @@ pub async fn make_payout_data(
                 merchant_id,
                 platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().storage_scheme,
+                false,
             )
             .await
             .map_err(|err| err.change_context(errors::ApiErrorResponse::InternalServerError))
@@ -4259,6 +4263,9 @@ pub async fn create_payout_link(
         .as_ref()
         .and_then(|config| config.ui_config.clone())
         .or(profile_ui_config);
+    ui_config
+        .validate_xss_or_sqli()
+        .map_err(|message| report!(errors::ApiErrorResponse::InvalidRequestData { message }))?;
 
     let test_mode_in_config = payout_link_config_req
         .as_ref()

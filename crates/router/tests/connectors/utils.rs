@@ -391,6 +391,8 @@ pub trait ConnectorActions: Connector {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {
+                payment_feature_metadata: None,
+                feature_metadata: None,
                 payment_amount: 1000,
                 minor_payment_amount: MinorUnit::new(1000),
                 currency: enums::Currency::USD,
@@ -411,6 +413,8 @@ pub trait ConnectorActions: Connector {
                 merchant_config_currency: None,
                 capture_method: None,
                 additional_payment_method_data: None,
+                payment_method_data: None,
+                mandate_id: None,
                 payment_connector_request_reference_id: None,
             }),
             payment_info,
@@ -1124,6 +1128,8 @@ impl Default for PaymentSyncType {
 impl Default for PaymentRefundType {
     fn default() -> Self {
         let data = types::RefundsData {
+            payment_feature_metadata: None,
+            feature_metadata: None,
             payment_amount: 100,
             minor_payment_amount: MinorUnit::new(100),
             currency: enums::Currency::USD,
@@ -1144,6 +1150,8 @@ impl Default for PaymentRefundType {
             merchant_config_currency: None,
             capture_method: None,
             additional_payment_method_data: None,
+            payment_method_data: None,
+            mandate_id: None,
             payment_connector_request_reference_id: None,
         };
         Self(data)

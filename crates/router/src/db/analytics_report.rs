@@ -63,44 +63,30 @@ mod olap {
             fetch_timeout: std::time::Duration,
             pages: tokio::sync::mpsc::Sender<Vec<ReportRow>>,
         ) -> CustomResult<(), errors::StorageError> {
-            use async_bb8_diesel::AsyncConnection;
-            use diesel::{pg::Pg, sql_types::Timestamp, Connection, RunQueryDsl};
+            use diesel::{pg::Pg, sql_types::Timestamp};
 
             let conn = pg_connection_read_replica(self).await?;
-            let timeout_ms = fetch_timeout.as_millis();
-            conn.raw_connection()
-                .run(move |conn| {
-                    conn.transaction(|conn| {
-                        diesel::sql_query("SET TRANSACTION READ ONLY").execute(conn)?;
-                        diesel::sql_query(format!("SET LOCAL statement_timeout = {timeout_ms}"))
-                            .execute(conn)?;
-
-                        let mut declare = diesel::sql_query(format!(
-                            "DECLARE analytics_report NO SCROLL CURSOR FOR {}",
-                            query.sql
-                        ))
-                        .into_boxed::<Pg>();
-                        for bind in query.binds {
-                            declare = match bind {
-                                ReportBind::Text(value) => declare.bind::<Text, _>(value),
-                                ReportBind::Texts(values) => declare.bind::<Array<Text>, _>(values),
-                                ReportBind::Timestamp(value) => declare.bind::<Timestamp, _>(value),
-                            };
-                        }
-                        declare.execute(conn)?;
-
-                        let fetch = format!("FETCH {} FROM analytics_report", page_size.max(1));
-                        loop {
-                            let page = diesel::sql_query(&fetch).load::<ReportRow>(conn)?;
-                            // An empty page ends the cursor; a closed channel means the writer gave up.
-                            if page.is_empty() || pages.blocking_send(page).is_err() {
-                                return Ok(());
-                            }
-                        }
-                    })
-                })
-                .await
-                .map_err(|error: diesel::result::Error| report!(errors::StorageError::from(error)))
+            let mut declare = diesel::sql_query(format!(
+                "DECLARE analytics_report NO SCROLL CURSOR FOR {}",
+                query.sql
+            ))
+            .into_boxed::<Pg>();
+            for bind in query.binds {
+                declare = match bind {
+                    ReportBind::Text(value) => declare.bind::<Text, _>(value),
+                    ReportBind::Texts(values) => declare.bind::<Array<Text>, _>(values),
+                    ReportBind::Timestamp(value) => declare.bind::<Timestamp, _>(value),
+                };
+            }
+            conn.stream_read_only_cursor(
+                declare,
+                "analytics_report",
+                page_size,
+                fetch_timeout,
+                move |page| pages.blocking_send(page).is_ok(),
+            )
+            .await
+            .map_err(|error: diesel::result::Error| report!(errors::StorageError::from(error)))
         }
     }
 

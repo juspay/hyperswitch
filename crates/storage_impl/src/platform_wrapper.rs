@@ -2,6 +2,9 @@
 ///
 /// Purpose: Prevent mixing Provider and Processor credentials when making DB calls.
 ///
+/// Payment intent and payment attempt no longer need one: their interfaces take tagged
+/// credentials. The rest are for interfaces that are not typed yet.
+///
 /// Use wrappers when:
 /// - You have Platform and need DB calls
 /// - Multiple credentials needed (key_store, merchant_id, storage_scheme)
@@ -14,7 +17,5 @@
 /// Never mix Provider and Processor credentials or pass Platform to wrappers.
 /// Extract the specific context (Provider/Processor) and pass that instead.
 ///
-// TODO: Remove wrappers and migrate to DB interface with typed parameters (ProviderMerchantId, ProcessorMerchantId, etc.) once the platform stabilizes
+// TODO: Type the remaining interfaces the same way payments are typed, then drop this module.
 pub mod business_profile;
-pub mod payment_attempt;
-pub mod payment_intent;

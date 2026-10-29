@@ -2762,6 +2762,10 @@ payment_method_type = "Discover"
 payment_method_type = "UnionPay"
 [[jpmorgan.debit]]
 payment_method_type = "Visa"
+[[jpmorgan.wallet]]
+  payment_method_type = "apple_pay"
+[[jpmorgan.wallet]]
+  payment_method_type = "google_pay"
 [jpmorgan.connector_auth.MultiAuthKey]
 api_key = "Client ID"
 key1 = "Certificate Thumbprint"
@@ -2777,6 +2781,41 @@ type = "Text"
 name = "product_name"
 label = "Product Name"
 placeholder = "Enter the product name (used for marketing purposes from a customer perspective)"
+required = true
+type = "Text"
+
+[jpmorgan.metadata.merchant_id.USD]
+name = "USD"
+label = "USD Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for USD"
+required = true
+type = "Text"
+
+[jpmorgan.metadata.merchant_id.CAD]
+name = "CAD"
+label = "CAD Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for CAD"
+required = true
+type = "Text"
+
+[jpmorgan.metadata.merchant_id.EUR]
+name = "EUR"
+label = "EUR Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for EUR"
+required = true
+type = "Text"
+
+[jpmorgan.metadata.merchant_id.GBP]
+name = "GBP"
+label = "GBP Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for GBP"
+required = true
+type = "Text"
+
+[jpmorgan.metadata.merchant_id.JPY]
+name = "JPY"
+label = "JPY Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for JPY"
 required = true
 type = "Text"
 
@@ -7597,6 +7636,24 @@ label="Merchant Payment Method Route Id"
 placeholder="Enter Merchant Payment Method Route Id"
 required=true
 type="Text"
+[peachpayments.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[peachpayments.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[peachpayments.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
 
 [tokenex]
 [tokenex.connector_auth.HeaderKey]
@@ -8484,7 +8541,48 @@ payment_method_type = "DinersClub"
 [[ilixium.debit]]
 payment_method_type = "UnionPay"
 
+[ecommpay]
+[[ecommpay.credit]]
+payment_method_type = "Mastercard"
+[[ecommpay.credit]]
+payment_method_type = "Visa"
+[[ecommpay.credit]]
+payment_method_type = "AmericanExpress"
+[[ecommpay.credit]]
+payment_method_type = "JCB"
+[[ecommpay.credit]]
+payment_method_type = "Discover"
+[[ecommpay.credit]]
+payment_method_type = "DinersClub"
+[[ecommpay.credit]]
+payment_method_type = "UnionPay"
+[[ecommpay.debit]]
+payment_method_type = "Mastercard"
+[[ecommpay.debit]]
+payment_method_type = "Visa"
+[[ecommpay.debit]]
+payment_method_type = "AmericanExpress"
+[[ecommpay.debit]]
+payment_method_type = "JCB"
+[[ecommpay.debit]]
+payment_method_type = "Discover"
+[[ecommpay.debit]]
+payment_method_type = "DinersClub"
+[[ecommpay.debit]]
+payment_method_type = "UnionPay"
+[[ecommpay.wallet]]
+payment_method_type = "apple_pay"
+[[ecommpay.wallet]]
+payment_method_type = "google_pay"
+[ecommpay.connector_auth.BodyKey]
+api_key = "Secret key"
+key1 = "Project ID"
+[ecommpay.connector_webhook_details]
+merchant_secret = "Secret key"
+
 [worldpayraft]
+[[worldpayraft.network_token]]
+  payment_method_type = "network_token"
 [[worldpayraft.credit]]
   payment_method_type = "Visa"
 [[worldpayraft.credit]]
@@ -8501,6 +8599,128 @@ payment_method_type = "UnionPay"
   payment_method_type = "AmericanExpress"
 [[worldpayraft.debit]]
   payment_method_type = "DinersClub"
+[[worldpayraft.wallet]]
+  payment_method_type = "apple_pay"
+[[worldpayraft.wallet]]
+  payment_method_type = "google_pay"
+[[worldpayraft.metadata.apple_pay]]
+  name = "certificate"
+  label = "Merchant Certificate (Base64 Encoded)"
+  placeholder = "Enter Merchant Certificate (Base64 Encoded)"
+  required = true
+  type = "Text"
+[[worldpayraft.metadata.apple_pay]]
+  name = "certificate_keys"
+  label = "Merchant PrivateKey (Base64 Encoded)"
+  placeholder = "Enter Merchant PrivateKey (Base64 Encoded)"
+  required = true
+  type = "Text"
+[[worldpayraft.metadata.apple_pay]]
+  name = "merchant_identifier"
+  label = "Apple Merchant Identifier"
+  placeholder = "Enter Apple Merchant Identifier"
+  required = true
+  type = "Text"
+[[worldpayraft.metadata.apple_pay]]
+  name = "display_name"
+  label = "Display Name"
+  placeholder = "Enter Display Name"
+  required = true
+  type = "Text"
+[[worldpayraft.metadata.apple_pay]]
+  name = "initiative"
+  label = "Domain"
+  placeholder = "Enter Domain"
+  required = true
+  type = "Text"
+[[worldpayraft.metadata.apple_pay]]
+  name = "initiative_context"
+  label = "Domain Name"
+  placeholder = "Enter Domain Name"
+  required = true
+  type = "Text"
+[[worldpayraft.metadata.apple_pay]]
+  name = "merchant_business_country"
+  label = "Merchant Business Country"
+  placeholder = "Enter Merchant Business Country"
+  required = true
+  type = "Select"
+  options = []
+[[worldpayraft.metadata.apple_pay]]
+  name = "payment_processing_details_at"
+  label = "Payment Processing Details At"
+  placeholder = "Enter Payment Processing Details At"
+  required = true
+  type = "Radio"
+  options = ["Hyperswitch"]
+[[worldpayraft.metadata.google_pay]]
+  name = "merchant_name"
+  label = "Google Pay Merchant Name"
+  placeholder = "Enter Google Pay Merchant Name"
+  required = true
+  type = "Text"
+[[worldpayraft.metadata.google_pay]]
+  name = "merchant_id"
+  label = "Google Pay Merchant Id"
+  placeholder = "Enter Google Pay Merchant Id"
+  required = true
+  type = "Text"
+[[worldpayraft.metadata.google_pay]]
+  name = "gateway_merchant_id"
+  label = "Google Pay Merchant Key"
+  placeholder = "Enter Google Pay Merchant Key"
+  required = true
+  type = "Text"
+[[worldpayraft.metadata.google_pay]]
+  name = "allowed_auth_methods"
+  label = "Allowed Auth Methods"
+  placeholder = "Enter Allowed Auth Methods"
+  required = true
+  type = "MultiSelect"
+  options = ["CRYPTOGRAM_3DS"]
+[[worldpayraft.connector_wallets_details.google_pay]]
+  name = "merchant_name"
+  label = "Google Pay Merchant Name"
+  placeholder = "Enter Google Pay Merchant Name"
+  required = true
+  type = "Text"
+[[worldpayraft.connector_wallets_details.google_pay]]
+  name = "merchant_id"
+  label = "Google Pay Merchant Id"
+  placeholder = "Enter Google Pay Merchant Id"
+  required = true
+  type = "Text"
+[[worldpayraft.connector_wallets_details.google_pay]]
+  name = "gateway_merchant_id"
+  label = "Google Pay Merchant Key"
+  placeholder = "Enter Google Pay Merchant Key"
+  required = true
+  type = "Text"
+[[worldpayraft.connector_wallets_details.google_pay]]
+  name = "public_key"
+  label = "Google Pay Public Key"
+  placeholder = "Enter Google Pay Public Key"
+  required = true
+  type = "Text"
+[[worldpayraft.connector_wallets_details.google_pay]]
+  name = "private_key"
+  label = "Google Pay Private Key"
+  placeholder = "Enter Google Pay Private Key"
+  required = true
+  type = "Text"
+[[worldpayraft.connector_wallets_details.google_pay]]
+  name = "recipient_id"
+  label = "Recipient Id"
+  placeholder = "Enter Recipient Id"
+  required = true
+  type = "Text"
+[[worldpayraft.connector_wallets_details.google_pay]]
+  name = "allowed_auth_methods"
+  label = "Allowed Auth Methods"
+  placeholder = "Enter Allowed Auth Methods"
+  required = true
+  type = "MultiSelect"
+  options = ["CRYPTOGRAM_3DS"]
 [worldpayraft.connector_auth.BodyKey]
 api_key = "Worldpay License"
 key1 = "Worldpay Merchant ID"

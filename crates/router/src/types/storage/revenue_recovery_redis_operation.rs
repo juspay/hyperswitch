@@ -627,8 +627,21 @@ impl RedisTokenManager {
                         .or_insert(value);
                 }
                 existing_token.account_update_history = token_data.account_update_history.clone();
+                // Keep the stored network when the incoming data does not carry one, as the retry
+                // config and gsm lookups read it back from here.
+                let card_network = token_data
+                    .payment_processor_token_details
+                    .card_network
+                    .clone()
+                    .or_else(|| {
+                        existing_token
+                            .payment_processor_token_details
+                            .card_network
+                            .clone()
+                    });
                 existing_token.payment_processor_token_details =
                     token_data.payment_processor_token_details.clone();
+                existing_token.payment_processor_token_details.card_network = card_network;
 
                 existing_token
                     .modified_at
@@ -1362,7 +1375,12 @@ impl AccountUpdaterAction {
                         card_issuer: None,
                         last_four_digits: None,
                         card_type: None,
-                        card_network: updated_mandate_details.card_network.clone(),
+                        card_network: updated_mandate_details.card_network.clone().or_else(|| {
+                            scheduled_token
+                                .payment_processor_token_details
+                                .card_network
+                                .clone()
+                        }),
                         card_isin: updated_mandate_details.card_isin.clone(),
                     },
                     inserted_by_attempt_id: attempt_id.to_owned(),
@@ -1402,8 +1420,10 @@ impl AccountUpdaterAction {
                     updated_mandate_details.card_exp_month.clone();
                 updated_token.payment_processor_token_details.expiry_year =
                     updated_mandate_details.card_exp_year.clone();
-                updated_token.payment_processor_token_details.card_network =
-                    updated_mandate_details.card_network.clone();
+                if updated_mandate_details.card_network.is_some() {
+                    updated_token.payment_processor_token_details.card_network =
+                        updated_mandate_details.card_network.clone();
+                }
                 updated_token.payment_processor_token_details.card_isin =
                     updated_mandate_details.card_isin.clone();
                 updated_token.modified_at = Some(date_time::now());

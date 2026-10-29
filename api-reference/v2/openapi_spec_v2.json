@@ -4872,7 +4872,7 @@
           "Revenue Recovery"
         ],
         "summary": "Revenue Recovery - Create",
-        "description": "Record a transaction made outside of Hyperswitch against a billing connector invoice,\nand take the requested recovery action on it, such as scheduling a retry for a failed payment\nor recording an externally successful payment.",
+        "description": "Record a transaction made outside of Hyperswitch against a billing connector invoice.",
         "operationId": "Create a Revenue Recovery Payment",
         "parameters": [
           {
@@ -4895,10 +4895,21 @@
               "examples": {
                 "Record a failed transaction and schedule a retry": {
                   "value": {
-                    "action": "schedule_failed_payment",
                     "amount_details": {
                       "currency": "USD",
                       "order_amount": 6540
+                    },
+                    "billing": {
+                      "address": {
+                        "city": "San Francisco",
+                        "country": "US",
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "line1": "1467 Harrison Street",
+                        "state": "California",
+                        "zip": "94122"
+                      },
+                      "email": "john@example.com"
                     },
                     "billing_merchant_connector_id": "mca_billing_1234567890",
                     "billing_started_at": "2022-09-10T10:11:12Z",
@@ -11191,6 +11202,21 @@
           "flat_amount"
         ]
       },
+      "CaptureFeatureMetadata": {
+        "type": "object",
+        "description": "Feature metadata for a capture operation.",
+        "properties": {
+          "multi_currency_processing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MultiCurrencyProcessingAmountData"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "CaptureMethod": {
         "type": "string",
         "description": "Specifies how the payment is captured.\n- `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.\n- `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.",
@@ -12645,6 +12671,7 @@
           "dlocal",
           "dwolla",
           "ebanx",
+          "ecommpay",
           "envoy",
           "elavon",
           "etisalat",
@@ -14135,7 +14162,7 @@
         "properties": {
           "primary_processor_payment_method_token": {
             "type": "string",
-            "description": "Primary payment method token at payment processor end.",
+            "description": "Primary payment method token at payment processor end, i.e. the connector token or connector mandate id.",
             "example": "token_1234"
           },
           "payment_method_metadata": {
@@ -15999,6 +16026,14 @@
           "sale_notified": {
             "type": "boolean",
             "description": "Whether /v1/ch/sale has been successfully called"
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeErrorDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -16171,6 +16206,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/FinixAdditionalDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "multi_currency_processing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MultiCurrencyProcessingData"
               }
             ],
             "nullable": true
@@ -20410,6 +20453,17 @@
         "format": "int64",
         "description": "This Unit struct represents MinorUnit in which core amount works"
       },
+      "MitCategory": {
+        "type": "string",
+        "description": "Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.",
+        "enum": [
+          "installment",
+          "unscheduled",
+          "recurring",
+          "subscription",
+          "resubmission"
+        ]
+      },
       "MitExemptionRequest": {
         "type": "string",
         "enum": [
@@ -20487,6 +20541,74 @@
       },
       "MomoRedirection": {
         "type": "object"
+      },
+      "MultiCurrencyProcessingAmountData": {
+        "type": "object",
+        "description": "Merchant settlement leg for a single capture or refund. No conversion is recomputed.",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Merchant settlement amount in minor units."
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MultiCurrencyProcessingData": {
+        "type": "object",
+        "description": "Datatrans multi-currency processing (multi-currency processing) details supplied by the merchant.\n\n`amount`/`currency` here describe the **merchant settlement leg** — what Planet pays out to\nthe merchant. The payment's own `amount`/`currency` remain the **customer-facing leg**, i.e.\nwhat the shopper saw at checkout and is charged. Hyperswitch never recomputes either leg; the\nmerchant is the source of truth for both.",
+        "required": [
+          "currency",
+          "amount"
+        ],
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The merchant settlement amount, expressed in `currency`. The merchant converts the\ncustomer-facing amount itself and supplies the result here."
+          },
+          "conversion_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "Conversion rate received from the currency rates endpoint. Required for dynamic multi-currency processing.",
+            "nullable": true
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Transaction datetime received from the currency rates endpoint.",
+            "nullable": true
+          },
+          "processing_reference_id": {
+            "type": "string",
+            "description": "Processing reference received from the currency rates endpoint.",
+            "nullable": true
+          },
+          "user_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "conversion_provider": {
+            "type": "string",
+            "description": "The provider for multi-currency processing.",
+            "nullable": true
+          },
+          "conversion_reason_code": {
+            "type": "string",
+            "description": "Reason indicator received from the acquirer.",
+            "nullable": true
+          }
+        }
       },
       "MultibancoBillingDetails": {
         "type": "object",
@@ -24264,6 +24386,39 @@
           },
           {
             "type": "object",
+            "required": [
+              "network_transaction_id_and_card_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_card_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndCardDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "network_transaction_id_and_network_token_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_network_token_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndNetworkTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "network_transaction_id_and_decrypted_wallet_token_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_decrypted_wallet_token_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndDecryptedWalletTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "VaultDataCard",
             "required": [
               "vault_data_card"
@@ -24989,6 +25144,12 @@
             "maxLength": 64,
             "minLength": 32
           },
+          "merchant_customer_reference_id": {
+            "type": "string",
+            "description": "The customer reference supplied in the request path when merchant reference ID lookup is enabled.",
+            "example": "merchant_customer_123",
+            "nullable": true
+          },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
@@ -25516,6 +25677,11 @@
       "PaymentMethodUpdate": {
         "type": "object",
         "properties": {
+          "update_last_used_at": {
+            "type": "boolean",
+            "example": true,
+            "nullable": true
+          },
           "payment_method_data": {
             "allOf": [
               {
@@ -25803,6 +25969,41 @@
           }
         }
       },
+      "PaymentSurchargeDetailsResponse": {
+        "type": "object",
+        "description": "Surcharge applied to a payment, or a zero surcharge with connector error details.",
+        "required": [
+          "surcharge_amount"
+        ],
+        "properties": {
+          "surcharge_amount": {
+            "type": "integer",
+            "format": "int64",
+            "example": 325
+          },
+          "tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "surcharge_percentage": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeErrorDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentType": {
         "type": "string",
         "description": "The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.",
@@ -25842,6 +26043,14 @@
           "return_raw_connector_response": {
             "type": "boolean",
             "description": "If true, returns stringified connector raw response body",
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureFeatureMetadata"
+              }
+            ],
             "nullable": true
           }
         }
@@ -26207,6 +26416,14 @@
             "default": false,
             "example": true,
             "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -26376,6 +26593,14 @@
           "reason": {
             "type": "string",
             "description": "Reason for incremental authorization",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
             "nullable": true
           }
         }
@@ -31437,14 +31662,6 @@
           }
         }
       },
-      "RecoveryPaymentsAction": {
-        "type": "string",
-        "description": "Action to be taken on the transaction reported through the revenue recovery API",
-        "enum": [
-          "schedule_failed_payment",
-          "success_payment_external"
-        ]
-      },
       "RecoveryPaymentsCreate": {
         "type": "object",
         "required": [
@@ -31453,14 +31670,13 @@
           "billing_merchant_connector_id",
           "payment_merchant_connector_id",
           "transaction_status",
+          "payment_method_type",
           "payment_method_sub_type",
           "transaction_created_at",
-          "payment_method_type",
           "connector_customer_id",
           "billing_started_at",
           "connector_transaction_id",
-          "payment_method_data",
-          "action"
+          "payment_method_data"
         ],
         "properties": {
           "amount_details": {
@@ -31468,7 +31684,7 @@
           },
           "merchant_reference_id": {
             "type": "string",
-            "description": "Unique identifier of the invoice in the merchant's billing system against which the\ntransaction is being recorded.",
+            "description": "Unique identifier of the invoice in the merchant's billing system against which the transaction is being recorded.",
             "example": "invoice_mbabizu24mvu3mela5njyh",
             "maxLength": 30,
             "minLength": 30
@@ -31483,16 +31699,31 @@
           },
           "billing_merchant_connector_id": {
             "type": "string",
-            "description": "Unique identifier of the billing connector account, such as Chargebee, that manages the\ninvoice. The account must belong to the profile passed in the `X-Profile-Id` header.",
+            "description": "Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header.",
             "example": "mca_1234567890"
           },
           "payment_merchant_connector_id": {
             "type": "string",
-            "description": "Unique identifier of the payment connector account, such as Stripe, on which the\ntransaction was processed. The account must belong to the profile passed in the\n`X-Profile-Id` header.",
+            "description": "Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header.",
             "example": "mca_1234567890"
           },
           "transaction_status": {
             "$ref": "#/components/schemas/RecoveryTransactionStatus"
+          },
+          "amount_captured": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`.",
+            "example": 6540,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
           },
           "billing": {
             "allOf": [
@@ -31510,6 +31741,9 @@
             ],
             "nullable": true
           },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
           "payment_method_sub_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
           },
@@ -31519,12 +31753,9 @@
             "description": "The time at which the transaction was created at the payment connector.",
             "example": "2022-09-10T10:11:12Z"
           },
-          "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethod"
-          },
           "connector_customer_id": {
             "type": "string",
-            "description": "Unique identifier of the customer at the payment connector, with which the payment\nmethod token used for the transaction is associated.",
+            "description": "Unique identifier of the customer at the payment connector (connector customer id), with which the payment method token used for the transaction is associated.",
             "example": "cust_12345"
           },
           "billing_started_at": {
@@ -31535,14 +31766,11 @@
           },
           "connector_transaction_id": {
             "type": "string",
-            "description": "Unique identifier of the transaction at the payment connector. It is used to identify\nthe transaction among the attempts recorded for the invoice.",
+            "description": "Unique identifier of the transaction at the payment connector (connector transaction id). It is used to identify the transaction among the attempts recorded for the invoice, and together with `merchant_reference_id` it has to be unique.",
             "example": "993672945374576J"
           },
           "payment_method_data": {
             "$ref": "#/components/schemas/CustomRecoveryPaymentMethodData"
-          },
-          "action": {
-            "$ref": "#/components/schemas/RecoveryPaymentsAction"
           },
           "enable_partial_authorization": {
             "type": "boolean",
@@ -31596,8 +31824,7 @@
         "enum": [
           "charged",
           "failure",
-          "partial_charged",
-          "partial_charged_and_chargeable"
+          "partial_charged"
         ]
       },
       "RecurringDetails": {
@@ -31807,6 +32034,21 @@
             "type": "string"
           }
         }
+      },
+      "RefundFeatureMetadata": {
+        "type": "object",
+        "description": "Feature metadata for a refund operation.",
+        "properties": {
+          "multi_currency_processing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MultiCurrencyProcessingAmountData"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "RefundListRequest": {
         "allOf": [
@@ -32020,6 +32262,14 @@
             "type": "string",
             "description": "Contains raw connector response",
             "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RefundFeatureMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -32109,6 +32359,14 @@
           "return_raw_connector_response": {
             "type": "boolean",
             "description": "If true, returns stringified connector raw response body",
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RefundFeatureMetadata"
+              }
+            ],
             "nullable": true
           }
         },
@@ -32779,6 +33037,7 @@
           "dlocal",
           "dwolla",
           "ebanx",
+          "ecommpay",
           "elavon",
           "elavon_pg",
           "envoy",
@@ -34949,6 +35208,37 @@
             "type": "number",
             "format": "double",
             "description": "Surcharge percentage returned by the external surcharge connector, if provided.",
+            "nullable": true
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeErrorDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SurchargeErrorDetails": {
+        "type": "object",
+        "description": "Connector error details shared by surcharge responses, cached quotes, and stored attempts.",
+        "properties": {
+          "error_code": {
+            "type": "string",
+            "description": "Connector error code when the external calculation failed.",
+            "example": "INVALID_NICN",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Connector error message when the external calculation failed.",
+            "example": "Card BIN is invalid",
+            "nullable": true
+          },
+          "error_reason": {
+            "type": "string",
+            "description": "Connector reason for a failed calculation.",
             "nullable": true
           }
         }

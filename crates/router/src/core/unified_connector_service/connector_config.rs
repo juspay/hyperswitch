@@ -67,6 +67,7 @@ pub struct AdyenMetadata {
 pub struct JpmorganMetadata {
     company_name: Secret<String>,
     product_name: Secret<String>,
+    merchant_id: HashMap<Currency, Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -697,6 +698,7 @@ pub enum ConnectorSpecificConfig {
         thumbprint: Secret<String>,
         private_key: Secret<String>,
         resource_id: Secret<String>,
+        merchant_id: Option<HashMap<Currency, Secret<String>>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         company_name: Option<Secret<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -769,6 +771,14 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         key1: Secret<String>,
         api_secret: Secret<String>,
+    },
+    /// Ecommpay connector configuration (Gate API v2).
+    /// Field names must match `EcommpayConfig` in the connector-service repo.
+    /// `project_id` = `general.project_id` (from `key1`)
+    /// `secret_key` = HMAC-SHA512 signing key (from `api_key`); never transmitted
+    Ecommpay {
+        project_id: Secret<String>,
+        secret_key: Secret<String>,
     },
     /// JP Morgan Orbital (Chase Paymentech Orbital Gateway JSON API v4).
     /// NOT the `Jpmorgan` variant, which is the OAuth2-based Payments API v2.
@@ -1223,6 +1233,9 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     thumbprint,
                     private_key,
                     resource_id,
+                    merchant_id: jpm_meta
+                        .as_ref()
+                        .map(|m| m.merchant_id.clone()),
                     company_name: jpm_meta.as_ref().map(|m| m.company_name.clone()),
                     product_name: jpm_meta.as_ref().map(|m| m.product_name.clone()),
                 })
@@ -1420,6 +1433,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_secret: api_secret.clone(),
                 }),
                 _ => Err(err("Ilixium requires SignatureKey auth type")),
+            },
+            Connector::Ecommpay => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Ecommpay {
+                    project_id: key1.clone(),
+                    secret_key: api_key.clone(),
+                }),
+                _ => Err(err("Ecommpay requires BodyKey auth type")),
             },
             Connector::JpmorganOrbital => match auth {
                 ConnectorAuthType::SignatureKey {
