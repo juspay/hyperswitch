@@ -1700,7 +1700,6 @@ ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fis
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
-monitoring_threshold_in_seconds = 60
 retry_algorithm_type = "cascading"
 redis_ttl_in_seconds=3888000
 default_retry_hour_utc = 12 # fallback hour-of-day (UTC, 0-23) the retry model schedules at when a cluster has no hour-of-day history
