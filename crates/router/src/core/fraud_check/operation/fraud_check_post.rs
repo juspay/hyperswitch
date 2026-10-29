@@ -306,6 +306,7 @@ where
             )
         {
             let capture_request = api_models::payments::PaymentsCaptureRequest {
+                feature_metadata: None,
                 payment_id: frm_data.payment_intent.get_id().to_owned(),
                 merchant_id: None,
                 amount_to_capture: None,

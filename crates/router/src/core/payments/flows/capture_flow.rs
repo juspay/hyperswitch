@@ -99,17 +99,22 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         // Read before the connector call: connectors on the V2 interface rebuild the returned
         // router data from `PaymentFlowData`, which does not carry this flag.
         let accept_amount_mismatch = self.accept_amount_mismatch;
-        let mut new_router_data =
-            payments::gateway::handle_gateway_call::<_, _, _, PaymentFlowData, _>(
-                state,
-                self,
-                connector,
-                &gateway_context,
-                call_connector_action,
-                connector_request,
-                return_raw_connector_response,
-            )
-            .await?;
+        let mut new_router_data = Box::pin(payments::gateway::handle_gateway_call::<
+            _,
+            _,
+            _,
+            PaymentFlowData,
+            _,
+        >(
+            state,
+            self,
+            connector,
+            &gateway_context,
+            call_connector_action,
+            connector_request,
+            return_raw_connector_response,
+        ))
+        .await?;
 
         // Initiating Integrity check
         let integrity_result = helpers::check_integrity_based_on_flow(

@@ -391,6 +391,8 @@ pub trait ConnectorActions: Connector {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {
+                payment_feature_metadata: None,
+                feature_metadata: None,
                 payment_amount: 1000,
                 minor_payment_amount: MinorUnit::new(1000),
                 currency: enums::Currency::USD,
@@ -1126,6 +1128,8 @@ impl Default for PaymentSyncType {
 impl Default for PaymentRefundType {
     fn default() -> Self {
         let data = types::RefundsData {
+            payment_feature_metadata: None,
+            feature_metadata: None,
             payment_amount: 100,
             minor_payment_amount: MinorUnit::new(100),
             currency: enums::Currency::USD,

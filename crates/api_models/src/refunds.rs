@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+pub use common_types::refunds::RefundFeatureMetadata;
 pub use common_utils::types::MinorUnit;
 use common_utils::{pii, types::TimeRange};
 use serde::{Deserialize, Serialize};
@@ -73,10 +74,12 @@ pub struct RefundRequest {
 
     /// If true, returns stringified connector raw response body
     pub all_keys_required: Option<bool>,
-
     /// Collects payment method data to be passed through to the connector
     #[smithy(value_type = "Option<PaymentMethodData>")]
     pub payment_method_data: Option<PaymentMethodData>,
+    /// Feature metadata persisted for this operation.
+    #[smithy(value_type = "Option<RefundFeatureMetadata>")]
+    pub feature_metadata: Option<RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -127,6 +130,8 @@ pub struct RefundsCreateRequest {
 
     /// If true, returns stringified connector raw response body
     pub return_raw_connector_response: Option<bool>,
+    /// Feature metadata persisted for this operation.
+    pub feature_metadata: Option<RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -374,6 +379,10 @@ pub struct RefundResponse {
     /// A unique identifier for a payment provided by the connector
     #[smithy(value_type = "Option<String>")]
     pub connector_refund_id: Option<String>,
+    /// Feature metadata persisted for this operation.
+    #[schema(value_type = Option<RefundFeatureMetadata>)]
+    #[cfg_attr(feature = "v1", smithy(value_type = "Option<RefundFeatureMetadata>"))]
+    pub feature_metadata: Option<RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -435,6 +444,10 @@ pub struct RefundResponse {
     /// Contains raw connector response
     #[schema(value_type = Option<String>)]
     pub raw_connector_response: Option<hyperswitch_masking::Secret<String>>,
+    /// Feature metadata persisted for this operation.
+    #[schema(value_type = Option<RefundFeatureMetadata>)]
+    #[cfg_attr(feature = "v1", smithy(value_type = "Option<RefundFeatureMetadata>"))]
+    pub feature_metadata: Option<RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]

@@ -70,6 +70,19 @@ impl hyperswitch_masking::SerializableSecret for OrderDetailsWithAmount {}
 
 common_utils::impl_to_sql_from_sql_json!(OrderDetailsWithAmount);
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct MultiCurrencyProcessingData {
+    pub currency: common_enums::Currency,
+    pub amount: MinorUnit,
+    pub conversion_rate: Option<f64>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub date: Option<time::PrimitiveDateTime>,
+    pub processing_reference_id: Option<String>,
+    pub user_id: Option<String>,
+    pub conversion_provider: Option<String>,
+    pub conversion_reason_code: Option<String>,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
@@ -90,6 +103,8 @@ pub struct FeatureMetadata {
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
     /// Extra information for Finix connector for fraud checks and risk evaluation
     pub finix_additional_details: Option<FinixAdditionalDetails>,
+    /// Merchant settlement amount, currency and conversion details.
+    pub multi_currency_processing: Option<MultiCurrencyProcessingData>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
@@ -313,6 +328,8 @@ pub struct FeatureMetadata {
     /// Extra information for Finix connector for fraud checks and risk evaluation
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finix_additional_details: Option<FinixAdditionalDetails>,
+    /// Merchant settlement amount, currency and conversion details.
+    pub multi_currency_processing: Option<MultiCurrencyProcessingData>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
