@@ -501,6 +501,9 @@ pub mod superposition {
     /// MIT with limited card data configuration key
     pub const SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA: &str =
         "payments.should_enable_mit_with_limited_card_data";
+    /// Prefer the request's billing address over the billing stored on a saved payment method
+    pub const SHOULD_PREFER_REQUEST_BILLING_OVER_SAVED_PM_BILLING: &str =
+        "payments.should_prefer_request_billing_over_saved_pm_billing";
     /// Store eligibility check data for authentication configuration key
     pub const SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION: &str =
         "payments.should_store_eligibility_check_data_for_authentication";

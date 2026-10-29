@@ -165,21 +165,32 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             mandate_type.as_ref(),
         )?;
 
+        let use_saved_pm_billing = helpers::should_use_saved_payment_method_billing(
+            state,
+            dimensions,
+            platform.get_processor().get_account().get_id(),
+            request.billing.is_some(),
+        )
+        .await;
+
         let payment_method_data_billing = request
             .payment_method_data
             .as_ref()
             .and_then(|pmd| pmd.billing.clone())
-            .or(payment_method_with_raw_data.as_ref().and_then(|pm| {
-                pm.payment_method
-                    .payment_method_billing_address
-                    .clone()
-                    .map(|decrypted_data| decrypted_data.into_inner().expose())
-                    .and_then(|decrypted_value| {
-                        decrypted_value
-                            .parse_value("payment method billing address")
-                            .ok()
-                    })
-            }));
+            .or(payment_method_with_raw_data
+                .as_ref()
+                .filter(|_| use_saved_pm_billing)
+                .and_then(|pm| {
+                    pm.payment_method
+                        .payment_method_billing_address
+                        .clone()
+                        .map(|decrypted_data| decrypted_data.into_inner().expose())
+                        .and_then(|decrypted_value| {
+                            decrypted_value
+                                .parse_value("payment method billing address")
+                                .ok()
+                        })
+                }));
 
         // The shipping, billing and payment method billing addresses are independent of each
         // other, so create them concurrently rather than one after another.
@@ -335,6 +346,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .as_ref()
                 .map(|address| address.address_id.clone()),
             &payment_method_info,
+            use_saved_pm_billing,
             profile_id.clone(),
             &customer_acceptance,
             payment_method_recurring_details.clone(),
@@ -624,19 +636,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 payment_method_data_billing.get_billing_address()
             })
             .map(From::from);
-        let pm_pmd_billing = payment_method_with_raw_data.as_ref().and_then(|pm| {
-            pm.payment_method
-                .payment_method_billing_address
-                .clone()
-                .map(|decrypted_data| decrypted_data.into_inner().expose())
-                .and_then(|decrypted_value| {
-                    decrypted_value
-                        .parse_value::<hyperswitch_domain_models::address::Address>(
-                            "payment method billing address",
-                        )
-                        .ok()
-                })
-        });
+        let pm_pmd_billing = payment_method_with_raw_data
+            .as_ref()
+            .filter(|_| use_saved_pm_billing)
+            .and_then(|pm| {
+                pm.payment_method
+                    .payment_method_billing_address
+                    .clone()
+                    .map(|decrypted_data| decrypted_data.into_inner().expose())
+                    .and_then(|decrypted_value| {
+                        decrypted_value
+                            .parse_value::<hyperswitch_domain_models::address::Address>(
+                                "payment method billing address",
+                            )
+                            .ok()
+                    })
+            });
 
         let add = payment_method_data_billing.or(pm_pmd_billing);
 
@@ -1451,6 +1466,7 @@ impl PaymentCreate {
         state: &SessionState,
         optional_payment_method_billing_address_id: Option<String>,
         payment_method_info: &Option<domain::PaymentMethod>,
+        use_saved_pm_billing: bool,
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         payment_method_recurring_details: Option<domain::PaymentMethodData>,
@@ -1618,6 +1634,7 @@ impl PaymentCreate {
         let payment_method_billing_address_id = match optional_payment_method_billing_address_id {
             None => payment_method_info
                 .as_ref()
+                .filter(|_| use_saved_pm_billing)
                 .and_then(|pm_info| pm_info.payment_method_billing_address.as_ref())
                 .map(|address| {
                     address.clone().deserialize_inner_value(|value| {
