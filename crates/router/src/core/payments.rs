@@ -4676,6 +4676,16 @@ pub async fn revenue_recovery_get_intent_core(
 
     let payment_intent = payment_data.get_payment_intent();
 
+    // The intent is fetched by id alone, so make sure it belongs to the caller
+    if !utils::is_owned_by_merchant_and_profile(
+        &platform,
+        &profile,
+        &payment_intent.merchant_id,
+        &payment_intent.profile_id,
+    ) {
+        return Err(errors::ApiErrorResponse::PaymentNotFound.into());
+    }
+
     // Get workflow entries to determine recovery status
     let (calculate_workflow, execute_workflow) = get_workflow_entries(&state, &payment_intent.id)
         .await
