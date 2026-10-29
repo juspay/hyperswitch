@@ -1,4 +1,6 @@
-use actix_web::http::header::HeaderMap;
+use std::net::{IpAddr, SocketAddr};
+
+use actix_web::http::header::{HeaderMap, HeaderValue};
 use api_models::{
     card_issuer as card_issuer_types, cards_info as card_info_types, enums as api_enums,
     gsm as gsm_api_types, offer_engine as offer_engine_api, payment_methods,
@@ -76,6 +78,22 @@ where
 
     fn foreign_try_into(self) -> Result<T, Self::Error> {
         T::foreign_try_from(self)
+    }
+}
+
+impl ForeignTryFrom<&HeaderValue> for IpAddr {
+    type Error = error_stack::Report<errors::ParsingError>;
+
+    fn foreign_try_from(value: &HeaderValue) -> Result<Self, Self::Error> {
+        let value = value
+            .to_str()
+            .change_context(errors::ParsingError::StructParseFailure("HeaderValue"))
+            .attach_printable("IP address header is not valid UTF-8")?;
+        value
+            .parse::<Self>()
+            .or_else(|_| value.parse::<SocketAddr>().map(|address| address.ip()))
+            .change_context(errors::ParsingError::StructParseFailure("IpAddr"))
+            .attach_printable("Header value is not an IP or socket address")
     }
 }
 

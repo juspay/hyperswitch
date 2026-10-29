@@ -142,6 +142,14 @@ pub struct AccountIDSupportedMethods {
     skrill: HashMap<String, AccountIdConfigForRedirect>,
 }
 
+/// Merchant ID inputs: a single ID or IDs keyed by settlement currency.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum MerchantIdConfig {
+    Single(InputData),
+    ByCurrency(HashMap<api_models::enums::Currency, InputData>),
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConfigMetadata {
@@ -164,7 +172,7 @@ pub struct ConfigMetadata {
     pub client_id: Option<InputData>,
     pub client_secret: Option<InputData>,
     pub workspace_id: Option<InputData>,
-    pub merchant_id: Option<InputData>,
+    pub merchant_id: Option<MerchantIdConfig>,
     pub endpoint_prefix: Option<InputData>,
     pub mcc: Option<InputData>,
     pub merchant_country_code: Option<InputData>,
@@ -175,6 +183,7 @@ pub struct ConfigMetadata {
     pub three_ds_requestor_name: Option<InputData>,
     pub three_ds_requestor_id: Option<InputData>,
     pub pull_mechanism_for_external_3ds_enabled: Option<InputData>,
+    pub enable_stc: Option<InputData>,
     pub klarna_region: Option<InputData>,
     pub region: Option<InputData>,
     pub pricing_type: Option<InputData>,
@@ -306,6 +315,7 @@ pub struct ConnectorConfig {
     pub cybersource_payout: Option<ConnectorTomlConfig>,
     pub iatapay: Option<ConnectorTomlConfig>,
     pub ilixium: Option<ConnectorTomlConfig>,
+    pub ecommpay: Option<ConnectorTomlConfig>,
     pub jpmorgan_orbital: Option<ConnectorTomlConfig>,
     pub imerchantsolutions: Option<ConnectorTomlConfig>,
     pub itaubank: Option<ConnectorTomlConfig>,
@@ -343,6 +353,7 @@ pub struct ConnectorConfig {
     pub gigadat_payout: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
     pub globalpayments_heartland: Option<ConnectorTomlConfig>,
+    pub globalpayments_realex: Option<ConnectorTomlConfig>,
     pub globepay: Option<ConnectorTomlConfig>,
     pub gocardless: Option<ConnectorTomlConfig>,
     pub gotyme_sanlam: Option<ConnectorTomlConfig>,
@@ -640,6 +651,7 @@ impl ConnectorConfig {
             Connector::Gigadat => Ok(connector_data.gigadat),
             Connector::Globalpay => Ok(connector_data.globalpay),
             Connector::GlobalpaymentsHeartland => Ok(connector_data.globalpayments_heartland),
+            Connector::GlobalpaymentsRealex => Ok(connector_data.globalpayments_realex),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
             Connector::GotymeSanlam => Ok(connector_data.gotyme_sanlam),
@@ -750,6 +762,7 @@ impl ConnectorConfig {
             Connector::Payjustnowinstore => Ok(connector_data.payjustnowinstore),
             Connector::Imerchantsolutions => Ok(connector_data.imerchantsolutions),
             Connector::Ilixium => Ok(connector_data.ilixium),
+            Connector::Ecommpay => Ok(connector_data.ecommpay),
             Connector::JpmorganOrbital => Ok(connector_data.jpmorgan_orbital),
             Connector::Givepayments => Ok(connector_data.givepayments),
         }

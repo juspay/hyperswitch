@@ -53,6 +53,21 @@ pub fn build_generic_expired_link_html(
         .attach_printable("Failed to render expired link HTML template")
 }
 
+/// Makes serialized link data safe to embed inside an inline `<script>` element.
+///
+/// `js_data` is a JS assignment whose right-hand side is serialized JSON, so the characters
+/// replaced here can only appear inside JSON string literals, where the `\uXXXX` forms decode
+/// back to the same text. Without this, a value containing `</script>` would close the script
+/// element and let the markup after it run.
+fn escape_inline_script_data(js_data: &str) -> String {
+    js_data
+        .replace('<', "\\u003c")
+        .replace('>', "\\u003e")
+        .replace('&', "\\u0026")
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029")
+}
+
 fn build_html_template(
     link_data: &GenericLinkFormData,
     document: &'static str,
@@ -97,7 +112,10 @@ pub fn build_payout_link_html(
     let js_dynamic_context = "{{ script_data }}";
     let final_js = format!("{js_dynamic_context}\n{js_template}");
     let _ = tera.add_raw_template("document_scripts", &final_js);
-    context.insert("script_data", &link_data.js_data);
+    context.insert(
+        "script_data",
+        &escape_inline_script_data(&link_data.js_data),
+    );
     context::insert_locales_in_context_for_payout_link(&mut context, locale);
     let js_script_tag = tera
         .render("document_scripts", &context)
@@ -136,7 +154,10 @@ pub fn build_pm_collect_link_html(
     let js_dynamic_context = "{{ script_data }}";
     let final_js = format!("{js_dynamic_context}\n{js_template}");
     let _ = tera.add_raw_template("document_scripts", &final_js);
-    context.insert("script_data", &link_data.js_data);
+    context.insert(
+        "script_data",
+        &escape_inline_script_data(&link_data.js_data),
+    );
     let js_script_tag = tera
         .render("document_scripts", &context)
         .map(|js| format!("<script>{js}</script>"))
@@ -184,7 +205,10 @@ pub fn build_payout_link_status_html(
         include_str!("../../core/generic_link/payout_link/status/script.js").to_string();
     let final_js = format!("{js_dynamic_context}\n{js_template}");
     let _ = tera.add_raw_template("payout_link_status_script", &final_js);
-    context.insert("script_data", &link_data.js_data);
+    context.insert(
+        "script_data",
+        &escape_inline_script_data(&link_data.js_data),
+    );
     context::insert_locales_in_context_for_payout_link_status(&mut context, locale);
     let js_script_tag = tera
         .render("payout_link_status_script", &context)
@@ -231,7 +255,10 @@ pub fn build_pm_collect_link_status_html(
         include_str!("../../core/generic_link/payment_method_collect/status/script.js").to_string();
     let final_js = format!("{js_dynamic_context}\n{js_template}");
     let _ = tera.add_raw_template("pm_collect_link_status_script", &final_js);
-    context.insert("collect_link_status_context", &link_data.js_data);
+    context.insert(
+        "collect_link_status_context",
+        &escape_inline_script_data(&link_data.js_data),
+    );
 
     let js_script_tag = tera
         .render("pm_collect_link_status_script", &context)
@@ -250,4 +277,31 @@ pub fn build_pm_collect_link_status_html(
     tera.render("payment_method_collect_status_link", &context)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to render payment method collect link status HTML template")
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+
+    #[test]
+    fn script_breakout_in_link_data_is_neutralized() {
+        let details = serde_json::json!({
+            "merchant_name": "</script><script>alert(1)</script>",
+            "theme": "#123<!--",
+        });
+        let js_data = format!("window.__PM_COLLECT_DETAILS = {details}");
+
+        let escaped = escape_inline_script_data(&js_data);
+
+        assert!(!escaped.contains('<'));
+        assert!(!escaped.contains('>'));
+        let json = escaped
+            .strip_prefix("window.__PM_COLLECT_DETAILS = ")
+            .unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(json).unwrap(),
+            details
+        );
+    }
 }

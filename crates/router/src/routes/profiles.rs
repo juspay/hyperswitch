@@ -152,7 +152,12 @@ pub async fn profile_retrieve(
                     .get_account()
                     .get_id()
                     .clone(),
-                auth_data.platform.get_processor().get_key_store().clone(),
+                auth_data
+                    .platform
+                    .get_processor()
+                    .get_key_store()
+                    .inner()
+                    .clone(),
             )
         },
         auth::auth_type(
@@ -269,7 +274,12 @@ pub async fn profile_update(
                     .get_account()
                     .get_id()
                     .clone(),
-                auth_data.platform.get_processor().get_key_store().clone(),
+                auth_data
+                    .platform
+                    .get_processor()
+                    .get_key_store()
+                    .inner()
+                    .clone(),
                 req,
                 Some(provider_merchant_id),
             )

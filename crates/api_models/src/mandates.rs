@@ -38,6 +38,11 @@ pub struct MandateResponse {
     /// The identifier for mandate
     #[smithy(value_type = "String")]
     pub mandate_id: String,
+    /// The original setup payment associated with this mandate, when known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
     /// The status for mandates
     #[schema(value_type = MandateStatus)]
     #[smithy(value_type = "MandateStatus")]

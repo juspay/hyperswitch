@@ -46,6 +46,8 @@ pub enum CurrentFlowInfo {
         auth_type: storage_enums::AuthenticationType,
         /// The payment authorize request data
         request_data: Box<PaymentsAuthorizeData>,
+        /// The metadata configured at the merchant connector account level
+        connector_meta_data: Option<pii::SecretSerdeValue>,
     },
     /// CompleteAuthorize flow information
     CompleteAuthorize {
@@ -176,6 +178,7 @@ pub struct PaymentsAuthorizeData {
     /// The merchant's business country for this payment. Connectors use it for requirements that
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
+    pub enable_avs_check: Option<bool>,
 }
 
 impl PaymentsAuthorizeData {
@@ -367,6 +370,12 @@ pub struct PaymentsCaptureData {
     /// amount for this payment. Used to avoid treating a legitimate overcapture as an integrity
     /// mismatch.
     pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
+    /// Original payment settlement metadata for operation validation.
+    pub payment_feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    /// Feature metadata persisted for this operation.
+    pub feature_metadata: Option<api_models::payments::CaptureFeatureMetadata>,
+    // Contains the connector specific metadata coming from payments request
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -879,6 +888,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             device_channel,
             webhook_url: data.webhook_url,
             force_3ds_challenge: data.force_3ds_challenge,
+            router_return_url: data.router_return_url,
         })
     }
 }
@@ -900,6 +910,8 @@ pub struct PaymentsAuthenticateData {
     pub device_channel: Option<api_models::payments::DeviceChannel>,
     pub webhook_url: Option<String>,
     pub force_3ds_challenge: Option<bool>,
+    /// Merchant return URL, forwarded to the authentication leg.
+    pub router_return_url: Option<String>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -925,6 +937,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             device_channel,
             webhook_url: None,
             force_3ds_challenge: data.force_3ds_challenge,
+            router_return_url: data.router_return_url,
         })
     }
 }
@@ -1046,7 +1059,15 @@ pub struct CompleteAuthorizeData {
     pub connector_intent_metadata: Option<ConnectorMetadata>,
     pub order_id: Option<String>,
     pub force_3ds_challenge: Option<bool>,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub enable_partial_authorization:
+        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    /// Payment feature metadata retained through redirect completion.
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1325,7 +1346,7 @@ impl
     }
 }
 
-/// Surcharge calculated during /eligibility and cached for /confirm to consume.
+/// Surcharge result from /eligibility, including connector errors, cached for /confirm.
 /// The payment_method / payment_method_type carried here are the ones the surcharge
 /// was calculated against; /confirm must match them before applying.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1336,6 +1357,7 @@ pub struct ExternalSurchargeDetails {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub external_surcharge_id: String,
     pub surcharge_percentage: Option<f64>,
+    pub error_details: Option<common_types::payments::SurchargeErrorDetails>,
 }
 
 impl ExternalSurchargeDetails {
@@ -1449,6 +1471,10 @@ pub struct RefundsData {
     /// `connector_transaction_id` holds the connector-generated identifier, so neither can be used
     /// by connectors that bind a refund to the merchant-side reference of the original payment.
     pub payment_connector_request_reference_id: Option<String>,
+    /// Original payment settlement metadata for operation validation.
+    pub payment_feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    /// Feature metadata persisted for this operation.
+    pub feature_metadata: Option<api_models::refunds::RefundFeatureMetadata>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
@@ -1926,6 +1952,7 @@ pub struct SetupMandateRequestData {
     /// The merchant's business country for this payment. Connectors use it for requirements that
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
+    pub enable_avs_check: Option<bool>,
 }
 
 impl SetupMandateRequestData {

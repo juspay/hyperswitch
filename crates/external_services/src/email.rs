@@ -1,6 +1,8 @@
-//! Interactions with the AWS SES SDK
+//! Sending email through AWS SES or an SMTP server.
+//!
+//! The clients themselves are the shared [`cloud_services::email`] ones; this module adds
+//! Hyperswitch's templating ([`EmailData`]), settings and error reporting.
 
-use aws_sdk_sesv2::types::Body;
 use common_utils::{errors::CustomResult, pii};
 use serde::Deserialize;
 
@@ -22,10 +24,10 @@ pub trait EmailClient: Sync + Send + dyn_clone::DynClone {
     /// The rich text type of the email client
     type RichText;
 
-    /// Sends an email to the specified recipient with the given subject and body.
+    /// Sends one email to `recipients` with the given subject and body.
     async fn send_email(
         &self,
-        recipient: pii::Email,
+        recipients: EmailRecipients,
         subject: String,
         body: Self::RichText,
         proxy_url: Option<&String>,
@@ -71,12 +73,12 @@ where
         let EmailContents {
             subject,
             body,
-            recipient,
+            recipients,
         } = email_data;
 
         let rich_text_string = self.convert_to_rich_text(body)?;
 
-        self.send_email(recipient, subject, rich_text_string, proxy_url)
+        self.send_email(recipients, subject, rich_text_string, proxy_url)
             .await
     }
 }
@@ -107,8 +109,47 @@ pub struct EmailContents {
     /// The email clients can convert this intermediate representation to their client specific rich text format
     pub body: IntermediateString,
 
-    /// The email of the recipient to whom the email has to be sent
-    pub recipient: pii::Email,
+    /// Who the email is sent to; a single address converts into `to`.
+    pub recipients: EmailRecipients,
+}
+
+/// The recipients of one email.
+#[derive(Debug, Clone, Default)]
+pub struct EmailRecipients {
+    /// Recipients
+    pub to: Vec<pii::Email>,
+    /// Copied recipients
+    pub cc: Vec<pii::Email>,
+    /// Blind-copied recipients
+    pub bcc: Vec<pii::Email>,
+}
+
+impl From<pii::Email> for EmailRecipients {
+    fn from(recipient: pii::Email) -> Self {
+        Self {
+            to: vec![recipient],
+            ..Self::default()
+        }
+    }
+}
+
+impl EmailRecipients {
+    fn addresses(emails: Vec<pii::Email>) -> Vec<String> {
+        use hyperswitch_masking::PeekInterface;
+        emails
+            .into_iter()
+            .map(|email| email.peek().to_owned())
+            .collect()
+    }
+
+    /// The recipients as plain addresses, for the shared clients.
+    pub(crate) fn into_addresses(self) -> (Vec<String>, Vec<String>, Vec<String>) {
+        (
+            Self::addresses(self.to),
+            Self::addresses(self.cc),
+            Self::addresses(self.bcc),
+        )
+    }
 }
 
 /// A trait which will contain the logic of generating the email subject and body
@@ -118,7 +159,7 @@ pub trait EmailData {
     async fn get_email_data(&self, base_url: &str) -> CustomResult<EmailContents, EmailError>;
 }
 
-dyn_clone::clone_trait_object!(EmailClient<RichText = Body>);
+dyn_clone::clone_trait_object!(EmailClient<RichText = String>);
 
 /// List of available email clients to choose from
 #[derive(Debug, Clone, Default, Deserialize)]

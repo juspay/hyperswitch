@@ -187,7 +187,6 @@ pub enum PayoutType {
     strum::VariantNames,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
@@ -266,6 +265,7 @@ pub enum RoutableConnectors {
     Dlocal,
     Dwolla,
     Ebanx,
+    Ecommpay,
     Elavon,
     ElavonPg,
     Envoy,
@@ -283,6 +283,7 @@ pub enum RoutableConnectors {
     Givepayments,
     Globalpay,
     GlobalpaymentsHeartland,
+    GlobalpaymentsRealex,
     Globepay,
     Gocardless,
     GotymeSanlam,
@@ -450,6 +451,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Dlocal => Ok(Self::Dlocal),
             Connector::Dwolla => Ok(Self::Dwolla),
             Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Ecommpay => Ok(Self::Ecommpay),
             Connector::Elavon => Ok(Self::Elavon),
             Connector::ElavonPg => Ok(Self::ElavonPg),
             Connector::Envoy => Ok(Self::Envoy),
@@ -465,6 +467,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Givepayments => Ok(Self::Givepayments),
             Connector::Globalpay => Ok(Self::Globalpay),
             Connector::GlobalpaymentsHeartland => Ok(Self::GlobalpaymentsHeartland),
+            Connector::GlobalpaymentsRealex => Ok(Self::GlobalpaymentsRealex),
             Connector::Globepay => Ok(Self::Globepay),
             Connector::Gocardless => Ok(Self::Gocardless),
             Connector::GotymeSanlam => Ok(Self::GotymeSanlam),
@@ -631,6 +634,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Dlocal => Self::Dlocal,
             RoutableConnectors::Dwolla => Self::Dwolla,
             RoutableConnectors::Ebanx => Self::Ebanx,
+            RoutableConnectors::Ecommpay => Self::Ecommpay,
             RoutableConnectors::Elavon => Self::Elavon,
             RoutableConnectors::ElavonPg => Self::ElavonPg,
             RoutableConnectors::Envoy => Self::Envoy,
@@ -648,6 +652,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Givepayments => Self::Givepayments,
             RoutableConnectors::Globalpay => Self::Globalpay,
             RoutableConnectors::GlobalpaymentsHeartland => Self::GlobalpaymentsHeartland,
+            RoutableConnectors::GlobalpaymentsRealex => Self::GlobalpaymentsRealex,
             RoutableConnectors::Globepay => Self::Globepay,
             RoutableConnectors::Gocardless => Self::Gocardless,
             RoutableConnectors::GotymeSanlam => Self::GotymeSanlam,

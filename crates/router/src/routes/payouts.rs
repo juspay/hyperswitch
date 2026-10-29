@@ -70,7 +70,6 @@ pub async fn payouts_create(
     ))
     .await
 }
-
 #[cfg(all(feature = "v1", feature = "payouts"))]
 /// Payouts - Retrieve
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsRetrieve))]
@@ -134,6 +133,7 @@ pub async fn payouts_update(
 ) -> HttpResponse {
     let flow = Flow::PayoutsUpdate;
     let payout_id = path.into_inner();
+    let locking_action = get_payout_locking_action(&payout_id, flow.clone());
     let mut payout_update_payload = json_payload.into_inner();
     payout_update_payload.payout_id = Some(payout_id);
 
@@ -159,7 +159,7 @@ pub async fn payouts_update(
             allow_connected_scope_operation: false,
             allow_platform_self_operation: false,
         }),
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
 }
@@ -174,6 +174,7 @@ pub async fn payouts_confirm(
     let flow = Flow::PayoutsConfirm;
     let mut payload = json_payload.into_inner();
     let payout_id = path.into_inner();
+    let locking_action = get_payout_locking_action(&payout_id, flow.clone());
     tracing::Span::current().record("payout_id", payout_id.get_string_repr());
     payload.payout_id = Some(payout_id);
     payload.confirm = Some(true);
@@ -224,7 +225,7 @@ pub async fn payouts_confirm(
             payouts_confirm_core(state, auth.platform, req, header_payload.clone())
         },
         &*auth_type,
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
 }
@@ -267,6 +268,7 @@ pub async fn payouts_cancel(
     let payload = payout_types::PayoutActionRequest {
         payout_id: path.into_inner(),
     };
+    let locking_action = payload.get_locking_input(flow.clone());
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
         Err(err) => return api::log_and_return_error_response(err),
@@ -284,7 +286,7 @@ pub async fn payouts_cancel(
             allow_connected_scope_operation: false,
             allow_platform_self_operation: false,
         }),
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
 }
@@ -299,6 +301,7 @@ pub async fn payouts_fulfill(
     let payload = payout_types::PayoutActionRequest {
         payout_id: path.into_inner(),
     };
+    let locking_action = payload.get_locking_input(flow.clone());
 
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
@@ -317,9 +320,33 @@ pub async fn payouts_fulfill(
             allow_connected_scope_operation: false,
             allow_platform_self_operation: false,
         }),
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
+}
+
+impl GetLockingInput for payout_types::PayoutActionRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: router_env::types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        get_payout_locking_action(&self.payout_id, flow)
+    }
+}
+
+fn get_payout_locking_action<F>(payout_id: &id_type::PayoutId, flow: F) -> api_locking::LockAction
+where
+    F: router_env::types::FlowMetric,
+    lock_utils::ApiIdentifier: From<F>,
+{
+    api_locking::LockAction::Hold {
+        input: api_locking::LockingInput {
+            unique_locking_key: payout_id.get_string_repr().to_owned(),
+            api_identifier: lock_utils::ApiIdentifier::from(flow),
+            override_lock_retries: None,
+        },
+    }
 }
 
 /// Payouts - List

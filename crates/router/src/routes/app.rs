@@ -63,6 +63,8 @@ use super::recovery_webhooks::*;
 use super::refunds;
 #[cfg(feature = "olap")]
 use super::routing;
+#[cfg(all(feature = "oltp", feature = "v1"))]
+use super::telephone_order;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::tokenization as tokenization_routes;
 #[cfg(feature = "olap")]
@@ -163,6 +165,9 @@ impl scheduler::SchedulerSessionState for SessionState {
     fn get_application_source(&self) -> common_enums::ApplicationSource {
         self.conf.application_source
     }
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        &self.tenant.tenant_id
+    }
     fn get_request_id(&self) -> Option<RequestId> {
         self.request_id.clone()
     }
@@ -237,6 +242,7 @@ pub trait SessionStateInfo {
     fn event_handler(&self) -> EventsHandler;
     fn get_request_id(&self) -> Option<String>;
     fn add_request_id(&mut self, request_id: RequestId);
+    fn start_read_ledger(&mut self, flow: String);
     #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
@@ -245,6 +251,21 @@ pub trait SessionStateInfo {
 }
 
 impl SessionStateInfo for SessionState {
+    /// Begin tracking which records this session reads. Store-labelled ledgers
+    /// share one set, so a record read through two stores is one record.
+    /// Called once where the session begins; background work
+    /// (scheduler, drainer) is not a session and starts none.
+    fn start_read_ledger(&mut self, flow: String) {
+        use common_utils::read_ledger::{ReadLedger, ReadStore};
+
+        let read_ledger = Arc::new(ReadLedger::new(flow));
+        self.accounts_store
+            .attach_read_ledger(Arc::new(read_ledger.for_store(ReadStore::Accounts)));
+        self.global_store
+            .attach_read_ledger(Arc::new(read_ledger.for_store(ReadStore::Global)));
+        self.store.attach_read_ledger(read_ledger);
+    }
+
     fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
     }
@@ -372,6 +393,9 @@ pub struct AppState {
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
         self.conf.multitenancy.get_tenant_ids()
+    }
+    fn get_application_source(&self) -> common_enums::ApplicationSource {
+        self.conf.application_source
     }
 }
 pub trait AppStateInfo {
@@ -2725,58 +2749,35 @@ impl Profile {
 
         #[cfg(feature = "dynamic_routing")]
         {
-            route = route.service(
-                web::scope("/{profile_id}/dynamic_routing")
-                    .service(
-                        web::scope("/success_based")
-                            .service(
+            route =
+                route.service(
+                    web::scope("/{profile_id}/dynamic_routing")
+                        .service(
+                            web::scope("/success_based").service(
                                 web::resource("/create")
                                     .route(web::post().to(routing::create_success_based_routing)),
-                            )
-                            .service(web::resource("/config/{algorithm_id}").route(
-                                web::patch().to(|state, req, path, payload| {
-                                    routing::success_based_routing_update_configs(
-                                        state, req, path, payload,
-                                    )
-                                }),
-                            )),
-                    )
-                    .service(
-                        web::resource("/set_volume_split")
-                            .route(web::post().to(routing::set_dynamic_routing_volume_split)),
-                    )
-                    .service(
-                        web::resource("/get_volume_split")
-                            .route(web::get().to(routing::get_dynamic_routing_volume_split)),
-                    )
-                    .service(
-                        web::scope("/elimination")
-                            .service(
+                            ),
+                        )
+                        .service(
+                            web::resource("/set_volume_split")
+                                .route(web::post().to(routing::set_dynamic_routing_volume_split)),
+                        )
+                        .service(
+                            web::resource("/get_volume_split")
+                                .route(web::get().to(routing::get_dynamic_routing_volume_split)),
+                        )
+                        .service(
+                            web::scope("/elimination").service(
                                 web::resource("/create")
                                     .route(web::post().to(routing::create_elimination_routing)),
-                            )
-                            .service(web::resource("config/{algorithm_id}").route(
-                                web::patch().to(|state, req, path, payload| {
-                                    routing::elimination_routing_update_configs(
-                                        state, req, path, payload,
-                                    )
-                                }),
-                            )),
-                    )
-                    .service(
-                        web::scope("/contracts")
-                            .service(web::resource("/toggle").route(
+                            ),
+                        )
+                        .service(web::scope("/contracts").service(
+                            web::resource("/toggle").route(
                                 web::post().to(routing::contract_based_routing_setup_config),
-                            ))
-                            .service(web::resource("/config/{algorithm_id}").route(
-                                web::patch().to(|state, req, path, payload| {
-                                    routing::contract_based_routing_update_configs(
-                                        state, req, path, payload,
-                                    )
-                                }),
-                            )),
-                    ),
-            );
+                            ),
+                        )),
+                );
         }
 
         route = route.service(
@@ -2858,6 +2859,20 @@ impl ThreeDsDecisionRule {
             .service(
                 web::resource("/execute")
                     .route(web::post().to(three_ds_decision_rule::execute_decision_rule)),
+            )
+    }
+}
+
+pub struct TelephoneOrder;
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+impl TelephoneOrder {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/telephone_order")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{merchant_id}/{provider}")
+                    .route(web::post().to(telephone_order::telephone_order_charge)),
             )
     }
 }
@@ -3540,10 +3555,16 @@ pub struct RevenueRecovery;
 #[cfg(feature = "v2")]
 impl RevenueRecovery {
     pub fn server(state: AppState) -> Scope {
-        use super::{payments, revenue_recovery_data_backfill, revenue_recovery_redis};
+        use super::{
+            payments, revenue_recovery, revenue_recovery_data_backfill, revenue_recovery_redis,
+        };
         web::scope("/v2/recovery")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(payments::recovery_payments_create)))
+            .service(
+                web::resource("/{merchant_reference_id}/cancel")
+                    .route(web::post().to(revenue_recovery::revenue_recovery_cancel)),
+            )
             .service(
                 web::scope("/data-backfill")
                     .service(

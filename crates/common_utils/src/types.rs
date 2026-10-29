@@ -23,6 +23,7 @@ use std::{
 };
 
 use common_enums::enums;
+#[cfg(feature = "diesel")]
 use diesel::{
     backend::Backend,
     deserialize,
@@ -201,8 +202,9 @@ pub enum Surcharge {
 }
 
 /// This struct lets us represent a semantic version type
-#[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, Ord, PartialOrd)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[derive(Serialize, serde::Deserialize)]
 pub struct SemanticVersion(#[serde(with = "Version")] Version);
 
@@ -238,6 +240,7 @@ impl FromStr for SemanticVersion {
     }
 }
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(SemanticVersion);
 
 /// Amount convertor trait for connector
@@ -376,7 +379,6 @@ impl AmountConvertor for MinorUnitForConnector {
     Default,
     Debug,
     serde::Deserialize,
-    AsExpression,
     serde::Serialize,
     Clone,
     Copy,
@@ -387,7 +389,8 @@ impl AmountConvertor for MinorUnitForConnector {
     PartialOrd,
     Ord,
 )]
-#[diesel(sql_type = sql_types::BigInt)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::BigInt))]
 pub struct MinorUnit(i64);
 
 impl MinorUnit {
@@ -468,6 +471,7 @@ impl Display for MinorUnit {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::BigInt, DB> for MinorUnit
 where
     DB: Backend,
@@ -479,6 +483,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::BigInt, DB> for MinorUnit
 where
     DB: Backend,
@@ -489,6 +494,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::BigInt, DB> for MinorUnit
 where
     DB: Backend,
@@ -542,7 +548,6 @@ impl Sum for MinorUnit {
     Default,
     Debug,
     serde::Deserialize,
-    AsExpression,
     serde::Serialize,
     Clone,
     PartialEq,
@@ -551,7 +556,8 @@ impl Sum for MinorUnit {
     ToSchema,
     PartialOrd,
 )]
-#[diesel(sql_type = sql_types::Text)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
 pub struct StringMinorUnit(String);
 
 impl StringMinorUnit {
@@ -581,6 +587,7 @@ impl Display for StringMinorUnit {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for StringMinorUnit
 where
     DB: Backend,
@@ -592,6 +599,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for StringMinorUnit
 where
     DB: Backend,
@@ -602,6 +610,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::Text, DB> for StringMinorUnit
 where
     DB: Backend,
@@ -705,18 +714,10 @@ impl StringMajorUnit {
 }
 
 #[derive(
-    Debug,
-    serde::Deserialize,
-    AsExpression,
-    serde::Serialize,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    ToSchema,
-    PartialOrd,
+    Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Hash, ToSchema, PartialOrd,
 )]
-#[diesel(sql_type = sql_types::Text)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
 /// This domain type can be used for any url
 pub struct Url(url::Url);
 
@@ -748,6 +749,7 @@ impl Url {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for Url
 where
     DB: Backend,
@@ -759,6 +761,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for Url
 where
     DB: Backend,
@@ -892,10 +895,9 @@ mod amount_conversion_tests {
 }
 
 // Charges structs
-#[derive(
-    Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 /// Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details.
 pub struct ChargeRefunds {
     /// Identifier for charge created for the payment
@@ -910,11 +912,13 @@ pub struct ChargeRefunds {
     pub revert_transfer: Option<bool>,
 }
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(ChargeRefunds);
 
 /// A common type of domain type that can be used for fields that contain a string with restriction of length
-#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression)]
-#[diesel(sql_type = sql_types::Text)]
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
 pub(crate) struct LengthString<const MAX_LENGTH: u16, const MIN_LENGTH: u16>(String);
 
 /// Error generated from violation of constraints for MerchantReferenceId
@@ -964,6 +968,7 @@ impl<'de, const MAX_LENGTH: u16, const MIN_LENGTH: u16> Deserialize<'de>
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u16> FromSql<sql_types::Text, DB>
     for LengthString<MAX_LENGTH, MIN_LENGTH>
 where
@@ -976,6 +981,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u16> ToSql<sql_types::Text, DB>
     for LengthString<MAX_LENGTH, MIN_LENGTH>
 where
@@ -987,6 +993,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u16> Queryable<sql_types::Text, DB>
     for LengthString<MAX_LENGTH, MIN_LENGTH>
 where
@@ -1000,8 +1007,9 @@ where
 }
 
 /// Domain type for description
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
-#[diesel(sql_type = sql_types::Text)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
 pub struct Description(LengthString<MAX_DESCRIPTION_LENGTH, 1>);
 
 impl Description {
@@ -1018,8 +1026,9 @@ impl Description {
 }
 
 /// Domain type for Statement Descriptor
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
-#[diesel(sql_type = sql_types::Text)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
 pub struct StatementDescriptor(LengthString<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>);
 
 /// Domain type for a blocklist lookup value - a card BIN or a locker fingerprint id.
@@ -1036,6 +1045,7 @@ impl BlocklistLookupData {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::Text, DB> for Description
 where
     DB: Backend,
@@ -1048,6 +1058,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for Description
 where
     DB: Backend,
@@ -1059,6 +1070,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for Description
 where
     DB: Backend,
@@ -1069,6 +1081,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::Text, DB> for StatementDescriptor
 where
     DB: Backend,
@@ -1081,6 +1094,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for StatementDescriptor
 where
     DB: Backend,
@@ -1092,6 +1106,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for StatementDescriptor
 where
     DB: Backend,
@@ -1103,10 +1118,9 @@ where
 }
 
 /// Domain type for unified code
-#[derive(
-    Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,
-)]
-#[diesel(sql_type = sql_types::Text)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "diesel", derive(Queryable, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
 pub struct UnifiedCode(pub String);
 
 impl TryFrom<String> for UnifiedCode {
@@ -1122,6 +1136,7 @@ impl TryFrom<String> for UnifiedCode {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::Text, DB> for UnifiedCode
 where
     DB: Backend,
@@ -1133,6 +1148,7 @@ where
         Ok(row)
     }
 }
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for UnifiedCode
 where
     DB: Backend,
@@ -1144,6 +1160,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for UnifiedCode
 where
     DB: Backend,
@@ -1155,10 +1172,9 @@ where
 }
 
 /// Domain type for unified messages
-#[derive(
-    Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,
-)]
-#[diesel(sql_type = sql_types::Text)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "diesel", derive(Queryable, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
 pub struct UnifiedMessage(pub String);
 
 impl TryFrom<String> for UnifiedMessage {
@@ -1174,6 +1190,7 @@ impl TryFrom<String> for UnifiedMessage {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::Text, DB> for UnifiedMessage
 where
     DB: Backend,
@@ -1185,6 +1202,7 @@ where
         Ok(row)
     }
 }
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for UnifiedMessage
 where
     DB: Backend,
@@ -1196,6 +1214,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for UnifiedMessage
 where
     DB: Backend,
@@ -1209,17 +1228,9 @@ where
 #[cfg(feature = "v2")]
 /// Browser information to be used for 3DS 2.0
 // If any of the field is PII, then we can make them as secret
-#[derive(
-    ToSchema,
-    Debug,
-    Clone,
-    serde::Deserialize,
-    serde::Serialize,
-    Eq,
-    PartialEq,
-    diesel::AsExpression,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(ToSchema, Debug, Clone, serde::Deserialize, serde::Serialize, Eq, PartialEq)]
+#[cfg_attr(feature = "diesel", derive(diesel::AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct BrowserInformation {
     /// Color depth supported by the browser
     pub color_depth: Option<u8>,
@@ -1272,6 +1283,7 @@ pub struct BrowserInformation {
 }
 
 #[cfg(feature = "v2")]
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(BrowserInformation);
 
 /// A single co-badge / secondary network entry enriched from the Pagos BIN data.
@@ -1309,20 +1321,12 @@ pub struct SecondaryNetwork {
 /// Co-badged card networks for a card BIN, stored as a JSONB array of [`SecondaryNetwork`] objects
 /// in the `co_badged_card_networks` column of `cards_info`. The newtype is serde-transparent, so it
 /// serializes/deserializes as a plain JSON array.
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    FromSqlRow,
-    AsExpression,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct CoBadgedCardNetworkMetadata(pub Vec<SecondaryNetwork>);
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(CoBadgedCardNetworkMetadata);
 
 /// A single interchange cap entry within the [`CardCost`] array. All values are kept as strings.
@@ -1355,20 +1359,12 @@ pub struct InterchangeCap {
 }
 
 /// The `cost` column of `cards_info` — a JSON array of interchange caps.
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    FromSqlRow,
-    AsExpression,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct CardCost(pub Vec<InterchangeCap>);
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(CardCost);
 
 /// A single customer-authentication requirement within the [`CardAuthentication`] array.
@@ -1382,20 +1378,12 @@ pub struct AuthenticationInfo {
 }
 
 /// The `authentication` column of `cards_info` — a JSON array of required authentication programs.
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    FromSqlRow,
-    AsExpression,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct CardAuthentication(pub Vec<AuthenticationInfo>);
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(CardAuthentication);
 
 /// Domain type for connector_transaction_id
@@ -1404,8 +1392,9 @@ crate::impl_to_sql_from_sql_json!(CardAuthentication);
 /// the hash value of such identifiers will be stored as connector_transaction_id.
 /// The actual connector's identifier will be stored in a separate column -
 /// processor_transaction_data or something with a similar name.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
-#[diesel(sql_type = sql_types::Text)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
 pub enum ConnectorTransactionId {
     /// Actual transaction identifier
     TxnId(String),
@@ -1476,6 +1465,7 @@ impl From<String> for ConnectorTransactionId {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::Text, DB> for ConnectorTransactionId
 where
     DB: Backend,
@@ -1488,6 +1478,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for ConnectorTransactionId
 where
     DB: Backend,
@@ -1499,6 +1490,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for ConnectorTransactionId
 where
     DB: Backend,
@@ -1532,8 +1524,9 @@ pub trait ConnectorTransactionIdTrait {
 }
 
 /// Domain type for PublishableKey
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
-#[diesel(sql_type = sql_types::Text)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
 pub struct PublishableKey(LengthString<PUBLISHABLE_KEY_LENGTH, PUBLISHABLE_KEY_LENGTH>);
 
 impl PublishableKey {
@@ -1549,6 +1542,7 @@ impl PublishableKey {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::Text, DB> for PublishableKey
 where
     DB: Backend,
@@ -1561,6 +1555,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for PublishableKey
 where
     DB: Backend,
@@ -1572,6 +1567,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for PublishableKey
 where
     DB: Backend,

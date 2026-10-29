@@ -558,6 +558,10 @@ impl PaymentMethodToken {
     pub fn is_google_pay_decrypt(&self) -> bool {
         matches!(self, Self::GooglePayDecrypt(_))
     }
+
+    pub fn is_decrypted_flow(&self) -> bool {
+        self.is_apple_pay_decrypt() || self.is_google_pay_decrypt()
+    }
 }
 
 impl TryFrom<(api_models::payments::PaymentMethodData, PaymentMethodToken)>
