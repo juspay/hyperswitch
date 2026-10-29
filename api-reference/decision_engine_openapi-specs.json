@@ -2835,11 +2835,96 @@
         },
         "responses": {
           "200": {
-            "description": "Routing decision. Connector order and account IDs are preserved from hybrid routing. An account ID can be null when a legacy rule identifies only a gateway.",
+            "description": "Routing decision. Connector order and account IDs are preserved from the routing evaluation. An account ID can be null when a legacy rule identifies only a gateway.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DecideResponse"
+                  "$ref": "#/components/schemas/HybridRoutingResponse"
+                },
+                "example": {
+                  "static_routing": {
+                    "payment_id": "pay_demo",
+                    "status": "success",
+                    "output": {
+                      "type": "priority",
+                      "connectors": [
+                        {
+                          "gateway_name": "worldpay",
+                          "gateway_id": "mca_wp"
+                        },
+                        {
+                          "gateway_name": "checkout",
+                          "gateway_id": "mca_cko"
+                        }
+                      ]
+                    },
+                    "evaluated_output": [
+                      {
+                        "gateway_name": "worldpay",
+                        "gateway_id": "mca_wp"
+                      },
+                      {
+                        "gateway_name": "checkout",
+                        "gateway_id": "mca_cko"
+                      }
+                    ],
+                    "eligible_connectors": [
+                      {
+                        "gateway_name": "worldpay",
+                        "gateway_id": "mca_wp"
+                      },
+                      {
+                        "gateway_name": "checkout",
+                        "gateway_id": "mca_cko"
+                      }
+                    ]
+                  },
+                  "dynamic_routing": {
+                    "status": "success",
+                    "decision": {
+                      "decided_gateway": "worldpay",
+                      "fallback_gateways": [
+                        "checkout"
+                      ],
+                      "gateway_priority_map": {
+                        "checkout": 0.91,
+                        "worldpay": 0.95
+                      },
+                      "filter_wise_gateways": null,
+                      "priority_logic_tag": null,
+                      "routing_approach": "SR_SELECTION_V3_ROUTING",
+                      "gateway_before_evaluation": "worldpay",
+                      "priority_logic_output": {
+                        "isEnforcement": false,
+                        "gws": [
+                          "worldpay",
+                          "checkout"
+                        ],
+                        "priorityLogicTag": null,
+                        "gatewayReferenceIds": {},
+                        "primaryLogic": null,
+                        "fallbackLogic": null
+                      },
+                      "debit_routing_output": null,
+                      "reset_approach": "NO_RESET",
+                      "routing_dimension": "ORDER_PAYMENT,CARD,CREDIT,UNKNOWN",
+                      "routing_dimension_level": "CARD_LEVEL",
+                      "is_scheduled_outage": false,
+                      "is_dynamic_mga_enabled": false,
+                      "gateway_mga_id_map": null,
+                      "is_rust_based_decider": true,
+                      "latency": 3,
+                      "multi_objective_info": null,
+                      "volume_steer_info": null
+                    },
+                    "fallback_connectors": null
+                  },
+                  "evaluated_connectors": [
+                    {
+                      "gateway_name": "worldpay",
+                      "gateway_id": "mca_wp"
+                    }
+                  ]
                 }
               }
             }
