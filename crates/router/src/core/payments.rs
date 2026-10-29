@@ -10266,13 +10266,7 @@ enum SingleUseTokenDecision {
 
 #[cfg(feature = "v1")]
 impl SingleUseTokenDecision {
-    /// Decides how the payment should be made, based on the `pay_via_single_use_token` config:
-    /// - `None` / `Default`: `Default`, the connector single-use token support is not checked
-    /// - `Enabled`: `PayViaSingleUseToken`, throws an error if the connector does not support a single-use token
-    /// - `Disabled`: `PayDirectly`, throws an error if the connector requires a single-use token
-    ///
-    /// `Default` is returned if the connector single-use token support is not implemented (`None`), the flow is not
-    /// applicable, or the payment method data is not available (e.g. saved payment method).
+    /// Decides the payment mode from the `pay_via_single_use_token` config, erroring if the connector support conflicts
     #[allow(clippy::too_many_arguments)]
     fn decide(
         connector_data: &api::ConnectorData,
@@ -10352,10 +10346,7 @@ impl SingleUseTokenDecision {
         }
     }
 
-    /// Gets the tokenization action for the decision:
-    /// - `Default`: the current behaviour, based on the connector tokenization config
-    /// - `PayViaSingleUseToken`: tokenize at the connector, or use the connector token if already available
-    /// - `PayDirectly`: connector tokenization is disabled, tokenize only in the router
+    /// Gets the tokenization action
     #[allow(clippy::too_many_arguments)]
     async fn get_tokenization_action(
         self,

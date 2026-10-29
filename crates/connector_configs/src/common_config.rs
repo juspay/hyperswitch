@@ -180,7 +180,7 @@ pub struct Provider {
     /// Indicates whether the payment should be made via a single-use token at the connector.
     /// `None` is treated as `default`, the default behaviour is followed (the current behaviour).
     #[schema(value_type = Option<PayViaSingleUseToken>)]
-    pub pay_via_single_use_token: Option<api_models::payment_methods::PayViaSingleUseToken>,
+    pub pay_via_single_use_token: Option<payment_methods::PayViaSingleUseToken>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

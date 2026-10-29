@@ -110,11 +110,8 @@ impl PaymentMethodsEnabled {
     }
 }
 
-/// Configures whether the payment should be made via a single-use token. When enabled, the payment method data is
-/// first exchanged for a single-use token at the connector, which is then used in the flow (authorize / setup mandate).
-/// This is unrelated to mandates or saving the payment method at the connector.
-///
-/// When used as `Option<PayViaSingleUseToken>`, `None` is treated as `Default`.
+/// Whether the payment method data is exchanged for a single-use token at the connector before authorize / setup
+/// mandate. Unrelated to mandates or saving the payment method at the connector; `None` is treated as `Default`.
 #[derive(
     Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash,
 )]
