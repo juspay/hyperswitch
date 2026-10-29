@@ -112,7 +112,7 @@ port = 6379
 # an unauthenticated local Redis. `username` is optional (defaults to the
 # `default` user); setting `username` requires `password`.
 # username = "default"
-# password = ""
+# primary_password = ""
 # Connect over TLS (`rediss://`); required by most managed Redis offerings
 # (e.g. ElastiCache with encryption in transit, Redis Cloud with TLS).
 # When `tls_ca_certificate_path` is set, the server certificate is verified
@@ -1561,7 +1561,7 @@ forex_enabled = false
 
 [analytics.clickhouse]
 username = "default"
-# password = ""
+# primary_password = ""
 host = "http://localhost:8123"
 database_name = "default"
 
@@ -1597,7 +1597,7 @@ enabled = false
 [opensearch.auth]
 auth = "basic"
 username = "admin"
-password = "0penS3arc#"
+primary_password = "0penS3arc#"
 region = "eu-central-1"
 
 [opensearch.indexes]
@@ -1763,8 +1763,10 @@ proxy_connector_http_status_code = false    # If enabled, the http status code o
 connector_list = "worldpayvantiv"
 
 [internal_merchant_id_profile_id_auth]
+primary_internal_api_key = "test_internal_api_key"
+key_rotation_enabled = false
+use_legacy_key_for_outbound = false
 enabled = false
-internal_api_key = "test_internal_api_key"
 
 [internal_services]
 payments_base_url = "http://localhost:8080"
