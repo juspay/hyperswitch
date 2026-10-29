@@ -689,6 +689,12 @@ pub enum CaptureStatus {
     Failed,
 }
 
+impl CaptureStatus {
+    pub fn is_success(&self) -> bool {
+        matches!(self, Self::Charged)
+    }
+}
+
 #[derive(
     Default,
     Clone,

@@ -900,6 +900,10 @@ static DATATRANS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static DATATRANS_SUPPORTED_WEBHOOK_FLOWS: [common_enums::enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Datatrans {
+    fn is_multi_currency_processing_supported(&self) -> bool {
+        true
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&DATATRANS_CONNECTOR_INFO)
     }
