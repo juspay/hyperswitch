@@ -829,6 +829,7 @@ pub async fn retrieve_dispute_evidence(
 pub async fn delete_evidence(
     state: SessionState,
     processor: domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     delete_evidence_request: dispute_models::DeleteEvidenceRequest,
 ) -> RouterResponse<serde_json::Value> {
     let dispute_id = delete_evidence_request.dispute_id.clone();
@@ -843,6 +844,7 @@ pub async fn delete_evidence(
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: dispute_id.clone(),
         })?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     let dispute_evidence: api::DisputeEvidence = dispute
         .evidence
         .clone()
