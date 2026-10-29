@@ -215,6 +215,10 @@ impl
 
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
+    fn single_use_token_flow() -> Option<payments::SingleUseTokenFlow> {
+        Some(payments::SingleUseTokenFlow::Authorize)
+    }
+
     fn current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo> {
         Some(api_interface::CurrentFlowInfo::Authorize {
             auth_type: self.auth_type,

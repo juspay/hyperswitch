@@ -5173,6 +5173,24 @@ payment_method_type = "cashapp"
 [[stripe.wallet]]
 payment_method_type = "revolut_pay"
 is_verifiable = true
+[stripe.pay_via_single_use_token.apple_pay]
+flows=["decrypt"]
+name="pay_via_single_use_token"
+label="Pay via single-use token"
+placeholder="Select"
+required=false
+type="Select"
+options=["default","enabled","disabled"]
+
+[stripe.pay_via_single_use_token.google_pay]
+flows=["decrypt"]
+name="pay_via_single_use_token"
+label="Pay via single-use token"
+placeholder="Select"
+required=false
+type="Select"
+options=["default","enabled","disabled"]
+
 [stripe.connector_auth.HeaderKey]
 api_key = "Secret Key"
 [stripe.connector_webhook_details]

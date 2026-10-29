@@ -49,9 +49,10 @@ pub use hyperswitch_domain_models::router_request_types::CurrentFlowInfo;
 use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
+    payment_method_data::PaymentMethodData,
     router_data::{
         AccessToken, AccessTokenAuthenticationResponse, ConnectorAuthType, ErrorResponse,
-        RouterData,
+        PaymentMethodToken, RouterData,
     },
     router_data_v2::{
         flow_common_types::{
@@ -416,6 +417,17 @@ pub enum AlternateFlow {
     PreAuthenticate,
 }
 
+/// Single-use token support of the connector for a payment
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SingleUseTokenSupport {
+    /// The payment can be made only via a single-use token
+    Required,
+    /// The payment can be made either via a single-use token or directly
+    Supported,
+    /// The payment can be made only directly, without a single-use token
+    NotSupported,
+}
+
 /// The Preprocessing flow that must be made before the current flow.
 ///
 /// For example, PreProcessing flow must be made before Authorize flow.
@@ -683,6 +695,30 @@ pub trait ConnectorSpecifications {
     /// Check if connector needs tokenization call before setup mandate flow
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {
         true
+    }
+
+    /// Single-use token support of the connector in the authorize flow for the given payment method data and payment
+    /// method token (e.g. pre-decrypted wallet token). The single-use token is created at the connector right before
+    /// authorization and is used only for that payment, it is not stored at the connector and is unrelated to mandates.
+    /// `None` means it is not implemented for the connector, and the default behaviour is followed.
+    fn get_single_use_token_support(
+        &self,
+        _payment_method_data: &PaymentMethodData,
+        _payment_method_token: Option<&PaymentMethodToken>,
+    ) -> Option<SingleUseTokenSupport> {
+        None
+    }
+
+    /// Single-use token support of the connector in the setup mandate flow for the given payment method data and
+    /// payment method token (e.g. pre-decrypted wallet token). The single-use token is created at the connector right
+    /// before the setup mandate call and is used only for that call.
+    /// `None` means it is not implemented for the connector, and the default behaviour is followed.
+    fn get_single_use_token_support_for_setup_mandate(
+        &self,
+        _payment_method_data: &PaymentMethodData,
+        _payment_method_token: Option<&PaymentMethodToken>,
+    ) -> Option<SingleUseTokenSupport> {
+        None
     }
 
     /// Check if connector should trigger handle response without initiating a call to the connector

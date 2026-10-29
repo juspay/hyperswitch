@@ -922,6 +922,38 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    fn get_single_use_token_support(
+        &self,
+        payment_method_data: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+        payment_method_token: Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    ) -> Option<api::SingleUseTokenSupport> {
+        match self {
+            Self::Old(connector) => {
+                connector.get_single_use_token_support(payment_method_data, payment_method_token)
+            }
+            Self::New(connector) => {
+                connector.get_single_use_token_support(payment_method_data, payment_method_token)
+            }
+        }
+    }
+
+    fn get_single_use_token_support_for_setup_mandate(
+        &self,
+        payment_method_data: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+        payment_method_token: Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    ) -> Option<api::SingleUseTokenSupport> {
+        match self {
+            Self::Old(connector) => connector.get_single_use_token_support_for_setup_mandate(
+                payment_method_data,
+                payment_method_token,
+            ),
+            Self::New(connector) => connector.get_single_use_token_support_for_setup_mandate(
+                payment_method_data,
+                payment_method_token,
+            ),
+        }
+    }
+
     fn should_trigger_handle_response_without_body(&self) -> bool {
         match self {
             Self::Old(connector) => connector.should_trigger_handle_response_without_body(),

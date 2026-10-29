@@ -32103,6 +32103,15 @@
           }
         }
       },
+      "PayViaSingleUseToken": {
+        "type": "string",
+        "description": "Configures whether the payment should be made via a single-use token. When enabled, the payment method data is\nfirst exchanged for a single-use token at the connector, which is then used in the flow (authorize / setup mandate).\nThis is unrelated to mandates or saving the payment method at the connector.\n\nWhen used as `Option<PayViaSingleUseToken>`, `None` is treated as `Default`.",
+        "enum": [
+          "default",
+          "enabled",
+          "disabled"
+        ]
+      },
       "PaylaterResponse": {
         "type": "object",
         "properties": {
@@ -45601,6 +45610,14 @@
             "type": "boolean",
             "description": "Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.",
             "example": true,
+            "nullable": true
+          },
+          "pay_via_single_use_token": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayViaSingleUseToken"
+              }
+            ],
             "nullable": true
           }
         }
