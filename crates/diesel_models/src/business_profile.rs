@@ -698,14 +698,6 @@ pub struct RevenueRecoveryAlgorithmData {
     pub monitoring_configured_timestamp: time::PrimitiveDateTime,
 }
 
-impl RevenueRecoveryAlgorithmData {
-    pub fn has_exceeded_monitoring_threshold(&self, monitoring_threshold_in_seconds: i64) -> bool {
-        let total_threshold_time = self.monitoring_configured_timestamp
-            + Duration::seconds(monitoring_threshold_in_seconds);
-        common_utils::date_time::now() >= total_threshold_time
-    }
-}
-
 common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);
 
 /// Configuration for payment method blocking based on card attributes
