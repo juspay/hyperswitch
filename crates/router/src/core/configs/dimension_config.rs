@@ -191,7 +191,7 @@ config! {
 }
 
 impl DatabaseBackedConfig for AllowPaymentMethodDataCollection {
-    const KEY: &'static str = "allow_payment_method_data_collection";
+    const KEY: &'static str = "system.allow_payment_method_data_collection";
 
     fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         None

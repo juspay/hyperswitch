@@ -452,7 +452,8 @@ pub mod superposition {
     /// CVV requirement configuration key
     pub const REQUIRES_CVV: &str = "payments.requires_cvv";
     /// Allow payment method data to be collected internally for follow-up payment operations
-    pub const ALLOW_PAYMENT_METHOD_DATA_COLLECTION: &str = "allow_payment_method_data_collection";
+    pub const ALLOW_PAYMENT_METHOD_DATA_COLLECTION: &str =
+        "system.allow_payment_method_data_collection";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
     /// Blocklist guard configuration key: when true, payments are screened against the merchant's blocklist
