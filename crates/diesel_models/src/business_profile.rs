@@ -5,7 +5,6 @@ use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use hyperswitch_masking::Secret;
-use time::Duration;
 
 #[cfg(feature = "v1")]
 use crate::schema::business_profile;
