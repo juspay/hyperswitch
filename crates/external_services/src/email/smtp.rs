@@ -1,95 +1,19 @@
-use std::time::Duration;
+//! SMTP email client.
+//!
+//! Hyperswitch adapter over the shared [`cloud_services::email::smtp`] client. The configuration
+//! stays here so its credentials remain masked [`Secret`]s.
 
+pub use cloud_services::email::smtp::{SmtpConnection, SmtpError};
+use cloud_services::email::{smtp as shared, EmailMessage};
 use common_utils::{errors::CustomResult, pii};
-use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
-use lettre::{
-    address::AddressError,
-    error,
-    message::{header::ContentType, Mailbox},
-    transport::smtp::{
-        self,
-        authentication::{Credentials, Mechanism},
-        client::{AsyncSmtpConnection, AsyncTokioStream, TlsParameters},
-        extension::ClientId,
+
+use crate::{
+    email::{
+        EmailClient, EmailError, EmailRecipients, EmailResult, EmailSettings, IntermediateString,
     },
-    Message,
+    report_with_cause,
 };
-use router_env::logger;
-use tokio::net::TcpStream;
-use tokio_socks::tcp::Socks5Stream;
-
-use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString};
-
-async fn connect_direct(host: &str, port: u16) -> Result<TcpStream, SmtpError> {
-    TcpStream::connect((host, port))
-        .await
-        .map_err(SmtpError::DirectConnectionFailed)
-}
-
-/// SOCKS5 proxy to tunnel the SMTP connection through (absent means connect directly); username/password auth (RFC 1929) is sent to the proxy in cleartext.
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct Socks5Config {
-    /// SOCKS5 proxy hostname or IP.
-    pub host: String,
-    /// SOCKS5 proxy port.
-    pub port: u16,
-    /// SOCKS5 username, if the proxy requires auth.
-    pub username: Option<Secret<String>>,
-    /// SOCKS5 password, if the proxy requires auth.
-    pub password: Option<Secret<String>>,
-}
-
-async fn connect_via_socks5(
-    socks5: &Socks5Config,
-    smtp_host: &str,
-    smtp_port: u16,
-) -> Result<TcpStream, SmtpError> {
-    let proxy_addrs = tokio::net::lookup_host((socks5.host.as_str(), socks5.port))
-        .await
-        .map_err(SmtpError::Socks5ProxyResolutionFailed)?
-        .collect::<Vec<_>>();
-
-    let target = (smtp_host, smtp_port);
-
-    // Try every resolved address, not just the first (matches connect_direct's retry).
-    let mut last_error = SmtpError::Socks5ProxyResolutionFailed(std::io::Error::new(
-        std::io::ErrorKind::NotFound,
-        "proxy hostname resolved to no addresses",
-    ));
-
-    for proxy_addr in proxy_addrs {
-        let result = match socks5.username.as_ref().zip(socks5.password.as_ref()) {
-            Some((username, password)) => {
-                Socks5Stream::connect_with_password(
-                    proxy_addr,
-                    target,
-                    username.peek().as_str(),
-                    password.peek().as_str(),
-                )
-                .await
-            }
-            None => Socks5Stream::connect(proxy_addr, target).await,
-        };
-
-        match result {
-            Ok(stream) => return Ok(stream.into_inner()),
-            Err(error) => {
-                logger::warn!(
-                    ?error,
-                    proxy_host = %socks5.host,
-                    proxy_port = socks5.port,
-                    %proxy_addr,
-                    "SOCKS5 connection attempt failed, trying next resolved address if any"
-                );
-                last_error = SmtpError::Socks5ConnectionFailed(error);
-            }
-        }
-    }
-
-    Err(last_error)
-}
 
 /// Client for SMTP server operation
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -101,63 +25,15 @@ pub struct SmtpServer {
 }
 
 impl SmtpServer {
-    pub(crate) async fn create_client(&self) -> CustomResult<AsyncSmtpConnection, SmtpError> {
-        let host = &self.smtp_config.host;
-        let port = self.smtp_config.port;
-        let client_id = ClientId::default();
-        let timeout = Duration::from_secs(self.smtp_config.timeout);
-
-        let stream = tokio::time::timeout(timeout, async {
-            match self.smtp_config.socks5.as_ref() {
-                Some(socks5) => connect_via_socks5(socks5, host, port).await,
-                None => connect_direct(host, port).await,
-            }
-        })
-        .await
-        .change_context(SmtpError::Timeout)
-        .attach_printable("Timed out establishing the underlying connection to the SMTP host")??;
-
-        let stream: Box<dyn AsyncTokioStream> = Box::new(stream);
-
-        let mut conn = tokio::time::timeout(
-            timeout,
-            AsyncSmtpConnection::connect_with_transport(stream, &client_id),
-        )
-        .await
-        .change_context(SmtpError::Timeout)
-        .attach_printable("Timed out completing the SMTP connect handshake")?
-        .map_err(SmtpError::ConnectionFailure)?;
-
-        if matches!(self.smtp_config.connection, SmtpConnection::StartTls) {
-            let tls_parameters = TlsParameters::builder(host.clone())
-                .build()
-                .map_err(SmtpError::ConnectionFailure)?;
-            tokio::time::timeout(timeout, conn.starttls(tls_parameters, &client_id))
-                .await
-                .change_context(SmtpError::Timeout)
-                .attach_printable("Timed out during the STARTTLS upgrade")?
-                .map_err(SmtpError::ConnectionFailure)?;
-        }
-
-        Ok(conn)
-    }
     /// Constructs a new SMTP client
     pub async fn create(conf: &EmailSettings, smtp_config: SmtpServerConfig) -> Self {
         Self {
             sender: conf.sender_email.clone(),
-            smtp_config: smtp_config.clone(),
+            smtp_config,
         }
     }
-    fn to_mail_box(email: String) -> EmailResult<Mailbox> {
-        Ok(Mailbox::new(
-            None,
-            email
-                .parse()
-                .map_err(SmtpError::EmailParsingFailed)
-                .change_context(EmailError::EmailSendingFailure)?,
-        ))
-    }
 }
+
 /// Struct that contains the SMTP server specific configs required
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -179,15 +55,18 @@ pub struct SmtpServerConfig {
     pub socks5: Option<Socks5Config>,
 }
 
-/// Enum that contains the connection types of the SMTP server
+/// SOCKS5 proxy to tunnel the SMTP connection through (absent means connect directly); username/password auth (RFC 1929) is sent to the proxy in cleartext.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SmtpConnection {
-    #[default]
-    /// Plaintext connection which MUST then successfully upgrade to TLS via STARTTLS
-    StartTls,
-    /// Plaintext connection (very insecure)
-    Plaintext,
+pub struct Socks5Config {
+    /// SOCKS5 proxy hostname or IP.
+    pub host: String,
+    /// SOCKS5 proxy port.
+    pub port: u16,
+    /// SOCKS5 username, if the proxy requires auth.
+    pub username: Option<Secret<String>>,
+    /// SOCKS5 password, if the proxy requires auth.
+    pub password: Option<Secret<String>>,
 }
 
 impl SmtpServerConfig {
@@ -209,6 +88,29 @@ impl SmtpServerConfig {
             },
         )?;
         self.socks5.as_ref().map_or(Ok(()), Socks5Config::validate)
+    }
+
+    fn to_shared(&self) -> shared::SmtpConfig {
+        shared::SmtpConfig {
+            host: self.host.clone(),
+            port: self.port,
+            timeout: self.timeout,
+            username: self.username.as_ref().map(|value| value.peek().to_owned()),
+            password: self.password.as_ref().map(|value| value.peek().to_owned()),
+            connection: self.connection.clone(),
+            socks5: self.socks5.as_ref().map(|socks5| shared::Socks5Config {
+                host: socks5.host.clone(),
+                port: socks5.port,
+                username: socks5
+                    .username
+                    .as_ref()
+                    .map(|value| value.peek().to_owned()),
+                password: socks5
+                    .password
+                    .as_ref()
+                    .map(|value| value.peek().to_owned()),
+            }),
+        }
     }
 }
 
@@ -248,101 +150,27 @@ impl EmailClient for SmtpServer {
 
     async fn send_email(
         &self,
-        recipient: pii::Email,
+        recipients: EmailRecipients,
         subject: String,
         body: Self::RichText,
         // Unused here — SES uses this; SMTP's proxy lives in smtp_config.socks5.
         _proxy_url: Option<&String>,
     ) -> EmailResult<()> {
-        let email = Message::builder()
-            .to(Self::to_mail_box(recipient.peek().to_string())?)
-            .from(Self::to_mail_box(self.sender.peek().to_string())?)
-            .subject(subject)
-            .header(ContentType::TEXT_HTML)
-            .body(body)
-            .map_err(SmtpError::MessageBuildingFailed)
-            .change_context(EmailError::EmailSendingFailure)?;
-
-        let mut conn = self
-            .create_client()
+        // A new connection for every email
+        let (to, cc, bcc) = recipients.into_addresses();
+        let message = EmailMessage {
+            from: self.sender.peek().to_owned(),
+            to,
+            cc,
+            bcc,
+            subject,
+            html_body: body,
+        };
+        shared::SmtpClient::new(self.smtp_config.to_shared())
+            .send(message)
             .await
-            .change_context(EmailError::EmailSendingFailure)?;
-
-        let timeout = Duration::from_secs(self.smtp_config.timeout);
-
-        let credentials = self
-            .smtp_config
-            .username
-            .clone()
-            .zip(self.smtp_config.password.clone())
-            .map(|(username, password)| {
-                Credentials::new(username.peek().to_owned(), password.peek().to_owned())
-            });
-
-        if let Some(credentials) = credentials {
-            tokio::time::timeout(
-                timeout,
-                conn.auth(&[Mechanism::Plain, Mechanism::Login], &credentials),
-            )
-            .await
-            .change_context(SmtpError::Timeout)
-            .attach_printable("SMTP AUTH command timed out")
-            .change_context(EmailError::EmailSendingFailure)?
-            .map_err(SmtpError::AuthenticationFailure)
-            .change_context(EmailError::EmailSendingFailure)?;
-        }
-
-        tokio::time::timeout(timeout, conn.send(email.envelope(), &email.formatted()))
-            .await
-            .change_context(SmtpError::Timeout)
-            .attach_printable("SMTP SEND command timed out")
-            .change_context(EmailError::EmailSendingFailure)?
-            .map_err(SmtpError::SendingFailure)
-            .change_context(EmailError::EmailSendingFailure)?;
-
-        match tokio::time::timeout(timeout, conn.quit()).await {
-            Ok(Ok(_)) => {}
-            Ok(Err(error)) => {
-                logger::warn!(?error, "SMTP QUIT failed after message was already sent");
-            }
-            Err(_) => {
-                logger::warn!("SMTP QUIT timed out after message was already sent");
-            }
-        }
-
-        Ok(())
+            .map_err(|error| {
+                report_with_cause(error).change_context(EmailError::EmailSendingFailure)
+            })
     }
-}
-
-/// Errors that could occur during SMTP operations.
-#[derive(Debug, thiserror::Error)]
-pub enum SmtpError {
-    /// An error occurred in the SMTP client while sending the email (the SMTP `MAIL
-    /// FROM`/`RCPT TO`/`DATA` exchange).
-    #[error("Failed to Send Email {0:?}")]
-    SendingFailure(smtp::Error),
-    /// SMTP authentication (AUTH command) failed.
-    #[error("SMTP authentication failed: {0:?}")]
-    AuthenticationFailure(smtp::Error),
-    /// The SMTP connect handshake or STARTTLS upgrade failed.
-    #[error("Failed to create connection {0:?}")]
-    ConnectionFailure(smtp::Error),
-    /// The outgoing email's message content (headers/body) could not be built.
-    #[error("Failed to Build Email content {0:?}")]
-    MessageBuildingFailed(error::Error),
-    /// The sender or recipient email address could not be parsed.
-    #[error("Failed to parse given email {0:?}")]
-    EmailParsingFailed(AddressError),
-    /// The configured SOCKS5 proxy hostname could not be resolved.
-    #[error("Failed to resolve SOCKS5 proxy address: {0:?}")]
-    Socks5ProxyResolutionFailed(std::io::Error),
-    /// Establishing the SOCKS5 tunnel failed (proxy unreachable, auth rejected, or protocol error).
-    #[error("SOCKS5 proxy connection failed: {0}")]
-    Socks5ConnectionFailed(tokio_socks::Error),
-    /// TCP connection to the SMTP host itself failed (non-proxied direct connect).
-    #[error("Failed to connect to SMTP server: {0:?}")]
-    DirectConnectionFailed(std::io::Error),
-    /// A network step exceeded `smtp_config.timeout`.
-    #[error("SMTP operation timed out")]
-    Timeout,
 }

@@ -6664,101 +6664,6 @@
         ]
       }
     },
-    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/config/{algorithm_id}": {
-      "patch": {
-        "tags": [
-          "Routing"
-        ],
-        "summary": "Routing - Update success based dynamic routing config for profile",
-        "description": "Update success based dynamic routing algorithm",
-        "operationId": "Update success based dynamic routing configs",
-        "parameters": [
-          {
-            "name": "account_id",
-            "in": "path",
-            "description": "Merchant id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "profile_id",
-            "in": "path",
-            "description": "Profile id under which Dynamic routing needs to be toggled",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "algorithm_id",
-            "in": "path",
-            "description": "Success based routing algorithm id which was last activated to update the config",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-Connected-Merchant-Id",
-            "in": "header",
-            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "nullable": true
-            },
-            "example": "merchant_abc"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SuccessBasedRoutingConfig"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Routing Algorithm updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Update body is malformed"
-          },
-          "403": {
-            "description": "Forbidden"
-          },
-          "404": {
-            "description": "Resource missing"
-          },
-          "422": {
-            "description": "Unprocessable request"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          },
-          {
-            "jwt_key": []
-          }
-        ]
-      }
-    },
     "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/toggle": {
       "post": {
         "tags": [
@@ -7192,101 +7097,6 @@
         ]
       }
     },
-    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/contracts/config/{algorithm_id}": {
-      "patch": {
-        "tags": [
-          "Routing"
-        ],
-        "summary": "Routing - Update contract based dynamic routing config for profile",
-        "description": "Update contract based dynamic routing algorithm",
-        "operationId": "Update contract based dynamic routing configs",
-        "parameters": [
-          {
-            "name": "account_id",
-            "in": "path",
-            "description": "Merchant id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "profile_id",
-            "in": "path",
-            "description": "Profile id under which Dynamic routing needs to be toggled",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "algorithm_id",
-            "in": "path",
-            "description": "Contract based routing algorithm id which was last activated to update the config",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-Connected-Merchant-Id",
-            "in": "header",
-            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "nullable": true
-            },
-            "example": "merchant_abc"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ContractBasedRoutingConfig"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Routing Algorithm updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Update body is malformed"
-          },
-          "403": {
-            "description": "Forbidden"
-          },
-          "404": {
-            "description": "Resource missing"
-          },
-          "422": {
-            "description": "Unprocessable request"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          },
-          {
-            "jwt_key": []
-          }
-        ]
-      }
-    },
     "/routing/evaluate": {
       "post": {
         "tags": [
@@ -7577,7 +7387,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BlocklistRequest"
+                "$ref": "#/components/schemas/BlocklistEntryRequest"
               }
             }
           },
@@ -7623,6 +7433,20 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/BlocklistDataKind"
+            }
+          },
+          {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Blocklist flow: payment (default) or payout.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BlocklistTransactionType"
+                }
+              ],
+              "nullable": true
             }
           },
           {
@@ -7706,7 +7530,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BlocklistRequest"
+                "$ref": "#/components/schemas/BlocklistEntryRequest"
               }
             }
           },
@@ -7807,6 +7631,20 @@
             }
           },
           {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Counts only payment or payout when selected. When omitted, counts both, including legacy NULL entries. Legacy NULL entries belong to payment when filtered.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BlocklistTransactionType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "Restricts the count to entries belonging to this business profile, plus entries with no profile. If omitted, the merchant's default profile is used; merchants with more than one profile have no default and will receive an error asking for this header.",
@@ -7870,6 +7708,20 @@
             }
           },
           {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Looks up only payment or payout when selected. When omitted, both are included. Legacy NULL transaction namespaces belong to payment.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BlocklistTransactionType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "Restricts the lookup to entries belonging to this business profile, plus entries with no profile. If omitted, the merchant's default profile is used; merchants with more than one profile have no default and will receive an error asking for this header.",
@@ -7893,7 +7745,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Blocklist lookup result",
+            "description": "All matches within the resolved profile, including merchant-wide entries. transaction_types contains distinct matching payment/payout namespaces, without data kinds or profile IDs.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7924,6 +7776,20 @@
         "operationId": "Upload a batch blocklist CSV",
         "parameters": [
           {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Overrides every CSV row with payment or payout when selected. When omitted, row selections are used; missing or empty row values default to payment.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BlocklistTransactionType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "The business profile every entry in this upload is blocked under. Resolution follows the same rules as blocking a single entry.",
@@ -7946,7 +7812,7 @@
           }
         ],
         "requestBody": {
-          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The part's `filename` is recorded on the job and returned as `file_name`. The CSV must have a header row: `type,data,metadata`. `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
+          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The part's `filename` is recorded on the job and returned as `file_name`. The CSV header is `type,data,metadata,transaction_type`; older headers without `transaction_type` are accepted. `type`: one of `generic_card_bin` (6 to 10 digits), `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). `transaction_type`: optional, `payment` (default) or `payout`; selection may differ per row. Invalid CSV transaction-type values are rejected even when a query override is selected. Maximum 100,000 data rows.",
           "content": {
             "multipart/form-data": {
               "schema": {
@@ -8129,6 +7995,20 @@
         "operationId": "Start a blocklist CSV export",
         "parameters": [
           {
+            "name": "transaction_type",
+            "in": "query",
+            "description": "Exports only `payment` or `payout` entries when selected. Both are exported when omitted.",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BlocklistTransactionType"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "The business profile whose blocklist is exported. Resolution follows the same rules as blocking a single entry.",
@@ -8162,7 +8042,7 @@
             }
           },
           "400": {
-            "description": "No profile could be resolved"
+            "description": "Invalid transaction type, or no profile could be resolved"
           }
         },
         "security": [
@@ -13953,16 +13833,16 @@
             "$ref": "#/components/schemas/SepaBankTransferAdditionalData"
           },
           {
-            "$ref": "#/components/schemas/PixBankTransferAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/OpenBankingAdditionalData"
-          },
-          {
             "$ref": "#/components/schemas/PayshapBankTransferAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PayshapProxyBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/OpenBankingAdditionalData"
           },
           {
             "$ref": "#/components/schemas/TedBankTransferAdditionalData"
@@ -16937,6 +16817,19 @@
           "profile_clone"
         ]
       },
+      "BatchBlocklistUploadQuery": {
+        "type": "object",
+        "properties": {
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "BatchBlocklistUploadResponse": {
         "type": "object",
         "description": "Response returned on a successful `POST /blocklist/batch`.",
@@ -17092,6 +16985,14 @@
         "properties": {
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17131,6 +17032,36 @@
           "generic_card_bin"
         ]
       },
+      "BlocklistEntryRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BlocklistRequest"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "transaction_type": {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            }
+          }
+        ],
+        "description": "A tagged single-entry request with an optional transaction namespace."
+      },
+      "BlocklistExportQuery": {
+        "type": "object",
+        "description": "Query parameters for `POST /blocklist/export`.",
+        "properties": {
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "BlocklistExportResponse": {
         "type": "object",
         "description": "Response for `POST /blocklist/export`.",
@@ -17163,6 +17094,14 @@
             "type": "string",
             "description": "The raw value to check against the blocklist, e.g. a card BIN. Limited to 20 characters,\nthe longest value a `fingerprint_id` can hold.",
             "maxLength": 20
+          },
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17170,7 +17109,8 @@
         "type": "object",
         "required": [
           "data",
-          "blocked"
+          "blocked",
+          "transaction_types"
         ],
         "properties": {
           "data": {
@@ -17178,7 +17118,14 @@
           },
           "blocked": {
             "type": "boolean",
-            "description": "Whether an entry matching `data` exists in the blocklist, under any data_kind"
+            "description": "Whether any entry matches within the resolved profile and selected transaction namespaces."
+          },
+          "transaction_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BlocklistTransactionType"
+            },
+            "description": "Distinct transaction types that block `data`, empty when `blocked` is false."
           }
         }
       },
@@ -17271,6 +17218,7 @@
         "required": [
           "fingerprint_id",
           "data_kind",
+          "transaction_type",
           "created_at"
         ],
         "properties": {
@@ -17279,6 +17227,9 @@
           },
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/BlocklistTransactionType"
           },
           "created_at": {
             "type": "string",
@@ -17316,6 +17267,14 @@
             "type": "string"
           }
         }
+      },
+      "BlocklistTransactionType": {
+        "type": "string",
+        "description": "The transaction namespace of a blocklist entry, stored as text.",
+        "enum": [
+          "payment",
+          "payout"
+        ]
       },
       "BoletoAdditionalDetails": {
         "type": "object",
@@ -19514,6 +19473,14 @@
             "items": {
               "type": "string"
             }
+          },
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BlocklistTransactionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19809,6 +19776,7 @@
           "dlocal",
           "dwolla",
           "ebanx",
+          "ecommpay",
           "envoy",
           "elavon",
           "etisalat",
@@ -19826,6 +19794,7 @@
           "givepayments",
           "globalpay",
           "globalpayments_heartland",
+          "globalpayments_realex",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -20095,6 +20064,14 @@
             ],
             "nullable": true
           },
+          "paypal": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
           "worldpayxml": {
             "allOf": [
               {
@@ -20131,6 +20108,17 @@
             "properties": {
               "santander": {
                 "$ref": "#/components/schemas/SantanderData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "revolv3"
+            ],
+            "properties": {
+              "revolv3": {
+                "$ref": "#/components/schemas/Revolv3Data"
               }
             }
           }
@@ -22167,6 +22155,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CardDetailFromLocker"
+              }
+            ],
+            "nullable": true
+          },
+          "wallets": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletPaymentMethodDataForClient"
               }
             ],
             "nullable": true
@@ -25560,7 +25556,7 @@
       },
       "FutureUsage": {
         "type": "string",
-        "description": "Specifies how the payment method can be used for future payments.\n- `off_session`: The payment method can be used for future payments when the customer is not present.\n- `on_session`: The payment method is intended for use only when the customer is present during checkout.\nIf omitted, defaults to `on_session`.",
+        "description": "Specifies how the payment method can be used for future payments.\n- `off_session`: The payment method can be used for future payments when the customer is not present.\n- `on_session`: The payment method is intended for use only when the customer is present during checkout.\n\nIf omitted, defaults to `on_session`.",
         "enum": [
           "off_session",
           "on_session"
@@ -27480,6 +27476,9 @@
           "data_kind": {
             "$ref": "#/components/schemas/BlocklistDataKind"
           },
+          "transaction_type": {
+            "$ref": "#/components/schemas/BlocklistTransactionType"
+          },
           "limit": {
             "type": "integer",
             "format": "int32",
@@ -27658,6 +27657,11 @@
           "mandate_id": {
             "type": "string",
             "description": "The identifier for mandate"
+          },
+          "payment_id": {
+            "type": "string",
+            "description": "The original setup payment associated with this mandate, when known.",
+            "nullable": true
           },
           "status": {
             "$ref": "#/components/schemas/MandateStatus"
@@ -29864,6 +29868,33 @@
           "PATCH"
         ]
       },
+      "Mifinity": {
+        "type": "object",
+        "required": [
+          "destination_account"
+        ],
+        "properties": {
+          "destination_account": {
+            "type": "string",
+            "description": "The recipient's MiFinity wallet identifier. This can be an email address\nor a MiFinity account number.",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
+      "MifinityAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for a MiFinity wallet payout.",
+        "required": [
+          "destination_account"
+        ],
+        "properties": {
+          "destination_account": {
+            "type": "string",
+            "description": "Recipient email address or MiFinity account number.",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
       "MifinityData": {
         "type": "object",
         "required": [
@@ -30119,6 +30150,81 @@
           }
         }
       },
+      "NetworkTokenDetails": {
+        "type": "object",
+        "description": "Network token details for an MIT: no network transaction ID, and no cryptogram.",
+        "required": [
+          "network_token",
+          "token_exp_month",
+          "token_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "network_token": {
+            "type": "string",
+            "description": "The Network Token",
+            "example": "4604000460040787"
+          },
+          "token_exp_month": {
+            "type": "string",
+            "description": "The token's expiry month",
+            "example": "05"
+          },
+          "token_exp_year": {
+            "type": "string",
+            "description": "The token's expiry year",
+            "example": "24"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the card such as Credit, Debit",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "The country in which the card was issued",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code of the bank that issued the card",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
+            "nullable": true
+          }
+        }
+      },
       "NetworkTokenResponse": {
         "type": "object",
         "properties": {
@@ -30174,6 +30280,32 @@
             "type": "string",
             "description": "The Payment Account Reference (PAR) for this card",
             "nullable": true
+          }
+        }
+      },
+      "NetworkTokenWithVaultCardFallback": {
+        "type": "object",
+        "description": "Network token details for an MIT, with a vault card to fall back to on a clear-PAN eligible\ndecline. Both arms share one `network_transaction_id`.",
+        "required": [
+          "network_token",
+          "network_transaction_id",
+          "vault_card_data"
+        ],
+        "properties": {
+          "network_token": {
+            "$ref": "#/components/schemas/NetworkTokenDetails"
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated\nTransaction (CIT) when `setup_future_usage` is set to `off_session`. Shared by both arms."
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a\nCIT (Customer Initiated Transaction), when `setup_future_usage` is set to `off_session`.",
+            "nullable": true
+          },
+          "vault_card_data": {
+            "$ref": "#/components/schemas/VaultCardData"
           }
         }
       },
@@ -34104,6 +34236,14 @@
             "description": "Email address associated with the wallet (e.g. PayPal email)",
             "example": "johntest@test.com",
             "nullable": true
+          },
+          "provider_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletProviderDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -34836,6 +34976,11 @@
       "PaymentMethodUpdate": {
         "type": "object",
         "properties": {
+          "update_last_used_at": {
+            "type": "boolean",
+            "example": true,
+            "nullable": true
+          },
           "card": {
             "allOf": [
               {
@@ -35771,6 +35916,13 @@
               }
             ],
             "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -36352,6 +36504,13 @@
                 "$ref": "#/components/schemas/SurchargeStrategy"
               }
             ],
+            "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
             "nullable": true
           }
         }
@@ -37179,6 +37338,12 @@
             "description": "A connector-specific identifier representing the stored payment instrument",
             "nullable": true,
             "maxLength": 255
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Whether address verification was requested for this payment.",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -38214,6 +38379,13 @@
               }
             ],
             "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -39066,6 +39238,12 @@
             "description": "A connector-specific identifier representing the stored payment instrument",
             "nullable": true,
             "maxLength": 255
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Whether address verification was requested for this payment.",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -39812,6 +39990,13 @@
               }
             ],
             "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -40178,6 +40363,7 @@
           "gigadat",
           "gotyme_sanlam",
           "loonio",
+          "mifinity",
           "nomupay",
           "nuvei",
           "payone",
@@ -41658,6 +41844,17 @@
           "authorize"
         ]
       },
+      "PaypalConnectorMetadata": {
+        "type": "object",
+        "description": "PayPal-specific metadata supplied with a payment request.",
+        "properties": {
+          "paypal_client_metadata_id": {
+            "type": "string",
+            "description": "FraudNet session identifier sent in the PAYPAL-CLIENT-METADATA-ID request header.",
+            "nullable": true
+          }
+        }
+      },
       "PaypalFlow": {
         "type": "string",
         "enum": [
@@ -41673,6 +41870,12 @@
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
+          },
+          "payer_id": {
+            "type": "string",
+            "description": "PayPal payer identifier.",
+            "example": "7DY7FRMPQ8CT6",
+            "nullable": true
           }
         }
       },
@@ -41769,6 +41972,18 @@
           }
         }
       },
+      "PaypalWalletInfo": {
+        "type": "object",
+        "description": "PayPal-specific wallet details. Email belongs to the shared wallet model.",
+        "properties": {
+          "payer_id": {
+            "type": "string",
+            "description": "Unique identifier of the payer's PayPal account.",
+            "example": "7DY7FRMPQ8CT6",
+            "nullable": true
+          }
+        }
+      },
       "PaysafeCardPayout": {
         "type": "object",
         "description": "The consumer's details for a Paysafe card gift card",
@@ -41838,7 +42053,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PayshapProxyBankTransfer": {
         "type": "object",
@@ -41873,7 +42089,8 @@
             "example": "**** 3123",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PazeSessionTokenResponse": {
         "type": "object",
@@ -44579,6 +44796,24 @@
                 "$ref": "#/components/schemas/CardWithLimitedData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "network_token_with_vault_card_fallback"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/NetworkTokenWithVaultCardFallback"
+              }
+            }
           }
         ],
         "description": "Details required for recurring payment",
@@ -45922,6 +46157,17 @@
       "RevolutPayData": {
         "type": "object"
       },
+      "Revolv3Data": {
+        "type": "object",
+        "properties": {
+          "processor": {
+            "type": "string",
+            "description": "Name of the downstream processor Revolv3 routed the payment to.",
+            "example": "Paysafe",
+            "nullable": true
+          }
+        }
+      },
       "RewardData": {
         "type": "object",
         "required": [
@@ -46010,6 +46256,7 @@
           "dlocal",
           "dwolla",
           "ebanx",
+          "ecommpay",
           "elavon",
           "elavon_pg",
           "envoy",
@@ -46027,6 +46274,7 @@
           "givepayments",
           "globalpay",
           "globalpayments_heartland",
+          "globalpayments_realex",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -50331,6 +50579,17 @@
           {
             "type": "object",
             "required": [
+              "mifinity"
+            ],
+            "properties": {
+              "mifinity": {
+                "$ref": "#/components/schemas/Mifinity"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "paypal"
             ],
             "properties": {
@@ -50359,6 +50618,9 @@
           },
           {
             "$ref": "#/components/schemas/GooglePayDecryptAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/MifinityAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PaypalAdditionalData"
@@ -51041,6 +51303,21 @@
           }
         ],
         "description": "Typed subtype-specific data for a saved customer payment method, returned in the\n`GET /payments/{payment_id}/payment-methods/client` response.\n\nSerializes as an externally-tagged enum, producing e.g.:\n`{ \"card\": { \"last4_digits\": \"4242\", ... } }`\n\nOnly variants for subtypes that actually carry extra data are included;\nfor all other subtypes the `payment_method_data` field on\n`CustomerPaymentMethodForClient` is `None`.\nWallet payment method data returned in the client-facing PM list."
+      },
+      "WalletProviderDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "PayPal"
+            ],
+            "properties": {
+              "PayPal": {
+                "$ref": "#/components/schemas/PaypalWalletInfo"
+              }
+            }
+          }
+        ]
       },
       "WalletResponse": {
         "allOf": [
@@ -51770,8 +52047,8 @@
       "admin_api_key": {
         "type": "apiKey",
         "in": "header",
-        "name": "api-key",
-        "description": "Admin API keys allow you to perform some privileged actions such as creating a merchant account and Merchant Connector account."
+        "name": "Authorization",
+        "description": "Format: `admin-api-key=<admin-api-key>`\n\nAdmin API keys allow you to perform some privileged actions such as creating a merchant account and Merchant Connector account."
       },
       "api_key": {
         "type": "apiKey",

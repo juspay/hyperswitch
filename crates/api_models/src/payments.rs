@@ -70,6 +70,8 @@ where
         None => Ok(None),
     }
 }
+#[cfg(feature = "v1")]
+use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
 #[cfg(any(feature = "v1", feature = "v2"))]
@@ -277,6 +279,9 @@ pub struct PaymentsCreateIntentRequest {
     /// The billing details of the payment. This address will be used for invoicing.
     pub billing: Option<Address>,
 
+    /// Payer details stored with the payment intent; does not create or attach a customer.
+    pub customer_details: Option<CustomerDetails>,
+
     /// The shipping address for the payment
     pub shipping: Option<Address>,
 
@@ -380,6 +385,14 @@ pub struct PaymentsCreateIntentRequest {
     /// Details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
+
+    /// Request address verification using the billing address for supported card payments.
+    #[schema(default = false, example = true)]
+    pub enable_avs_check: Option<bool>,
+
+    /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    pub mit_category: Option<api_enums::MitCategory>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -568,6 +581,11 @@ pub struct PaymentsUpdateIntentRequest {
     /// Details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
+
+    /// Request address verification using the billing address for supported card payments.
+    /// Omit this field on updates or confirmation to preserve the existing setting.
+    #[schema(default = false, example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -603,6 +621,7 @@ impl PaymentsUpdateIntentRequest {
             enable_partial_authorization: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            enable_avs_check: None,
         }
     }
 }
@@ -759,6 +778,10 @@ pub struct PaymentsIntentResponse {
     /// Partially masked details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<MaskedRecipientDetails>)]
     pub recipient_details: Option<MaskedRecipientDetails>,
+
+    /// Whether address verification was requested for this payment.
+    #[schema(example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -1658,6 +1681,12 @@ pub struct PaymentsRequest {
     /// The strategy to use when applying surcharge for this payment.
     #[schema(value_type = Option<SurchargeStrategy>)]
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+
+    /// Request address verification using the billing address for supported card payments.
+    /// Omit this field on updates or confirmation to preserve the existing setting.
+    #[schema(default = false, example = true)]
+    #[smithy(value_type = "Option<bool>")]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -5441,6 +5470,22 @@ pub enum WalletData {
     WeChatPayRedirect(Box<WeChatPayRedirection>),
 }
 
+impl WalletData {
+    pub fn is_decrypted_flow(&self) -> bool {
+        match self {
+            Self::ApplePay(apple_pay) => match apple_pay.payment_data {
+                common_types::payments::ApplePayPaymentData::Decrypted(_) => true,
+                common_types::payments::ApplePayPaymentData::Encrypted(_) => false,
+            },
+            Self::GooglePay(google_pay) => match google_pay.tokenization_data {
+                common_types::payments::GpayTokenizationData::Decrypted(_) => true,
+                common_types::payments::GpayTokenizationData::Encrypted(_) => false,
+            },
+            _ => false,
+        }
+    }
+}
+
 impl GetAddressFromPaymentMethodData for WalletData {
     fn get_billing_address(&self) -> Option<Address> {
         match self {
@@ -5797,6 +5842,21 @@ pub struct PaypalRedirection {
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
+    /// PayPal payer identifier.
+    #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
+    #[smithy(value_type = "Option<String>")]
+    pub payer_id: Option<Secret<String>>,
+}
+
+impl From<payment_methods::PaymentMethodDataWalletInfo> for PaypalRedirection {
+    fn from(info: payment_methods::PaymentMethodDataWalletInfo) -> Self {
+        Self {
+            email: info.email,
+            payer_id: info.provider_details.and_then(|details| match details {
+                payment_methods::WalletProviderDetails::PayPal(info) => info.payer_id,
+            }),
+        }
+    }
 }
 
 #[derive(
@@ -8106,6 +8166,11 @@ pub struct PaymentsResponse {
     )]
     #[smithy(value_type = "Option<String>")]
     pub sender_payment_instrument_id: Option<String>,
+
+    /// Whether address verification was requested for this payment.
+    #[schema(example = true)]
+    #[smithy(value_type = "Option<bool>")]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -8407,6 +8472,11 @@ pub struct PaymentsConfirmIntentRequest {
     /// The webhook endpoint URL to receive payment status notifications
     #[schema(value_type = Option<String>, example = "https://merchant.example.com/webhooks/payment")]
     pub webhook_url: Option<common_utils::types::Url>,
+
+    /// Request address verification using the billing address for supported card payments.
+    /// Omit this field on updates or confirmation to preserve the existing setting.
+    #[schema(default = false, example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -8512,6 +8582,9 @@ pub struct PaymentsRequest {
 
     /// The billing details of the payment. This address will be used for invoicing.
     pub billing: Option<Address>,
+
+    /// Payer details stored with the payment intent; does not create or attach a customer.
+    pub customer_details: Option<CustomerDetails>,
 
     /// The shipping address for the payment
     pub shipping: Option<Address>,
@@ -8649,6 +8722,11 @@ pub struct PaymentsRequest {
     /// Details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
+
+    /// Request address verification using the billing address for supported card payments.
+    /// Omit this field on updates or confirmation to preserve the existing setting.
+    #[schema(default = false, example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -8661,6 +8739,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             capture_method: request.capture_method,
             authentication_type: request.authentication_type,
             billing: request.billing.clone(),
+            customer_details: request.customer_details.clone(),
             shipping: request.shipping.clone(),
             customer_id: request.customer_id.clone(),
             customer_present: request.customer_present,
@@ -8686,6 +8765,8 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             enable_partial_authorization: request.enable_partial_authorization,
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: request.recipient_details.clone(),
+            enable_avs_check: request.enable_avs_check,
+            mit_category: None,
         }
     }
 }
@@ -8707,6 +8788,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             return_raw_connector_response: request.return_raw_connector_response,
             split_payment_method_data: None,
             webhook_url: request.webhook_url.clone(),
+            enable_avs_check: request.enable_avs_check,
         }
     }
 }
@@ -9016,6 +9098,10 @@ pub struct PaymentsResponse {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Whether address verification was requested for this payment.
+    #[schema(example = true)]
+    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -10668,12 +10754,24 @@ pub struct ConnectorMetadata {
     pub peachpayments: Option<PeachpaymentsData>,
     #[smithy(value_type = "Option<SantanderData>")]
     pub santander: Option<SantanderConnectorMetadataData>,
+    #[smithy(value_type = "Option<PaypalConnectorMetadata>")]
+    pub paypal: Option<PaypalConnectorMetadata>,
     #[smithy(value_type = "Option<WorldpayxmlData>")]
     pub worldpayxml: Option<WorldpayxmlData>,
     #[smithy(value_type = "Option<CheckoutData>")]
     pub checkout: Option<CheckoutData>,
     #[smithy(value_type = "Option<StripeConnectorMetadata>")]
     pub stripe: Option<StripeConnectorMetadata>,
+}
+
+/// PayPal-specific metadata supplied with a payment request.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PaypalConnectorMetadata {
+    /// FraudNet session identifier sent in the PAYPAL-CLIENT-METADATA-ID request header.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub paypal_client_metadata_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -10772,6 +10870,16 @@ pub enum WorldpayxmlPaymentPurpose {
 #[serde(rename_all = "snake_case")]
 pub enum ConnectorMetadataResponse {
     Santander(SantanderData),
+    Revolv3(Revolv3Data),
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct Revolv3Data {
+    /// Name of the downstream processor Revolv3 routed the payment to.
+    #[schema(value_type = Option<String>, example = "Paysafe")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub processor: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -11311,8 +11419,7 @@ pub enum VaultDetailsResponse {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct HyperswitchVaultData {
     /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
-    #[schema(value_type = String)]
-    pub sdk_authorization: Secret<String>,
+    pub sdk_authorization: String,
 }
 
 #[cfg(feature = "v1")]
@@ -11336,14 +11443,14 @@ impl From<VaultDetails> for Option<VaultDetailsResponse> {
             })),
             Some(VaultSessionDetails::HyperswitchVault(hs)) => {
                 Some(VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
-                    sdk_authorization: hs.sdk_authorization,
+                    sdk_authorization: hs.sdk_authorization.expose(),
                 }))
             }
             // No external vault configured (the SaaS default): fall back to the internal
             // Hyperswitch vault SDK authorization.
             None => details.internal_vault.map(|internal| {
                 VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
-                    sdk_authorization: Secret::new(internal.sdk_authorization),
+                    sdk_authorization: internal.sdk_authorization,
                 })
             }),
         }
@@ -14304,6 +14411,7 @@ mod billing_from_payment_method_data {
         let paypal_wallet_payment_method_data =
             PaymentMethodData::Wallet(WalletData::PaypalRedirect(PaypalRedirection {
                 email: Some(test_email.clone()),
+                payer_id: None,
             }));
 
         let billing_address = paypal_wallet_payment_method_data
@@ -14726,8 +14834,33 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = RecoveryTransactionStatus, example = "failure")]
     pub transaction_status: common_payments_types::RecoveryTransactionStatus,
 
+    /// Amount captured by the transaction, in the lowest denomination of the currency. It is
+    /// required when `transaction_status` is `partial_charged`, where it must be greater than
+    /// zero and less than the order amount. For `charged` it may be omitted, and if sent it
+    /// must equal the order amount. It must not be sent for a `failure`.
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub amount_captured: Option<MinorUnit>,
+
+    /// Whether the customer was present, and so able to authenticate, when the transaction was
+    /// made. Defaults to `false`, which marks the transaction as merchant initiated.
+    #[serde(default)]
+    #[schema(default = false, example = false)]
+    pub customer_present: bool,
+
+    /// Category of the merchant initiated transactions made to recover this invoice. Defaults to
+    /// `recurring`.
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    pub mit_category: Option<api_enums::MitCategory>,
+
     /// The billing details of the transaction.
     pub billing: Option<Address>,
+
+    /// Payer details stored with the payment intent; does not create or attach a customer.
+    pub customer_details: Option<CustomerDetails>,
+
+    /// Payment method type used for the transaction.
+    #[schema(value_type = PaymentMethod, example = "wallet")]
+    pub payment_method_type: common_enums::PaymentMethod,
 
     /// The payment method subtype used for the transaction.
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
@@ -14737,10 +14870,6 @@ pub struct RecoveryPaymentsCreate {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub transaction_created_at: PrimitiveDateTime,
-
-    /// Payment method type used for the transaction.
-    #[schema(value_type = PaymentMethod, example = "wallet")]
-    pub payment_method_type: common_enums::PaymentMethod,
 
     /// Unique identifier of the customer at the payment connector, with which the payment
     /// method token used for the transaction is associated.
@@ -14759,10 +14888,6 @@ pub struct RecoveryPaymentsCreate {
 
     /// payment method token units at payment processor end.
     pub payment_method_data: CustomRecoveryPaymentMethodData,
-
-    /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
-    #[schema(value_type = RecoveryPaymentsAction, example = "schedule_failed_payment")]
-    pub action: common_payments_types::RecoveryPaymentsAction,
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
