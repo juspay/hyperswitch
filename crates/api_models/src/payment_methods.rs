@@ -6,11 +6,10 @@ use std::{
 };
 
 use cards::CardNumber;
-pub use common_types::payments::SurchargeErrorDetails;
 use common_types::payments::{
     ApplePayPredecryptData, BillingFrequency, GPayPredecryptData, InstallmentInterestRate,
 };
-pub use common_types::payment_methods::PayViaSingleUseToken;
+pub use common_types::{payment_methods::PayViaSingleUseToken, payments::SurchargeErrorDetails};
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableName;
 use common_utils::{

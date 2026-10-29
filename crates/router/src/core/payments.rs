@@ -6862,23 +6862,24 @@ where
     // Internal surcharge only; external surcharge is prepared before connector selection.
     populate_surcharge_details(state, business_profile, payment_data).await?;
 
-    let (pd, tokenization_action) = Box::pin(get_connector_tokenization_action_when_confirm_true(
-        state,
-        operation,
-        payment_data,
-        validate_result,
-        platform,
-        business_profile,
-        should_retry_with_pan,
-        feature_config,
-        &connector,
-        &merchant_connector_account,
-        <RouterData<F, RouterDReq, router_types::PaymentsResponseData> as Feature<
-            F,
-            RouterDReq,
-        >>::single_use_token_flow(),
-    ))
-    .await?;
+    let (pd, tokenization_action) =
+        Box::pin(get_connector_tokenization_action_when_confirm_true(
+            state,
+            operation,
+            payment_data,
+            validate_result,
+            platform,
+            business_profile,
+            should_retry_with_pan,
+            feature_config,
+            &connector,
+            &merchant_connector_account,
+            <RouterData<F, RouterDReq, router_types::PaymentsResponseData> as Feature<
+                F,
+                RouterDReq,
+            >>::single_use_token_flow(),
+        ))
+        .await?;
     *payment_data = pd;
 
     // This is used to apply any kind of routing decision to the required data,
@@ -10245,7 +10246,9 @@ fn get_pay_via_single_use_token_from_mca(
         .find(|request_payment_method_type| {
             request_payment_method_type.payment_method_type == payment_method_type
         })
-        .and_then(|request_payment_method_type| request_payment_method_type.pay_via_single_use_token)
+        .and_then(|request_payment_method_type| {
+            request_payment_method_type.pay_via_single_use_token
+        })
 }
 
 /// Decision on whether the payment should be made via a single-use token created at the connector before the flow
@@ -10287,13 +10290,15 @@ impl SingleUseTokenDecision {
         let single_use_token_support = match pay_via_single_use_token {
             common_types::payment_methods::PayViaSingleUseToken::Default => None,
             common_types::payment_methods::PayViaSingleUseToken::Enabled
-            | common_types::payment_methods::PayViaSingleUseToken::Disabled => single_use_token_flow
-                .zip(payment_method_data)
-                .and_then(
+            | common_types::payment_methods::PayViaSingleUseToken::Disabled => {
+                single_use_token_flow.zip(payment_method_data).and_then(
                     |(single_use_token_flow, payment_method_data)| match single_use_token_flow {
-                        SingleUseTokenFlow::Authorize => connector_data
-                            .connector
-                            .get_single_use_token_support(payment_method_data, payment_method_token),
+                        SingleUseTokenFlow::Authorize => {
+                            connector_data.connector.get_single_use_token_support(
+                                payment_method_data,
+                                payment_method_token,
+                            )
+                        }
                         SingleUseTokenFlow::SetupMandate => connector_data
                             .connector
                             .get_single_use_token_support_for_setup_mandate(
@@ -10301,7 +10306,8 @@ impl SingleUseTokenDecision {
                                 payment_method_token,
                             ),
                     },
-                ),
+                )
+            }
         };
 
         let payment_method_type = payment_method_type

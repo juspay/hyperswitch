@@ -3877,7 +3877,9 @@ impl ConnectorSpecifications for Stripe {
                 PaymentMethodData::Wallet(
                     hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_),
                 ),
-                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_)),
+                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                    _,
+                )),
             )
             | (
                 PaymentMethodData::Wallet(
@@ -3916,7 +3918,9 @@ impl ConnectorSpecifications for Stripe {
                 PaymentMethodData::Wallet(
                     hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_),
                 ),
-                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_)),
+                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                    _,
+                )),
             )
             | (
                 PaymentMethodData::Wallet(
