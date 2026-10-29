@@ -10890,6 +10890,14 @@ impl PaymentEligibilityData {
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        helpers::authenticate_client_secret(
+            payments_eligibility_request
+                .client_secret
+                .as_ref()
+                .map(|cs| cs.peek()),
+            &payment_intent,
+        )?;
+
         let payment_method_data = match &payments_eligibility_request.payment_token {
             Some(payment_token) => {
                 let profile_id = payment_intent
@@ -13859,6 +13867,10 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    helpers::authenticate_client_secret(
+        req.client_secret.as_ref().map(|cs| cs.peek()),
+        &payment_intent,
+    )?;
     let attempt_id = payment_intent.active_attempt.get_id().clone();
     let payment_attempt = db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(

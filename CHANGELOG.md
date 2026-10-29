@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.26.0-hotfix3
+
+### Features
+
+- **connector:** [Peachpayments] Add Support For External Authentication ([#15012](https://github.com/juspay/hyperswitch/pull/15012)) ([`8c43622`](https://github.com/juspay/hyperswitch/commit/8c436225e74902ee508b6aeecc58bddb562075e0))
+
+### Bug Fixes
+
+- **analytics:** Patch latent SQL injection bug ([#15044](https://github.com/juspay/hyperswitch/pull/15044)) ([`e025699`](https://github.com/juspay/hyperswitch/commit/e02569901aafe1bafae813f010bc85381e5ec4e8))
+- **authentication:** Allow netcetera webhook to enter without signature verification ([#15018](https://github.com/juspay/hyperswitch/pull/15018)) ([`e40a3ca`](https://github.com/juspay/hyperswitch/commit/e40a3ca9043149376fd38c958069dab069ca8211))
+- **payment-methods:** Never execute legacy PM update path for modular flow ([#15010](https://github.com/juspay/hyperswitch/pull/15010)) ([`b45de96`](https://github.com/juspay/hyperswitch/commit/b45de96502fe48f7cf1df964b7feae151e25e7b4))
+- **payments:** Validate client_secret in external authentication and eligibility flows ([#15043](https://github.com/juspay/hyperswitch/pull/15043)) ([`accecc7`](https://github.com/juspay/hyperswitch/commit/accecc7f7f6b39f211d5a906a8e180153d935e3a))
+- **worldpayxml:** Validate DDC postMessage origin ([#15011](https://github.com/juspay/hyperswitch/pull/15011)) ([`dfb7d5d`](https://github.com/juspay/hyperswitch/commit/dfb7d5ddcad49628884b4a42ef56cc1c1ff9c269))
+
+**Full Changelog:** [`2026.10.26.0-hotfix2...2026.10.26.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.10.26.0-hotfix2...2026.10.26.0-hotfix3)
+
+- - -
+
 ## 2026.10.26.0-hotfix2
 
 ### Bug Fixes
