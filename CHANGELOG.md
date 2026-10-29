@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.26.0-hotfix4
+
+### Bug Fixes
+
+- **config:** Decrypt service credentials at startup ([#15072](https://github.com/juspay/hyperswitch/pull/15072)) ([`52fc3ab`](https://github.com/juspay/hyperswitch/commit/52fc3abad1f364b044f11ca990b89569d368ba3c))
+- **connector:** Preserve InterPayments surcharge errors ([#15041](https://github.com/juspay/hyperswitch/pull/15041)) ([`5805fbf`](https://github.com/juspay/hyperswitch/commit/5805fbfb0888a615ab7ee1b4759d6852a0d244a6))
+
+**Full Changelog:** [`2026.10.26.0-hotfix3...2026.10.26.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.10.26.0-hotfix3...2026.10.26.0-hotfix4)
+
+- - -
+
 ## 2026.10.26.0-hotfix3
 
 ### Features
