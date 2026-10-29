@@ -100,7 +100,10 @@ pub async fn organization_update(
         json_payload.into_inner(),
         |state, _, req, _| update_organization(state, org_id.clone(), req),
         auth::auth_type(
-            &auth::V2AdminApiAuth,
+            &auth::PlatformOrgAdminAuth {
+                is_admin_auth_allowed: true,
+                organization_id: Some(organization_id.clone()),
+            },
             &auth::JWTAuthOrganizationFromRoute {
                 organization_id,
                 required_permission: Permission::OrganizationAccountWrite,
@@ -166,7 +169,10 @@ pub async fn organization_retrieve(
         payload,
         |state, _, req, _| get_organization(state, req),
         auth::auth_type(
-            &auth::V2AdminApiAuth,
+            &auth::PlatformOrgAdminAuth {
+                is_admin_auth_allowed: true,
+                organization_id: Some(organization_id.clone()),
+            },
             &auth::JWTAuthOrganizationFromRoute {
                 organization_id,
                 required_permission: Permission::OrganizationAccountRead,
@@ -178,7 +184,7 @@ pub async fn organization_retrieve(
     .await
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(feature = "olap")]
 #[instrument(skip_all, fields(flow = ?Flow::ConvertOrganizationToPlatform))]
 pub async fn convert_organization_to_platform(
     state: web::Data<AppState>,
@@ -278,6 +284,7 @@ pub async fn merchant_account_create(
         metadata: json_payload.metadata,
         organization_id: org_id,
         product_type: json_payload.product_type,
+        merchant_account_type: json_payload.merchant_account_type,
     };
 
     Box::pin(api::server_wrap(
@@ -285,8 +292,11 @@ pub async fn merchant_account_create(
         state,
         &req,
         new_request_payload_with_org_id,
-        |state, _, req, _| create_merchant_account(state, req, None),
-        &auth::V2AdminApiAuth,
+        |state, auth, req, _| create_merchant_account(state, req, auth),
+        &auth::PlatformOrgAdminAuth {
+            is_admin_auth_allowed: true,
+            organization_id: None,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -354,7 +364,10 @@ pub async fn retrieve_merchant_account(
         payload,
         |state, _, req, _| get_merchant_account(state, req, None),
         auth::auth_type(
-            &auth::V2AdminApiAuth,
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromRoute {
+                merchant_id_from_route: merchant_id.clone(),
+                is_admin_auth_allowed: true,
+            },
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 // This should ideally be MerchantAccountRead, but since FE is calling this API for
@@ -381,18 +394,22 @@ pub async fn merchant_account_list(
 ) -> HttpResponse {
     let flow = Flow::MerchantAccountList;
 
-    let organization_id = admin::OrganizationId {
-        organization_id: organization_id.into_inner(),
+    let organization_id = organization_id.into_inner();
+    let payload = admin::OrganizationId {
+        organization_id: organization_id.clone(),
     };
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        organization_id,
-        |state, _, request, _| list_merchant_account(state, request),
+        payload,
+        |state, _: (), request, _| list_merchant_account(state, request),
         auth::auth_type(
-            &auth::V2AdminApiAuth,
+            &auth::PlatformOrgAdminAuth {
+                is_admin_auth_allowed: true,
+                organization_id: Some(organization_id),
+            },
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountRead,
                 allow_connected: true,
@@ -464,7 +481,10 @@ pub async fn update_merchant_account(
         payload,
         |state, _, req, _| merchant_account_update(state, &merchant_id, None, req),
         auth::auth_type(
-            &auth::V2AdminApiAuth,
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromRoute {
+                merchant_id_from_route: merchant_id.clone(),
+                is_admin_auth_allowed: true,
+            },
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountWrite,
@@ -637,7 +657,9 @@ pub async fn connector_create(
             .await
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::AdminApiAuthWithMerchantIdFromHeaderAllowPlatform {
+                allow_platform_self_operation: true,
+            },
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorWrite,
                 allow_connected: true,
@@ -724,7 +746,9 @@ pub async fn connector_retrieve(
             retrieve_connector(state, auth.platform.get_processor().clone(), req.id.clone())
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::AdminApiAuthWithMerchantIdFromHeaderAllowPlatform {
+                allow_platform_self_operation: true,
+            },
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorRead,
                 allow_connected: true,
@@ -760,7 +784,9 @@ pub async fn connector_list(
             )
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::AdminApiAuthWithMerchantIdFromHeaderAllowPlatform {
+                allow_platform_self_operation: true,
+            },
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorRead,
                 allow_connected: true,
@@ -916,9 +942,21 @@ pub async fn connector_update(
         state,
         &req,
         payload,
-        |state, _, req, _| update_connector(state, merchant_id.clone(), None, &id, req),
+        |state, auth: auth::AuthenticationDataWithoutProfile, req, _| {
+            let merchant_id = merchant_id.clone();
+            let id = id.clone();
+            async move {
+                common_utils::fp_utils::when(
+                    auth.merchant_account.get_id() != &merchant_id,
+                    || Err(errors::ApiErrorResponse::Unauthorized),
+                )?;
+                update_connector(state, merchant_id, None, &id, req).await
+            }
+        },
         auth::auth_type(
-            &auth::V2AdminApiAuth,
+            &auth::AdminApiAuthWithMerchantIdFromHeaderAllowPlatform {
+                allow_platform_self_operation: true,
+            },
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorWrite,

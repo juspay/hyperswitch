@@ -1153,7 +1153,6 @@ pub struct PlatformOrgAdminAuthWithMerchantIdFromRoute {
     pub is_admin_auth_allowed: bool,
 }
 
-#[cfg(feature = "v1")]
 impl PlatformOrgAdminAuthWithMerchantIdFromRoute {
     async fn fetch_key_store_and_account<A: SessionStateInfo + Sync>(
         merchant_id: &id_type::MerchantId,
@@ -1282,6 +1281,401 @@ where
             AuthenticationType::ApiKey {
                 merchant_id: platform_merchant.get_id().clone(),
                 key_id: stored_api_key.key_id,
+            },
+        ))
+    }
+}
+
+/// Authenticates the `api-key=` value of the `Authorization` header and returns the key's merchant,
+/// which must be a platform merchant with the platform feature enabled.
+#[cfg(feature = "v2")]
+async fn get_platform_merchant_from_v2_api_key<A>(
+    request_headers: &HeaderMap,
+    state: &A,
+) -> RouterResult<(
+    domain::MerchantAccount,
+    domain::MerchantKeyStore,
+    id_type::ApiKeyId,
+)>
+where
+    A: SessionStateInfo + Sync,
+{
+    let header_map = HeaderMapStruct::new(request_headers);
+    let auth_string = header_map.get_auth_string_from_header()?;
+    let api_key = auth_string
+        .split(',')
+        .find_map(|part| part.trim().strip_prefix("api-key="))
+        .ok_or_else(|| {
+            report!(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Unable to parse api_key")
+        })?;
+    if api_key.is_empty() {
+        return Err(errors::ApiErrorResponse::Unauthorized).attach_printable("API key is empty");
+    }
+
+    let api_key_plaintext = api_keys::PlaintextApiKey::from(api_key);
+    let hash_key = state.conf().api_keys.get_inner().get_hash_key()?;
+    let hashed_api_key = api_key_plaintext.keyed_hash(hash_key.peek());
+
+    let stored_api_key = state
+        .store()
+        .find_api_key_by_hash_optional(hashed_api_key.into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to retrieve API key")?
+        .ok_or_else(|| report!(errors::ApiErrorResponse::Unauthorized))
+        .attach_printable("Merchant not authenticated via API key")?;
+
+    if stored_api_key
+        .expires_at
+        .map(|expires_at| expires_at < date_time::now())
+        .unwrap_or(false)
+    {
+        return Err(report!(errors::ApiErrorResponse::Unauthorized))
+            .attach_printable("API key has expired");
+    }
+
+    let key_store = state
+        .store()
+        .get_merchant_key_store_by_merchant_id(
+            &stored_api_key.merchant_id,
+            &state.store().get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::Unauthorized)
+        .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+    let merchant_account = state
+        .store()
+        .find_merchant_account_by_merchant_id(&stored_api_key.merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
+        .attach_printable("Merchant account not found")?;
+
+    if !(state.conf().platform.enabled && merchant_account.is_platform_account()) {
+        return Err(report!(errors::ApiErrorResponse::Unauthorized)
+            .attach_printable("Platform authentication check failed"));
+    }
+
+    Ok((merchant_account, key_store, stored_api_key.key_id))
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<Option<AuthenticationDataWithOrg>, A> for PlatformOrgAdminAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(Option<AuthenticationDataWithOrg>, AuthenticationType)> {
+        if self.is_admin_auth_allowed {
+            match V2AdminApiAuth
+                .authenticate_and_fetch(request_headers, state)
+                .await
+            {
+                Ok(((), auth_type)) => return Ok((None, auth_type)),
+                Err(e) => {
+                    logger::warn!("Admin API Auth failed: {:?}", e);
+                }
+            }
+        }
+
+        let (merchant_account, _, key_id) =
+            get_platform_merchant_from_v2_api_key(request_headers, state).await?;
+
+        fp_utils::when(
+            self.organization_id
+                .as_ref()
+                .is_some_and(|org_id| org_id != merchant_account.get_org_id()),
+            || {
+                Err(report!(errors::ApiErrorResponse::Unauthorized))
+                    .attach_printable("Organization ID does not match")
+            },
+        )?;
+
+        Ok((
+            Some(AuthenticationDataWithOrg {
+                organization_id: merchant_account.get_org_id().clone(),
+            }),
+            AuthenticationType::ApiKey {
+                merchant_id: merchant_account.get_id().clone(),
+                key_id,
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for PlatformOrgAdminAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let (_, auth_type): (Option<AuthenticationDataWithOrg>, AuthenticationType) =
+            self.authenticate_and_fetch(request_headers, state).await?;
+        Ok(((), auth_type))
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for PlatformOrgAdminAuthWithMerchantIdFromRoute
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        if self.is_admin_auth_allowed {
+            match V2AdminApiAuth
+                .authenticate_and_fetch(request_headers, state)
+                .await
+            {
+                Ok(auth) => return Ok(auth),
+                Err(e) => {
+                    logger::warn!("Admin API Auth failed: {:?}", e);
+                }
+            }
+        }
+
+        let (platform_merchant, _, key_id) =
+            get_platform_merchant_from_v2_api_key(request_headers, state).await?;
+
+        let (_, route_merchant) =
+            Self::fetch_key_store_and_account(&self.merchant_id_from_route, state).await?;
+
+        if platform_merchant.get_org_id() != route_merchant.get_org_id() {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                .attach_printable("Route merchant not under same org as platform merchant");
+        }
+
+        Ok((
+            (),
+            AuthenticationType::ApiKey {
+                merchant_id: platform_merchant.get_id().clone(),
+                key_id,
+            },
+        ))
+    }
+}
+
+/// Admin API key with the merchant from the `X-Merchant-Id` header, or a platform merchant's API key
+/// acting on itself or, through `X-Connected-Merchant-Id`, on a connected merchant of its organization.
+/// `X-Merchant-Id` must name the merchant the platform acts on.
+#[cfg(feature = "v2")]
+#[derive(Debug)]
+pub struct AdminApiAuthWithMerchantIdFromHeaderAllowPlatform {
+    pub allow_platform_self_operation: bool,
+}
+
+#[cfg(feature = "v2")]
+impl AdminApiAuthWithMerchantIdFromHeaderAllowPlatform {
+    async fn authenticate_platform_api_key<A>(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(domain::Platform, AuthenticationType)>
+    where
+        A: SessionStateInfo + Sync,
+    {
+        let (initiator_merchant, key_store, key_id) =
+            get_platform_merchant_from_v2_api_key(request_headers, state).await?;
+
+        check_merchant_access(
+            state,
+            request_headers,
+            initiator_merchant.merchant_account_type,
+            true,
+            self.allow_platform_self_operation,
+        )?;
+
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: initiator_merchant.get_id().clone(),
+            merchant_account_type: initiator_merchant.merchant_account_type,
+            publishable_key: initiator_merchant.publishable_key.clone(),
+        });
+
+        let platform = resolve_platform(
+            state,
+            request_headers,
+            initiator_merchant.clone(),
+            key_store,
+            initiator,
+        )
+        .await?;
+
+        let merchant_id_from_header = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
+
+        fp_utils::when(
+            &merchant_id_from_header != platform.get_processor().get_account().get_id(),
+            || {
+                Err(report!(errors::ApiErrorResponse::Unauthorized)).attach_printable(
+                    "Merchant ID from header and Processor Merchant Id do not match",
+                )
+            },
+        )?;
+
+        Ok((
+            platform,
+            AuthenticationType::ApiKey {
+                merchant_id: initiator_merchant.get_id().clone(),
+                key_id,
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A>
+    for AdminApiAuthWithMerchantIdFromHeaderAllowPlatform
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        if V2AdminApiAuth
+            .authenticate_and_fetch(request_headers, state)
+            .await
+            .is_ok()
+        {
+            return AdminApiAuthWithMerchantIdFromHeader
+                .authenticate_and_fetch(request_headers, state)
+                .await;
+        }
+
+        let (platform, auth_type) = self
+            .authenticate_platform_api_key(request_headers, state)
+            .await?;
+
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_merchant_id_profile_id(
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().get_id(),
+                &profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        Ok((
+            AuthenticationData {
+                platform,
+                profile,
+                client_secret: None,
+            },
+            auth_type,
+        ))
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataWithoutProfile, A>
+    for AdminApiAuthWithMerchantIdFromHeaderAllowPlatform
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataWithoutProfile, AuthenticationType)> {
+        if V2AdminApiAuth
+            .authenticate_and_fetch(request_headers, state)
+            .await
+            .is_ok()
+        {
+            return AdminApiAuthWithMerchantIdFromHeader
+                .authenticate_and_fetch(request_headers, state)
+                .await;
+        }
+
+        let (platform, auth_type) = self
+            .authenticate_platform_api_key(request_headers, state)
+            .await?;
+
+        Ok((
+            AuthenticationDataWithoutProfile {
+                merchant_account: platform.get_processor().get_account().clone(),
+                key_store: platform.get_processor().get_key_store().inner().clone(),
+            },
+            auth_type,
+        ))
+    }
+}
+
+/// Admin API key with the merchant from the `X-Merchant-Id` header, or a platform merchant's API key
+/// acting on any merchant of its organization named in `X-Merchant-Id`.
+#[cfg(feature = "v2")]
+#[derive(Debug)]
+pub struct PlatformOrgAdminAuthWithMerchantIdFromHeader;
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataWithoutProfile, A>
+    for PlatformOrgAdminAuthWithMerchantIdFromHeader
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataWithoutProfile, AuthenticationType)> {
+        if V2AdminApiAuth
+            .authenticate_and_fetch(request_headers, state)
+            .await
+            .is_ok()
+        {
+            return AdminApiAuthWithMerchantIdFromHeader
+                .authenticate_and_fetch(request_headers, state)
+                .await;
+        }
+
+        let (platform_merchant, _, key_id) =
+            get_platform_merchant_from_v2_api_key(request_headers, state).await?;
+
+        let merchant_id_from_header = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
+
+        let (key_store, merchant_account) =
+            PlatformOrgAdminAuthWithMerchantIdFromRoute::fetch_key_store_and_account(
+                &merchant_id_from_header,
+                state,
+            )
+            .await?;
+
+        if platform_merchant.get_org_id() != merchant_account.get_org_id() {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                .attach_printable("Header merchant not under same org as platform merchant");
+        }
+
+        Ok((
+            AuthenticationDataWithoutProfile {
+                merchant_account,
+                key_store,
+            },
+            AuthenticationType::ApiKey {
+                merchant_id: platform_merchant.get_id().clone(),
+                key_id,
             },
         ))
     }
