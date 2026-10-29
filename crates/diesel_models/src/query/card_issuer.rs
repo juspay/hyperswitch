@@ -1,12 +1,8 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::id_type;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 use error_stack::ResultExt;
 
-use super::{
-    generics,
-    generics::db_metrics::{track_database_call, DatabaseOperation},
-};
+use super::{generics, generics::db_metrics::DatabaseOperation};
 use crate::{
     card_issuer::{CardIssuer, CardIssuerListItem, NewCardIssuer, UpdateCardIssuer},
     errors,
@@ -24,15 +20,10 @@ impl CardIssuer {
                 .select((dsl::id, dsl::issuer_name))
                 .limit(limit);
 
-        track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
-            DatabaseOperation::Filter,
-            query.get_results_async::<CardIssuerListItem>(conn.raw_connection()),
-        )
-        .await
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable("Error while listing card issuers")
+        conn.track_get_results::<Self, _, CardIssuerListItem>(DatabaseOperation::Filter, query)
+            .await
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Error while listing card issuers")
     }
 
     pub async fn find_by_ids(
