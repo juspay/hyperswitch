@@ -5271,6 +5271,7 @@ mod tests {
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
             enable_avs_check: None,
+            settlement_conclusion_applied: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -5368,6 +5369,7 @@ mod tests {
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
             enable_avs_check: None,
+            settlement_conclusion_applied: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -5463,6 +5465,7 @@ mod tests {
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
             enable_avs_check: None,
+            settlement_conclusion_applied: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -7141,6 +7144,38 @@ pub async fn get_additional_payment_data(
                 decrypted_wallet_token_with_ntid.to_owned().into(),
             )),
         )),
+    }
+}
+
+#[cfg(feature = "v1")]
+pub fn validate_and_update_settlement_conclusion(
+    auth_flow: services::AuthFlow,
+    request: &api::PaymentsRequest,
+    payment_intent: &mut PaymentIntent,
+    operation: &'static str,
+) -> Result<(), errors::ApiErrorResponse> {
+    match (auth_flow, request.settlement_conclusion_applied) {
+        (services::AuthFlow::Client, Some(_)) => {
+            logger::error!(
+                error_status_code = 400,
+                error_status_class = "4xx",
+                error_category = "invalid_integration",
+                operation,
+                "Invalid integration: settlement_conclusion_applied supplied with client authentication"
+            );
+            metrics::CLIENT_SETTLEMENT_CONCLUSION_UPDATE_REJECTED
+                .add(1, router_env::metric_attributes!(("operation", operation)));
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "settlement_conclusion_applied can only be updated with merchant authentication"
+                        .to_string(),
+            })
+        }
+        (services::AuthFlow::Merchant, Some(settlement_conclusion_applied)) => {
+            payment_intent.settlement_conclusion_applied = Some(settlement_conclusion_applied);
+            Ok(())
+        }
+        (services::AuthFlow::Client | services::AuthFlow::Merchant, None) => Ok(()),
     }
 }
 

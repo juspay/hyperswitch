@@ -59,11 +59,8 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             billing_started_at: Some(data.billing_started_at),
             metadata: data.metadata,
             enable_partial_authorization: data.enable_partial_authorization,
-            customer_present: if data.customer_present {
-                common_enums::PresenceOfCustomerDuringPayment::Present
-            } else {
-                common_enums::PresenceOfCustomerDuringPayment::Absent
-            },
+            // Recovery retries are merchant initiated, so the customer is never present
+            customer_present: common_enums::PresenceOfCustomerDuringPayment::Absent,
             // Defaults to recurring since recovery retries are merchant initiated transactions on a saved card for a recurring invoice
             mit_category: Some(
                 data.mit_category

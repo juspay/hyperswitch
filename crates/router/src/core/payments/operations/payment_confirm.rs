@@ -43,8 +43,9 @@ use crate::{
         metrics, offer_engine,
         payment_methods::{transformers as pm_transformers, vault},
         payments::{
-            self, helpers, operations, populate_installment_details, CustomerDetails,
-            OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
+            self, helpers, multi_currency_processing, operations, populate_installment_details,
+            CustomerDetails, OperationSessionGetters, OperationSessionSetters, PaymentAddress,
+            PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
@@ -168,6 +169,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         }
 
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
+
+        multi_currency_processing::validate_merchant_only_mcp_fields(
+            auth_flow, request, "confirm",
+        )?;
+        helpers::validate_and_update_settlement_conclusion(
+            auth_flow,
+            request,
+            &mut payment_intent,
+            "confirm",
+        )?;
 
         let customer_details =
             helpers::get_customer_details_from_request_or_pm_table(request, None, None)?;
@@ -507,12 +518,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .attach_printable("Error converting connector_metadata to Value")?
             .or(payment_intent.connector_metadata);
 
-        payment_intent.feature_metadata = request
-            .get_feature_metadata_as_value()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error converting feature_metadata to Value")?
-            .map(hyperswitch_masking::Secret::new)
-            .or(payment_intent.feature_metadata);
+        let stored_feature_metadata = payment_intent
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let feature_metadata = match request.feature_metadata.clone() {
+            Some(metadata) => Some(metadata.merge(stored_feature_metadata)),
+            None => stored_feature_metadata,
+        };
+        payment_intent.feature_metadata = feature_metadata
+            .map(serde_json::to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .map(hyperswitch_masking::Secret::new);
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
         payment_intent.request_incremental_authorization = request
@@ -906,9 +923,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .and_then(|tax| tax.default.map(|a| a.order_tax_amount))
         });
 
-        payment_attempt
-            .net_amount
-            .set_order_tax_amount(order_tax_amount);
+        if !payment_intent.is_settlement_conclusion_applied() {
+            payment_attempt
+                .net_amount
+                .set_order_tax_amount(order_tax_amount);
+        }
 
         payment_attempt.connector_mandate_detail = Some(
             DieselConnectorMandateReferenceId::foreign_from(ConnectorMandateReferenceId::new(
@@ -937,6 +956,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_attempt.installment_data = request.installment_data.clone().map(Into::into);
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
@@ -3187,6 +3207,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .external_surcharge_applicable,
                         enable_avs_check: payment_data.payment_intent.enable_avs_check,
+                        settlement_conclusion_applied: payment_data
+                            .payment_intent
+                            .settlement_conclusion_applied,
                     })),
                     &m_key_store,
                     storage_scheme,
