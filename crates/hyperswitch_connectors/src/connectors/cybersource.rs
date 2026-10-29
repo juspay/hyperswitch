@@ -977,6 +977,13 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        router_env::logger::info!(
+            connector = "cybersource",
+            flow = "capture",
+            payment_method_data_received = req.request.payment_method_data.is_some(),
+            mandate_id_received = req.request.mandate_id.is_some(),
+            "Checking payment method data in connector request builder"
+        );
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -1855,6 +1862,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Cy
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        router_env::logger::info!(
+            connector = "cybersource",
+            flow = "cancel",
+            payment_method_data_received = req.request.payment_method_data.is_some(),
+            mandate_id_received = req.request.mandate_id.is_some(),
+            "Checking payment method data in connector request builder"
+        );
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -2006,6 +2020,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Cyberso
         req: &RefundExecuteRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        router_env::logger::info!(
+            connector = "cybersource",
+            flow = "refund",
+            payment_method_data_received = req.request.payment_method_data.is_some(),
+            mandate_id_received = req.request.mandate_id.is_some(),
+            "Checking payment method data in connector request builder"
+        );
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -2172,6 +2193,13 @@ impl
         req: &PaymentsIncrementalAuthorizationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        router_env::logger::info!(
+            connector = "cybersource",
+            flow = "incremental_authorization",
+            payment_method_data_received = req.request.payment_method_data.is_some(),
+            mandate_id_received = req.request.mandate_id.is_some(),
+            "Checking payment method data in connector request builder"
+        );
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Patch)

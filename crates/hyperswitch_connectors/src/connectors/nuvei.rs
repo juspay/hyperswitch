@@ -366,6 +366,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Nu
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        router_env::logger::info!(
+            connector = "nuvei",
+            flow = "cancel",
+            payment_method_data_received = req.request.payment_method_data.is_some(),
+            mandate_id_received = req.request.mandate_id.is_some(),
+            "Checking payment method data in connector request builder"
+        );
         let request = RequestBuilder::new()
             .method(Method::Post)
             .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
@@ -531,6 +538,13 @@ impl ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, Paymen
         req: &PaymentsCancelPostCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        router_env::logger::info!(
+            connector = "nuvei",
+            flow = "post_capture_cancel",
+            payment_method_data_received = req.request.payment_method_data.is_some(),
+            mandate_id_received = req.request.mandate_id.is_some(),
+            "Checking payment method data in connector request builder"
+        );
         let request = RequestBuilder::new()
             .method(Method::Post)
             .url(&types::PaymentsPostCaptureVoidType::get_url(
@@ -791,6 +805,13 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        router_env::logger::info!(
+            connector = "nuvei",
+            flow = "capture",
+            payment_method_data_received = req.request.payment_method_data.is_some(),
+            mandate_id_received = req.request.mandate_id.is_some(),
+            "Checking payment method data in connector request builder"
+        );
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -1138,6 +1159,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nuvei {
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        router_env::logger::info!(
+            connector = "nuvei",
+            flow = "refund",
+            payment_method_data_received = req.request.payment_method_data.is_some(),
+            mandate_id_received = req.request.mandate_id.is_some(),
+            "Checking payment method data in connector request builder"
+        );
         let request = RequestBuilder::new()
             .method(Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
