@@ -392,6 +392,7 @@ pub(super) fn build_ucs_order_details(
                         .map(|value| value.get_percentage()),
                     discount_type: detail.discount_type.clone(),
                     product_link: None,
+                    ..Default::default()
                 })
                 .collect()
         })
@@ -437,6 +438,7 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
             discount_amount: discount_amount.map(|amount| amount.get_amount_as_i64()),
             shipping_cost: shipping_cost.map(|amount| amount.get_amount_as_i64()),
             duty_amount: duty_amount.map(|amount| amount.get_amount_as_i64()),
+            ..Default::default()
         });
 
     let tax_info = l2_l3_data
@@ -449,6 +451,7 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
             merchant_tax_registration_id,
             shipping_amount_tax: shipping_amount_tax.map(|amount| amount.get_amount_as_i64()),
             order_tax_amount: order_tax_amount.map(|tax| tax.get_amount_as_i64()),
+            ..Default::default()
         });
 
     if order_info.is_none() && tax_info.is_none() {
@@ -549,6 +552,7 @@ impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::Addre
             email: None,
             phone_number: None,
             phone_country_code: None,
+            origin_zip: None,
         }
     }
 }
@@ -5706,6 +5710,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.clone().expose().into())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                origin_zip: None,
             }
         });
 
@@ -5738,6 +5743,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string().into())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                origin_zip: None,
             }
         });
 
@@ -5779,6 +5785,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                         .as_ref()
                         .and_then(|phone| phone.number.as_ref().map(|n| n.clone().expose().into())),
                     phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                    origin_zip: None,
                 }
             });
         Ok(Self {
@@ -5824,6 +5831,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::address::Address>
                 .as_ref()
                 .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string().into())),
             phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+            origin_zip: None,
         })
     }
 }
@@ -11655,6 +11663,228 @@ impl
                 .as_ref()
                 .map(ConnectorState::foreign_from),
             ..Default::default()
+        })
+    }
+}
+
+/// Parses an evidence date into unix seconds. Accepts unix seconds, an RFC 3339
+/// timestamp or an ISO 8601 calendar date (taken as midnight UTC); anything else is
+/// refused rather than dropped.
+fn parse_dispute_evidence_date(
+    value: Option<&String>,
+    field_name: &'static str,
+) -> Result<Option<i64>, error_stack::Report<UnifiedConnectorServiceError>> {
+    value
+        .map(|raw| {
+            let raw = raw.trim();
+            raw.parse::<i64>()
+                .ok()
+                .or_else(|| {
+                    time::OffsetDateTime::parse(raw, &time::format_description::well_known::Rfc3339)
+                        .ok()
+                        .map(|date_time| date_time.unix_timestamp())
+                })
+                .or_else(|| {
+                    time::Date::parse(raw, &time::format_description::well_known::Iso8601::DATE)
+                        .ok()
+                        .map(|date| date.midnight().assume_utc().unix_timestamp())
+                })
+                .ok_or(
+                    UnifiedConnectorServiceError::InvalidDataFormat {
+                        field_name: field_name.into(),
+                    }
+                    .into(),
+                )
+        })
+        .transpose()
+}
+
+fn build_dispute_evidence_document(
+    evidence_type: payments_grpc::EvidenceType,
+    file_content: Option<&Vec<u8>>,
+    file_mime_type: Option<&String>,
+    provider_file_id: Option<&String>,
+    text_content: Option<&String>,
+) -> Option<payments_grpc::EvidenceDocument> {
+    (file_content.is_some()
+        || file_mime_type.is_some()
+        || provider_file_id.is_some()
+        || text_content.is_some())
+    .then(|| payments_grpc::EvidenceDocument {
+        evidence_type: evidence_type.into(),
+        file_content: file_content.cloned(),
+        file_mime_type: file_mime_type.cloned(),
+        provider_file_id: provider_file_id.cloned(),
+        text_content: text_content.cloned(),
+    })
+}
+
+impl transformers::ForeignTryFrom<(&crate::types::AcceptDisputeRouterData, Option<String>)>
+    for payments_grpc::DisputeServiceAcceptRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (router_data, connector_transaction_id): (
+            &crate::types::AcceptDisputeRouterData,
+            Option<String>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            merchant_dispute_id: Some(router_data.request.dispute_id.clone()),
+            // Unused by UCS Accept (AcceptDisputeData reads only dispute_id); proto3 default when absent.
+            connector_transaction_id: connector_transaction_id.unwrap_or_default(),
+            dispute_id: router_data.request.connector_dispute_id.clone(),
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<(&crate::types::DefendDisputeRouterData, Option<String>)>
+    for payments_grpc::DisputeServiceDefendRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (router_data, connector_transaction_id): (
+            &crate::types::DefendDisputeRouterData,
+            Option<String>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            merchant_dispute_id: Some(router_data.request.dispute_id.clone()),
+            // Unused by UCS Defend (DisputeDefendData reads only dispute_id); proto3 default when absent.
+            connector_transaction_id: connector_transaction_id.unwrap_or_default(),
+            dispute_id: router_data.request.connector_dispute_id.clone(),
+            // DefendDisputeRequestData carries no reason code.
+            reason_code: None,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<(&crate::types::SubmitEvidenceRouterData, Option<String>)>
+    for payments_grpc::DisputeServiceSubmitEvidenceRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (router_data, connector_transaction_id): (
+            &crate::types::SubmitEvidenceRouterData,
+            Option<String>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let request = &router_data.request;
+        let evidence_documents = [
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::CancellationPolicy,
+                request.cancellation_policy.as_ref(),
+                request.cancellation_policy_file_type.as_ref(),
+                request.cancellation_policy_provider_file_id.as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::CustomerCommunication,
+                request.customer_communication.as_ref(),
+                request.customer_communication_file_type.as_ref(),
+                request.customer_communication_provider_file_id.as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::CustomerSignature,
+                request.customer_signature.as_ref(),
+                request.customer_signature_file_type.as_ref(),
+                request.customer_signature_provider_file_id.as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::Receipt,
+                request.receipt.as_ref(),
+                request.receipt_file_type.as_ref(),
+                request.receipt_provider_file_id.as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::RefundPolicy,
+                request.refund_policy.as_ref(),
+                request.refund_policy_file_type.as_ref(),
+                request.refund_policy_provider_file_id.as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::ServiceDocumentation,
+                request.service_documentation.as_ref(),
+                request.service_documentation_file_type.as_ref(),
+                request.service_documentation_provider_file_id.as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::ShippingDocumentation,
+                request.shipping_documentation.as_ref(),
+                request.shipping_documentation_file_type.as_ref(),
+                request.shipping_documentation_provider_file_id.as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::InvoiceShowingDistinctTransactions,
+                request.invoice_showing_distinct_transactions.as_ref(),
+                request
+                    .invoice_showing_distinct_transactions_file_type
+                    .as_ref(),
+                request
+                    .invoice_showing_distinct_transactions_provider_file_id
+                    .as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::RecurringTransactionAgreement,
+                request.recurring_transaction_agreement.as_ref(),
+                request.recurring_transaction_agreement_file_type.as_ref(),
+                request
+                    .recurring_transaction_agreement_provider_file_id
+                    .as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::UncategorizedFile,
+                request.uncategorized_file.as_ref(),
+                request.uncategorized_file_type.as_ref(),
+                request.uncategorized_file_provider_file_id.as_ref(),
+                request.uncategorized_text.as_ref(),
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+
+        Ok(Self {
+            merchant_dispute_id: Some(request.dispute_id.clone()),
+            // proto field is optional and unused by UCS SubmitEvidenceData.
+            connector_transaction_id,
+            dispute_id: request.connector_dispute_id.clone(),
+            service_date: parse_dispute_evidence_date(
+                request.service_date.as_ref(),
+                "service_date",
+            )?,
+            shipping_date: parse_dispute_evidence_date(
+                request.shipping_date.as_ref(),
+                "shipping_date",
+            )?,
+            evidence_documents,
+            access_activity_log: request.access_activity_log.clone(),
+            billing_address: request.billing_address.clone(),
+            cancellation_policy_disclosure: request.cancellation_policy_disclosure.clone(),
+            cancellation_rebuttal: request.cancellation_rebuttal.clone(),
+            customer_email_address: request
+                .customer_email_address
+                .as_ref()
+                .map(|email| Secret::new(email.peek().to_owned())),
+            customer_name: request.customer_name.clone(),
+            customer_purchase_ip: request.customer_purchase_ip.clone(),
+            product_description: request.product_description.clone(),
+            refund_policy_disclosure: request.refund_policy_disclosure.clone(),
+            refund_refusal_explanation: request.refund_refusal_explanation.clone(),
+            shipping_address: request.shipping_address.clone(),
+            shipping_carrier: request.shipping_carrier.clone(),
+            shipping_tracking_number: request.shipping_tracking_number.clone(),
         })
     }
 }
