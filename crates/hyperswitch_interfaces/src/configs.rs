@@ -102,12 +102,13 @@ impl InternalMerchantIdProfileIdAuthSettings {
         self,
         client: &dyn crate::secrets_interface::SecretManagementInterface,
     ) -> CustomResult<Self, SecretsManagementError> {
+        let legacy_key_required = self.key_rotation_enabled || self.use_legacy_key_for_outbound;
         let legacy_key_configured = self
             .internal_api_key
             .as_ref()
             .is_some_and(|key| !key.is_default_or_empty());
         let primary_internal_api_key = if self.primary_internal_api_key.is_default_or_empty() {
-            if self.enabled || self.key_rotation_enabled || legacy_key_configured {
+            if self.enabled || legacy_key_required || legacy_key_configured {
                 return Err(
                     error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
                         .attach_printable(
@@ -126,21 +127,15 @@ impl InternalMerchantIdProfileIdAuthSettings {
                     )
                 })?
         };
-        if self.key_rotation_enabled && !legacy_key_configured {
-            return Err(
-                error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
-                    .attach_printable("Internal key rotation requires the legacy internal_api_key"),
-            );
-        }
-        if self.use_legacy_key_for_outbound && !self.key_rotation_enabled {
+        if legacy_key_required && !legacy_key_configured {
             return Err(
                 error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
                     .attach_printable(
-                        "Legacy outbound authentication requires key_rotation_enabled",
+                        "Legacy inbound or outbound authentication requires internal_api_key",
                     ),
             );
         }
-        let internal_api_key = if self.key_rotation_enabled {
+        let internal_api_key = if legacy_key_required {
             self.internal_api_key
         } else {
             None
@@ -173,7 +168,7 @@ impl InternalMerchantIdProfileIdAuthSettings {
                     .attach_printable("Internal service primary API key is missing or empty"),
             );
         }
-        let key = if self.key_rotation_enabled && self.use_legacy_key_for_outbound {
+        let key = if self.use_legacy_key_for_outbound {
             self.internal_api_key.as_ref()
         } else {
             Some(primary_key)
