@@ -42,6 +42,9 @@ pub async fn create_token_vault_api() {}
 #[utoipa::path(
     delete,
     path = "/v2/tokenize/{id}",
+    params(
+        ("id" = String, Path, description = "The unique identifier for the token"),
+    ),
     request_body(
         content = DeleteTokenDataRequest,
         examples(("Delete a token entry with customer_id and session_id" = (
