@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.29.0
+
+### Features
+
+- **connector:** [Ecommpay] enable UCS for 10 flows (3DS, wallets, sync, capture, void, refund, mandates, webhooks) ([#14883](https://github.com/juspay/hyperswitch/pull/14883)) ([`8203589`](https://github.com/juspay/hyperswitch/commit/8203589428f7f0918f10dff123ac14e7a0e16f41))
+- **revenue_recovery:** Rework recovery api docs and remove customer_present from the request ([#15026](https://github.com/juspay/hyperswitch/pull/15026)) ([`885d5b2`](https://github.com/juspay/hyperswitch/commit/885d5b2452f13fd9fe76586629372d182d649a14))
+- **router:** Detect duplicate record reads within an API session ([#14940](https://github.com/juspay/hyperswitch/pull/14940)) ([`d7052a4`](https://github.com/juspay/hyperswitch/commit/d7052a400020de5e90ea0b7c27b24dc28d8f9c1e))
+- **users:** Expire dashboard sessions after inactivity ([#14794](https://github.com/juspay/hyperswitch/pull/14794)) ([`d9d0900`](https://github.com/juspay/hyperswitch/commit/d9d0900f8a4c3f20ea4a2659351b95f2b3a77650))
+
+### Bug Fixes
+
+- **analytics:** Patch latent SQL injection bug ([#14999](https://github.com/juspay/hyperswitch/pull/14999)) ([`36221e0`](https://github.com/juspay/hyperswitch/commit/36221e093b4113821db048ed07059408d06813c3))
+- **authentication:** Allow netcetera webhook to enter without signature verification ([#15023](https://github.com/juspay/hyperswitch/pull/15023)) ([`11a6925`](https://github.com/juspay/hyperswitch/commit/11a6925a05f092474f0ece4c0b1d26a1b6f483ef))
+- **connector:** Preserve InterPayments surcharge errors ([#14996](https://github.com/juspay/hyperswitch/pull/14996)) ([`e6ee1c1`](https://github.com/juspay/hyperswitch/commit/e6ee1c1772737093dda3a2057c5c0357652b3258))
+- **payments:** Validate client_secret in external authentication and eligibility flows ([#15031](https://github.com/juspay/hyperswitch/pull/15031)) ([`068e556`](https://github.com/juspay/hyperswitch/commit/068e5566e6d144de8cdb8d03714d2ab2b2f46652))
+- **router:** Forward amount mismatch config to ucs and void only the capturable amount ([#14529](https://github.com/juspay/hyperswitch/pull/14529)) ([`f5a2d47`](https://github.com/juspay/hyperswitch/commit/f5a2d47c0cb4fa91621de1125fe039a30af06e7e))
+
+### Miscellaneous Tasks
+
+- **superposition:** Bump superposition crates to 0.118.2 and use millisecond polling config ([#14892](https://github.com/juspay/hyperswitch/pull/14892)) ([`8ad71d2`](https://github.com/juspay/hyperswitch/commit/8ad71d2d11bbcf43b33c13428a568833adf1669d))
+
+**Full Changelog:** [`2026.10.28.0...2026.10.29.0`](https://github.com/juspay/hyperswitch/compare/2026.10.28.0...2026.10.29.0)
+
+- - -
+
 ## 2026.10.28.0
 
 ### Features

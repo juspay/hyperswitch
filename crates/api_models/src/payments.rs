@@ -14,6 +14,7 @@ use common_enums::enums::PaymentConnectorTransmission;
 #[cfg(feature = "v1")]
 pub use common_enums::FingerprintType;
 use common_enums::{self, GooglePayCardFundingSource, ProductType};
+pub use common_types::payments::{CaptureFeatureMetadata, MultiCurrencyProcessingAmountData};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -1714,6 +1715,13 @@ pub struct PaymentsRequest {
     #[schema(default = false, example = true)]
     #[smithy(value_type = "Option<bool>")]
     pub enable_avs_check: Option<bool>,
+
+    /// Indicates that the merchant has concluded settlement and supplied final amounts.
+    /// When true, Hyperswitch skips tax and surcharge calculations that would change
+    /// those amounts. Omit this field on updates or confirmation to preserve the setting.
+    #[schema(default = false, example = false)]
+    #[smithy(value_type = "Option<bool>")]
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -2060,6 +2068,77 @@ pub struct RequestSurchargeDetails {
     #[schema(value_type = Option<f64>, example = 3.25)]
     #[smithy(value_type = "Option<f64>")]
     pub surcharge_percentage: Option<f64>,
+}
+
+/// Surcharge applied to a payment, or a zero surcharge with connector error details.
+#[derive(Debug, Clone, PartialEq, Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PaymentSurchargeDetailsResponse {
+    #[schema(value_type = i64, example = 325)]
+    #[smithy(value_type = "i64")]
+    pub surcharge_amount: MinorUnit,
+    #[smithy(value_type = "Option<i64>")]
+    pub tax_amount: Option<MinorUnit>,
+    #[smithy(value_type = "Option<f64>")]
+    pub surcharge_percentage: Option<f64>,
+    /// Connector error details when the external calculation failed; null on success.
+    #[schema(value_type = Option<SurchargeErrorDetails>)]
+    #[smithy(value_type = "Option<SurchargeErrorDetails>")]
+    pub error_details: Option<payment_methods::SurchargeErrorDetails>,
+}
+
+impl PaymentSurchargeDetailsResponse {
+    pub fn from_calculated_amounts(
+        surcharge_amount: MinorUnit,
+        tax_amount: Option<MinorUnit>,
+        surcharge_percentage: Option<f64>,
+    ) -> Self {
+        Self {
+            surcharge_amount,
+            tax_amount,
+            surcharge_percentage,
+            error_details: None,
+        }
+    }
+
+    pub fn from_connector_error(
+        code: Option<String>,
+        message: Option<String>,
+        reason: Option<String>,
+    ) -> Self {
+        Self {
+            surcharge_amount: MinorUnit::zero(),
+            tax_amount: None,
+            surcharge_percentage: None,
+            error_details: Some(payment_methods::SurchargeErrorDetails {
+                error_code: code,
+                error_message: message,
+                error_reason: reason,
+            }),
+        }
+    }
+
+    pub fn from_surcharge_details(
+        amount: Option<MinorUnit>,
+        tax_amount: Option<MinorUnit>,
+        external: Option<&common_types::payments::ExternalSurchargeDetails>,
+    ) -> Option<Self> {
+        match external {
+            Some(details) if details.has_error() => Some(Self {
+                surcharge_amount: MinorUnit::zero(),
+                tax_amount: None,
+                surcharge_percentage: None,
+                error_details: details.error_details.clone(),
+            }),
+            _ => amount.map(|value| {
+                Self::from_calculated_amounts(
+                    value,
+                    tax_amount,
+                    external.and_then(|details| details.surcharge_percentage_as_f64()),
+                )
+            }),
+        }
+    }
 }
 
 // for v2 use the type from common_utils::types
@@ -6584,7 +6663,7 @@ impl PaymentMethodDataResponseWithBilling {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct CustomRecoveryPaymentMethodData {
-    /// Primary payment method token at payment processor end.
+    /// Primary payment method token at payment processor end, i.e. the connector token or connector mandate id.
     #[schema(value_type = String, example = "token_1234")]
     pub primary_processor_payment_method_token: Secret<String>,
 
@@ -6878,6 +6957,9 @@ pub struct PaymentsCaptureRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     /// If true, returns stringified connector raw response body
     pub all_keys_required: Option<bool>,
+    /// Feature metadata persisted for this operation.
+    #[cfg_attr(feature = "v1", smithy(value_type = "Option<CaptureFeatureMetadata>"))]
+    pub feature_metadata: Option<CaptureFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -6888,6 +6970,9 @@ pub struct PaymentsCaptureRequest {
     pub amount_to_capture: Option<MinorUnit>,
     /// If true, returns stringified connector raw response body
     pub return_raw_connector_response: Option<bool>,
+    /// Feature metadata persisted for this operation.
+    #[cfg_attr(feature = "v1", smithy(value_type = "Option<CaptureFeatureMetadata>"))]
+    pub feature_metadata: Option<CaptureFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -7944,8 +8029,8 @@ pub struct PaymentsResponse {
     pub profile_id: Option<id_type::ProfileId>,
 
     /// Details of surcharge applied on this payment
-    #[smithy(value_type = "Option<RequestSurchargeDetails>")]
-    pub surcharge_details: Option<RequestSurchargeDetails>,
+    #[smithy(value_type = "Option<PaymentSurchargeDetailsResponse>")]
+    pub surcharge_details: Option<PaymentSurchargeDetailsResponse>,
 
     /// Applied Offer Engine offer details for this payment, if an offer was applied.
     #[schema(value_type = Option<AppliedOffer>)]
@@ -9689,7 +9774,7 @@ pub struct PlatformPaymentListItem {
     pub sender_payment_instrument_id: Option<String>,
 
     /// Surcharge and tax-on-surcharge applied on the active attempt.
-    pub surcharge_details: Option<RequestSurchargeDetails>,
+    pub surcharge_details: Option<PaymentSurchargeDetailsResponse>,
 
     /// Installment options available/selected for this payment.
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
@@ -11012,6 +11097,45 @@ pub struct BraintreeData {
     #[schema(value_type = String)]
     #[smithy(value_type = "String")]
     pub merchant_config_currency: Option<api_enums::Currency>,
+}
+
+/// Datatrans multi-currency processing (multi-currency processing) details supplied by the merchant.
+///
+/// `amount`/`currency` here describe the **merchant settlement leg** — what Planet pays out to
+/// the merchant. The payment's own `amount`/`currency` remain the **customer-facing leg**, i.e.
+/// what the shopper saw at checkout and is charged. Hyperswitch never recomputes either leg; the
+/// merchant is the source of truth for both.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct MultiCurrencyProcessingData {
+    /// The merchant settlement currency, i.e. the currency the merchant is paid out in.
+    #[schema(value_type = Currency)]
+    #[smithy(value_type = "Currency")]
+    pub currency: api_enums::Currency,
+    /// The merchant settlement amount, expressed in `currency`. The merchant converts the
+    /// customer-facing amount itself and supplies the result here.
+    #[schema(value_type = i64)]
+    #[smithy(value_type = "i64")]
+    pub amount: MinorUnit,
+    /// Conversion rate received from the currency rates endpoint. Required for dynamic multi-currency processing.
+    #[smithy(value_type = "Option<f64>")]
+    pub conversion_rate: Option<f64>,
+    /// Transaction datetime received from the currency rates endpoint.
+    #[schema(value_type = Option<PrimitiveDateTime>)]
+    #[smithy(value_type = "Option<PrimitiveDateTime>")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub date: Option<PrimitiveDateTime>,
+    /// Processing reference received from the currency rates endpoint.
+    #[smithy(value_type = "Option<String>")]
+    pub processing_reference_id: Option<String>,
+    #[smithy(value_type = "Option<String>")]
+    pub user_id: Option<String>,
+    /// The provider for multi-currency processing.
+    #[smithy(value_type = "Option<String>")]
+    pub conversion_provider: Option<String>,
+    /// Reason indicator received from the acquirer.
+    #[smithy(value_type = "Option<String>")]
+    pub conversion_reason_code: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -12689,6 +12813,12 @@ pub struct FeatureMetadata {
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
     /// Extra information for Finix connector for fraud checks and risk evaluation
     pub finix_additional_details: Option<FinixAdditionalDetails>,
+    /// Datatrans multi-currency processing settlement amount, currency and conversion details.
+    #[cfg_attr(
+        feature = "v1",
+        smithy(value_type = "Option<MultiCurrencyProcessingData>")
+    )]
+    pub multi_currency_processing: Option<MultiCurrencyProcessingData>,
 }
 
 #[cfg(feature = "v2")]
@@ -12790,6 +12920,7 @@ impl FeatureMetadata {
         payment_revenue_recovery_metadata: PaymentRevenueRecoveryMetadata,
     ) -> Self {
         Self {
+            multi_currency_processing: self.multi_currency_processing,
             redirect_response: self.redirect_response,
             search_tags: self.search_tags,
             apple_pay_recurring_details: self.apple_pay_recurring_details,
@@ -12842,7 +12973,9 @@ impl FeatureMetadata {
 
 /// additional data that might be required by hyperswitch
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq)]
+#[derive(
+    Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
@@ -12868,6 +13001,9 @@ pub struct FeatureMetadata {
     /// Extra information for Finix connector for fraud checks and risk evaluation
     #[smithy(value_type = "Option<FinixAdditionalDetails>")]
     pub finix_additional_details: Option<FinixAdditionalDetails>,
+    /// Datatrans multi-currency processing settlement amount, currency and conversion details.
+    #[smithy(value_type = "Option<MultiCurrencyProcessingData>")]
+    pub multi_currency_processing: Option<MultiCurrencyProcessingData>,
 }
 
 #[cfg(feature = "v1")]
@@ -12903,6 +13039,9 @@ impl FeatureMetadata {
     pub fn merge(self, other: Option<Self>) -> Self {
         if let Some(other) = other {
             Self {
+                multi_currency_processing: self
+                    .multi_currency_processing
+                    .or(other.multi_currency_processing),
                 redirect_response: self.redirect_response.or(other.redirect_response),
                 search_tags: self.search_tags.or(other.search_tags),
                 apple_pay_recurring_details: self
@@ -14843,8 +14982,7 @@ pub struct RecoveryPaymentsCreate {
     /// The amount details for the payment
     pub amount_details: AmountDetails,
 
-    /// Unique identifier of the invoice in the merchant's billing system against which the
-    /// transaction is being recorded.
+    /// Unique identifier of the invoice in the merchant's billing system against which the transaction is being recorded.
     #[schema(
         value_type = String,
         min_length = 30,
@@ -14853,17 +14991,14 @@ pub struct RecoveryPaymentsCreate {
     )]
     pub merchant_reference_id: id_type::PaymentReferenceId,
 
-    /// Error details for the payment if any
+    /// Error details of a failed transaction.
     pub error: Option<ErrorDetails>,
 
-    /// Unique identifier of the billing connector account, such as Chargebee, that manages the
-    /// invoice. The account must belong to the profile passed in the `X-Profile-Id` header.
+    /// Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header.
     #[schema(value_type = String, example = "mca_1234567890")]
     pub billing_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
-    /// Unique identifier of the payment connector account, such as Stripe, on which the
-    /// transaction was processed. The account must belong to the profile passed in the
-    /// `X-Profile-Id` header.
+    /// Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header.
     #[schema(value_type = String, example = "mca_1234567890")]
     pub payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
@@ -14871,21 +15006,11 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = RecoveryTransactionStatus, example = "failure")]
     pub transaction_status: common_payments_types::RecoveryTransactionStatus,
 
-    /// Amount captured by the transaction, in the lowest denomination of the currency. It is
-    /// required when `transaction_status` is `partial_charged`, where it must be greater than
-    /// zero and less than the order amount. For `charged` it may be omitted, and if sent it
-    /// must equal the order amount. It must not be sent for a `failure`.
+    /// Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`.
     #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_captured: Option<MinorUnit>,
 
-    /// Whether the customer was present, and so able to authenticate, when the transaction was
-    /// made. Defaults to `false`, which marks the transaction as merchant initiated.
-    #[serde(default)]
-    #[schema(default = false, example = false)]
-    pub customer_present: bool,
-
-    /// Category of the merchant initiated transactions made to recover this invoice. Defaults to
-    /// `recurring`.
+    /// Category of the merchant initiated transactions made to recover this invoice. Defaults to `recurring`.
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     pub mit_category: Option<api_enums::MitCategory>,
 
@@ -14908,8 +15033,7 @@ pub struct RecoveryPaymentsCreate {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub transaction_created_at: PrimitiveDateTime,
 
-    /// Unique identifier of the customer at the payment connector, with which the payment
-    /// method token used for the transaction is associated.
+    /// Unique identifier of the customer at the payment connector (connector customer id), with which the payment method token used for the transaction is associated.
     #[schema(value_type = String, example = "cust_12345")]
     pub connector_customer_id: Secret<String>,
 
@@ -14918,12 +15042,11 @@ pub struct RecoveryPaymentsCreate {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub billing_started_at: PrimitiveDateTime,
 
-    /// Unique identifier of the transaction at the payment connector. It is used to identify
-    /// the transaction among the attempts recorded for the invoice.
+    /// Unique identifier of the transaction at the payment connector (connector transaction id). It is used to identify the transaction among the attempts recorded for the invoice, and together with `merchant_reference_id` it has to be unique.
     #[schema(value_type = String, example = "993672945374576J")]
     pub connector_transaction_id: String,
 
-    /// payment method token units at payment processor end.
+    /// Payment method token and card details at the payment processor's end.
     pub payment_method_data: CustomRecoveryPaymentMethodData,
 
     /// Allow partial authorization for this payment
