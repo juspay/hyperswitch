@@ -242,6 +242,7 @@ pub trait SessionStateInfo {
     fn event_handler(&self) -> EventsHandler;
     fn get_request_id(&self) -> Option<String>;
     fn add_request_id(&mut self, request_id: RequestId);
+    fn start_read_ledger(&mut self, flow: String);
     #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
@@ -250,6 +251,21 @@ pub trait SessionStateInfo {
 }
 
 impl SessionStateInfo for SessionState {
+    /// Begin tracking which records this session reads. Store-labelled ledgers
+    /// share one set, so a record read through two stores is one record.
+    /// Called once where the session begins; background work
+    /// (scheduler, drainer) is not a session and starts none.
+    fn start_read_ledger(&mut self, flow: String) {
+        use common_utils::read_ledger::{ReadLedger, ReadStore};
+
+        let read_ledger = Arc::new(ReadLedger::new(flow));
+        self.accounts_store
+            .attach_read_ledger(Arc::new(read_ledger.for_store(ReadStore::Accounts)));
+        self.global_store
+            .attach_read_ledger(Arc::new(read_ledger.for_store(ReadStore::Global)));
+        self.store.attach_read_ledger(read_ledger);
+    }
+
     fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
     }

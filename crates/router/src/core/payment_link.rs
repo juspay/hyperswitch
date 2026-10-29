@@ -365,8 +365,10 @@ pub async fn initiate_secure_payment_link_flow(
     payment_id: common_utils::id_type::PaymentId,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let (payment_link, payment_link_details, payment_link_config) =
-        form_payment_link_data(&state, processor, merchant_id, payment_id).await?;
+    let (payment_link, payment_link_details, payment_link_config) = Box::pin(
+        form_payment_link_data(&state, processor, merchant_id, payment_id),
+    )
+    .await?;
 
     validator::validate_secure_payment_link_render_request(
         request_headers,
@@ -472,8 +474,13 @@ pub async fn initiate_payment_link_flow(
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let (_, payment_details, payment_link_config) =
-        form_payment_link_data(&state, processor, merchant_id, payment_id).await?;
+    let (_, payment_details, payment_link_config) = Box::pin(form_payment_link_data(
+        &state,
+        processor,
+        merchant_id,
+        payment_id,
+    ))
+    .await?;
 
     let css_script = get_payment_link_css_script(&payment_link_config)?;
     let js_script = get_js_script(&payment_details)?;
