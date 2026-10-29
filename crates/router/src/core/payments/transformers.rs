@@ -338,6 +338,17 @@ pub async fn construct_external_vault_proxy_router_data_v2<'a>(
     Ok(router_data_v2)
 }
 
+/// Noon requires `order.category` on every order it creates, and the value is merchant
+/// configuration carried in `connector_metadata`. Every flow that builds a Noon order reads it
+/// through here so the derivation stays in one place.
+fn noon_order_category(
+    connector_metadata: Option<&api_models::payments::ConnectorMetadata>,
+) -> Option<String> {
+    connector_metadata
+        .and_then(|cm| cm.noon.as_ref())
+        .and_then(|noon| noon.order_category.clone())
+}
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -442,11 +453,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
 
     let connector_metadata = payment_data.payment_intent.connector_metadata.clone();
 
-    let order_category = connector_metadata.as_ref().and_then(|cm| {
-        cm.noon
-            .as_ref()
-            .and_then(|noon| noon.order_category.clone())
-    });
+    let order_category = noon_order_category(connector_metadata.as_ref());
 
     // v2 derives off_session purely from mandate presence (unchanged semantics).
     let is_off_session = get_off_session(payment_data.mandate_data.as_ref(), None);
@@ -1831,6 +1838,9 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
 
     // TODO: few fields are repeated in both routerdata and request
     let request = types::SetupMandateRequestData {
+        order_category: noon_order_category(
+            payment_data.payment_intent.connector_metadata.as_ref(),
+        ),
         currency: payment_data.payment_intent.amount_details.currency,
         payment_method_data: payment_data
             .payment_method_data
@@ -5537,11 +5547,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse connector metadata")?;
 
-        let order_category = connector_metadata.as_ref().and_then(|cm| {
-            cm.noon
-                .as_ref()
-                .and_then(|noon| noon.order_category.clone())
-        });
+        let order_category = noon_order_category(connector_metadata.as_ref());
 
         let braintree_metadata = connector_metadata
             .as_ref()
@@ -7293,7 +7299,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 format!("unable to parse connector name {connector_name:?}")
             })?;
 
-        let connector_testing_data = payment_data
+        let connector_metadata = payment_data
             .payment_intent
             .connector_metadata
             .as_ref()
@@ -7303,7 +7309,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed parsing ConnectorMetadata")
             })
-            .transpose()?
+            .transpose()?;
+
+        let order_category = noon_order_category(connector_metadata.as_ref());
+
+        let connector_testing_data = connector_metadata
+            .clone()
             .and_then(|cm| match connector {
                 api_models::enums::Connector::Adyen => cm
                     .adyen
@@ -7340,6 +7351,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             .clone();
 
         Ok(Self {
+            order_category,
             currency: payment_data.currency,
             confirm: true,
             amount: amount.get_amount_as_i64(), //need to change once we move to connector module
