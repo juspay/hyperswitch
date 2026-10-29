@@ -145,6 +145,7 @@ where
             match services::generic_link_response::build_generic_link_html(
                 boxed_generic_link_data.data,
                 boxed_generic_link_data.locale,
+                &api::generate_csp_nonce(),
             ) {
                 Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                 Err(_) => {
@@ -154,9 +155,10 @@ where
         }
 
         Ok(api::ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
+            let csp_nonce = api::generate_csp_nonce();
             match *boxed_payment_link_data {
                 api::PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
-                    match api::build_payment_link_html(payment_link_data) {
+                    match api::build_payment_link_html(payment_link_data, &csp_nonce) {
                         Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                         Err(_) => api::http_response_err(
                             r#"{
@@ -168,7 +170,7 @@ where
                     }
                 }
                 api::PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
-                    match api::get_payment_link_status(payment_link_data) {
+                    match api::get_payment_link_status(payment_link_data, &csp_nonce) {
                         Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                         Err(_) => api::http_response_err(
                             r#"{
