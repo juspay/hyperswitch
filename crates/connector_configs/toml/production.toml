@@ -6965,6 +6965,7 @@ label="Client Secret"
 placeholder="Enter your Client Secret"
 required=true
 type="Text"
+[[santander.metadata.pix_automatico_push]]
 name="pix_key_type"
 label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
