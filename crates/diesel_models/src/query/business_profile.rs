@@ -22,19 +22,27 @@ impl Profile {
         conn: &DatabaseConnectionWithContext<'_>,
         business_profile: ProfileUpdateInternal,
     ) -> StorageResult<Self> {
-        match Box::pin(generics::generic_update_by_id::<
+        match Box::pin(generics::generic_update_with_results::<
             <Self as HasTable>::Table,
             _,
             _,
             _,
-        >(conn, self.get_id().to_owned(), business_profile))
+        >(
+            conn,
+            dsl::merchant_id
+                .eq(self.merchant_id.to_owned())
+                .and(dsl_identifier.eq(self.get_id().to_owned())),
+            business_profile,
+        ))
         .await
         {
             Err(error) => match error.current_context() {
                 errors::DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
             },
-            result => result,
+            Ok(mut business_profiles) => business_profiles
+                .pop()
+                .ok_or(error_stack::report!(errors::DatabaseError::NotFound)),
         }
     }
 

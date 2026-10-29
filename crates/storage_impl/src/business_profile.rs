@@ -26,10 +26,21 @@ use crate::{
     CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
 
-/// Cache key for a profile, shared by both the profile-scoped and merchant-scoped lookups.
+/// Cache key for a profile, scoped to the merchant that owns it.
+///
+/// Profile IDs are globally unique, but including the merchant ID is required for authorization:
+/// a merchant-scoped lookup must never be satisfied by an entry populated through another
+/// merchant's lookup.
 #[cfg(feature = "accounts_cache")]
-fn profile_cache_key(profile_id: &common_utils::id_type::ProfileId) -> String {
-    format!("business_profile_{}", profile_id.get_string_repr())
+fn profile_cache_key(
+    merchant_id: &common_utils::id_type::MerchantId,
+    profile_id: &common_utils::id_type::ProfileId,
+) -> String {
+    format!(
+        "business_profile_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr()
+    )
 }
 
 /// Invalidates the cached profile on a best-effort basis.
@@ -41,13 +52,16 @@ fn profile_cache_key(profile_id: &common_utils::id_type::ProfileId) -> String {
 #[cfg(feature = "accounts_cache")]
 async fn publish_and_redact_business_profile_cache<S>(
     store: &S,
+    merchant_id: &common_utils::id_type::MerchantId,
     profile_id: &common_utils::id_type::ProfileId,
 ) where
     S: RedisConnInterface + CacheInterface + Send + Sync + ?Sized,
 {
     let redaction_result = cache::redact_from_redis_and_publish(
         store,
-        [CacheKind::Accounts(profile_cache_key(profile_id).into())],
+        [CacheKind::Accounts(
+            profile_cache_key(merchant_id, profile_id).into(),
+        )],
     )
     .await;
 
@@ -193,9 +207,13 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
     ) -> CustomResult<domain::Profile, StorageError> {
         let fetch_func = || async {
             let conn = pg_accounts_connection_read(self).await?;
-            diesel::Profile::find_by_profile_id(&conn, profile_id)
-                .await
-                .map_err(|error| report!(StorageError::from(error)))
+            diesel::Profile::find_by_merchant_id_profile_id(
+                &conn,
+                &merchant_key_store.merchant_id,
+                profile_id,
+            )
+            .await
+            .map_err(|error| report!(StorageError::from(error)))
         };
         let state = self
             .get_keymanager_state()
@@ -218,7 +236,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         {
             Box::pin(cache::get_or_populate_in_memory_redis(
                 self,
-                &profile_cache_key(profile_id),
+                &profile_cache_key(&merchant_key_store.merchant_id, profile_id),
                 fetch_func(),
                 CacheId::Accounts,
             ))
@@ -266,7 +284,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         {
             Box::pin(cache::get_or_populate_in_memory_redis(
                 self,
-                &profile_cache_key(profile_id),
+                &profile_cache_key(merchant_id, profile_id),
                 fetch_func(),
                 CacheId::Accounts,
             ))
@@ -314,7 +332,12 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         .map_err(|error| report!(StorageError::from(error)))?;
 
         #[cfg(feature = "accounts_cache")]
-        publish_and_redact_business_profile_cache(self, updated_profile.get_id()).await;
+        publish_and_redact_business_profile_cache(
+            self,
+            &updated_profile.merchant_id,
+            updated_profile.get_id(),
+        )
+        .await;
 
         updated_profile
             .convert(
@@ -340,7 +363,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
                 .map_err(|error| report!(StorageError::from(error)))?;
 
         #[cfg(feature = "accounts_cache")]
-        publish_and_redact_business_profile_cache(self, profile_id).await;
+        publish_and_redact_business_profile_cache(self, merchant_id, profile_id).await;
 
         Ok(is_deleted)
     }
@@ -397,7 +420,10 @@ impl ProfileInterface for MockDb {
             .lock()
             .await
             .iter()
-            .find(|business_profile| business_profile.get_id() == profile_id)
+            .find(|business_profile| {
+                business_profile.get_id() == profile_id
+                    && business_profile.merchant_id == merchant_key_store.merchant_id
+            })
             .cloned()
             .async_map(|business_profile| async {
                 business_profile
@@ -462,11 +488,15 @@ impl ProfileInterface for MockDb {
         profile_update: domain::ProfileUpdate,
     ) -> CustomResult<domain::Profile, StorageError> {
         let profile_id = current_state.get_id().to_owned();
+        let merchant_id = current_state.merchant_id.clone();
         self.business_profiles
             .lock()
             .await
             .iter_mut()
-            .find(|business_profile| business_profile.get_id() == current_state.get_id())
+            .find(|business_profile| {
+                business_profile.get_id() == current_state.get_id()
+                    && business_profile.merchant_id == merchant_id
+            })
             .async_map(|business_profile| async {
                 let profile_updated = ProfileUpdateInternal::foreign_from(profile_update)
                     .apply_changeset(

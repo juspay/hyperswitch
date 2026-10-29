@@ -4122,6 +4122,14 @@ pub async fn retrieve_profile(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
+    // Cache hits must preserve the same ownership constraint as the database query.
+    if business_profile.merchant_id != merchant_id {
+        return Err(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        }
+        .into());
+    }
+
     Ok(service_api::ApplicationResponse::Json(
         api_models::admin::ProfileResponse::foreign_try_from(business_profile)
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4858,22 +4866,24 @@ pub async fn extended_card_info_toggle(
 
 pub async fn connector_agnostic_mit_toggle(
     state: SessionState,
+    processor: domain::Processor,
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     connector_agnostic_mit_choice: admin_types::ConnectorAgnosticMitChoice,
 ) -> RouterResponse<admin_types::ConnectorAgnosticMitChoice> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        .attach_printable("Error while fetching the key store by merchant_id")?;
+
+    if processor.get_account().get_id() != merchant_id {
+        return Err(errors::ApiErrorResponse::AccessForbidden {
+            resource: profile_id.get_string_repr().to_owned(),
+        }
+        .into());
+    }
+
+    let key_store = processor.get_key_store();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(&key_store, profile_id)
+        .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -4892,7 +4902,7 @@ pub async fn connector_agnostic_mit_toggle(
             is_connector_agnostic_mit_enabled: connector_agnostic_mit_choice.enabled,
         };
 
-        db.update_profile_by_profile_id(&key_store, business_profile, profile_update)
+        db.update_profile_by_profile_id(key_store, business_profile, profile_update)
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
