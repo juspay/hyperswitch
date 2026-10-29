@@ -142,6 +142,7 @@ async fn session_cookie_and_fail_closed_contract() {
         actix_web::rt::spawn(server);
         let client = RouterClient::new(
             url.parse().unwrap(),
+            None,
             &hyperswitch_interfaces::types::Proxy::default(),
         )
         .unwrap();
@@ -228,6 +229,7 @@ async fn router_timeout_does_not_set_cookie() {
     actix_web::rt::spawn(server);
     let client = RouterClient::new(
         url.parse().unwrap(),
+        None,
         &hyperswitch_interfaces::types::Proxy::default(),
     )
     .unwrap();
@@ -294,6 +296,7 @@ async fn router_owns_token_validation() {
     actix_web::rt::spawn(server);
     let client = RouterClient::new(
         url.parse().unwrap(),
+        None,
         &hyperswitch_interfaces::types::Proxy::default(),
     )
     .unwrap();

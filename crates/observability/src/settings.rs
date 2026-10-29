@@ -14,7 +14,7 @@ pub mod utils;
 
 use std::{collections::HashMap, path::PathBuf};
 
-use common_utils::{ext_traits::ConfigExt, pii};
+use common_utils::{ext_traits::ConfigExt, id_type, pii};
 use config::{Environment, File};
 use external_services::{
     chat_service::{slack::SlackConfig, xyne::XyneConfig},
@@ -236,6 +236,12 @@ impl EmailSettings {
 pub struct RouterSettings {
     /// Internal Router origin or public API base URL, such as https://app.hyperswitch.io/api/.
     pub base_url: url::Url,
+    /// Tenant sent as `x-tenant-id` on every Router request.
+    ///
+    /// Router rejects requests without this header when multitenancy is enabled. The public edge
+    /// adds it, so leave this unset behind a public base URL; set it when `base_url` reaches Router
+    /// directly, such as an in-cluster service address.
+    pub tenant_id: Option<id_type::TenantId>,
 }
 
 /// Credentials guarding this service's routes.
@@ -502,6 +508,27 @@ mod tests {
             r#"{"router":{"base_url":"http://localhost:8080"}}"#,
         )
         .is_ok());
+    }
+
+    #[test]
+    fn router_tenant_is_optional_and_validated() {
+        let settings = serde_json::from_str::<Settings<SecuredSecret>>(
+            r#"{"router":{"base_url":"http://router.hyperswitch.svc.cluster.local","tenant_id":"public"}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            settings
+                .router
+                .unwrap()
+                .tenant_id
+                .unwrap()
+                .get_string_repr(),
+            "public"
+        );
+        assert!(serde_json::from_str::<Settings<SecuredSecret>>(
+            r#"{"router":{"base_url":"http://localhost:8080","tenant_id":"not a tenant"}}"#,
+        )
+        .is_err());
     }
 
     #[test]

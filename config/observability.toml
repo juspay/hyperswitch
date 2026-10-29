@@ -36,8 +36,13 @@ internal_api_key = "observability_dev_key"
 # Optional internal Router origin or public API base URL (the /api prefix is preserved).
 # Uses [proxy] for outbound HTTP/HTTPS; public Router hosts must be allowed by the proxy.
 # Without it, monitoring auth/session return 503; alert-only deployments need not set it.
+#
+# `tenant_id` is sent as `x-tenant-id` on every Router request. Router requires the header when
+# multitenancy is enabled; the public edge adds it, a direct in-cluster address does not. Leave it
+# unset behind a public base URL and set it with an in-cluster one.
 # [router]
 # base_url = "https://app.hyperswitch.io/api/"
+# tenant_id = "public"
 
 # Optional Grafana embed targets. IDs use underscores; use the same HTTPS CC host and proxy path.
 # [monitoring.destinations]
