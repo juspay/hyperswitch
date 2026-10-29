@@ -4,7 +4,10 @@ use std::time::Duration;
 
 use external_services::http_client::client::get_client_builder;
 use hyperswitch_interfaces::types::Proxy;
-use reqwest::{Client, Response};
+use reqwest::{
+    header::{HeaderMap, HeaderValue},
+    Client, Response,
+};
 use url::Url;
 
 mod authorize_token;
@@ -35,8 +38,20 @@ impl RouterClient {
             // With no explicit proxy, retain direct transport rather than inheriting environment proxies.
             builder = builder.no_proxy();
         }
+        let mut headers = HeaderMap::new();
+        match std::env::var("OBSERVABILITY__ROUTER__TENANT_ID") {
+            Ok(tenant_id) => {
+                headers.insert(
+                    "x-tenant-id",
+                    HeaderValue::from_str(&tenant_id).map_err(|_| RouterError::Unavailable)?,
+                );
+            }
+            Err(std::env::VarError::NotPresent) => {}
+            Err(std::env::VarError::NotUnicode(_)) => return Err(RouterError::Unavailable),
+        }
         Ok(Self {
             client: builder
+                .default_headers(headers)
                 // Public Router ingress requires a User-Agent on service-to-service requests.
                 .user_agent("hyperswitch-observability")
                 .timeout(Duration::from_secs(3))
@@ -80,6 +95,17 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn router_requests_send_tenant_from_env() {
+        // Run the transport tests in a child process to avoid mutating the shared test environment.
+        let status = std::process::Command::new(std::env::current_exe().unwrap())
+            .arg("core::router_client::tests::configured_")
+            .env("OBSERVABILITY__ROUTER__TENANT_ID", "public")
+            .status()
+            .unwrap();
+        assert!(status.success());
+    }
+
     #[actix_web::test]
     async fn configured_http_proxy_preserves_api_paths_and_credentials() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -95,6 +121,15 @@ mod tests {
                 let calls = calls.clone();
                 async move {
                     calls.fetch_add(1, Ordering::SeqCst);
+                    assert_eq!(
+                        request
+                            .headers()
+                            .get("x-tenant-id")
+                            .map(|value| value.to_str().unwrap()),
+                        std::env::var("OBSERVABILITY__ROUTER__TENANT_ID")
+                            .ok()
+                            .as_deref()
+                    );
                     assert_eq!(
                         request.headers().get("user-agent").unwrap(),
                         "hyperswitch-observability"
@@ -157,6 +192,15 @@ mod tests {
             App::new().route(
                 "/api/user",
                 web::get().to(|request: HttpRequest| async move {
+                    assert_eq!(
+                        request
+                            .headers()
+                            .get("x-tenant-id")
+                            .map(|value| value.to_str().unwrap()),
+                        std::env::var("OBSERVABILITY__ROUTER__TENANT_ID")
+                            .ok()
+                            .as_deref()
+                    );
                     assert_eq!(
                         request.headers().get("authorization").unwrap(),
                         "Bearer signed.token.value"
