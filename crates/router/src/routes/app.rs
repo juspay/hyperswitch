@@ -243,6 +243,7 @@ pub trait SessionStateInfo {
     fn get_request_id(&self) -> Option<String>;
     fn add_request_id(&mut self, request_id: RequestId);
     fn start_read_ledger(&mut self, flow: String);
+    fn get_read_ledger(&self) -> Option<Arc<common_utils::read_ledger::ReadLedger>>;
     #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
@@ -264,6 +265,10 @@ impl SessionStateInfo for SessionState {
         self.global_store
             .attach_read_ledger(Arc::new(read_ledger.for_store(ReadStore::Global)));
         self.store.attach_read_ledger(read_ledger);
+    }
+
+    fn get_read_ledger(&self) -> Option<Arc<common_utils::read_ledger::ReadLedger>> {
+        self.store.get_read_ledger()
     }
 
     fn store(&self) -> Box<dyn StorageInterface> {

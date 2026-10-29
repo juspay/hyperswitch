@@ -380,6 +380,10 @@ pub trait RequestIdStore {
         _read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
     ) {
     }
+
+    fn get_read_ledger(&self) -> Option<std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        None
+    }
 }
 
 impl RequestIdStore for MockDb {}
@@ -418,6 +422,17 @@ impl RequestIdStore for Store {
             self.read_ledger = Some(read_ledger);
         }
     }
+
+    fn get_read_ledger(&self) -> Option<std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        #[cfg(feature = "kv_store")]
+        {
+            self.router_store.read_ledger.clone()
+        }
+        #[cfg(not(feature = "kv_store"))]
+        {
+            self.read_ledger.clone()
+        }
+    }
 }
 
 pub async fn get_and_deserialize_key<T>(
@@ -450,6 +465,10 @@ impl RequestIdStore for KafkaStore {
         read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
     ) {
         self.diesel_store.attach_read_ledger(read_ledger)
+    }
+
+    fn get_read_ledger(&self) -> Option<std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        self.diesel_store.get_read_ledger()
     }
 }
 
