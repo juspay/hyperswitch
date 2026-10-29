@@ -2526,7 +2526,6 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
-            currency_conversion_data: None,
             is_overcapture_enabled: router_data
                 .request
                 .is_overcapture_enabled
@@ -3607,7 +3606,6 @@ impl
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
-            currency_conversion_data: None,
         })
     }
 }
@@ -3937,7 +3935,6 @@ impl
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
-            currency_conversion_data: None,
         })
     }
 }
