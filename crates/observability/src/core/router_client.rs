@@ -28,7 +28,11 @@ pub struct RouterClient {
 }
 
 impl RouterClient {
-    pub fn new(mut base_url: Url, proxy: &Proxy) -> Result<Self, RouterError> {
+    pub fn new(
+        mut base_url: Url,
+        tenant_id: Option<&str>,
+        proxy: &Proxy,
+    ) -> Result<Self, RouterError> {
         // Treat the configured path as a directory so /api works with or without a trailing slash.
         if !base_url.path().ends_with('/') {
             base_url.set_path(&format!("{}/", base_url.path()));
@@ -39,15 +43,11 @@ impl RouterClient {
             builder = builder.no_proxy();
         }
         let mut headers = HeaderMap::new();
-        match std::env::var("OBSERVABILITY__ROUTER__TENANT_ID") {
-            Ok(tenant_id) => {
-                headers.insert(
-                    "x-tenant-id",
-                    HeaderValue::from_str(&tenant_id).map_err(|_| RouterError::Unavailable)?,
-                );
-            }
-            Err(std::env::VarError::NotPresent) => {}
-            Err(std::env::VarError::NotUnicode(_)) => return Err(RouterError::Unavailable),
+        if let Some(tenant_id) = tenant_id {
+            headers.insert(
+                "x-tenant-id",
+                HeaderValue::from_str(tenant_id).map_err(|_| RouterError::Unavailable)?,
+            );
         }
         Ok(Self {
             client: builder
@@ -96,14 +96,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn router_requests_send_tenant_from_env() {
-        // Run the transport tests in a child process to avoid mutating the shared test environment.
-        let status = std::process::Command::new(std::env::current_exe().unwrap())
-            .arg("core::router_client::tests::configured_")
-            .env("OBSERVABILITY__ROUTER__TENANT_ID", "public")
-            .status()
-            .unwrap();
-        assert!(status.success());
+    fn invalid_tenant_header_fails_client_initialization() {
+        assert!(matches!(
+            RouterClient::new(
+                "http://router.invalid".parse().unwrap(),
+                Some("public\r\nx-injected: value"),
+                &Proxy::default(),
+            ),
+            Err(RouterError::Unavailable)
+        ));
     }
 
     #[actix_web::test]
@@ -121,15 +122,7 @@ mod tests {
                 let calls = calls.clone();
                 async move {
                     calls.fetch_add(1, Ordering::SeqCst);
-                    assert_eq!(
-                        request
-                            .headers()
-                            .get("x-tenant-id")
-                            .map(|value| value.to_str().unwrap()),
-                        std::env::var("OBSERVABILITY__ROUTER__TENANT_ID")
-                            .ok()
-                            .as_deref()
-                    );
+                    assert_eq!(request.headers().get("x-tenant-id").unwrap(), "public");
                     assert_eq!(
                         request.headers().get("user-agent").unwrap(),
                         "hyperswitch-observability"
@@ -163,8 +156,12 @@ mod tests {
         .run();
         let handle = server.handle();
         actix_web::rt::spawn(server);
-        let client =
-            RouterClient::new("http://router.invalid/api".parse().unwrap(), &proxy).unwrap();
+        let client = RouterClient::new(
+            "http://router.invalid/api".parse().unwrap(),
+            Some("public"),
+            &proxy,
+        )
+        .unwrap();
         assert_eq!(
             client
                 .authorize_token(
@@ -192,15 +189,7 @@ mod tests {
             App::new().route(
                 "/api/user",
                 web::get().to(|request: HttpRequest| async move {
-                    assert_eq!(
-                        request
-                            .headers()
-                            .get("x-tenant-id")
-                            .map(|value| value.to_str().unwrap()),
-                        std::env::var("OBSERVABILITY__ROUTER__TENANT_ID")
-                            .ok()
-                            .as_deref()
-                    );
+                    assert!(request.headers().get("x-tenant-id").is_none());
                     assert_eq!(
                         request.headers().get("authorization").unwrap(),
                         "Bearer signed.token.value"
@@ -225,7 +214,7 @@ mod tests {
             bypass_proxy_hosts: Some("127.0.0.1".into()),
             ..Proxy::default()
         };
-        let client = RouterClient::new(url.parse().unwrap(), &proxy).unwrap();
+        let client = RouterClient::new(url.parse().unwrap(), None, &proxy).unwrap();
         assert_eq!(
             client
                 .get_user_email(&Secret::new("signed.token.value".into()))
@@ -259,7 +248,8 @@ mod tests {
             .expect("proxy receives CONNECT before timeout");
         });
         let client =
-            RouterClient::new("https://router.invalid/api/".parse().unwrap(), &proxy).unwrap();
+            RouterClient::new("https://router.invalid/api/".parse().unwrap(), None, &proxy)
+                .unwrap();
         assert_eq!(
             client
                 .get_user_email(&Secret::new("signed.token.value".into()))
@@ -276,7 +266,11 @@ mod tests {
             ..Proxy::default()
         };
         assert!(matches!(
-            RouterClient::new("https://app.hyperswitch.io/api/".parse().unwrap(), &proxy),
+            RouterClient::new(
+                "https://app.hyperswitch.io/api/".parse().unwrap(),
+                None,
+                &proxy
+            ),
             Err(RouterError::Unavailable)
         ));
     }
@@ -295,9 +289,12 @@ mod tests {
                 "https://app.hyperswitch.io/api/",
             ),
         ] {
-            let client =
-                RouterClient::new(Url::parse(base).expect("valid base URL"), &Proxy::default())
-                    .expect("HTTP client builds");
+            let client = RouterClient::new(
+                Url::parse(base).expect("valid base URL"),
+                None,
+                &Proxy::default(),
+            )
+            .expect("HTTP client builds");
             for endpoint in ["user/internal/authorize", "user"] {
                 assert_eq!(
                     client

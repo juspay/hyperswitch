@@ -236,6 +236,8 @@ impl EmailSettings {
 pub struct RouterSettings {
     /// Internal Router origin or public API base URL, such as https://app.hyperswitch.io/api/.
     pub base_url: url::Url,
+    /// Tenant sent to Router as `x-tenant-id`.
+    pub tenant_id: Option<String>,
 }
 
 /// Credentials guarding this service's routes.
@@ -486,6 +488,38 @@ mod tests {
                 .collect(),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn router_tenant_id_loads_from_environment() {
+        let environment = HashMap::from([
+            (
+                "OBSERVABILITY__ROUTER__BASE_URL".to_owned(),
+                "http://router:8080".to_owned(),
+            ),
+            (
+                "OBSERVABILITY__ROUTER__TENANT_ID".to_owned(),
+                "public".to_owned(),
+            ),
+        ]);
+        let settings: Settings<SecuredSecret> = config::Config::builder()
+            .add_source(
+                Environment::with_prefix("OBSERVABILITY")
+                    .try_parsing(true)
+                    .separator("__")
+                    .source(Some(environment)),
+            )
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+        assert_eq!(
+            settings.router.unwrap().tenant_id.as_deref(),
+            Some("public")
+        );
+        let router: RouterSettings =
+            serde_json::from_str(r#"{"base_url":"http://router:8080"}"#).unwrap();
+        assert!(router.tenant_id.is_none());
     }
 
     #[test]

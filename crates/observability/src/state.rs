@@ -115,7 +115,11 @@ impl AppState {
 
         let router_transport =
             raw_conf.router.as_ref().and_then(|config| {
-                match RouterClient::new(config.base_url.clone(), &raw_conf.proxy) {
+                match RouterClient::new(
+                    config.base_url.clone(),
+                    config.tenant_id.as_deref(),
+                    &raw_conf.proxy,
+                ) {
                     Ok(client) => Some(Arc::new(client)),
                     Err(_) => {
                         logger::error!("Router client unavailable; Grafana auth will fail closed");

@@ -231,11 +231,11 @@ Configure `[router] base_url` (or `OBSERVABILITY__ROUTER__BASE_URL`) with the Ro
 or public API base URL, such as `https://app.hyperswitch.io/api/`, to enable monitoring authorization.
 The configured path is preserved; a trailing slash is optional. Public edge routing can supply
 Router's required tenant header without forwarding a caller-provided tenant header from OP.
-For an internal cluster Router URL, set `OBSERVABILITY__ROUTER__TENANT_ID=public`
-(or the tenant used by that Router). OP reads this environment variable at startup and sends
-it as `x-tenant-id` on every Router request. When unset, no tenant header is added.
-Invalid HTTP header values prevent the Router client from starting. This is an environment-only
-setting for now; incoming tenant headers are never forwarded.
+For an internal cluster Router URL, set `[router] tenant_id` to the Router's tenant, such as
+`public`, or override it with `OBSERVABILITY__ROUTER__TENANT_ID=public`.
+The settings loader passes this value to the Router client, which sends it as `x-tenant-id`
+on every Router request. When unset, no tenant header is added. Invalid HTTP header values
+prevent the Router client from starting. Incoming tenant headers are never forwarded.
 Router configuration is optional: alert-only deployments can omit it; valid monitoring requests
 then fail closed with 503.
 A v2 build rejects a configured Router integration and does not register monitoring routes.
