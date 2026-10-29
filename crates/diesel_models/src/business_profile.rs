@@ -578,6 +578,7 @@ pub struct MultipleWebhookDetail {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 pub struct WebhookDetails {
+    pub revenue_recovery_statuses_enabled: Option<Vec<common_enums::IntentStatus>>,
     pub webhook_version: Option<String>,
     pub webhook_username: Option<String>,
     pub webhook_password: Option<Secret<String>>,
