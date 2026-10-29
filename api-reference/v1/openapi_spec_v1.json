@@ -7452,7 +7452,7 @@
           {
             "name": "X-Profile-Id",
             "in": "header",
-            "description": "Restricts the listing to entries belonging to this business profile, plus entries with no profile. When no profile can be resolved - as with publishable-key authentication - all of the merchant's entries are returned, as before.",
+            "description": "Restricts the listing to entries belonging to this business profile, plus entries with no profile. Ignored when authenticating with a JWT, which carries its own profile. If no profile is resolved for an API key, all of the merchant's entries are returned.",
             "required": false,
             "schema": {
               "type": "string",
@@ -7492,9 +7492,6 @@
           },
           {
             "jwt_key": []
-          },
-          {
-            "publishable_key": []
           }
         ]
       },
@@ -27492,10 +27489,6 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
-          },
-          "client_secret": {
-            "type": "string",
-            "nullable": true
           }
         }
       },
