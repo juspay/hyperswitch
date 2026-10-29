@@ -56,7 +56,7 @@ use crate::{
                 MerchantConnectorAccountType, ProxyOverride, RolloutExecutionResult,
                 WebhookRolloutConfig, WebhookRolloutExecutionResult,
             },
-            OperationSessionGetters, OperationSessionSetters,
+            multi_currency_processing, OperationSessionGetters, OperationSessionSetters,
         },
         utils::get_flow_name,
         webhooks::types::FeatureTrackingData,
@@ -4561,9 +4561,21 @@ pub async fn call_unified_connector_service_for_refund_execute(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to build UCS auth metadata for refund execute")?;
 
+    let settlement = multi_currency_processing::resolve_operation_multi_currency_processing(
+        &router_data.connector,
+        router_data.request.payment_feature_metadata.as_ref(),
+        router_data
+            .request
+            .feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Invalid MCP data for UCS refund dispatch")?;
+
     // Transform router data to UCS refund request
     let ucs_refund_request =
-        payments_grpc::PaymentServiceRefundRequest::foreign_try_from(&router_data)
+        payments_grpc::PaymentServiceRefundRequest::foreign_try_from((&router_data, settlement))
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to transform router data to UCS refund request")?;
 
