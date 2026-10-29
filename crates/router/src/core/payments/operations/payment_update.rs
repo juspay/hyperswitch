@@ -26,8 +26,9 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payments::{
-            self, client_session::ClientSessionManager, helpers, operations, CustomerDetails,
-            PaymentAddress, PaymentData, PaymentDataUpdateRequestFields,
+            self, client_session::ClientSessionManager, helpers, multi_currency_processing,
+            operations, CustomerDetails, PaymentAddress, PaymentData,
+            PaymentDataUpdateRequestFields,
         },
         utils::{self as core_utils},
     },
@@ -125,6 +126,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             "update",
         )?;
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
+
+        multi_currency_processing::validate_merchant_only_mcp_fields(auth_flow, request, "update")?;
+        // Resolve the stored flag before update-and-confirm amount calculations.
+        helpers::validate_and_update_settlement_conclusion(
+            auth_flow,
+            request,
+            &mut payment_intent,
+            "update",
+        )?;
 
         payment_intent.order_details = request
             .get_order_details_as_value()
@@ -398,7 +408,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         .surcharge_details
                         .as_ref()
                         .map(RequestSurchargeDetails::get_total_surcharge_amount)
-                        .or(payment_attempt.get_total_surcharge_amount());
+                        .or_else(|| {
+                            if payment_intent.is_settlement_conclusion_applied() {
+                                None
+                            } else {
+                                payment_attempt.get_total_surcharge_amount()
+                            }
+                        });
                     amount + surcharge_amount.unwrap_or_default()
                 };
                 (Box::new(operations::PaymentConfirm), amount.into())
@@ -501,11 +517,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .installment_options
             .clone()
             .or(payment_intent.installment_options);
+        let order_tax_amount = if payment_intent.is_settlement_conclusion_applied() {
+            request.order_tax_amount
+        } else {
+            request.order_tax_amount.or(order_tax_amount)
+        };
         payment_attempt
             .net_amount
-            .set_order_tax_amount(request.order_tax_amount.or(order_tax_amount));
+            .set_order_tax_amount(order_tax_amount);
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
@@ -693,7 +715,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .payment_intent
             .skip_external_tax_calculation
             .unwrap_or(false);
-        if is_tax_connector_enabled && !skip_external_tax_calculation {
+        if is_tax_connector_enabled
+            && !skip_external_tax_calculation
+            && !payment_data
+                .payment_intent
+                .is_settlement_conclusion_applied()
+        {
             let db = state.store.as_ref();
 
             let merchant_connector_id = business_profile
@@ -1394,6 +1421,9 @@ impl PaymentUpdate {
                     .payment_intent
                     .external_surcharge_applicable,
                 enable_avs_check: payment_data.payment_intent.enable_avs_check,
+                settlement_conclusion_applied: payment_data
+                    .payment_intent
+                    .settlement_conclusion_applied,
             }));
 
         Ok((payment_data, attempt_update, intent_update))

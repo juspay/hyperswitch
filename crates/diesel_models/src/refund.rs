@@ -69,6 +69,9 @@ pub struct Refund {
     pub issuer_error_message: Option<String>,
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
+    /// Settlement metadata supplied for this operation, retained across status updates.
+    #[serde(default)]
+    pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
 }
 
 impl Refund {
@@ -154,6 +157,9 @@ pub struct Refund {
     pub processor_transaction_data: Option<String>,
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
+    /// Settlement metadata supplied for this operation, retained across status updates.
+    #[serde(default)]
+    pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
     pub id: id_type::GlobalRefundId,
     #[diesel(deserialize_as = RequiredFromNullable<id_type::RefundReferenceId>)]
     pub merchant_reference_id: id_type::RefundReferenceId,
@@ -207,6 +213,9 @@ pub struct RefundNew {
     pub processor_transaction_data: Option<String>,
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
+    /// Settlement metadata supplied for this operation, retained across status updates.
+    #[serde(default)]
+    pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -256,6 +265,9 @@ pub struct RefundNew {
     pub processor_transaction_data: Option<String>,
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
+    /// Settlement metadata supplied for this operation, retained across status updates.
+    #[serde(default)]
+    pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]

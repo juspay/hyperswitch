@@ -9,6 +9,7 @@ pub mod gateway;
 pub mod helpers;
 #[cfg(feature = "olap")]
 pub mod list;
+pub mod multi_currency_processing;
 pub mod operations;
 pub mod session_token;
 
@@ -2532,6 +2533,13 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
 {
+    if payment_data
+        .get_payment_intent()
+        .is_settlement_conclusion_applied()
+    {
+        return Ok(());
+    }
+
     if is_external_surcharge_pending(business_profile, payment_data) {
         let is_mit = payment_data.get_payment_intent().off_session == Some(true);
 
@@ -2581,6 +2589,13 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
 {
+    if payment_data
+        .get_payment_intent()
+        .is_settlement_conclusion_applied()
+    {
+        return Ok(());
+    }
+
     if payment_data
         .get_payment_intent()
         .get_surcharge_mode(business_profile)
@@ -2907,6 +2922,10 @@ pub async fn call_surcharge_decision_management_for_session_flow(
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     session_connector_data: &api::SessionConnectorDatas,
 ) -> RouterResult<Option<api::SessionSurchargeDetails>> {
+    if payment_intent.is_settlement_conclusion_applied() {
+        return Ok(None);
+    }
+
     if let Some(surcharge_amount) = payment_attempt.net_amount.get_surcharge_amount() {
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
             types::SurchargeDetails {
@@ -5194,6 +5213,8 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 }
             }),
             feature_metadata: Some(api_models::payments::FeatureMetadata {
+                // Complete authorize merges the redirect response with stored payment metadata.
+                multi_currency_processing: None,
                 redirect_response: Some(api_models::payments::RedirectResponse {
                     param: req.param.map(Secret::new),
                     json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
@@ -5800,6 +5821,8 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 payment_id: Some(req.resource_id.clone()),
                 merchant_id: req.merchant_id.clone(),
                 feature_metadata: Some(api_models::payments::FeatureMetadata {
+                    // Complete authorize merges the redirect response with stored payment metadata.
+                    multi_currency_processing: None,
                     redirect_response: Some(api_models::payments::RedirectResponse {
                         param: req.param.clone().map(Secret::new),
                         json_payload: Some(
@@ -10657,6 +10680,8 @@ where
     /// The attempt and intent as they were fetched from the DB, before this flow mutated them.
     /// A UCS pre-call rejection restores the rows from these records.
     pub previous_db_records: (storage::PaymentAttempt, storage::PaymentIntent),
+    /// Settlement metadata for the current capture, separate from the payment metadata.
+    pub capture_feature_metadata: Option<api_models::payments::CaptureFeatureMetadata>,
 }
 
 /// Decrypts an Apple Pay wallet token for the pre-confirm eligibility check, using the specific
