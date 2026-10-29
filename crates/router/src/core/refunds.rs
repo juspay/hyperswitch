@@ -1789,7 +1789,7 @@ pub async fn validate_and_create_refund(
                 Err(errors::ApiErrorResponse::DuplicateRefundRequest)?
             } else {
                 return Err(err)
-                    .change_context(errors::ApiErrorResponse::RefundNotFound)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Inserting Refund failed");
             }
         }
