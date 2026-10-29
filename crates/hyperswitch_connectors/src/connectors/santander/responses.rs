@@ -1078,7 +1078,7 @@ pub enum SantanderWebhookBody {
     PixQr(SantanderPixQrWebhookBody),
     Recurrence(SantanderPixAutomaticoRecWebhookBody),
     RecurringCharge(SantanderPixAutomaticoCobrWebhookBody),
-    Boleto(SantanderBoletoWebhookBody),
+    Boleto(Box<SantanderBoletoWebhookBody>),
     BoletoEndpointVerification(SantanderBoletoWebhookEndpointVerification),
 }
 
