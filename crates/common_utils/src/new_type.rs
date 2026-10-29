@@ -285,12 +285,17 @@ impl From<String> for MaskedEmail {
     fn from(src: String) -> Self {
         let unmasked_char_count = 2;
         let masked_value = if let Some((user_identifier, domain)) = src.split_once('@') {
+            // Count characters rather than bytes so that a short or non-ASCII local part
+            // neither underflows the subtraction nor produces a mask of the wrong length.
+            let masked_char_count = user_identifier
+                .chars()
+                .count()
+                .saturating_sub(unmasked_char_count);
             let masked_user_identifier = user_identifier
-                .to_string()
                 .chars()
                 .take(unmasked_char_count)
                 .collect::<String>()
-                + &"*".repeat(user_identifier.len() - unmasked_char_count);
+                + &"*".repeat(masked_char_count);
             format!("{masked_user_identifier}@{domain}")
         } else {
             let masked_value = apply_mask(src.as_ref(), unmasked_char_count, 8);
@@ -356,9 +361,39 @@ mod apply_mask_fn_test {
     use hyperswitch_masking::PeekInterface;
 
     use crate::new_type::{
-        apply_mask, MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode,
-        MaskedUpiVpaId,
+        apply_mask, MaskedBankAccount, MaskedEmail, MaskedIban, MaskedRoutingNumber,
+        MaskedSortCode, MaskedUpiVpaId,
     };
+
+    #[test]
+    fn test_masked_email() {
+        let email = MaskedEmail::from("username@example.com".to_string());
+        assert_eq!(
+            email.0.peek().to_owned(),
+            "us******@example.com".to_string()
+        );
+
+        // Local parts shorter than the unmasked prefix used to underflow the mask length
+        // computation and panic (or, in release builds, attempt a huge allocation).
+        let email = MaskedEmail::from("ab@example.com".to_string());
+        assert_eq!(email.0.peek().to_owned(), "ab@example.com".to_string());
+        let email = MaskedEmail::from("a@example.com".to_string());
+        assert_eq!(email.0.peek().to_owned(), "a@example.com".to_string());
+        let email = MaskedEmail::from("@example.com".to_string());
+        assert_eq!(email.0.peek().to_owned(), "@example.com".to_string());
+
+        // The mask length follows the number of characters, not bytes.
+        let email = MaskedEmail::from("j\u{00e9}r\u{00f4}me@example.com".to_string());
+        assert_eq!(
+            email.0.peek().to_owned(),
+            "j\u{00e9}****@example.com".to_string()
+        );
+
+        // Values without an `@` fall back to the generic mask.
+        let email = MaskedEmail::from("not-an-email".to_string());
+        assert_eq!(email.0.peek().to_owned(), "no*-**-***il".to_string());
+    }
+
     #[test]
     fn test_masked_types() {
         let sort_code = MaskedSortCode::from("110011".to_string());
