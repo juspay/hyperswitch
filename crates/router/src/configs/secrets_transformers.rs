@@ -488,10 +488,9 @@ pub(crate) async fn fetch_raw_secrets(
         .micro_services
         .decrypt_credentials(secret_management_client)
         .await?;
-    let mut redis = conf.redis;
-    redis.primary_password = redis
+    let redis = conf.redis;
+    let primary_password = redis
         .primary_password
-        .take()
         .async_map(|secret| async move {
             secret_management_client
                 .get_secret(secret)
@@ -500,6 +499,10 @@ pub(crate) async fn fetch_raw_secrets(
         })
         .await
         .transpose()?;
+    let redis = redis_interface::RedisSettings {
+        primary_password,
+        ..redis
+    };
     let internal_merchant_id_profile_id_auth = conf
         .internal_merchant_id_profile_id_auth
         .decrypt_credentials(secret_management_client)

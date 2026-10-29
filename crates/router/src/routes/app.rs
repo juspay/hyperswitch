@@ -478,7 +478,7 @@ impl AppState {
         #[allow(clippy::expect_used)]
         let secret_management_client = conf
             .secrets_management
-            .get_secret_management_client()
+            .get_secret_management_client(&conf.encryption_management)
             .await
             .expect("Failed to create secret management client");
 

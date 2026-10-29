@@ -55,15 +55,14 @@ pub struct ClickhouseConfig {
 
 impl ClickhouseConfig {
     pub(crate) async fn decrypt_credentials(
-        &mut self,
+        self,
         client: &dyn hyperswitch_interfaces::secrets_interface::SecretManagementInterface,
     ) -> common_utils::errors::CustomResult<
-        (),
+        Self,
         hyperswitch_interfaces::secrets_interface::SecretsManagementError,
     > {
-        self.primary_password = self
+        let primary_password = self
             .primary_password
-            .take()
             .async_map(|secret| async move {
                 client.get_secret(secret).await.map_err(|error| {
                     error.attach_printable("analytics.clickhouse.primary_password")
@@ -71,7 +70,10 @@ impl ClickhouseConfig {
             })
             .await
             .transpose()?;
-        Ok(())
+        Ok(Self {
+            primary_password,
+            ..self
+        })
     }
 }
 

@@ -18,21 +18,25 @@ pub struct MicroServicesConfig {
 
 impl MicroServicesConfig {
     pub async fn decrypt_credentials(
-        mut self,
+        self,
         client: &dyn hyperswitch_interfaces::secrets_interface::SecretManagementInterface,
     ) -> common_utils::errors::CustomResult<
         Self,
         hyperswitch_interfaces::secrets_interface::SecretsManagementError,
     > {
-        if let Some(service) = self.authentication_service.as_mut() {
-            service.api_key = client
-                .get_secret(std::mem::take(&mut service.api_key))
-                .await
-                .map_err(|error| {
+        let authentication_service = match self.authentication_service {
+            Some(service) => Some(AuthenticationServiceConfig {
+                api_key: client.get_secret(service.api_key).await.map_err(|error| {
                     error.attach_printable("micro_services.authentication_service.api_key")
-                })?;
-        }
-        Ok(self)
+                })?,
+                ..service
+            }),
+            None => None,
+        };
+        Ok(Self {
+            authentication_service,
+            ..self
+        })
     }
 }
 

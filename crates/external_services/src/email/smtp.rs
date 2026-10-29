@@ -72,12 +72,11 @@ pub struct Socks5Config {
 impl SmtpServerConfig {
     #[allow(missing_docs)]
     pub async fn decrypt_credentials(
-        mut self,
+        self,
         client: &dyn hyperswitch_interfaces::secrets_interface::SecretManagementInterface,
     ) -> CustomResult<Self, hyperswitch_interfaces::secrets_interface::SecretsManagementError> {
-        self.primary_password = self
+        let primary_password = self
             .primary_password
-            .take()
             .async_map(|secret| async move {
                 client
                     .get_secret(secret)
@@ -86,19 +85,35 @@ impl SmtpServerConfig {
             })
             .await
             .transpose()?;
-        if let Some(socks5) = self.socks5.as_mut() {
-            socks5.primary_password = socks5
-                .primary_password
-                .take()
-                .async_map(|secret| async move {
-                    client.get_secret(secret).await.map_err(|error| {
-                        error.attach_printable("email.smtp.socks5.primary_password")
+        let socks5 = self
+            .socks5
+            .async_map(|socks5| async move {
+                let primary_password = socks5
+                    .primary_password
+                    .async_map(|secret| async move {
+                        client.get_secret(secret).await.map_err(|error| {
+                            error.attach_printable("email.smtp.socks5.primary_password")
+                        })
                     })
+                    .await
+                    .transpose()?;
+                Ok::<
+                    _,
+                    error_stack::Report<
+                        hyperswitch_interfaces::secrets_interface::SecretsManagementError,
+                    >,
+                >(Socks5Config {
+                    primary_password,
+                    ..socks5
                 })
-                .await
-                .transpose()?;
-        }
-        Ok(self)
+            })
+            .await
+            .transpose()?;
+        Ok(Self {
+            primary_password,
+            socks5,
+            ..self
+        })
     }
 
     /// Validation for the SMTP server client specific configs

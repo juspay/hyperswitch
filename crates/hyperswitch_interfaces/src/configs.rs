@@ -1,4 +1,4 @@
-use common_utils::{crypto::Encryptable, errors::CustomResult, id_type};
+use common_utils::{crypto::Encryptable, errors::CustomResult, ext_traits::ConfigExt, id_type};
 pub use hyperswitch_domain_models::{
     connector_endpoints::Connectors, errors::api_error_response, merchant_connector_account,
 };
@@ -99,14 +99,14 @@ pub struct InternalMerchantIdProfileIdAuthSettings {
 #[allow(missing_docs)]
 impl InternalMerchantIdProfileIdAuthSettings {
     pub async fn decrypt_credentials(
-        mut self,
+        self,
         client: &dyn crate::secrets_interface::SecretManagementInterface,
     ) -> CustomResult<Self, SecretsManagementError> {
         let legacy_key_configured = self
             .internal_api_key
             .as_ref()
-            .is_some_and(|key| !key.peek().is_empty());
-        if self.primary_internal_api_key.peek().is_empty() {
+            .is_some_and(|key| !key.is_default_or_empty());
+        let primary_internal_api_key = if self.primary_internal_api_key.is_default_or_empty() {
             if self.enabled || self.key_rotation_enabled || legacy_key_configured {
                 return Err(
                     error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
@@ -115,16 +115,17 @@ impl InternalMerchantIdProfileIdAuthSettings {
                         ),
                 );
             }
+            self.primary_internal_api_key
         } else {
-            self.primary_internal_api_key = client
-                .get_secret(std::mem::take(&mut self.primary_internal_api_key))
+            client
+                .get_secret(self.primary_internal_api_key)
                 .await
                 .map_err(|error| {
                     error.attach_printable(
                         "internal_merchant_id_profile_id_auth.primary_internal_api_key",
                     )
-                })?;
-        }
+                })?
+        };
         if self.key_rotation_enabled && !legacy_key_configured {
             return Err(
                 error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
@@ -139,19 +140,26 @@ impl InternalMerchantIdProfileIdAuthSettings {
                     ),
             );
         }
-        if !self.key_rotation_enabled {
-            self.internal_api_key = None;
-        }
-        Ok(self)
+        let internal_api_key = if self.key_rotation_enabled {
+            self.internal_api_key
+        } else {
+            None
+        };
+        Ok(Self {
+            primary_internal_api_key,
+            internal_api_key,
+            ..self
+        })
     }
 
     pub fn accepts_api_key(&self, candidate: &str) -> bool {
         let primary_key = &self.primary_internal_api_key;
-        if primary_key.peek().is_empty() {
+        if primary_key.is_default_or_empty() {
             return false;
         }
         let matches = |key: &Secret<String>| {
-            !key.peek().is_empty() && bool::from(candidate.as_bytes().ct_eq(key.peek().as_bytes()))
+            !key.is_default_or_empty()
+                && bool::from(candidate.as_bytes().ct_eq(key.peek().as_bytes()))
         };
         matches(primary_key)
             || (self.key_rotation_enabled && self.internal_api_key.as_ref().is_some_and(matches))
@@ -159,7 +167,7 @@ impl InternalMerchantIdProfileIdAuthSettings {
 
     pub fn outbound_api_key(&self) -> CustomResult<Secret<String>, SecretsManagementError> {
         let primary_key = &self.primary_internal_api_key;
-        if primary_key.peek().is_empty() {
+        if primary_key.is_default_or_empty() {
             return Err(
                 error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
                     .attach_printable("Internal service primary API key is missing or empty"),
@@ -170,10 +178,12 @@ impl InternalMerchantIdProfileIdAuthSettings {
         } else {
             Some(primary_key)
         };
-        let key = key.filter(|key| !key.peek().is_empty()).ok_or_else(|| {
-            error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
-                .attach_printable("Internal service authentication key is missing or empty")
-        })?;
+        let key = key
+            .filter(|key| !key.is_default_or_empty())
+            .ok_or_else(|| {
+                error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
+                    .attach_printable("Internal service authentication key is missing or empty")
+            })?;
         Ok(key.clone())
     }
 }

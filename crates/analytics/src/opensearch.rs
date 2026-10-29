@@ -8,14 +8,13 @@ use api_models::{
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::{
     errors::{CustomResult, ErrorSwitch},
-    ext_traits::AsyncExt,
     types::TimeRange,
 };
 use error_stack::ResultExt;
 use hyperswitch_interfaces::secrets_interface::{
     SecretManagementInterface, SecretsManagementError,
 };
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::ExposeInterface;
 use opensearch::{
     auth::Credentials,
     cert::CertificateValidation,
@@ -44,7 +43,7 @@ mod recording;
 pub enum OpenSearchAuth {
     Basic {
         username: String,
-        primary_password: Option<Secret<String>>,
+        primary_password: String,
     },
     Aws {
         region: String,
@@ -96,7 +95,7 @@ impl Default for OpenSearchConfig {
             host: "https://localhost:9200".to_string(),
             auth: OpenSearchAuth::Basic {
                 username: "admin".to_string(),
-                primary_password: None,
+                primary_password: "admin".to_string(),
             },
             indexes: OpenSearchIndexes {
                 payment_attempts: "hyperswitch-payment-attempt-events".to_string(),
@@ -224,15 +223,7 @@ impl OpenSearchClient {
                 primary_password,
                 ..
             } => {
-                let password = primary_password
-                    .as_ref()
-                    .filter(|password| !password.peek().is_empty())
-                    .ok_or_else(|| {
-                        error_stack::Report::new(OpenSearchError::ConnectionError).attach_printable(
-                            "OpenSearch Basic auth primary_password is missing or empty",
-                        )
-                    })?;
-                let credentials = Credentials::Basic(username.clone(), password.peek().clone());
+                let credentials = Credentials::Basic(username.clone(), primary_password.clone());
                 TransportBuilder::new(SingleNodeConnectionPool::new(url))
                     .cert_validation(CertificateValidation::None)
                     .auth(credentials)
@@ -454,16 +445,11 @@ impl OpenSearchAuth {
                     ))
                 })?;
 
-                when(
-                    primary_password
-                        .as_ref()
-                        .is_none_or(|value| value.peek().is_empty()),
-                    || {
-                        Err(ApplicationError::InvalidConfigurationValueError(
-                            "Opensearch Basic auth password must not be empty".into(),
-                        ))
-                    },
-                )?;
+                when(primary_password.is_default_or_empty(), || {
+                    Err(ApplicationError::InvalidConfigurationValueError(
+                        "Opensearch Basic auth password must not be empty".into(),
+                    ))
+                })?;
             }
 
             Self::Aws { region } => {
@@ -481,28 +467,27 @@ impl OpenSearchAuth {
 
 impl OpenSearchConfig {
     pub async fn decrypt_credentials(
-        mut self,
+        self,
         client: &dyn SecretManagementInterface,
     ) -> CustomResult<Self, SecretsManagementError> {
         if !self.enabled {
             return Ok(self);
         }
-        if let OpenSearchAuth::Basic {
-            primary_password, ..
-        } = &mut self.auth
-        {
-            *primary_password = primary_password
-                .take()
-                .async_map(|secret| async move {
-                    client
-                        .get_secret(secret)
-                        .await
-                        .map_err(|error| error.attach_printable("opensearch.auth.primary_password"))
-                })
-                .await
-                .transpose()?;
-        }
-        Ok(self)
+        let auth = match self.auth {
+            OpenSearchAuth::Basic {
+                username,
+                primary_password,
+            } => OpenSearchAuth::Basic {
+                username,
+                primary_password: client
+                    .get_secret(primary_password.into())
+                    .await
+                    .map_err(|error| error.attach_printable("opensearch.auth.primary_password"))?
+                    .expose(),
+            },
+            auth @ OpenSearchAuth::Aws { .. } => auth,
+        };
+        Ok(Self { auth, ..self })
     }
 
     pub async fn get_opensearch_client(&self) -> StorageResult<Option<OpenSearchClient>> {

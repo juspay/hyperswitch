@@ -74,6 +74,7 @@ impl SecretsManagementConfig {
     /// Retrieves the appropriate secret management client based on the configuration.
     pub async fn get_secret_management_client(
         &self,
+        _encryption_management: &super::encryption_management::EncryptionManagementConfig,
     ) -> CustomResult<Box<dyn SecretManagementInterface>, SecretsManagementError> {
         match self {
             #[cfg(feature = "aws_kms")]
@@ -87,7 +88,7 @@ impl SecretsManagementConfig {
                 .map(|inner| -> Box<dyn SecretManagementInterface> { Box::new(inner) }),
             #[cfg(feature = "hashicorp-vault")]
             Self::HashiCorpVault { hc_vault } => {
-                hashicorp_vault::core::HashiCorpVault::new(hc_vault)
+                hashicorp_vault::core::HashiCorpVault::new(hc_vault, _encryption_management)
                     .await
                     .change_context(SecretsManagementError::ClientCreationFailed)
                     .attach_printable("Failed to initialize HashiCorp Vault with a decrypted token")

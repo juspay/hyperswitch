@@ -32,10 +32,9 @@ pub async fn fetch_raw_secrets(
     conf: Settings<SecuredSecret>,
     secret_management_client: &dyn SecretManagementInterface,
 ) -> CustomResult<Settings<RawSecret>, SecretsManagementError> {
-    let mut redis = conf.redis;
-    redis.primary_password = redis
+    let redis = conf.redis;
+    let primary_password = redis
         .primary_password
-        .take()
         .async_map(|secret| async move {
             secret_management_client
                 .get_secret(secret)
@@ -44,6 +43,10 @@ pub async fn fetch_raw_secrets(
         })
         .await
         .transpose()?;
+    let redis = redis_interface::RedisSettings {
+        primary_password,
+        ..redis
+    };
     #[allow(clippy::expect_used)]
     let database = Database::convert_to_raw_secret(conf.master_database, secret_management_client)
         .await

@@ -29,8 +29,6 @@ pub struct HashiCorpVaultConfig {
     pub url: String,
     /// The authentication token used to access HashiCorp Vault.
     pub encrypted_token: Secret<String>,
-    #[allow(missing_docs)]
-    pub token_kms: EncryptionManagementConfig,
 }
 
 impl HashiCorpVaultConfig {
@@ -43,20 +41,28 @@ impl HashiCorpVaultConfig {
         when(self.encrypted_token.is_default_or_empty(), || {
             Err("HashiCorp vault encrypted_token must not be empty")
         })?;
-        when(
-            matches!(self.token_kms, EncryptionManagementConfig::NoEncryption),
-            || Err("HashiCorp vault token_kms must select a KMS backend"),
-        )?;
-        self.token_kms.validate()
+        Ok(())
     }
 
     async fn initialize_kms(
         &self,
+        encryption_management: &EncryptionManagementConfig,
     ) -> error_stack::Result<Arc<dyn EncryptionManagementInterface>, HashiCorpError> {
         self.validate().map_err(|message| {
             Report::new(HashiCorpError::ConfigurationBuildFailed).attach_printable(message)
         })?;
-        self.token_kms
+        when(
+            matches!(
+                encryption_management,
+                EncryptionManagementConfig::NoEncryption
+            ),
+            || Err("Vault bootstrap requires an encryption_management KMS backend"),
+        )
+        .and_then(|()| encryption_management.validate())
+        .map_err(|message| {
+            Report::new(HashiCorpError::ConfigurationBuildFailed).attach_printable(message)
+        })?;
+        encryption_management
             .get_encryption_management_client()
             .await
             .change_context(HashiCorpError::ClientCreationFailed)
@@ -77,7 +83,7 @@ async fn decrypt_vault_token(
         Report::new(SecretsManagementError::FetchSecretFailed)
             .attach_printable("Decrypted credential must be UTF-8")
     })?;
-    if plaintext.is_empty() {
+    if plaintext.is_default_or_empty() {
         return Err(Report::new(SecretsManagementError::FetchSecretFailed)
             .attach_printable("Decrypted credential must not be empty"));
     }
@@ -91,9 +97,10 @@ async fn decrypt_vault_token(
 /// - `config`: A reference to a `HashiCorpVaultConfig` containing the configuration details.
 pub async fn get_hashicorp_client(
     config: &HashiCorpVaultConfig,
+    encryption_management: &EncryptionManagementConfig,
 ) -> error_stack::Result<&'static HashiCorpVault, HashiCorpError> {
     HC_CLIENT
-        .get_or_try_init(|| async { HashiCorpVault::new(config).await })
+        .get_or_try_init(|| async { HashiCorpVault::new(config, encryption_management).await })
         .await
 }
 
@@ -148,8 +155,11 @@ impl HashiCorpVault {
     /// # Parameters
     ///
     /// - `config`: A reference to a `HashiCorpVaultConfig` containing the configuration details.
-    pub async fn new(config: &HashiCorpVaultConfig) -> error_stack::Result<Self, HashiCorpError> {
-        let kms = config.initialize_kms().await?;
+    pub async fn new(
+        config: &HashiCorpVaultConfig,
+        encryption_management: &EncryptionManagementConfig,
+    ) -> error_stack::Result<Self, HashiCorpError> {
+        let kms = config.initialize_kms(encryption_management).await?;
         let token = decrypt_vault_token(kms.as_ref(), &config.encrypted_token)
             .await
             .change_context(HashiCorpError::ClientCreationFailed)
