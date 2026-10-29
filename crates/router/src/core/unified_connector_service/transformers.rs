@@ -3688,8 +3688,7 @@ impl
             mit_category: router_data
                 .request
                 .mit_category
-                .map(payments_grpc::MitCategory::foreign_from)
-                .map(|mit_category| mit_category.into()),
+                .map(|mit_category| payments_grpc::MitCategory::foreign_from(mit_category).into()),
             shipping_cost: router_data
                 .request
                 .shipping_cost
@@ -8347,6 +8346,7 @@ impl ForeignFrom<common_enums::MitCategory> for payments_grpc::MitCategory {
         match mit_category {
             common_enums::MitCategory::Installment => Self::InstallmentMit,
             common_enums::MitCategory::Recurring => Self::RecurringMit,
+            common_enums::MitCategory::Subscription => Self::SubscriptionMit,
             common_enums::MitCategory::Resubmission => Self::ResubmissionMit,
             common_enums::MitCategory::Unscheduled => Self::UnscheduledMit,
         }
@@ -10966,38 +10966,45 @@ impl transformers::ForeignTryFrom<payments_grpc::SurchargeServiceCalculateRespon
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(grpc_response.status_code)?;
 
-        if let Some(error_info) = grpc_response.error.as_ref() {
-            return Ok(Err(build_ucs_connector_error_response(
+        match grpc_response.error.as_ref() {
+            Some(error_info) => Ok(Err(build_ucs_connector_error_response(
                 error_info,
                 status_code,
-                grpc_response.connector_surcharge_id.clone(),
-            )));
+                grpc_response.connector_surcharge_id.clone().or_else(|| {
+                    error_info
+                        .connector_details
+                        .as_ref()
+                        .and_then(|details| details.connector_transaction_id.clone())
+                }),
+            ))),
+            None => {
+                let surcharge_amount = grpc_response
+                    .surcharge_amount
+                    .map(|money| MinorUnit::new(money.minor_amount))
+                    .unwrap_or_else(MinorUnit::zero);
+
+                let external_surcharge_transaction_id = grpc_response
+                    .connector_surcharge_id
+                    .unwrap_or_else(|| common_types::consts::NO_SURCHARGE_ID_FOUND.to_string());
+
+                let surcharge_fee_percent = grpc_response
+                    .surcharge_percentage
+                    .map(|percent| {
+                        types::Percentage::<2>::from_string(percent.to_string())
+                            .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                            .attach_printable("Failed to parse surcharge percentage")
+                    })
+                    .transpose()?;
+
+                Ok(Ok(SurchargeCalculationResponseData {
+                    surcharge_amount,
+                    connector_surcharge_id: external_surcharge_transaction_id,
+                    surcharge_fee_percent,
+                    error_code: None,
+                    error_message: None,
+                }))
+            }
         }
-
-        let surcharge_amount = grpc_response
-            .surcharge_amount
-            .map(|money| MinorUnit::new(money.minor_amount))
-            .unwrap_or_else(MinorUnit::zero);
-
-        let external_surcharge_transaction_id =
-            grpc_response.connector_surcharge_id.unwrap_or_default();
-
-        let surcharge_fee_percent = grpc_response
-            .surcharge_percentage
-            .map(|percent| {
-                types::Percentage::<2>::from_string(percent.to_string())
-                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
-                    .attach_printable("Failed to parse surcharge percentage")
-            })
-            .transpose()?;
-
-        Ok(Ok(SurchargeCalculationResponseData {
-            surcharge_amount,
-            connector_surcharge_id: external_surcharge_transaction_id,
-            surcharge_fee_percent,
-            error_code: None,
-            error_message: None,
-        }))
     }
 }
 

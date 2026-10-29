@@ -238,6 +238,7 @@ where
             .switch()
         })?;
     session_state.add_request_id(request_id.clone());
+    session_state.start_read_ledger(flow.to_string());
     let mut request_state = session_state.get_req_state();
 
     request_state.event_context.record_info(request_id.clone());

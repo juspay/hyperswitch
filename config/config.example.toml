@@ -681,6 +681,7 @@ totp_issuer_name = "Hyperswitch"     # Name of the issuer for TOTP
 base_url = ""                        # Base url used for user specific redirects and emails
 force_two_factor_auth = false        # Whether to force two factor authentication for all users
 force_cookies = false                # Whether to use only cookies for JWT extraction and authentication
+# idle_session_timeout_in_secs = 900 # When set, signs Dashboard users out after this many seconds without a request
 
 [oidc.key.k1]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
@@ -778,8 +779,8 @@ bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 network_token.network_token.connector_list = "peachpayments"
 
 [mandates.supported_payment_methods]
-card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie.airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,elavon_pg"
-card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,elavon_pg"
+card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,worldpayraft,elavon_pg"
+card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,worldpayraft,elavon_pg"
 wallet.paypal = { connector_list = "adyen,novalnet" }                                          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = { connector_list = "adyen" }                                       # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless,adyen" }                              # Mandate supported payment method type and connector for bank_debit
@@ -1572,7 +1573,7 @@ fetch_altid_url= ""           # base url to fetch Alt-ID and cryptogram for gues
 connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,elavon_pg" # Supported connectors for network transaction id
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft,elavon_pg" # Supported connectors for network transaction id
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
@@ -1701,8 +1702,8 @@ endpoint = "http://superposition:8080"          # Superposition service endpoint
 token = "your_superposition_token"              # Superposition token
 org_id = "your_org_id"                          # Organization ID in Superposition
 workspace_id = "your_workspace_id"              # Workspace ID in Superposition
-polling_interval = 15                           # Polling interval in seconds for configuration updates
-request_timeout =  60                           # Request timeout in seconds for Superposition API calls (optional, default: none)
+polling_interval_milliseconds = 15000           # Polling interval in milliseconds for configuration updates
+request_timeout_milliseconds = 60000            # Request timeout in milliseconds for Superposition API calls (optional, default: none)
 backup_file_path = "./config/superposition_seed.toml" # Path to a local file for fallback configuration. Used when the Superposition HTTP service is unavailable. If set, the client will fall back to reading configuration from this file instead of failing completely. This ensures graceful degradation during network outages or service disruptions.
 
 [offer_engine]

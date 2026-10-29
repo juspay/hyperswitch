@@ -1338,7 +1338,7 @@ impl
     }
 }
 
-/// Surcharge calculated during /eligibility and cached for /confirm to consume.
+/// Surcharge result from /eligibility, including connector errors, cached for /confirm.
 /// The payment_method / payment_method_type carried here are the ones the surcharge
 /// was calculated against; /confirm must match them before applying.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1349,6 +1349,7 @@ pub struct ExternalSurchargeDetails {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub external_surcharge_id: String,
     pub surcharge_percentage: Option<f64>,
+    pub error_details: Option<common_types::payments::SurchargeErrorDetails>,
 }
 
 impl ExternalSurchargeDetails {
