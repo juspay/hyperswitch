@@ -26,21 +26,30 @@ use crate::{
     CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
 
-/// Cache key for a profile, scoped to the merchant that owns it.
+/// Cache key for a profile.
 ///
-/// Profile IDs are globally unique, but including the merchant ID is required for authorization:
-/// a merchant-scoped lookup must never be satisfied by an entry populated through another
-/// merchant's lookup.
+/// Profile IDs are globally unique, so ownership is validated on the cached row instead of being
+/// encoded in this key. Keeping the established key format makes cache reads and invalidations
+/// compatible across a rolling deployment.
 #[cfg(feature = "accounts_cache")]
-fn profile_cache_key(
-    merchant_id: &common_utils::id_type::MerchantId,
+fn profile_cache_key(profile_id: &common_utils::id_type::ProfileId) -> String {
+    format!("business_profile_{}", profile_id.get_string_repr())
+}
+
+#[cfg(feature = "accounts_cache")]
+fn validate_cached_profile_ownership(
+    cached_merchant_id: &common_utils::id_type::MerchantId,
+    expected_merchant_id: &common_utils::id_type::MerchantId,
     profile_id: &common_utils::id_type::ProfileId,
-) -> String {
-    format!(
-        "business_profile_{}_{}",
-        merchant_id.get_string_repr(),
-        profile_id.get_string_repr()
-    )
+) -> CustomResult<(), StorageError> {
+    (cached_merchant_id == expected_merchant_id)
+        .then_some(())
+        .ok_or_else(|| {
+            report!(StorageError::ValueNotFound(format!(
+                "No business profile found for merchant_id = {expected_merchant_id:?} and \
+                 profile_id = {profile_id:?}"
+            )))
+        })
 }
 
 /// Invalidates the cached profile on a best-effort basis.
@@ -52,16 +61,13 @@ fn profile_cache_key(
 #[cfg(feature = "accounts_cache")]
 async fn publish_and_redact_business_profile_cache<S>(
     store: &S,
-    merchant_id: &common_utils::id_type::MerchantId,
     profile_id: &common_utils::id_type::ProfileId,
 ) where
     S: RedisConnInterface + CacheInterface + Send + Sync + ?Sized,
 {
     let redaction_result = cache::redact_from_redis_and_publish(
         store,
-        [CacheKind::Accounts(
-            profile_cache_key(merchant_id, profile_id).into(),
-        )],
+        [CacheKind::Accounts(profile_cache_key(profile_id).into())],
     )
     .await;
 
@@ -234,20 +240,28 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            Box::pin(cache::get_or_populate_in_memory_redis(
+            let profile = Box::pin(cache::get_or_populate_in_memory_redis(
                 self,
-                &profile_cache_key(&merchant_key_store.merchant_id, profile_id),
+                &profile_cache_key(profile_id),
                 fetch_func(),
                 CacheId::Accounts,
             ))
-            .await?
-            .convert(
-                state,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(StorageError::DecryptionError)
+            .await?;
+
+            validate_cached_profile_ownership(
+                &profile.merchant_id,
+                &merchant_key_store.merchant_id,
+                profile_id,
+            )?;
+
+            profile
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)
         }
     }
 
@@ -282,20 +296,24 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            Box::pin(cache::get_or_populate_in_memory_redis(
+            let profile = Box::pin(cache::get_or_populate_in_memory_redis(
                 self,
-                &profile_cache_key(merchant_id, profile_id),
+                &profile_cache_key(profile_id),
                 fetch_func(),
                 CacheId::Accounts,
             ))
-            .await?
-            .convert(
-                state,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(StorageError::DecryptionError)
+            .await?;
+
+            validate_cached_profile_ownership(&profile.merchant_id, merchant_id, profile_id)?;
+
+            profile
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)
         }
     }
 
@@ -332,12 +350,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         .map_err(|error| report!(StorageError::from(error)))?;
 
         #[cfg(feature = "accounts_cache")]
-        publish_and_redact_business_profile_cache(
-            self,
-            &updated_profile.merchant_id,
-            updated_profile.get_id(),
-        )
-        .await;
+        publish_and_redact_business_profile_cache(self, updated_profile.get_id()).await;
 
         updated_profile
             .convert(
@@ -363,7 +376,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
                 .map_err(|error| report!(StorageError::from(error)))?;
 
         #[cfg(feature = "accounts_cache")]
-        publish_and_redact_business_profile_cache(self, merchant_id, profile_id).await;
+        publish_and_redact_business_profile_cache(self, profile_id).await;
 
         Ok(is_deleted)
     }
