@@ -1283,26 +1283,14 @@ pub async fn validate_and_create_refund(
             .map(|created_by| created_by.to_string()),
     };
 
-    let (refund, raw_connector_response) = match db
+    let refund = match db
         .insert_refund(
             refund_create_req,
             platform.get_processor().get_account().storage_scheme,
         )
         .await
     {
-        Ok(refund) => {
-            Box::pin(schedule_refund_execution(
-                state,
-                refund.clone(),
-                refund_type,
-                platform.get_processor(),
-                payment_attempt,
-                payment_intent,
-                merchant_connector_details,
-                req.return_raw_connector_response,
-            ))
-            .await?
-        }
+        Ok(refund) => refund,
         Err(err) => {
             if err.current_context().is_db_unique_violation() {
                 Err(errors::ApiErrorResponse::DuplicateRefundRequest)?
@@ -1313,6 +1301,17 @@ pub async fn validate_and_create_refund(
             }
         }
     };
+    let (refund, raw_connector_response) = Box::pin(schedule_refund_execution(
+        state,
+        refund,
+        refund_type,
+        platform.get_processor(),
+        payment_attempt,
+        payment_intent,
+        merchant_connector_details,
+        req.return_raw_connector_response,
+    ))
+    .await?;
 
     let unified_translated_message =
         match (refund.unified_code.clone(), refund.unified_message.clone()) {

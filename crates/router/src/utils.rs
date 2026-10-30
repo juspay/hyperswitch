@@ -1437,6 +1437,17 @@ pub async fn trigger_refund_outgoing_webhook(
     todo!()
 }
 
+/// Checks that a resource fetched by id alone belongs to the authenticated merchant and profile
+#[cfg(feature = "v2")]
+pub fn is_owned_by_merchant_and_profile(
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+) -> bool {
+    merchant_id == platform.get_processor().get_account().get_id() && profile_id == profile.get_id()
+}
+
 pub fn get_locale_from_header(headers: &actix_web::http::header::HeaderMap) -> String {
     get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)
         .ok()
