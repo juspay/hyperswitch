@@ -432,10 +432,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             ),
         ))
         .await?;
-        if payment_intent.profile_id.as_ref() != Some(profile_id) {
-            return Err(StorageError::ValueNotFound("PaymentIntent not found".to_owned()).into());
+        if payment_intent.profile_id.as_ref() == Some(profile_id) {
+            Ok(payment_intent)
+        } else {
+            Err(StorageError::ValueNotFound("PaymentIntent not found".to_owned()).into())
         }
-        Ok(payment_intent)
     }
 
     #[cfg(feature = "v2")]
