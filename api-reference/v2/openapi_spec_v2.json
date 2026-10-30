@@ -19287,6 +19287,14 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantAccountType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19637,6 +19645,14 @@
             "nullable": true
           }
         }
+      },
+      "MerchantAccountType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "platform",
+          "connected"
+        ]
       },
       "MerchantAccountUpdate": {
         "type": "object",

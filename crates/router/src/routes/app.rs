@@ -2128,6 +2128,10 @@ impl Organization {
                     .service(
                         web::resource("/merchant-accounts")
                             .route(web::get().to(admin::merchant_account_list)),
+                    )
+                    .service(
+                        web::resource("/convert-to-platform")
+                            .route(web::post().to(admin::convert_organization_to_platform)),
                     ),
             )
     }
