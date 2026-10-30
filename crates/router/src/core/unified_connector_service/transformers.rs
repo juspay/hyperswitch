@@ -758,7 +758,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            integrity_specifications: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -1551,9 +1550,6 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
             .transpose()?;
 
         Ok(Self {
-            integrity_specifications: None,
-            is_overcapture_enabled: None,
-            enable_partial_authorization: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -2500,10 +2496,6 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
         let currency_conversion_data = convert_operation_currency_conversion_data(settlement)?;
 
         Ok(Self {
-            payment_method: None,
-            integrity_specifications: None,
-            is_overcapture_enabled: None,
-            currency_conversion_data: None,
             split_settlement: None,
             payment_method,
             connector_transaction_id,
@@ -3525,8 +3517,6 @@ impl
         };
 
         Ok(Self {
-            integrity_specifications: None,
-            currency_conversion_data: None,
             merchant_charge_id: Some(router_data.connector_request_reference_id.clone()),
             connector_recurring_payment_id,
             payment_method,
@@ -3813,8 +3803,6 @@ impl
         )?;
 
         Ok(Self {
-            integrity_specifications: None,
-            currency_conversion_data: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -4095,7 +4083,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            payment_method: None,
             test_mode: router_data.test_mode,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.total_amount,
@@ -8842,7 +8829,6 @@ impl
         let currency_conversion_data = convert_operation_currency_conversion_data(settlement)?;
 
         Ok(Self {
-            currency_conversion_data: None,
             split_settlement_refund: None,
             split_refunds: router_data
                 .request
@@ -9163,7 +9149,6 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             .transpose()?;
 
         Ok(Self {
-            payment_method: None,
             merchant_void_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             cancellation_reason: router_data.request.cancellation_reason.clone(),
@@ -9223,7 +9208,6 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            payment_method: None,
             merchant_void_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             split_payments: None,
