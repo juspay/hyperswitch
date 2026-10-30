@@ -27,6 +27,18 @@ use crate::{
     types::{api::payouts as payout_types, transformers::ForeignTryFrom},
 };
 
+#[cfg(feature = "v1")]
+fn get_authenticated_profile_id(auth: &auth::AuthenticationData) -> Option<id_type::ProfileId> {
+    auth.profile
+        .as_ref()
+        .map(|profile| profile.get_id().clone())
+}
+
+#[cfg(feature = "v2")]
+fn get_authenticated_profile_id(auth: &auth::AuthenticationData) -> Option<id_type::ProfileId> {
+    Some(auth.profile.get_id().clone())
+}
+
 /// Payouts - Create
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]
@@ -153,7 +165,14 @@ pub async fn payouts_update(
         &req,
         payout_update_payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_update_core(state, auth.platform, req, header_payload.clone())
+            let profile_id = get_authenticated_profile_id(&auth);
+            payouts_update_core(
+                state,
+                auth.platform,
+                profile_id,
+                req,
+                header_payload.clone(),
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
@@ -217,12 +236,20 @@ pub async fn payouts_confirm(
         &req,
         payload,
         |state, auth, mut req, _| {
+            let profile_id = get_authenticated_profile_id(&auth);
+
             #[cfg(feature = "v1")]
             if let Some(client_secret) = auth.client_secret {
                 req.client_secret = Some(client_secret);
             }
 
-            payouts_confirm_core(state, auth.platform, req, header_payload.clone())
+            payouts_confirm_core(
+                state,
+                auth.platform,
+                profile_id,
+                req,
+                header_payload.clone(),
+            )
         },
         &*auth_type,
         locking_action,
@@ -280,7 +307,14 @@ pub async fn payouts_cancel(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_cancel_core(state, auth.platform, header_payload.clone(), req)
+            let profile_id = get_authenticated_profile_id(&auth);
+            payouts_cancel_core(
+                state,
+                auth.platform,
+                profile_id,
+                header_payload.clone(),
+                req,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
@@ -314,7 +348,14 @@ pub async fn payouts_fulfill(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_fulfill_core(state, auth.platform, header_payload.clone(), req)
+            let profile_id = get_authenticated_profile_id(&auth);
+            payouts_fulfill_core(
+                state,
+                auth.platform,
+                profile_id,
+                header_payload.clone(),
+                req,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
