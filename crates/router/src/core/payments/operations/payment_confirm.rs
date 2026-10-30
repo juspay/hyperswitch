@@ -596,21 +596,32 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let n_payment_method_billing_address_id =
             payment_attempt.payment_method_billing_address_id.clone();
 
+        let use_saved_pm_billing = helpers::should_use_saved_payment_method_billing(
+            state,
+            dimensions,
+            platform.get_processor().get_account().get_id(),
+            request.billing.is_some() || payment_intent.billing_address_id.is_some(),
+        )
+        .await;
+
         let n_request_payment_method_billing_address = request
             .payment_method_data
             .as_ref()
             .and_then(|pmd| pmd.billing.clone())
-            .or(payment_method_with_raw_data.clone().and_then(|pm| {
-                pm.payment_method
-                    .payment_method_billing_address
-                    .clone()
-                    .map(|decrypted_data| decrypted_data.into_inner().expose())
-                    .and_then(|decrypted_value| {
-                        decrypted_value
-                            .parse_value("payment method billing address")
-                            .ok()
-                    })
-            }));
+            .or(payment_method_with_raw_data
+                .clone()
+                .filter(|_| use_saved_pm_billing)
+                .and_then(|pm| {
+                    pm.payment_method
+                        .payment_method_billing_address
+                        .clone()
+                        .map(|decrypted_data| decrypted_data.into_inner().expose())
+                        .and_then(|decrypted_value| {
+                            decrypted_value
+                                .parse_value("payment method billing address")
+                                .ok()
+                        })
+                }));
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
         let m_key_store = platform.get_processor().get_key_store().clone();
@@ -852,18 +863,21 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 payment_method_data_billing.get_billing_address()
             })
             .map(From::from);
-        let pm_pmd_billing = payment_method_info.as_ref().and_then(|pm| {
-            pm.payment_method_billing_address
-                .clone()
-                .map(|decrypted_data| decrypted_data.into_inner().expose())
-                .and_then(|decrypted_value| {
-                    decrypted_value
-                        .parse_value::<hyperswitch_domain_models::address::Address>(
-                            "payment method billing address",
-                        )
-                        .ok()
-                })
-        });
+        let pm_pmd_billing = payment_method_info
+            .as_ref()
+            .filter(|_| use_saved_pm_billing)
+            .and_then(|pm| {
+                pm.payment_method_billing_address
+                    .clone()
+                    .map(|decrypted_data| decrypted_data.into_inner().expose())
+                    .and_then(|decrypted_value| {
+                        decrypted_value
+                            .parse_value::<hyperswitch_domain_models::address::Address>(
+                                "payment method billing address",
+                            )
+                            .ok()
+                    })
+            });
 
         // billing address from request body has the highest priority followed by billing address from raw pm data and then billing address from payment_attempt
         let pmd_address = payment_method_data_billing.or(pm_pmd_billing);

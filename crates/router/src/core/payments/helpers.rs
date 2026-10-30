@@ -132,6 +132,26 @@ use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 #[cfg(feature = "v1")]
 use crate::{core::utils::create_encrypted_data, types::storage::CustomerUpdate::Update};
 
+/// Whether the billing stored on a saved payment method should be used for this payment.
+/// When the merchant is configured to prefer the request's billing, a top-level billing in the
+/// payment overrides the saved payment method's billing.
+#[cfg(feature = "v1")]
+pub async fn should_use_saved_payment_method_billing(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    merchant_id: &id_type::MerchantId,
+    has_request_billing: bool,
+) -> bool {
+    !has_request_billing
+        || !dimensions
+            .get_should_prefer_request_billing_over_saved_pm_billing(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                Some(merchant_id),
+            )
+            .await
+}
+
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_or_update_address_for_payment_by_request(
