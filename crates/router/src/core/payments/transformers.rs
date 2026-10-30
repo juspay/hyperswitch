@@ -6321,6 +6321,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPo
             connector_meta: payment_data.payment_attempt.connector_metadata,
             payment_method_data: payment_data.payment_method_data.clone(),
             mandate_id: payment_data.mandate_id.clone(),
+            capture_method: payment_data.payment_attempt.capture_method,
         })
     }
 }

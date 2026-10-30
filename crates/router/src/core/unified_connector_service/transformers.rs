@@ -552,6 +552,7 @@ impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::Addre
             state: details.state.clone(),
             zip_code: details.zip.clone(),
             country_alpha2_code,
+            origin_zip: None,
             email: None,
             phone_number: None,
             phone_country_code: None,
@@ -5867,6 +5868,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::address::Address>
             state: details.and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
             zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
             country_alpha2_code: country,
+            origin_zip: None,
             email: address.email.as_ref().map(|e| e.peek().to_string().into()),
             phone_number: address
                 .phone
@@ -9264,6 +9266,26 @@ impl
             })
             .transpose()?;
 
+        let payment_method = router_data
+            .request
+            .payment_method_data
+            .clone()
+            .map(|payment_method_data| {
+                unified_connector_service::build_unified_connector_service_payment_method(
+                    payment_method_data,
+                    router_data.payment_method_type,
+                    router_data.payment_method_token.as_ref(),
+                    router_data.connector_meta_data.as_ref(),
+                )
+            })
+            .transpose()?;
+
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_reverse_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
@@ -9282,6 +9304,8 @@ impl
             merchant_request_id: None,
             test_mode: router_data.test_mode,
             amount,
+            payment_method,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
 }
