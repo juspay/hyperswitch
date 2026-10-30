@@ -23,7 +23,7 @@ use crate::{
     core::errors::{StorageError, UserErrors, UserResult},
     routes::SessionState,
     services::{
-        authentication::{AuthToken, UserFromToken},
+        authentication::{blacklist, AuthToken, UserFromToken},
         authorization::roles::RoleInfo,
     },
     types::{
@@ -148,6 +148,17 @@ pub fn get_redis_connection_for_global_tenant(
         .get_redis_conn()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get redis connection")
+}
+
+/// Clears the user's recent 2FA verification state and blacklists every token
+/// issued to them so far. Used by signout and when a Dashboard session expires
+/// from inactivity.
+pub async fn end_user_sessions(state: &SessionState, user_id: &str) -> UserResult<()> {
+    two_factor_auth::delete_totp_from_redis(state, user_id).await?;
+    two_factor_auth::delete_recovery_code_from_redis(state, user_id).await?;
+    two_factor_auth::delete_totp_secret_from_redis(state, user_id).await?;
+
+    blacklist::insert_user_in_blacklist(state, user_id).await
 }
 
 impl ForeignFrom<&user_api::AuthConfig> for UserAuthType {

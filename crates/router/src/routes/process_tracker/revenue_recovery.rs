@@ -24,9 +24,11 @@ pub async fn revenue_recovery_pt_retrieve_api(
         state,
         &req,
         payload,
-        |state, _: (), id, _| {
+        |state, auth: auth::AuthenticationData, id, _| {
             revenue_recovery::retrieve_revenue_recovery_process_tracker(
                 state,
+                auth.platform,
+                auth.profile,
                 id.revenue_recovery_id,
             )
         },

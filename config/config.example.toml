@@ -122,7 +122,7 @@ tcp_user_timeout_ms = 5000 # Unacked-data timeout (ms); keep below connection_ti
 host = "127.0.0.1"
 port = 6379
 # username = "default"            # Optional ACL username for authenticated Redis (Redis 6+ / Redis Cloud); requires `password`
-# password = ""                   # Optional password for authenticated Redis (AUTH); leave unset for unauthenticated Redis
+# primary_password = ""                   # Optional password for authenticated Redis (AUTH); leave unset for unauthenticated Redis
 # tls_enabled = true              # Connect over TLS (`rediss://`); the server certificate is verified against the platform's trusted CA roots
 # tls_ca_certificate_path = "/path/to/redis_ca.pem"    # When set, the server certificate is verified against the CA certificate(s) in this PEM file; when unset, against the platform's trusted CA roots
 pool_size = 5                     # Number of connections to keep open
@@ -384,6 +384,7 @@ dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 dwolla.base_url = "https://api-sandbox.dwolla.com"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
+ecommpay.base_url = "https://api.ecommpay.com/"
 elavon.base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
 # Elavon Payment Gateway (EPG), Elavon's JSON REST gateway. Distinct from the
 # `elavon` entry above, which is Elavon Converge (an XML API).
@@ -680,6 +681,7 @@ totp_issuer_name = "Hyperswitch"     # Name of the issuer for TOTP
 base_url = ""                        # Base url used for user specific redirects and emails
 force_two_factor_auth = false        # Whether to force two factor authentication for all users
 force_cookies = false                # Whether to use only cookies for JWT extraction and authentication
+# idle_session_timeout_in_secs = 900 # When set, signs Dashboard users out after this many seconds without a request
 
 [oidc.key.k1]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
@@ -777,8 +779,8 @@ bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 network_token.network_token.connector_list = "peachpayments"
 
 [mandates.supported_payment_methods]
-card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie.airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan"
-card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan"
+card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,worldpayraft"
+card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,worldpayraft"
 wallet.paypal = { connector_list = "adyen,novalnet" }                                          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = { connector_list = "adyen" }                                       # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless,adyen" }                              # Mandate supported payment method type and connector for bank_debit
@@ -793,7 +795,7 @@ wallet.google_pay = { connector_list = "bankofamerica,authorizedotnet,novalnet,w
 bank_redirect.giropay = { connector_list = "globalpay" }
 bank_transfer.pix_automatico_push = { connector_list = "santander" }
 bank_transfer.pix_automatico_qr = { connector_list = "santander" }
-network_token.network_token.connector_list = "peachpayments"
+network_token.network_token.connector_list = "peachpayments,worldpayraft"
 
 
 [mandates.update_mandate_supported]
@@ -1372,7 +1374,7 @@ forex_enabled = false # Enable or disable forex conversion for analytics
 
 [analytics.clickhouse]
 username = ""      # Clickhouse username
-password = ""      # Clickhouse password (optional)
+primary_password = ""      # Clickhouse password (optional)
 host = ""          # Clickhouse host in http(s)://<URL>:<PORT> format
 database_name = "" # Clickhouse database name
 
@@ -1507,7 +1509,7 @@ enabled = false
 [opensearch.auth]
 auth = "basic"
 username = "admin"
-password = "admin"
+primary_password = "admin"
 region = "eu-central-1"
 
 [opensearch.indexes]
@@ -1571,7 +1573,7 @@ fetch_altid_url= ""           # base url to fetch Alt-ID and cryptogram for gues
 connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan" # Supported connectors for network transaction id
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft" # Supported connectors for network transaction id
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
@@ -1611,7 +1613,7 @@ request_timeout = 35                    # Per-RPC Request Timeout in Seconds
 keep_alive_interval = 30                # HTTP/2 PING keepalive interval in Seconds on the shared channel
 keep_alive_timeout = 20                 # Time in Seconds to wait for a keepalive PING acknowledgement before the connection is treated as dead
 tcp_keepalive = 60                      # TCP keepalive idle time in Seconds on the shared channel
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer, globalpayments_realex"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer, globalpayments_realex, ecommpay"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url
@@ -1627,7 +1629,6 @@ billing_connectors_which_require_invoice_record_back_call = "chargebee,stripebil
 billing_connectors_which_requires_dispute_record_back_call = "chargebee" # List of billing connectors which support the dispute record back api call
 
 [revenue_recovery]
-monitoring_threshold_in_seconds = 60  # 60 secs , threshold for monitoring the retry system
 retry_algorithm_type = "cascading"  # type of retry algorithm
 redis_ttl_in_seconds=3888000  # ttl for redis for storing payment processor token details
 default_retry_hour_utc = 12  # fallback hour-of-day (UTC, 0-23) the retry model schedules at when a cluster has no hour-of-day history
@@ -1689,8 +1690,10 @@ connector_list = "worldpayvantiv"
 
 # Authentication to communicate between internal services using common_api_key, merchant id and profile id
 [internal_merchant_id_profile_id_auth]
+primary_internal_api_key = ""
+key_rotation_enabled = false
+use_legacy_key_for_outbound = false
 enabled = false # Enable or disable internal api key, merchant id and profile id based authentication
-internal_api_key = "test_internal_api_key" # API key for internal merchant id and profile id based authentication
 
 [internal_services] # Internal services base urls and configs
 payments_base_url = "http://localhost:8080"
@@ -1700,8 +1703,8 @@ endpoint = "http://superposition:8080"          # Superposition service endpoint
 token = "your_superposition_token"              # Superposition token
 org_id = "your_org_id"                          # Organization ID in Superposition
 workspace_id = "your_workspace_id"              # Workspace ID in Superposition
-polling_interval = 15                           # Polling interval in seconds for configuration updates
-request_timeout =  60                           # Request timeout in seconds for Superposition API calls (optional, default: none)
+polling_interval_milliseconds = 15000           # Polling interval in milliseconds for configuration updates
+request_timeout_milliseconds = 60000            # Request timeout in milliseconds for Superposition API calls (optional, default: none)
 backup_file_path = "./config/superposition_seed.toml" # Path to a local file for fallback configuration. Used when the Superposition HTTP service is unavailable. If set, the client will fall back to reading configuration from this file instead of failing completely. This ensures graceful degradation during network outages or service disruptions.
 
 [offer_engine]

@@ -3140,6 +3140,41 @@ placeholder = "Enter the product name (used for marketing purposes from a custom
 required = true
 type = "Text"
 
+[jpmorgan.metadata.merchant_id.USD]
+name = "USD"
+label = "USD Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for USD"
+required = true
+type = "Text"
+
+[jpmorgan.metadata.merchant_id.CAD]
+name = "CAD"
+label = "CAD Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for CAD"
+required = true
+type = "Text"
+
+[jpmorgan.metadata.merchant_id.EUR]
+name = "EUR"
+label = "EUR Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for EUR"
+required = true
+type = "Text"
+
+[jpmorgan.metadata.merchant_id.GBP]
+name = "GBP"
+label = "GBP Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for GBP"
+required = true
+type = "Text"
+
+[jpmorgan.metadata.merchant_id.JPY]
+name = "JPY"
+label = "JPY Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for JPY"
+required = true
+type = "Text"
+
 [klarna]
 [[klarna.pay_later]]
 payment_method_type = "klarna"
@@ -8521,6 +8556,24 @@ label="Merchant Payment Method Route Id"
 placeholder="Enter Merchant Payment Method Route Id"
 required=true
 type="Text"
+[peachpayments.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[peachpayments.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[peachpayments.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
 
 [tokenex]
 [tokenex.connector_auth.HeaderKey]
@@ -9406,7 +9459,48 @@ payment_method_type = "DinersClub"
 [[ilixium.debit]]
 payment_method_type = "UnionPay"
 
+[ecommpay]
+[[ecommpay.credit]]
+payment_method_type = "Mastercard"
+[[ecommpay.credit]]
+payment_method_type = "Visa"
+[[ecommpay.credit]]
+payment_method_type = "AmericanExpress"
+[[ecommpay.credit]]
+payment_method_type = "JCB"
+[[ecommpay.credit]]
+payment_method_type = "Discover"
+[[ecommpay.credit]]
+payment_method_type = "DinersClub"
+[[ecommpay.credit]]
+payment_method_type = "UnionPay"
+[[ecommpay.debit]]
+payment_method_type = "Mastercard"
+[[ecommpay.debit]]
+payment_method_type = "Visa"
+[[ecommpay.debit]]
+payment_method_type = "AmericanExpress"
+[[ecommpay.debit]]
+payment_method_type = "JCB"
+[[ecommpay.debit]]
+payment_method_type = "Discover"
+[[ecommpay.debit]]
+payment_method_type = "DinersClub"
+[[ecommpay.debit]]
+payment_method_type = "UnionPay"
+[[ecommpay.wallet]]
+payment_method_type = "apple_pay"
+[[ecommpay.wallet]]
+payment_method_type = "google_pay"
+[ecommpay.connector_auth.BodyKey]
+api_key = "Secret key"
+key1 = "Project ID"
+[ecommpay.connector_webhook_details]
+merchant_secret = "Secret key"
+
 [worldpayraft]
+[[worldpayraft.network_token]]
+  payment_method_type = "network_token"
 [[worldpayraft.credit]]
   payment_method_type = "Visa"
 [[worldpayraft.credit]]

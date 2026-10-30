@@ -66,6 +66,7 @@ pub mod blacklist;
 pub mod cookies;
 pub mod decision;
 pub mod embedded;
+pub mod idle_session;
 
 #[cfg(feature = "partial-auth")]
 mod detached;
@@ -1636,6 +1637,9 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        if payload.role_id.is_some() {
+            idle_session::check_idle_session(&state.session_state(), &payload.user_id).await?;
+        }
         authorization::check_tenant(
             payload.tenant_id.clone(),
             &state.session_state().tenant.tenant_id,
@@ -1722,18 +1726,9 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<((), AuthenticationType)> {
-        let request_admin_api_key =
-            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        let conf = state.conf();
-
-        let admin_api_key = &conf.secrets.get_inner().admin_api_key;
-
-        if request_admin_api_key != admin_api_key.peek() {
-            Err(report!(errors::ApiErrorResponse::Unauthorized)
-                .attach_printable("Admin Authentication Failure"))?;
-        }
-
-        Ok(((), AuthenticationType::AdminApiKey))
+        V2AdminApiAuth
+            .authenticate_and_fetch(request_headers, state)
+            .await
     }
 }
 
@@ -1963,16 +1958,18 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(Option<AuthenticationDataWithOrg>, AuthenticationType)> {
-        let request_api_key =
-            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-
-        let conf = state.conf();
-
-        let admin_api_key = &conf.secrets.get_inner().admin_api_key;
-
-        if request_api_key == admin_api_key.peek() {
+        if AdminApiAuth
+            .authenticate_and_fetch(request_headers, state)
+            .await
+            .is_ok()
+        {
             return Ok((None, AuthenticationType::AdminApiKey));
         }
+
+        let request_api_key =
+            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let conf = state.conf();
+
         let Some(fallback_merchant_ids) = conf.fallback_merchant_ids_api_key_auth.as_ref() else {
             return Err(report!(errors::ApiErrorResponse::Unauthorized)).attach_printable(
                 "Api Key Authentication Failure: fallback merchant set not configured",
@@ -2090,14 +2087,11 @@ where
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let merchant_id_from_route: id_type::MerchantId = self.0.clone();
-        let request_api_key =
-            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        let conf = state.conf();
-
-        let admin_api_key: &hyperswitch_masking::Secret<String> =
-            &conf.secrets.get_inner().admin_api_key;
-
-        if request_api_key == admin_api_key.peek() {
+        if AdminApiAuth
+            .authenticate_and_fetch(request_headers, state)
+            .await
+            .is_ok()
+        {
             let (key_store, merchant) =
                 Self::fetch_merchant_key_store_and_account(&merchant_id_from_route, state).await?;
 
@@ -2123,6 +2117,10 @@ where
                 },
             ));
         }
+
+        let request_api_key =
+            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let conf = state.conf();
 
         let Some(fallback_merchant_ids) = conf.fallback_merchant_ids_api_key_auth.as_ref() else {
             return Err(report!(errors::ApiErrorResponse::Unauthorized)).attach_printable(
@@ -2711,11 +2709,9 @@ impl<F> InternalMerchantIdProfileIdAuth<F> {
             (internal_api_key, merchant_id, profile_id)
         {
             let config = state.conf();
-            if internal_api_key
-                != *config
-                    .internal_merchant_id_profile_id_auth
-                    .internal_api_key
-                    .peek()
+            if !config
+                .internal_merchant_id_profile_id_auth
+                .accepts_api_key(&internal_api_key)
             {
                 return Err(errors::ApiErrorResponse::Unauthorized)
                     .attach_printable("Internal API key authentication failed");
@@ -2858,12 +2854,10 @@ where
 
         match internal_api_key {
             Some(key) => {
-                if key
-                    == *state
-                        .conf()
-                        .internal_merchant_id_profile_id_auth
-                        .internal_api_key
-                        .peek()
+                if state
+                    .conf()
+                    .internal_merchant_id_profile_id_auth
+                    .accepts_api_key(&key)
                 {
                     Ok(((), AuthenticationType::InternalApiKey))
                 } else {
@@ -5542,6 +5536,9 @@ where
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
         authorization::check_tenant(
             payload.tenant_id.clone(),
             &state.session_state().tenant.tenant_id,

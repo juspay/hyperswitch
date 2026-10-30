@@ -4,14 +4,15 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payment_method_data::ApiPaymentMethodDataMandateIds;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         configs::dimension_state,
-        errors::{self, RouterResult, StorageErrorExt},
-        payments::{helpers, operations, PaymentData},
+        errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payments::{helpers, operations, CustomerDetails, PaymentData},
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
@@ -46,7 +47,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
         _auth_flow: services::AuthFlow,
         _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_fetch_data: operations::PaymentMethodFetchData,
+        payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<
@@ -166,14 +167,27 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
+        let payment_method_data = payment_method_fetch_data
+            .payment_method_with_raw_data
+            .clone()
+            .and_then(|pm| pm.raw_payment_method_data)
+            .or(request
+                .payment_method_data
+                .clone()
+                .map(domain::PaymentMethodData::from));
+
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             payment_attempt,
             currency,
             amount,
-            mandate_id: None,
+            mandate_id: request
+                .payment_method_data
+                .as_ref()
+                .and_then(ApiPaymentMethodDataMandateIds::get_mandate_ids),
             mandate_connector: None,
             setup_mandate: None,
             customer_acceptance: None,
@@ -186,7 +200,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
                 business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: None,
-            payment_method_data: None,
+            payment_method_data,
             payment_method_token: None,
             payment_method_info: None,
             force_sync: None,
@@ -329,5 +343,91 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsCancelRequest, Paym
                 requeue: false,
             },
         ))
+    }
+}
+
+#[async_trait]
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelRequest, PaymentData<F>>
+    for PaymentCancel
+{
+    #[instrument(skip_all)]
+    #[cfg(feature = "v1")]
+    async fn get_or_create_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut PaymentData<F>,
+        _request: Option<CustomerDetails>,
+        _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
+    ) -> CustomResult<(PaymentCancelOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
+    {
+        // We don't need to fetch customer here.
+        // Customer details have already been populated in the payment_intent during Confirm
+        // The customer returned from this method is only used for updating connector_customer_id
+        // which does not happen in case of Cancel
+
+        Ok((Box::new(self), None))
+    }
+
+    #[instrument(skip_all)]
+    #[cfg(feature = "v2")]
+    async fn get_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut PaymentData<F>,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<(PaymentCancelOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
+    {
+        todo!()
+    }
+
+    #[instrument(skip_all)]
+    async fn make_pm_data<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_data: &mut PaymentData<F>,
+        _storage_scheme: enums::MerchantStorageScheme,
+        platform: &domain::Platform,
+        _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
+    ) -> RouterResult<(
+        PaymentCancelOperation<'a, F>,
+        Option<domain::PaymentMethodData>,
+        Option<String>,
+    )> {
+        let payment_method_data = operations::get_or_fetch_payment_method_data_for_operation(
+            state,
+            platform,
+            &payment_data.payment_attempt,
+            payment_data.payment_method_data.clone(),
+        )
+        .await;
+
+        Ok((Box::new(self), payment_method_data, None))
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        _processor: &domain::Processor,
+        state: &SessionState,
+        _request: &api::PaymentsCancelRequest,
+        _payment_intent: &storage::PaymentIntent,
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, None).await
+    }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &SessionState,
+        _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_data: &mut PaymentData<F>,
+        _business_profile: &domain::Profile,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
     }
 }

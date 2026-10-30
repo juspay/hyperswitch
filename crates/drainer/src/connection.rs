@@ -62,5 +62,7 @@ pub async fn pg_connection<'a>(pool: &'a PgPool) -> DatabaseConnectionWithContex
 
     // The drainer serves no API request, so its queries carry no request id and emit no external
     // service call events.
-    DatabaseConnectionWithContext::new(connection, None, pool.event_emitter.clone())
+    // The drainer is not a session, so there is nothing for a read to repeat
+    // within: no ledger.
+    DatabaseConnectionWithContext::new(connection, None, pool.event_emitter.clone(), None)
 }

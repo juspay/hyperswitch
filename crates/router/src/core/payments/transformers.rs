@@ -8,7 +8,6 @@ use api_models::payments as api_payments;
 use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::payments::{
     Address, CustomerDetails, CustomerDetailsResponse, FrmMessage, NetworkDetails,
-    RequestSurchargeDetails,
 };
 use common_enums::{Currency, MerchantAccountType, RequestIncrementalAuthorization};
 #[cfg(feature = "v1")]
@@ -519,7 +518,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_testing_data: None,
         order_id: None,
         locale: None,
-        mit_category: None,
+        mit_category: payment_data.payment_intent.mit_category,
         tokenization: None,
         payment_channel: None,
         enable_partial_authorization: Some(
@@ -1113,7 +1112,14 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         .unwrap_or(payment_data.payment_attempt.amount_details.get_net_amount());
 
     let amount = payment_data.payment_attempt.amount_details.get_net_amount();
+    let connector_intent_metadata = payment_data.payment_intent.connector_metadata.clone();
     let request = types::PaymentsCaptureData {
+        feature_metadata: payment_data.capture_feature_metadata.clone(),
+        payment_feature_metadata: payment_data
+            .payment_intent
+            .feature_metadata
+            .as_ref()
+            .map(api_models::payments::FeatureMetadata::foreign_from),
         capture_method: Some(payment_data.payment_intent.capture_method),
         amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
         minor_amount_to_capture: amount_to_capture,
@@ -1133,6 +1139,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
             .connector_metadata
             .clone()
             .expose_option(),
+        connector_intent_metadata,
         // TODO: add multiple capture data
         multiple_capture_data: None,
         // TODO: why do we need browser info during capture?
@@ -1143,6 +1150,8 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         webhook_url: None,
         merchant_order_reference_id: None,
         is_overcapture_enabled: None,
+        payment_method_data: None,
+        mandate_id: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1491,8 +1500,13 @@ pub async fn construct_router_data_for_cancel<'a>(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("connector_request_reference_id not found in payment_attempt")?;
 
+    // Void the capturable amount, fall back to net amount if amount_capturable is not set
+    let void_amount = Some(attempt.amount_details.get_amount_capturable())
+        .filter(|amount_capturable| amount_capturable.is_greater_than(0))
+        .unwrap_or_else(|| attempt.amount_details.get_net_amount());
+
     let request = types::PaymentsCancelData {
-        amount: Some(attempt.amount_details.get_net_amount().get_amount_as_i64()),
+        amount: Some(void_amount.get_amount_as_i64()),
         currency: Some(payment_intent.amount_details.currency),
         connector_transaction_id: attempt
             .get_connector_payment_id()
@@ -1502,13 +1516,15 @@ pub async fn construct_router_data_for_cancel<'a>(
         connector_meta: attempt.connector_metadata.clone().expose_option(),
         browser_info: None,
         metadata: None,
-        minor_amount: Some(attempt.amount_details.get_net_amount()),
+        minor_amount: Some(void_amount),
         webhook_url: None,
         capture_method: Some(payment_intent.capture_method),
         split_payments: None,
         merchant_order_reference_id: None,
         feature_metadata: None,
         payment_method_type: None,
+        payment_method_data: None,
+        mandate_id: None,
     };
 
     // Construct RouterDataV2 for cancel operation
@@ -3976,17 +3992,11 @@ where
             .attach_printable("Failed to parse the AdditionalPaymentData from payment_attempt.payment_method_data")?;
 
     let surcharge_details =
-        payment_attempt
-            .net_amount
-            .get_surcharge_amount()
-            .map(|surcharge_amount| RequestSurchargeDetails {
-                surcharge_amount,
-                tax_amount: payment_attempt.net_amount.get_tax_on_surcharge(),
-                surcharge_percentage: payment_attempt
-                    .external_surcharge_details
-                    .as_ref()
-                    .and_then(|details| details.surcharge_percentage_as_f64()),
-            });
+        api_models::payments::PaymentSurchargeDetailsResponse::from_surcharge_details(
+            payment_attempt.net_amount.get_surcharge_amount(),
+            payment_attempt.net_amount.get_tax_on_surcharge(),
+            payment_attempt.external_surcharge_details.as_ref(),
+        );
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.get_frm_message().map(FrmMessage::foreign_from);
 
@@ -4810,16 +4820,12 @@ impl ForeignFrom<(DieselPaymentIntent, DieselPaymentAttempt)> for api::PlatformP
             partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
             installment_data: pa.installment_data,
             sender_payment_instrument_id: pa.sender_payment_instrument_id,
-            surcharge_details: pa.surcharge_amount.map(|surcharge_amount| {
-                RequestSurchargeDetails {
-                    surcharge_amount,
-                    tax_amount: pa.tax_amount,
-                    surcharge_percentage: pa
-                        .external_surcharge_details
-                        .as_ref()
-                        .and_then(|details| details.surcharge_percentage_as_f64()),
-                }
-            }),
+            surcharge_details:
+                api_models::payments::PaymentSurchargeDetailsResponse::from_surcharge_details(
+                    pa.surcharge_amount,
+                    pa.tax_amount,
+                    pa.external_surcharge_details.as_ref(),
+                ),
             installment_options: pi.installment_options.map(|options| options.0),
         }
     }
@@ -5013,16 +5019,11 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             feature_metadata: None,
             reference_id: None,
             payment_link: None,
-            surcharge_details: pa.net_amount.get_surcharge_amount().map(|surcharge_amount| {
-                RequestSurchargeDetails {
-                    surcharge_amount,
-                    tax_amount: pa.net_amount.get_tax_on_surcharge(),
-                    surcharge_percentage: pa
-                        .external_surcharge_details
-                        .as_ref()
-                        .and_then(|details| details.surcharge_percentage_as_f64()),
-                }
-            }),
+            surcharge_details: api_models::payments::PaymentSurchargeDetailsResponse::from_surcharge_details(
+                pa.net_amount.get_surcharge_amount(),
+                pa.net_amount.get_tax_on_surcharge(),
+                pa.external_surcharge_details.as_ref(),
+            ),
             merchant_decision: None,
             incremental_authorization_allowed: None,
             authorization_count: None,
@@ -5917,6 +5918,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
                 .connector_transaction_id(payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             connector_meta: payment_attempt.connector_metadata.clone(),
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -5955,6 +5958,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
                 .payment_attempt
                 .connector_metadata
                 .map(|secret| secret.expose()),
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -5992,7 +5997,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                     .clone()
                     .and_then(|tax_details| tax_details.get_default_tax_amount())
             });
+        let connector_intent_metadata = payment_data.payment_intent.connector_metadata.clone();
         Ok(Self {
+            feature_metadata: payment_data.capture_feature_metadata.clone(),
+            payment_feature_metadata: payment_data
+                .payment_intent
+                .feature_metadata
+                .as_ref()
+                .map(api_models::payments::FeatureMetadata::foreign_from),
             capture_method: Some(payment_data.payment_intent.capture_method),
             amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
             minor_amount_to_capture: amount_to_capture,
@@ -6008,6 +6020,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 .payment_attempt
                 .connector_metadata
                 .expose_option(),
+            connector_intent_metadata,
             // TODO: add multiple capture data
             multiple_capture_data: None,
             // TODO: why do we need browser info during capture?
@@ -6018,6 +6031,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             webhook_url: None,
             merchant_order_reference_id: None,
             is_overcapture_enabled: None,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6074,7 +6089,18 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             &attempt.processor_merchant_id,
             merchant_connector_account_id,
         ));
+        let connector_intent_metadata = payment_data
+            .get_payment_intent()
+            .get_connector_metadata_from_intent()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse connector metadata")?;
         Ok(Self {
+            feature_metadata: payment_data.capture_feature_metadata.clone(),
+            payment_feature_metadata: payment_data
+                .get_payment_intent()
+                .get_optional_feature_metadata()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse payment feature metadata")?,
             capture_method: payment_data.get_capture_method(),
             amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
             minor_amount_to_capture: amount_to_capture,
@@ -6087,6 +6113,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             payment_amount: amount.get_amount_as_i64(), // This should be removed once we start moving to connector module
             minor_payment_amount: amount,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            connector_intent_metadata,
             multiple_capture_data: match payment_data.multiple_capture_data {
                 Some(multiple_capture_data) => Some(MultipleCaptureRequestData {
                     capture_sequence: multiple_capture_data.get_captures_count()?,
@@ -6104,6 +6131,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             webhook_url,
             merchant_order_reference_id: payment_data.payment_intent.merchant_order_reference_id,
             is_overcapture_enabled: payment_data.payment_attempt.is_overcapture_enabled,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6126,7 +6155,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .clone()
             .map(types::BrowserInformation::from);
 
-        let amount = payment_data.payment_attempt.amount_details.get_net_amount();
+        // Void the capturable amount, fall back to net amount if amount_capturable is not set
+        let amount_details = &payment_data.payment_attempt.amount_details;
+        let amount = Some(amount_details.get_amount_capturable())
+            .filter(|amount_capturable| amount_capturable.is_greater_than(0))
+            .unwrap_or_else(|| amount_details.get_net_amount());
 
         let router_base_url = &additional_data.router_base_url;
         let attempt = &payment_data.payment_attempt;
@@ -6165,6 +6198,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             merchant_order_reference_id: None,
             feature_metadata: None,
             payment_method_type: None,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6195,7 +6230,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .get_optional_feature_metadata()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse feature metadata")?;
-        let amount = payment_data.payment_attempt.get_total_amount();
+        // Void the capturable amount, fall back to total amount if amount_capturable is not set
+        let amount = Some(payment_data.payment_attempt.amount_capturable)
+            .filter(|amount_capturable| amount_capturable.is_greater_than(0))
+            .unwrap_or_else(|| payment_data.payment_attempt.get_total_amount());
 
         let router_base_url = &additional_data.router_base_url;
         let attempt = &payment_data.payment_attempt;
@@ -6230,6 +6268,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             merchant_order_reference_id: payment_data.payment_intent.merchant_order_reference_id,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             feature_metadata,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6289,6 +6329,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPo
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6483,6 +6525,10 @@ trait Diff: Sized + PartialEq {
 impl Diff for api_payments::FeatureMetadata {
     fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
         let diffed = Self {
+            multi_currency_processing: changed(
+                &stored.multi_currency_processing,
+                requested.multi_currency_processing,
+            ),
             redirect_response: changed(&stored.redirect_response, requested.redirect_response),
             search_tags: changed(&stored.search_tags, requested.search_tags),
             apple_pay_recurring_details: changed(
@@ -6507,7 +6553,8 @@ impl Diff for api_payments::FeatureMetadata {
             ),
         };
 
-        if diffed.redirect_response.is_none()
+        if diffed.multi_currency_processing.is_none()
+            && diffed.redirect_response.is_none()
             && diffed.search_tags.is_none()
             && diffed.apple_pay_recurring_details.is_none()
             && diffed.pix_additional_details.is_none()
@@ -7502,6 +7549,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let feature_metadata = payment_data
+            .get_payment_intent()
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse payment feature metadata")?;
         let router_base_url = &additional_data.router_base_url;
         let connector_name = &additional_data.connector_name;
         let attempt = &payment_data.payment_attempt;
@@ -7675,6 +7727,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             order_details,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
+            feature_metadata,
         })
     }
 }
@@ -7993,6 +8046,22 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
             .clone()
             .map(api_models::payments::RedirectResponse::foreign_from);
         Self {
+            multi_currency_processing: feature_metadata.multi_currency_processing.as_ref().map(
+                |multi_currency_processing| api_models::payments::MultiCurrencyProcessingData {
+                    amount: multi_currency_processing.amount,
+                    currency: multi_currency_processing.currency,
+                    conversion_rate: multi_currency_processing.conversion_rate,
+                    date: multi_currency_processing.date,
+                    processing_reference_id: multi_currency_processing
+                        .processing_reference_id
+                        .clone(),
+                    conversion_provider: multi_currency_processing.conversion_provider.clone(),
+                    user_id: multi_currency_processing.user_id.clone(),
+                    conversion_reason_code: multi_currency_processing
+                        .conversion_reason_code
+                        .clone(),
+                },
+            ),
             revenue_recovery,
             apple_pay_recurring_details: apple_pay_details,
             redirect_response: redirect_res,

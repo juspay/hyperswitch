@@ -401,6 +401,7 @@ diesel::table! {
         #[max_length = 512]
         connector_capture_data -> Nullable<Varchar>,
         processor_capture_data -> Nullable<Text>,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -1378,6 +1379,7 @@ diesel::table! {
         value_added_tax_percent -> Nullable<Float8>,
         vat_invoice_reference_number -> Nullable<Varchar>,
         order_commodity_code -> Nullable<Varchar>,
+        settlement_conclusion_applied -> Nullable<Bool>,
     }
 }
 
@@ -1708,6 +1710,7 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 

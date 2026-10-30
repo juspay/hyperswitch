@@ -74,6 +74,9 @@ pub const USER_BLACKLIST_PREFIX: &str = "BU_";
 
 pub const ROLE_BLACKLIST_PREFIX: &str = "BR_";
 
+pub const USER_IDLE_SESSION_PREFIX: &str = "IS_";
+pub const MIN_IDLE_SESSION_TIMEOUT_IN_SECS: u32 = 60;
+
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 
@@ -448,6 +451,9 @@ pub mod superposition {
     pub const ACCOUNT_UPDATER_CREDENTIAL_SOURCE: &str = "account_updater.credential_source";
     /// CVV requirement configuration key
     pub const REQUIRES_CVV: &str = "payments.requires_cvv";
+    /// Allow payment method data to be collected internally for follow-up payment operations
+    pub const ALLOW_PAYMENT_METHOD_DATA_COLLECTION: &str =
+        "system.allow_payment_method_data_collection";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
     /// Blocklist guard configuration key: when true, payments are screened against the merchant's blocklist
