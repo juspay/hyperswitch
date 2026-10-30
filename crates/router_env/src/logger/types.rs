@@ -692,8 +692,6 @@ pub enum Flow {
     PaymentStartRedirection,
     /// Volume split on the routing type
     VolumeSplitOnRoutingType,
-    /// Routing evaluate rule flow
-    RoutingEvaluateRule,
     /// Report whether the Unified Connector Service kill switch has tripped a scope
     UnifiedConnectorServiceKillSwitchStatus,
     /// Clear a Unified Connector Service kill switch cutover

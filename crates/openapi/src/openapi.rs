@@ -194,7 +194,6 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::create_success_based_routing,
         routes::routing::create_elimination_routing,
         routes::routing::contract_based_routing_setup_config,
-        routes::routing::evaluate_routing_rule,
 
         // Routes for offers
         routes::offer_engine::offer_engine_browse_offers,
@@ -1197,8 +1196,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::authentication::AuthenticationPaymentMethodDataResponse,
         api_models::authentication::AuthenticationDetails,
         api_models::authentication::ExternalThreeDsData,
-        api_models::routing::RoutingEvaluateRequest,
-        api_models::routing::RoutingEvaluateResponse,
         api_models::routing::ValueType,
         api_models::routing::DeRoutableConnectorChoice,
         api_models::routing::RoutableConnectorChoice,
