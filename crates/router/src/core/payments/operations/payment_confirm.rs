@@ -87,7 +87,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let operations::PaymentMethodFetchData {
@@ -96,6 +96,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_method_with_raw_data,
             token_data: prefetched_token_data,
         } = payment_method_fetch_data;
+        let (pre_fetched_intent, pre_fetched_attempt) = match payment_pre_fetched_info {
+            Some(info) => (Some(info.payment_intent), Some(info.payment_attempt)),
+            None => (None, None),
+        };
         let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
         let storage_scheme = platform.get_processor().get_storage_scheme();
         let (currency, amount);
@@ -109,7 +113,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_merchant_id = processor_merchant_id.clone();
 
         // Parallel calls - level 0
-        let mut payment_intent = match prefetched_payment_intent {
+        let mut payment_intent = match prefetched_payment_intent.or(pre_fetched_intent) {
             Some(payment_intent) => payment_intent,
             None => store
                 .find_payment_intent_by_payment_id_processor_merchant_id(
@@ -233,21 +237,27 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_merchant_id = processor_merchant_id.clone();
         let merchant_key_store = platform.get_processor().get_key_store().clone();
 
-        let payment_attempt_fut = tokio::spawn(
-            async move {
-                store
-                    .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                        &m_payment_id,
-                        &m_merchant_id,
-                        attempt_id.as_str(),
-                        storage_scheme,
-                        &merchant_key_store,
-                    )
-                    .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
-                    .await
-            }
-            .instrument(tracing::debug_span!("payment_attempt")),
-        );
+        let payment_attempt_fut =
+            tokio::spawn(
+                async move {
+                    match pre_fetched_attempt {
+                        Some(attempt) => Ok(attempt),
+                        None => store
+                            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                                &m_payment_id,
+                                &m_merchant_id,
+                                attempt_id.as_str(),
+                                storage_scheme,
+                                &merchant_key_store,
+                            )
+                            .map(|x| {
+                                x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+                            })
+                            .await,
+                    }
+                }
+                .instrument(tracing::debug_span!("payment_attempt")),
+            );
 
         let m_merchant_id = processor_merchant_id.clone();
         let m_request_shipping = request.shipping.clone();
