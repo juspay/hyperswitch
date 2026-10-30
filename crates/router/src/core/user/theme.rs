@@ -129,7 +129,7 @@ pub async fn create_theme(
 
     let new_theme = ThemeNew::new(
         common_utils::generate_uuid_v4().to_string(),
-        request.theme_name,
+        request.theme_name.into_inner(),
         request.lineage,
         email_config,
     );
@@ -267,7 +267,7 @@ pub async fn create_user_theme(
     .await?;
     let new_theme = ThemeNew::new(
         common_utils::generate_uuid_v4().to_string(),
-        request.theme_name,
+        request.theme_name.into_inner(),
         lineage,
         email_config,
     );

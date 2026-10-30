@@ -8,7 +8,7 @@ use std::{
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
 use common_enums;
-use common_types::theme::EmailThemeConfig;
+use common_types::user::theme::EmailThemeConfig;
 use common_utils::{ext_traits::ConfigExt, id_type};
 use config::{Environment, File};
 use error_stack::ResultExt;

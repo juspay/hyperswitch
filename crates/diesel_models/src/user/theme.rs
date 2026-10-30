@@ -1,5 +1,5 @@
 use common_enums::EntityType;
-use common_types::{primitive_wrappers::SafeString, theme::EmailThemeConfig};
+use common_types::{primitive_wrappers::SafeString, user::theme::EmailThemeConfig};
 use common_utils::{date_time, id_type, types::user::ThemeLineage};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use router_derive::DebugAsDisplay;

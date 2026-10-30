@@ -1,6 +1,6 @@
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use common_enums::EntityType;
-use common_types::{primitive_wrappers::SafeString, theme::EmailThemeConfig};
+use common_types::{primitive_wrappers::SafeString, user::theme::EmailThemeConfig};
 use common_utils::{
     id_type,
     types::{user::ThemeLineage, Url},
@@ -43,7 +43,7 @@ pub struct UploadFileRequest {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateThemeRequest {
     pub lineage: ThemeLineage,
-    pub theme_name: String,
+    pub theme_name: SafeString,
     pub theme_data: ThemeData,
     pub email_config: Option<EmailThemeConfig>,
 }
@@ -51,7 +51,7 @@ pub struct CreateThemeRequest {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateUserThemeRequest {
     pub entity_type: EntityType,
-    pub theme_name: String,
+    pub theme_name: SafeString,
     pub theme_data: ThemeData,
     pub email_config: Option<EmailThemeConfig>,
 }
@@ -149,49 +149,8 @@ struct Spacing {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Urls {
-    favicon_url: Option<ThemeUrl>,
-    logo_url: Option<ThemeUrl>,
-}
-
-/// URL of a theme asset, validated during deserialization so that only HTTPS URLs
-/// (and HTTP URLs in debug builds) can be stored in the theme data
-#[derive(Debug, Clone, Serialize)]
-#[serde(transparent)]
-pub struct ThemeUrl(Url);
-
-impl ThemeUrl {
-    /// Verify the URL scheme based on runtime environment
-    fn from_url(url: url::Url) -> Result<Self, String> {
-        let scheme = url.scheme();
-
-        #[cfg(debug_assertions)]
-        {
-            // Debug builds: allow HTTP
-            if scheme == "https" || scheme == "http" {
-                return Ok(Self(Url::wrap(url)));
-            }
-        }
-
-        #[cfg(not(debug_assertions))]
-        {
-            // Release builds: HTTPS only
-            if scheme == "https" {
-                return Ok(Self(Url::wrap(url)));
-            }
-        }
-
-        Err("Theme URL scheme must be HTTPS".to_string())
-    }
-}
-
-impl<'de> Deserialize<'de> for ThemeUrl {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let url = url::Url::deserialize(deserializer)?;
-        Self::from_url(url).map_err(serde::de::Error::custom)
-    }
+    favicon_url: Option<Url>,
+    logo_url: Option<Url>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

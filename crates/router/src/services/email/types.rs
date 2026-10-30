@@ -1,6 +1,6 @@
 use api_models::user::dashboard_metadata::ProdIntent;
 use common_enums::{EntityType, MerchantProductType};
-use common_types::theme::EmailThemeConfig;
+use common_types::user::theme::EmailThemeConfig;
 use common_utils::{errors::CustomResult, pii};
 use diesel_models::organization::OrganizationBridge;
 use error_stack::ResultExt;

@@ -290,8 +290,8 @@ pub async fn get_theme_using_optional_theme_id(
 }
 
 fn validate_requested_theme_entity_type(
-    user_entity_type: &EntityType,
-    request_entity_type: &EntityType,
+    user_entity_type: EntityType,
+    request_entity_type: EntityType,
 ) -> UserResult<()> {
     if request_entity_type > user_entity_type {
         return Err(
@@ -316,7 +316,7 @@ pub async fn get_theme_lineage_from_user_token(
         .attach_printable("Invalid role_id in JWT")?
         .get_entity_type();
 
-    validate_requested_theme_entity_type(&user_entity_type, request_entity_type)?;
+    validate_requested_theme_entity_type(user_entity_type, *request_entity_type)?;
 
     let tenant_id = user_from_token
         .tenant_id
