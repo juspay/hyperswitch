@@ -19615,6 +19615,14 @@
           }
         }
       },
+      "MerchantAccountType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "platform",
+          "connected"
+        ]
+      },
       "MerchantAccountUpdate": {
         "type": "object",
         "properties": {

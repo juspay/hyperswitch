@@ -416,6 +416,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::TaxStatus,
         api_models::enums::SizeVariants,
         api_models::enums::MerchantProductType,
+        api_models::enums::MerchantAccountType,
         api_models::enums::PaymentLinkDetailsLayout,
         api_models::enums::PaymentMethodStatus,
         api_models::enums::HyperswitchConnectorCategory,
