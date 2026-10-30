@@ -36039,7 +36039,7 @@
           "value_added_tax_percent": {
             "type": "number",
             "format": "double",
-            "description": "Value added tax (VAT) rate applied to the order or transaction, as a\npercentage between 0 and 100 — 2.5 means 2.5%.",
+            "description": "Value added tax (VAT) rate applied to the order or transaction.",
             "example": 2.5,
             "nullable": true
           },
@@ -36641,7 +36641,7 @@
           "value_added_tax_percent": {
             "type": "number",
             "format": "double",
-            "description": "Value added tax (VAT) rate applied to the order or transaction, as a\npercentage between 0 and 100 — 2.5 means 2.5%.",
+            "description": "Value added tax (VAT) rate applied to the order or transaction.",
             "example": 2.5,
             "nullable": true
           },
@@ -38556,7 +38556,7 @@
           "value_added_tax_percent": {
             "type": "number",
             "format": "double",
-            "description": "Value added tax (VAT) rate applied to the order or transaction, as a\npercentage between 0 and 100 — 2.5 means 2.5%.",
+            "description": "Value added tax (VAT) rate applied to the order or transaction.",
             "example": 2.5,
             "nullable": true
           },
@@ -40200,7 +40200,7 @@
           "value_added_tax_percent": {
             "type": "number",
             "format": "double",
-            "description": "Value added tax (VAT) rate applied to the order or transaction, as a\npercentage between 0 and 100 — 2.5 means 2.5%.",
+            "description": "Value added tax (VAT) rate applied to the order or transaction.",
             "example": 2.5,
             "nullable": true
           },
