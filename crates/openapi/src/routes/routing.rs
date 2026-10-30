@@ -489,68 +489,6 @@ pub async fn create_elimination_routing() {}
 pub async fn contract_based_routing_setup_config() {}
 
 #[cfg(feature = "v1")]
-/// Routing - Evaluate
-///
-/// Evaluate routing rules
-#[utoipa::path(
-    post,
-    path = "/routing/evaluate",
-    request_body = OpenRouterDecideGatewayRequest,
-    responses(
-        (status = 200, description = "Routing rules evaluated successfully", body = DecideGatewayResponse),
-        (status = 400, description = "Request body is malformed"),
-        (status = 500, description = "Internal server error"),
-        (status = 404, description = "Resource missing"),
-        (status = 422, description = "Unprocessable request"),
-        (status = 403, description = "Forbidden"),
-    ),
-   params(
-       (
-           "X-Connected-Merchant-Id" = Option<String>, Header,
-           description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
-            Required when authenticating with a platform merchant's API key. \
-            Standard and connected merchants must not send it.",
-           example = "merchant_abc"
-       )
-   ),
-   tag = "Routing",
-   operation_id = "Evaluate routing rules",
-   security(("api_key" = []))
-)]
-pub async fn call_decide_gateway_open_router() {}
-
-#[cfg(feature = "v1")]
-/// Routing - Feedback
-///
-/// Update gateway scores for dynamic routing
-#[utoipa::path(
-    post,
-    path = "/routing/feedback",
-    request_body = UpdateScorePayload,
-    responses(
-        (status = 200, description = "Gateway score updated successfully", body = UpdateScoreResponse),
-        (status = 400, description = "Request body is malformed"),
-        (status = 500, description = "Internal server error"),
-        (status = 404, description = "Resource missing"),
-        (status = 422, description = "Unprocessable request"),
-        (status = 403, description = "Forbidden"),
-    ),
-   params(
-       (
-           "X-Connected-Merchant-Id" = Option<String>, Header,
-           description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
-            Required when authenticating with a platform merchant's API key. \
-            Standard and connected merchants must not send it.",
-           example = "merchant_abc"
-       )
-   ),
-   tag = "Routing",
-   operation_id = "Update gateway scores",
-   security(("api_key" = []))
-)]
-pub async fn call_update_gateway_score_open_router() {}
-
-#[cfg(feature = "v1")]
 /// Routing - Rule Evaluate
 ///
 /// Evaluate routing rules

@@ -7097,136 +7097,6 @@
         ]
       }
     },
-    "/routing/evaluate": {
-      "post": {
-        "tags": [
-          "Routing"
-        ],
-        "summary": "Routing - Evaluate",
-        "description": "Evaluate routing rules",
-        "operationId": "Evaluate routing rules",
-        "parameters": [
-          {
-            "name": "X-Connected-Merchant-Id",
-            "in": "header",
-            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "nullable": true
-            },
-            "example": "merchant_abc"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OpenRouterDecideGatewayRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Routing rules evaluated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DecideGatewayResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Request body is malformed"
-          },
-          "403": {
-            "description": "Forbidden"
-          },
-          "404": {
-            "description": "Resource missing"
-          },
-          "422": {
-            "description": "Unprocessable request"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
-    "/routing/feedback": {
-      "post": {
-        "tags": [
-          "Routing"
-        ],
-        "summary": "Routing - Feedback",
-        "description": "Update gateway scores for dynamic routing",
-        "operationId": "Update gateway scores",
-        "parameters": [
-          {
-            "name": "X-Connected-Merchant-Id",
-            "in": "header",
-            "description": "Merchant ID of the connected merchant on whose behalf the operation is performed. Required when authenticating with a platform merchant's API key. Standard and connected merchants must not send it.",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "nullable": true
-            },
-            "example": "merchant_abc"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateScorePayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Gateway score updated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UpdateScoreResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Request body is malformed"
-          },
-          "403": {
-            "description": "Forbidden"
-          },
-          "404": {
-            "description": "Resource missing"
-          },
-          "422": {
-            "description": "Unprocessable request"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
     "/routing/rule/evaluate": {
       "post": {
         "tags": [
@@ -22734,95 +22604,6 @@
           }
         }
       },
-      "DecideGatewayResponse": {
-        "type": "object",
-        "properties": {
-          "decided_gateway": {
-            "type": "string",
-            "description": "The gateway decided by the routing engine",
-            "example": "stripe:mca1",
-            "nullable": true
-          },
-          "gateway_priority_map": {
-            "type": "object",
-            "description": "Map of gateways with their priority scores",
-            "additionalProperties": {
-              "type": "number",
-              "format": "double"
-            },
-            "example": {
-              "adyen:mca2": 1.0,
-              "stripe:mca1": 1.0
-            },
-            "nullable": true
-          },
-          "filter_wise_gateways": {
-            "type": "object",
-            "description": "Gateways organized by filter criteria",
-            "nullable": true
-          },
-          "priority_logic_tag": {
-            "type": "string",
-            "description": "Tag identifying the priority logic used",
-            "nullable": true
-          },
-          "routing_approach": {
-            "type": "string",
-            "description": "The routing approach used for decision making",
-            "example": "SR_SELECTION_V3_ROUTING",
-            "nullable": true
-          },
-          "gateway_before_evaluation": {
-            "type": "string",
-            "description": "The gateway that was evaluated before the final decision",
-            "example": "adyen:mca2",
-            "nullable": true
-          },
-          "priority_logic_output": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PriorityLogicOutput"
-              }
-            ],
-            "nullable": true
-          },
-          "reset_approach": {
-            "type": "string",
-            "description": "The reset approach applied during routing",
-            "example": "NO_RESET",
-            "nullable": true
-          },
-          "routing_dimension": {
-            "type": "string",
-            "description": "Dimensions used for routing decision (payment type, method, etc.)",
-            "example": "ORDER_PAYMENT, UPI, upi",
-            "nullable": true
-          },
-          "routing_dimension_level": {
-            "type": "string",
-            "description": "Level at which routing dimension is evaluated",
-            "example": "PM_LEVEL",
-            "nullable": true
-          },
-          "is_scheduled_outage": {
-            "type": "boolean",
-            "description": "Indicates if routing decision was affected by scheduled outage",
-            "example": false,
-            "nullable": true
-          },
-          "is_dynamic_mga_enabled": {
-            "type": "boolean",
-            "description": "Indicates if dynamic merchant gateway account is enabled",
-            "example": false,
-            "nullable": true
-          },
-          "gateway_mga_id_map": {
-            "type": "object",
-            "description": "Map of gateways to their MGA IDs",
-            "nullable": true
-          }
-        }
-      },
       "DecisionEngineEliminationData": {
         "type": "object",
         "required": [
@@ -31244,41 +31025,6 @@
           }
         }
       },
-      "OpenRouterDecideGatewayRequest": {
-        "type": "object",
-        "description": "Request to decide the optimal gateway for routing a payment",
-        "required": [
-          "paymentInfo",
-          "merchantId"
-        ],
-        "properties": {
-          "paymentInfo": {
-            "$ref": "#/components/schemas/PaymentInfo"
-          },
-          "merchantId": {
-            "type": "string",
-            "description": "Profile ID of the merchant",
-            "example": "pro_aMoPnEkgCVnh2WVsFe32"
-          },
-          "eligibleGatewayList": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "List of eligible gateways for routing consideration",
-            "example": "[\"stripe:mca_123\", \"adyen:mca_456\"]",
-            "nullable": true
-          },
-          "rankingAlgorithm": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RankingAlgorithm"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
       "OrderDetailsWithAmount": {
         "type": "object",
         "required": [
@@ -32573,74 +32319,6 @@
       "PaymentId": {
         "type": "string",
         "description": "A type for payment_id that can be used for payment ids"
-      },
-      "PaymentInfo": {
-        "type": "object",
-        "description": "Payment information used for routing decision-making",
-        "required": [
-          "paymentId",
-          "amount",
-          "currency",
-          "paymentType",
-          "metadata",
-          "paymentMethodType",
-          "paymentMethod",
-          "cardIsin"
-        ],
-        "properties": {
-          "paymentId": {
-            "type": "string",
-            "description": "Unique identifier for the payment transaction",
-            "example": "pay_12345"
-          },
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Payment amount in minor units",
-            "example": "100"
-          },
-          "currency": {
-            "type": "string",
-            "description": "Currency code for the payment",
-            "example": "USD"
-          },
-          "preferredConnectors": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Ordered preferred connector account identities in `connector:mca_id` format.",
-            "example": [
-              "adyen:mca_5678"
-            ],
-            "nullable": true
-          },
-          "paymentType": {
-            "type": "string",
-            "description": "Type of payment transaction being processed",
-            "example": "ORDER_PAYMENT"
-          },
-          "metadata": {
-            "type": "string",
-            "description": "Optional metadata associated with the payment",
-            "example": "metadata"
-          },
-          "paymentMethodType": {
-            "type": "string",
-            "description": "Specific payment method type being used",
-            "example": "upi"
-          },
-          "paymentMethod": {
-            "type": "string",
-            "description": "General payment method category",
-            "example": "upi"
-          },
-          "cardIsin": {
-            "type": "string",
-            "description": "Card Issuer Identification Number (first 6 digits of card)",
-            "example": "424242"
-          }
-        }
       },
       "PaymentIntentStateMetadata": {
         "type": "object",
@@ -42857,78 +42535,6 @@
         },
         "additionalProperties": false
       },
-      "PriorityLogicData": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "Name of the logic",
-            "example": "success_rate_logic",
-            "nullable": true
-          },
-          "status": {
-            "type": "string",
-            "description": "Status of the logic execution",
-            "example": "success",
-            "nullable": true
-          },
-          "failure_reason": {
-            "type": "string",
-            "description": "Reason for failure if the logic failed",
-            "example": "insufficient_data",
-            "nullable": true
-          }
-        }
-      },
-      "PriorityLogicOutput": {
-        "type": "object",
-        "properties": {
-          "isEnforcement": {
-            "type": "boolean",
-            "description": "Whether enforcement mode is enabled",
-            "example": false,
-            "nullable": true
-          },
-          "gws": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "List of gateways returned by the priority logic",
-            "example": [
-              "stripe:mca1",
-              "adyen:mca2"
-            ],
-            "nullable": true
-          },
-          "priorityLogicTag": {
-            "type": "string",
-            "description": "Tag identifying the priority logic used",
-            "nullable": true
-          },
-          "gatewayReferenceIds": {
-            "type": "object",
-            "description": "Map of gateway reference IDs",
-            "nullable": true
-          },
-          "primaryLogic": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PriorityLogicData"
-              }
-            ],
-            "nullable": true
-          },
-          "fallbackLogic": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PriorityLogicData"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
       "ProcessorPaymentToken": {
         "type": "object",
         "description": "Processor payment token for MIT payments where payment_method_data is not available",
@@ -44096,14 +43702,6 @@
             "example": "4242"
           }
         }
-      },
-      "RankingAlgorithm": {
-        "type": "string",
-        "enum": [
-          "SR_BASED_ROUTING",
-          "PL_BASED_ROUTING",
-          "NTW_BASED_ROUTING"
-        ]
       },
       "RapidDisputeResolution": {
         "type": "object",
@@ -49540,34 +49138,6 @@
           }
         }
       },
-      "TxnStatus": {
-        "type": "string",
-        "enum": [
-          "STARTED",
-          "AUTHENTICATION_FAILED",
-          "JUSPAY_DECLINED",
-          "PENDING_VBV",
-          "V_B_V_SUCCESSFUL",
-          "AUTHORIZED",
-          "AUTHORIZATION_FAILED",
-          "CHARGED",
-          "AUTHORIZING",
-          "C_O_D_INITIATED",
-          "VOIDED",
-          "VOIDED_POST_CHARGE",
-          "VOID_INITIATED",
-          "NOP",
-          "CAPTURE_INITIATED",
-          "CAPTURE_FAILED",
-          "VOID_FAILED",
-          "AUTO_REFUNDED",
-          "PARTIAL_CHARGED",
-          "TO_BE_CHARGED",
-          "PENDING",
-          "FAILURE",
-          "DECLINED"
-        ]
-      },
       "UIWidgetFormLayout": {
         "type": "string",
         "enum": [
@@ -49627,50 +49197,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "UpdateScorePayload": {
-        "type": "object",
-        "description": "Request payload to update gateway performance score based on transaction outcome",
-        "required": [
-          "merchantId",
-          "gateway",
-          "status",
-          "paymentId"
-        ],
-        "properties": {
-          "merchantId": {
-            "type": "string",
-            "description": "Profile ID of the merchant",
-            "example": "pro_aMoPnEkgCVnh2WVsFe32"
-          },
-          "gateway": {
-            "type": "string",
-            "description": "Payment Gateway identifier",
-            "example": "stripe:mca1"
-          },
-          "status": {
-            "$ref": "#/components/schemas/TxnStatus"
-          },
-          "paymentId": {
-            "type": "string",
-            "description": "Payment ID associated with the transaction",
-            "example": "pay_1234"
-          }
-        }
-      },
-      "UpdateScoreResponse": {
-        "type": "object",
-        "description": "Response after updating gateway score",
-        "required": [
-          "message"
-        ],
-        "properties": {
-          "message": {
-            "type": "string",
-            "description": "Status message indicating the result of the score update",
-            "example": "Gateway score updated successfully"
-          }
-        }
       },
       "UpdateSubscriptionRequest": {
         "type": "object",
