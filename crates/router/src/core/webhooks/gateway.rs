@@ -344,17 +344,31 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
 
         let outcome = match FilterDecision::evaluate(event_type, ctx).await {
             FilterDecision::Skip => {
-                let masked_log_payload =
-                    if matches!(event_type, IncomingWebhookEvent::EndpointVerification) {
-                        ctx.connector
-                            .get_webhook_resource_object(&decoded_request)
-                            .ok()
-                            .and_then(|resource_object| resource_object.masked_serialize().ok())
-                            .map(Secret::new)
-                            .unwrap_or_else(|| Secret::new(serde_json::Value::Null))
-                    } else {
-                        Secret::new(serde_json::Value::Null)
-                    };
+                let masked_log_payload = if matches!(
+                    event_type,
+                    IncomingWebhookEvent::EndpointVerification
+                ) {
+                    match ctx.connector.get_webhook_resource_object(&decoded_request) {
+                            Ok(resource_object) => Secret::new(
+                                resource_object.masked_serialize().unwrap_or_else(|error| {
+                                    logger::warn!(
+                                        ?error,
+                                        "Failed to mask-serialize endpoint-verification webhook resource object for logging"
+                                    );
+                                    serde_json::Value::Null
+                                }),
+                            ),
+                            Err(error) => {
+                                logger::warn!(
+                                    ?error,
+                                    "Failed to extract endpoint-verification webhook resource object for logging"
+                                );
+                                Secret::new(serde_json::Value::Null)
+                            }
+                        }
+                } else {
+                    Secret::new(serde_json::Value::Null)
+                };
 
                 WebhookOutcome::Skipped {
                     reference,
