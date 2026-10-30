@@ -728,6 +728,59 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 }
             }
 
+            // A frictionless Authenticate (no redirect, still AuthenticationPending) leaves the
+            // result to a separate lookup for connectors that opt in through
+            // `is_post_authentication_flow_required(Authorize)`: run PostAuthenticate now so the
+            // Authorize carries its authentication data (Authenticate -> PostAuthenticate -> Authorize).
+            let is_frictionless_pending = authorize_router_data.status
+                == common_enums::AttemptStatus::AuthenticationPending
+                && matches!(
+                    &authorize_router_data.response,
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        redirection_data,
+                        ..
+                    }) if redirection_data.is_none()
+                );
+            let post_authenticated = is_frictionless_pending
+                && connector.connector.is_post_authentication_flow_required(
+                    api_interface::CurrentFlowInfo::Authorize {
+                        auth_type: authorize_router_data.auth_type,
+                        request_data: Box::new(authorize_request_data.clone()),
+                        connector_meta_data: authorize_router_data.connector_meta_data.clone(),
+                    },
+                );
+            if post_authenticated {
+                logger::info!(
+                    "Post-authentication flow is required after frictionless authentication for connector: {}",
+                    connector.connector_name
+                );
+                let post_authenticate_request_data =
+                    types::PaymentsPostAuthenticateData::try_from(authorize_request_data.clone())?;
+                let post_authenticate_router_data = super::call_post_authenticate(
+                    state,
+                    authorize_router_data,
+                    post_authenticate_request_data,
+                    connector,
+                    gateway_context,
+                )
+                .await?;
+                let post_authenticate_response = post_authenticate_router_data.response.clone();
+                if let Ok(types::PaymentsResponseData::TransactionResponse {
+                    authentication_data: Some(authentication_data),
+                    ..
+                }) = &post_authenticate_router_data.response
+                {
+                    authorize_request_data.ucs_authentication_data =
+                        Some(*authentication_data.clone());
+                }
+                authorize_router_data =
+                    helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
+                        post_authenticate_router_data,
+                        authorize_request_data,
+                        post_authenticate_response,
+                    );
+            }
+
             let should_continue_after_authenticate = match &authorize_router_data.response {
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     connector_metadata,
@@ -760,6 +813,13 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                             && !has_hyperswitch_three_ds_invoke_data
                             && payment_status
                             && !gateway_context.execution_path.is_direct_gateway()
+                    }
+                    // The PostAuthenticate leg ran above: settle only on a successful
+                    // authentication result, never on a failed, pending or terminal one.
+                    _ if post_authenticated => {
+                        redirection_data.is_none()
+                            && authorize_router_data.status
+                                == common_enums::AttemptStatus::AuthenticationSuccessful
                     }
                     _ => false,
                 },

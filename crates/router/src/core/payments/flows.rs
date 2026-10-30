@@ -391,6 +391,46 @@ pub fn should_initiate_capture_flow(
     }
 }
 
+/// Runs the PostAuthenticate leg through the payment gateway for a flow that has just
+/// authenticated: CompleteAuthorize after a challenge, or Authorize after a frictionless
+/// Authenticate. The caller reads the authentication result off the returned router data.
+pub async fn call_post_authenticate<F, Req>(
+    state: &SessionState,
+    router_data: types::RouterData<F, Req, types::PaymentsResponseData>,
+    post_authenticate_request_data: types::PaymentsPostAuthenticateData,
+    connector: &api::ConnectorData,
+    gateway_context: &gateway_context::RouterGatewayContext,
+) -> RouterResult<
+    types::RouterData<
+        api::PostAuthenticate,
+        types::PaymentsPostAuthenticateData,
+        types::PaymentsResponseData,
+    >,
+> {
+    let post_authenticate_router_data =
+        helpers::router_data_type_conversion::<_, api::PostAuthenticate, _, _, _, _>(
+            router_data,
+            post_authenticate_request_data,
+            Err(types::ErrorResponse::default()),
+        );
+    Box::pin(payments::gateway::handle_gateway_call::<
+        _,
+        _,
+        _,
+        hyperswitch_domain_models::router_data_v2::PaymentFlowData,
+        _,
+    >(
+        state,
+        post_authenticate_router_data,
+        connector,
+        gateway_context,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+    ))
+    .await
+}
+
 /// Executes a capture request by building a connector-specific request and deciding
 /// the appropriate flow to send it to the payment connector.
 pub async fn call_capture_request(

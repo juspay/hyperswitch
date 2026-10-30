@@ -15,21 +15,28 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        payments::{
+            Authorize, Capture, CompleteAuthorize, PSync, PaymentMethodToken, Session,
+            SetupMandate, Void,
+        },
         refunds::{Execute, RSync},
+        Authenticate, PostAuthenticate,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsPostAuthenticateData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthenticateRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
+        PaymentsPostAuthenticateRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -53,7 +60,7 @@ use transformers::{self as fiuu, ExtraParameters, FiuuWebhooksResponse};
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self},
+    utils::{self, PaymentsAuthorizeRequestData as _},
 };
 
 pub fn parse_and_log_keys_in_url_encoded_response<T>(data: &[u8]) {
@@ -421,6 +428,268 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        let response: fiuu::FiuuPaymentsResponse = res
+            .response
+            .parse_struct("Fiuu FiuuPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl api::PaymentsAuthenticate for Fiuu {}
+impl api::PaymentsPostAuthenticate for Fiuu {}
+impl api::PaymentsCompleteAuthorize for Fiuu {}
+
+/// Standalone EMV 3DS authentication (authentication.php, payment host). Moves no money.
+impl ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData> for Fiuu {
+    fn get_headers(
+        &self,
+        req: &PaymentsAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}RMS/API/Card/authentication.php",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsAuthenticateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let minor_amount =
+            req.request
+                .minor_amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "minor_amount".into(),
+                })?;
+        let currency =
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency".into(),
+                })?;
+        let amount = utils::convert_amount(self.amount_converter, minor_amount, currency)?;
+        let connector_router_data = fiuu::FiuuRouterData::from((amount, req));
+        let authenticate_request = fiuu::FiuuAuthenticateRequest::try_from(&connector_router_data)?;
+        build_form_from_struct(authenticate_request)
+            .change_context(errors::ConnectorError::ParsingFailed)
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsAuthenticateType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .set_body(types::PaymentsAuthenticateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsAuthenticateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsAuthenticateRouterData, errors::ConnectorError> {
+        let response: fiuu::FiuuAuthenticateResponse = res
+            .response
+            .parse_struct("Fiuu FiuuAuthenticateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+/// Authentication result lookup (authn_query.php, api host). Moves no money.
+impl ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
+    for Fiuu
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsPostAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsPostAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let base_url = connectors.fiuu.secondary_base_url.clone();
+        Ok(format!("{base_url}RMS/API/Card/authn_query.php"))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsPostAuthenticateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let authn_query_request = fiuu::FiuuAuthnQueryRequest::try_from(req)?;
+        build_form_from_struct(authn_query_request)
+            .change_context(errors::ConnectorError::ParsingFailed)
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsPostAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsPostAuthenticateType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .set_body(types::PaymentsPostAuthenticateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsPostAuthenticateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPostAuthenticateRouterData, errors::ConnectorError> {
+        let response: fiuu::FiuuAuthnQueryResponse = res
+            .response
+            .parse_struct("Fiuu FiuuAuthnQueryResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+/// Settle after standalone authentication: Direct API with ECI/Cryptogram/dsTransID/3DS_version.
+impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData> for Fiuu {
+    fn get_headers(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}RMS/API/Direct/1.4.0/index.php",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = fiuu::FiuuRouterData::from((amount, req));
+        let complete_authorize_request =
+            fiuu::FiuuCompleteAuthorizeRequest::try_from(&connector_router_data)?;
+        build_form_from_struct(complete_authorize_request)
+            .change_context(errors::ConnectorError::ParsingFailed)
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCompleteAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: fiuu::FiuuPaymentsResponse = res
             .response
             .parse_struct("Fiuu FiuuPaymentsResponse")
@@ -1198,5 +1467,59 @@ impl ConnectorSpecifications for Fiuu {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
         Some(&FIUU_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    /// Standalone EMV 3DS (authentication.php) for a card 3DS payment that carries no
+    /// merchant-supplied (external) authentication data. authentication.php must be enabled on
+    /// the Fiuu merchant account, so it is opt-in through the MCA metadata
+    /// (`"enable_native_3ds": true`); otherwise 3DS stays on the Authorize redirect.
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+                connector_meta_data,
+            } => {
+                auth_type.is_three_ds()
+                    && request_data.is_card()
+                    && request_data.authentication_data.is_none()
+                    && fiuu::is_native_3ds_enabled(&connector_meta_data)
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
+    /// Authentication result lookup (authn_query.php): after a frictionless authentication.php
+    /// result (Authorize) and after the shopper returns from the challenge (CompleteAuthorize).
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+                connector_meta_data: _,
+            } => auth_type.is_three_ds() && request_data.is_card(),
+            // Only a 3DS-server challenge return carries an authentication id; the Authorize
+            // redirect returns Fiuu's tranID and settles without a lookup.
+            api::CurrentFlowInfo::CompleteAuthorize {
+                auth_type,
+                request_data,
+                payment_method,
+            } => {
+                payment_method == Some(PaymentMethod::Card)
+                    && auth_type.is_three_ds()
+                    && fiuu::get_authentication_id_from_redirect(
+                        request_data.redirect_response.as_ref(),
+                    )
+                    .is_some()
+            }
+            api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
     }
 }
