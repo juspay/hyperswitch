@@ -89,6 +89,12 @@
                     ]
                   },
                   {
+                    "group": "Telephone Order",
+                    "pages": [
+                      "v1/telephone-order/telephone-order--charge"
+                    ]
+                  },
+                  {
                     "group": "Payment Method Session",
                     "pages": [
                       "v2/payment-method-session/payment-method-session--create-v1",
