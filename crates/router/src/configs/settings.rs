@@ -1019,6 +1019,7 @@ pub struct UserSettings {
     pub base_url: String,
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
+    pub idle_session_timeout_in_secs: Option<u32>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1331,6 +1332,7 @@ pub struct WebhooksSettings {
 #[serde(default)]
 pub struct IncomingWebhooksSettings {
     pub mtls_verified_header: Option<String>,
+    pub source_ip_header: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -1563,11 +1565,23 @@ impl Settings<SecuredSecret> {
             .with_list_parse_key("redis.cluster_urls")
             .with_list_parse_key("events.kafka.brokers")
             .with_list_parse_key("connectors.supported.wallets")
+            .with_list_parse_key("report_download_config.process_tracker.email_bcc")
+            .with_list_parse_key("report_download_config.process_tracker_reports")
             .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id");
 
         #[cfg(feature = "deja")]
         let environment_source =
             environment_source.with_list_parse_key("deja.recording.kafka.brokers");
+
+        #[cfg(feature = "olap")]
+        let environment_source = {
+            use strum::IntoEnumIterator;
+            analytics::reports::ReportKind::iter().fold(environment_source, |source, report| {
+                source.with_list_parse_key(&format!(
+                    "report_download_config.process_tracker.report_email_bcc.{report}"
+                ))
+            })
+        };
 
         let config = config
             .add_source(environment_source)
@@ -1625,6 +1639,7 @@ impl Settings<SecuredSecret> {
         self.connectors.validate("connectors")?;
         self.sage.get_inner().validate()?;
         self.cors.validate()?;
+        self.user.validate()?;
 
         self.scheduler
             .as_ref()

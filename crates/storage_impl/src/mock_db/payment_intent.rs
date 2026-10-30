@@ -1,17 +1,18 @@
 use common_utils::errors::CustomResult;
-use diesel_models::enums as storage_enums;
 #[cfg(all(feature = "v1", feature = "olap"))]
 use diesel_models::PaymentIntent as DieselPaymentIntent;
 #[cfg(feature = "v1")]
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::behaviour::Conversion;
+#[cfg(all(feature = "v1", feature = "olap"))]
+use hyperswitch_domain_models::platform::ProviderMerchantId;
 use hyperswitch_domain_models::{
-    merchant_key_store::MerchantKeyStore,
     payments::{
         payment_intent::{PaymentIntentInterface, PaymentIntentUpdate},
         PaymentIntent,
     },
+    platform::{ProcessorKeyStore, ProcessorMerchantId, ProcessorStorageScheme},
 };
 
 use super::MockDb;
@@ -23,10 +24,10 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
-        _processor_merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &ProcessorMerchantId,
         _filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        _key_store: &MerchantKeyStore,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _key_store: &ProcessorKeyStore,
+        _storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
@@ -35,10 +36,10 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _merchant_id: &ProcessorMerchantId,
         _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        _merchant_key_store: &MerchantKeyStore,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &ProcessorKeyStore,
+        _storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<
         Vec<(
             PaymentIntent,
@@ -52,7 +53,7 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt_for_platform(
         &self,
-        _platform_merchant_id: &common_utils::id_type::MerchantId,
+        _provider_merchant_id: &ProviderMerchantId,
         _filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
     ) -> CustomResult<
         Vec<(
@@ -68,7 +69,7 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_payment_intents_attempt_count_for_platform(
         &self,
-        _platform_merchant_id: &common_utils::id_type::MerchantId,
+        _provider_merchant_id: &ProviderMerchantId,
         _filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
     ) -> CustomResult<i64, StorageError> {
         // [#172]: Implement function for `MockDb`
@@ -78,10 +79,10 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
-        _processor_merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &ProcessorMerchantId,
         _time_range: &common_utils::types::TimeRange,
-        _key_store: &MerchantKeyStore,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _key_store: &ProcessorKeyStore,
+        _storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
@@ -90,7 +91,7 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
-        _processor_merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &ProcessorMerchantId,
         _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         _time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
@@ -101,9 +102,9 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        _processor_merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &ProcessorMerchantId,
         _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
@@ -112,9 +113,9 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _merchant_id: &ProcessorMerchantId,
         _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<Vec<Option<String>>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
@@ -123,10 +124,10 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        _processor_merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &ProcessorMerchantId,
         _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        _key_store: &MerchantKeyStore,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _key_store: &ProcessorKeyStore,
+        _storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<
         Vec<(
             PaymentIntent,
@@ -142,8 +143,8 @@ impl PaymentIntentInterface for MockDb {
     async fn insert_payment_intent(
         &self,
         new: PaymentIntent,
-        _key_store: &MerchantKeyStore,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _key_store: &ProcessorKeyStore,
+        _storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<PaymentIntent, StorageError> {
         let mut payment_intents = self.payment_intents.lock().await;
         payment_intents.push(new.clone());
@@ -157,8 +158,8 @@ impl PaymentIntentInterface for MockDb {
         &self,
         this: PaymentIntent,
         update: PaymentIntentUpdate,
-        key_store: &MerchantKeyStore,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        key_store: &ProcessorKeyStore,
+        _storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<PaymentIntent, StorageError> {
         let mut payment_intents = self.payment_intents.lock().await;
         let payment_intent = payment_intents
@@ -196,8 +197,8 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _this: PaymentIntent,
         _update: PaymentIntentUpdate,
-        _key_store: &MerchantKeyStore,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _key_store: &ProcessorKeyStore,
+        _storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<PaymentIntent, StorageError> {
         todo!()
     }
@@ -208,9 +209,9 @@ impl PaymentIntentInterface for MockDb {
     async fn find_payment_intent_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &common_utils::id_type::PaymentId,
-        processor_merchant_id: &common_utils::id_type::MerchantId,
-        _key_store: &MerchantKeyStore,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        processor_merchant_id: &ProcessorMerchantId,
+        _key_store: &ProcessorKeyStore,
+        _storage_scheme: ProcessorStorageScheme,
     ) -> CustomResult<PaymentIntent, StorageError> {
         let payment_intents = self.payment_intents.lock().await;
 
@@ -230,8 +231,8 @@ impl PaymentIntentInterface for MockDb {
     async fn find_payment_intent_by_id(
         &self,
         id: &common_utils::id_type::GlobalPaymentId,
-        _merchant_key_store: &MerchantKeyStore,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &ProcessorKeyStore,
+        _storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let payment_intents = self.payment_intents.lock().await;
         let payment_intent = payment_intents
@@ -248,8 +249,8 @@ impl PaymentIntentInterface for MockDb {
         &self,
         merchant_reference_id: &common_utils::id_type::PaymentReferenceId,
         profile_id: &common_utils::id_type::ProfileId,
-        _merchant_key_store: &MerchantKeyStore,
-        _storage_scheme: &common_enums::MerchantStorageScheme,
+        _merchant_key_store: &ProcessorKeyStore,
+        _storage_scheme: &ProcessorStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let payment_intents = self.payment_intents.lock().await;
         let payment_intent = payment_intents

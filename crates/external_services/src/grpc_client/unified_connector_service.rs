@@ -337,7 +337,7 @@ impl UnifiedConnectorServiceClient {
         };
 
         let uri: Uri = ucs_config.base_url.get_string_repr().parse().map_err(
-            |err: tonic::codegen::http::uri::InvalidUri| {
+            |err: http::uri::InvalidUri| {
                 logger::error!(error = ?err, "Failed to parse URI for Unified Connector Service");
                 UcsClientBuildError::InvalidUri(err.to_string())
             },
@@ -1000,6 +1000,41 @@ impl UnifiedConnectorServiceClient {
                     method="payment_void",
                     connector_name=?connector_name,
                     "UCS payment void gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payment Post Capture Void (Reverse)
+    pub async fn payment_reverse(
+        &self,
+        payment_reverse_request: payments_grpc::PaymentServiceReverseRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceReverseResponse>>
+    {
+        let mut request = tonic::Request::new(payment_reverse_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.payment_service_client
+            .clone()
+            .reverse(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_reverse",
+                    connector_name=?connector_name,
+                    "UCS payment reverse gRPC call failed"
                 )
             })
     }

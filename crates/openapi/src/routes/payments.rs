@@ -1327,8 +1327,10 @@ pub fn payments_submit_eligibility_check() {}
 ///
 /// - If eligibility is denied the response will contain `sdk_next_action: deny` and no surcharge details.
 /// - If the merchant has no surcharge connector configured, `surcharge_details` will be `null`.
-/// - Surcharge calculation is best-effort: if the external call fails the payment still proceeds
-///   with `surcharge_details: null`.
+/// - A connector calculation error leaves the payment payable amount unchanged. Its surcharge
+///   details contain a zero surcharge and the connector message. The error code is included
+///   only when the connector supplies one.
+/// - If no calculation is attempted, `surcharge_details` is `null`.
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/eligibility",

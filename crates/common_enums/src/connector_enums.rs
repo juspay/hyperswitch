@@ -107,6 +107,7 @@ pub enum Connector {
     Dlocal,
     Dwolla,
     Ebanx,
+    Ecommpay,
     Envoy,
     Elavon,
     Etisalat,
@@ -311,6 +312,12 @@ impl Connector {
     pub fn supports_vendor_disburse_account_create_for_payout(self) -> bool {
         matches!(self, Self::Stripe | Self::Nomupay)
     }
+    /// Whether this FRM provider's risk API is bearer-authenticated, so a token
+    /// must be fetched before the risk check. Static-key providers (nSure) and
+    /// the in-process ones need none; add a provider here when it requires one.
+    pub fn supports_access_token_for_frm(self) -> bool {
+        false
+    }
     pub fn supports_access_token(self, payment_method: PaymentMethod) -> bool {
         matches!(
             (self, payment_method),
@@ -447,7 +454,6 @@ impl Connector {
             | Self::Paysafe
             | Self::Paystack
             | Self::Payu
-            | Self::Peachpayments
             | Self::Placetopay
             | Self::Powertranz
             | Self::Prophetpay
@@ -511,10 +517,12 @@ impl Connector {
             | Self::Phonepe
             | Self::Imerchantsolutions
             | Self::Ilixium
+            | Self::Ecommpay
             | Self::JpmorganOrbital
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen | Self::Fiservcommercehub | Self::Worldpayxml
+            | Self::Peachpayments
             // Portico cannot authenticate: its Secure3D block only carries results computed
             // by a separate authentication connector, so external 3DS is its only 3DS mode.
             | Self::GlobalpaymentsHeartland => true,
