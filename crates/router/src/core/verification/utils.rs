@@ -51,16 +51,17 @@ pub async fn get_apple_pay_merchant_connector_account(
         .await
         .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
-    if merchant_connector_account.merchant_id != *merchant_id {
-        return Err(errors::ApiErrorResponse::ResourceIdNotFound.into());
+    match &merchant_connector_account.merchant_id {
+        merchant_connector_account_id if merchant_connector_account_id == merchant_id => {
+            utils::validate_profile_id_from_auth_layer(
+                profile_id_from_auth_layer,
+                &merchant_connector_account,
+            )?;
+
+            Ok((key_store, merchant_connector_account))
+        }
+        _ => Err(errors::ApiErrorResponse::ResourceIdNotFound.into()),
     }
-
-    utils::validate_profile_id_from_auth_layer(
-        profile_id_from_auth_layer,
-        &merchant_connector_account,
-    )?;
-
-    Ok((key_store, merchant_connector_account))
 }
 
 pub async fn add_domain_to_apple_pay_merchant_connector_account(

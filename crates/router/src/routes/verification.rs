@@ -26,17 +26,18 @@ pub async fn apple_pay_merchant_registration(
         |state, auth: auth::AuthenticationData, body, _| {
             let merchant_id = merchant_id.clone();
             async move {
-                if auth.platform.get_processor().get_account().get_id() != &merchant_id {
-                    return Err(errors::ApiErrorResponse::Unauthorized.into());
+                match auth.platform.get_processor().get_account().get_id() {
+                    authenticated_merchant_id if authenticated_merchant_id == &merchant_id => {
+                        verification::verify_merchant_creds_for_applepay(
+                            state.clone(),
+                            body,
+                            merchant_id,
+                            auth.profile.map(|profile| profile.get_id().clone()),
+                        )
+                        .await
+                    }
+                    _ => Err(errors::ApiErrorResponse::Unauthorized.into()),
                 }
-
-                verification::verify_merchant_creds_for_applepay(
-                    state.clone(),
-                    body,
-                    merchant_id,
-                    auth.profile.map(|profile| profile.get_id().clone()),
-                )
-                .await
             }
         },
         auth::auth_type(
@@ -74,17 +75,18 @@ pub async fn apple_pay_merchant_registration(
         |state, auth: auth::AuthenticationData, body, _| {
             let merchant_id = merchant_id.clone();
             async move {
-                if auth.platform.get_processor().get_account().get_id() != &merchant_id {
-                    return Err(errors::ApiErrorResponse::Unauthorized.into());
+                match auth.platform.get_processor().get_account().get_id() {
+                    authenticated_merchant_id if authenticated_merchant_id == &merchant_id => {
+                        verification::verify_merchant_creds_for_applepay(
+                            state.clone(),
+                            body,
+                            merchant_id,
+                            Some(auth.profile.get_id().clone()),
+                        )
+                        .await
+                    }
+                    _ => Err(errors::ApiErrorResponse::Unauthorized.into()),
                 }
-
-                verification::verify_merchant_creds_for_applepay(
-                    state.clone(),
-                    body,
-                    merchant_id,
-                    Some(auth.profile.get_id().clone()),
-                )
-                .await
             }
         },
         auth::auth_type(
@@ -123,22 +125,23 @@ pub async fn retrieve_apple_pay_verified_domains(
             let merchant_id = merchant_id.clone();
             let mca_id = mca_id.clone();
             async move {
-                if auth.platform.get_processor().get_account().get_id() != &merchant_id {
-                    return Err(errors::ApiErrorResponse::Unauthorized.into());
+                match auth.platform.get_processor().get_account().get_id() {
+                    authenticated_merchant_id if authenticated_merchant_id == &merchant_id => {
+                        #[cfg(feature = "v1")]
+                        let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+                        #[cfg(feature = "v2")]
+                        let profile_id = Some(auth.profile.get_id().clone());
+
+                        verification::get_verified_apple_domains_with_mid_mca_id(
+                            state,
+                            merchant_id,
+                            profile_id,
+                            mca_id,
+                        )
+                        .await
+                    }
+                    _ => Err(errors::ApiErrorResponse::Unauthorized.into()),
                 }
-
-                #[cfg(feature = "v1")]
-                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-                #[cfg(feature = "v2")]
-                let profile_id = Some(auth.profile.get_id().clone());
-
-                verification::get_verified_apple_domains_with_mid_mca_id(
-                    state,
-                    merchant_id,
-                    profile_id,
-                    mca_id,
-                )
-                .await
             }
         },
         auth::auth_type(
