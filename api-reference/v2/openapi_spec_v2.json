@@ -14417,7 +14417,6 @@
           "payment_method_token",
           "customer_id",
           "payment_method_type",
-          "payment_method_subtype",
           "recurring_enabled",
           "created",
           "requires_cvv",
@@ -14441,7 +14440,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "recurring_enabled": {
             "type": "boolean",
@@ -25126,7 +25130,6 @@
           "id",
           "customer_id",
           "payment_method_type",
-          "payment_method_subtype",
           "created",
           "requires_cvv",
           "is_default"
@@ -25154,7 +25157,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "recurring_enabled": {
             "type": "boolean",
