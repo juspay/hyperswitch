@@ -1845,9 +1845,8 @@ pub fn build_redirection_form(
     }
 }
 
-/// Only scripts carrying `csp_nonce` may run. `'strict-dynamic'` extends that trust to the
-/// scripts HyperLoader injects (wallet SDKs and its own chunks), so their hosts need not be
-/// listed. `https:` is honoured only by browsers that predate `'strict-dynamic'`.
+/// Only nonced scripts and the scripts they load may run; `https:` is a fallback for browsers
+/// without `'strict-dynamic'`.
 fn get_payment_link_csp(csp_nonce: &CspNonce) -> String {
     let csp_nonce = csp_nonce.peek();
     format!(

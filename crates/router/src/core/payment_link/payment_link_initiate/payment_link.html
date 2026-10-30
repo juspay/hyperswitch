@@ -297,7 +297,7 @@
         </div>
       </div>
     </div>
-    <script{% if csp_nonce %} nonce="{{csp_nonce}}"{% endif %}>
+    <script {{csp_nonce_attribute}}>
       window.__REDIRECTION_LOG_ENDPOINT = '{{redirection_log_endpoint}}';
       window.__REDIRECTION_LOG_MESSAGE_ORIGINS = ['{{sdk_origin}}'];
       {{logging_template}}
