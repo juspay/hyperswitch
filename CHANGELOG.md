@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.26.0-hotfix5
+
+### Features
+
+- **payment_link:** Added csp nounce for foreign script injection prevention ([#15091](https://github.com/juspay/hyperswitch/pull/15091)) ([`b04659b`](https://github.com/juspay/hyperswitch/commit/b04659b72167933c3db09b87c2406d965794f350))
+- **revenue_recovery:** Use network decline code and card network for hard decline gsm lookup ([#15082](https://github.com/juspay/hyperswitch/pull/15082)) ([`3a2b4e9`](https://github.com/juspay/hyperswitch/commit/3a2b4e9f666bf439ce8b7116b5e537ee32d44137))
+
+### Bug Fixes
+
+- **authentication:** Added webhook ip verification support for netcetera ([#15094](https://github.com/juspay/hyperswitch/pull/15094)) ([`1ba87c7`](https://github.com/juspay/hyperswitch/commit/1ba87c7091f72e5e993f4375df850883907c70b9))
+- **disputes:** Enforce profile authorization for evidence deletion ([#15073](https://github.com/juspay/hyperswitch/pull/15073)) ([`6f6b7a1`](https://github.com/juspay/hyperswitch/commit/6f6b7a10c956c599eee7ff3b76243899acc640c1))
+- **refunds:** Serialize payment-scoped refund reservation ([#15075](https://github.com/juspay/hyperswitch/pull/15075)) ([`dcedfe3`](https://github.com/juspay/hyperswitch/commit/dcedfe3cda51b0bc1c5387c480f63d50fba41c34))
+- **router:** Reuse prefetched trackers in redirect flows ([#15079](https://github.com/juspay/hyperswitch/pull/15079)) ([`429b9b5`](https://github.com/juspay/hyperswitch/commit/429b9b5012405b0925f219f016e0fb85fe86cb4d))
+
+**Full Changelog:** [`2026.10.26.0-hotfix4...2026.10.26.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.10.26.0-hotfix4...2026.10.26.0-hotfix5)
+
+- - -
+
 ## 2026.10.26.0-hotfix4
 
 ### Bug Fixes
