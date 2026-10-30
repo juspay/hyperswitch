@@ -1470,17 +1470,24 @@ impl ConnectorSpecifications for Fiuu {
     }
 
     /// Standalone EMV 3DS (authentication.php) for a card 3DS payment that carries no
-    /// merchant-supplied (external) authentication data.
+    /// merchant-supplied (external) authentication data. authentication.php must be enabled on
+    /// the Fiuu merchant account, so it is opt-in through the MCA metadata
+    /// (`"enable_native_3ds": true`); otherwise 3DS stays on the Authorize redirect.
     fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
                 request_data,
-                connector_meta_data: _,
+                connector_meta_data,
             } => {
                 auth_type.is_three_ds()
                     && request_data.is_card()
                     && request_data.authentication_data.is_none()
+                    && connector_meta_data
+                        .as_ref()
+                        .and_then(|metadata| metadata.peek().get("enable_native_3ds"))
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
             }
             api::CurrentFlowInfo::CompleteAuthorize { .. }
             | api::CurrentFlowInfo::SetupMandate { .. }
@@ -1499,11 +1506,20 @@ impl ConnectorSpecifications for Fiuu {
                 request_data,
                 connector_meta_data: _,
             } => auth_type.is_three_ds() && request_data.is_card(),
+            // Only a 3DS-server challenge return carries an authentication id; the Authorize
+            // redirect returns Fiuu's tranID and settles without a lookup.
             api::CurrentFlowInfo::CompleteAuthorize {
                 auth_type,
+                request_data,
                 payment_method,
-                ..
-            } => payment_method == Some(PaymentMethod::Card) && auth_type.is_three_ds(),
+            } => {
+                payment_method == Some(PaymentMethod::Card)
+                    && auth_type.is_three_ds()
+                    && fiuu::get_authentication_id_from_redirect(
+                        request_data.redirect_response.as_ref(),
+                    )
+                    .is_some()
+            }
             api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }

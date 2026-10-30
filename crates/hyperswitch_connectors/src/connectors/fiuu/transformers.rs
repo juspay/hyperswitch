@@ -2449,7 +2449,7 @@ pub struct FiuuAuthnQueryRequest {
 }
 
 /// AuthID from the authentication return POST, under the keys Fiuu/HS may carry it.
-fn get_authentication_id_from_redirect(
+pub(super) fn get_authentication_id_from_redirect(
     redirect_response: Option<&CompleteAuthorizeRedirectResponse>,
 ) -> Option<String> {
     let payload = redirect_response?.payload.as_ref()?.peek();
