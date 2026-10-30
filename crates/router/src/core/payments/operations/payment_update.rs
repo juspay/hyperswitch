@@ -66,6 +66,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
@@ -83,15 +84,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             auth_flow,
         )
         .await?;
-        payment_intent = db
-            .find_payment_intent_by_payment_id_processor_merchant_id(
-                &payment_id,
-                &processor_merchant_id,
-                platform.get_processor().get_key_store(),
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        payment_intent = helpers::find_payment_intent(
+            db,
+            &payment_id,
+            &processor_merchant_id,
+            platform.get_processor().get_key_store(),
+            storage_scheme,
+            profile_id_from_auth_layer,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
 

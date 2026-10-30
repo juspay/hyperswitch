@@ -22,13 +22,14 @@ pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
     consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
+    link_utils::CspNonce,
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
 pub use hyperswitch_domain_models::{
     api::{
         ApplicationResponse, GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData,
-        GenericLinks, PaymentLinkAction, RedirectionFormData, WebhookResponse,
+        GenericLinks, GenericLinksData, PaymentLinkAction, RedirectionFormData, WebhookResponse,
     },
     payment_method_data::PaymentMethodData,
     router_response_types::RedirectForm,
@@ -514,22 +515,32 @@ where
 
         Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
             let link_type = boxed_generic_link_data.data.to_string();
+            let is_secure_payment_link = matches!(
+                boxed_generic_link_data.data,
+                GenericLinksData::SecurePaymentLink(_)
+            );
+            let csp_nonce = CspNonce::generate();
             match build_generic_link_html(
                 boxed_generic_link_data.data,
                 boxed_generic_link_data.locale,
+                &csp_nonce,
             ) {
                 Ok(rendered_html) => {
-                    let headers = if !boxed_generic_link_data.allowed_domains.is_empty() {
+                    let mut csp_directives = Vec::new();
+                    if !boxed_generic_link_data.allowed_domains.is_empty() {
                         let domains_str = boxed_generic_link_data
                             .allowed_domains
                             .into_iter()
                             .collect::<Vec<String>>()
                             .join(" ");
-                        let csp_header = format!("frame-ancestors 'self' {domains_str};");
-                        Some(HashSet::from([("content-security-policy", csp_header)]))
-                    } else {
-                        None
-                    };
+                        csp_directives.push(format!("frame-ancestors 'self' {domains_str};"));
+                    }
+                    if is_secure_payment_link {
+                        csp_directives.push(get_payment_link_csp(&csp_nonce));
+                    }
+                    let headers = (!csp_directives.is_empty()).then(|| {
+                        HashSet::from([("content-security-policy", csp_directives.join(" "))])
+                    });
                     http_response_html_data(rendered_html, headers)
                 }
                 Err(_) => http_response_err(format!("Error while rendering {link_type} HTML page")),
@@ -537,14 +548,12 @@ where
         }
 
         Ok(ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
+            let csp_nonce = CspNonce::generate();
             let mut headers = HashSet::new();
-            headers.insert((
-                "content-security-policy",
-                "default-src 'self' http: https:; script-src 'self' 'unsafe-inline' http: https:; style-src 'self' 'unsafe-inline' http: https:; img-src * data: blob:; font-src * data:; connect-src *; frame-src *; object-src 'none';".to_string(),
-            ));
+            headers.insert(("content-security-policy", get_payment_link_csp(&csp_nonce)));
             match *boxed_payment_link_data {
                 PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
-                    match build_payment_link_html(payment_link_data) {
+                    match build_payment_link_html(payment_link_data, &csp_nonce) {
                         Ok(rendered_html) => http_response_html_data(rendered_html, Some(headers)),
                         Err(_) => http_response_err(
                             r#"{
@@ -556,7 +565,7 @@ where
                     }
                 }
                 PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
-                    match get_payment_link_status(payment_link_data) {
+                    match get_payment_link_status(payment_link_data, &csp_nonce) {
                         Ok(rendered_html) => http_response_html_data(rendered_html, Some(headers)),
                         Err(_) => http_response_err(
                             r#"{
@@ -1836,10 +1845,28 @@ pub fn build_redirection_form(
     }
 }
 
+/// Only nonced scripts and the scripts they load may run; `https:` is a fallback for browsers
+/// without `'strict-dynamic'`.
+fn get_payment_link_csp(csp_nonce: &CspNonce) -> String {
+    let csp_nonce = csp_nonce.peek();
+    format!(
+        "default-src 'self' https:; \
+         script-src 'nonce-{csp_nonce}' 'strict-dynamic' https:; \
+         style-src 'self' 'unsafe-inline' https:; \
+         img-src * data: blob:; \
+         font-src * data:; \
+         connect-src *; \
+         frame-src *; \
+         object-src 'none'; \
+         base-uri 'none';"
+    )
+}
+
 pub fn build_payment_link_html(
     payment_link_data: PaymentLinkFormData,
+    csp_nonce: &CspNonce,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    payment_link::build_payment_link_html(payment_link_data)
+    payment_link::build_payment_link_html(payment_link_data, Some(csp_nonce))
         .map_err(|e| {
             logger::error!("Failed to build payment link HTML: {:?}", e);
             errors::ApiErrorResponse::InternalServerError
@@ -1849,8 +1876,9 @@ pub fn build_payment_link_html(
 
 pub fn build_secure_payment_link_html(
     payment_link_data: PaymentLinkFormData,
+    csp_nonce: &CspNonce,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    payment_link::build_secure_payment_link_html(payment_link_data)
+    payment_link::build_secure_payment_link_html(payment_link_data, Some(csp_nonce))
         .map_err(|e| {
             logger::error!("Failed to build secure payment link HTML: {:?}", e);
             errors::ApiErrorResponse::InternalServerError
@@ -1860,8 +1888,9 @@ pub fn build_secure_payment_link_html(
 
 pub fn get_payment_link_status(
     payment_link_data: PaymentLinkStatusData,
+    csp_nonce: &CspNonce,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    payment_link::get_payment_link_status(payment_link_data)
+    payment_link::get_payment_link_status(payment_link_data, Some(csp_nonce))
         .map_err(|e| {
             logger::error!("Failed to get payment link status: {:?}", e);
             errors::ApiErrorResponse::InternalServerError

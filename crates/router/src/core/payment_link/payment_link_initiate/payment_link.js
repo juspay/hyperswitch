@@ -321,6 +321,7 @@ function isObject(val) {
  * Use - add event listeners for changing UI on
  *        - Screen resize
  *        - Form inputs
+ *        - Opening and closing the cart in mobile view
  * @param {PaymentDetails} paymentDetails
  */
 function initializeEventListeners(paymentDetails) {
@@ -368,6 +369,12 @@ function initializeEventListeners(paymentDetails) {
 
   if (hyperCheckoutCartImageNode instanceof HTMLDivElement) {
     hyperCheckoutCartImageNode.style.backgroundColor = contrastingTone;
+    hyperCheckoutCartImageNode.addEventListener("click", viewCartInMobileView);
+  }
+
+  var cartCloseNode = document.querySelector(".cart-close");
+  if (cartCloseNode instanceof SVGSVGElement) {
+    cartCloseNode.addEventListener("click", hideCartInMobileView);
   }
 
   if (window.innerWidth <= 1199) {

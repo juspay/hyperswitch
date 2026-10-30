@@ -1833,66 +1833,60 @@ pub async fn validate_and_create_refund(
             .map(|created_by| created_by.to_string()),
     };
 
-    let (refund, raw_connector_response) = match db
+    let refund = match db
         .insert_refund(
             refund_create_req,
             platform.get_processor().get_account().storage_scheme,
         )
         .await
     {
-        Ok(refund) => {
-            let (updated_refund, raw_response) = Box::pin(schedule_refund_execution(
-                state,
-                refund.clone(),
-                refund_type,
-                platform,
-                payment_attempt,
-                payment_intent,
-                creds_identifier,
-                split_refunds,
-                req.all_keys_required,
-                payment_method_data,
-            ))
-            .await?;
-
-            // Update the state metadata of the payment intent if the refund is successful
-            if updated_refund.refund_status.is_success() {
-                tokio::spawn({
-                    let state = state.clone();
-                    let processor = platform.get_processor().clone();
-                    let payment_intent = payment_intent.clone();
-                    let state_metadata = payment_intent.state_metadata.clone().unwrap_or_default();
-
-                    async move {
-                        if let Err(err) = PaymentIntentStateMetadataExt::from(state_metadata)
-                            .update_intent_state_metadata_for_refund(
-                                &state,
-                                &processor,
-                                payment_intent,
-                            )
-                            .await
-                        {
-                            logger::error!(
-                            ?err,
-                            "Failed to update payment intent state metadata during refund creation"
-                        );
-                        }
-                    }
-                    .in_current_span()
-                });
-            }
-            (updated_refund, raw_response)
-        }
+        Ok(refund) => refund,
         Err(err) => {
             if err.current_context().is_db_unique_violation() {
                 Err(errors::ApiErrorResponse::DuplicateRefundRequest)?
             } else {
                 return Err(err)
-                    .change_context(errors::ApiErrorResponse::RefundNotFound)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Inserting Refund failed");
             }
         }
     };
+    let (refund, raw_connector_response) = Box::pin(schedule_refund_execution(
+        state,
+        refund,
+        refund_type,
+        platform,
+        payment_attempt,
+        payment_intent,
+        creds_identifier,
+        split_refunds,
+        req.all_keys_required,
+        payment_method_data,
+    ))
+    .await?;
+
+    // Update the state metadata of the payment intent if the refund is successful
+    if refund.refund_status.is_success() {
+        tokio::spawn({
+            let state = state.clone();
+            let processor = platform.get_processor().clone();
+            let payment_intent = payment_intent.clone();
+            let state_metadata = payment_intent.state_metadata.clone().unwrap_or_default();
+
+            async move {
+                if let Err(err) = PaymentIntentStateMetadataExt::from(state_metadata)
+                    .update_intent_state_metadata_for_refund(&state, &processor, payment_intent)
+                    .await
+                {
+                    logger::error!(
+                        ?err,
+                        "Failed to update payment intent state metadata during refund creation"
+                    );
+                }
+            }
+            .in_current_span()
+        });
+    }
     let unified_translated_message = if let (Some(unified_code), Some(unified_message)) =
         (refund.unified_code.clone(), refund.unified_message.clone())
     {

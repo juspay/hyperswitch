@@ -9902,6 +9902,10 @@ key1="Secret API Key"
   payment_method_type = "DinersClub"
 [[elavon_pg.debit]]
   payment_method_type = "UnionPay"
+[[elavon_pg.wallet]]
+  payment_method_type = "apple_pay"
+[[elavon_pg.wallet]]
+  payment_method_type = "google_pay"
 
 [mifinity_payout]
 [[mifinity_payout.wallet]]

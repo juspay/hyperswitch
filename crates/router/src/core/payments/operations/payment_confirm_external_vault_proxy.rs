@@ -188,6 +188,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
         payment_method_fetch_data: PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsRequest, PaymentData<F>>> {
         let db = &*state.store;
         let payment_method_wrapper = payment_method_fetch_data.payment_method_with_raw_data;
@@ -198,15 +199,25 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let payment_intent = db
-            .find_payment_intent_by_payment_id_processor_merchant_id(
+        let payment_intent = match payment_method_fetch_data.payment_intent {
+            Some(payment_intent) => {
+                helpers::validate_payment_profile(
+                    profile_id_from_auth_layer,
+                    payment_intent.profile_id.as_ref(),
+                )?;
+                payment_intent
+            }
+            None => helpers::find_payment_intent(
+                db,
                 &payment_id,
                 &processor_merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
+                profile_id_from_auth_layer,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
 
         if [
             Some(common_enums::PaymentSource::Webhook),
@@ -790,7 +801,24 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         req: &PaymentsRequest,
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<PaymentMethodFetchData> {
+        let payment_id = req
+            .payment_id
+            .as_ref()
+            .get_required_value("payment_id")?
+            .get_payment_intent_id()
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        let payment_intent = helpers::find_payment_intent(
+            state.store.as_ref(),
+            &payment_id,
+            &platform.get_processor().get_processor_merchant_id(),
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_storage_scheme(),
+            profile_id_from_auth_layer,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         // Only the saved-card token flow (`VaultCardTokenData`) needs an up-front fetch. The inline
         // `VaultDataCard` flow carries the card on the request and is parsed in `get_trackers`.
         let card_token = req
@@ -810,7 +838,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
 
         // A fetch is only needed for the saved-card token flow, and only when the org is eligible
         // for the modular PM service. Every other case has nothing to fetch up front.
-        let fetch_data = match card_token {
+        let mut fetch_data = match card_token {
             Some(card_token) if feature_config.is_payment_method_modular_allowed => {
                 // 1. Resolve the payment_token to the actual stored payment_method_id via Redis.
                 //    This uses the same key construction as the regular Confirm flow's
@@ -837,12 +865,11 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
 
                 // 2. Retrieve the external vault tokens for that payment method from the modular PM
                 //    service.
-                let profile_id = platform
-                    .get_processor()
-                    .get_account()
-                    .get_default_profile()
-                    .clone()
+                let profile_id = payment_intent
+                    .profile_id
+                    .as_ref()
                     .get_required_value("profile_id")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "profile_id is required to fetch external vault tokens from the modular service",
                     )?;
@@ -851,7 +878,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                     pm_transformers::fetch_payment_method_from_modular_service(
                         state,
                         platform,
-                        &profile_id,
+                        profile_id,
                         &payment_method_id,
                         Some(card_token),
                         // External vault proxy cards are not in the internal vault; requesting raw
@@ -876,6 +903,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             // Not a token flow — nothing to fetch up front.
             None => PaymentMethodFetchData::default(),
         };
+        fetch_data.payment_intent = Some(payment_intent);
 
         Ok(fetch_data)
     }
