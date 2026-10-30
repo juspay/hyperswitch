@@ -63,7 +63,8 @@ pub struct IndividualSenderDetails {
     pub date_of_birth: Option<Secret<Date>>,
 
     /// The sender's address. When no address field is provided, the billing address of the
-    /// payment method is used instead.
+    /// payment method is used instead, unless the sender is named and their name differs from
+    /// the billing name, in which case no address is sent.
     #[schema(value_type = Option<SenderAddress>)]
     pub address: Option<SenderAddress>,
 
