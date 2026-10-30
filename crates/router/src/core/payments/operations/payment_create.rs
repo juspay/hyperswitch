@@ -2022,7 +2022,10 @@ impl PaymentCreate {
             tax_status: request.tax_status,
             shipping_amount_tax: request.shipping_amount_tax,
             value_added_tax_amount: request.value_added_tax_amount,
-            value_added_tax_percent: request.value_added_tax_percent,
+            value_added_tax_percent: request
+                .value_added_tax_percent
+                .as_ref()
+                .map(|percentage| percentage.get_percentage()),
             enable_partial_authorization: request.enable_partial_authorization,
             enable_overcapture: request.enable_overcapture,
             mit_category: request.mit_category,
