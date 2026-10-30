@@ -1046,6 +1046,7 @@ impl Default for PaymentAuthorizeType {
             billing_descriptor: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             feature_metadata: None,

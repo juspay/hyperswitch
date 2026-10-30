@@ -255,6 +255,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             external_surcharge_applicable: _,
             is_account_funded_transaction: _,
             recipient_details: _,
+            sender_details: _,
             enable_avs_check: _,
             mit_category: _,
             settlement_conclusion_applied: _,

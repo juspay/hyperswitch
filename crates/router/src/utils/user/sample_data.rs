@@ -303,6 +303,7 @@ pub async fn generate_sample_data(
             billing_descriptor: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,

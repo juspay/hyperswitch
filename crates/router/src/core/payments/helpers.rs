@@ -5264,6 +5264,7 @@ mod tests {
             billing_descriptor: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
@@ -5361,6 +5362,7 @@ mod tests {
             billing_descriptor: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
@@ -5458,6 +5460,7 @@ mod tests {
             billing_descriptor: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
@@ -8738,6 +8741,114 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     } else {
         Ok(())
     }
+}
+
+/// Validates that the names identifying an account funded transaction sender are not blank.
+pub fn validate_sender_details(
+    sender_details: Option<&api_models::payments::SenderDetails>,
+) -> Result<(), errors::ApiErrorResponse> {
+    use common_utils::ext_traits::ConfigExt;
+
+    sender_details
+        .map(|sender_details| sender_details.get_name_fields())
+        .unwrap_or_default()
+        .into_iter()
+        .find(|(_, value)| value.is_empty_after_trim())
+        .map_or(Ok(()), |(field_name, _)| {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("{field_name} must not be empty"),
+            })
+        })
+}
+
+/// Fills in the sender of an account funded transaction from the billing address of the payment
+/// method.
+pub fn get_sender_details_with_billing_fallback(
+    sender_details: Option<api_models::payments::SenderDetails>,
+    billing: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<api_models::payments::SenderDetails> {
+    use api_models::payments::{IndividualSenderDetails, SenderAddress, SenderDetails};
+
+    let billing_details = billing.and_then(|billing| billing.address.as_ref());
+    let billing_address = billing_details
+        .map(|details| SenderAddress {
+            line1: details.line1.clone(),
+            line2: details.line2.clone(),
+            city: details.city.clone(),
+            state: details.state.clone(),
+            zip: details.zip.clone(),
+            country: details.country,
+        })
+        .filter(|address| !address.is_empty());
+    let billing_first_name = || billing_details.and_then(|details| details.first_name.clone());
+    let billing_last_name = || billing_details.and_then(|details| details.last_name.clone());
+    let resolve_address = |address: Option<SenderAddress>| {
+        address
+            .filter(|address| !address.is_empty())
+            .or_else(|| billing_address.clone())
+    };
+
+    match sender_details {
+        None => billing_details.map(|_| {
+            SenderDetails::Individual(IndividualSenderDetails {
+                first_name: billing_first_name(),
+                last_name: billing_last_name(),
+                date_of_birth: None,
+                address: billing_address.clone(),
+                phone: None,
+                email: None,
+            })
+        }),
+        Some(SenderDetails::Individual(individual)) => {
+            // The first and last name are taken together, from the sender when either is
+            // provided, otherwise from the billing name.
+            let is_sender_named = individual.first_name.is_some() || individual.last_name.is_some();
+            let (first_name, last_name) = if is_sender_named {
+                (individual.first_name, individual.last_name)
+            } else {
+                (billing_first_name(), billing_last_name())
+            };
+
+            // The billing address belongs to the cardholder, so it is not used for a sender
+            // named as someone else.
+            let is_billing_named_differently = is_sender_named
+                && (billing_first_name().is_some() || billing_last_name().is_some())
+                && !(is_same_name_part(first_name.as_ref(), billing_first_name().as_ref())
+                    && is_same_name_part(last_name.as_ref(), billing_last_name().as_ref()));
+            let address = individual
+                .address
+                .filter(|address| !address.is_empty())
+                .or_else(|| {
+                    billing_address
+                        .clone()
+                        .filter(|_| !is_billing_named_differently)
+                });
+
+            Some(SenderDetails::Individual(IndividualSenderDetails {
+                first_name,
+                last_name,
+                address,
+                ..individual
+            }))
+        }
+        Some(SenderDetails::Corporate(corporate)) => Some(SenderDetails::Corporate(
+            api_models::payments::CorporateSenderDetails {
+                address: resolve_address(corporate.address),
+                ..corporate
+            },
+        )),
+    }
+}
+
+/// Compares a part of a name ignoring case and surrounding whitespace.
+fn is_same_name_part(
+    sender_name: Option<&hyperswitch_masking::Secret<String>>,
+    billing_name: Option<&hyperswitch_masking::Secret<String>>,
+) -> bool {
+    let normalize = |name: Option<&hyperswitch_masking::Secret<String>>| {
+        name.map(|name| name.peek().trim().to_lowercase())
+    };
+    normalize(sender_name) == normalize(billing_name)
 }
 
 pub fn get_recipient_id_for_open_banking(

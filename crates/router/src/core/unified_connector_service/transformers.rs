@@ -9,8 +9,8 @@ use api_models::payments::{
     GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
     GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall, PaypalFlow,
     PaypalSessionTokenResponse, PaypalTransactionInfo, RecipientAccount, RecipientBankAccount,
-    RecipientDetails, SdkNextAction, SecretInfoToInitiateSdk, SessionToken,
-    ThirdPartySdkSessionResponse,
+    RecipientDetails, SdkNextAction, SecretInfoToInitiateSdk, SenderAddress, SenderDetails,
+    SessionToken, ThirdPartySdkSessionResponse,
 };
 use common_enums::{AttemptStatus, AuthenticationType, AuthorizationStatus, RefundStatus};
 use common_utils::{
@@ -58,8 +58,9 @@ use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
     self as payments_grpc, client_authentication_token_data,
     recipient_account::AccountType as RecipientAccountType,
-    recipient_bank_account::BankAccountType as RecipientBankAccountType, ConnectorState,
-    EventServiceHandleRequest, EventServiceParseRequest,
+    recipient_bank_account::BankAccountType as RecipientBankAccountType,
+    sender_details::SenderType, ConnectorState, EventServiceHandleRequest,
+    EventServiceParseRequest,
 };
 
 use crate::{
@@ -392,6 +393,7 @@ pub(super) fn build_ucs_order_details(
                         .map(|value| value.get_percentage()),
                     discount_type: detail.discount_type.clone(),
                     product_link: None,
+                    total_amount: None,
                 })
                 .collect()
         })
@@ -437,6 +439,7 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
             discount_amount: discount_amount.map(|amount| amount.get_amount_as_i64()),
             shipping_cost: shipping_cost.map(|amount| amount.get_amount_as_i64()),
             duty_amount: duty_amount.map(|amount| amount.get_amount_as_i64()),
+            order_commodity_code: None,
         });
 
     let tax_info = l2_l3_data
@@ -449,6 +452,10 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
             merchant_tax_registration_id,
             shipping_amount_tax: shipping_amount_tax.map(|amount| amount.get_amount_as_i64()),
             order_tax_amount: order_tax_amount.map(|tax| tax.get_amount_as_i64()),
+            value_added_tax_amount: None,
+            value_added_tax_percent: None,
+            vat_invoice_reference_number: None,
+            merchant_vat_registration_id: None,
         });
 
     if order_info.is_none() && tax_info.is_none() {
@@ -546,6 +553,7 @@ impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::Addre
             state: details.state.clone(),
             zip_code: details.zip.clone(),
             country_alpha2_code,
+            origin_zip: None,
             email: None,
             phone_number: None,
             phone_country_code: None,
@@ -571,6 +579,86 @@ impl transformers::ForeignTryFrom<&RecipientDetails> for payments_grpc::Recipien
                 .address
                 .as_ref()
                 .map(payments_grpc::Address::foreign_from),
+        })
+    }
+}
+
+impl ForeignFrom<&SenderAddress> for payments_grpc::SenderAddress {
+    fn foreign_from(address: &SenderAddress) -> Self {
+        let country_alpha2_code = address
+            .country
+            .as_ref()
+            .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+            .map(|c| c.into());
+
+        Self {
+            line1: address.line1.clone(),
+            line2: address.line2.clone(),
+            city: address.city.clone().map(Secret::new),
+            state: address.state.clone(),
+            zip_code: address.zip.clone(),
+            country_alpha2_code,
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<&SenderDetails> for payments_grpc::SenderDetails {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(details: &SenderDetails) -> Result<Self, Self::Error> {
+        let sender_type = match details {
+            SenderDetails::Individual(individual) => {
+                SenderType::Individual(payments_grpc::IndividualSenderDetails {
+                    first_name: individual.first_name.clone(),
+                    last_name: individual.last_name.clone(),
+                    date_of_birth: individual
+                        .date_of_birth
+                        .as_ref()
+                        .map(format_date_of_birth)
+                        .transpose()?,
+                    address: individual
+                        .address
+                        .as_ref()
+                        .map(payments_grpc::SenderAddress::foreign_from),
+                    email: individual
+                        .email
+                        .as_ref()
+                        .map(|email| email.peek().to_string().into()),
+                    phone_number: individual
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.number.clone()),
+                    phone_country_code: individual
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.country_code.clone()),
+                })
+            }
+            SenderDetails::Corporate(corporate) => {
+                SenderType::Corporate(payments_grpc::CorporateSenderDetails {
+                    company_name: Some(corporate.company_name.clone()),
+                    address: corporate
+                        .address
+                        .as_ref()
+                        .map(payments_grpc::SenderAddress::foreign_from),
+                    email: corporate
+                        .email
+                        .as_ref()
+                        .map(|email| email.peek().to_string().into()),
+                    phone_number: corporate
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.number.clone()),
+                    phone_country_code: corporate
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.country_code.clone()),
+                })
+            }
+        };
+
+        Ok(Self {
+            sender_type: Some(sender_type),
         })
     }
 }
@@ -1077,6 +1165,12 @@ impl
                 }),
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -1353,6 +1447,12 @@ impl
             partner_merchant_identifier_details: None,
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -2710,6 +2810,12 @@ impl
             partner_merchant_identifier_details: None,
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -2935,6 +3041,12 @@ impl
             partner_merchant_identifier_details: None,
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -3018,6 +3130,7 @@ impl
         Ok(Self {
             risk_assessment_data: None,
             is_account_funding_transaction: None,
+            sender_details: None,
             recipient_details: None,
             business_country: None,
             split_settlement: None,
@@ -3383,6 +3496,12 @@ impl
                     }),
                 }),
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -3618,6 +3737,7 @@ impl
             partner_merchant_identifier_details: None,
             payment_channel: None,
             is_account_funding_transaction: None,
+            sender_details: None,
             recipient_details: None,
             additional_connector_details: None,
             session_token: None,
@@ -3938,6 +4058,12 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -5734,6 +5860,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                 state: details.and_then(|d| d.state.as_ref().map(|s| s.clone().expose().into())),
                 zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.clone().expose().into())),
                 country_alpha2_code: country,
+                origin_zip: None,
                 email: address
                     .email
                     .as_ref()
@@ -5769,6 +5896,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                 state: details.and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
                 zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
                 country_alpha2_code: country,
+                origin_zip: None,
                 email: address.email.as_ref().map(|e| e.peek().to_string().into()),
                 phone_number: address
                     .phone
@@ -5807,6 +5935,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                     zip_code: details
                         .and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
                     country_alpha2_code: country,
+                    origin_zip: None,
                     email: address
                         .email
                         .as_ref()
@@ -5855,6 +5984,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::address::Address>
             state: details.and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
             zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
             country_alpha2_code: country,
+            origin_zip: None,
             email: address.email.as_ref().map(|e| e.peek().to_string().into()),
             phone_number: address
                 .phone
@@ -9270,6 +9400,8 @@ impl
             merchant_request_id: None,
             test_mode: router_data.test_mode,
             amount,
+            payment_method: None,
+            capture_method: None,
         })
     }
 }
