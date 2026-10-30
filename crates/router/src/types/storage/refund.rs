@@ -1,5 +1,4 @@
 use api_models::payments::AmountFilter;
-use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 #[cfg(feature = "v1")]
@@ -16,7 +15,7 @@ use diesel_models::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::refunds;
 
-use crate::{connection::DatabaseConnectionWithContext, logger};
+use crate::connection::DatabaseConnectionWithContext;
 
 #[async_trait::async_trait]
 pub trait RefundDbExt: Sized {
@@ -173,13 +172,9 @@ impl RefundDbExt for Refund {
 
         let filter = diesel_models::list::apply_pagination(filter, limit, offset);
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
-
-        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_results::<<Self as HasTable>::Table, _, _>(
             db_metrics::DatabaseOperation::Filter,
-            filter.get_results_async(conn.raw_connection()),
+            filter,
         )
         .await
         .change_context(errors::DatabaseError::NotFound)
@@ -258,13 +253,9 @@ impl RefundDbExt for Refund {
 
         let filter = diesel_models::list::apply_pagination(filter, limit, offset);
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
-
-        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_results::<<Self as HasTable>::Table, _, _>(
             db_metrics::DatabaseOperation::Filter,
-            filter.get_results_async(conn.raw_connection()),
+            filter,
         )
         .await
         .change_context(errors::DatabaseError::NotFound)
@@ -339,13 +330,13 @@ impl RefundDbExt for Refund {
             filter = filter.filter(dsl::refund_status.eq_any(filter_refund_status.clone()));
         }
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
-
-        filter
-            .get_result_async::<i64>(conn.raw_connection())
-            .await
-            .change_context(errors::DatabaseError::NotFound)
-            .attach_printable_lazy(|| "Error filtering count of platform refunds")
+        conn.track_get_result::<<Self as HasTable>::Table, _, i64>(
+            db_metrics::DatabaseOperation::Count,
+            filter,
+        )
+        .await
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering count of platform refunds")
     }
 
     #[cfg(feature = "v2")]
@@ -412,13 +403,9 @@ impl RefundDbExt for Refund {
 
         let filter = diesel_models::list::apply_pagination(filter, limit, offset);
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
-
-        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_results::<<Self as HasTable>::Table, _, _>(
             db_metrics::DatabaseOperation::Filter,
-            filter.get_results_async(conn.raw_connection()),
+            filter,
         )
         .await
         .change_context(errors::DatabaseError::NotFound)
@@ -451,31 +438,40 @@ impl RefundDbExt for Refund {
             .filter(dsl::created_at.ge(start_time))
             .filter(dsl::created_at.le(end_time));
 
-        let filter_connector: Vec<String> = filter
-            .clone()
-            .select(dsl::connector)
-            .distinct()
-            .order_by(dsl::connector.asc())
-            .get_results_async(conn.raw_connection())
+        let filter_connector: Vec<String> = conn
+            .track_get_results::<<Self as HasTable>::Table, _, String>(
+                db_metrics::DatabaseOperation::Filter,
+                filter
+                    .clone()
+                    .select(dsl::connector)
+                    .distinct()
+                    .order_by(dsl::connector.asc()),
+            )
             .await
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by connector")?;
 
-        let filter_currency: Vec<Currency> = filter
-            .clone()
-            .select(dsl::currency)
-            .distinct()
-            .order_by(dsl::currency.asc())
-            .get_results_async(conn.raw_connection())
+        let filter_currency: Vec<Currency> = conn
+            .track_get_results::<<Self as HasTable>::Table, _, Currency>(
+                db_metrics::DatabaseOperation::Filter,
+                filter
+                    .clone()
+                    .select(dsl::currency)
+                    .distinct()
+                    .order_by(dsl::currency.asc()),
+            )
             .await
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by currency")?;
 
-        let filter_status: Vec<RefundStatus> = filter
-            .select(dsl::refund_status)
-            .distinct()
-            .order_by(dsl::refund_status.asc())
-            .get_results_async(conn.raw_connection())
+        let filter_status: Vec<RefundStatus> = conn
+            .track_get_results::<<Self as HasTable>::Table, _, RefundStatus>(
+                db_metrics::DatabaseOperation::Filter,
+                filter
+                    .select(dsl::refund_status)
+                    .distinct()
+                    .order_by(dsl::refund_status.asc()),
+            )
             .await
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by refund status")?;
@@ -574,13 +570,13 @@ impl RefundDbExt for Refund {
             filter = filter.filter(dsl::refund_status.eq_any(filter_refund_status.clone()));
         }
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
-
-        filter
-            .get_result_async::<i64>(conn.raw_connection())
-            .await
-            .change_context(errors::DatabaseError::NotFound)
-            .attach_printable_lazy(|| "Error filtering count of refunds")
+        conn.track_get_result::<<Self as HasTable>::Table, _, i64>(
+            db_metrics::DatabaseOperation::Count,
+            filter,
+        )
+        .await
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering count of refunds")
     }
 
     #[cfg(feature = "v2")]
@@ -643,13 +639,13 @@ impl RefundDbExt for Refund {
             filter = filter.filter(dsl::refund_status.eq_any(filter_refund_status));
         }
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
-
-        filter
-            .get_result_async::<i64>(conn.raw_connection())
-            .await
-            .change_context(errors::DatabaseError::NotFound)
-            .attach_printable_lazy(|| "Error filtering count of refunds")
+        conn.track_get_result::<<Self as HasTable>::Table, _, i64>(
+            db_metrics::DatabaseOperation::Count,
+            filter,
+        )
+        .await
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering count of refunds")
     }
 
     #[cfg(feature = "v1")]
@@ -683,13 +679,9 @@ impl RefundDbExt for Refund {
             None => query,
         };
 
-        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_results::<<Self as HasTable>::Table, _, (RefundStatus, i64)>(
             db_metrics::DatabaseOperation::Count,
-            query.get_results_async::<(RefundStatus, i64)>(conn.raw_connection()),
+            query,
         )
         .await
         .change_context(errors::DatabaseError::NotFound)

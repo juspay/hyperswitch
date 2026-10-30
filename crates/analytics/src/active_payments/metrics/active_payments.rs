@@ -49,10 +49,9 @@ where
             .switch()?;
 
         query_builder
-            .add_custom_filter_clause(
+            .add_filter_in_range_clause(
                 "merchant_id",
-                format!("'{}','{}'", merchant_id.get_string_repr(), publishable_key),
-                FilterTypes::In,
+                &[merchant_id.get_string_repr(), publishable_key],
             )
             .switch()?;
 
