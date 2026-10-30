@@ -2218,15 +2218,15 @@ where
                     .iter()
                     .filter(|profile_id| !auth_profile_ids.contains(profile_id))
                     .collect();
-                if !inaccessible_profile_ids.is_empty() {
-                    return Err(error_stack::Report::new(
+                common_utils::fp_utils::when(!inaccessible_profile_ids.is_empty(), || {
+                    Err(error_stack::Report::new(
                         errors::api_error_response::ApiErrorResponse::PreconditionFailed {
                             message: format!(
                                 "Access not available for the given profile_id {inaccessible_profile_ids:?}",
                             ),
                         },
-                    ));
-                }
+                    ))
+                })?;
             }
             (_, None) => {}
         }

@@ -868,7 +868,10 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                     .profile_id
                     .as_ref()
                     .get_required_value("profile_id")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "profile_id is required to fetch external vault tokens from the modular service",
+                    )?;
 
                 let payment_method_with_raw_data =
                     pm_transformers::fetch_payment_method_from_modular_service(
