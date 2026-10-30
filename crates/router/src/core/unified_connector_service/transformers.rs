@@ -11870,19 +11870,35 @@ impl transformers::ForeignTryFrom<(&crate::types::SubmitEvidenceRouterData, Opti
             )?,
             evidence_documents,
             access_activity_log: request.access_activity_log.clone(),
-            billing_address: request.billing_address.clone(),
+            billing_address: request.billing_address.as_ref().map(|address| {
+                payments_grpc::Address {
+                    line1: Some(Secret::new(address.clone())),
+                    ..Default::default()
+                }
+            }),
             cancellation_policy_disclosure: request.cancellation_policy_disclosure.clone(),
             cancellation_rebuttal: request.cancellation_rebuttal.clone(),
             customer_email_address: request
                 .customer_email_address
                 .as_ref()
                 .map(|email| Secret::new(email.peek().to_owned())),
-            customer_name: request.customer_name.clone(),
-            customer_purchase_ip: request.customer_purchase_ip.clone(),
+            customer_name: request
+                .customer_name
+                .as_ref()
+                .map(|name| Secret::new(name.clone())),
+            customer_purchase_ip: request
+                .customer_purchase_ip
+                .as_ref()
+                .map(|ip| Secret::new(ip.clone())),
             product_description: request.product_description.clone(),
             refund_policy_disclosure: request.refund_policy_disclosure.clone(),
             refund_refusal_explanation: request.refund_refusal_explanation.clone(),
-            shipping_address: request.shipping_address.clone(),
+            shipping_address: request.shipping_address.as_ref().map(|address| {
+                payments_grpc::Address {
+                    line1: Some(Secret::new(address.clone())),
+                    ..Default::default()
+                }
+            }),
             shipping_carrier: request.shipping_carrier.clone(),
             shipping_tracking_number: request.shipping_tracking_number.clone(),
         })
