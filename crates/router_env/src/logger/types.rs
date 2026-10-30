@@ -778,10 +778,6 @@ pub enum Flow {
     ThreeDsDecisionRuleExecute,
     /// Incoming Network Token Webhook Receive
     IncomingNetworkTokenWebhookReceive,
-    /// Decision Engine Decide Gateway Call
-    DecisionEngineDecideGatewayCall,
-    /// Decision Engine Gateway Feedback Call
-    DecisionEngineGatewayFeedbackCall,
     /// Recovery payments create flow.
     RecoveryPaymentsCreate,
     /// Tokenization delete flow
