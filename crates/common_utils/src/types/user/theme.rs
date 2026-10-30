@@ -166,22 +166,3 @@ impl ThemeLineage {
         }
     }
 }
-
-/// Struct for holding the theme settings for email
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct EmailThemeConfig {
-    /// The entity name to be used in the email
-    pub entity_name: String,
-
-    /// The URL of the entity logo to be used in the email
-    pub entity_logo_url: String,
-
-    /// The primary color to be used in the email
-    pub primary_color: String,
-
-    /// The foreground color to be used in the email
-    pub foreground_color: String,
-
-    /// The background color to be used in the email
-    pub background_color: String,
-}

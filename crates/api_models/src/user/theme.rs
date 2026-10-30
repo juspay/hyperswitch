@@ -1,8 +1,9 @@
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use common_enums::EntityType;
+use common_types::{primitive_wrappers::SafeString, theme::EmailThemeConfig};
 use common_utils::{
     id_type,
-    types::user::{EmailThemeConfig, ThemeLineage},
+    types::{user::ThemeLineage, Url},
 };
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -28,14 +29,14 @@ pub struct ThemeVersionResponse {
 
 #[derive(Debug, MultipartForm)]
 pub struct UploadFileAssetData {
-    pub asset_name: Text<String>,
+    pub asset_name: Text<SafeString>,
     #[multipart(limit = "10MB")]
     pub asset_data: Bytes,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UploadFileRequest {
-    pub asset_name: String,
+    pub asset_name: SafeString,
     pub asset_data: Secret<Vec<u8>>,
 }
 
@@ -84,28 +85,28 @@ struct Settings {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Colors {
-    primary: String,
-    secondary: Option<String>,
-    background: Option<String>,
+    primary: SafeString,
+    secondary: Option<SafeString>,
+    background: Option<SafeString>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Sidebar {
-    primary: String,
-    text_color: Option<String>,
-    text_color_primary: Option<String>,
+    primary: SafeString,
+    text_color: Option<SafeString>,
+    text_color_primary: Option<SafeString>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Typography {
-    font_family: Option<String>,
-    font_size: Option<String>,
-    heading_font_size: Option<String>,
-    text_color: Option<String>,
-    link_color: Option<String>,
-    link_hover_color: Option<String>,
+    font_family: Option<SafeString>,
+    font_size: Option<SafeString>,
+    heading_font_size: Option<SafeString>,
+    text_color: Option<SafeString>,
+    link_color: Option<SafeString>,
+    link_hover_color: Option<SafeString>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -118,38 +119,79 @@ struct Buttons {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct PrimaryButton {
-    background_color: Option<String>,
-    text_color: Option<String>,
-    hover_background_color: String,
+    background_color: Option<SafeString>,
+    text_color: Option<SafeString>,
+    hover_background_color: SafeString,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct SecondaryButton {
-    background_color: Option<String>,
-    text_color: Option<String>,
-    hover_background_color: Option<String>,
+    background_color: Option<SafeString>,
+    text_color: Option<SafeString>,
+    hover_background_color: Option<SafeString>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Borders {
-    default_radius: Option<String>,
-    border_color: Option<String>,
+    default_radius: Option<SafeString>,
+    border_color: Option<SafeString>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Spacing {
-    padding: Option<String>,
-    margin: Option<String>,
+    padding: Option<SafeString>,
+    margin: Option<SafeString>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Urls {
-    favicon_url: Option<String>,
-    logo_url: Option<String>,
+    favicon_url: Option<ThemeUrl>,
+    logo_url: Option<ThemeUrl>,
+}
+
+/// URL of a theme asset, validated during deserialization so that only HTTPS URLs
+/// (and HTTP URLs in debug builds) can be stored in the theme data
+#[derive(Debug, Clone, Serialize)]
+#[serde(transparent)]
+pub struct ThemeUrl(Url);
+
+impl ThemeUrl {
+    /// Verify the URL scheme based on runtime environment
+    fn from_url(url: url::Url) -> Result<Self, String> {
+        let scheme = url.scheme();
+
+        #[cfg(debug_assertions)]
+        {
+            // Debug builds: allow HTTP
+            if scheme == "https" || scheme == "http" {
+                return Ok(Self(Url::wrap(url)));
+            }
+        }
+
+        #[cfg(not(debug_assertions))]
+        {
+            // Release builds: HTTPS only
+            if scheme == "https" {
+                return Ok(Self(Url::wrap(url)));
+            }
+        }
+
+        Err("Theme URL scheme must be HTTPS".to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for ThemeUrl {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let url = url::Url::deserialize(deserializer)?;
+        Self::from_url(url).map_err(serde::de::Error::custom)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]

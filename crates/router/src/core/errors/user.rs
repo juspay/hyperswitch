@@ -104,6 +104,8 @@ pub enum UserErrors {
     ErrorRetrievingFile,
     #[error("Theme not found")]
     ThemeNotFound,
+    #[error("Invalid theme asset name")]
+    InvalidThemeAssetName,
     #[error("Theme with lineage already exists")]
     ThemeAlreadyExists,
     #[error("Invalid field: {0} in lineage")]
@@ -291,6 +293,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::ThemeNotFound => {
                 AER::NotFound(ApiError::new(sub_code, 53, self.get_error_message(), None))
             }
+            Self::InvalidThemeAssetName => {
+                AER::BadRequest(ApiError::new(sub_code, 66, self.get_error_message(), None))
+            }
             Self::ThemeAlreadyExists => {
                 AER::BadRequest(ApiError::new(sub_code, 54, self.get_error_message(), None))
             }
@@ -392,6 +397,7 @@ impl UserErrors {
             Self::ErrorUploadingFile => "Error Uploading file to Theme Storage".to_string(),
             Self::ErrorRetrievingFile => "Error Retrieving file from Theme Storage".to_string(),
             Self::ThemeNotFound => "Theme not found".to_string(),
+            Self::InvalidThemeAssetName => "Invalid theme asset name".to_string(),
             Self::ThemeAlreadyExists => "Theme with lineage already exists".to_string(),
             Self::InvalidThemeLineage(field_name) => {
                 format!("Invalid field: {field_name} in lineage")

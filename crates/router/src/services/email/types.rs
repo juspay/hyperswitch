@@ -1,6 +1,7 @@
 use api_models::user::dashboard_metadata::ProdIntent;
 use common_enums::{EntityType, MerchantProductType};
-use common_utils::{errors::CustomResult, pii, types::user::EmailThemeConfig};
+use common_types::theme::EmailThemeConfig;
+use common_utils::{errors::CustomResult, pii};
 use diesel_models::organization::OrganizationBridge;
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
@@ -411,17 +412,17 @@ impl EmailData for VerifyEmail {
 
         let body = html::get_html_body(EmailBody::Verify {
             link: verify_email_link,
-            entity_name: self.theme_config.entity_name.clone(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone(),
-            primary_color: self.theme_config.primary_color.clone(),
-            background_color: self.theme_config.background_color.clone(),
-            foreground_color: self.theme_config.foreground_color.clone(),
+            entity_name: self.theme_config.entity_name.clone().into_inner(),
+            entity_logo_url: self.theme_config.entity_logo_url.clone().into_inner(),
+            primary_color: self.theme_config.primary_color.clone().into_inner(),
+            background_color: self.theme_config.background_color.clone().into_inner(),
+            foreground_color: self.theme_config.foreground_color.clone().into_inner(),
         });
 
         Ok(EmailContents {
             subject: format!(
                 "Welcome to the {} community!",
-                self.theme_config.entity_name
+                self.theme_config.entity_name.as_str()
             ),
             body: external_services::email::IntermediateString::new(body),
             recipients: self.recipient_email.clone().into_inner().into(),
@@ -461,17 +462,17 @@ impl EmailData for ResetPassword {
         let body = html::get_html_body(EmailBody::Reset {
             link: reset_password_link,
             user_name: self.user_name.clone().get_secret().expose(),
-            entity_name: self.theme_config.entity_name.clone(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone(),
-            primary_color: self.theme_config.primary_color.clone(),
-            background_color: self.theme_config.background_color.clone(),
-            foreground_color: self.theme_config.foreground_color.clone(),
+            entity_name: self.theme_config.entity_name.clone().into_inner(),
+            entity_logo_url: self.theme_config.entity_logo_url.clone().into_inner(),
+            primary_color: self.theme_config.primary_color.clone().into_inner(),
+            background_color: self.theme_config.background_color.clone().into_inner(),
+            foreground_color: self.theme_config.foreground_color.clone().into_inner(),
         });
 
         Ok(EmailContents {
             subject: format!(
                 "Get back to {} - Reset Your Password Now!",
-                self.theme_config.entity_name
+                self.theme_config.entity_name.as_str()
             ),
             body: external_services::email::IntermediateString::new(body),
             recipients: self.recipient_email.clone().into_inner().into(),
@@ -511,17 +512,17 @@ impl EmailData for MagicLink {
         let body = html::get_html_body(EmailBody::MagicLink {
             link: magic_link_login,
             user_name: self.user_name.clone().get_secret().expose(),
-            entity_name: self.theme_config.entity_name.clone(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone(),
-            primary_color: self.theme_config.primary_color.clone(),
-            background_color: self.theme_config.background_color.clone(),
-            foreground_color: self.theme_config.foreground_color.clone(),
+            entity_name: self.theme_config.entity_name.clone().into_inner(),
+            entity_logo_url: self.theme_config.entity_logo_url.clone().into_inner(),
+            primary_color: self.theme_config.primary_color.clone().into_inner(),
+            background_color: self.theme_config.background_color.clone().into_inner(),
+            foreground_color: self.theme_config.foreground_color.clone().into_inner(),
         });
 
         Ok(EmailContents {
             subject: format!(
                 "Unlock {}: Use Your Magic Link to Sign In",
-                self.theme_config.entity_name
+                self.theme_config.entity_name.as_str()
             ),
             body: external_services::email::IntermediateString::new(body),
             recipients: self.recipient_email.clone().into_inner().into(),
@@ -561,17 +562,17 @@ impl EmailData for InviteUser {
         let body = html::get_html_body(EmailBody::AcceptInviteFromEmail {
             link: invite_user_link,
             user_name: self.user_name.clone().get_secret().expose(),
-            entity_name: self.theme_config.entity_name.clone(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone(),
-            primary_color: self.theme_config.primary_color.clone(),
-            background_color: self.theme_config.background_color.clone(),
-            foreground_color: self.theme_config.foreground_color.clone(),
+            entity_name: self.theme_config.entity_name.clone().into_inner(),
+            entity_logo_url: self.theme_config.entity_logo_url.clone().into_inner(),
+            primary_color: self.theme_config.primary_color.clone().into_inner(),
+            background_color: self.theme_config.background_color.clone().into_inner(),
+            foreground_color: self.theme_config.foreground_color.clone().into_inner(),
         });
 
         Ok(EmailContents {
             subject: format!(
                 "You have been invited to join {} Community!",
-                self.theme_config.entity_name
+                self.theme_config.entity_name.as_str()
             ),
             body: external_services::email::IntermediateString::new(body),
             recipients: self.recipient_email.clone().into_inner().into(),
@@ -799,10 +800,10 @@ impl EmailData for RoleDeleted {
             role_name: self.role_name.clone(),
             entity_type: format!("{:?}", self.entity_type),
             lineage_info,
-            entity_name: self.theme_config.entity_name.clone(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone(),
-            background_color: self.theme_config.background_color.clone(),
-            foreground_color: self.theme_config.foreground_color.clone(),
+            entity_name: self.theme_config.entity_name.clone().into_inner(),
+            entity_logo_url: self.theme_config.entity_logo_url.clone().into_inner(),
+            background_color: self.theme_config.background_color.clone().into_inner(),
+            foreground_color: self.theme_config.foreground_color.clone().into_inner(),
         });
 
         Ok(EmailContents {
