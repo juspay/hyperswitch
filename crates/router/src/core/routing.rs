@@ -5,8 +5,7 @@ use std::collections::{HashMap, HashSet};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::DynamicRoutingAlgoAccessor;
 use api_models::{
-    enums, mandates as mandates_api,
-    routing,
+    enums, mandates as mandates_api, routing,
     routing::{
         self as routing_types, RoutingRetrieveQuery, RuleMigrationError, RuleMigrationResponse,
     },
