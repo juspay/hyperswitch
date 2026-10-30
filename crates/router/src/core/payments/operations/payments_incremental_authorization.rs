@@ -5,7 +5,9 @@ use async_trait::async_trait;
 use common_utils::errors::CustomResult;
 use diesel_models::authorization::AuthorizationNew;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::mandates::MandateTransactionType;
+use hyperswitch_domain_models::{
+    mandates::MandateTransactionType, payment_method_data::ApiPaymentMethodDataMandateIds,
+};
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -50,7 +52,7 @@ impl<F: Send + Clone + Sync>
         _auth_flow: services::AuthFlow,
         _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_fetch_data: operations::PaymentMethodFetchData,
+        payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
         _profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
@@ -134,14 +136,27 @@ impl<F: Send + Clone + Sync>
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
+        let payment_method_data = payment_method_fetch_data
+            .payment_method_with_raw_data
+            .clone()
+            .and_then(|pm| pm.raw_payment_method_data)
+            .or(request
+                .payment_method_data
+                .clone()
+                .map(domain::PaymentMethodData::from));
+
         let payment_data = payments::PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             payment_attempt,
             currency,
             amount: amount.into(),
-            mandate_id: None,
+            mandate_id: request
+                .payment_method_data
+                .as_ref()
+                .and_then(ApiPaymentMethodDataMandateIds::get_mandate_ids),
             mandate_connector: None,
             setup_mandate: None,
             customer_acceptance: None,
@@ -149,7 +164,7 @@ impl<F: Send + Clone + Sync>
             token_data: None,
             address: PaymentAddress::new(None, None, None, None),
             confirm: None,
-            payment_method_data: None,
+            payment_method_data,
             payment_method_token: None,
             payment_method_info: None,
             force_sync: None,
@@ -371,10 +386,10 @@ impl<F: Clone + Send + Sync>
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
-        _state: &'a SessionState,
-        _payment_data: &mut payments::PaymentData<F>,
+        state: &'a SessionState,
+        payment_data: &mut payments::PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -382,7 +397,15 @@ impl<F: Clone + Send + Sync>
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
-        Ok((Box::new(self), None, None))
+        let payment_method_data = operations::get_or_fetch_payment_method_data_for_operation(
+            state,
+            platform,
+            &payment_data.payment_attempt,
+            payment_data.payment_method_data.clone(),
+        )
+        .await;
+
+        Ok((Box::new(self), payment_method_data, None))
     }
 
     async fn get_connector<'a>(

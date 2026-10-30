@@ -239,7 +239,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
         profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
@@ -252,6 +252,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
             self,
             platform.get_processor().get_storage_scheme(),
             dimensions,
+            payment_pre_fetched_info,
             profile_id_from_auth_layer,
         ))
         .await
@@ -271,6 +272,7 @@ async fn get_tracker_for_sync<
     _operation: Op,
     _storage_scheme: enums::MerchantStorageScheme,
     _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>>
 {
     todo!()
@@ -290,20 +292,35 @@ async fn get_tracker_for_sync<
     operation: Op,
     storage_scheme: domain::ProcessorStorageScheme,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>>
 {
     let (payment_intent, mut payment_attempt, currency, amount);
 
-    (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
-        state,
-        payment_id,
-        &platform.get_processor().get_processor_merchant_id(),
-        platform.get_processor().get_key_store(),
-        storage_scheme,
-        profile_id_from_auth_layer,
-    )
-    .await?;
+    (payment_intent, payment_attempt) = match payment_pre_fetched_info {
+        Some(pre_fetched_info) => {
+            helpers::validate_payment_profile(
+                profile_id_from_auth_layer,
+                pre_fetched_info.payment_intent.profile_id.as_ref(),
+            )?;
+            (
+                pre_fetched_info.payment_intent,
+                pre_fetched_info.payment_attempt,
+            )
+        }
+        None => {
+            get_payment_intent_payment_attempt(
+                state,
+                payment_id,
+                &platform.get_processor().get_processor_merchant_id(),
+                platform.get_processor().get_key_store(),
+                storage_scheme,
+                profile_id_from_auth_layer,
+            )
+            .await?
+        }
+    };
 
     helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
@@ -594,6 +611,7 @@ async fn get_tracker_for_sync<
         });
 
     let payment_data = PaymentData {
+        capture_feature_metadata: None,
         flow: PhantomData,
         previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
         payment_intent,

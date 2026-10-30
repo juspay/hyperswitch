@@ -6,6 +6,7 @@ use std::{
 };
 
 use cards::CardNumber;
+pub use common_types::payments::SurchargeErrorDetails;
 use common_types::payments::{
     ApplePayPredecryptData, BillingFrequency, GPayPredecryptData, InstallmentInterestRate,
 };
@@ -2638,6 +2639,26 @@ pub struct SurchargeDetailsResponse {
     pub display_total_surcharge_amount: f64,
     /// Surcharge percentage returned by the external surcharge connector, if provided.
     pub surcharge_percentage: Option<f64>,
+    /// Connector error details when the external calculation failed; null on success.
+    pub error_details: Option<SurchargeErrorDetails>,
+}
+
+impl SurchargeDetailsResponse {
+    pub fn connector_error(code: Option<String>, message: String, reason: Option<String>) -> Self {
+        Self {
+            surcharge: SurchargeResponse::Fixed(MinorUnit::zero()),
+            tax_on_surcharge: None,
+            display_surcharge_amount: 0.0,
+            display_tax_on_surcharge_amount: 0.0,
+            display_total_surcharge_amount: 0.0,
+            surcharge_percentage: None,
+            error_details: Some(SurchargeErrorDetails {
+                error_code: code,
+                error_message: Some(message),
+                error_reason: reason,
+            }),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]

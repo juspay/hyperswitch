@@ -552,6 +552,11 @@ async fn process_webhook_business_logic(
     } else if connector.is_webhook_source_verification_mandatory() {
         // if webhook consumption is mandatory for connector, fail webhook
         // so that merchant can retrigger it after updating merchant_secret
+        logger::warn!(
+            connector = %connector_name,
+            merchant_id = ?platform.get_processor().get_account().get_id(),
+            "Incoming webhook blocked: source verification failed and verification is mandatory for this connector"
+        );
         return Err(errors::ApiErrorResponse::WebhookAuthenticationFailed.into());
     } else {
         // Unverified webhooks fall back to syncing with the connector, so cap how many of them

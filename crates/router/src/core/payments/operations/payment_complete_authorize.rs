@@ -55,7 +55,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
         profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
@@ -64,6 +64,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_method_info: prefetched_payment_method_info,
             ..
         } = payment_method_fetch_data;
+        let (pre_fetched_intent, pre_fetched_attempt) = match payment_pre_fetched_info {
+            Some(info) => (Some(info.payment_intent), Some(info.payment_attempt)),
+            None => (None, None),
+        };
         let db = &*state.store;
 
         let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
@@ -74,7 +78,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_intent = match prefetched_payment_intent {
+        payment_intent = match prefetched_payment_intent.or(pre_fetched_intent) {
             Some(payment_intent) => {
                 helpers::validate_payment_profile(
                     profile_id_from_auth_layer,
@@ -124,16 +128,19 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let recurring_details = request.recurring_details.clone();
 
-        payment_attempt = db
-            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                &payment_intent.payment_id,
-                &processor_merchant_id,
-                &payment_intent.active_attempt.get_id(),
-                storage_scheme,
-                platform.get_processor().get_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        payment_attempt = match pre_fetched_attempt {
+            Some(attempt) => attempt,
+            None => db
+                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                    &payment_intent.payment_id,
+                    &processor_merchant_id,
+                    &payment_intent.active_attempt.get_id(),
+                    storage_scheme,
+                    platform.get_processor().get_key_store(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
 
         let mandate_type = m_helpers::get_mandate_type(
             request.mandate_data.clone(),
@@ -312,12 +319,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .attach_printable("Error converting connector_metadata to Value")?
             .or(payment_intent.connector_metadata);
 
-        payment_intent.feature_metadata = request
-            .get_feature_metadata_as_value()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error converting feature_metadata to Value")?
-            .map(hyperswitch_masking::Secret::new)
-            .or(payment_intent.feature_metadata);
+        let stored_feature_metadata = payment_intent
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let feature_metadata = match request.feature_metadata.clone() {
+            Some(metadata) => Some(metadata.merge(stored_feature_metadata)),
+            None => stored_feature_metadata,
+        };
+        payment_intent.feature_metadata = feature_metadata
+            .map(serde_json::to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .map(hyperswitch_masking::Secret::new);
 
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
 
@@ -363,6 +376,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             )?;
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
