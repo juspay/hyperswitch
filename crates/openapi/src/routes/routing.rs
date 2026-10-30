@@ -487,34 +487,3 @@ pub async fn create_elimination_routing() {}
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn contract_based_routing_setup_config() {}
-
-#[cfg(feature = "v1")]
-/// Routing - Rule Evaluate
-///
-/// Evaluate routing rules
-#[utoipa::path(
-    post,
-    path = "/routing/rule/evaluate",
-    request_body = RoutingEvaluateRequest,
-    responses(
-        (status = 200, description = "Routing rules evaluated successfully", body = RoutingEvaluateResponse),
-        (status = 400, description = "Request body is malformed"),
-        (status = 500, description = "Internal server error"),
-        (status = 404, description = "Resource missing"),
-        (status = 422, description = "Unprocessable request"),
-        (status = 403, description = "Forbidden"),
-    ),
-   params(
-       (
-           "X-Connected-Merchant-Id" = Option<String>, Header,
-           description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
-            Required when authenticating with a platform merchant's API key. \
-            Standard and connected merchants must not send it.",
-           example = "merchant_abc"
-       )
-   ),
-   tag = "Routing",
-   operation_id = "Evaluate routing rules (alternative)",
-   security(("api_key" = []))
-)]
-pub async fn evaluate_routing_rule() {}

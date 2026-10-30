@@ -1436,10 +1436,6 @@ impl Routing {
                         routing::routing_link_config(state, req, path, payload, None)
                     },
                 )),
-            )
-            .service(
-                web::resource("/rule/evaluate")
-                    .route(web::post().to(routing::evaluate_routing_rule)),
             );
         route
     }

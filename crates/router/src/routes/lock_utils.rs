@@ -92,7 +92,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CreateDynamicRoutingConfig
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
-            | Flow::RoutingEvaluateRule
             | Flow::DecisionEngineRuleMigration
             | Flow::DecisionEngineMigrationStatus
             | Flow::VolumeSplitOnRoutingType => Self::Routing,
