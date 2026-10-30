@@ -9,6 +9,7 @@ pub mod gateway;
 pub mod helpers;
 #[cfg(feature = "olap")]
 pub mod list;
+pub mod multi_currency_processing;
 pub mod operations;
 pub mod session_token;
 
@@ -2561,6 +2562,13 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
 {
+    if payment_data
+        .get_payment_intent()
+        .is_settlement_conclusion_applied()
+    {
+        return Ok(());
+    }
+
     let action = ExternalSurchargeAction::from_payment_data(business_profile, payment_data);
     let details = match action {
         ExternalSurchargeAction::Skip => return Ok(()),
@@ -2638,6 +2646,13 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
 {
+    if payment_data
+        .get_payment_intent()
+        .is_settlement_conclusion_applied()
+    {
+        return Ok(());
+    }
+
     if payment_data
         .get_payment_intent()
         .get_surcharge_mode(business_profile)
@@ -2969,6 +2984,10 @@ pub async fn call_surcharge_decision_management_for_session_flow(
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     session_connector_data: &api::SessionConnectorDatas,
 ) -> RouterResult<Option<api::SessionSurchargeDetails>> {
+    if payment_intent.is_settlement_conclusion_applied() {
+        return Ok(None);
+    }
+
     if let Some(surcharge_amount) = payment_attempt.net_amount.get_surcharge_amount() {
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
             types::SurchargeDetails {
@@ -4657,6 +4676,16 @@ pub async fn revenue_recovery_get_intent_core(
 
     let payment_intent = payment_data.get_payment_intent();
 
+    // The intent is fetched by id alone, so make sure it belongs to the caller
+    if !utils::is_owned_by_merchant_and_profile(
+        &platform,
+        &profile,
+        &payment_intent.merchant_id,
+        &payment_intent.profile_id,
+    ) {
+        return Err(errors::ApiErrorResponse::PaymentNotFound.into());
+    }
+
     // Get workflow entries to determine recovery status
     let (calculate_workflow, execute_workflow) = get_workflow_entries(&state, &payment_intent.id)
         .await
@@ -5102,6 +5131,7 @@ pub trait PaymentRedirectFlow: Sync {
         connector_action: CallConnectorAction,
         connector: String,
         payment_id: id_type::PaymentId,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<Self::PaymentFlowResponse>;
 
     #[cfg(feature = "v2")]
@@ -5163,6 +5193,32 @@ pub trait PaymentRedirectFlow: Sync {
                 field_name: "payment_id".into(),
             })?;
 
+        let (payment_intent, payment_attempt) =
+            operations::payment_status::get_payment_intent_payment_attempt(
+                &state,
+                &req.resource_id,
+                &platform.get_processor().get_processor_merchant_id(),
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_storage_scheme(),
+            )
+            .await?;
+        // All redirect URLs name the payment connector, including the external
+        // authentication return URL. Verify it against the active attempt.
+        if payment_attempt.connector.as_deref() != Some(connector.as_str()) {
+            return Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "The connector in the redirect URL does not match the active payment attempt"
+                    .to_string(),
+            })
+            .attach_printable(format!(
+                "Redirect connector {connector} does not match active payment attempt connector {:?}",
+                payment_attempt.connector
+            ));
+        }
+        let payment_pre_fetched_info = Some(operations::PaymentPreFetchedInformation {
+            payment_intent,
+            payment_attempt,
+        });
+
         #[cfg(feature = "v2")]
         //TODO: Will get the global payment id from the resource id, we need to handle this in the further flow
         let resource_id: id_type::PaymentId = todo!();
@@ -5195,6 +5251,7 @@ pub trait PaymentRedirectFlow: Sync {
                 flow_type,
                 connector.clone(),
                 resource_id.clone(),
+                payment_pre_fetched_info,
             )
             .await?;
 
@@ -5245,6 +5302,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         connector_action: CallConnectorAction,
         _connector: String,
         _payment_id: id_type::PaymentId,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
@@ -5256,6 +5314,8 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 }
             }),
             feature_metadata: Some(api_models::payments::FeatureMetadata {
+                // Complete authorize merges the redirect response with stored payment metadata.
+                multi_currency_processing: None,
                 redirect_response: Some(api_models::payments::RedirectResponse {
                     param: req.param.map(Secret::new),
                     json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
@@ -5288,7 +5348,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             None,
             None,
             HeaderPayload::default(),
-            None,
+            payment_pre_fetched_info,
         ))
         .await?;
         let payments_response = match response {
@@ -5451,6 +5511,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         connector_action: CallConnectorAction,
         _connector: String,
         _payment_id: id_type::PaymentId,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_sync_req = api::PaymentsRetrieveRequest {
             resource_id: req.resource_id,
@@ -5482,7 +5543,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 None,
                 None,
                 HeaderPayload::default(),
-                None,
+                payment_pre_fetched_info,
             ),
         )
         .await?;
@@ -5763,28 +5824,25 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         connector_action: CallConnectorAction,
         connector: String,
         payment_id: id_type::PaymentId,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<Self::PaymentFlowResponse> {
-        let payment_intent = state
-            .store
-            .find_payment_intent_by_payment_id_processor_merchant_id(
-                &payment_id,
-                &platform.get_processor().get_processor_merchant_id(),
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_storage_scheme(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        let payment_attempt = state
-            .store
-            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                &payment_intent.payment_id,
-                &platform.get_processor().get_processor_merchant_id(),
-                &payment_intent.active_attempt.get_id(),
-                platform.get_processor().get_storage_scheme(),
-                platform.get_processor().get_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let (payment_intent, payment_attempt) = match payment_pre_fetched_info {
+            Some(info) => (info.payment_intent, info.payment_attempt),
+            None => {
+                operations::payment_status::get_payment_intent_payment_attempt(
+                    state,
+                    &api::PaymentIdType::PaymentIntentId(payment_id.clone()),
+                    &platform.get_processor().get_processor_merchant_id(),
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_storage_scheme(),
+                )
+                .await?
+            }
+        };
+        let payment_pre_fetched_info = Some(operations::PaymentPreFetchedInformation {
+            payment_intent: payment_intent.clone(),
+            payment_attempt: payment_attempt.clone(),
+        });
         let authentication_id = payment_attempt
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -5862,6 +5920,8 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 payment_id: Some(req.resource_id.clone()),
                 merchant_id: req.merchant_id.clone(),
                 feature_metadata: Some(api_models::payments::FeatureMetadata {
+                    // Complete authorize merges the redirect response with stored payment metadata.
+                    multi_currency_processing: None,
                     redirect_response: Some(api_models::payments::RedirectResponse {
                         param: req.param.clone().map(Secret::new),
                         json_payload: Some(
@@ -5965,7 +6025,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
-                    None,
+                    payment_pre_fetched_info,
                 ))
                 .await?
             } else {
@@ -5988,7 +6048,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
-                    None,
+                    payment_pre_fetched_info,
                 ))
                 .await?
             }
@@ -6023,7 +6083,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::default(),
-                    None,
+                    payment_pre_fetched_info,
                 ),
             )
             .await?
@@ -10719,6 +10779,8 @@ where
     /// The attempt and intent as they were fetched from the DB, before this flow mutated them.
     /// A UCS pre-call rejection restores the rows from these records.
     pub previous_db_records: (storage::PaymentAttempt, storage::PaymentIntent),
+    /// Settlement metadata for the current capture, separate from the payment metadata.
+    pub capture_feature_metadata: Option<api_models::payments::CaptureFeatureMetadata>,
 }
 
 /// Decrypts an Apple Pay wallet token for the pre-confirm eligibility check, using the specific

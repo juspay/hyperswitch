@@ -7,7 +7,7 @@ application_source = "main"
 
 [analytics.clickhouse]
 username = "clickhouse_username"     # Clickhouse username
-password = "clickhouse_password"     # Clickhouse password (optional)
+primary_password = "clickhouse_password"     # Clickhouse password (optional)
 host = "http://localhost:8123"       # Clickhouse host in http(s)://<URL>:<PORT> format
 database_name = "clickhouse_db_name" # Clickhouse database name
 
@@ -33,8 +33,10 @@ max_lifetime = 1800       # Maximum lifetime in seconds before a connection is r
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # API key hashing key.
 
 [internal_merchant_id_profile_id_auth]
+primary_internal_api_key = ""
+key_rotation_enabled = false
+use_legacy_key_for_outbound = false
 enabled = false
-internal_api_key = "test_internal_api_key"
 
 [applepay_decrypt_keys]
 apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"         # Payment Processing Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Payment Processing Certificate
@@ -103,7 +105,7 @@ connection = "plaintext" # currently plaintext and starttls are supported
 host = "127.0.0.1"    # SOCKS5 proxy hostname or IP
 port = 1080           # SOCKS5 proxy port
 username = "testuser" # SOCKS5 username, if the proxy requires auth
-password = "testpass" # SOCKS5 password, if the proxy requires auth
+primary_password = "testpass" # SOCKS5 password, if the proxy requires auth
 
 [events]
 source = "logs" # The event sink to push events supports kafka or logs (stdout)
@@ -266,7 +268,7 @@ bypass_proxy_hosts = "localhost, cluster.local" # A comma-separated list of doma
 host = "127.0.0.1"
 port = 6379
 # username = "default" # Optional ACL username for authenticated Redis (Redis 6+ / Redis Cloud); requires `password`
-# password = ""        # Optional password for authenticated Redis (AUTH); leave unset for unauthenticated Redis
+# primary_password = ""        # Optional password for authenticated Redis (AUTH); leave unset for unauthenticated Redis
 # tls_enabled = true   # Connect over TLS (`rediss://`); the server certificate is verified against the platform's trusted CA roots
 # tls_ca_certificate_path = "/path/to/redis_ca.pem"    # When set, the server certificate is verified against the CA certificate(s) in this PEM file; when unset, against the platform's trusted CA roots
 pool_size = 5 # Number of connections to keep open
@@ -361,7 +363,7 @@ enabled = false
 [opensearch.auth]
 auth = "basic"
 username = "admin"
-password = "admin"
+primary_password = "admin"
 region = "eu-central-1"
 
 [opensearch.indexes]
@@ -554,7 +556,6 @@ ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list 
 
 [revenue_recovery]
 # monitoring threshold -  120 days
-monitoring_threshold_in_seconds = 10368000
 retry_algorithm_type = "cascading"
 redis_ttl_in_seconds=3888000
 default_retry_hour_utc = 12 # fallback hour-of-day (UTC, 0-23) the retry model schedules at when a cluster has no hour-of-day history

@@ -880,12 +880,12 @@ pub async fn relay_retrieve(
     let relay_response = match relay_record.relay_type {
         common_enums::RelayType::Refund => {
             if should_call_connector_for_relay_refund_status(&relay_record, req.force_sync) {
-                let relay_response = sync_relay_refund_with_gateway(
+                let relay_response = Box::pin(sync_relay_refund_with_gateway(
                     &state,
                     platform.get_processor(),
                     &relay_record,
                     connector_account,
-                )
+                ))
                 .await?;
 
                 db.update_relay(

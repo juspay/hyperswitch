@@ -56,7 +56,7 @@ use crate::{
                 MerchantConnectorAccountType, ProxyOverride, RolloutExecutionResult,
                 WebhookRolloutConfig, WebhookRolloutExecutionResult,
             },
-            OperationSessionGetters, OperationSessionSetters,
+            multi_currency_processing, OperationSessionGetters, OperationSessionSetters,
         },
         utils::get_flow_name,
         webhooks::types::FeatureTrackingData,
@@ -3624,6 +3624,22 @@ pub fn handle_unified_connector_service_response_for_payment_cancel(
     Ok((router_data_response, status_code))
 }
 
+/// Handles the unified connector service response for payment post capture void
+pub fn handle_unified_connector_service_response_for_payment_post_capture_void(
+    response: payments_grpc::PaymentServiceReverseResponse,
+    prev_status: AttemptStatus,
+) -> UnifiedConnectorServiceResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
+
+    Ok((router_data_response, status_code))
+}
+
 /// Handles the unified connector service response for create access token
 pub fn handle_unified_connector_service_response_for_create_access_token(
     response: payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
@@ -4545,9 +4561,21 @@ pub async fn call_unified_connector_service_for_refund_execute(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to build UCS auth metadata for refund execute")?;
 
+    let settlement = multi_currency_processing::resolve_operation_multi_currency_processing(
+        &router_data.connector,
+        router_data.request.payment_feature_metadata.as_ref(),
+        router_data
+            .request
+            .feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Invalid MCP data for UCS refund dispatch")?;
+
     // Transform router data to UCS refund request
     let ucs_refund_request =
-        payments_grpc::PaymentServiceRefundRequest::foreign_try_from(&router_data)
+        payments_grpc::PaymentServiceRefundRequest::foreign_try_from((&router_data, settlement))
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to transform router data to UCS refund request")?;
 

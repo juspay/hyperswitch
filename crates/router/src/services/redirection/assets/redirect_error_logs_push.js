@@ -45,7 +45,18 @@ function parseRoute(url) {
       : "https://app.hyperswitch.io/api/logs/redirection";
   }
 
-  
+  /*
+   * Payment-link pages set `window.__REDIRECTION_LOG_MESSAGE_ORIGINS` to the
+   * origins of the frames they embed, so a parent or opener page cannot push
+   * messages into our logs. Redirection forms leave it unset because connector
+   * frames post from origins that are not known up front.
+   */
+  function shouldLogMessage(event) {
+    const allowedOrigins = window.__REDIRECTION_LOG_MESSAGE_ORIGINS;
+    return !Array.isArray(allowedOrigins) || allowedOrigins.includes(event.origin);
+  }
+
+
 async function postLog(log, urlToPost) {
 
     try {
@@ -80,18 +91,20 @@ window.addEventListener("error", (event) => {
 });
   
 window.addEventListener("message", (event) => {
-    let url = window.location.href;
-    let { paymentId, merchantId, attemptId, connector } = parseRoute(url);
-    let urlToPost = getEnvRoute(url);
-    let log = {
-        message: event.data,
-        url,
-        paymentId,
-        merchantId,
-        attemptId,
-        connector,
-    };
-    postLog(log, urlToPost);
+    if (shouldLogMessage(event)) {
+        let url = window.location.href;
+        let { paymentId, merchantId, attemptId, connector } = parseRoute(url);
+        let urlToPost = getEnvRoute(url);
+        let log = {
+            message: event.data,
+            url,
+            paymentId,
+            merchantId,
+            attemptId,
+            connector,
+        };
+        postLog(log, urlToPost);
+    }
 });
     
     

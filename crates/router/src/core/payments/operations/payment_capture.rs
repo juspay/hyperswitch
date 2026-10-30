@@ -4,14 +4,18 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payment_method_data::ApiPaymentMethodDataMandateIds;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         configs::dimension_state,
-        errors::{self, RouterResult, StorageErrorExt},
-        payments::{self, helpers, operations, types::MultipleCaptureData},
+        errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payments::{
+            self, helpers, multi_currency_processing, operations, types::MultipleCaptureData,
+            CustomerDetails,
+        },
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
@@ -46,7 +50,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
         _auth_flow: services::AuthFlow,
         _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_fetch_data: operations::PaymentMethodFetchData,
+        payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<
@@ -113,7 +117,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
 
         helpers::validate_capture_method(capture_method)?;
 
-        let multiple_capture_data = if capture_method == enums::CaptureMethod::ManualMultiple {
+        let payment_feature_metadata = payment_intent
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let capture_connector = payment_attempt
+            .connector
+            .as_deref()
+            .get_required_value("connector")?;
+        let multiple_capture_input = if capture_method == enums::CaptureMethod::ManualMultiple {
             let amount_to_capture = request
                 .amount_to_capture
                 .get_required_value("amount_to_capture")?;
@@ -133,24 +144,44 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            let capture = db
-                .insert_capture(
-                    payment_attempt
-                        .make_new_capture(amount_to_capture, enums::CaptureStatus::Started)?,
-                    storage_scheme.inner(),
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_id.clone(),
-                })?;
-
-            Some(MultipleCaptureData::new_for_create(
-                previous_captures,
-                capture,
-            ))
+            Some((amount_to_capture, previous_captures))
         } else {
             None
         };
+        // The route holds the payment lock while loading capture history and validating MCP.
+        let previous_captures = multiple_capture_input
+            .as_ref()
+            .map(|(_, captures)| captures.as_slice())
+            .unwrap_or_default();
+        let capture_feature_metadata =
+            multi_currency_processing::validate_multi_currency_processing_capture_settlement(
+                capture_connector,
+                payment_feature_metadata.as_ref(),
+                request.feature_metadata.as_ref(),
+                previous_captures,
+            )?;
+
+        let multiple_capture_data =
+            if let Some((amount_to_capture, previous_captures)) = multiple_capture_input {
+                let capture_new = payment_attempt.make_new_capture(
+                    amount_to_capture,
+                    enums::CaptureStatus::Started,
+                    capture_feature_metadata.clone(),
+                )?;
+                let capture = db
+                    .insert_capture(capture_new, storage_scheme.inner())
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment {
+                        payment_id: payment_id.clone(),
+                    })?;
+
+                Some(MultipleCaptureData::new_for_create(
+                    previous_captures,
+                    capture,
+                ))
+            } else {
+                None
+            };
 
         currency = payment_attempt.currency.get_required_value("currency")?;
 
@@ -221,7 +252,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
+        let payment_method_data = payment_method_fetch_data
+            .payment_method_with_raw_data
+            .clone()
+            .and_then(|pm| pm.raw_payment_method_data)
+            .or(request
+                .payment_method_data
+                .clone()
+                .map(domain::PaymentMethodData::from));
+
         let payment_data = payments::PaymentData {
+            capture_feature_metadata,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
@@ -230,7 +271,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             force_sync: None,
             all_keys_required: None,
             amount,
-            mandate_id: None,
+            mandate_id: request
+                .payment_method_data
+                .as_ref()
+                .and_then(ApiPaymentMethodDataMandateIds::get_mandate_ids),
             mandate_connector: None,
             setup_mandate: None,
             customer_acceptance: None,
@@ -243,7 +287,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
                 business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: None,
-            payment_method_data: None,
+            payment_method_data,
             payment_method_token: None,
             payment_method_info: None,
             refunds: vec![],
@@ -371,5 +415,105 @@ impl<F: Send + Clone + Sync>
                 requeue: false,
             },
         ))
+    }
+}
+
+#[async_trait]
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCaptureRequest, payments::PaymentData<F>>
+    for PaymentCapture
+{
+    #[instrument(skip_all)]
+    #[cfg(feature = "v1")]
+    async fn get_or_create_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut payments::PaymentData<F>,
+        _request: Option<CustomerDetails>,
+        _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
+    ) -> CustomResult<
+        (PaymentCaptureOperation<'a, F>, Option<domain::Customer>),
+        errors::StorageError,
+    > {
+        // We don't need to fetch customer here.
+        // Customer details have already been populated in the payment_intent during Confirm
+        // The customer returned from this method is only used for updating connector_customer_id
+        // which does not happen in case of Capture
+        Ok((Box::new(self), None))
+    }
+
+    #[instrument(skip_all)]
+    #[cfg(feature = "v2")]
+    async fn get_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut payments::PaymentData<F>,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<
+        (PaymentCaptureOperation<'a, F>, Option<domain::Customer>),
+        errors::StorageError,
+    > {
+        todo!()
+    }
+
+    #[instrument(skip_all)]
+    async fn make_pm_data<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_data: &mut payments::PaymentData<F>,
+        _storage_scheme: enums::MerchantStorageScheme,
+        platform: &domain::Platform,
+        _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
+    ) -> RouterResult<(
+        PaymentCaptureOperation<'a, F>,
+        Option<domain::PaymentMethodData>,
+        Option<String>,
+    )> {
+        let payment_method_data = operations::get_or_fetch_payment_method_data_for_operation(
+            state,
+            platform,
+            &payment_data.payment_attempt,
+            payment_data.payment_method_data.clone(),
+        )
+        .await;
+
+        Ok((Box::new(self), payment_method_data, None))
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        _processor: &domain::Processor,
+        state: &SessionState,
+        _request: &api::PaymentsCaptureRequest,
+        _payment_intent: &storage::PaymentIntent,
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, None).await
+    }
+
+    #[instrument(skip_all)]
+    async fn add_task_to_process_tracker<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_attempt: &storage::PaymentAttempt,
+        requeue: bool,
+        schedule_time: Option<time::PrimitiveDateTime>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue, schedule_time).await
+    }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &SessionState,
+        _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_data: &mut payments::PaymentData<F>,
+        _business_profile: &domain::Profile,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
     }
 }
