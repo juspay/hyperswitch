@@ -5176,7 +5176,14 @@ pub trait PaymentRedirectFlow: Sync {
         // All redirect URLs name the payment connector, including the external
         // authentication return URL. Verify it against the active attempt.
         if payment_attempt.connector.as_deref() != Some(connector.as_str()) {
-            return Err(errors::ApiErrorResponse::PaymentNotFound.into());
+            return Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "The connector in the redirect URL does not match the active payment attempt"
+                    .to_string(),
+            })
+            .attach_printable(format!(
+                "Redirect connector {connector} does not match active payment attempt connector {:?}",
+                payment_attempt.connector
+            ));
         }
         let payment_pre_fetched_info = Some(operations::PaymentPreFetchedInformation {
             payment_intent,
