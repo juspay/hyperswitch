@@ -11732,9 +11732,9 @@ impl transformers::ForeignTryFrom<(&crate::types::AcceptDisputeRouterData, Optio
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             merchant_dispute_id: Some(router_data.request.dispute_id.clone()),
-            // Unused by UCS Accept (AcceptDisputeData reads only dispute_id); proto3 default when absent.
+            // UCS Accept does not use the transaction ID; proto3 default when absent.
             connector_transaction_id: connector_transaction_id.unwrap_or_default(),
-            dispute_id: router_data.request.connector_dispute_id.clone(),
+            connector_dispute_id: router_data.request.connector_dispute_id.clone(),
         })
     }
 }
@@ -11752,9 +11752,9 @@ impl transformers::ForeignTryFrom<(&crate::types::DefendDisputeRouterData, Optio
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             merchant_dispute_id: Some(router_data.request.dispute_id.clone()),
-            // Unused by UCS Defend (DisputeDefendData reads only dispute_id); proto3 default when absent.
+            // UCS Defend does not use the transaction ID; proto3 default when absent.
             connector_transaction_id: connector_transaction_id.unwrap_or_default(),
-            dispute_id: router_data.request.connector_dispute_id.clone(),
+            connector_dispute_id: router_data.request.connector_dispute_id.clone(),
             // DefendDisputeRequestData carries no reason code.
             reason_code: None,
         })
@@ -11859,7 +11859,7 @@ impl transformers::ForeignTryFrom<(&crate::types::SubmitEvidenceRouterData, Opti
             merchant_dispute_id: Some(request.dispute_id.clone()),
             // proto field is optional and unused by UCS SubmitEvidenceData.
             connector_transaction_id,
-            dispute_id: request.connector_dispute_id.clone(),
+            connector_dispute_id: request.connector_dispute_id.clone(),
             service_date: parse_dispute_evidence_date(
                 request.service_date.as_ref(),
                 "service_date",
