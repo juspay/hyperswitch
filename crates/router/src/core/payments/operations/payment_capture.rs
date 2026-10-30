@@ -53,6 +53,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -71,15 +72,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_intent = db
-            .find_payment_intent_by_payment_id_processor_merchant_id(
-                &payment_id,
-                &processor_merchant_id,
-                platform.get_processor().get_key_store(),
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        payment_intent = helpers::find_payment_intent(
+            db,
+            &payment_id,
+            &processor_merchant_id,
+            platform.get_processor().get_key_store(),
+            storage_scheme,
+            profile_id_from_auth_layer,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
@@ -406,6 +408,13 @@ impl<F: Send + Clone + Sync>
         request: &api::PaymentsCaptureRequest,
         processor: &'a domain::Processor,
     ) -> RouterResult<(PaymentCaptureOperation<'b, F>, operations::ValidateResult)> {
+        let request_merchant_id = request.merchant_id.as_ref();
+        helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "merchant_id".into(),
+                expected_format: "merchant_id from merchant account".to_string(),
+            })?;
+
         Ok((
             Box::new(self),
             operations::ValidateResult {

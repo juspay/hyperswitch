@@ -69,6 +69,17 @@ pub trait PaymentIntentInterface {
         merchant_key_store: &ProcessorKeyStore,
         storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<PaymentIntent, Self::Error>;
+
+    /// Retrieve a payment only when both its processor merchant and stored profile match.
+    #[cfg(feature = "v1")]
+    async fn find_payment_intent_by_payment_id_processor_merchant_id_profile_id(
+        &self,
+        payment_id: &id_type::PaymentId,
+        processor_merchant_id: &ProcessorMerchantId,
+        profile_id: &id_type::ProfileId,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, Self::Error>;
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_merchant_reference_id_profile_id(
         &self,
@@ -1860,6 +1871,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
 pub enum PaymentIntentFetchConstraints {
     Single {
         payment_intent_id: id_type::PaymentId,
+        profile_id: Option<Vec<id_type::ProfileId>>,
     },
     List(Box<PaymentIntentListParams>),
 }
@@ -1867,10 +1879,9 @@ pub enum PaymentIntentFetchConstraints {
 #[cfg(feature = "v1")]
 impl PaymentIntentFetchConstraints {
     pub fn get_profile_id_list(&self) -> Option<Vec<id_type::ProfileId>> {
-        if let Self::List(pi_list_params) = self {
-            pi_list_params.profile_id.clone()
-        } else {
-            None
+        match self {
+            Self::Single { profile_id, .. } => profile_id.clone(),
+            Self::List(pi_list_params) => pi_list_params.profile_id.clone(),
         }
     }
 }
@@ -2107,7 +2118,10 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             customer_email,
         } = value;
         if let Some(payment_intent_id) = payment_id {
-            Self::Single { payment_intent_id }
+            Self::Single {
+                payment_intent_id,
+                profile_id: profile_id.map(|profile_id| vec![profile_id]),
+            }
         } else {
             Self::List(Box::new(PaymentIntentListParams {
                 offset,
@@ -2163,7 +2177,10 @@ impl From<api_models::payments::PlatformPaymentListConstraints> for PaymentInten
             order,
         } = value;
         if let Some(payment_intent_id) = payment_id {
-            Self::Single { payment_intent_id }
+            Self::Single {
+                payment_intent_id,
+                profile_id: profile_id.map(|profile_id| vec![profile_id]),
+            }
         } else {
             Self::List(Box::new(PaymentIntentListParams {
                 offset,
@@ -2208,46 +2225,31 @@ where
     fn try_from(
         (constraints, auth_profile_id_list): (T, Option<Vec<id_type::ProfileId>>),
     ) -> Result<Self, Self::Error> {
-        let payment_intent_constraints = Self::from(constraints);
-        if let Self::List(mut pi_list_params) = payment_intent_constraints {
-            let profile_id_from_request_body = pi_list_params.profile_id;
-            match (profile_id_from_request_body, auth_profile_id_list) {
-                (None, None) => pi_list_params.profile_id = None,
-                (None, Some(auth_profile_id_list)) => {
-                    pi_list_params.profile_id = Some(auth_profile_id_list)
-                }
-                (Some(profile_id_from_request_body), None) => {
-                    pi_list_params.profile_id = Some(profile_id_from_request_body)
-                }
-                (Some(profile_id_from_request_body), Some(auth_profile_id_list)) => {
-                    let profile_id_from_request_body_is_available_in_auth_profile_id_list =
-                        profile_id_from_request_body
-                            .iter()
-                            .all(|profile_id| auth_profile_id_list.contains(profile_id));
-
-                    if profile_id_from_request_body_is_available_in_auth_profile_id_list {
-                        pi_list_params.profile_id = Some(profile_id_from_request_body)
-                    } else {
-                        // This scenario is very unlikely to happen
-                        let inaccessible_profile_ids: Vec<_> = profile_id_from_request_body
-                            .iter()
-                            .filter(|profile_id| !auth_profile_id_list.contains(profile_id))
-                            .collect();
-                        return Err(error_stack::Report::new(
-                            errors::api_error_response::ApiErrorResponse::PreconditionFailed {
-                                message: format!(
-                                    "Access not available for the given profile_id {inaccessible_profile_ids:?}",
-
-                                ),
-                            },
-                        ));
-                    }
-                }
+        let mut payment_intent_constraints = Self::from(constraints);
+        let profile_id = match &mut payment_intent_constraints {
+            Self::Single { profile_id, .. } => profile_id,
+            Self::List(params) => &mut params.profile_id,
+        };
+        match (profile_id.as_ref(), auth_profile_id_list) {
+            (None, Some(auth_profile_ids)) => *profile_id = Some(auth_profile_ids),
+            (Some(requested_profile_ids), Some(auth_profile_ids)) => {
+                let inaccessible_profile_ids: Vec<_> = requested_profile_ids
+                    .iter()
+                    .filter(|profile_id| !auth_profile_ids.contains(profile_id))
+                    .collect();
+                common_utils::fp_utils::when(!inaccessible_profile_ids.is_empty(), || {
+                    Err(error_stack::Report::new(
+                        errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                            message: format!(
+                                "Access not available for the given profile_id {inaccessible_profile_ids:?}",
+                            ),
+                        },
+                    ))
+                })?;
             }
-            Ok(Self::List(pi_list_params))
-        } else {
-            Ok(payment_intent_constraints)
+            (_, None) => {}
         }
+        Ok(payment_intent_constraints)
     }
 }
 

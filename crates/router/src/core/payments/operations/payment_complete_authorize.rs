@@ -56,6 +56,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let operations::PaymentMethodFetchData {
@@ -78,16 +79,23 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_intent = match prefetched_payment_intent.or(pre_fetched_intent) {
-            Some(payment_intent) => payment_intent,
-            None => db
-                .find_payment_intent_by_payment_id_processor_merchant_id(
-                    &payment_id,
-                    &processor_merchant_id,
-                    platform.get_processor().get_key_store(),
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+            Some(payment_intent) => {
+                helpers::validate_payment_profile(
+                    profile_id_from_auth_layer,
+                    payment_intent.profile_id.as_ref(),
+                )?;
+                payment_intent
+            }
+            None => helpers::find_payment_intent(
+                db,
+                &payment_id,
+                &processor_merchant_id,
+                platform.get_processor().get_key_store(),
+                storage_scheme,
+                profile_id_from_auth_layer,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
         };
 
         // TODO (#7195): Add platform merchant account validation once client_secret auth is solved
@@ -463,6 +471,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::PaymentMethodFetchData> {
         let payment_id = req.payment_id.as_ref().get_required_value("payment_id")?;
         let (payment_intent, payment_attempt) =
@@ -472,6 +481,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 &platform.get_processor().get_processor_merchant_id(),
                 platform.get_processor().get_key_store(),
                 platform.get_processor().get_storage_scheme(),
+                profile_id_from_auth_layer,
             ))
             .await?;
 
