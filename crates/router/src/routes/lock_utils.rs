@@ -145,6 +145,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::DeepHealthCheck | Flow::HealthCheck => Self::Health,
             Flow::OfferEngineConnectivityCheck => Self::Health,
             Flow::OfferEngineBrowseOffers => Self::OfferEngine,
+            Flow::OfferEngineDashboardProxy => Self::OfferEngine,
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
             Flow::PaymentMethodsCreate
             | Flow::PaymentMethodsMigrate
