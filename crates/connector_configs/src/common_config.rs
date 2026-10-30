@@ -75,6 +75,14 @@ pub struct PaymentMethodsEnabled {
     pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
 }
 
+/// Merchant IDs accepted by the connector configuration request helpers.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum MerchantIdMetadata {
+    Single(String),
+    ByCurrency(std::collections::HashMap<api_models::enums::Currency, String>),
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -83,7 +91,7 @@ pub struct ApiModelMetaData {
     pub merchant_account_id: Option<String>,
     pub account_name: Option<String>,
     pub terminal_id: Option<String>,
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<MerchantIdMetadata>,
     pub google_pay: Option<GoogleApiModelData>,
     pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayData>,

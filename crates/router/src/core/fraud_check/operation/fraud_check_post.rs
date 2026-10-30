@@ -256,6 +256,7 @@ where
                 cancellation_reason: frm_data.fraud_check.frm_error.clone(),
                 merchant_connector_details: None,
                 all_keys_required: None,
+                payment_method_data: None,
             };
             let cancel_res = Box::pin(payments::payments_core::<
                 Void,
@@ -305,6 +306,7 @@ where
             )
         {
             let capture_request = api_models::payments::PaymentsCaptureRequest {
+                feature_metadata: None,
                 payment_id: frm_data.payment_intent.get_id().to_owned(),
                 merchant_id: None,
                 amount_to_capture: None,
@@ -313,6 +315,7 @@ where
                 statement_descriptor_prefix: None,
                 merchant_connector_details: None,
                 all_keys_required: None,
+                payment_method_data: None,
             };
             let capture_response = Box::pin(payments::payments_core::<
                 Capture,
