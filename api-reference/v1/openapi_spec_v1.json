@@ -34221,6 +34221,39 @@
           },
           {
             "type": "object",
+            "required": [
+              "network_transaction_id_and_card_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_card_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndCardDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "network_transaction_id_and_network_token_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_network_token_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndNetworkTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "network_transaction_id_and_decrypted_wallet_token_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_decrypted_wallet_token_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndDecryptedWalletTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "VaultDataCard",
             "required": [
               "vault_data_card"
@@ -35608,6 +35641,14 @@
             "type": "string",
             "description": "The reason for the payment cancel",
             "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -35630,6 +35671,14 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
             "nullable": true
           }
         }
@@ -35676,6 +35725,14 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If true, returns stringified connector raw response body",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
             "nullable": true
           },
           "feature_metadata": {
@@ -38040,6 +38097,14 @@
           "reason": {
             "type": "string",
             "description": "Reason for incremental authorization",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
             "nullable": true
           }
         }
@@ -45422,6 +45487,14 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If true, returns stringified connector raw response body",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
             "nullable": true
           },
           "feature_metadata": {

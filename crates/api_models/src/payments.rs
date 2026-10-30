@@ -99,7 +99,10 @@ use crate::mandates;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     enums as api_enums,
-    mandates::RecurringDetails,
+    mandates::{
+        NetworkTransactionIdAndCardDetails, NetworkTransactionIdAndNetworkTokenDetails,
+        RecurringDetails,
+    },
     payment_methods,
     payments::additional_info::{
         BankDebitAdditionalData, BankRedirectDetails, BankTransferAdditionalData,
@@ -3567,6 +3570,9 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::CardWithNoCVC(_)
                     | PaymentMethodData::NetworkToken(_)
+                    | PaymentMethodData::NetworkTransactionIdAndCardDetails(_)
+                    | PaymentMethodData::NetworkTransactionIdAndNetworkTokenDetails(_)
+                    | PaymentMethodData::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
                     | PaymentMethodData::ProxyCard(_)
                     | PaymentMethodData::VaultCardTokenData(_)
                     | PaymentMethodData::MandatePayment
@@ -3910,6 +3916,22 @@ pub enum PaymentMethodData {
     MobilePayment(MobilePaymentData),
     #[schema(title = "NetworkToken")]
     NetworkToken(NetworkTokenData),
+    /// Network transaction ID and Card Details for MIT payments when payment_method_data
+    /// is not stored in the application
+    #[smithy(value_type = "NetworkTransactionIdAndCardDetails")]
+    NetworkTransactionIdAndCardDetails(Box<NetworkTransactionIdAndCardDetails>),
+    /// Network transaction ID and Network Token Details for MIT payments when payment_method_data
+    /// is not stored in the application
+    #[smithy(value_type = "NetworkTransactionIdAndNetworkTokenDetails")]
+    NetworkTransactionIdAndNetworkTokenDetails(Box<NetworkTransactionIdAndNetworkTokenDetails>),
+    /// Network transaction ID and Wallet Token details for MIT payments when payment_method_data
+    /// is not stored in the application
+    /// Applicable for wallet tokens such as Apple Pay and Google Pay.
+    #[smithy(value_type = "NetworkTransactionIdAndDecryptedWalletTokenDetails")]
+    #[schema(value_type = NetworkTransactionIdAndDecryptedWalletTokenDetails)]
+    NetworkTransactionIdAndDecryptedWalletTokenDetails(
+        Box<common_payments_types::NetworkTransactionIdAndDecryptedWalletTokenDetails>,
+    ),
     /// Vault card data used for external vault proxy payments.
     /// When this variant is used, the payment will be routed through the external vault proxy flow.
     #[schema(title = "VaultDataCard")]
@@ -3950,6 +3972,9 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::MandatePayment
             | Self::MobilePayment(_)
             | Self::NetworkToken(_)
+            | Self::NetworkTransactionIdAndCardDetails(_)
+            | Self::NetworkTransactionIdAndNetworkTokenDetails(_)
+            | Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
             | Self::ProxyCard(_)
             | Self::VaultCardTokenData(_) => None,
         }
@@ -3975,6 +4000,13 @@ impl PaymentMethodData {
             Self::OpenBanking(_) => Some(api_enums::PaymentMethod::OpenBanking),
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
             Self::NetworkToken(_) => Some(api_enums::PaymentMethod::NetworkToken),
+            Self::NetworkTransactionIdAndCardDetails(_)
+            | Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(_) => {
+                Some(api_enums::PaymentMethod::Card)
+            }
+            Self::NetworkTransactionIdAndNetworkTokenDetails(_) => {
+                Some(api_enums::PaymentMethod::NetworkToken)
+            }
             Self::CardToken(_) | Self::MandatePayment => None,
             Self::ProxyCard(_) | Self::VaultCardTokenData(_) => {
                 Some(api_enums::PaymentMethod::Card)
@@ -6957,6 +6989,9 @@ pub struct PaymentsCaptureRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     /// If true, returns stringified connector raw response body
     pub all_keys_required: Option<bool>,
+    /// Collects payment method data to be passed through to the Connector
+    #[smithy(value_type = "Option<PaymentMethodData>")]
+    pub payment_method_data: Option<PaymentMethodData>,
     /// Feature metadata persisted for this operation.
     #[cfg_attr(feature = "v1", smithy(value_type = "Option<CaptureFeatureMetadata>"))]
     pub feature_metadata: Option<CaptureFeatureMetadata>,
@@ -12431,6 +12466,9 @@ pub struct PaymentsCancelRequest {
     /// If enabled, provides whole connector response
     #[smithy(value_type = "Option<bool>")]
     pub all_keys_required: Option<bool>,
+    /// Collects payment method data to be passed through to the Connector
+    #[smithy(value_type = "Option<PaymentMethodData>")]
+    pub payment_method_data: Option<PaymentMethodData>,
 }
 
 /// Request to cancel a payment when the payment is already captured
@@ -12441,6 +12479,8 @@ pub struct PaymentsCancelPostCaptureRequest {
     pub payment_id: id_type::PaymentId,
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
+    /// Collects payment method data to be passed through to the Connector
+    pub payment_method_data: Option<PaymentMethodData>,
 }
 
 /// Tracking data for the post_capture_void_sync workflow stored in process_tracker
@@ -12469,6 +12509,8 @@ pub struct PaymentsIncrementalAuthorizationRequest {
     pub amount: MinorUnit,
     /// Reason for incremental authorization
     pub reason: Option<String>,
+    /// Collects payment method data to be passed through to the Connector
+    pub payment_method_data: Option<PaymentMethodData>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

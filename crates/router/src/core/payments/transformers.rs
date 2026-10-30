@@ -1157,6 +1157,8 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         webhook_url: None,
         merchant_order_reference_id: None,
         is_overcapture_enabled: None,
+        payment_method_data: None,
+        mandate_id: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1528,6 +1530,8 @@ pub async fn construct_router_data_for_cancel<'a>(
         merchant_order_reference_id: None,
         feature_metadata: None,
         payment_method_type: None,
+        payment_method_data: None,
+        mandate_id: None,
     };
 
     // Construct RouterDataV2 for cancel operation
@@ -5944,6 +5948,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
                 .connector_transaction_id(payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             connector_meta: payment_attempt.connector_metadata.clone(),
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -5982,6 +5988,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
                 .payment_attempt
                 .connector_metadata
                 .map(|secret| secret.expose()),
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6053,6 +6061,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             webhook_url: None,
             merchant_order_reference_id: None,
             is_overcapture_enabled: None,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6151,6 +6161,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             webhook_url,
             merchant_order_reference_id: payment_data.payment_intent.merchant_order_reference_id,
             is_overcapture_enabled: payment_data.payment_attempt.is_overcapture_enabled,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6216,6 +6228,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             merchant_order_reference_id: None,
             feature_metadata: None,
             payment_method_type: None,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6284,6 +6298,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             merchant_order_reference_id: payment_data.payment_intent.merchant_order_reference_id,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             feature_metadata,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
@@ -6343,6 +6359,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPo
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            payment_method_data: payment_data.payment_method_data.clone(),
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }
