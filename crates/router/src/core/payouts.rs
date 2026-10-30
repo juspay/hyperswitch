@@ -4031,10 +4031,13 @@ pub async fn make_payout_data(
                     None => (None, None, None),
                 }
             }
-            // Read-only proxy retrieval must not recover any temporary locker values.
-            payouts::PayoutRequest::PayoutRetrieveRequest(_)
+            // Only recover temporary source bank data when retrieval will sync with the connector.
+            // Proxy retrieval never needs temporary locker values.
+            payouts::PayoutRequest::PayoutRetrieveRequest(req)
                 if payout_attempt.execution_kind
-                    == api_enums::PayoutExecutionKind::ExternalVaultProxy =>
+                    == api_enums::PayoutExecutionKind::ExternalVaultProxy
+                    || !matches!(req.force_sync, Some(true))
+                    || !helpers::should_call_retrieve(payout_attempt.status) =>
             {
                 (None, None, None)
             }
