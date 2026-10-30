@@ -1054,7 +1054,7 @@
           "Payments"
         ],
         "summary": "Payments - Confirm",
-        "description": "Confirms a payment intent that was previously created with `confirm: false`. This action attempts to authorize the payment with the payment processor.\n\nExpected status transitions after confirmation:\n- `succeeded`: If authorization is successful and `capture_method` is `automatic`.\n- `requires_capture`: If authorization is successful and `capture_method` is `manual`.\n- `failed`: If authorization fails.",
+        "description": "Confirms a payment intent that was previously created with `confirm: false`. This action attempts to authorize the payment with the payment processor.\n\nExpected status transitions after confirmation:\n- `succeeded`: If authorization is successful and `capture_method` is `automatic`.\n- `requires_capture`: If authorization is successful and `capture_method` is `manual`.\n- `failed`: If authorization fails.\nProfile-restricted requests are authorized against the stored payment before payment-method\nprefetch, retry records, address updates, or other confirmation side effects.",
         "operationId": "Confirm a Payment",
         "parameters": [
           {
@@ -1151,7 +1151,7 @@
           "Payments"
         ],
         "summary": "Payments - Capture",
-        "description": "Captures the funds for a previously authorized payment intent where `capture_method` was set to `manual` and the payment is in a `requires_capture` state.\n\nUpon successful capture, the payment status usually transitions to `succeeded`.\nThe `amount_to_capture` can be specified in the request body; it must be less than or equal to the payment's `amount_capturable`. If omitted, the full capturable amount is captured.\n\nA payment must be in a capturable state (e.g., `requires_capture`). Attempting to capture an already `succeeded` (and fully captured) payment or one in an invalid state will lead to an error.\n",
+        "description": "Captures the funds for a previously authorized payment intent where `capture_method` was set to `manual` and the payment is in a `requires_capture` state.\n\nUpon successful capture, the payment status usually transitions to `succeeded`.\nThe `amount_to_capture` can be specified in the request body; it must be less than or equal to the payment's `amount_capturable`. If omitted, the full capturable amount is captured.\n\nA payment must be in a capturable state (e.g., `requires_capture`). Attempting to capture an already `succeeded` (and fully captured) payment or one in an invalid state will lead to an error.\nWhen authentication restricts access to a profile, the payment must belong to that profile.\nThis authorization is checked before creating a capture record, including for multiple captures.\nPayments outside the authenticated merchant/profile scope are treated as not found.\n",
         "operationId": "Capture a Payment",
         "parameters": [
           {
@@ -1208,6 +1208,16 @@
           },
           "400": {
             "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found in the authenticated merchant/profile scope",
             "content": {
               "application/json": {
                 "schema": {
@@ -1277,7 +1287,7 @@
           "Payments"
         ],
         "summary": "Payments - Cancel",
-        "description": "A Payment could can be cancelled when it is in one of these statuses: `requires_payment_method`, `requires_capture`, `requires_confirmation`, `requires_customer_action`.",
+        "description": "A Payment could can be cancelled when it is in one of these statuses: `requires_payment_method`, `requires_capture`, `requires_confirmation`, `requires_customer_action`.\nProfile-restricted authentication can cancel only payments in that profile.\nPayments outside the authenticated merchant/profile scope are treated as not found before cancellation side effects.",
         "operationId": "Cancel a Payment",
         "parameters": [
           {
@@ -1327,6 +1337,16 @@
           },
           "400": {
             "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found in the authenticated merchant/profile scope",
             "content": {
               "application/json": {
                 "schema": {
