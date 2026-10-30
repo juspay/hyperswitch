@@ -4123,18 +4123,19 @@ pub async fn retrieve_profile(
         })?;
 
     // Cache hits must preserve the same ownership constraint as the database query.
-    if business_profile.merchant_id != merchant_id {
-        return Err(errors::ApiErrorResponse::ProfileNotFound {
+    match business_profile {
+        business_profile if business_profile.merchant_id == merchant_id => {
+            Ok(service_api::ApplicationResponse::Json(
+                api_models::admin::ProfileResponse::foreign_try_from(business_profile)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse business profile details")?,
+            ))
+        }
+        _ => Err(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         }
-        .into());
+        .into()),
     }
-
-    Ok(service_api::ApplicationResponse::Json(
-        api_models::admin::ProfileResponse::foreign_try_from(business_profile)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse business profile details")?,
-    ))
 }
 
 pub async fn delete_profile(
@@ -4873,45 +4874,46 @@ pub async fn connector_agnostic_mit_toggle(
 ) -> RouterResponse<admin_types::ConnectorAgnosticMitChoice> {
     let db = state.store.as_ref();
 
-    if processor.get_account().get_id() != merchant_id {
-        return Err(errors::ApiErrorResponse::AccessForbidden {
+    match processor.get_account().get_id() {
+        processor_merchant_id if processor_merchant_id == merchant_id => {
+            let key_store = processor.get_key_store();
+
+            let business_profile = db
+                .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                    id: profile_id.get_string_repr().to_owned(),
+                })?;
+
+            if business_profile.merchant_id != *merchant_id {
+                Err(errors::ApiErrorResponse::AccessForbidden {
+                    resource: profile_id.get_string_repr().to_owned(),
+                })?
+            }
+
+            if business_profile.is_connector_agnostic_mit_enabled
+                != Some(connector_agnostic_mit_choice.enabled)
+            {
+                let profile_update = domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
+                    is_connector_agnostic_mit_enabled: connector_agnostic_mit_choice.enabled,
+                };
+
+                db.update_profile_by_profile_id(key_store, business_profile, profile_update)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                        id: profile_id.get_string_repr().to_owned(),
+                    })?;
+            }
+
+            Ok(service_api::ApplicationResponse::Json(
+                connector_agnostic_mit_choice,
+            ))
+        }
+        _ => Err(errors::ApiErrorResponse::AccessForbidden {
             resource: profile_id.get_string_repr().to_owned(),
         }
-        .into());
+        .into()),
     }
-
-    let key_store = processor.get_key_store();
-
-    let business_profile = db
-        .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
-
-    if business_profile.merchant_id != *merchant_id {
-        Err(errors::ApiErrorResponse::AccessForbidden {
-            resource: profile_id.get_string_repr().to_owned(),
-        })?
-    }
-
-    if business_profile.is_connector_agnostic_mit_enabled
-        != Some(connector_agnostic_mit_choice.enabled)
-    {
-        let profile_update = domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
-            is_connector_agnostic_mit_enabled: connector_agnostic_mit_choice.enabled,
-        };
-
-        db.update_profile_by_profile_id(key_store, business_profile, profile_update)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?;
-    }
-
-    Ok(service_api::ApplicationResponse::Json(
-        connector_agnostic_mit_choice,
-    ))
 }
 
 pub async fn transfer_key_store_to_key_manager(

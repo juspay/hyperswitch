@@ -22,7 +22,7 @@ impl Profile {
         conn: &DatabaseConnectionWithContext<'_>,
         business_profile: ProfileUpdateInternal,
     ) -> StorageResult<Self> {
-        match Box::pin(generics::generic_update_with_results::<
+        match Box::pin(generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,
@@ -40,9 +40,7 @@ impl Profile {
                 errors::DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
             },
-            Ok(mut business_profiles) => business_profiles
-                .pop()
-                .ok_or(error_stack::report!(errors::DatabaseError::NotFound)),
+            result => result,
         }
     }
 
