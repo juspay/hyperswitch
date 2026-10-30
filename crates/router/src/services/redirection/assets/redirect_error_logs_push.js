@@ -91,21 +91,20 @@ window.addEventListener("error", (event) => {
 });
   
 window.addEventListener("message", (event) => {
-    if (!shouldLogMessage(event)) {
-        return;
+    if (shouldLogMessage(event)) {
+        let url = window.location.href;
+        let { paymentId, merchantId, attemptId, connector } = parseRoute(url);
+        let urlToPost = getEnvRoute(url);
+        let log = {
+            message: event.data,
+            url,
+            paymentId,
+            merchantId,
+            attemptId,
+            connector,
+        };
+        postLog(log, urlToPost);
     }
-    let url = window.location.href;
-    let { paymentId, merchantId, attemptId, connector } = parseRoute(url);
-    let urlToPost = getEnvRoute(url);
-    let log = {
-        message: event.data,
-        url,
-        paymentId,
-        merchantId,
-        attemptId,
-        connector,
-    };
-    postLog(log, urlToPost);
 });
     
     

@@ -1,3 +1,4 @@
+use common_utils::link_utils::CspNonce;
 use error_stack::{Result, ResultExt};
 use tera::{Context, Tera};
 
@@ -13,7 +14,7 @@ pub enum PaymentLinkError {
 
 pub fn build_payment_link_html(
     payment_link_data: PaymentLinkFormData,
-    csp_nonce: &str,
+    csp_nonce: Option<&CspNonce>,
 ) -> Result<String, PaymentLinkError> {
     let (tera, mut context) = build_payment_link_template(payment_link_data, csp_nonce)
         .change_context(PaymentLinkError::TemplateBuildError)
@@ -32,7 +33,7 @@ pub fn build_payment_link_html(
 
 pub fn build_secure_payment_link_html(
     payment_link_data: PaymentLinkFormData,
-    csp_nonce: &str,
+    csp_nonce: Option<&CspNonce>,
 ) -> Result<String, PaymentLinkError> {
     let (tera, mut context) = build_payment_link_template(payment_link_data, csp_nonce)
         .change_context(PaymentLinkError::TemplateBuildError)
@@ -51,7 +52,7 @@ pub fn build_secure_payment_link_html(
 
 fn build_payment_link_template(
     payment_link_data: PaymentLinkFormData,
-    csp_nonce: &str,
+    csp_nonce: Option<&CspNonce>,
 ) -> Result<(Tera, Context), PaymentLinkError> {
     let mut tera = Tera::default();
 
@@ -110,8 +111,9 @@ fn build_payment_link_template(
             .to_string();
     let _ = tera.add_raw_template("payment_link", &html_template);
 
+    let csp_nonce = csp_nonce.map(CspNonce::peek);
     context.insert("rendered_meta_tag_html", &payment_link_data.html_meta_tags);
-    context.insert("csp_nonce", csp_nonce);
+    context.insert("csp_nonce", &csp_nonce);
     context.insert(
         "preload_link_tags",
         &get_preload_link_html_template(&payment_link_data.sdk_url, csp_nonce),
@@ -136,25 +138,33 @@ fn build_payment_link_template(
     Ok((tera, context))
 }
 
-fn get_hyper_loader_sdk(sdk_url: &url::Url, csp_nonce: &str) -> String {
+fn get_hyper_loader_sdk(sdk_url: &url::Url, csp_nonce: Option<&str>) -> String {
+    let nonce_attribute = get_nonce_attribute(csp_nonce);
     // The CSP blocks inline `onload` handlers, so the SDK is initialised from a
     // nonced script, which the parser runs only after the loader has executed.
     format!(
-        r#"<script nonce="{csp_nonce}" src="{sdk_url}"></script>
-    <script nonce="{csp_nonce}">if (window.Hyper) {{ initializeSDK(); }}</script>"#
+        r#"<script{nonce_attribute} src="{sdk_url}"></script>
+    <script{nonce_attribute}>if (window.Hyper) {{ initializeSDK(); }}</script>"#
     )
 }
 
-fn get_preload_link_html_template(sdk_url: &url::Url, csp_nonce: &str) -> String {
+fn get_preload_link_html_template(sdk_url: &url::Url, csp_nonce: Option<&str>) -> String {
+    let nonce_attribute = get_nonce_attribute(csp_nonce);
     format!(
         r#"<link rel="preload" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800" as="style">
-            <link rel="preload" href="{sdk_url}" as="script" nonce="{csp_nonce}">"#,
+            <link rel="preload" href="{sdk_url}" as="script"{nonce_attribute}>"#,
     )
+}
+
+fn get_nonce_attribute(csp_nonce: Option<&str>) -> String {
+    csp_nonce
+        .map(|nonce| format!(r#" nonce="{nonce}""#))
+        .unwrap_or_default()
 }
 
 pub fn get_payment_link_status(
     payment_link_data: PaymentLinkStatusData,
-    csp_nonce: &str,
+    csp_nonce: Option<&CspNonce>,
 ) -> Result<String, PaymentLinkError> {
     let mut tera = Tera::default();
 
@@ -214,7 +224,7 @@ pub fn get_payment_link_status(
 
     context.insert("rendered_js", &rendered_js);
     context.insert("logging_template", &logging_template);
-    context.insert("csp_nonce", csp_nonce);
+    context.insert("csp_nonce", &csp_nonce.map(CspNonce::peek));
 
     tera.render("payment_link_status", &context)
         .change_context(PaymentLinkError::TemplateRenderError)

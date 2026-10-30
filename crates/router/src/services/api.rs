@@ -22,6 +22,7 @@ pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
     consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
+    link_utils::CspNonce,
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
@@ -518,7 +519,7 @@ where
                 boxed_generic_link_data.data,
                 GenericLinksData::SecurePaymentLink(_)
             );
-            let csp_nonce = generate_csp_nonce();
+            let csp_nonce = CspNonce::generate();
             match build_generic_link_html(
                 boxed_generic_link_data.data,
                 boxed_generic_link_data.locale,
@@ -547,7 +548,7 @@ where
         }
 
         Ok(ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
-            let csp_nonce = generate_csp_nonce();
+            let csp_nonce = CspNonce::generate();
             let mut headers = HashSet::new();
             headers.insert(("content-security-policy", get_payment_link_csp(&csp_nonce)));
             match *boxed_payment_link_data {
@@ -1844,14 +1845,11 @@ pub fn build_redirection_form(
     }
 }
 
-pub fn generate_csp_nonce() -> String {
-    common_utils::crypto::generate_cryptographically_secure_random_string(32)
-}
-
 /// Only scripts carrying `csp_nonce` may run. `'strict-dynamic'` extends that trust to the
 /// scripts HyperLoader injects (wallet SDKs and its own chunks), so their hosts need not be
 /// listed. `https:` is honoured only by browsers that predate `'strict-dynamic'`.
-fn get_payment_link_csp(csp_nonce: &str) -> String {
+fn get_payment_link_csp(csp_nonce: &CspNonce) -> String {
+    let csp_nonce = csp_nonce.peek();
     format!(
         "default-src 'self' https:; \
          script-src 'nonce-{csp_nonce}' 'strict-dynamic' https:; \
@@ -1867,9 +1865,9 @@ fn get_payment_link_csp(csp_nonce: &str) -> String {
 
 pub fn build_payment_link_html(
     payment_link_data: PaymentLinkFormData,
-    csp_nonce: &str,
+    csp_nonce: &CspNonce,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    payment_link::build_payment_link_html(payment_link_data, csp_nonce)
+    payment_link::build_payment_link_html(payment_link_data, Some(csp_nonce))
         .map_err(|e| {
             logger::error!("Failed to build payment link HTML: {:?}", e);
             errors::ApiErrorResponse::InternalServerError
@@ -1879,9 +1877,9 @@ pub fn build_payment_link_html(
 
 pub fn build_secure_payment_link_html(
     payment_link_data: PaymentLinkFormData,
-    csp_nonce: &str,
+    csp_nonce: &CspNonce,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    payment_link::build_secure_payment_link_html(payment_link_data, csp_nonce)
+    payment_link::build_secure_payment_link_html(payment_link_data, Some(csp_nonce))
         .map_err(|e| {
             logger::error!("Failed to build secure payment link HTML: {:?}", e);
             errors::ApiErrorResponse::InternalServerError
@@ -1891,9 +1889,9 @@ pub fn build_secure_payment_link_html(
 
 pub fn get_payment_link_status(
     payment_link_data: PaymentLinkStatusData,
-    csp_nonce: &str,
+    csp_nonce: &CspNonce,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    payment_link::get_payment_link_status(payment_link_data, csp_nonce)
+    payment_link::get_payment_link_status(payment_link_data, Some(csp_nonce))
         .map_err(|e| {
             logger::error!("Failed to get payment link status: {:?}", e);
             errors::ApiErrorResponse::InternalServerError

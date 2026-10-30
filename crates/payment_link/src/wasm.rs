@@ -83,7 +83,7 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
     };
 
     // Preview HTML is not served by the router, so no CSP header exists for a nonce to match.
-    build_payment_link_html(payment_link_form_data, "")
+    build_payment_link_html(payment_link_form_data, None)
         .map_err(|e| format!("Failed to build payment link HTML: {:?}", e))
 }
 

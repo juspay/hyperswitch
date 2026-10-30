@@ -1,7 +1,10 @@
 use std::{future::Future, sync::Arc, time::Instant};
 
 use actix_web::{HttpRequest, HttpResponse, Responder};
-use common_utils::errors::{CustomResult, ErrorSwitch};
+use common_utils::{
+    errors::{CustomResult, ErrorSwitch},
+    link_utils::CspNonce,
+};
 use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
 
@@ -145,7 +148,7 @@ where
             match services::generic_link_response::build_generic_link_html(
                 boxed_generic_link_data.data,
                 boxed_generic_link_data.locale,
-                &api::generate_csp_nonce(),
+                &CspNonce::generate(),
             ) {
                 Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                 Err(_) => {
@@ -155,7 +158,7 @@ where
         }
 
         Ok(api::ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
-            let csp_nonce = api::generate_csp_nonce();
+            let csp_nonce = CspNonce::generate();
             match *boxed_payment_link_data {
                 api::PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
                     match api::build_payment_link_html(payment_link_data, &csp_nonce) {

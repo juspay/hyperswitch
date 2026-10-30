@@ -263,6 +263,24 @@ pub fn validate_wildcard_domain(domain: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Domain type for the Content-Security-Policy nonce that link pages generate per response
+#[derive(Debug)]
+pub struct CspNonce(Secret<String>);
+
+impl CspNonce {
+    /// Generate a new nonce from a cryptographically secure source
+    pub fn generate() -> Self {
+        Self(Secret::new(
+            crate::crypto::generate_cryptographically_secure_random_string(32),
+        ))
+    }
+
+    /// Get the nonce value to place in the CSP header and on the page's script tags
+    pub fn peek(&self) -> &str {
+        self.0.peek()
+    }
+}
+
 #[cfg(test)]
 mod domain_tests {
     use regex::Regex;

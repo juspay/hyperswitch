@@ -10,7 +10,7 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800"
     />
-    <script nonce="{{csp_nonce}}">
+    <script{% if csp_nonce %} nonce="{{csp_nonce}}"{% endif %}>
       window.__REDIRECTION_LOG_ENDPOINT = '{{redirection_log_endpoint}}';
       window.__REDIRECTION_LOG_MESSAGE_ORIGINS = [];
       {{logging_template}}
