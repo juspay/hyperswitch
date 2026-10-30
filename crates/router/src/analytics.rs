@@ -40,7 +40,9 @@ pub mod routes {
     use router_env::logger;
 
     use crate::{
-        analytics_validator::{request_validator, validate_report_request},
+        analytics_validator::{
+            request_validator, validate_analytics_scope, validate_report_request,
+        },
         consts::opensearch::SEARCH_INDEXES,
         core::{api_locking, errors::user::UserErrors, verification::utils},
         db::user_role::ListUserRolesByUserIdPayload,
@@ -587,6 +589,14 @@ pub mod routes {
             payload,
             |state, auth: AuthenticationData, req, _| async move {
                 let auth_info = auth.platform.to_merchant_level_auth_info();
+                validate_analytics_scope(
+                    &auth_info,
+                    &req.filters.merchant_id,
+                    &req.filters.profile_id,
+                )
+                .attach_printable(
+                    "Failed to validate analytics scope for merchant payment metrics",
+                )?;
                 let validator_response = request_validator(
                     AnalyticsRequest {
                         payment_attempt: Some(req.clone()),
@@ -696,6 +706,14 @@ pub mod routes {
                     .clone();
                 let auth_info: AuthInfo = auth.platform.to_profile_level_auth_info(profile_id);
 
+                validate_analytics_scope(
+                    &auth_info,
+                    &req.filters.merchant_id,
+                    &req.filters.profile_id,
+                )
+                .attach_printable(
+                    "Failed to validate analytics scope for profile payment metrics",
+                )?;
                 let validator_response = request_validator(
                     AnalyticsRequest {
                         payment_attempt: Some(req.clone()),
@@ -743,6 +761,14 @@ pub mod routes {
             |state, auth: AuthenticationData, req, _| async move {
                 let auth_info = auth.platform.to_merchant_level_auth_info();
 
+                validate_analytics_scope(
+                    &auth_info,
+                    &req.filters.merchant_id,
+                    &req.filters.profile_id,
+                )
+                .attach_printable(
+                    "Failed to validate analytics scope for merchant payment intent metrics",
+                )?;
                 let validator_response = request_validator(
                     AnalyticsRequest {
                         payment_intent: Some(req.clone()),
@@ -2396,7 +2422,17 @@ pub mod routes {
                             .get_id()
                             .clone();
 
-                        let auth_info = vec![auth.platform.to_profile_level_auth_info(profile_id)];
+                        let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+
+                        validate_analytics_scope(
+                            &auth_info,
+                            &[],
+                            constraints.profile_id.as_slice(),
+                        )
+                        .change_context(OpenSearchError::AccessForbiddenError)
+                        .attach_printable(
+                            "Failed to validate analytics scope for profile payment list",
+                        )?;
 
                         let filters: SearchFilters = (&constraints).into();
 
@@ -2418,7 +2454,7 @@ pub mod routes {
                                 .as_ref()
                                 .ok_or_else(|| error_stack::report!(OpenSearchError::NotEnabled))?,
                             search_req,
-                            auth_info,
+                            vec![auth_info],
                         )
                         .await
                         .map(|response| {

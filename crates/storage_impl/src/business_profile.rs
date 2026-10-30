@@ -250,9 +250,25 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
             .attach_printable("Missing KeyManagerState")?;
 
         #[cfg(not(feature = "accounts_cache"))]
-        {
-            fetch_func()
-                .await?
+        let profile = fetch_func().await?;
+
+        #[cfg(feature = "accounts_cache")]
+        let profile = Box::pin(cache::get_or_populate_in_memory_redis(
+            self,
+            &profile_cache_key(profile_id),
+            fetch_func(),
+            CacheId::Accounts,
+        ))
+        .await?;
+
+        // The cache is also populated by the lookup using only profile_id. Its key
+        // does not establish merchant ownership, so validate before decrypting it.
+        if profile.merchant_id != *merchant_id {
+            Err(report!(StorageError::ValueNotFound(
+                "Business profile not found for merchant".to_string(),
+            )))
+        } else {
+            profile
                 .convert(
                     state,
                     merchant_key_store.key.get_inner(),
@@ -260,24 +276,6 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
                 )
                 .await
                 .change_context(StorageError::DecryptionError)
-        }
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            Box::pin(cache::get_or_populate_in_memory_redis(
-                self,
-                &profile_cache_key(profile_id),
-                fetch_func(),
-                CacheId::Accounts,
-            ))
-            .await?
-            .convert(
-                state,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(StorageError::DecryptionError)
         }
     }
 
