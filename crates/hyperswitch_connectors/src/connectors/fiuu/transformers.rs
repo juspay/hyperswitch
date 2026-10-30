@@ -2448,6 +2448,38 @@ pub struct FiuuAuthnQueryRequest {
     signature: Secret<String>,
 }
 
+/// Connector level metadata for Fiuu. `enable_native_3ds` opts the merchant into standalone
+/// EMV 3DS (authentication.php), which Fiuu enables per merchant account.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct FiuuConnectorMetadataObject {
+    pub enable_native_3ds: Option<bool>,
+}
+
+impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for FiuuConnectorMetadataObject {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(
+        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> Result<Self, Self::Error> {
+        match meta_data {
+            Some(metadata) => utils::to_connector_meta_from_secret::<Self>(Some(metadata.clone()))
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                }),
+            None => Ok(Self::default()),
+        }
+    }
+}
+
+/// Whether native 3DS is enabled for the merchant (`enable_native_3ds` in the MCA metadata).
+pub fn is_native_3ds_enabled(
+    connector_meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+) -> bool {
+    FiuuConnectorMetadataObject::try_from(connector_meta_data)
+        .ok()
+        .and_then(|metadata| metadata.enable_native_3ds)
+        .unwrap_or(false)
+}
+
 /// AuthID from the authentication return POST, under the keys Fiuu/HS may carry it.
 pub(super) fn get_authentication_id_from_redirect(
     redirect_response: Option<&CompleteAuthorizeRedirectResponse>,

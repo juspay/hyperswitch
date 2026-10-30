@@ -1483,11 +1483,7 @@ impl ConnectorSpecifications for Fiuu {
                 auth_type.is_three_ds()
                     && request_data.is_card()
                     && request_data.authentication_data.is_none()
-                    && connector_meta_data
-                        .as_ref()
-                        .and_then(|metadata| metadata.peek().get("enable_native_3ds"))
-                        .and_then(Value::as_bool)
-                        .unwrap_or(false)
+                    && fiuu::is_native_3ds_enabled(&connector_meta_data)
             }
             api::CurrentFlowInfo::CompleteAuthorize { .. }
             | api::CurrentFlowInfo::SetupMandate { .. }
