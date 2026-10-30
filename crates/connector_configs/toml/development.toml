@@ -9526,6 +9526,8 @@ key1 = "Project ID"
 merchant_secret = "Secret key"
 
 [worldpayraft]
+[[worldpayraft.network_token]]
+  payment_method_type = "network_token"
 [[worldpayraft.credit]]
   payment_method_type = "Visa"
 [[worldpayraft.credit]]

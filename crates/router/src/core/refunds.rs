@@ -14,7 +14,8 @@ use diesel_models::{process_tracker::business_status, refund as diesel_refund};
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{
-    payments::HeaderPayload, router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
+    payment_method_data::ApiPaymentMethodDataMandateIds, payments::HeaderPayload,
+    router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
 };
 use hyperswitch_interfaces::{
     consts as interfaces_consts,
@@ -207,6 +208,8 @@ pub async fn refund_reverse_core(
         &refund,
         None,
         &merchant_connector_account,
+        None,
+        None,
     )
     .await?;
     router_data.request.reason = req.cancellation_reason.clone();
@@ -378,6 +381,23 @@ async fn execute_refund_void_post_refund_via_direct(
 
 // ********************************************** REFUND EXECUTE **********************************************
 
+async fn get_refund_payment_method_data(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_method_data: Option<api_models::payments::PaymentMethodData>,
+) -> Option<domain::PaymentMethodData> {
+    let request_payment_method_data = payment_method_data.map(domain::PaymentMethodData::from);
+
+    payments::operations::get_or_fetch_payment_method_data_for_operation(
+        state,
+        platform,
+        payment_attempt,
+        request_payment_method_data,
+    )
+    .await
+}
+
 #[instrument(skip_all)]
 pub async fn refund_create_core(
     state: SessionState,
@@ -485,6 +505,7 @@ pub async fn trigger_refund_to_gateway(
     creds_identifier: Option<String>,
     split_refunds: Option<SplitRefundsRequest>,
     all_keys_required: Option<bool>,
+    payment_method_data: Option<api_models::payments::PaymentMethodData>,
 ) -> RouterResult<(
     diesel_refund::Refund,
     Option<hyperswitch_masking::Secret<String>>,
@@ -532,6 +553,12 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
+    let mandate_id = payment_method_data
+        .as_ref()
+        .and_then(ApiPaymentMethodDataMandateIds::get_mandate_ids);
+    let payment_method_data =
+        get_refund_payment_method_data(state, platform, payment_attempt, payment_method_data).await;
+
     let mut router_data = core_utils::construct_refund_router_data(
         state,
         &routed_through,
@@ -542,6 +569,8 @@ pub async fn trigger_refund_to_gateway(
         refund,
         split_refunds,
         &merchant_connector_account,
+        payment_method_data,
+        mandate_id,
     )
     .await?;
 
@@ -1234,6 +1263,8 @@ pub async fn sync_refund_with_gateway(
         refund,
         split_refunds,
         &merchant_connector_account,
+        None,
+        None,
     )
     .await?;
 
@@ -1648,6 +1679,7 @@ pub async fn validate_and_create_refund(
     creds_identifier: Option<String>,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
+    let payment_method_data = req.payment_method_data.clone();
     let split_refunds = core_utils::get_split_refunds(SplitRefundInput {
         split_payment_request: payment_intent.split_payments.clone(),
         payment_charges: payment_attempt.charges.clone(),
@@ -1657,6 +1689,15 @@ pub async fn validate_and_create_refund(
 
     // Only for initial dev and testing
     let refund_type = req.refund_type.unwrap_or_default();
+
+    utils::when(
+        refund_type == api_models::refunds::RefundType::Scheduled && payment_method_data.is_some(),
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "payment_method_data is not supported for scheduled refunds".to_string(),
+            }))
+        },
+    )?;
 
     // If Refund Id not passed in request Generate one.
 
@@ -1810,6 +1851,7 @@ pub async fn validate_and_create_refund(
                 creds_identifier,
                 split_refunds,
                 req.all_keys_required,
+                payment_method_data,
             ))
             .await?;
 
@@ -2407,6 +2449,7 @@ pub async fn schedule_refund_execution(
     creds_identifier: Option<String>,
     split_refunds: Option<SplitRefundsRequest>,
     all_keys_required: Option<bool>,
+    payment_method_data: Option<api_models::payments::PaymentMethodData>,
 ) -> RouterResult<(
     diesel_refund::Refund,
     Option<hyperswitch_masking::Secret<String>>,
@@ -2456,6 +2499,7 @@ pub async fn schedule_refund_execution(
                                 creds_identifier,
                                 split_refunds,
                                 all_keys_required,
+                                payment_method_data,
                             ))
                             .await;
 
@@ -2752,6 +2796,7 @@ pub async fn trigger_refund_execute_workflow(
                 &payment_intent,
                 None,
                 split_refunds,
+                None,
                 None,
             ))
             .await?;
