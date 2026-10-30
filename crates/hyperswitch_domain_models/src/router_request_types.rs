@@ -954,6 +954,28 @@ pub struct PaymentsPostAuthenticateData {
     pub order_id: Option<String>,
 }
 
+impl TryFrom<PaymentsAuthorizeData> for PaymentsPostAuthenticateData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_type: data.payment_method_type,
+            payment_method_data: Some(data.payment_method_data),
+            amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
+            email: data.email,
+            currency: Some(data.currency),
+            capture_method: data.capture_method,
+            browser_info: data.browser_info,
+            connector_transaction_id: None,
+            redirect_response: None,
+            metadata: data.metadata.map(Secret::new),
+            complete_authorize_url: data.complete_authorize_url,
+            order_id: data.order_id,
+        })
+    }
+}
+
 impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
