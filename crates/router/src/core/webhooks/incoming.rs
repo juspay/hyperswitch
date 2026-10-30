@@ -366,6 +366,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let (ack_response, webhook_effect, serialized_body) = match outcome {
         Ok(super::gateway::WebhookOutcome::Skipped {
             event_type,
+            masked_log_payload,
             ack_response,
             ..
         }) => {
@@ -380,7 +381,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             (
                 ack_response,
                 WebhookResponseTracker::NoEffect,
-                Secret::new(serde_json::Value::Null),
+                masked_log_payload,
             )
         }
         Ok(super::gateway::WebhookOutcome::Processed {
@@ -4080,6 +4081,7 @@ pub async fn process_uas_incoming_webhook<'a>(
         return Ok(super::gateway::WebhookOutcome::Skipped {
             reference: None,
             event_type,
+            masked_log_payload: Secret::new(serde_json::Value::Null),
             ack_response,
         });
     }

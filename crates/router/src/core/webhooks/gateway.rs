@@ -67,6 +67,7 @@ pub enum WebhookOutcome {
     Skipped {
         reference: Option<ObjectReferenceId>,
         event_type: IncomingWebhookEvent,
+        masked_log_payload: common_utils::pii::SecretSerdeValue,
         ack_response: WebhookResponse<serde_json::Value>,
     },
     Processed {
@@ -342,11 +343,40 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
             .attach_printable("Failed to build webhook ack via connector")?;
 
         let outcome = match FilterDecision::evaluate(event_type, ctx).await {
-            FilterDecision::Skip => WebhookOutcome::Skipped {
-                reference,
-                event_type,
-                ack_response,
-            },
+            FilterDecision::Skip => {
+                let masked_log_payload = if matches!(
+                    event_type,
+                    IncomingWebhookEvent::EndpointVerification
+                ) {
+                    match ctx.connector.get_webhook_resource_object(&decoded_request) {
+                            Ok(resource_object) => Secret::new(
+                                resource_object.masked_serialize().unwrap_or_else(|error| {
+                                    logger::warn!(
+                                        ?error,
+                                        "Failed to mask-serialize endpoint-verification webhook resource object for logging"
+                                    );
+                                    serde_json::Value::Null
+                                }),
+                            ),
+                            Err(error) => {
+                                logger::warn!(
+                                    ?error,
+                                    "Failed to extract endpoint-verification webhook resource object for logging"
+                                );
+                                Secret::new(serde_json::Value::Null)
+                            }
+                        }
+                } else {
+                    Secret::new(serde_json::Value::Null)
+                };
+
+                WebhookOutcome::Skipped {
+                    reference,
+                    event_type,
+                    masked_log_payload,
+                    ack_response,
+                }
+            }
             FilterDecision::Proceed => {
                 let reference = reference.ok_or_else(|| {
                     error_stack::report!(errors::ApiErrorResponse::WebhookResourceNotFound)
@@ -433,6 +463,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
             FilterDecision::Skip => WebhookOutcome::Skipped {
                 reference,
                 event_type,
+                masked_log_payload: Secret::new(serde_json::Value::Null),
                 ack_response: WebhookResponse::StatusOk,
             },
             FilterDecision::Proceed => {
