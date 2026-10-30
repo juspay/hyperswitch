@@ -4,7 +4,10 @@ use std::time::Duration;
 
 use external_services::http_client::client::get_client_builder;
 use hyperswitch_interfaces::types::Proxy;
-use reqwest::{Client, Response};
+use reqwest::{
+    header::{HeaderMap, HeaderValue},
+    Client, Response,
+};
 use url::Url;
 
 mod authorize_token;
@@ -25,7 +28,7 @@ pub struct RouterClient {
 }
 
 impl RouterClient {
-    pub fn new(mut base_url: Url, proxy: &Proxy) -> Result<Self, RouterError> {
+    pub fn new(mut base_url: Url, tenant_id: &str, proxy: &Proxy) -> Result<Self, RouterError> {
         // Treat the configured path as a directory so /api works with or without a trailing slash.
         if !base_url.path().ends_with('/') {
             base_url.set_path(&format!("{}/", base_url.path()));
@@ -35,8 +38,14 @@ impl RouterClient {
             // With no explicit proxy, retain direct transport rather than inheriting environment proxies.
             builder = builder.no_proxy();
         }
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-tenant-id",
+            HeaderValue::from_str(tenant_id).map_err(|_| RouterError::Unavailable)?,
+        );
         Ok(Self {
             client: builder
+                .default_headers(headers)
                 // Public Router ingress requires a User-Agent on service-to-service requests.
                 .user_agent("hyperswitch-observability")
                 .timeout(Duration::from_secs(3))
@@ -80,6 +89,18 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn invalid_tenant_header_fails_client_initialization() {
+        assert!(matches!(
+            RouterClient::new(
+                "http://router.invalid".parse().unwrap(),
+                "public\r\nx-injected: value",
+                &Proxy::default(),
+            ),
+            Err(RouterError::Unavailable)
+        ));
+    }
+
     #[actix_web::test]
     async fn configured_http_proxy_preserves_api_paths_and_credentials() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -95,6 +116,7 @@ mod tests {
                 let calls = calls.clone();
                 async move {
                     calls.fetch_add(1, Ordering::SeqCst);
+                    assert_eq!(request.headers().get("x-tenant-id").unwrap(), "public");
                     assert_eq!(
                         request.headers().get("user-agent").unwrap(),
                         "hyperswitch-observability"
@@ -128,8 +150,12 @@ mod tests {
         .run();
         let handle = server.handle();
         actix_web::rt::spawn(server);
-        let client =
-            RouterClient::new("http://router.invalid/api".parse().unwrap(), &proxy).unwrap();
+        let client = RouterClient::new(
+            "http://router.invalid/api".parse().unwrap(),
+            "public",
+            &proxy,
+        )
+        .unwrap();
         assert_eq!(
             client
                 .authorize_token(
@@ -157,6 +183,7 @@ mod tests {
             App::new().route(
                 "/api/user",
                 web::get().to(|request: HttpRequest| async move {
+                    assert_eq!(request.headers().get("x-tenant-id").unwrap(), "public");
                     assert_eq!(
                         request.headers().get("authorization").unwrap(),
                         "Bearer signed.token.value"
@@ -181,7 +208,7 @@ mod tests {
             bypass_proxy_hosts: Some("127.0.0.1".into()),
             ..Proxy::default()
         };
-        let client = RouterClient::new(url.parse().unwrap(), &proxy).unwrap();
+        let client = RouterClient::new(url.parse().unwrap(), "public", &proxy).unwrap();
         assert_eq!(
             client
                 .get_user_email(&Secret::new("signed.token.value".into()))
@@ -214,8 +241,12 @@ mod tests {
             .await
             .expect("proxy receives CONNECT before timeout");
         });
-        let client =
-            RouterClient::new("https://router.invalid/api/".parse().unwrap(), &proxy).unwrap();
+        let client = RouterClient::new(
+            "https://router.invalid/api/".parse().unwrap(),
+            "public",
+            &proxy,
+        )
+        .unwrap();
         assert_eq!(
             client
                 .get_user_email(&Secret::new("signed.token.value".into()))
@@ -232,7 +263,11 @@ mod tests {
             ..Proxy::default()
         };
         assert!(matches!(
-            RouterClient::new("https://app.hyperswitch.io/api/".parse().unwrap(), &proxy),
+            RouterClient::new(
+                "https://app.hyperswitch.io/api/".parse().unwrap(),
+                "public",
+                &proxy
+            ),
             Err(RouterError::Unavailable)
         ));
     }
@@ -251,9 +286,12 @@ mod tests {
                 "https://app.hyperswitch.io/api/",
             ),
         ] {
-            let client =
-                RouterClient::new(Url::parse(base).expect("valid base URL"), &Proxy::default())
-                    .expect("HTTP client builds");
+            let client = RouterClient::new(
+                Url::parse(base).expect("valid base URL"),
+                "public",
+                &Proxy::default(),
+            )
+            .expect("HTTP client builds");
             for endpoint in ["user/internal/authorize", "user"] {
                 assert_eq!(
                     client
