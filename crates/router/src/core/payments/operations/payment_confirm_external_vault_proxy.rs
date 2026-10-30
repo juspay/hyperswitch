@@ -874,7 +874,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                     pm_transformers::fetch_payment_method_from_modular_service(
                         state,
                         platform,
-                        &profile_id,
+                        profile_id,
                         &payment_method_id,
                         Some(card_token),
                         // External vault proxy cards are not in the internal vault; requesting raw
