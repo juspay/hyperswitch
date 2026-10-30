@@ -94,7 +94,7 @@ impl WorldpayvantivAuthType {
             Some(merchant_id) => Ok(merchant_id.clone()),
             None => {
                 let currency = currency.ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
                 WorldpayvantivMetadataObject::try_from(connector_meta_data)?
                     .get_merchant_id_for_currency(currency)
