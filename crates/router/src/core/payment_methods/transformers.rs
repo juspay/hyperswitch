@@ -1410,7 +1410,7 @@ pub async fn call_modular_payment_method_update(
         state
             .conf
             .internal_merchant_id_profile_id_auth
-            .internal_api_key
+            .outbound_api_key()
             .clone()
             .expose()
             .to_string()
@@ -2159,10 +2159,10 @@ pub async fn retrieve_pm_modular_service_call(
     profile_id: &id_type::ProfileId,
     payment_method_fetch_req: RetrievePaymentMethodV1Request,
 ) -> CustomResult<RetrievePaymentMethodResponse, errors::ApiErrorResponse> {
-    let internal_api_key = &state
+    let internal_api_key = state
         .conf
         .internal_merchant_id_profile_id_auth
-        .internal_api_key;
+        .outbound_api_key();
     let mut parent_headers = Headers::new();
     parent_headers.insert((
         headers::X_PROFILE_ID.to_string(),
@@ -2429,10 +2429,10 @@ pub async fn list_customer_payment_methods_from_modular_service(
     customer_id: id_type::GlobalCustomerId,
 ) -> CustomResult<Vec<payment_methods::types::PaymentMethodResponseItemV1>, errors::ApiErrorResponse>
 {
-    let internal_api_key = &state
+    let internal_api_key = state
         .conf
         .internal_merchant_id_profile_id_auth
-        .internal_api_key;
+        .outbound_api_key();
     let mut parent_headers = Headers::new();
     parent_headers.insert((
         headers::X_PROFILE_ID.to_string(),
@@ -2490,10 +2490,10 @@ pub async fn create_pm_modular_service_call(
     profile_id: &id_type::ProfileId,
     payment_method_create_req: CreatePaymentMethodV1Request,
 ) -> CustomResult<CreatePaymentMethodResponse, errors::ApiErrorResponse> {
-    let internal_api_key = &state
+    let internal_api_key = state
         .conf
         .internal_merchant_id_profile_id_auth
-        .internal_api_key;
+        .outbound_api_key();
     let mut parent_headers = Headers::new();
     parent_headers.insert((
         headers::X_PROFILE_ID.to_string(),

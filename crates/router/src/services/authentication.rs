@@ -2709,11 +2709,9 @@ impl<F> InternalMerchantIdProfileIdAuth<F> {
             (internal_api_key, merchant_id, profile_id)
         {
             let config = state.conf();
-            if internal_api_key
-                != *config
-                    .internal_merchant_id_profile_id_auth
-                    .internal_api_key
-                    .peek()
+            if !config
+                .internal_merchant_id_profile_id_auth
+                .accepts_api_key(&internal_api_key)
             {
                 return Err(errors::ApiErrorResponse::Unauthorized)
                     .attach_printable("Internal API key authentication failed");
@@ -2856,12 +2854,10 @@ where
 
         match internal_api_key {
             Some(key) => {
-                if key
-                    == *state
-                        .conf()
-                        .internal_merchant_id_profile_id_auth
-                        .internal_api_key
-                        .peek()
+                if state
+                    .conf()
+                    .internal_merchant_id_profile_id_auth
+                    .accepts_api_key(&key)
                 {
                     Ok(((), AuthenticationType::InternalApiKey))
                 } else {
