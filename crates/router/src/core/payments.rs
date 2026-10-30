@@ -832,7 +832,13 @@ where
     let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
     let payment_method_fetch_data = operation
         .to_domain()?
-        .fetch_payment_method(state, &req, platform, &feature_config)
+        .fetch_payment_method(
+            state,
+            &req,
+            platform,
+            &feature_config,
+            profile_id_from_auth_layer.as_ref(),
+        )
         .await?;
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
@@ -856,6 +862,7 @@ where
             payment_method_fetch_data,
             dimensions,
             payment_pre_fetched_info,
+            profile_id_from_auth_layer.as_ref(),
         )
         .await?;
 
@@ -1836,6 +1843,7 @@ where
             operations::PaymentMethodFetchData::default(),
             dimensions,
             None,
+            profile_id_from_auth_layer.as_ref(),
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -3246,7 +3254,13 @@ where
 
     let payment_method_info = operation
         .to_domain()?
-        .fetch_payment_method(state, &req, &platform, &feature_config)
+        .fetch_payment_method(
+            state,
+            &req,
+            &platform,
+            &feature_config,
+            profile_id_from_auth_layer.as_ref(),
+        )
         .await?;
 
     let operations::GetTrackerResponse {
@@ -3266,6 +3280,7 @@ where
         payment_method_info,
         &dimensions,
         None,
+        profile_id_from_auth_layer.as_ref(),
     ))
     .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());

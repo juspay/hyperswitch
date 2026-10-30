@@ -242,6 +242,7 @@ pub struct GetTrackerResponse<'a, F: Clone, R, D> {
 
 /// This trait is used to fetch / create all the tracker related information for a payment
 /// This functions returns the session data that is used by subsequent functions
+/// The authenticated profile is available to authorize stored payments before tracker side effects.
 #[async_trait]
 pub trait GetTracker<F: Clone, D, R>: Send {
     #[cfg(feature = "v1")]
@@ -258,6 +259,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         payment_method_fetch_data: PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         payment_pre_fetched_info: Option<PaymentPreFetchedInformation>,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
     #[cfg(feature = "v2")]
@@ -371,6 +373,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _request: &R,
         _platform: &domain::Platform,
         _feature_config: &core_utils::FeatureConfig,
+        _profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<PaymentMethodFetchData> {
         Ok(PaymentMethodFetchData::default())
     }

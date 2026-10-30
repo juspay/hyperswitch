@@ -53,6 +53,7 @@ impl<F: Send + Clone + Sync>
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        _profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,

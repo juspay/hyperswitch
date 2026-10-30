@@ -132,6 +132,60 @@ use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 #[cfg(feature = "v1")]
 use crate::{core::utils::create_encrypted_data, types::storage::CustomerUpdate::Update};
 
+/// Use a profile-scoped lookup when authentication supplies a profile, otherwise retain merchant scope.
+#[cfg(feature = "v1")]
+pub async fn find_payment_intent(
+    db: &dyn StorageInterface,
+    payment_id: &id_type::PaymentId,
+    processor_merchant_id: &domain::ProcessorMerchantId,
+    key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
+    profile_id_from_auth_layer: Option<&id_type::ProfileId>,
+) -> CustomResult<PaymentIntent, errors::StorageError> {
+    match profile_id_from_auth_layer {
+        Some(profile_id) => {
+            db.find_payment_intent_by_payment_id_processor_merchant_id_profile_id(
+                payment_id,
+                processor_merchant_id,
+                profile_id,
+                key_store,
+                storage_scheme,
+            )
+            .await
+        }
+        None => {
+            db.find_payment_intent_by_payment_id_processor_merchant_id(
+                payment_id,
+                processor_merchant_id,
+                key_store,
+                storage_scheme,
+            )
+            .await
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+pub(super) fn validate_payment_profile(
+    authenticated_profile_id: Option<&id_type::ProfileId>,
+    payment_profile_id: Option<&id_type::ProfileId>,
+) -> RouterResult<()> {
+    match (authenticated_profile_id, payment_profile_id) {
+        (Some(authenticated), Some(payment)) => fp_utils::when(authenticated != payment, || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Profile id authentication failed. Please use the correct JWT token"
+                    .to_string(),
+            }
+            .into())
+        }),
+        (Some(_), None) => Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Couldn't find profile_id in record for authentication".to_string(),
+        }
+        .into()),
+        (None, _) => Ok(()),
+    }
+}
+
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_or_update_address_for_payment_by_request(
