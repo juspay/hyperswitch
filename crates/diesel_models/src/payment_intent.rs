@@ -93,8 +93,8 @@ pub struct PaymentIntent {
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
     pub enable_avs_check: Option<bool>,
-    pub settlement_conclusion_applied: Option<bool>,
     pub sender_details: Option<Encryption>,
+    pub settlement_conclusion_applied: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -222,8 +222,8 @@ pub struct PaymentIntent {
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
     pub enable_avs_check: Option<bool>,
-    pub settlement_conclusion_applied: Option<bool>,
     pub sender_details: Option<Encryption>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -451,8 +451,8 @@ pub struct PaymentIntentNew {
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
     pub enable_avs_check: Option<bool>,
-    pub settlement_conclusion_applied: Option<bool>,
     pub sender_details: Option<Encryption>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -550,8 +550,8 @@ pub struct PaymentIntentNew {
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
     pub enable_avs_check: Option<bool>,
-    pub settlement_conclusion_applied: Option<bool>,
     pub sender_details: Option<Encryption>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -752,8 +752,8 @@ pub struct PaymentIntentUpdateFields {
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
     pub enable_avs_check: Option<bool>,
-    pub settlement_conclusion_applied: Option<bool>,
     pub sender_details: Option<Encryption>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 // TODO: uncomment fields as necessary
@@ -807,8 +807,8 @@ pub struct PaymentIntentUpdateInternal {
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
     pub enable_avs_check: Option<bool>,
-    pub settlement_conclusion_applied: Option<bool>,
     pub sender_details: Option<Encryption>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -876,8 +876,8 @@ pub struct PaymentIntentUpdateInternal {
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
     pub enable_avs_check: Option<bool>,
-    pub settlement_conclusion_applied: Option<bool>,
     pub sender_details: Option<Encryption>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
