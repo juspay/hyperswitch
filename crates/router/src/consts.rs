@@ -483,6 +483,9 @@ pub mod superposition {
     /// Whether the adaptive revenue recovery retry algorithm — static ladder combined with
     /// the smart algorithm — replaces the decider-based smart retry implementation
     pub const ADAPTIVE_RETRY_ENABLED: &str = "revenue_recovery.adaptive_retry_enabled";
+    /// Whether a retry may be made with any of the customer's cards stored in redis, rather than
+    /// only the card the invoice last used — whichever algorithm decides when it runs
+    pub const CARD_SWITCHING_ENABLED: &str = "revenue_recovery.card_switching_enabled";
     /// Whether A/B routing decides which retry implementation an invoice runs.
     pub const REVENUE_RECOVERY_AB_ENABLED: &str = "revenue_recovery.ab_enabled";
     /// Which retry implementation inside the `Smart` arm an invoice runs under A/B routing.
