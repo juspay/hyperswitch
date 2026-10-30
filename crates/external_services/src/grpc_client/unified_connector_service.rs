@@ -1621,9 +1621,7 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.frm_service_client
-            .clone()
-            .pre_risk_check(request)
+        Box::pin(self.frm_service_client.clone().pre_risk_check(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
